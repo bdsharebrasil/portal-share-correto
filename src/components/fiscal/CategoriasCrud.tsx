@@ -295,7 +295,7 @@ export function CategoriasCrud() {
                     <Search className="h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[200px] p-0" align="start">
+                <PopoverContent className="w-[280px] p-0 z-50" align="start">
                   <div className="p-2 space-y-2">
                     <Input
                       placeholder="Buscar cliente..."
