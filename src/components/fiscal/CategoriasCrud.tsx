@@ -296,12 +296,13 @@ export function CategoriasCrud() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[280px] p-0 z-50" align="start">
-                  <div className="p-2 space-y-2">
+                  <div className="p-3 space-y-2 bg-card">
                     <Input
+                      autoFocus
                       placeholder="Buscar cliente..."
                       value={clienteSearchTerm}
                       onChange={(e) => setClienteSearchTerm(e.target.value)}
-                      className="h-8"
+                      className="h-9 bg-background border-border/50"
                     />
                     {isLoadingClientes ? (
                       <div className="flex justify-center py-2">
