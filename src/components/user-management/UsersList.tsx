@@ -110,22 +110,23 @@ export function UsersList() {
 
   const deleteMutation = useMutation({
     mutationFn: async (userId: string) => {
-      // Delete roles
-      const { error: rolesErr } = await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId);
-      if (rolesErr) console.error('Error deleting roles:', rolesErr);
-
-      // Delete profile
-      const { error } = await supabase
-        .from('user_profiles')
-        .delete()
-        .eq('id', userId);
-      if (error) throw error;
+      // Call the delete-user edge function to delete from auth
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { userId }
+      });
+      
+      if (error) {
+        throw new Error(error.message || 'Erro ao excluir usuário');
+      }
+      
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+      
+      return data;
     },
     onSuccess: () => {
-      toast({ title: 'Usuário excluído', description: 'Perfil removido com sucesso.' });
+      toast({ title: 'Usuário excluído', description: 'Usuário removido com sucesso do sistema.' });
       queryClient.invalidateQueries({ queryKey: ['all-users-combined'] });
     },
     onError: (err: any) => {
