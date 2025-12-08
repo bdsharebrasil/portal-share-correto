@@ -309,12 +309,12 @@ export function CategoriasCrud() {
                         <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                       </div>
                     ) : filteredClientes.length > 0 ? (
-                      <div className="max-h-48 overflow-y-auto space-y-1">
+                      <div className="max-h-56 overflow-y-auto space-y-0">
                         {filteredClientes.map((cliente) => (
                           <Button
                             key={cliente.id}
                             variant="ghost"
-                            className="w-full justify-between"
+                            className="w-full justify-between h-9 px-3 hover:bg-muted"
                             onClick={() => {
                               setFormData(prev => ({
                                 ...prev,
@@ -325,15 +325,15 @@ export function CategoriasCrud() {
                               setClienteSearchTerm("");
                             }}
                           >
-                            {cliente.company_name}
+                            <span className="text-sm text-foreground">{cliente.company_name}</span>
                             {formData.cliente_id === cliente.id && (
-                              <Check className="h-4 w-4 text-primary" />
+                              <Check className="h-4 w-4 text-primary flex-shrink-0" />
                             )}
                           </Button>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground text-center py-2">
+                      <p className="text-xs text-muted-foreground text-center py-3">
                         Nenhum cliente encontrado
                       </p>
                     )}
