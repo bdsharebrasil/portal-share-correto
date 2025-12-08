@@ -903,24 +903,24 @@ export function ContasReceber() {
                     <div key={conta.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors last:border-b-0">
                       {/* Desktop Layout - Grid */}
                       <div className="hidden lg:grid py-5 items-center px-6 text-sm" style={{gridTemplateColumns: '80px 140px 1fr 110px 120px 100px 100px'}}>
-                        <div className="w-20 flex-shrink-0 text-foreground font-medium">
+                        <div className="text-foreground font-medium truncate">
                           {conta.numero}
                         </div>
-                        <div className="w-32 flex-shrink-0 font-semibold text-foreground truncate" title={conta.cliente_nome}>
+                        <div className="font-semibold text-foreground truncate" title={conta.cliente_nome}>
                           {conta.cliente_nome}
                         </div>
-                        <div className="flex-1 min-w-[150px] text-muted-foreground truncate" title={conta.descricao || "-"}>
+                        <div className="text-muted-foreground truncate" title={conta.descricao || "-"}>
                           {conta.descricao || "-"}
                         </div>
-                        <div className="w-28 flex-shrink-0 text-foreground font-medium">
+                        <div className="text-foreground font-medium">
                           {format(parseLocalDate(conta.data_vencimento), "dd/MM/yyyy")}
                         </div>
-                        <div className="w-28 flex-shrink-0 text-right font-semibold text-green-500 whitespace-nowrap">
+                        <div className="text-right font-semibold text-green-500 whitespace-nowrap">
                           R$ {parseFloat(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </div>
-                        <div className="w-24 flex-shrink-0">
+                        <div className="col-span-1">
                           <Select value={conta.status} onValueChange={(value) => handleChangeStatus(conta.id, value)}>
-                            <SelectTrigger className={`w-full h-8 text-xs font-medium border rounded-lg ${getStatusColor(conta.status)}`}>
+                            <SelectTrigger className={`h-8 text-xs font-medium border rounded-lg ${getStatusColor(conta.status)}`}>
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="bg-card border-border">
@@ -930,7 +930,7 @@ export function ContasReceber() {
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="w-28 flex-shrink-0 flex gap-1 justify-end items-center">
+                        <div className="flex gap-1 justify-end items-center">
                           {conta.arquivo_pdf_url && (
                             <a
                               href={conta.arquivo_pdf_url}
