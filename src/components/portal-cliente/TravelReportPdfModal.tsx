@@ -96,28 +96,29 @@ export function TravelReportPdfModal({
       };
 
       // Import jsPDF to generate PDF as blob
-      const { jsPDF } = await import("jspdf");
-      const doc = new jsPDF("p", "mm", "a4");
+      const jspdfModule = await import("jspdf");
+      const JsPdfClass = jspdfModule.default;
+      const doc = new JsPdfClass("p", "mm", "a4");
 
       // Set up colors and styles
-      const primaryColor = [26, 188, 156]; // teal
-      const textColor = [50, 50, 50];
-      const lightGray = [240, 240, 240];
+      const primaryColor: [number, number, number] = [26, 188, 156]; // teal
+      const textColor: [number, number, number] = [50, 50, 50];
+      const lightGray: [number, number, number] = [240, 240, 240];
 
       // Title
       doc.setFontSize(20);
-      doc.setTextColor(...primaryColor);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
       doc.text("RELATÓRIO DE VIAGEM", 105, 20, { align: "center" });
 
       // Report number
       doc.setFontSize(10);
-      doc.setTextColor(...textColor);
+      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
       doc.text(`Nº ${pdfReport.numero}`, 105, 28, { align: "center" });
 
       // Header info
       let yPos = 38;
       doc.setFontSize(9);
-      doc.setTextColor(...textColor);
+      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
 
       const headerInfo = [
         { label: "Cliente:", value: pdfReport.cliente_nome || "-" },
@@ -140,13 +141,13 @@ export function TravelReportPdfModal({
       // Expenses
       if (pdfReport.despesas && pdfReport.despesas.length > 0) {
         doc.setFontSize(10);
-        doc.setTextColor(...primaryColor);
+        doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
         doc.text("DESPESAS", 15, yPos);
         yPos += 8;
 
         doc.setFontSize(8);
-        doc.setTextColor(...textColor);
-        doc.setFillColor(...lightGray);
+        doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+        doc.setFillColor(lightGray[0], lightGray[1], lightGray[2]);
 
         // Table header
         const col1 = 15;
@@ -183,7 +184,7 @@ export function TravelReportPdfModal({
       yPos += 8;
 
       doc.setFontSize(9);
-      doc.setTextColor(...primaryColor);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
 
       const summaryInfo = [
         { label: "Total Combustível:", value: `R$ ${pdfReport.total_combustivel?.toFixed(2) || "0.00"}` },
@@ -205,7 +206,7 @@ export function TravelReportPdfModal({
       yPos += 8;
 
       doc.setFontSize(11);
-      doc.setTextColor(...primaryColor);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
       doc.text("TOTAL GERAL", 15, yPos);
       doc.text(`R$ ${pdfReport.valor_total?.toFixed(2) || "0.00"}`, 195, yPos, { align: "right" });
 

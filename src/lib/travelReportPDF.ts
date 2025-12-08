@@ -465,7 +465,11 @@ export const generatePDF = async (report: TravelReport, currentFullName?: string
   const htmlContent = generateHTMLReport(report, currentFullName);
 
   const iframe = document.createElement('iframe');
-  iframe.style.display = 'none';
+  iframe.style.position = 'absolute';
+  iframe.style.left = '-9999px';
+  iframe.style.top = '0';
+  iframe.style.width = '210mm';
+  iframe.style.height = '297mm';
   document.body.appendChild(iframe);
 
   try {
@@ -476,7 +480,24 @@ export const generatePDF = async (report: TravelReport, currentFullName?: string
     iframeDoc.write(htmlContent);
     iframeDoc.close();
 
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Aguarda mais tempo para garantir que o conteúdo carregue completamente
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // Aguarda todas as imagens carregarem
+    const images = iframeDoc.querySelectorAll('img');
+    await Promise.all(
+      Array.from(images).map(
+        (img) =>
+          new Promise((resolve) => {
+            if (img.complete) {
+              resolve(true);
+            } else {
+              img.onload = () => resolve(true);
+              img.onerror = () => resolve(false); // Continua mesmo se a imagem falhar
+            }
+          })
+      )
+    );
 
     const config = generatePDFConfig(report.numero);
     const html2pdf = (window as any).html2pdf ? (window as any).html2pdf : await loadHtml2PdfFromCdn();
@@ -486,11 +507,13 @@ export const generatePDF = async (report: TravelReport, currentFullName?: string
         .set({
           ...config,
           useCORS: true,
-          logging: false,
+          logging: true, // Ativar logs para debug
+          allowTaint: true,
         })
         .from(iframeDoc.body)
         .outputPdf('blob')
         .then((pdfBlob: Blob) => {
+          console.log('PDF gerado com sucesso, tamanho:', pdfBlob.size);
           resolve(pdfBlob);
         })
         .catch((err: any) => {
@@ -551,13 +574,19 @@ export const uploadPDFToStorage = async (
   supabaseClient: any,
   currentFullName?: string
 ): Promise<string> => {
+  // Aguarda um pouco mais para garantir que html2pdf carregue completamente
+  await new Promise(resolve => setTimeout(resolve, 500));
+  
   const blob = await generatePDF(report, currentFullName);
 
   console.log('PDF Blob size:', blob.size, 'bytes');
   console.log('PDF Blob type:', blob.type);
 
-  if (!blob || blob.size === 0) {
-    throw new Error('PDF gerado está vazio. Verifique se os dados do relatório estão corretos.');
+  // Verifica se o blob tem tamanho mínimo razoável para um PDF válido
+  // Um PDF vazio ainda tem headers, então se for menor que 1KB provavelmente falhou
+  if (!blob || blob.size < 1000) {
+    console.error('PDF gerado parece estar vazio ou muito pequeno:', blob?.size);
+    throw new Error('PDF gerado está vazio ou inválido. Verifique se os dados do relatório estão corretos.');
   }
 
   const fileName = `${report.numero.replace(/\//g, '-')}-${Date.now()}.pdf`;

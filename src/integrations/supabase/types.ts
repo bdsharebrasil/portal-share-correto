@@ -229,7 +229,6 @@ export type Database = {
           id: string
           manufacturer: string
           model: string
-          model_aircraft: string | null
           owner_name: string
           registration: string
           serial_number: string
@@ -251,7 +250,6 @@ export type Database = {
           id?: string
           manufacturer: string
           model: string
-          model_aircraft?: string | null
           owner_name: string
           registration: string
           serial_number: string
@@ -273,7 +271,6 @@ export type Database = {
           id?: string
           manufacturer?: string
           model?: string
-          model_aircraft?: string | null
           owner_name?: string
           registration?: string
           serial_number?: string
@@ -499,37 +496,37 @@ export type Database = {
         Row: {
           ativo: boolean | null
           atualizado_em: string | null
+          cliente_id: string | null
+          cliente_nome: string | null
           criado_em: string | null
           criado_por: string
           descricao: string | null
-          empresa_id: string
           id: string
           nome: string
-          ordem: number | null
           tipo: string
         }
         Insert: {
           ativo?: boolean | null
           atualizado_em?: string | null
+          cliente_id?: string | null
+          cliente_nome?: string | null
           criado_em?: string | null
           criado_por: string
           descricao?: string | null
-          empresa_id: string
           id?: string
           nome: string
-          ordem?: number | null
           tipo: string
         }
         Update: {
           ativo?: boolean | null
           atualizado_em?: string | null
+          cliente_id?: string | null
+          cliente_nome?: string | null
           criado_em?: string | null
           criado_por?: string
           descricao?: string | null
-          empresa_id?: string
           id?: string
           nome?: string
-          ordem?: number | null
           tipo?: string
         }
         Relationships: []
@@ -1088,6 +1085,60 @@ export type Database = {
           numero_conta?: string | null
           saldo?: number | null
           tipo_conta?: string | null
+        }
+        Relationships: []
+      }
+      contas_recorrentes: {
+        Row: {
+          atualizado_por: string | null
+          categoria: string | null
+          created_at: string
+          criado_por: string
+          data_inicio: string
+          descricao: string
+          dia_recorrencia: number | null
+          fornecedor: string
+          frequencia_recorrencia: string
+          id: string
+          lembrete_antecipado: boolean | null
+          notas: string | null
+          status: string
+          updated_at: string
+          valor: number | null
+        }
+        Insert: {
+          atualizado_por?: string | null
+          categoria?: string | null
+          created_at?: string
+          criado_por: string
+          data_inicio?: string
+          descricao: string
+          dia_recorrencia?: number | null
+          fornecedor: string
+          frequencia_recorrencia?: string
+          id?: string
+          lembrete_antecipado?: boolean | null
+          notas?: string | null
+          status?: string
+          updated_at?: string
+          valor?: number | null
+        }
+        Update: {
+          atualizado_por?: string | null
+          categoria?: string | null
+          created_at?: string
+          criado_por?: string
+          data_inicio?: string
+          descricao?: string
+          dia_recorrencia?: number | null
+          fornecedor?: string
+          frequencia_recorrencia?: string
+          id?: string
+          lembrete_antecipado?: boolean | null
+          notas?: string | null
+          status?: string
+          updated_at?: string
+          valor?: number | null
         }
         Relationships: []
       }
