@@ -880,14 +880,14 @@ export function ContasReceber() {
           ) : (
             <div className="space-y-0 overflow-x-auto">
               {/* Cabeçalho Fixo - Desktop */}
-              <div className="hidden lg:grid items-center gap-4 px-6 py-4 bg-muted/40 border-b border-border/50 font-semibold text-sm text-muted-foreground sticky top-0 z-10">
-                <div className="w-20 flex-shrink-0">NF</div>
-                <div className="w-32 flex-shrink-0">Cliente</div>
-                <div className="flex-1 min-w-[150px]">Descrição</div>
-                <div className="w-28 flex-shrink-0">Vencimento</div>
-                <div className="w-28 flex-shrink-0 text-right">Valor</div>
-                <div className="w-24 flex-shrink-0">Status</div>
-                <div className="w-28 flex-shrink-0 text-right">Ações</div>
+              <div className="hidden lg:grid items-center px-6 py-4 bg-muted/40 border-b border-border/50 font-semibold text-sm text-muted-foreground sticky top-0 z-10" style={{gridTemplateColumns: '80px 140px 1fr 110px 120px 100px 100px'}}>
+                <div>NF</div>
+                <div>Cliente</div>
+                <div>Descrição</div>
+                <div>Vencimento</div>
+                <div className="text-right">Valor</div>
+                <div>Status</div>
+                <div className="text-right">Ações</div>
               </div>
 
               {filteredContas.length === 0 ? (
@@ -902,7 +902,7 @@ export function ContasReceber() {
                   return (
                     <div key={conta.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors last:border-b-0">
                       {/* Desktop Layout - Grid */}
-                      <div className="hidden lg:grid gap-4 py-5 items-center px-6 text-sm">
+                      <div className="hidden lg:grid py-5 items-center px-6 text-sm" style={{gridTemplateColumns: '80px 140px 1fr 110px 120px 100px 100px'}}>
                         <div className="w-20 flex-shrink-0 text-foreground font-medium">
                           {conta.numero}
                         </div>
