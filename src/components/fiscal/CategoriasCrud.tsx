@@ -368,7 +368,7 @@ export function CategoriasCrud() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full mt-2"
+                  className="w-full mt-2 bg-muted/50 hover:bg-muted"
                   onClick={() => {
                     setFormData(prev => ({
                       ...prev,
@@ -379,7 +379,7 @@ export function CategoriasCrud() {
                     setClienteSearchTerm("");
                   }}
                 >
-                  Usar "{clienteSearchTerm}" como cliente
+                  Usar "{clienteSearchTerm}" como novo cliente
                 </Button>
               )}
             </div>
