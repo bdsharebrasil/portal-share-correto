@@ -301,57 +301,57 @@ export default function AeronaveDetalhes() {
 
         {/* Info Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-background">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                  <Calendar className="h-6 w-6 text-blue-500" />
+          <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3">
+                <div className="h-11 w-11 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                  <Calendar className="h-5 w-5 text-blue-400" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Ano de Fabricação</p>
-                  <p className="text-2xl font-bold">{aircraft.year || "N/A"}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-green-50 to-white dark:from-green-950/20 dark:to-background">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-green-500/10 flex items-center justify-center">
-                  <MapPin className="h-6 w-6 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Base</p>
-                  <p className="text-2xl font-bold uppercase">{aircraft.base || "N/A"}</p>
+                <div className="min-w-0">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide">Ano de Fabricação</p>
+                  <p className="text-lg font-bold text-white">{aircraft.year || "N/A"}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-orange-50 to-white dark:from-orange-950/20 dark:to-background">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                  <Fuel className="h-6 w-6 text-orange-500" />
+          <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3">
+                <div className="h-11 w-11 rounded-lg bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                  <MapPin className="h-5 w-5 text-green-400" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Consumo</p>
-                  <p className="text-2xl font-bold">{aircraft.fuel_consumption ? `${aircraft.fuel_consumption} L/H` : "N/A"}</p>
+                <div className="min-w-0">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide">Base</p>
+                  <p className="text-lg font-bold text-white uppercase">{aircraft.base || "N/A"}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/20 dark:to-background">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                  <Users className="h-6 w-6 text-purple-500" />
+          <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3">
+                <div className="h-11 w-11 rounded-lg bg-orange-500/20 flex items-center justify-center flex-shrink-0">
+                  <Fuel className="h-5 w-5 text-orange-400" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Proprietário</p>
-                  <p className="text-lg font-bold truncate">{aircraft.owner_name || "N/A"}</p>
+                <div className="min-w-0">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide">Consumo</p>
+                  <p className="text-lg font-bold text-white">{aircraft.fuel_consumption ? `${aircraft.fuel_consumption} L/H` : "N/A"}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-3">
+                <div className="h-11 w-11 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                  <Users className="h-5 w-5 text-purple-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide">Proprietário</p>
+                  <p className="text-lg font-bold text-white truncate">{aircraft.owner_name || "N/A"}</p>
                 </div>
               </div>
             </CardContent>
