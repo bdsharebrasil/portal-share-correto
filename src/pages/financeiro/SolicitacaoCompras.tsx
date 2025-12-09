@@ -197,6 +197,7 @@ export default function SolicitacaoCompras() {
       setTipo("compra");
       setDescricao("");
       setDataNecessaria("");
+      setDataNecessariaDate(undefined);
       setDepartamento("");
       setPrioridade("normal");
       setTipoDeServico("");
