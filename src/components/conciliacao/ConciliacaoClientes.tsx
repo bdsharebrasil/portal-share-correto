@@ -64,7 +64,7 @@ const addDespesaSchema = z.object({
   description: z.string().min(1, "Descrição é obrigatória"),
   amount: z.string().min(1, "Valor é obrigatório"),
   category: z.string().min(1, "Categoria é obrigatória"),
-  status: z.enum(["pendente", "recebido"]),
+  status: z.enum(["pendente", "enviado", "recebido"]),
   payment_term: z.string().optional().nullable(),
 });
 
@@ -144,6 +144,8 @@ export function ConciliacaoClientes() {
     switch (statusLower) {
       case "recebido":
         return <Badge className="bg-green-100 text-green-800">Recebido</Badge>;
+      case "enviado":
+        return <Badge className="bg-blue-100 text-blue-800">Enviado</Badge>;
       case "pendente":
         return <Badge className="bg-yellow-100 text-yellow-800">Pendente</Badge>;
       default:
@@ -156,6 +158,8 @@ export function ConciliacaoClientes() {
     switch (statusLower) {
       case "recebido":
         return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case "enviado":
+        return <Send className="h-4 w-4 text-blue-600" />;
       case "pendente":
         return <Clock className="h-4 w-4 text-yellow-600" />;
       default:
@@ -261,6 +265,9 @@ export function ConciliacaoClientes() {
     totalRecebido: conciliacaoClientes
       .filter(item => item.status?.toLowerCase() === 'recebido')
       .reduce((sum, item) => sum + Number(item.amount), 0),
+    totalEnviado: conciliacaoClientes
+      .filter(item => item.status?.toLowerCase() === 'enviado')
+      .reduce((sum, item) => sum + Number(item.amount), 0),
     totalPendente: conciliacaoClientes
       .filter(item => item.status?.toLowerCase() === 'pendente')
       .reduce((sum, item) => sum + Number(item.amount), 0),
@@ -295,7 +302,7 @@ export function ConciliacaoClientes() {
       </div>
 
       {/* Resumo Clientes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="rounded-xl border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden">
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
@@ -307,6 +314,22 @@ export function ConciliacaoClientes() {
               </div>
               <div className="h-12 w-12 rounded-xl bg-green-500/10 flex items-center justify-center">
                 <CheckCircle className="h-6 w-6 text-green-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-xl border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground font-medium">Total Enviado</p>
+                <p className="text-2xl font-bold text-blue-500 mt-1">
+                  {formatCurrency(resumoClientes.totalEnviado)}
+                </p>
+              </div>
+              <div className="h-12 w-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                <Send className="h-6 w-6 text-blue-500" />
               </div>
             </div>
           </CardContent>
