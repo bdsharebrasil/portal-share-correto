@@ -57,7 +57,6 @@ export function PagamentoSalarioTab() {
   const { isAdmin, isGestorMaster, isFinanceiroMaster } = useUserRole();
   const { user } = useAuth();
   const { contas } = useCategoriasConta();
-  const bancos = Array.from(new Set(contas.map(c => c.banco).filter(Boolean))) as string[];
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [paymentRows, setPaymentRows] = useState<SalaryPaymentRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -66,6 +65,13 @@ export function PagamentoSalarioTab() {
   const [showPeriodSelector, setShowPeriodSelector] = useState(true);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewType, setPreviewType] = useState<"holerite" | "comprovante">("holerite");
+
+  // Get bancos from contas_bancarias and from existing payments
+  const bancosFromContas = Array.from(new Set(contas.map(c => c.banco).filter(Boolean))) as string[];
+  const bancosFromPayments = paymentRows
+    .map(row => row.banco)
+    .filter(Boolean) as string[];
+  const bancos = Array.from(new Set([...bancosFromContas, ...bancosFromPayments])) as string[];
 
   const years = ["2025", "2026", "2027"];
 
