@@ -454,20 +454,20 @@ export function ConciliacaoClientes() {
                         </TableCell>
                         <TableCell>{getStatusBadge(item.status)}</TableCell>
                         <TableCell>
-                          {item.status?.toLowerCase() !== 'recebido' ? (
-                            <div className="flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedReconciliation(item);
-                                  setOpenStatusDialog(true);
-                                }}
-                                title="Enviar por email"
-                              >
-                                <Mail className="h-4 w-4" />
-                              </Button>
-                            </div>
+                          {item.status?.toLowerCase() === 'pendente' ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedReconciliation(item);
+                                setOpenStatusDialog(true);
+                              }}
+                              title="Enviar por email"
+                            >
+                              <Mail className="h-4 w-4" />
+                            </Button>
+                          ) : item.status?.toLowerCase() === 'enviado' ? (
+                            <span className="text-xs text-muted-foreground">Enviado</span>
                           ) : (
                             <span className="text-xs text-muted-foreground">Recebido</span>
                           )}
