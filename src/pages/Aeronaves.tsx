@@ -150,39 +150,39 @@ export default function Aeronaves() {
             </div>
 
             {/* Info Grid */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               {a.year && (
-                <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl">
-                  <Calendar className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                <div className="flex items-center gap-2 p-2.5 bg-slate-700/40 rounded-lg">
+                  <Calendar className="h-4 w-4 text-blue-400 flex-shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Ano</p>
-                    <p className="text-sm font-semibold truncate">{a.year}</p>
+                    <p className="text-[9px] text-slate-400 uppercase tracking-wide">Ano</p>
+                    <p className="text-xs font-semibold text-white truncate">{a.year}</p>
                   </div>
                 </div>
               )}
               {a.base && (
-                <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl">
-                  <MapPin className="h-4 w-4 text-green-500 flex-shrink-0" />
+                <div className="flex items-center gap-2 p-2.5 bg-slate-700/40 rounded-lg">
+                  <MapPin className="h-4 w-4 text-green-400 flex-shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Base</p>
-                    <p className="text-sm font-semibold uppercase truncate">{a.base}</p>
+                    <p className="text-[9px] text-slate-400 uppercase tracking-wide">Base</p>
+                    <p className="text-xs font-semibold text-white uppercase truncate">{a.base}</p>
                   </div>
                 </div>
               )}
               {a.fuel_consumption && (
-                <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl">
-                  <Fuel className="h-4 w-4 text-orange-500 flex-shrink-0" />
+                <div className="flex items-center gap-2 p-2.5 bg-slate-700/40 rounded-lg">
+                  <Fuel className="h-4 w-4 text-orange-400 flex-shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Consumo</p>
-                    <p className="text-sm font-semibold">{a.fuel_consumption} L/H</p>
+                    <p className="text-[9px] text-slate-400 uppercase tracking-wide">Consumo</p>
+                    <p className="text-xs font-semibold text-white">{a.fuel_consumption} L/H</p>
                   </div>
                 </div>
               )}
-              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl">
-                <FileText className="h-4 w-4 text-purple-500 flex-shrink-0" />
+              <div className="flex items-center gap-2 p-2.5 bg-slate-700/40 rounded-lg">
+                <FileText className="h-4 w-4 text-purple-400 flex-shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Docs</p>
-                  <p className="text-sm font-semibold">{docCount}/8</p>
+                  <p className="text-[9px] text-slate-400 uppercase tracking-wide">Docs</p>
+                  <p className="text-xs font-semibold text-white">{docCount}/8</p>
                 </div>
               </div>
             </div>
