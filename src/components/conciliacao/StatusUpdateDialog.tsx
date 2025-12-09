@@ -172,8 +172,8 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
     .map(s => {
       const labels: Record<string, string> = {
         'pendente': 'Pendente',
+        'recebido': 'Recebido',
         'enviado': 'Enviado',
-        'conferido': 'Conferido/Recebido',
         'pago': 'Pago'
       };
       return { value: s, label: labels[s] || s };
