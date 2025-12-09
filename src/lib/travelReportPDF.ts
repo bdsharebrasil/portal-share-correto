@@ -79,9 +79,8 @@ function formatCurrency(value: number): string {
  * Retorna o objeto jsPDF para ser usado em outras funções.
  */
 function generatePDFDocument(report: TravelReport, userName: string = 'Sistema'): jsPDF {
-  // @ts-ignore
-  // O type casting é necessário porque 'jspdf-autotable' injeta o autoTable
-  const doc = new jsPDF() as any;
+  const doc = new jsPDF();
+  autoTable(doc);
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
