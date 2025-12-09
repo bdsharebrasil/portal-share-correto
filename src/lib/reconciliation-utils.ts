@@ -240,6 +240,9 @@ export async function createFluxoCaixaEntry(
     const isStatusFinal = (isClientReconciliation && status?.toLowerCase() === 'recebido') ||
                           (isColaboradorReconciliation && status?.toLowerCase() === 'pago');
 
+    // Remover a criação automática de fluxo de caixa aqui
+    // O fluxo será criado quando o status for atualizado na página de Contas a Receber/Pagar
+
     if (!isStatusFinal) {
       return true; // Status não é final, não cria entrada ainda
     }
@@ -312,18 +315,20 @@ export function getNextStatus(
   if (reconciliationType === 'cliente') {
     switch (statusLower) {
       case 'pendente':
+        return ['enviado'];
+      case 'enviado':
         return ['recebido'];
       case 'recebido':
         return [];
       default:
-        return ['pendente', 'recebido'];
+        return ['pendente', 'enviado', 'recebido'];
     }
   }
 
   if (reconciliationType === 'colaborador') {
     switch (statusLower) {
       case 'pendente':
-        return ['enviado', 'pago'];
+        return ['enviado'];
       case 'enviado':
         return ['pago'];
       case 'pago':
