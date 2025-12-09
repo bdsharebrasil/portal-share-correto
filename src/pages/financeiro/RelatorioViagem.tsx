@@ -13,14 +13,14 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Trash2, Save, Send, Upload, Eye, FileText, ArrowLeft, Edit, AlertCircle, AlertTriangle, RotateCcw, Calendar as CalendarIcon, Download } from 'lucide-react';
+import { Plus, Trash2, Save, Send, Upload, Eye, FileText, ArrowLeft, Edit, AlertCircle, AlertTriangle, RotateCcw, Calendar as CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useClientes } from '@/hooks/useClientes';
 import { useAeronaves } from '@/hooks/useAeronaves';
 import { useTripulantes } from '@/hooks/useTripulantes';
 import { cn } from '@/lib/utils';
-import { downloadPDF, previewPDFForPrint, uploadPDFToStorage } from '@/lib/travelReportPDF';
+import { downloadPDF, previewPDFForPrint } from '@/lib/travelReportPDF';
 import type { TravelReport as PDFTravelReport, TravelExpense } from '@/lib/travelReportPDF';
 import { draftStorage } from '@/lib/travelReportDraft';
 import type { TravelReportDraft } from '@/lib/travelReportDraft';
@@ -62,6 +62,8 @@ interface TravelReport {
   total_transport: number;
   total_other: number;
   total_crew: number;
+  total_crew1: number;
+  total_crew2: number;
   total_client: number;
   total_sharebrasil: number;
   pdf_url?: string;
@@ -245,6 +247,8 @@ export default function RelatorioViagem() {
       total_transport: 0,
       total_other: 0,
       total_crew: 0,
+      total_crew1: 0,
+      total_crew2: 0,
       total_client: 0,
       total_sharebrasil: 0,
       status: 'Rascunho',
@@ -295,7 +299,7 @@ export default function RelatorioViagem() {
       toast.error('❌ Erro ao excluir o relatório.');
     }
   };
-  
+
   const downloadReportPdf = async (report: TravelReport) => {
     try {
       // Validação básica antes de gerar PDF
@@ -369,7 +373,7 @@ export default function RelatorioViagem() {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     return Math.max(1, diffDays);
   };
-  
+
   const calculateTotals = (expenses: Expense[], report: TravelReport | null = currentReport) => {
     if (!report) return;
 
@@ -378,31 +382,13 @@ export default function RelatorioViagem() {
 
     setCurrentReport(prev => prev ? ({ ...prev, ...totals }) : null);
   };
-  
+
   const handleExpenseChange = (index: number, field: keyof Expense, value: any) => {
     if (!currentReport) return;
     const newExpenses = [...currentReport.expenses];
     newExpenses[index] = { ...newExpenses[index], [field]: value };
     setCurrentReport({ ...currentReport, expenses: newExpenses });
     calculateTotals(newExpenses);
-  };
-
-  // Get paid_by options based on whether crew member 2 is selected
-  const getPaidByOptions = () => {
-    const options = [
-      { value: 'Tripulante 1', label: currentReport?.crew_member_name ? `Tripulante 1 - ${currentReport.crew_member_name}` : 'Tripulante 1' },
-    ];
-    
-    if (showSecondCrew && currentReport?.crew_member_name_2) {
-      options.push({ value: 'Tripulante 2', label: `Tripulante 2 - ${currentReport.crew_member_name_2}` });
-    }
-    
-    options.push(
-      { value: 'Cliente', label: 'Cliente' },
-      { value: 'ShareBrasil', label: 'ShareBrasil' }
-    );
-    
-    return options;
   };
 
   const addExpense = () => {
@@ -419,7 +405,7 @@ export default function RelatorioViagem() {
     setCurrentReport({ ...currentReport, expenses: newExpenses });
     calculateTotals(newExpenses);
   };
-  
+
   const handleFileUpload = async (index: number, file?: File) => {
     if (!file || !currentReport) return;
 
@@ -587,76 +573,11 @@ export default function RelatorioViagem() {
         savedReport = data;
       }
 
-      // Gerar e fazer upload do PDF se o relatório foi finalizado
-      if (newStatus === 'Finalizado' && savedReport) {
-        try {
-          toast.info('📄 Gerando e salvando PDF...');
-
-          const { data: { user } } = await supabase.auth.getUser();
-          let userName = 'Usuário';
-
-          if (user?.id) {
-            const { data: profile } = await supabase
-              .from('user_profiles')
-              .select('full_name')
-              .eq('id', user.id)
-              .single();
-            if (profile?.full_name) userName = profile.full_name;
-          }
-
-          const pdfReport: PDFTravelReport = {
-            numero: savedReport.report_number,
-            cliente_nome: savedReport.client,
-            aeronave: savedReport.aircraft_registration,
-            tripulante: savedReport.crew_member_name,
-            tripulante2: savedReport.crew_member_name_2,
-            trecho: savedReport.route,
-            destino: savedReport.route,
-            data_inicio: savedReport.start_date,
-            data_fim: savedReport.end_date,
-            observacoes: savedReport.observations,
-            despesas: (validExpenses || []).map(e => ({
-              categoria: e.category,
-              descricao: e.description,
-              valor: e.amount,
-              pago_por: e.paid_by,
-              comprovante_url: e.receipt_url
-            })) as TravelExpense[],
-            total_combustivel: recalculatedTotals.total_fuel,
-            total_hospedagem: recalculatedTotals.total_lodging,
-            total_alimentacao: recalculatedTotals.total_food,
-            total_transporte: recalculatedTotals.total_transport,
-            total_outros: recalculatedTotals.total_other,
-            total_tripulante: recalculatedTotals.total_crew,
-            total_tripulante1: recalculatedTotals.total_crew1,
-            total_tripulante2: recalculatedTotals.total_crew2,
-            total_cliente: recalculatedTotals.total_client,
-            total_sharebrasil: recalculatedTotals.total_sharebrasil,
-            valor_total: recalculatedTotals.total_amount
-          };
-
-          const pdfUrl = await uploadPDFToStorage(pdfReport, supabase, userName);
-
-          // Atualizar o relatório com a URL do PDF
-          const { error: updateError } = await supabase
-            .from('travel_expense_reports')
-            .update({ pdf_url: pdfUrl })
-            .eq('id', savedReport.id);
-
-          if (updateError) throw updateError;
-
-          savedReport.pdf_url = pdfUrl;
-          toast.success('✓ PDF gerado e salvo com sucesso!');
-        } catch (pdfError: any) {
-          console.error('Erro ao gerar/salvar PDF:', pdfError);
-          toast.error(`⚠️ Relatório salvo, mas houve erro ao salvar PDF: ${pdfError.message}`);
-        }
-      }
-
       // Criar conciliações bancárias quando o relatório for finalizado
       // Regras:
-      // - Conciliação CLIENTE = total do relatório - valor pago pelo cliente (ou seja, Share + Tripulante)
-      // - Conciliação TRIPULANTE = apenas o valor que cada tripulante pagou
+      // - Conciliação CLIENTE = total Share + total tripulantes (valor que o cliente deve reembolsar)
+      // - Conciliação TRIPULANTE 1 = valor que tripulante 1 pagou (para reembolso)
+      // - Conciliação TRIPULANTE 2 = valor que tripulante 2 pagou (para reembolso)
       if (newStatus !== 'Rascunho') {
         const { data: { user } } = await supabase.auth.getUser();
 
@@ -668,17 +589,15 @@ export default function RelatorioViagem() {
           const payerTotals = extractPayerTotals(validExpenses);
           const totalCrew1 = payerTotals.totalCrew1;
           const totalCrew2 = payerTotals.totalCrew2;
+          const totalSharebrasil = payerTotals.totalSharebrasil;
 
-          // Valor que o cliente deve = total - o que o cliente já pagou
-          // = (share + tripulante1 + tripulante2 + cliente) - cliente
-          // = share + tripulante1 + tripulante2
-          const totalClientOwes = recalculatedTotals.total_sharebrasil + recalculatedTotals.total_crew;
+          // Valor que o cliente deve = ShareBrasil + Tripulantes (tudo que não foi pago pelo cliente)
+          const totalClientOwes = totalSharebrasil + totalCrew1 + totalCrew2;
 
           console.log('Totais para conciliação:', {
             total_amount: recalculatedTotals.total_amount,
             total_client: recalculatedTotals.total_client,
-            total_sharebrasil: recalculatedTotals.total_sharebrasil,
-            total_crew: recalculatedTotals.total_crew,
+            total_sharebrasil: totalSharebrasil,
             totalCrew1,
             totalCrew2,
             totalClientOwes
@@ -737,7 +656,7 @@ export default function RelatorioViagem() {
                 amount: totalCrew1,
                 status: 'pendente',
                 category: 'relatório_viagem',
-                description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO ${currentReport.crew_member_name.toUpperCase()}`,
+                description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO TRIPULANTE 1 (${currentReport.crew_member_name.toUpperCase()})`,
                 date: today,
                 created_by: user.id,
                 reference_id: savedReport.id,
@@ -773,7 +692,7 @@ export default function RelatorioViagem() {
                 amount: totalCrew2,
                 status: 'pendente',
                 category: 'relatório_viagem',
-                description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO ${currentReport.crew_member_name_2.toUpperCase()}`,
+                description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO TRIPULANTE 2 (${currentReport.crew_member_name_2.toUpperCase()})`,
                 date: today,
                 created_by: user.id,
                 reference_id: savedReport.id,
@@ -886,7 +805,7 @@ export default function RelatorioViagem() {
                   </Button>
                 </div>
               </CardHeader>
-              
+
               <CardContent>
                 <div className="flex flex-wrap gap-2 mb-4">
                   {['Todos', ...REPORT_STATUSES].map(status => (
@@ -903,7 +822,7 @@ export default function RelatorioViagem() {
                     </Button>
                   ))}
                 </div>
-                
+
                 {filteredReports.length === 0 ? (
                   <p className="text-center text-muted-foreground py-8">
                     Nenhum relatório encontrado na pasta {activeStatusFilter}.
@@ -918,11 +837,10 @@ export default function RelatorioViagem() {
                         <div className="mb-2 sm:mb-0 min-w-[200px]">
                           <p className="font-medium flex items-center">
                             {report.report_number}
-                            <span className={`ml-3 text-xs font-bold px-2 py-0.5 rounded-full ${
-                              report.status === 'Rascunho' ? 'bg-yellow-100 text-yellow-800' :
-                              report.status === 'Finalizado' ? 'bg-blue-100 text-blue-800' :
-                              'bg-green-100 text-green-800'
-                            }`}>
+                            <span className={`ml-3 text-xs font-bold px-2 py-0.5 rounded-full ${report.status === 'Rascunho' ? 'bg-yellow-100 text-yellow-800' :
+                                report.status === 'Finalizado' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-green-100 text-green-800'
+                              }`}>
                               {report.status}
                             </span>
                           </p>
@@ -1015,23 +933,6 @@ export default function RelatorioViagem() {
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          {report.pdf_url && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                const link = document.createElement('a');
-                                link.href = report.pdf_url;
-                                link.download = `${report.report_number.replace(/\//g, '-')}-relatorio-viagem.pdf`;
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                              }}
-                              title="Baixar PDF"
-                            >
-                              <Download className="h-4 w-4" />
-                            </Button>
-                          )}
                           <Button
                             variant="destructive"
                             size="sm"
@@ -1294,7 +1195,7 @@ export default function RelatorioViagem() {
                                 const month = String(date.getMonth() + 1).padStart(2, '0');
                                 const day = String(date.getDate()).padStart(2, '0');
                                 const formattedDate = `${year}-${month}-${day}`;
-                                
+
                                 handleInputChange('start_date', formattedDate);
                                 if (currentReport?.end_date && new Date(formattedDate) > new Date(currentReport.end_date)) {
                                   handleInputChange('end_date', formattedDate);
@@ -1387,7 +1288,7 @@ export default function RelatorioViagem() {
                   {currentReport?.expenses?.map((expense, index) => (
                     <div key={expense.id || index} className="border p-4 rounded-lg shadow-sm relative">
                       <h3 className="text-md font-medium mb-3">Item de Despesa #{index + 1}</h3>
-                      
+
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div className="space-y-2">
                           <Label>Categoria *</Label>
@@ -1422,28 +1323,33 @@ export default function RelatorioViagem() {
                             onValueChange={(value) => handleExpenseChange(index, 'paid_by', value)}
                             placeholder="Selecione"
                           >
-                            {getPaidByOptions().map((option) => (
-                              <ControlledSelectItem key={option.value} value={option.value}>
-                                {option.label}
+                            <ControlledSelectItem value="Tripulante 1">
+                              {currentReport?.crew_member_name ? `Tripulante 1 (${currentReport.crew_member_name})` : 'Tripulante 1'}
+                            </ControlledSelectItem>
+                            {(showSecondCrew || currentReport?.crew_member_name_2) && (
+                              <ControlledSelectItem value="Tripulante 2">
+                                {currentReport?.crew_member_name_2 ? `Tripulante 2 (${currentReport.crew_member_name_2})` : 'Tripulante 2'}
                               </ControlledSelectItem>
-                            ))}
+                            )}
+                            <ControlledSelectItem value="Cliente">Cliente</ControlledSelectItem>
+                            <ControlledSelectItem value="ShareBrasil">ShareBrasil</ControlledSelectItem>
                           </ControlledSelect>
                         </div>
 
                         <div className="space-y-2">
                           <Label>Comprovante</Label>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <label htmlFor={`receipt-upload-${index}`} className="cursor-pointer">
-                              <div className="flex items-center gap-2 px-3 py-2 border rounded-md hover:bg-accent transition-colors min-w-0">
+                          <div className="flex items-center space-x-2">
+                            <label htmlFor={`receipt-upload-${index}`} className="flex-1 cursor-pointer">
+                              <div className="flex items-center space-x-2 px-3 py-2 border rounded-md hover:bg-accent transition-colors">
                                 {uploadingIndex === index ? (
-                                  <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full flex-shrink-0" />
+                                  <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
                                 ) : expense.receipt_url ? (
-                                  <FileText className="h-4 w-4 text-green-600 flex-shrink-0" />
+                                  <FileText className="h-5 w-5 text-green-600" />
                                 ) : (
-                                  <Upload className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                  <Upload className="h-5 w-5 text-muted-foreground" />
                                 )}
-                                <span className="text-sm whitespace-nowrap">
-                                  {expense.receipt_url ? 'Anexado' : 'Upload'}
+                                <span className="text-sm truncate">
+                                  {expense.receipt_url ? 'Comprovante Anexado' : 'Fazer Upload'}
                                 </span>
                               </div>
                             </label>
@@ -1460,11 +1366,10 @@ export default function RelatorioViagem() {
                                 href={expense.receipt_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-accent border text-sm"
+                                className="p-1.5 rounded-full hover:bg-accent"
                                 title="Ver Comprovante"
                               >
-                                <Eye className="h-4 w-4" />
-                                <span className="hidden sm:inline">Ver</span>
+                                <Eye className="h-5 w-5" />
                               </a>
                             )}
                           </div>
@@ -1494,29 +1399,16 @@ export default function RelatorioViagem() {
                 </CardContent>
               </Card>
 
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button
-                  onClick={() => saveReport('Rascunho')}
-                  disabled={isSaving}
-                  variant="outline"
-                  title="Salvar como rascunho"
-                  className="w-full sm:w-auto"
-                  size="lg"
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {isSaving ? 'Salvando...' : 'SALVAR RASCUNHO'}
-                </Button>
-                <Button
-                  onClick={() => saveReport('Finalizado')}
-                  disabled={isSaving}
-                  title="Finalizar o relatório"
-                  className="w-full sm:w-auto"
-                  size="lg"
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  {isSaving ? 'Salvando...' : 'FINALIZAR RELATORIO'}
-                </Button>
-              </div>
+              <Button
+                onClick={() => saveReport('Finalizado')}
+                disabled={isSaving}
+                title="Finalizar o relatório"
+                className="w-full md:w-auto"
+                size="lg"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                {isSaving ? 'Salvando...' : 'FINALIZAR RELATORIO'}
+              </Button>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
@@ -1526,9 +1418,15 @@ export default function RelatorioViagem() {
                   <CardContent>
                     <div className="space-y-2 p-3 border rounded-md bg-muted/50">
                       <div className="flex justify-between text-sm">
-                        <span>Tripulante:</span>
-                        <span className="font-medium">R$ {currentReport.total_crew.toFixed(2)}</span>
+                        <span>{currentReport.crew_member_name ? `Tripulante 1 (${currentReport.crew_member_name}):` : 'Tripulante 1:'}</span>
+                        <span className="font-medium">R$ {(currentReport.total_crew1 || 0).toFixed(2)}</span>
                       </div>
+                      {(showSecondCrew || currentReport.crew_member_name_2) && (
+                        <div className="flex justify-between text-sm">
+                          <span>{currentReport.crew_member_name_2 ? `Tripulante 2 (${currentReport.crew_member_name_2}):` : 'Tripulante 2:'}</span>
+                          <span className="font-medium">R$ {(currentReport.total_crew2 || 0).toFixed(2)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between text-sm">
                         <span>Cliente:</span>
                         <span className="font-medium">R$ {currentReport.total_client.toFixed(2)}</span>
