@@ -7,9 +7,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useParams, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { 
-  ArrowLeft, Edit, Plane, Calendar, MapPin, Users, Fuel, 
-  FileText, Upload, Trash2, Download, Eye, Shield, Radio, 
+import {
+  ArrowLeft, Edit, Plane, Calendar, MapPin, Users, Fuel,
+  FileText, Upload, Trash2, Download, Eye, Shield, Radio,
   Scale, Wrench, FileCheck, BookOpen, AlertCircle, CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
@@ -259,8 +259,8 @@ export default function AeronaveDetalhes() {
         <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-6 lg:p-8 rounded-3xl shadow-xl">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="icon"
                 className="text-white hover:bg-white/10 rounded-xl"
                 onClick={() => navigate("/aeronaves")}
@@ -278,17 +278,16 @@ export default function AeronaveDetalhes() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Badge 
-                className={`px-4 py-2 text-sm font-medium rounded-xl ${
-                  aircraft.status === "inativa" 
-                    ? "bg-red-500/20 text-red-200 border-red-400/30" 
+              <Badge
+                className={`px-4 py-2 text-sm font-medium rounded-xl ${aircraft.status === "inativa"
+                    ? "bg-red-500/20 text-red-200 border-red-400/30"
                     : "bg-emerald-500/20 text-emerald-200 border-emerald-400/30"
-                }`}
+                  }`}
                 variant="outline"
               >
                 {aircraft.status === "inativa" ? "Inativa" : "Ativa"}
               </Badge>
-              <Button 
+              <Button
                 variant="secondary"
                 className="rounded-xl"
                 onClick={() => setEditDialogOpen(true)}
@@ -371,8 +370,8 @@ export default function AeronaveDetalhes() {
             <CardContent className="space-y-3">
               {clients && clients.length > 0 ? (
                 clients.map((c, i) => (
-                  <div 
-                    key={i} 
+                  <div
+                    key={i}
                     className="flex items-center justify-between p-3 bg-muted/30 rounded-xl"
                   >
                     <span className="font-medium">{c.clients?.company_name || "Sem nome"}</span>
@@ -451,21 +450,19 @@ export default function AeronaveDetalhes() {
                 return (
                   <div
                     key={docType.key}
-                    className={`p-4 rounded-2xl border-2 transition-all ${
-                      doc 
-                        ? expired 
+                    className={`p-4 rounded-2xl border-2 transition-all ${doc
+                        ? expired
                           ? "border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20"
                           : expiringSoon
                             ? "border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20"
                             : "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20"
                         : "border-dashed border-muted-foreground/30 bg-muted/10 hover:border-primary/50"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                          doc ? "bg-white dark:bg-background" : "bg-muted"
-                        }`}>
+                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 ${doc ? "bg-white dark:bg-background" : "bg-muted"
+                          }`}>
                           <Icon className={`h-5 w-5 ${doc ? docType.color : "text-muted-foreground"}`} />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -547,9 +544,9 @@ export default function AeronaveDetalhes() {
         </Card>
 
         {/* Edit Aircraft Dialog */}
-        <AddAircraftDialog 
-          open={editDialogOpen} 
-          onOpenChange={setEditDialogOpen} 
+        <AddAircraftDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
           aircraft={aircraft}
         />
 
@@ -603,8 +600,8 @@ export default function AeronaveDetalhes() {
               <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>
                 Cancelar
               </Button>
-              <Button 
-                onClick={handleUploadDocument} 
+              <Button
+                onClick={handleUploadDocument}
                 disabled={!uploadFile || isUploading}
               >
                 {isUploading ? "Enviando..." : "Enviar"}
