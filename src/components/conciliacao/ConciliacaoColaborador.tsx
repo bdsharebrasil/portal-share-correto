@@ -134,26 +134,35 @@ export function ConciliacaoColaborador() {
 
       if (error) throw error;
 
-      // If status is "pago", create entry in controle_bancario as saída
+      // Se status é "pago", criar saída no fluxo de caixa
       if (newStatus?.toLowerCase() === 'pago') {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { error: insertError } = await supabase
+          // Verificar se já existe uma entrada no fluxo de caixa para essa conciliação
+          const { data: existingEntry } = await supabase
             .from('controle_bancario')
-            .insert({
-              data: reconciliation.date,
-              tipo_movimento: 'saída',
-              categoria: 'Despesa de Funcionário',
-              descricao: `${reconciliation.description} - Aguardando Comprovante`,
-              valor: reconciliation.amount,
-              referencia: `SAL-${reconciliation.id}`,
-              status: 'pendente',
-              criado_por: user.id,
-              observacoes: `Comprovante de pagamento pendente para ${reconciliation.description}`
-            } as any);
+            .select('id')
+            .eq('referencia', `SAL-${reconciliation.id}` as any)
+            .maybeSingle();
 
-          if (insertError) {
-            console.error('Erro ao criar saída no fluxo de caixa:', insertError);
+          if (!existingEntry) {
+            const { error: insertError } = await supabase
+              .from('controle_bancario')
+              .insert({
+                data: reconciliation.date,
+                tipo_movimento: 'saída',
+                categoria: reconciliation.category || 'Reembolso Colaborador',
+                descricao: reconciliation.description,
+                valor: reconciliation.amount,
+                referencia: `SAL-${reconciliation.id}`,
+                status: 'confirmado',
+                criado_por: user.id,
+                observacoes: `Pagamento ao colaborador - ${reconciliation.user_profiles?.full_name || 'N/A'}`
+              } as any);
+
+            if (insertError) {
+              console.error('Erro ao criar saída no fluxo de caixa:', insertError);
+            }
           }
         }
       }
