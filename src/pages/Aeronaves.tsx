@@ -125,7 +125,7 @@ export default function Aeronaves() {
         onClick={() => navigate(`/aeronaves/${a.id}`)}
       >
         <CardContent className="p-0">
-          <div className="bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 p-6 space-y-5">
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900 p-4 space-y-3">
             {/* Header */}
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-4 flex-1 min-w-0">
