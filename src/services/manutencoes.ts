@@ -56,3 +56,34 @@ export const fetchManutencoesWithAircraft = async (): Promise<ManutencaoWithAirc
     aeronave_registration: m.aeronave_id ? aircraftMap[m.aeronave_id] : undefined,
   }));
 };
+
+export interface CreateManutencaoInput {
+  aeronave_id: string;
+  tipo: string;
+  data_programada: string;
+  descricao?: string;
+  etapa?: string;
+  mecanico?: string;
+  oficina?: string;
+  custo_estimado?: number;
+}
+
+export const createManutencao = async (input: CreateManutencaoInput): Promise<ManutencaoRow> => {
+  const { data, error } = await supabase
+    .from("manutencoes")
+    .insert({
+      aeronave_id: input.aeronave_id,
+      tipo: input.tipo,
+      data_programada: input.data_programada,
+      observacoes: input.descricao,
+      etapa: input.etapa || "pendente",
+      mecanico: input.mecanico || "",
+      oficina: input.oficina || null,
+      custo_estimado: input.custo_estimado || null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as ManutencaoRow;
+};
