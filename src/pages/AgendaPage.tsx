@@ -605,51 +605,31 @@ export default function AgendaPage() {
 
                       if (contact.categoria === 'Hotéis') {
                         return (
-                          <Card key={contact.id} className="hover:shadow-lg transition-shadow group border border-slate-700/50 bg-slate-900/30">
-                            <CardContent className="p-5">
-                              <div className="space-y-3">
-                                {/* Header Row: Icon + Name + Prices + Actions */}
+                          <Card key={contact.id} className="hover:shadow-lg transition-shadow group border border-white/30 bg-slate-900/30">
+                            <CardContent className="p-6">
+                              <div className="space-y-4">
+                                {/* Header with Hotel Name and City */}
                                 <div className="flex items-start justify-between gap-4">
-                                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                                    <Hotel className="h-5 w-5 text-slate-400 flex-shrink-0 mt-0.5" />
-                                    <div className="flex-1 min-w-0">
-                                      <h3 className="font-semibold text-white text-base mb-1 uppercase">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <Hotel className="h-5 w-5 text-slate-300 flex-shrink-0" />
+                                      <h3 className="font-bold text-white text-lg uppercase">
                                         {contact.nome}
                                       </h3>
-                                      <p className="text-sm text-slate-400">
-                                        {contact.telefone}
-                                        {contact.cidade && (
-                                          <>
-                                            <span className="mx-2">•</span>
-                                            <span className="text-[#42b6f5] font-semibold uppercase">{contact.cidade}</span>
-                                          </>
-                                        )}
+                                    </div>
+                                    {contact.cidade && (
+                                      <div className="ml-8">
+                                        <p className="text-sm font-semibold text-cyan-400 uppercase tracking-wide">
+                                          📍 {contact.cidade}
+                                        </p>
+                                      </div>
+                                    )}
+                                    {contact.telefone && (
+                                      <p className="text-xs text-slate-400 mt-2 ml-8">
+                                        📞 {contact.telefone}
                                       </p>
-                                    </div>
+                                    )}
                                   </div>
-
-                                  {/* Prices Column */}
-                                  {(contact.precoSingle !== undefined && contact.precoSingle !== null) || 
-                                   (contact.precoDuplo !== undefined && contact.precoDuplo !== null) ? (
-                                    <div className="flex gap-6 flex-shrink-0 items-start">
-                                      {contact.precoSingle !== undefined && contact.precoSingle !== null && (
-                                        <div className="text-right">
-                                          <p className="text-xs text-slate-400 mb-0.5">Single</p>
-                                          <p className="text-base font-bold text-[#42b6f5]">
-                                            {currencyFormatter.format(contact.precoSingle)}
-                                          </p>
-                                        </div>
-                                      )}
-                                      {contact.precoDuplo !== undefined && contact.precoDuplo !== null && (
-                                        <div className="text-right">
-                                          <p className="text-xs text-slate-400 mb-0.5">Duplo</p>
-                                          <p className="text-base font-bold text-[#42b6f5]">
-                                            {currencyFormatter.format(contact.precoDuplo)}
-                                          </p>
-                                        </div>
-                                      )}
-                                    </div>
-                                  ) : null}
 
                                   {/* Action Buttons */}
                                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
@@ -694,13 +674,38 @@ export default function AgendaPage() {
 
                                 {/* Address */}
                                 {contact.endereco && (
-                                  <>
-                                    <div className="border-t border-slate-700/50" />
-                                    <p className="text-xs text-slate-400 pl-8">
-                                      Endereço: {contact.endereco}
+                                  <div className="border-t border-white/20 pt-3">
+                                    <p className="text-xs text-slate-400">
+                                      <span className="text-slate-500">📍 Endereço:</span> {contact.endereco}
                                     </p>
-                                  </>
+                                  </div>
                                 )}
+
+                                {/* Prices Section */}
+                                {(contact.precoSingle !== undefined && contact.precoSingle !== null) ||
+                                 (contact.precoDuplo !== undefined && contact.precoDuplo !== null) ? (
+                                  <div className="border-t border-white/20 pt-4">
+                                    <p className="text-xs text-slate-400 mb-3 font-semibold uppercase">Diárias</p>
+                                    <div className="grid grid-cols-2 gap-4">
+                                      {contact.precoSingle !== undefined && contact.precoSingle !== null && (
+                                        <div className="bg-slate-800/50 rounded-lg p-3 border border-cyan-500/30">
+                                          <p className="text-xs text-slate-400 mb-1 font-medium">Single</p>
+                                          <p className="text-lg font-bold text-cyan-400">
+                                            {currencyFormatter.format(contact.precoSingle)}
+                                          </p>
+                                        </div>
+                                      )}
+                                      {contact.precoDuplo !== undefined && contact.precoDuplo !== null && (
+                                        <div className="bg-slate-800/50 rounded-lg p-3 border border-cyan-500/30">
+                                          <p className="text-xs text-slate-400 mb-1 font-medium">Duplo</p>
+                                          <p className="text-lg font-bold text-cyan-400">
+                                            {currencyFormatter.format(contact.precoDuplo)}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : null}
                               </div>
                             </CardContent>
                           </Card>
