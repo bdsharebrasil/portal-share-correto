@@ -1,348 +1,597 @@
 // src/lib/travelReportPDF.ts
-
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// IMPORTANTE: Se o erro "jspdf-autotable" persistir, remova a linha abaixo.
+// O layout atual do PDF é manual e não usa autoTable.
+// import 'jspdf-autotable'; 
+import jsPDF from 'jspdf';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // =========================================================================
-// INTERFACES (Definições simplificadas - ajuste com seus tipos reais)
+// CONSTANTES E INTERFACES
 // =========================================================================
 
+export const CATEGORIAS_DESPESA = [
+  "Combustível",
+  "Hospedagem",
+  "Alimentação",
+  "Transporte",
+  "Outros"
+];
+
+export const PAGADORES = [
+  "Tripulante 1",
+  "Tripulante 2",
+  "Cliente",
+  "ShareBrasil"
+];
+
 export interface TravelExpense {
-  id: string;
-  categoria: 'Combustível' | 'Hospedagem' | 'Alimentação' | 'Transporte' | 'Outros';
-  descricao: string | null;
+  categoria: string;
+  descricao: string;
   valor: number;
-  pago_por: string | null; // Ex: 'Tripulante 1', 'Cliente', 'ShareBrasil'
-  comprovante_url: string | null;
+  pago_por: string;
+  comprovante_url?: string;
 }
 
 export interface TravelReport {
-  id: string;
   numero: string;
   cliente_nome: string;
   aeronave: string;
   tripulante: string; // Nome do Tripulante 1
-  tripulante2: string | null; // Nome do Tripulante 2
-  trecho: string;
-  data_inicio: string; // ISO Date string
-  data_fim: string; // ISO Date string
-  observacoes: string | null;
-
-  // Despesas
+  tripulante2?: string; // Nome do Tripulante 2
+  trecho?: string;
+  destino: string;
+  data_inicio: string;
+  data_fim: string;
+  observacoes?: string;
   despesas: TravelExpense[];
-
-  // Totais
+  
+  // Totais PELA CATEGORIA (Assumimos que estes vêm calculados do componente principal)
   total_combustivel: number;
   total_hospedagem: number;
   total_alimentacao: number;
   total_transporte: number;
   total_outros: number;
-
+  
+  // Totais PELO PAGADOR (Assumimos que estes vêm calculados do componente principal)
+  total_tripulante: number; // T1 + T2
   total_tripulante1: number;
   total_tripulante2: number;
-  total_tripulante: number; // Campo de compatibilidade
   total_cliente: number;
   total_sharebrasil: number;
-  valor_total: number;
+  valor_total: number; // Total Geral
 }
 
 // =========================================================================
 // FUNÇÕES DE UTILIDADE E FORMATAÇÃO
 // =========================================================================
 
-/**
- * Formata a data de string ISO para padrão local (pt-BR).
- */
-function formatDate(dateStr: string): string {
-  if (!dateStr) return '-';
-  // Adicionando 'T00:00:00' garante que o fuso horário local não cause desvios de dia.
-  const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString('pt-BR');
-}
+const parseLocalDate = (value: string | Date) => {
+  const s = String(value).split('T')[0];
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+};
+
+export const formatDateBR = (value: string | Date) => {
+  if (!value) return '';
+  const s = String(value).split('T')[0];
+  const parts = s.split('-');
+  if (parts.length === 3) {
+    const [y, m, d] = parts;
+    return `${d}/${m}/${y}`;
+  }
+  try { return new Date(value).toLocaleDateString('pt-BR'); } catch { return String(value); }
+};
+
+const formatCurrency = (value: number): string => {
+  return (value || 0).toFixed(2).replace('.', ',');
+};
 
 /**
- * Formata o valor numérico para padrão de moeda BRL (R$).
+ * Funções de utilidade para recalcular totais de tripulantes a partir das despesas.
+ * USADA AQUI PARA GARANTIR OS VALORES CORRETOS NO PDF/HTML, IGNORANDO OS VALORES DO REPORT.
  */
-function formatCurrency(value: number): string {
-  if (typeof value !== 'number' || isNaN(value)) return 'R$ 0,00';
-  return `R$ ${value.toFixed(2).replace('.', ',')}`;
-}
+const calculateCrewTotals = (despesas: TravelExpense[]) => {
+  let total_tripulante1 = 0;
+  let total_tripulante2 = 0;
+  let total_crew = 0;
 
+  despesas.forEach(d => {
+    const valor = Number(d.valor) || 0;
+    const pagoPor = d.pago_por || '';
+
+    if (pagoPor.includes('Tripulante 1') || pagoPor === 'Tripulante 1') {
+      total_tripulante1 += valor;
+    } else if (pagoPor.includes('Tripulante 2') || pagoPor === 'Tripulante 2') {
+      total_tripulante2 += valor;
+    }
+  });
+  
+  total_crew = total_tripulante1 + total_tripulante2;
+
+  return { total_tripulante1, total_tripulante2, total_crew };
+};
+
+const calculateDays = (report: TravelReport) => {
+  if (report?.data_inicio && report?.data_fim) {
+    const inicio = parseLocalDate(report.data_inicio);
+    const fim = parseLocalDate(report.data_fim);
+    const diffTime = Math.abs(fim.getTime() - inicio.getTime());
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+  }
+  return 1;
+};
 
 // =========================================================================
-// FUNÇÕES DE GERAÇÃO E MANIPULAÇÃO DO PDF
+// FUNÇÕES DE GERAÇÃO E EXPORTAÇÃO (MANTENDO SEU LAYOUT JS-PDF)
 // =========================================================================
 
 /**
- * Função auxiliar que gera o documento PDF (sem abrir/baixar).
- * Retorna o objeto jsPDF para ser usado em outras funções.
+ * Gera o documento PDF (Blob). Mantém o layout de coordenadas do usuário.
  */
-function generatePDFDocument(report: TravelReport, userName: string = 'Sistema'): jsPDF {
-  const doc = new jsPDF();
+export const generatePDF = async (report: TravelReport, currentFullName = 'Usuário'): Promise<Blob> => {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
-  let yPos = 20;
+  const margin = 15;
+  let y = margin;
 
-  // Logo e Cabeçalho
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
-  doc.text('SHARE BRASIL', pageWidth / 2, yPos, { align: 'center' });
-  yPos += 8;
+  // Cores
+  const primaryBlue: [number, number, number] = [30, 58, 138];
+  const accentGreen: [number, number, number] = [34, 197, 94];
+  const textGray: [number, number, number] = [51, 51, 51];
 
+  // Recalcular totais e dias (FONTE DA VERDADE NO PDF)
+  const crewTotals = calculateCrewTotals(report.despesas);
+  const total_tripulante1 = crewTotals.total_tripulante1;
+  const total_tripulante2 = crewTotals.total_tripulante2;
+  const total_crew = crewTotals.total_crew;
+  const hasSecondCrew = report.tripulante2 && report.tripulante2.trim() !== '';
+  const days = calculateDays(report);
+  
+  // Filtra despesas válidas
+  const validExpenses = report.despesas.filter(d => d.categoria && Number(d.valor) > 0);
+
+  // === BORDA VERDE ===
+  doc.setDrawColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+  doc.setLineWidth(1);
+  doc.rect(5, 5, pageWidth - 10, pageHeight - 10);
+
+  // === CABEÇALHO ===
   doc.setFontSize(16);
-  doc.text('RELATÓRIO DE DESPESA DE VIAGEM', pageWidth / 2, yPos, { align: 'center' });
-  yPos += 10;
-
-  // Número do Relatório
-  doc.setFontSize(11);
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Relatório: ${report.numero}`, 14, yPos);
-  yPos += 8;
+  doc.text('RELATÓRIO DE DESPESA DE VIAGEM', pageWidth / 2, y + 5, { align: 'center' });
 
-  // Informações Principais
-  doc.setFont('helvetica', 'normal');
+  y += 12;
+  doc.setFontSize(11);
+  doc.text(`${report.numero || 'N/A'} - ${(report.cliente_nome || 'N/A').toUpperCase()}`, pageWidth / 2, y, { align: 'center' });
+
+  // Linha separadora
+  y += 8;
+  doc.setDrawColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, pageWidth - margin, y);
+
+  // === INFORMAÇÕES DO RELATÓRIO ===
+  y += 10;
   doc.setFontSize(10);
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.setFont('helvetica', 'normal');
 
-  const infoLines = [
-    `Cliente: ${report.cliente_nome}`,
-    `Aeronave: ${report.aeronave}`,
-    `Tripulante 1: ${report.tripulante}`,
-  ];
+  const infoLineHeight = 6;
+  
+  // Cliente e Aeronave
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.text('Cliente:', margin, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.text((report.cliente_nome || 'N/A').toUpperCase(), margin + 20, y);
 
-  if (report.tripulante2) {
-    infoLines.push(`Tripulante 2: ${report.tripulante2}`);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.text('Aeronave:', pageWidth / 2, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.text(report.aeronave || 'N/A', pageWidth / 2 + 25, y);
+
+  y += infoLineHeight;
+
+  // Tripulantes
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.text('Tripulante 1:', margin, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.text((report.tripulante || 'N/A').toUpperCase(), margin + 28, y);
+
+  if (hasSecondCrew) {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+    doc.text('Tripulante 2:', pageWidth / 2, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+    doc.text((report.tripulante2 || '').toUpperCase(), pageWidth / 2 + 28, y);
   }
 
-  infoLines.push(
-    `Trecho: ${report.trecho}`,
-    `Período: ${formatDate(report.data_inicio)} a ${formatDate(report.data_fim)}`
-  );
+  y += infoLineHeight;
 
-  infoLines.forEach(line => {
-    doc.text(line, 14, yPos);
-    yPos += 6;
-  });
+  // Trecho e Período
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.text('Trecho:', margin, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.text(report.trecho || report.destino || 'N/A', margin + 18, y);
 
-  yPos += 5;
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.text('Período:', pageWidth / 2, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  const periodo = `${formatDateBR(report.data_inicio)} a ${formatDateBR(report.data_fim)} (${days} dias)`;
+  doc.text(periodo, pageWidth / 2 + 20, y);
 
-  // Tabela de Despesas
-  const tableData = report.despesas.map((d, idx) => [
-    (idx + 1).toString(),
-    d.categoria,
-    d.descricao || '-',
-    formatCurrency(d.valor),
-    d.pago_por || '-',
-    d.comprovante_url ? '✓' : '✗'
-  ]);
+  // === TABELA DE DESPESAS ===
+  y += 15;
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.setFontSize(11);
+  doc.text('DETALHES DAS DESPESAS', margin, y);
 
-  autoTable(doc, {
-    startY: yPos,
-    head: [['#', 'Categoria', 'Descrição', 'Valor', 'Pago Por', 'Comprovante']],
-    body: tableData,
-    theme: 'grid',
-    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold' },
-    styles: { fontSize: 9, cellPadding: 3 },
-    columnStyles: {
-      0: { cellWidth: 10 },
-      1: { cellWidth: 30 },
-      2: { cellWidth: 60 },
-      3: { cellWidth: 25, halign: 'right' },
-      4: { cellWidth: 30 },
-      5: { cellWidth: 20, halign: 'center' }
+  y += 6;
+
+  // Cabeçalho da tabela
+  const colWidths = [35, 65, 30, 40];
+  const tableWidth = colWidths.reduce((a, b) => a + b, 0);
+  const startX = margin;
+
+  doc.setFillColor(232, 232, 232);
+  doc.rect(startX, y, tableWidth, 8, 'F');
+  doc.setDrawColor(153, 153, 153);
+  doc.rect(startX, y, tableWidth, 8, 'S');
+
+  doc.setFontSize(9);
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.setFont('helvetica', 'bold');
+
+  let xPos = startX + 2;
+  doc.text('Categoria', xPos, y + 5.5);
+  xPos += colWidths[0];
+  doc.text('Descrição', xPos, y + 5.5);
+  xPos += colWidths[1];
+  doc.text('Valor (R$)', xPos, y + 5.5);
+  xPos += colWidths[2];
+  doc.text('Pago Por', xPos, y + 5.5);
+
+  y += 8;
+
+  // Linhas da tabela
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.setFontSize(8);
+
+  validExpenses.forEach((expense, index) => {
+    if (y > pageHeight - 60) {
+      doc.addPage();
+      y = margin;
     }
+
+    const rowHeight = 7;
+    
+    // Fundo alternado
+    if (index % 2 === 0) {
+      doc.setFillColor(250, 250, 250);
+      doc.rect(startX, y, tableWidth, rowHeight, 'F');
+    }
+    doc.setDrawColor(200, 200, 200);
+    doc.rect(startX, y, tableWidth, rowHeight, 'S');
+
+    xPos = startX + 2;
+    doc.text(expense.categoria || 'Outros', xPos, y + 5);
+    xPos += colWidths[0];
+    
+    // Truncar descrição se muito longa
+    const descricao = (expense.descricao || 'N/A').substring(0, 40);
+    doc.text(descricao, xPos, y + 5);
+    xPos += colWidths[1];
+    
+    doc.text(formatCurrency(expense.valor), xPos, y + 5);
+    xPos += colWidths[2];
+    doc.text(expense.pago_por || 'N/A', xPos, y + 5);
+
+    y += rowHeight;
   });
 
-  yPos = (doc as any).lastAutoTable.finalY + 10;
+  // === TOTAIS ===
+  y += 10;
+
+  if (y > pageHeight - 80) {
+    doc.addPage();
+    y = margin;
+  }
+
+  // Box de totais por categoria
+  const boxWidth = (tableWidth - 5) / 2;
+  const boxStartX = startX;
 
   // Totais por Categoria
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(153, 153, 153);
+  doc.rect(boxStartX, y, boxWidth, 55, 'S');
+
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('TOTAIS POR CATEGORIA', 14, yPos);
-  yPos += 7;
+  doc.setTextColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+  doc.setFontSize(10);
+  doc.text('Totais por Categoria (R$)', boxStartX + 3, y + 7);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.setFontSize(9);
 
-  const categoryTotals = [
-    ['Combustível:', formatCurrency(report.total_combustivel)],
-    ['Hospedagem:', formatCurrency(report.total_hospedagem)],
-    ['Alimentação:', formatCurrency(report.total_alimentacao)],
-    ['Transporte:', formatCurrency(report.total_transporte)],
-    ['Outros:', formatCurrency(report.total_outros)]
+  let ty = y + 14;
+  const categories = [
+    { label: 'Combustível:', value: report.total_combustivel },
+    { label: 'Hospedagem:', value: report.total_hospedagem },
+    { label: 'Alimentação:', value: report.total_alimentacao },
+    { label: 'Transporte:', value: report.total_transporte },
+    { label: 'Outros:', value: report.total_outros },
   ];
 
-  categoryTotals.forEach(([label, value]) => {
-    doc.text(label, 14, yPos);
-    doc.text(value, 80, yPos, { align: 'right' });
-    yPos += 6;
+  categories.forEach(cat => {
+    doc.text(cat.label, boxStartX + 3, ty);
+    doc.text(formatCurrency(cat.value), boxStartX + boxWidth - 25, ty);
+    ty += 6;
   });
 
-  yPos += 5;
+  // Total geral categoria
+  doc.setDrawColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+  doc.line(boxStartX + 3, ty - 2, boxStartX + boxWidth - 3, ty - 2);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.text('TOTAL GERAL:', boxStartX + 3, ty + 4);
+  doc.setTextColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+  doc.text(formatCurrency(report.valor_total), boxStartX + boxWidth - 25, ty + 4);
 
   // Totais por Pagador
+  const box2X = boxStartX + boxWidth + 5;
+  doc.setDrawColor(153, 153, 153);
+  doc.rect(box2X, y, boxWidth, 55, 'S');
+
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.text('TOTAIS POR PAGADOR', 14, yPos);
-  yPos += 7;
+  doc.setTextColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+  doc.setFontSize(10);
+  doc.text('Totais por Pagador (R$)', box2X + 3, y + 7);
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.setFontSize(9);
 
-  const payerTotals = [];
+  ty = y + 14;
+  
+  // Tripulante 1
+  const tripLabel1 = report.tripulante ? `Tripulante 1 (${report.tripulante}):` : 'Tripulante 1:';
+  doc.text(tripLabel1.substring(0, 25), box2X + 3, ty);
+  doc.text(formatCurrency(total_tripulante1), box2X + boxWidth - 25, ty);
+  ty += 6;
 
-  if (report.total_tripulante1 && report.total_tripulante1 > 0) {
-    payerTotals.push([`Tripulante 1 (${report.tripulante}):`, formatCurrency(report.total_tripulante1)]);
+  // Tripulante 2 (se houver)
+  if (hasSecondCrew) {
+    const tripLabel2 = report.tripulante2 ? `Tripulante 2 (${report.tripulante2}):` : 'Tripulante 2:';
+    doc.text(tripLabel2.substring(0, 25), box2X + 3, ty);
+    doc.text(formatCurrency(total_tripulante2), box2X + boxWidth - 25, ty);
+    ty += 6;
   }
+  
+  // Cliente
+  doc.text('Cliente:', box2X + 3, ty);
+  doc.text(formatCurrency(report.total_cliente), box2X + boxWidth - 25, ty);
+  ty += 6;
 
-  if (report.total_tripulante2 && report.total_tripulante2 > 0 && report.tripulante2) {
-    payerTotals.push([`Tripulante 2 (${report.tripulante2}):`, formatCurrency(report.total_tripulante2)]);
-  }
+  // ShareBrasil
+  doc.text('ShareBrasil:', box2X + 3, ty);
+  doc.text(formatCurrency(report.total_sharebrasil), box2X + boxWidth - 25, ty);
+  ty += 6;
 
-  if (report.total_tripulante > 0 && !report.total_tripulante1) {
-    // Compatibilidade com versão antiga
-    payerTotals.push(['Tripulante(s):', formatCurrency(report.total_tripulante)]);
-  }
-
-  payerTotals.push(
-    ['Cliente:', formatCurrency(report.total_cliente)],
-    ['ShareBrasil:', formatCurrency(report.total_sharebrasil)]
-  );
-
-  payerTotals.forEach(([label, value]) => {
-    doc.text(label, 14, yPos);
-    doc.text(value, 80, yPos, { align: 'right' });
-    yPos += 6;
-  });
-
-  // Valor Total
-  yPos += 3;
-  doc.setDrawColor(0);
-  doc.setLineWidth(0.5);
-  doc.line(14, yPos, 80, yPos);
-  yPos += 7;
-
+  // Total geral pagador
+  doc.setDrawColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+  doc.line(box2X + 3, ty - 2, box2X + boxWidth - 3, ty - 2);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.text('VALOR TOTAL:', 14, yPos);
-  doc.text(formatCurrency(report.valor_total), 80, yPos, { align: 'right' });
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.text('TOTAL GERAL:', box2X + 3, ty + 4);
+  doc.setTextColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+  doc.text(formatCurrency(report.valor_total), box2X + boxWidth - 25, ty + 4);
 
-  // Observações
+
+  // === OBSERVAÇÕES E RODAPÉ ===
   if (report.observacoes && report.observacoes.trim()) {
-    yPos += 12;
-    if (yPos > pageHeight - 40) {
+    y = ty + 15; // Próxima posição após os totais
+    if (y > pageHeight - 40) {
       doc.addPage();
-      yPos = 20;
+      y = margin;
     }
 
     doc.setFont('helvetica', 'bold');
+    doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
     doc.setFontSize(11);
-    doc.text('OBSERVAÇÕES:', 14, yPos);
-    yPos += 7;
+    doc.text('OBSERVAÇÕES:', margin, y);
+    y += 7;
 
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(textGray[0], textGray[1], textGray[2]);
     doc.setFontSize(10);
-    const obsLines = doc.splitTextToSize(report.observacoes, pageWidth - 28);
-    doc.text(obsLines, 14, yPos);
+    const obsLines = doc.splitTextToSize(report.observacoes, pageWidth - (margin * 2));
+    doc.text(obsLines, margin, y);
   }
 
   // Rodapé
-  const footerY = pageHeight - 20;
+  y = pageHeight - 15;
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(102, 102, 102);
   doc.setFontSize(8);
-  doc.setFont('helvetica', 'italic');
-  doc.text(
-    `Relatório gerado em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')} por ${userName}`,
-    pageWidth / 2,
-    footerY,
-    { align: 'center' }
-  );
+  doc.text(`Gerado por: ${currentFullName}`, pageWidth - margin, y, { align: 'right' });
+  doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, margin, y);
 
-  return doc;
-}
+  // Retorna como Blob
+  return doc.output('blob');
+};
 
+// =========================================================================
+// FUNÇÕES DE EXPORTAÇÃO (DOWNLOAD, VISUALIZAR, UPLOAD)
+// =========================================================================
 
-/**
- * 1. Gera o PDF e faz upload para o Supabase Storage.
- * Retorna a URL pública do PDF salvo (usado para salvar no banco de dados).
- */
-export async function uploadPDFToStorage(
+export const downloadPDF = async (report: TravelReport, currentFullName?: string) => {
+  const blob = await generatePDF(report, currentFullName);
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${report.numero.replace(/\//g, '-')}-relatorio-viagem.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+};
+
+export const openPDFInNewWindow = async (report: TravelReport, currentFullName?: string) => {
+  const blob = await generatePDF(report, currentFullName);
+  const url = window.URL.createObjectURL(blob);
+  window.open(url, '_blank');
+};
+
+export const previewPDFForPrint = async (report: TravelReport, currentFullName?: string) => {
+  const blob = await generatePDF(report, currentFullName);
+  const url = window.URL.createObjectURL(blob);
+  const printWindow = window.open(url, '_blank');
+  if (printWindow) {
+    printWindow.onload = () => {
+      // printWindow.print(); // Descomente para forçar a caixa de diálogo de impressão
+    };
+  }
+};
+
+export const uploadPDFToStorage = async (
   report: TravelReport,
-  supabase: SupabaseClient,
-  userName: string = 'Sistema'
-): Promise<string> {
-  // Gerar o PDF
-  const doc = generatePDFDocument(report, userName);
+  supabaseClient: any,
+  currentFullName?: string
+): Promise<string> => {
+  // Gera o PDF (Blob)
+  const blob = await generatePDF(report, currentFullName);
 
-  // Converter para Blob
-  const pdfBlob = doc.output('blob');
+  // Validação para evitar upload de PDF vazio (para solucionar seu problema anterior)
+  if (!blob || blob.size < 1000) {
+    console.error('PDF gerado está vazio ou inválido:', blob?.size);
+    throw new Error('PDF gerado está vazio ou inválido. Verifique os dados do relatório.');
+  }
 
-  // Nome do arquivo
   const fileName = `${report.numero.replace(/\//g, '-')}-${Date.now()}.pdf`;
-  const filePath = `reports/${fileName}`;
+  // Mudei a pasta para 'pdfs/' para ser explícito, ajuste se necessário.
+  const filePath = `pdfs/${fileName}`; 
 
-  // Upload para o Supabase Storage
-  const { error: uploadError } = await supabase.storage
-    .from('travel-reports') // VERIFIQUE O NOME DO SEU BUCKET
-    .upload(filePath, pdfBlob, {
+  const { error: uploadError } = await supabaseClient.storage
+    .from('travel-reports')
+    .upload(filePath, blob, {
       contentType: 'application/pdf',
-      upsert: true // Alterei para 'true' para permitir que relatórios atualizados substituam o anterior
+      upsert: true // Permite reescrever se for uma atualização
     });
 
   if (uploadError) {
-    console.error('Erro no upload para Supabase Storage:', uploadError);
     throw new Error(`Erro ao fazer upload do PDF: ${uploadError.message}`);
   }
 
-  // Obter URL pública
-  const { data: { publicUrl } } = supabase.storage
+  const { data: { publicUrl } } = supabaseClient.storage
     .from('travel-reports')
     .getPublicUrl(filePath);
 
   return publicUrl;
-}
-
-/**
- * 2. Baixa o PDF diretamente no navegador (para o botão "Baixar PDF").
- * Cria um link temporário e simula o clique.
- */
-export const downloadPDF = (report: TravelReport) => {
-  const doc = generatePDFDocument(report, 'Usuário');
-  const pdfBlob = doc.output('blob');
-
-  const url = URL.createObjectURL(pdfBlob);
-  const link = document.createElement('a');
-
-  // Nome do arquivo para download (CRÍTICO: impede o download vazio)
-  link.download = `${report.numero.replace(/\//g, '-')}-relatorio-viagem.pdf`;
-  link.href = url;
-
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-  // Limpar o objeto URL para liberar memória
-  URL.revokeObjectURL(url);
 };
 
-/**
- * 3. Abre o PDF em uma nova aba do navegador (para o botão "Visualizar / Eye Icon").
- * Ideal para visualização, impressão e download nativo do navegador.
- */
-export const previewPDFForPrint = (report: TravelReport, userName: string) => {
-  const doc = generatePDFDocument(report, userName);
-  const pdfBlob = doc.output('blob');
+// =========================================================================
+// FUNÇÕES PARA VISUALIZAÇÃO HTML (MANTENDO SEU LAYOUT)
+// =========================================================================
 
-  const url = URL.createObjectURL(pdfBlob);
+export const getReportHTML = (report: TravelReport, currentFullName = 'Usuário') => {
+  // Recalcular totais e dias (FONTE DA VERDADE NO HTML)
+  const crewTotals = calculateCrewTotals(report.despesas);
+  const total_tripulante1 = crewTotals.total_tripulante1;
+  const total_tripulante2 = crewTotals.total_tripulante2;
+  const hasSecondCrew = report.tripulante2 && report.tripulante2.trim() !== '';
+  const days = calculateDays(report);
+  
+  const validExpenses = report.despesas.filter(d => d.categoria && Number(d.valor) > 0);
 
-  // Abre em uma nova janela/aba
-  const printWindow = window.open(url, '_blank');
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Relatório de Viagem - ${report.numero}</title>
+        <style>
+            body { font-family: Arial, sans-serif; font-size: 12px; padding: 20px; }
+            .header { text-align: center; border-bottom: 2px solid #22c55e; padding-bottom: 10px; }
+            .header h1 { color: #1e3a8a; margin: 0; }
+            table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+            th { background: #e5e5e5; color: #1e3a8a; }
+            .totals { display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap; }
+            .totals-box { flex: 1; min-width: 250px; border: 1px solid #ccc; padding: 15px; }
+            .totals-box h3 { color: #22c55e; margin-top: 0; }
+            .totals-box p { margin: 4px 0; }
+            .total-final { border-top: 1px dashed #22c55e; margin-top: 8px; padding-top: 8px; font-weight: bold; color: #1e3a8a; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>RELATÓRIO DE DESPESA DE VIAGEM</h1>
+            <p><strong>${report.numero} - ${(report.cliente_nome || '').toUpperCase()}</strong></p>
+        </div>
+        <p><strong>Cliente:</strong> ${report.cliente_nome} | <strong>Aeronave:</strong> ${report.aeronave}</p>
+        <p><strong>Tripulante 1:</strong> ${report.tripulante}${hasSecondCrew ? ` | <strong>Tripulante 2:</strong> ${report.tripulante2}` : ''}</p>
+        <p><strong>Trecho:</strong> ${report.trecho || report.destino} | <strong>Período:</strong> ${formatDateBR(report.data_inicio)} a ${formatDateBR(report.data_fim)} (${days} dias)</p>
+        
+        <table>
+            <thead><tr><th>Categoria</th><th>Descrição</th><th>Valor (R$)</th><th>Pago Por</th></tr></thead>
+            <tbody>
+                ${validExpenses.map(d => `<tr><td>${d.categoria}</td><td>${d.descricao}</td><td>${formatCurrency(d.valor)}</td><td>${d.pago_por}</td></tr>`).join('')}
+            </tbody>
+        </table>
+        
+        <div class="totals">
+            <div class="totals-box">
+                <h3>Totais por Categoria</h3>
+                <p>Combustível: R$ ${formatCurrency(report.total_combustivel)}</p>
+                <p>Hospedagem: R$ ${formatCurrency(report.total_hospedagem)}</p>
+                <p>Alimentação: R$ ${formatCurrency(report.total_alimentacao)}</p>
+                <p>Transporte: R$ ${formatCurrency(report.total_transporte)}</p>
+                <p>Outros: R$ ${formatCurrency(report.total_outros)}</p>
+                <p class="total-final">TOTAL GERAL: R$ ${formatCurrency(report.valor_total)}</p>
+            </div>
+            <div class="totals-box">
+                <h3>Totais por Pagador</h3>
+                <p>Tripulante 1 (${report.tripulante}): R$ ${formatCurrency(total_tripulante1)}</p>
+                ${hasSecondCrew ? `<p>Tripulante 2 (${report.tripulante2}): R$ ${formatCurrency(total_tripulante2)}</p>` : ''}
+                <p>Cliente: R$ ${formatCurrency(report.total_cliente)}</p>
+                <p>ShareBrasil: R$ ${formatCurrency(report.total_sharebrasil)}</p>
+                <p class="total-final">TOTAL GERAL: R$ ${formatCurrency(report.valor_total)}</p>
+            </div>
+        </div>
+        ${report.observacoes ? `<div style="margin-top: 20px;"><strong>Observações:</strong><p>${report.observacoes}</p></div>` : ''}
+        
+        <p style="text-align: right; margin-top: 30px; color: #666; border-top: 1px solid #ccc; padding-top: 5px;">Gerado por: ${currentFullName}</p>
+    </body>
+    </html>
+  `;
+};
 
-  if (!printWindow) {
-    console.error('Falha ao abrir janela de visualização. O bloqueador de pop-ups está ativo?');
-    alert('Falha ao abrir a janela de visualização. Verifique o bloqueador de pop-ups e tente novamente.');
+export const viewHTMLPreview = (report: TravelReport, currentFullName?: string) => {
+  const htmlContent = getReportHTML(report, currentFullName);
+  const newWindow = window.open('', '_blank');
+  if (newWindow) {
+    newWindow.document.write(htmlContent);
+    newWindow.document.close();
   }
-
-  // Nota: O URL.revokeObjectURL(url) não é chamado aqui para que a nova janela 
-  // possa continuar acessando o objeto Blob.
 };
