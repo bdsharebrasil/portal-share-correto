@@ -343,19 +343,6 @@ export default function AeronaveDetalhes() {
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
-                  <Users className="h-5 w-5 text-purple-400" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-slate-400 uppercase tracking-wide">Proprietário</p>
-                  <p className="text-lg font-bold text-white truncate">{aircraft.owner_name || "N/A"}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Clients & Details */}
