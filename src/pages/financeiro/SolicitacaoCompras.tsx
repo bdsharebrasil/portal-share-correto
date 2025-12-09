@@ -423,8 +423,8 @@ export default function SolicitacaoCompras() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2">
+        <div className="grid grid-cols-1 gap-6">
+          <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
@@ -639,42 +639,6 @@ export default function SolicitacaoCompras() {
                   {loading ? 'Criando...' : 'Criar Solicitação'}
                 </Button>
               </form>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Resumo</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Total</span>
-                  <span className="font-semibold">{stats.total}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Rascunhos</span>
-                  <Badge className="bg-gray-500/20">{stats.rascunhos}</Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Enviadas</span>
-                  <Badge className="bg-blue-500/20">{stats.enviadas}</Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Aprovadas</span>
-                  <Badge className="bg-green-500/20">{stats.aprovadas}</Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Reprovadas</span>
-                  <Badge className="bg-red-500/20">{stats.reprovadas}</Badge>
-                </div>
-              </div>
-              <div className="pt-4 border-t">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Valor Total</span>
-                  <span className="font-bold text-primary">{formatCurrency(stats.valorTotal)}</span>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>
