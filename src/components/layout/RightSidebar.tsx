@@ -89,6 +89,12 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen }) => {
       path: "/diario-bordo",
     },
     {
+      label: "Gerenciar Aeronaves",
+      icon: Plane,
+      color: "secondary",
+      path: "/aeronaves",
+    },
+    {
       label: "Controle de Abastecimento",
       icon: Fuel,
       color: "primary",
