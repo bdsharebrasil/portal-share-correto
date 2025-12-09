@@ -269,7 +269,8 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
                   descricao: reconciliation.description || 'Reembolso de despesas',
                   status: 'recebida',
                   aeronave: aircraftRegistration || '',
-                  criado_por: user.id
+                  criado_por: user.id,
+                  banco_conciliacao_id: reconciliation.id
                 } as any);
 
               if (insertError) {
