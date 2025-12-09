@@ -120,6 +120,33 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen }) => {
     },
   ];
 
+  const aircraftOperations: FlightOperation[] = [
+    {
+      label: "Listar Aeronaves",
+      icon: Plane,
+      color: "primary",
+      path: "/aeronaves",
+    },
+    {
+      label: "Adicionar Aeronave",
+      icon: Plane,
+      color: "secondary",
+      path: "/aeronaves/novo",
+    },
+    {
+      label: "Documentos Aeronaves",
+      icon: FileText,
+      color: "accent",
+      path: "/documentos-aeronaves",
+    },
+    {
+      label: "Registros Técnicos",
+      icon: Wrench,
+      color: "primary",
+      path: "/aeronaves/registros",
+    },
+  ];
+
   const maintenanceItems: MaintenanceItem[] = [
     {
       label: "Controle de Vencimentos",
