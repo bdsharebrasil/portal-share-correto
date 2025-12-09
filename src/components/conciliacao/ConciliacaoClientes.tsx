@@ -64,7 +64,7 @@ const addDespesaSchema = z.object({
   description: z.string().min(1, "Descrição é obrigatória"),
   amount: z.string().min(1, "Valor é obrigatório"),
   category: z.string().min(1, "Categoria é obrigatória"),
-  status: z.enum(["pendente", "conferido", "enviado"]),
+  status: z.enum(["pendente", "enviado", "recebido"]),
   payment_term: z.string().optional().nullable(),
 });
 
@@ -142,8 +142,8 @@ export function ConciliacaoClientes() {
   const getStatusBadge = (status: string) => {
     const statusLower = status?.toLowerCase() || '';
     switch (statusLower) {
-      case "conferido":
-        return <Badge className="bg-green-100 text-green-800">Conferido</Badge>;
+      case "recebido":
+        return <Badge className="bg-green-100 text-green-800">Recebido</Badge>;
       case "enviado":
         return <Badge className="bg-blue-100 text-blue-800">Enviado</Badge>;
       case "pendente":
@@ -156,7 +156,7 @@ export function ConciliacaoClientes() {
   const getStatusIcon = (status: string) => {
     const statusLower = status?.toLowerCase() || '';
     switch (statusLower) {
-      case "conferido":
+      case "recebido":
         return <CheckCircle className="h-4 w-4 text-green-600" />;
       case "enviado":
         return <Send className="h-4 w-4 text-blue-600" />;
@@ -204,7 +204,7 @@ export function ConciliacaoClientes() {
 
           if (relatedReport) {
             let reportStatus = 'pendente';
-            if (newStatus?.toLowerCase() === 'conferido') {
+            if (newStatus?.toLowerCase() === 'recebido') {
               reportStatus = 'pago';
             } else if (newStatus?.toLowerCase() === 'enviado') {
               reportStatus = 'enviado';
@@ -264,8 +264,8 @@ export function ConciliacaoClientes() {
   };
 
   const resumoClientes = {
-    totalPago: conciliacaoClientes
-      .filter(item => item.status?.toLowerCase() === 'conferido')
+    totalRecebido: conciliacaoClientes
+      .filter(item => item.status?.toLowerCase() === 'recebido')
       .reduce((sum, item) => sum + Number(item.amount), 0),
     totalEnviado: conciliacaoClientes
       .filter(item => item.status?.toLowerCase() === 'enviado')
@@ -309,9 +309,9 @@ export function ConciliacaoClientes() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground font-medium">Total Pago</p>
+                <p className="text-sm text-muted-foreground font-medium">Total Recebido</p>
                 <p className="text-2xl font-bold text-green-500 mt-1">
-                  {formatCurrency(resumoClientes.totalPago)}
+                  {formatCurrency(resumoClientes.totalRecebido)}
                 </p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-green-500/10 flex items-center justify-center">
@@ -443,7 +443,7 @@ export function ConciliacaoClientes() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          {item.status?.toLowerCase() !== 'enviado' && item.status?.toLowerCase() !== 'conferido' ? (
+                          {item.status?.toLowerCase() === 'pendente' ? (
                             <PaymentTermEditor
                               reconciliation={item}
                               onSave={fetchReconciliations}
@@ -456,24 +456,22 @@ export function ConciliacaoClientes() {
                         </TableCell>
                         <TableCell>{getStatusBadge(item.status)}</TableCell>
                         <TableCell>
-                          {item.status?.toLowerCase() !== 'conferido' ? (
-                            <div className="flex gap-2">
-                              {item.status?.toLowerCase() !== 'enviado' && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedReconciliation(item);
-                                    setOpenStatusDialog(true);
-                                  }}
-                                  title="Enviar por email"
-                                >
-                                  <Mail className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
+                          {item.status?.toLowerCase() === 'pendente' ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedReconciliation(item);
+                                setOpenStatusDialog(true);
+                              }}
+                              title="Enviar por email"
+                            >
+                              <Mail className="h-4 w-4" />
+                            </Button>
+                          ) : item.status?.toLowerCase() === 'enviado' ? (
+                            <span className="text-xs text-muted-foreground">Enviado</span>
                           ) : (
-                            <span className="text-xs text-muted-foreground">Finalizado</span>
+                            <span className="text-xs text-muted-foreground">Recebido</span>
                           )}
                         </TableCell>
                       </TableRow>
@@ -850,8 +848,8 @@ function AddDespesaForm({
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="pendente">Pendente</SelectItem>
-                      <SelectItem value="conferido">Conferido</SelectItem>
                       <SelectItem value="enviado">Enviado</SelectItem>
+                      <SelectItem value="recebido">Recebido</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -893,7 +891,7 @@ const newReconciliationSchema = z.object({
   description: z.string().min(1, "Descrição é obrigatória"),
   amount: z.string().min(1, "Valor é obrigatório"),
   category: z.string().min(1, "Categoria é obrigatória"),
-  status: z.enum(["pendente", "conferido", "enviado"]),
+  status: z.enum(["pendente", "enviado", "recebido"]),
   clientId: z.string().min(1, "Cliente é obrigatório"),
   aircraftId: z.string().min(1, "Aeronave é obrigatória"),
 });
@@ -1119,8 +1117,8 @@ function NewReconciliationInlineForm({
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="pendente">Pendente</SelectItem>
-                    <SelectItem value="conferido">Conferido</SelectItem>
                     <SelectItem value="enviado">Enviado</SelectItem>
+                    <SelectItem value="recebido">Recebido</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage className="text-xs" />

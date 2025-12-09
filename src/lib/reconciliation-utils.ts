@@ -237,7 +237,7 @@ export async function createFluxoCaixaEntry(
     const isColaboradorReconciliation = reconciliation.type === 'colaborador';
 
     // Determinar se deve criar entrada/saída baseado no status final
-    const isStatusFinal = (isClientReconciliation && status?.toLowerCase() === 'conferido') ||
+    const isStatusFinal = (isClientReconciliation && status?.toLowerCase() === 'recebido') ||
                           (isColaboradorReconciliation && status?.toLowerCase() === 'pago');
 
     if (!isStatusFinal) {
@@ -253,7 +253,7 @@ export async function createFluxoCaixaEntry(
       nomeBanco = `${contaBancaria.nome}${contaBancaria.banco ? ` - ${contaBancaria.banco}` : ''}`;
     }
 
-    if (isClientReconciliation && status?.toLowerCase() === 'conferido') {
+    if (isClientReconciliation && status?.toLowerCase() === 'recebido') {
       referencia = `REC-${reconciliation.id}`;
       tipoMovimento = 'entrada';
     } else if (isColaboradorReconciliation && status?.toLowerCase() === 'pago') {
@@ -312,20 +312,20 @@ export function getNextStatus(
   if (reconciliationType === 'cliente') {
     switch (statusLower) {
       case 'pendente':
-        return ['enviado', 'conferido'];
+        return ['enviado'];
       case 'enviado':
-        return ['conferido'];
-      case 'conferido':
+        return ['recebido'];
+      case 'recebido':
         return [];
       default:
-        return ['pendente', 'enviado', 'conferido'];
+        return ['pendente', 'enviado', 'recebido'];
     }
   }
 
   if (reconciliationType === 'colaborador') {
     switch (statusLower) {
       case 'pendente':
-        return ['enviado', 'pago'];
+        return ['enviado'];
       case 'enviado':
         return ['pago'];
       case 'pago':
@@ -344,14 +344,14 @@ export function getNextStatus(
  */
 export function isStatusFinal(status: string, reconciliationType: string): boolean {
   const statusLower = status?.toLowerCase() || '';
-  
+
   if (reconciliationType === 'cliente') {
-    return statusLower === 'conferido';
+    return statusLower === 'recebido';
   }
   if (reconciliationType === 'colaborador') {
     return statusLower === 'pago';
   }
-  
+
   return false;
 }
 
