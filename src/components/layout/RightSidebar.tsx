@@ -121,12 +121,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen }) => {
       color: "primary",
       path: "/aeronaves",
     },
-    {
-      label: "Detalhes da Aeronave",
-      icon: FileText,
-      color: "secondary",
-      path: "/aeronave-detalhes",
-    },
   ];
 
   const maintenanceItems: MaintenanceItem[] = [
