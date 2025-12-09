@@ -360,36 +360,36 @@ export default function AeronaveDetalhes() {
 
         {/* Clients & Details */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="rounded-2xl border-0 shadow-lg">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Users className="h-5 w-5 text-primary" />
+          <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg text-white">
+                <Users className="h-5 w-5 text-cyan-400" />
                 Clientes Vinculados
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2">
               {clients && clients.length > 0 ? (
                 clients.map((c, i) => (
                   <div
                     key={i}
-                    className="flex items-center justify-between p-3 bg-muted/30 rounded-xl"
+                    className="flex items-center justify-between p-3 bg-slate-700/40 rounded-lg"
                   >
-                    <span className="font-medium">{c.clients?.company_name || "Sem nome"}</span>
-                    <Badge variant="secondary" className="rounded-lg">
+                    <span className="font-medium text-white">{c.clients?.company_name || "Sem nome"}</span>
+                    <Badge variant="secondary" className="rounded-lg bg-slate-600 text-white">
                       {c.share_percentage}%
                     </Badge>
                   </div>
                 ))
               ) : (
-                <p className="text-muted-foreground text-center py-4">Nenhum cliente vinculado</p>
+                <p className="text-slate-400 text-center py-4">Nenhum cliente vinculado</p>
               )}
             </CardContent>
           </Card>
 
-          <Card className="lg:col-span-2 rounded-2xl border-0 shadow-lg">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <FileText className="h-5 w-5 text-primary" />
+          <Card className="lg:col-span-2 rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg text-white">
+                <FileText className="h-5 w-5 text-cyan-400" />
                 Informações Técnicas
               </CardTitle>
             </CardHeader>
