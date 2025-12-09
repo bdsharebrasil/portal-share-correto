@@ -345,71 +345,62 @@ export default function AeronaveDetalhes() {
 
         </div>
 
-        {/* Clients & Details */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg text-white">
-                <Users className="h-5 w-5 text-cyan-400" />
-                Clientes Vinculados
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {clients && clients.length > 0 ? (
-                clients.map((c, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between p-3 bg-slate-700/40 rounded-lg"
-                  >
-                    <span className="font-medium text-white">{c.clients?.company_name || "Sem nome"}</span>
-                    <Badge variant="secondary" className="rounded-lg bg-slate-600 text-white">
-                      {c.share_percentage}%
-                    </Badge>
-                  </div>
-                ))
-              ) : (
-                <p className="text-slate-400 text-center py-4">Nenhum cliente vinculado</p>
-              )}
-            </CardContent>
-          </Card>
+        {/* Clients Line */}
+        {clients && clients.length > 0 && (
+          <div className="flex items-center gap-3">
+            <Users className="h-5 w-5 text-cyan-400" />
+            <p className="text-sm font-medium text-slate-300">Clientes Vinculados:</p>
+            <div className="flex flex-wrap gap-2">
+              {clients.map((c, i) => (
+                <Badge key={i} variant="secondary" className="rounded-lg bg-slate-600 text-white text-xs">
+                  {c.clients?.company_name || "Sem nome"} ({c.share_percentage}%)
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
 
-          <Card className="lg:col-span-2 rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg text-white">
-                <FileText className="h-5 w-5 text-cyan-400" />
-                Informações Técnicas
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <div className="p-3 bg-slate-700/40 rounded-lg">
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Nº Série</p>
-                  <p className="font-semibold text-white">{aircraft.serial_number || "N/A"}</p>
-                </div>
-                <div className="p-3 bg-slate-700/40 rounded-lg">
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Fabricante</p>
-                  <p className="font-semibold text-white">{aircraft.manufacturer || "N/A"}</p>
-                </div>
-                <div className="p-3 bg-slate-700/40 rounded-lg">
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Modelo</p>
-                  <p className="font-semibold text-white">{aircraft.model || "N/A"}</p>
-                </div>
-                <div className="p-3 bg-slate-700/40 rounded-lg">
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Célula Atual</p>
-                  <p className="font-semibold text-white">{aircraft.cell_hours_current ? `${aircraft.cell_hours_current}h` : "N/A"}</p>
-                </div>
-                <div className="p-3 bg-slate-700/40 rounded-lg">
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Horímetro</p>
-                  <p className="font-semibold text-white">{aircraft.horimeter_active ? `${aircraft.horimeter_active}h` : "N/A"}</p>
-                </div>
-                <div className="p-3 bg-slate-700/40 rounded-lg">
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Valor Hora</p>
-                  <p className="font-semibold text-white">{aircraft.hourly_price ? `R$ ${aircraft.hourly_price}` : "N/A"}</p>
-                </div>
+        {/* Informações Técnicas */}
+        <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg text-white">
+              <FileText className="h-5 w-5 text-cyan-400" />
+              Informações Técnicas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="p-3 bg-slate-700/40 rounded-lg">
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Nº Série</p>
+                <p className="font-semibold text-white">{aircraft.serial_number || "N/A"}</p>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+              <div className="p-3 bg-slate-700/40 rounded-lg">
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Fabricante</p>
+                <p className="font-semibold text-white">{aircraft.manufacturer || "N/A"}</p>
+              </div>
+              <div className="p-3 bg-slate-700/40 rounded-lg">
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Modelo</p>
+                <p className="font-semibold text-white">{aircraft.model || "N/A"}</p>
+              </div>
+              <div className="p-3 bg-slate-700/40 rounded-lg">
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Célula Atual</p>
+                <p className="font-semibold text-white">{aircraft.cell_hours_current ? `${aircraft.cell_hours_current}h` : "N/A"}</p>
+              </div>
+              <div className="p-3 bg-slate-700/40 rounded-lg">
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Horímetro</p>
+                <p className="font-semibold text-white">{aircraft.horimeter_active ? `${aircraft.horimeter_active}h` : "N/A"}</p>
+              </div>
+              <div className="p-3 bg-slate-700/40 rounded-lg">
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Proprietário</p>
+                <p className="font-semibold text-white">{aircraft.owner_name || "N/A"}</p>
+              </div>
+              <div className="p-3 bg-slate-700/40 rounded-lg">
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Valor Hora</p>
+                <p className="font-semibold text-white">{aircraft.hourly_price ? `R$ ${aircraft.hourly_price}` : "N/A"}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Documents Section */}
         <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
