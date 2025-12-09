@@ -466,22 +466,9 @@ export function ConciliacaoClientes() {
                                     setSelectedReconciliation(item);
                                     setOpenStatusDialog(true);
                                   }}
-                                  title="Enviado por email"
+                                  title="Enviar por email"
                                 >
                                   <Mail className="h-4 w-4" />
-                                </Button>
-                              )}
-                              {canApproveStatus && item.status?.toLowerCase() !== 'conferido' && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedReconciliation(item);
-                                    setOpenStatusDialog(true);
-                                  }}
-                                  title="Conferido"
-                                >
-                                  <Check className="h-4 w-4" />
                                 </Button>
                               )}
                             </div>
