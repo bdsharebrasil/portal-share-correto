@@ -128,21 +128,21 @@ export default function Aeronaves() {
           <div className="bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900 p-4 space-y-3">
             {/* Header */}
             <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-4 flex-1 min-w-0">
-                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
-                  <Plane className="h-7 w-7 text-primary-foreground" />
+              <div className="flex items-start gap-3 flex-1 min-w-0">
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                  <Plane className="h-6 w-6 text-white" />
                 </div>
-                <div className="min-w-0 pt-1">
-                  <h3 className="text-2xl font-bold text-foreground uppercase tracking-wider">
+                <div className="min-w-0 pt-0.5">
+                  <h3 className="text-xl font-bold text-white uppercase tracking-wider">
                     {a.registration}
                   </h3>
-                  <p className="text-sm text-muted-foreground mt-1">{a.model}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{a.model}</p>
                 </div>
               </div>
               <Badge
-                className={`rounded-xl px-3 py-1 ${a.status === "inativa"
-                    ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                    : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                className={`rounded-lg px-2.5 py-1 text-xs font-medium flex-shrink-0 ${a.status === "inativa"
+                    ? "bg-red-500/20 text-red-300 border border-red-500/30"
+                    : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
                   }`}
               >
                 {a.status === "inativa" ? "Inativa" : "Ativa"}
