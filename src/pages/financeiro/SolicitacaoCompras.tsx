@@ -61,7 +61,6 @@ export default function SolicitacaoCompras() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string>("");
   const [loading, setLoading] = useState(false);
-  const [requestItems, setRequestItems] = useState<RequestItem[]>([]);
 
   // Form states
   const [tipo, setTipo] = useState("compra");
@@ -70,13 +69,6 @@ export default function SolicitacaoCompras() {
   const [departamento, setDepartamento] = useState("");
   const [prioridade, setPrioridade] = useState("normal");
   const [tipoDeServico, setTipoDeServico] = useState("");
-
-  // Items states
-  const [itemDescricao, setItemDescricao] = useState("");
-  const [itemQuantidade, setItemQuantidade] = useState("");
-  const [itemUnidade, setItemUnidade] = useState("unidade");
-  const [itemValor, setItemValor] = useState("");
-  const [tempItems, setTempItems] = useState<Omit<RequestItem, 'id' | 'purchase_request_id'>[]>([]);
 
   // Edit dialog states
   const [editingRequest, setEditingRequest] = useState<PurchaseRequest | null>(null);
