@@ -221,16 +221,6 @@ export default function SolicitacaoCompras() {
       return;
     }
 
-    // Validar itens apenas para compras
-    if (tipo === 'compra' && tempItems.length === 0) {
-      toast({
-        title: "Itens obrigatórios",
-        description: "Adicione pelo menos um item à solicitação de compra",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setLoading(true);
 
     try {
