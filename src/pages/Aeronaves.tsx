@@ -2,18 +2,14 @@ import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AddAircraftDialog } from "@/components/diario/AddAircraftDialog";
 import { useMemo, useState } from "react";
-import { ArrowLeft, Edit, Plus, Trash2, Plane, Calendar, MapPin, Users } from "lucide-react";
+import { ArrowLeft, Edit, Plus, Trash2, Plane, Calendar, MapPin, Users, Fuel, Search, Eye, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { toast } from "sonner";
 import {
   Tabs,
   TabsContent,
@@ -25,7 +21,7 @@ export default function Aeronaves() {
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
-  const [viewing, setViewing] = useState<any | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const { data: aircraft, isLoading, refetch } = useQuery({
     queryKey: ["aircraft"],
@@ -54,6 +50,22 @@ export default function Aeronaves() {
     },
   });
 
+  const { data: documentCounts } = useQuery({
+    queryKey: ["aircraft-document-counts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("aircraft_documents")
+        .select("aircraft_id");
+      if (error) throw error;
+
+      const counts = new Map<string, number>();
+      data?.forEach(d => {
+        counts.set(d.aircraft_id, (counts.get(d.aircraft_id) || 0) + 1);
+      });
+      return counts;
+    },
+  });
+
   const clientsByAircraft = useMemo(() => {
     const map = new Map<string, string[]>();
     (clients || []).forEach((c) => {
@@ -70,113 +82,163 @@ export default function Aeronaves() {
     return map;
   }, [clients]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!confirm("Excluir esta aeronave?")) return;
     const { error } = await supabase.from("aircraft").delete().eq("id", id);
-    if (!error) refetch();
+    if (error) {
+      toast.error("Erro ao excluir aeronave");
+    } else {
+      toast.success("Aeronave excluída com sucesso");
+      refetch();
+    }
   };
 
+  const filteredAircraft = useMemo(() => {
+    if (!aircraft) return [];
+    if (!searchTerm) return aircraft;
+
+    const term = searchTerm.toLowerCase();
+    return aircraft.filter(a =>
+      a.registration?.toLowerCase().includes(term) ||
+      a.model?.toLowerCase().includes(term) ||
+      a.manufacturer?.toLowerCase().includes(term) ||
+      a.base?.toLowerCase().includes(term)
+    );
+  }, [aircraft, searchTerm]);
+
   const activeAircraft = useMemo(() => {
-    return (aircraft || []).filter((a) => a.status !== "inativa");
-  }, [aircraft]);
+    return filteredAircraft.filter((a) => a.status !== "inativa");
+  }, [filteredAircraft]);
 
   const inactiveAircraft = useMemo(() => {
-    return (aircraft || []).filter((a) => a.status === "inativa");
-  }, [aircraft]);
+    return filteredAircraft.filter((a) => a.status === "inativa");
+  }, [filteredAircraft]);
 
   const AircraftCard = ({ aircraft: a }: { aircraft: any }) => {
     const clientList = clientsByAircraft.get(a.id) || [];
+    const docCount = documentCounts?.get(a.id) || 0;
+
     return (
-      <Card className="overflow-hidden hover:shadow-md transition-shadow">
+      <Card
+        className="overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group rounded-2xl border-0 shadow-lg"
+        onClick={() => navigate(`/aeronaves/${a.id}`)}
+      >
         <CardContent className="p-0">
-          <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-4 space-y-3">
-            {/* Header com ícone e badge */}
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-start gap-3 flex-1 min-w-0">
-                <div className="h-12 w-12 rounded-lg bg-gradient-primary flex items-center justify-center flex-shrink-0">
-                  <Plane className="h-6 w-6 text-primary-foreground" />
+          <div className="bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 p-6 space-y-5">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-4 flex-1 min-w-0">
+                <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+                  <Plane className="h-7 w-7 text-primary-foreground" />
                 </div>
-                <div className="min-w-0">
-                  <h3 className="text-lg font-bold text-foreground uppercase tracking-wider break-words">{a.registration}</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{a.model}</p>
+                <div className="min-w-0 pt-1">
+                  <h3 className="text-2xl font-bold text-foreground uppercase tracking-wider">
+                    {a.registration}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">{a.model}</p>
                 </div>
               </div>
-              {a.status && (
-                <Badge
-                  className={`text-xs flex-shrink-0 ${a.status === "inativa" ? "bg-destructive/20 text-destructive border-destructive" : "bg-success/20 text-success border-success"}`}
-                  variant="outline"
-                >
-                  {a.status === "inativa" ? "Inativa" : "Ativa"}
-                </Badge>
-              )}
+              <Badge
+                className={`rounded-xl px-3 py-1 ${a.status === "inativa"
+                    ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                    : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                  }`}
+              >
+                {a.status === "inativa" ? "Inativa" : "Ativa"}
+              </Badge>
             </div>
 
-            {/* Informações principais - Grid compacto */}
-            <div className="grid grid-cols-2 gap-2 text-xs pb-3 border-b border-border">
+            {/* Info Grid */}
+            <div className="grid grid-cols-2 gap-3">
               {a.year && (
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-primary flex-shrink-0" />
+                <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl">
+                  <Calendar className="h-4 w-4 text-blue-500 flex-shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-muted-foreground">Ano</p>
-                    <p className="font-semibold text-foreground">{a.year}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Ano</p>
+                    <p className="text-sm font-semibold truncate">{a.year}</p>
                   </div>
                 </div>
               )}
               {a.base && (
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
+                <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl">
+                  <MapPin className="h-4 w-4 text-green-500 flex-shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-muted-foreground">Base</p>
-                    <p className="font-semibold text-foreground uppercase truncate">{a.base}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Base</p>
+                    <p className="text-sm font-semibold uppercase truncate">{a.base}</p>
                   </div>
                 </div>
               )}
               {a.fuel_consumption && (
-                <div className="col-span-2 flex items-center gap-2">
-                  <span className="text-muted-foreground">Consumo:</span>
-                  <span className="font-semibold text-foreground">{a.fuel_consumption} L/H</span>
-                </div>
-              )}
-              {clientList.length > 0 && (
-                <div className="col-span-2">
-                  <p className="text-muted-foreground mb-1">Clientes ({clientList.length})</p>
-                  <div className="flex flex-wrap gap-1">
-                    {clientList.slice(0, 2).map((cn, idx) => (
-                      <Badge key={idx} variant="secondary" className="text-xs">
-                        {cn.length > 15 ? cn.substring(0, 12) + "..." : cn}
-                      </Badge>
-                    ))}
-                    {clientList.length > 2 && (
-                      <Badge variant="secondary" className="text-xs">+{clientList.length - 2}</Badge>
-                    )}
+                <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl">
+                  <Fuel className="h-4 w-4 text-orange-500 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Consumo</p>
+                    <p className="text-sm font-semibold">{a.fuel_consumption} L/H</p>
                   </div>
                 </div>
               )}
+              <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl">
+                <FileText className="h-4 w-4 text-purple-500 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Docs</p>
+                  <p className="text-sm font-semibold">{docCount}/8</p>
+                </div>
+              </div>
             </div>
 
-            {/* Botões */}
-            <div className="flex gap-2">
+            {/* Clients */}
+            {clientList.length > 0 && (
+              <div className="flex items-start gap-2 p-3 bg-primary/5 rounded-xl">
+                <Users className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Clientes</p>
+                  <div className="flex flex-wrap gap-1">
+                    {clientList.slice(0, 2).map((cn, idx) => (
+                      <Badge key={idx} variant="secondary" className="text-xs rounded-lg truncate max-w-[120px]">
+                        {cn}
+                      </Badge>
+                    ))}
+                    {clientList.length > 2 && (
+                      <Badge variant="outline" className="text-xs rounded-lg">
+                        +{clientList.length - 2}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-2">
               <Button
                 variant="default"
-                size="sm"
-                className="flex-1 text-xs"
-                onClick={() => setViewing(a)}
+                className="flex-1 rounded-xl"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/aeronaves/${a.id}`);
+                }}
               >
-                Detalhes
+                <Eye className="h-4 w-4 mr-2" />
+                Ver Detalhes
               </Button>
               <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => { setEditing(a); setDialogOpen(true); }}
-                aria-label="Editar"
+                size="icon"
+                variant="outline"
+                className="rounded-xl"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditing(a);
+                  setDialogOpen(true);
+                }}
               >
                 <Edit className="h-4 w-4" />
               </Button>
               <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => handleDelete(a.id)}
-                aria-label="Excluir"
+                size="icon"
+                variant="outline"
+                className="rounded-xl text-destructive hover:text-destructive"
+                onClick={(e) => handleDelete(a.id, e)}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -191,11 +253,16 @@ export default function Aeronaves() {
     <>
       {aircraftList.length === 0 ? (
         <div className="py-16 text-center">
-          <Plane className="h-12 w-12 mx-auto text-muted-foreground/40 mb-4" />
-          <p className="text-muted-foreground text-lg">Nenhuma aeronave nesta categoria</p>
+          <Plane className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
+          <p className="text-muted-foreground text-lg">Nenhuma aeronave encontrada</p>
+          {searchTerm && (
+            <p className="text-muted-foreground text-sm mt-2">
+              Tente buscar por outro termo
+            </p>
+          )}
         </div>
       ) : (
-        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
           {aircraftList.map((a: any) => (
             <AircraftCard key={a.id} aircraft={a} />
           ))}
@@ -206,96 +273,103 @@ export default function Aeronaves() {
 
   return (
     <Layout>
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <Button variant="secondary" onClick={() => navigate("/diario-bordo")}>
-            <ArrowLeft className="h-4 w-4 mr-2" /> Voltar
-          </Button>
-          <Button className="gap-2" onClick={() => { setEditing(null); setDialogOpen(true); }}>
-            <Plus className="h-4 w-4" /> Adicionar Aeronave
-          </Button>
+      <div className="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-6 lg:p-8 rounded-3xl shadow-xl">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/10 rounded-xl"
+                onClick={() => navigate("/diario-bordo")}
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="text-3xl lg:text-4xl font-bold">Gestão de Aeronaves</h1>
+                <p className="text-white/70 mt-1">Gerenciamento centralizado da frota</p>
+              </div>
+            </div>
+            <Button
+              onClick={() => { setEditing(null); setDialogOpen(true); }}
+              className="bg-white text-slate-800 hover:bg-white/90 rounded-xl shadow-lg"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Aeronave
+            </Button>
+          </div>
         </div>
 
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Gestão de Aeronaves</h1>
-          <p className="text-muted-foreground">Gerenciamento centralizado da frota</p>
+        {/* Search */}
+        <div className="relative max-w-md">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por prefixo, modelo, fabricante..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-11 h-12 rounded-xl border-0 shadow-lg"
+          />
         </div>
 
         {isLoading ? (
-          <Card className="p-12">
-            <div className="text-center text-muted-foreground">Carregando aeronaves...</div>
+          <Card className="p-12 rounded-2xl border-0 shadow-lg">
+            <div className="text-center">
+              <Plane className="h-12 w-12 mx-auto text-muted-foreground/40 animate-pulse mb-4" />
+              <p className="text-muted-foreground">Carregando aeronaves...</p>
+            </div>
           </Card>
         ) : !aircraft || aircraft.length === 0 ? (
-          <Card className="p-12">
+          <Card className="p-12 rounded-2xl border-0 shadow-lg">
             <div className="text-center space-y-4">
-              <Plane className="h-12 w-12 mx-auto text-muted-foreground/40" />
-              <p className="text-muted-foreground">Nenhuma aeronave cadastrada</p>
-              <Button onClick={() => { setEditing(null); setDialogOpen(true); }}>
+              <Plane className="h-16 w-16 mx-auto text-muted-foreground/30" />
+              <p className="text-muted-foreground text-lg">Nenhuma aeronave cadastrada</p>
+              <Button
+                onClick={() => { setEditing(null); setDialogOpen(true); }}
+                className="rounded-xl"
+              >
                 <Plus className="h-4 w-4 mr-2" /> Cadastrar primeira aeronave
               </Button>
             </div>
           </Card>
         ) : (
           <Tabs defaultValue="ativas" className="space-y-6">
-            <TabsList className="grid w-full max-w-md grid-cols-2 border-2 border-border rounded-lg p-1">
-              <TabsTrigger value="ativas" className="border-2 border-transparent rounded-md data-[state=active]:border-primary data-[state=active]:bg-primary/10">
-                Ativas ({activeAircraft.length})
+            <TabsList className="bg-card/50 backdrop-blur p-1.5 rounded-2xl border border-border/40 w-full max-w-md">
+              <TabsTrigger
+                value="ativas"
+                className="flex-1 rounded-xl py-2.5 data-[state=active]:bg-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-md"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-emerald-400 data-[state=inactive]:bg-muted-foreground" />
+                  Ativas ({activeAircraft.length})
+                </div>
               </TabsTrigger>
-              <TabsTrigger value="inativas" className="border-2 border-transparent rounded-md data-[state=active]:border-primary data-[state=active]:bg-primary/10">
-                Inativas ({inactiveAircraft.length})
+              <TabsTrigger
+                value="inativas"
+                className="flex-1 rounded-xl py-2.5 data-[state=active]:bg-red-500 data-[state=active]:text-white data-[state=active]:shadow-md"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-red-400 data-[state=inactive]:bg-muted-foreground" />
+                  Inativas ({inactiveAircraft.length})
+                </div>
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="ativas" className="space-y-4">
+            <TabsContent value="ativas" className="mt-6">
               <AircraftGrid aircraftList={activeAircraft} />
             </TabsContent>
 
-            <TabsContent value="inativas" className="space-y-4">
+            <TabsContent value="inativas" className="mt-6">
               <AircraftGrid aircraftList={inactiveAircraft} />
             </TabsContent>
           </Tabs>
         )}
 
-        <Dialog open={!!viewing} onOpenChange={(open) => !open && setViewing(null)}>
-          <DialogContent className="sm:max-w-lg">
-            {viewing && (
-              <div className="space-y-4">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center justify-between">
-                    <span className="uppercase">{viewing.registration}</span>
-                    <div className="flex gap-2">
-                      <Button size="icon" variant="ghost" onClick={() => { setEditing(viewing); setDialogOpen(true); }} aria-label="Editar">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={() => handleDelete(viewing.id)} aria-label="Excluir">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div><span className="text-muted-foreground">Modelo:</span> {viewing.model}</div>
-                  <div><span className="text-muted-foreground">Ano:</span> {viewing.year || "-"}</div>
-                  <div><span className="text-muted-foreground">Fabricante:</span> {viewing.manufacturer || "-"}</div>
-                  <div><span className="text-muted-foreground">Nº Série:</span> {viewing.serial_number || "-"}</div>
-                  <div className="col-span-2"><span className="text-muted-foreground">Proprietário:</span> {viewing.owner_name || "-"}</div>
-                  <div><span className="text-muted-foreground">Base:</span> {viewing.base || "-"}</div>
-                  <div><span className="text-muted-foreground">Consumo (L/H):</span> {viewing.fuel_consumption || "-"}</div>
-                </div>
-                <div className="pt-2">
-                  <div className="text-sm font-medium mb-1">Clientes vinculados</div>
-                  <div className="space-y-1 text-sm">
-                    {(clientsByAircraft.get(viewing.id) || ["-"]).map((cn, i) => (
-                      <div key={i}>• {cn}</div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-
-        <AddAircraftDialog open={dialogOpen} onOpenChange={setDialogOpen} aircraft={editing} />
+        <AddAircraftDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          aircraft={editing}
+        />
       </div>
     </Layout>
   );
