@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { FileText, Fuel, Wrench, Plane, Download, Upload, FileCheck, Plus, Eye } from "lucide-react";
+import { previewPDFForPrint, TravelReport as TravelReportPDF, TravelExpense } from "@/lib/travelReportPDF";
 import { FileUploadDialog } from "./FileUploadDialog";
 import { ContractUploadDialog } from "./ContractUploadDialog";
 import { FlightDocumentUploadDialog } from "./FlightDocumentUploadDialog";
-import { TravelReportPdfModal } from "./TravelReportPdfModal";
 import { toast } from "sonner";
 
 interface ClientDataTabsProps {
@@ -25,7 +25,24 @@ interface TravelReport {
   total_amount?: number;
   payment_term?: string;
   status?: string;
-  pdf_url?: string;
+  client_name?: string;
+  aircraft_registration?: string;
+  crew_member_name?: string;
+  crew_member_name_2?: string;
+  destination?: string;
+  start_date?: string;
+  end_date?: string;
+  expenses?: any;
+  total_fuel?: number;
+  total_lodging?: number;
+  total_food?: number;
+  total_transport?: number;
+  total_other?: number;
+  total_crew?: number;
+  total_crew1?: number;
+  total_crew2?: number;
+  total_client?: number;
+  total_sharebrasil?: number;
 }
 
 interface Receipt {
@@ -43,9 +60,6 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [contractUploadDialogOpen, setContractUploadDialogOpen] = useState(false);
   const [flightDocumentUploadDialogOpen, setFlightDocumentUploadDialogOpen] = useState(false);
-  const [pdfModalOpen, setPdfModalOpen] = useState(false);
-  const [selectedReportId, setSelectedReportId] = useState<string>("");
-  const [selectedReportNumber, setSelectedReportNumber] = useState<string>("");
   const [files, setFiles] = useState<any[]>([]);
   const [flightDocuments, setFlightDocuments] = useState<any[]>([]);
   const [contracts, setContracts] = useState<any[]>([]);
@@ -556,86 +570,138 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
               {travelReports.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">Nenhum relatório disponível</p>
               ) : (
-                travelReports.map((report) => (
-                  <div
-                    key={report.id}
-                    className="p-4 bg-muted/50 rounded-lg border border-border"
-                  >
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-start gap-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <p className="font-medium text-foreground">{report.report_number}</p>
+                travelReports.map((report) => {
+                  // Preparar dados para o PDF
+                  const handleViewPDF = async () => {
+                    try {
+                      // Parse expenses
+                      let expenses: TravelExpense[] = [];
+                      if (report.expenses) {
+                        try {
+                          const parsed = typeof report.expenses === 'string'
+                            ? JSON.parse(report.expenses)
+                            : report.expenses;
+                          expenses = parsed.map((e: any) => ({
+                            categoria: e.category || e.categoria || 'Outros',
+                            descricao: e.description || e.descricao || '',
+                            valor: Number(e.amount || e.valor) || 0,
+                            pago_por: e.paid_by || e.pago_por || 'Cliente',
+                            comprovante_url: e.receipt_url || e.comprovante_url
+                          }));
+                        } catch (err) {
+                          console.error('Erro ao parsear despesas:', err);
+                        }
+                      }
+
+                      const pdfReport: TravelReportPDF = {
+                        numero: report.report_number,
+                        cliente_nome: report.client_name || 'Cliente',
+                        aeronave: report.aircraft_registration || 'N/A',
+                        tripulante: report.crew_member_name || 'N/A',
+                        tripulante2: report.crew_member_name_2,
+                        destino: report.destination || 'N/A',
+                        data_inicio: report.start_date || report.created_at,
+                        data_fim: report.end_date || report.created_at,
+                        observacoes: report.observations,
+                        despesas: expenses,
+                        total_combustivel: report.total_fuel || 0,
+                        total_hospedagem: report.total_lodging || 0,
+                        total_alimentacao: report.total_food || 0,
+                        total_transporte: report.total_transport || 0,
+                        total_outros: report.total_other || 0,
+                        total_tripulante: report.total_crew || 0,
+                        total_tripulante1: report.total_crew1,
+                        total_tripulante2: report.total_crew2,
+                        total_cliente: report.total_client || 0,
+                        total_sharebrasil: report.total_sharebrasil || 0,
+                        valor_total: report.total_amount || 0
+                      };
+
+                      await previewPDFForPrint(pdfReport);
+                    } catch (error) {
+                      console.error('Erro ao visualizar PDF:', error);
+                      toast.error('Erro ao abrir visualização do relatório');
+                    }
+                  };
+
+                  return (
+                    <div
+                      key={report.id}
+                      className="p-4 bg-muted/50 rounded-lg border border-border"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-start gap-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <p className="font-medium text-foreground">{report.report_number}</p>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  report.status?.toLowerCase() === 'pago' || report.status?.toLowerCase() === 'conferido'
+                                    ? 'bg-green-500/20 text-green-300'
+                                    : 'bg-yellow-500/20 text-yellow-300'
+                                }
+                              >
+                                {report.status?.toLowerCase() === 'pago' || report.status?.toLowerCase() === 'conferido' ? 'Conferido' : 'Pendente'}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              Emitido em: {new Date(report.created_at).toLocaleDateString('pt-BR')}
+                            </p>
+                            {report.observations && (
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {report.observations}
+                              </p>
+                            )}
+                            {report.total_amount && (
+                              <p className="text-sm font-semibold text-green-400 mt-1">
+                                Valor: R$ {parseFloat(report.total_amount as any).toFixed(2)}
+                              </p>
+                            )}
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleViewPDF}
+                            className="gap-2"
+                            title="Visualizar PDF"
+                          >
+                            <Eye className="h-4 w-4" />
+                            Ver PDF
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Prazo de Pagamento</p>
+                            <p className="text-sm text-foreground">
+                              {report.payment_term ? new Date(report.payment_term).toLocaleDateString('pt-BR') : 'Não definido'}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Status</p>
                             <Badge
-                              variant="outline"
                               className={
                                 report.status?.toLowerCase() === 'pago' || report.status?.toLowerCase() === 'conferido'
                                   ? 'bg-green-500/20 text-green-300'
-                                  : 'bg-yellow-500/20 text-yellow-300'
+                                  : report.status?.toLowerCase() === 'enviado'
+                                    ? 'bg-blue-500/20 text-blue-300'
+                                    : 'bg-yellow-500/20 text-yellow-300'
                               }
                             >
-                              {report.status?.toLowerCase() === 'pago' || report.status?.toLowerCase() === 'conferido' ? 'Conferido' : 'Pendente'}
+                              {report.status?.toLowerCase() === 'pago' || report.status?.toLowerCase() === 'conferido'
+                                ? 'Conferido'
+                                : report.status?.toLowerCase() === 'enviado'
+                                  ? 'Enviado'
+                                  : 'Pendente'}
                             </Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            Emitido em: {new Date(report.created_at).toLocaleDateString('pt-BR')}
-                          </p>
-                          {report.observations && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {report.observations}
-                            </p>
-                          )}
-                          {report.total_amount && (
-                            <p className="text-sm font-semibold text-green-400 mt-1">
-                              Valor: R$ {parseFloat(report.total_amount as any).toFixed(2)}
-                            </p>
-                          )}
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedReportId(report.id);
-                            setSelectedReportNumber(report.report_number);
-                            setPdfModalOpen(true);
-                          }}
-                          className="gap-1"
-                        >
-                          <Eye className="h-4 w-4" />
-                          <span className="hidden sm:inline">Ver PDF</span>
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Prazo de Pagamento</p>
-                          <p className="text-sm text-foreground">
-                            {report.payment_term ? new Date(report.payment_term).toLocaleDateString('pt-BR') : 'Não definido'}
-                          </p>
-                        </div>
-
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Status</p>
-                          <Badge
-                            className={
-                              report.status?.toLowerCase() === 'pago' || report.status?.toLowerCase() === 'conferido'
-                                ? 'bg-green-500/20 text-green-300'
-                                : report.status?.toLowerCase() === 'enviado'
-                                ? 'bg-blue-500/20 text-blue-300'
-                                : 'bg-yellow-500/20 text-yellow-300'
-                            }
-                          >
-                            {report.status?.toLowerCase() === 'pago' || report.status?.toLowerCase() === 'conferido'
-                              ? 'Conferido'
-                              : report.status?.toLowerCase() === 'enviado'
-                              ? 'Enviado'
-                              : 'Pendente'}
-                          </Badge>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </CardContent>
           </Card>
@@ -757,15 +823,15 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
                                   isPaymentReceipt || receipt.status?.toLowerCase() === 'pago'
                                     ? 'bg-green-500/20 text-green-300'
                                     : receipt.status?.toLowerCase() === 'enviado'
-                                    ? 'bg-blue-500/20 text-blue-300'
-                                    : 'bg-yellow-500/20 text-yellow-300'
+                                      ? 'bg-blue-500/20 text-blue-300'
+                                      : 'bg-yellow-500/20 text-yellow-300'
                                 }
                               >
                                 {isPaymentReceipt || receipt.status?.toLowerCase() === 'pago'
                                   ? 'Pago'
                                   : receipt.status?.toLowerCase() === 'enviado'
-                                  ? 'Enviado'
-                                  : 'Pendente'}
+                                    ? 'Enviado'
+                                    : 'Pendente'}
                               </Badge>
                             </div>
                           </div>
@@ -818,8 +884,8 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
                                 item.status?.toLowerCase() === 'conferido'
                                   ? 'bg-green-500/20 text-green-300'
                                   : item.status?.toLowerCase() === 'enviado'
-                                  ? 'bg-blue-500/20 text-blue-300'
-                                  : 'bg-yellow-500/20 text-yellow-300'
+                                    ? 'bg-blue-500/20 text-blue-300'
+                                    : 'bg-yellow-500/20 text-yellow-300'
                               }
                             >
                               {item.status?.charAt(0).toUpperCase() + item.status?.slice(1).toLowerCase()}
@@ -871,14 +937,6 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
         aircraftId={aircraftId}
         clientId={clientId}
         onSuccess={loadData}
-      />
-
-      <TravelReportPdfModal
-        open={pdfModalOpen}
-        onOpenChange={setPdfModalOpen}
-        reportId={selectedReportId}
-        reportNumber={selectedReportNumber}
-        pdfUrl={travelReports.find(r => r.id === selectedReportId)?.pdf_url}
       />
     </>
   );
