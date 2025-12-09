@@ -683,15 +683,15 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
                             <p className="text-xs text-muted-foreground mb-1">Status</p>
                             <Badge
                               className={
-                                report.status?.toLowerCase() === 'pago' || report.status?.toLowerCase() === 'conferido'
+                                report.status?.toLowerCase() === 'pago' || report.status?.toLowerCase() === 'recebido'
                                   ? 'bg-green-500/20 text-green-300'
                                   : report.status?.toLowerCase() === 'enviado'
                                     ? 'bg-blue-500/20 text-blue-300'
                                     : 'bg-yellow-500/20 text-yellow-300'
                               }
                             >
-                              {report.status?.toLowerCase() === 'pago' || report.status?.toLowerCase() === 'conferido'
-                                ? 'Conferido'
+                              {report.status?.toLowerCase() === 'pago' || report.status?.toLowerCase() === 'recebido'
+                                ? 'Recebido'
                                 : report.status?.toLowerCase() === 'enviado'
                                   ? 'Enviado'
                                   : 'Pendente'}
