@@ -425,15 +425,15 @@ export default function AeronaveDetalhes() {
         </div>
 
         {/* Documents Section */}
-        <Card className="rounded-2xl border-0 shadow-lg">
+        <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
           <CardHeader className="pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <FileText className="h-5 w-5 text-primary" />
+                <CardTitle className="flex items-center gap-2 text-xl text-white">
+                  <FileText className="h-5 w-5 text-cyan-400" />
                   Documentos da Aeronave
                 </CardTitle>
-                <CardDescription className="mt-1">
+                <CardDescription className="mt-1 text-slate-400">
                   Gerencie os documentos obrigatórios e certificados
                 </CardDescription>
               </div>
