@@ -889,7 +889,7 @@ const newReconciliationSchema = z.object({
   description: z.string().min(1, "Descrição é obrigatória"),
   amount: z.string().min(1, "Valor é obrigatório"),
   category: z.string().min(1, "Categoria é obrigatória"),
-  status: z.enum(["pendente", "recebido"]),
+  status: z.enum(["pendente", "enviado", "recebido"]),
   clientId: z.string().min(1, "Cliente é obrigatório"),
   aircraftId: z.string().min(1, "Aeronave é obrigatória"),
 });
