@@ -210,7 +210,6 @@ export default function SolicitacaoCompras() {
       setDepartamento("");
       setPrioridade("normal");
       setTipoDeServico("");
-      setTempItems([]);
 
       loadRequests();
     } catch (error) {
