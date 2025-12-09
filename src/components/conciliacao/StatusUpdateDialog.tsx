@@ -19,6 +19,8 @@ interface StatusUpdateDialogProps {
     category?: string;
     client_id?: string;
     receiver_id?: string;
+    aircraft_id?: string;
+    payment_term?: string;
   };
   open: boolean;
   onOpenChange: (open: boolean) => void;
