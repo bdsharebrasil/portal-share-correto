@@ -519,7 +519,7 @@ export function FluxoCaixa() {
                               </div>
                               <div>
                                 <p className="text-muted-foreground font-medium mb-1">Banco</p>
-                                <p className="text-foreground text-xs">{mov.banco || "-"}</p>
+                                <p className="text-foreground text-xs">{mov.conta_banco || "-"}</p>
                               </div>
                             </div>
 
