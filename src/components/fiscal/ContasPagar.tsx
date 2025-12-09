@@ -230,8 +230,7 @@ export function ContasPagar() {
     }
 
     try {
-      // Atualizar status para pago na tabela contas_apagar
-      // O trigger automático criará o registro no controle_bancario
+      // 1. Atualizar status para pago na tabela contas_apagar
       const { error: updateError } = await supabase
         .from("contas_apagar")
         .update({
@@ -245,7 +244,19 @@ export function ContasPagar() {
         return;
       }
 
-      // Atualizar o banco no controle_bancario usando a função SQL
+      // 2. Atualizar status na conciliação bancária se houver referência
+      if (paymentBankData.banco_conciliacao_id) {
+        const { error: updateConciliacao } = await supabase
+          .from("bank_reconciliations")
+          .update({ status: "pago" })
+          .eq("id", paymentBankData.banco_conciliacao_id);
+
+        if (updateConciliacao) {
+          console.error("Erro ao atualizar conciliação:", updateConciliacao);
+        }
+      }
+
+      // 3. Atualizar o banco no controle_bancario usando a função SQL
       const { data: updateBancoResult, error: updateBancoError } = await supabase
         .rpc('update_controle_bancario_banco', {
           p_conta_apagar_id: paymentBankData.id,
