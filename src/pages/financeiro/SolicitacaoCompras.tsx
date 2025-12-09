@@ -130,45 +130,6 @@ export default function SolicitacaoCompras() {
     ['admin', 'financeiro_master', 'gestor_master'].includes(role)
   );
 
-  const addItem = () => {
-    if (!itemDescricao.trim()) {
-      toast({
-        title: "Campo obrigatório",
-        description: "Preencha a descrição do item",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const quantidade = itemQuantidade ? parseFloat(itemQuantidade) : 1;
-    const valor = itemValor ? parseFloat(itemValor) : 0;
-
-    const newItem = {
-      numero_item: tempItems.length + 1,
-      descricao: itemDescricao,
-      quantidade: quantidade,
-      unidade: itemUnidade,
-      valor_unitario: valor,
-      valor_total: quantidade * valor,
-      especificacoes: null,
-      codigo_fornecedor: null
-    };
-
-    setTempItems([...tempItems, newItem]);
-    setItemDescricao("");
-    setItemQuantidade("");
-    setItemValor("");
-
-    toast({
-      title: "Sucesso",
-      description: "Item adicionado com sucesso!"
-    });
-  };
-
-  const removeItem = (index: number) => {
-    setTempItems(tempItems.filter((_, i) => i !== index));
-  };
-
   const gerarNumeroSolicitacao = async () => {
     const timestamp = Date.now();
     return `SOL-${new Date().getFullYear()}-${String(timestamp).slice(-6)}`;
