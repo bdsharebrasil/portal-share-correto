@@ -53,7 +53,7 @@ const schema = z.object({
   date: z.string().min(1, "Data é obrigatória"),
   description: z.string().min(1, "Descrição é obrigatória"),
   amount: z.string().min(1, "Valor é obrigatório"),
-  status: z.enum(["pendente", "conferido", "enviado"], {
+  status: z.enum(["pendente", "recebido", "enviado", "pago"], {
     errorMap: () => ({ message: "Selecione um status válido" }),
   }),
   clientId: z.string().optional(),
@@ -351,8 +351,14 @@ export function AddBankReconciliationDialog({
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="pendente">Pendente</SelectItem>
-                      <SelectItem value="conferido">Conferido</SelectItem>
-                      <SelectItem value="enviado">Enviado</SelectItem>
+                      {watchType === "cliente" ? (
+                        <SelectItem value="recebido">Recebido</SelectItem>
+                      ) : (
+                        <>
+                          <SelectItem value="enviado">Enviado</SelectItem>
+                          <SelectItem value="pago">Pago</SelectItem>
+                        </>
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />
