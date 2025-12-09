@@ -147,7 +147,7 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
           }
 
           if (clientData && clientData.cnpj) {
-            // Gerar número usando o padrão do relatório de viagem
+            // Gerar número sequencial para conta a receber
             const year = new Date().getFullYear();
             const yearShort = year.toString().slice(-2);
 
