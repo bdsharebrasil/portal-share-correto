@@ -433,7 +433,10 @@ export function ConciliacaoColaborador() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleStatusChange(item.id, 'enviado')}
+                                onClick={() => {
+                                  setSelectedReconciliation(item);
+                                  setOpenStatusDialog(true);
+                                }}
                                 title="Enviar por email"
                               >
                                 <Mail className="h-4 w-4" />
@@ -443,7 +446,10 @@ export function ConciliacaoColaborador() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleStatusChange(item.id, 'pago')}
+                                onClick={() => {
+                                  setSelectedReconciliation(item);
+                                  setOpenStatusDialog(true);
+                                }}
                                 title="Marcar como Pago"
                               >
                                 <Check className="h-4 w-4" />
