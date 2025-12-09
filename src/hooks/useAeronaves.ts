@@ -17,12 +17,9 @@ export const useAeronaves = () => {
   const query = useQuery<Aeronave[] | null>({
     queryKey: aeronavesQueryKey,
     queryFn: async () => {
-      // 🎯 Correção: Tabela é 'aircraft'
       const { data, error } = await supabase
         .from("aircraft")
-        .select("id, registration, model, manufacturer") // Seleciona colunas essenciais
-        .eq("status", "Ativa") // Filtra apenas aeronaves ativas
-        // 🎯 Correção: Ordena pela coluna 'registration' (o prefixo)
+        .select("*")
         .order("registration", { ascending: true });
 
       if (error) {
@@ -30,7 +27,6 @@ export const useAeronaves = () => {
         throw error;
       }
 
-      // Retorna os dados, garantindo que seja um array se não houver erro.
       return (data as Aeronave[]) || null;
     },
   });
