@@ -186,26 +186,35 @@ export function ConciliacaoClientes() {
 
       if (error) throw error;
 
-      // If status is "conferido" and it's a travel report, create entry in controle_bancario
-      if (newStatus?.toLowerCase() === 'conferido' && reconciliation.description?.includes('RELATORIO DE VIAGEM')) {
+      // Se status é "conferido" (recebido), criar entrada no fluxo de caixa
+      if (newStatus?.toLowerCase() === 'conferido') {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { error: insertError } = await supabase
+          // Verificar se já existe uma entrada no fluxo de caixa para essa conciliação
+          const { data: existingEntry } = await supabase
             .from('controle_bancario')
-            .insert({
-              data: reconciliation.date,
-              tipo_movimento: 'entrada',
-              categoria: 'Receita de Serviço',
-              descricao: `${reconciliation.description} - Aguardando Comprovante`,
-              valor: reconciliation.amount,
-              referencia: `REC-${reconciliation.id}`,
-              status: 'pendente',
-              criado_por: user.id,
-              observacoes: `Comprovante de pagamento pendente para ${reconciliation.description}`
-            } as any);
+            .select('id')
+            .eq('referencia', `REC-${reconciliation.id}` as any)
+            .maybeSingle();
 
-          if (insertError) {
-            console.error('Erro ao criar entrada no fluxo de caixa:', insertError);
+          if (!existingEntry) {
+            const { error: insertError } = await supabase
+              .from('controle_bancario')
+              .insert({
+                data: reconciliation.date,
+                tipo_movimento: 'entrada',
+                categoria: reconciliation.category || 'Receita de Cliente',
+                descricao: reconciliation.description,
+                valor: reconciliation.amount,
+                referencia: `REC-${reconciliation.id}`,
+                status: 'confirmado',
+                criado_por: user.id,
+                observacoes: `Pagamento recebido do cliente - ${reconciliation.clients?.company_name || 'N/A'}`
+              } as any);
+
+            if (insertError) {
+              console.error('Erro ao criar entrada no fluxo de caixa:', insertError);
+            }
           }
         }
       }
