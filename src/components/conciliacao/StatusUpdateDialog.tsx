@@ -291,7 +291,7 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
         const contaSelecionada = contasBancarias.find(c => c.id === selectedBanco);
         const nomeBanco = contaSelecionada ? `${contaSelecionada.nome} - ${contaSelecionada.banco || ''}` : '';
 
-        // Cliente: status "conferido" = recebido = entrada no fluxo de caixa
+        // Cliente: status "conferido" = entrada no fluxo de caixa
         if (isClientReconciliation && status?.toLowerCase() === 'conferido') {
           const referencia = `REC-${reconciliation.id}`;
 
@@ -306,22 +306,21 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
             await supabase.from('controle_bancario').insert({
               data: reconciliation.date || new Date().toISOString().split('T')[0],
               tipo_movimento: 'entrada',
-              categoria: reconciliation.category || 'Receita de Cliente',
-              descricao: reconciliation.description || 'Pagamento recebido',
+              categoria: reconciliation.category || 'Receita',
+              descricao: reconciliation.description || 'Recebimento',
               valor: reconciliation.amount || 0,
               referencia,
               status: 'confirmado',
               criado_por: user.id,
               conta_banco: nomeBanco,
-              comprovante_url: comprovanteUrl,
-              observacoes: `Pagamento recebido do cliente`
+              comprovante_url: comprovanteUrl
             } as any);
           }
         }
 
-        // Colaborador: status "pago" = pagamento ao colaborador = saída no fluxo de caixa
+        // Colaborador: status "pago" = saída no fluxo de caixa
         if (isColaboradorReconciliation && status?.toLowerCase() === 'pago') {
-          const referencia = `SAL-${reconciliation.id}`;
+          const referencia = `PAG-${reconciliation.id}`;
 
           // Verificar se já existe
           const { data: existingEntry } = await supabase
@@ -334,15 +333,14 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
             await supabase.from('controle_bancario').insert({
               data: reconciliation.date || new Date().toISOString().split('T')[0],
               tipo_movimento: 'saída',
-              categoria: reconciliation.category || 'Reembolso Colaborador',
-              descricao: reconciliation.description || 'Pagamento ao colaborador',
+              categoria: reconciliation.category || 'Despesa',
+              descricao: reconciliation.description || 'Pagamento',
               valor: reconciliation.amount || 0,
               referencia,
               status: 'confirmado',
               criado_por: user.id,
               conta_banco: nomeBanco,
-              comprovante_url: comprovanteUrl,
-              observacoes: `Pagamento ao colaborador`
+              comprovante_url: comprovanteUrl
             } as any);
           }
         }
