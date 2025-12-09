@@ -165,7 +165,6 @@ export default function SolicitacaoCompras() {
 
     try {
       const numeroSolicitacao = await gerarNumeroSolicitacao();
-      const valorTotal = tempItems.reduce((sum, item) => sum + item.valor_total, 0);
 
       const { data: newRequest, error: insertError } = await supabase
         .from('purchase_requests')
@@ -178,7 +177,8 @@ export default function SolicitacaoCompras() {
           user_id: currentUserId,
           priority: prioridade,
           data_necessaria: dataNecessaria || null,
-          status: 'rascunho'
+          status: 'rascunho',
+          valor_total: 0
         } as any)
         .select()
         .single();
