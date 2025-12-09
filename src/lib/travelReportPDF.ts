@@ -80,7 +80,6 @@ function formatCurrency(value: number): string {
  */
 function generatePDFDocument(report: TravelReport, userName: string = 'Sistema'): jsPDF {
   const doc = new jsPDF();
-  autoTable(doc);
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
