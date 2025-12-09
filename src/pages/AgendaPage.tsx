@@ -607,94 +607,86 @@ export default function AgendaPage() {
                         return (
                           <Card key={contact.id} className="hover:shadow-lg transition-shadow group border border-border/50">
                             <CardContent className="p-5">
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-3 mb-3">
-                                    <div className="p-2 bg-violet-500/20 rounded-lg">
-                                      <Hotel className="h-5 w-5 text-violet-600" />
-                                    </div>
-                                    <div>
-                                      <h3 className="font-semibold text-foreground text-lg">
+                              <div className="space-y-3">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex items-start gap-3 flex-1">
+                                    <Hotel className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                                    <div className="flex-1 min-w-0">
+                                      <h3 className="font-semibold text-foreground">
                                         {contact.nome}
                                       </h3>
                                       <p className="text-sm text-muted-foreground">
-                                        {contact.telefone}
+                                        {contact.telefone} • {contact.cidade}
                                       </p>
                                     </div>
                                   </div>
 
-                                  <div className="bg-violet-500/10 border border-violet-500/20 rounded-lg px-4 py-3 mb-4">
-                                    <p className="text-sm font-semibold text-violet-700 dark:text-violet-400">
-                                      {contact.cidade}
-                                    </p>
-                                  </div>
-
-                                  {contact.endereco && (
-                                    <p className="text-xs text-muted-foreground mb-4">
-                                      Endereço: {contact.endereco}
-                                    </p>
-                                  )}
-
                                   {(contact.precoSingle !== undefined || contact.precoDuplo !== undefined) && (
-                                    <div className="flex flex-wrap gap-3">
+                                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
                                       {contact.precoSingle !== undefined && (
-                                        <div className="text-center px-4 py-2 rounded-full bg-muted/50 border border-border/50">
-                                          <p className="text-xs text-muted-foreground font-medium">Single</p>
-                                          <p className="text-sm font-semibold text-foreground">
+                                        <div>
+                                          <p className="text-xs text-muted-foreground">Single</p>
+                                          <p className="text-sm font-semibold text-custom-cyan">
                                             {currencyFormatter.format(contact.precoSingle)}
                                           </p>
                                         </div>
                                       )}
                                       {contact.precoDuplo !== undefined && (
-                                        <div className="text-center px-4 py-2 rounded-full bg-muted/50 border border-border/50">
-                                          <p className="text-xs text-muted-foreground font-medium">Duplo</p>
-                                          <p className="text-sm font-semibold text-foreground">
+                                        <div>
+                                          <p className="text-xs text-muted-foreground">Duplo</p>
+                                          <p className="text-sm font-semibold text-custom-cyan">
                                             {currencyFormatter.format(contact.precoDuplo)}
                                           </p>
                                         </div>
                                       )}
                                     </div>
                                   )}
+
+                                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEditContact(contact)}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Excluir hotel</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Tem certeza que deseja excluir o hotel "{contact.nome}"? Esta ação não pode ser desfeita.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() => handleDeleteContact(contact)}
+                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                          >
+                                            Excluir
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
+                                  </div>
                                 </div>
 
-                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleEditContact(contact)}
-                                    className="h-8 w-8 p-0"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Excluir hotel</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Tem certeza que deseja excluir o hotel "{contact.nome}"? Esta ação não pode ser desfeita.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={() => handleDeleteContact(contact)}
-                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                        >
-                                          Excluir
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </div>
+                                {contact.endereco && (
+                                  <p className="text-xs text-muted-foreground pl-8">
+                                    Endereço: {contact.endereco}
+                                  </p>
+                                )}
                               </div>
                             </CardContent>
                           </Card>
