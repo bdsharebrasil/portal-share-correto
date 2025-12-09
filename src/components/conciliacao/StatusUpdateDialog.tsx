@@ -127,12 +127,24 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
 
         // Cliente: Criar conta a receber
         if (isClientReconciliation && reconciliation.client_id) {
-          // Buscar dados do cliente (nome e CNPJ)
+          // Buscar dados do cliente (nome e CNPJ) e da aeronave (matrícula)
           const { data: clientData } = await supabase
             .from('clients')
             .select('company_name, cnpj')
             .eq('id', reconciliation.client_id)
             .single();
+
+          let aircraftRegistration = '';
+          if (reconciliation.aircraft_id) {
+            const { data: aircraftData } = await supabase
+              .from('aircraft')
+              .select('registration')
+              .eq('id', reconciliation.aircraft_id)
+              .single();
+            if (aircraftData) {
+              aircraftRegistration = aircraftData.registration;
+            }
+          }
 
           if (clientData && clientData.cnpj) {
             // Gerar número usando o padrão do relatório de viagem
@@ -178,7 +190,7 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
                   categoria: reconciliation.category || 'Relatório Viagem',
                   descricao: reconciliation.description || 'Faturamento de serviços',
                   status: 'pendente',
-                  aeronave: reconciliation.aircraft_id || '',
+                  aeronave: aircraftRegistration || '',
                   criado_por: user.id
                 } as any);
 
@@ -192,12 +204,24 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
 
         // Colaborador: Criar conta a pagar
         if (isColaboradorReconciliation && reconciliation.receiver_id) {
-          // Buscar dados do colaborador (nome e CPF)
+          // Buscar dados do colaborador (nome e CPF) e da aeronave (matrícula)
           const { data: userProfileData } = await supabase
             .from('user_profiles')
             .select('full_name, cpf')
             .eq('id', reconciliation.receiver_id)
             .single();
+
+          let aircraftRegistration = '';
+          if (reconciliation.aircraft_id) {
+            const { data: aircraftData } = await supabase
+              .from('aircraft')
+              .select('registration')
+              .eq('id', reconciliation.aircraft_id)
+              .single();
+            if (aircraftData) {
+              aircraftRegistration = aircraftData.registration;
+            }
+          }
 
           if (userProfileData && userProfileData.cpf) {
             // Gerar número usando padrão similar
@@ -243,7 +267,7 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
                   categoria: reconciliation.category || 'Relatório Viagem',
                   descricao: reconciliation.description || 'Reembolso de despesas',
                   status: 'recebida',
-                  aeronave: reconciliation.aircraft_id || '',
+                  aeronave: aircraftRegistration || '',
                   criado_por: user.id
                 } as any);
 
