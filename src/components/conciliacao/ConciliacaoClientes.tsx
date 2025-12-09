@@ -32,6 +32,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getShortUserId, getIdBadgeColor } from "@/lib/user-id";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { StatusUpdateDialog } from "./StatusUpdateDialog";
 
 interface Client {
   id: string;
