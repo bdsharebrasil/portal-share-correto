@@ -40,19 +40,6 @@ interface PurchaseRequest {
   updated_at: string;
 }
 
-interface RequestItem {
-  id: string;
-  purchase_request_id: string;
-  numero_item: number;
-  descricao: string;
-  quantidade: number;
-  unidade: string;
-  valor_unitario: number;
-  valor_total: number;
-  especificacoes: string | null;
-  codigo_fornecedor: string | null;
-}
-
 type Role = 'admin' | 'financeiro_master' | 'gestor_master';
 
 export default function SolicitacaoCompras() {
