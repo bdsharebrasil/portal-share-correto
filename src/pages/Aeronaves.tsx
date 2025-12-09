@@ -195,7 +195,7 @@ export default function Aeronaves() {
                   <p className="text-[9px] text-slate-400 uppercase tracking-wide mb-1">Clientes</p>
                   <div className="flex flex-wrap gap-1">
                     {clientList.slice(0, 2).map((cn, idx) => (
-                      <Badge key={idx} variant="secondary" className="text-xs rounded-md bg-slate-600 text-white truncate max-w-[120px]">
+                      <Badge key={idx} variant="secondary" className="text-xs rounded-md bg-slate-600 text-white truncate max-w-[200px]">
                         {cn}
                       </Badge>
                     ))}
