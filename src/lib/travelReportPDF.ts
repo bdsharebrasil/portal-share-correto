@@ -1,7 +1,7 @@
 // src/lib/travelReportPDF.ts
 
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // =========================================================================
