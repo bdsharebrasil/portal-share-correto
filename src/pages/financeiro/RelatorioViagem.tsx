@@ -654,7 +654,9 @@ export default function RelatorioViagem() {
       }
 
       // Criar conciliações bancárias quando o relatório for finalizado
-      // A condição foi relaxada para criar conciliações mesmo sem aircraft_id (desde que tenha client_id ou crew)
+      // Regras:
+      // - Conciliação CLIENTE = total do relatório - valor pago pelo cliente (ou seja, Share + Tripulante)
+      // - Conciliação TRIPULANTE = apenas o valor que cada tripulante pagou
       if (newStatus !== 'Rascunho') {
         const { data: { user } } = await supabase.auth.getUser();
 
@@ -662,25 +664,33 @@ export default function RelatorioViagem() {
           const today = new Date().toISOString().split('T')[0];
           const reconciliationsToInsert: any[] = [];
 
-          // SEMPRE recalcular totais a partir das despesas para garantir precisão nas conciliações
-          // Isto é crítico porque se o relatório foi salvo com totais errados,
-          // as conciliações devem ser criadas com os valores CORRETOS recalculados
+          // Recalcular totais a partir das despesas
           const payerTotals = extractPayerTotals(validExpenses);
           const totalCrew1 = payerTotals.totalCrew1;
           const totalCrew2 = payerTotals.totalCrew2;
 
-          // O valor que o cliente deve é o total de despesas menos o que o cliente já pagou
-          // = total_amount - total_client = totalCrew + totalSharebrasil
-          const totalClientOwes = recalculatedTotals.total_amount - recalculatedTotals.total_client;
+          // Valor que o cliente deve = total - o que o cliente já pagou
+          // = (share + tripulante1 + tripulante2 + cliente) - cliente
+          // = share + tripulante1 + tripulante2
+          const totalClientOwes = recalculatedTotals.total_sharebrasil + recalculatedTotals.total_crew;
 
-          // Criar conciliação para cliente se houver valor a receber e tiver client_id
+          console.log('Totais para conciliação:', {
+            total_amount: recalculatedTotals.total_amount,
+            total_client: recalculatedTotals.total_client,
+            total_sharebrasil: recalculatedTotals.total_sharebrasil,
+            total_crew: recalculatedTotals.total_crew,
+            totalCrew1,
+            totalCrew2,
+            totalClientOwes
+          });
+
+          // 1. Criar conciliação para CLIENTE (valor que Share+Tripulantes pagaram)
           if (totalClientOwes > 0 && currentReport.client_id) {
             const { data: existingClientPayment } = await supabase
               .from('bank_reconciliations')
               .select('id')
-              .eq('client_id', currentReport.client_id)
+              .eq('reference_id', savedReport.id)
               .eq('type', 'cliente')
-              .eq('description', `RELATORIO DE VIAGEM - ${savedReport.report_number} - STATUS PENDENTE`)
               .maybeSingle();
 
             if (!existingClientPayment) {
@@ -691,74 +701,90 @@ export default function RelatorioViagem() {
                 amount: totalClientOwes,
                 status: 'pendente',
                 category: 'relatório_viagem',
-                description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - STATUS PENDENTE`,
+                description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - A RECEBER DO CLIENTE`,
                 date: today,
-                created_by: user.id
+                created_by: user.id,
+                reference_id: savedReport.id,
+                reference_type: 'travel_report'
               });
             }
           }
 
-          // Criar conciliação para Tripulante 1 se ele pagou algo
+          // 2. Criar conciliação para TRIPULANTE 1 (valor que ele pagou e precisa ser reembolsado)
           if (totalCrew1 > 0 && currentReport.crew_member_id) {
+            // Buscar o user_id do crew_member para usar como receiver_id
+            const { data: crewMember } = await supabase
+              .from('crew_members')
+              .select('user_id')
+              .eq('id', currentReport.crew_member_id)
+              .maybeSingle();
+
+            const receiverId = crewMember?.user_id || null;
+
             const { data: existingCrewPayment } = await supabase
               .from('bank_reconciliations')
               .select('id')
-              .eq('receiver_id', currentReport.crew_member_id)
+              .eq('reference_id', savedReport.id)
               .eq('type', 'colaborador')
-              .eq('description', `RELATORIO DE VIAGEM - ${savedReport.report_number} - TRIPULANTE 1 - STATUS PENDENTE`)
+              .ilike('description', '%TRIPULANTE 1%')
               .maybeSingle();
 
             if (!existingCrewPayment) {
               reconciliationsToInsert.push({
                 type: 'colaborador',
-                receiver_id: currentReport.crew_member_id,
+                receiver_id: receiverId,
                 aircraft_id: currentReport.aircraft_id || null,
                 amount: totalCrew1,
                 status: 'pendente',
                 category: 'relatório_viagem',
-                description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - TRIPULANTE 1 - STATUS PENDENTE`,
+                description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO ${currentReport.crew_member_name.toUpperCase()}`,
                 date: today,
-                created_by: user.id
+                created_by: user.id,
+                reference_id: savedReport.id,
+                reference_type: 'travel_report'
               });
             }
           }
 
-          // Criar conciliação para Tripulante 2 se ele pagou algo
+          // 3. Criar conciliação para TRIPULANTE 2 (se houver)
           if (totalCrew2 > 0 && currentReport.crew_member_name_2) {
-            // Buscar ID do segundo tripulante pelo nome
+            // Buscar o crew_member pelo nome e depois pegar o user_id
             const { data: secondCrew } = await supabase
               .from('crew_members')
-              .select('id')
+              .select('id, user_id')
               .eq('full_name', currentReport.crew_member_name_2)
               .maybeSingle();
 
-            if (secondCrew?.id) {
-              const { data: existingCrewPayment2 } = await supabase
-                .from('bank_reconciliations')
-                .select('id')
-                .eq('receiver_id', secondCrew.id)
-                .eq('type', 'colaborador')
-                .eq('description', `RELATORIO DE VIAGEM - ${savedReport.report_number} - TRIPULANTE 2 - STATUS PENDENTE`)
-                .maybeSingle();
+            const receiverId = secondCrew?.user_id || null;
 
-              if (!existingCrewPayment2) {
-                reconciliationsToInsert.push({
-                  type: 'colaborador',
-                  receiver_id: secondCrew.id,
-                  aircraft_id: currentReport.aircraft_id || null,
-                  amount: totalCrew2,
-                  status: 'pendente',
-                  category: 'relatório_viagem',
-                  description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - TRIPULANTE 2 - STATUS PENDENTE`,
-                  date: today,
-                  created_by: user.id
-                });
-              }
+            const { data: existingCrewPayment2 } = await supabase
+              .from('bank_reconciliations')
+              .select('id')
+              .eq('reference_id', savedReport.id)
+              .eq('type', 'colaborador')
+              .ilike('description', '%TRIPULANTE 2%')
+              .maybeSingle();
+
+            if (!existingCrewPayment2) {
+              reconciliationsToInsert.push({
+                type: 'colaborador',
+                receiver_id: receiverId,
+                aircraft_id: currentReport.aircraft_id || null,
+                amount: totalCrew2,
+                status: 'pendente',
+                category: 'relatório_viagem',
+                description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO ${currentReport.crew_member_name_2.toUpperCase()}`,
+                date: today,
+                created_by: user.id,
+                reference_id: savedReport.id,
+                reference_type: 'travel_report'
+              });
             }
           }
 
-          // Inserir todas as conciliações de uma vez
+          // Inserir todas as conciliações
           if (reconciliationsToInsert.length > 0) {
+            console.log('Inserindo conciliações:', reconciliationsToInsert);
             const { error: paymentError } = await supabase
               .from('bank_reconciliations')
               .insert(reconciliationsToInsert);
@@ -767,7 +793,7 @@ export default function RelatorioViagem() {
               console.error('Erro ao registrar conciliações:', paymentError);
               toast.warning('⚠️ Relatório salvo, mas houve erro ao criar conciliações bancárias');
             } else {
-              console.log('Conciliações criadas com sucesso:', reconciliationsToInsert.length);
+              toast.success(`✓ ${reconciliationsToInsert.length} conciliação(ões) bancária(s) criada(s)`);
             }
           }
         }
