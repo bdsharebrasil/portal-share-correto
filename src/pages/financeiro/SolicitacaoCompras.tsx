@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ShoppingCart, Plus, FileText, Clock, CheckCircle, XCircle, Edit, Trash2, AlertCircle, Calendar } from "lucide-react";
+import { ShoppingCart, FileText, Clock, CheckCircle, XCircle, Edit, AlertCircle, Calendar } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
@@ -40,19 +40,6 @@ interface PurchaseRequest {
   updated_at: string;
 }
 
-interface RequestItem {
-  id: string;
-  purchase_request_id: string;
-  numero_item: number;
-  descricao: string;
-  quantidade: number;
-  unidade: string;
-  valor_unitario: number;
-  valor_total: number;
-  especificacoes: string | null;
-  codigo_fornecedor: string | null;
-}
-
 type Role = 'admin' | 'financeiro_master' | 'gestor_master';
 
 export default function SolicitacaoCompras() {
@@ -61,7 +48,6 @@ export default function SolicitacaoCompras() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string>("");
   const [loading, setLoading] = useState(false);
-  const [requestItems, setRequestItems] = useState<RequestItem[]>([]);
 
   // Form states
   const [tipo, setTipo] = useState("compra");
@@ -70,13 +56,6 @@ export default function SolicitacaoCompras() {
   const [departamento, setDepartamento] = useState("");
   const [prioridade, setPrioridade] = useState("normal");
   const [tipoDeServico, setTipoDeServico] = useState("");
-
-  // Items states
-  const [itemDescricao, setItemDescricao] = useState("");
-  const [itemQuantidade, setItemQuantidade] = useState("");
-  const [itemUnidade, setItemUnidade] = useState("unidade");
-  const [itemValor, setItemValor] = useState("");
-  const [tempItems, setTempItems] = useState<Omit<RequestItem, 'id' | 'purchase_request_id'>[]>([]);
 
   // Edit dialog states
   const [editingRequest, setEditingRequest] = useState<PurchaseRequest | null>(null);
@@ -138,45 +117,6 @@ export default function SolicitacaoCompras() {
     ['admin', 'financeiro_master', 'gestor_master'].includes(role)
   );
 
-  const addItem = () => {
-    if (!itemDescricao.trim()) {
-      toast({
-        title: "Campo obrigatório",
-        description: "Preencha a descrição do item",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const quantidade = itemQuantidade ? parseFloat(itemQuantidade) : 1;
-    const valor = itemValor ? parseFloat(itemValor) : 0;
-
-    const newItem = {
-      numero_item: tempItems.length + 1,
-      descricao: itemDescricao,
-      quantidade: quantidade,
-      unidade: itemUnidade,
-      valor_unitario: valor,
-      valor_total: quantidade * valor,
-      especificacoes: null,
-      codigo_fornecedor: null
-    };
-
-    setTempItems([...tempItems, newItem]);
-    setItemDescricao("");
-    setItemQuantidade("");
-    setItemValor("");
-
-    toast({
-      title: "Sucesso",
-      description: "Item adicionado com sucesso!"
-    });
-  };
-
-  const removeItem = (index: number) => {
-    setTempItems(tempItems.filter((_, i) => i !== index));
-  };
-
   const gerarNumeroSolicitacao = async () => {
     const timestamp = Date.now();
     return `SOL-${new Date().getFullYear()}-${String(timestamp).slice(-6)}`;
@@ -221,21 +161,10 @@ export default function SolicitacaoCompras() {
       return;
     }
 
-    // Validar itens apenas para compras
-    if (tipo === 'compra' && tempItems.length === 0) {
-      toast({
-        title: "Itens obrigatórios",
-        description: "Adicione pelo menos um item à solicitação de compra",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setLoading(true);
 
     try {
       const numeroSolicitacao = await gerarNumeroSolicitacao();
-      const valorTotal = tempItems.reduce((sum, item) => sum + item.valor_total, 0);
 
       const { data: newRequest, error: insertError } = await supabase
         .from('purchase_requests')
@@ -248,26 +177,13 @@ export default function SolicitacaoCompras() {
           user_id: currentUserId,
           priority: prioridade,
           data_necessaria: dataNecessaria || null,
-          status: 'rascunho'
+          status: 'rascunho',
+          valor_total: 0
         } as any)
         .select()
         .single();
 
       if (insertError) throw insertError;
-
-      // Insert items apenas para compras
-      if (tipo === 'compra' && tempItems.length > 0) {
-        const itemsToInsert = tempItems.map(item => ({
-          purchase_request_id: newRequest.id,
-          ...item
-        }));
-
-        const { error: itemsError } = await supabase
-          .from('purchase_request_items')
-          .insert(itemsToInsert);
-
-        if (itemsError) throw itemsError;
-      }
 
       toast({
         title: "Sucesso",
@@ -281,7 +197,6 @@ export default function SolicitacaoCompras() {
       setDepartamento("");
       setPrioridade("normal");
       setTipoDeServico("");
-      setTempItems([]);
 
       loadRequests();
     } catch (error) {
@@ -423,8 +338,8 @@ export default function SolicitacaoCompras() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2">
+        <div className="grid grid-cols-1 gap-6">
+          <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5" />
@@ -518,163 +433,12 @@ export default function SolicitacaoCompras() {
                   />
                 </div>
 
-                {tipo === 'compra' && (
-                  <div className="border-t pt-4">
-                    <h3 className="font-semibold mb-3">Itens da Solicitação *</h3>
-                  
-                    <div className="space-y-3 mb-4">
-                      <div className="space-y-1">
-                        <Label htmlFor="item-desc" className="text-sm">Descrição *</Label>
-                        <Input
-                          id="item-desc"
-                          placeholder="Descrição do item"
-                          value={itemDescricao}
-                          onChange={(e) => setItemDescricao(e.target.value)}
-                          className="text-sm"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="space-y-1">
-                          <Label htmlFor="item-qtd" className="text-sm">Quantidade</Label>
-                          <Input
-                            id="item-qtd"
-                            type="number"
-                            placeholder="0"
-                            step="0.01"
-                            value={itemQuantidade}
-                            onChange={(e) => setItemQuantidade(e.target.value)}
-                            className="text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="item-unit" className="text-sm">Unidade</Label>
-                          <Select value={itemUnidade} onValueChange={setItemUnidade}>
-                            <SelectTrigger className="text-sm h-9">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="unidade">Unidade</SelectItem>
-                              <SelectItem value="caixa">Caixa</SelectItem>
-                              <SelectItem value="litro">Litro</SelectItem>
-                              <SelectItem value="kg">Kg</SelectItem>
-                              <SelectItem value="metro">Metro</SelectItem>
-                              <SelectItem value="hora">Hora</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor="item-valor" className="text-sm">Valor Unit. (R$)</Label>
-                          <Input
-                            id="item-valor"
-                            type="number"
-                            placeholder="0,00"
-                            step="0.01"
-                            value={itemValor}
-                            onChange={(e) => setItemValor(e.target.value)}
-                            className="text-sm"
-                          />
-                        </div>
-                      </div>
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={addItem}
-                        className="w-full"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Adicionar Item
-                      </Button>
-                    </div>
-
-                    {tempItems.length > 0 && (
-                      <div className="space-y-2">
-                        <div className="text-sm font-semibold">Itens Adicionados:</div>
-                        <div className="border rounded-lg overflow-x-auto">
-                          <table className="w-full text-xs">
-                            <thead className="bg-muted">
-                              <tr>
-                                <th className="px-2 py-1 text-left">Descrição</th>
-                                <th className="px-2 py-1 text-right">Qtd</th>
-                                <th className="px-2 py-1 text-right">Valor Unit.</th>
-                                <th className="px-2 py-1 text-right">Total</th>
-                                <th className="px-2 py-1 text-center">Ação</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {tempItems.map((item, idx) => (
-                                <tr key={idx} className="border-t">
-                                  <td className="px-2 py-1">{item.descricao}</td>
-                                  <td className="px-2 py-1 text-right">{item.quantidade}</td>
-                                  <td className="px-2 py-1 text-right">{formatCurrency(item.valor_unitario)}</td>
-                                  <td className="px-2 py-1 text-right font-semibold">{formatCurrency(item.valor_total)}</td>
-                                  <td className="px-2 py-1 text-center">
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => removeItem(idx)}
-                                      className="h-6 w-6 p-0"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                        <div className="text-right font-semibold text-sm">
-                          Total: {formatCurrency(tempItems.reduce((sum, item) => sum + item.valor_total, 0))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 <Button type="submit" className="w-full" disabled={loading}>
                   <ShoppingCart className="h-4 w-4 mr-2" />
                   {loading ? 'Criando...' : 'Criar Solicitação'}
                 </Button>
               </form>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Resumo</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Total</span>
-                  <span className="font-semibold">{stats.total}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Rascunhos</span>
-                  <Badge className="bg-gray-500/20">{stats.rascunhos}</Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Enviadas</span>
-                  <Badge className="bg-blue-500/20">{stats.enviadas}</Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Aprovadas</span>
-                  <Badge className="bg-green-500/20">{stats.aprovadas}</Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">Reprovadas</span>
-                  <Badge className="bg-red-500/20">{stats.reprovadas}</Badge>
-                </div>
-              </div>
-              <div className="pt-4 border-t">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Valor Total</span>
-                  <span className="font-bold text-primary">{formatCurrency(stats.valorTotal)}</span>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>

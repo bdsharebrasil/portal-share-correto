@@ -89,6 +89,12 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen }) => {
       path: "/diario-bordo",
     },
     {
+      label: "Gerenciar Aeronaves",
+      icon: Plane,
+      color: "secondary",
+      path: "/aeronaves",
+    },
+    {
       label: "Controle de Abastecimento",
       icon: Fuel,
       color: "primary",
@@ -178,6 +184,29 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen }) => {
             </CardHeader>
             <CardContent className="pt-0 space-y-2">
               {flightOperations.map((operation) => (
+                <Button
+                  key={operation.label}
+                  variant="outline"
+                  className="w-full justify-start border-border hover:bg-accent hover:border-primary transition-smooth rounded-md"
+                  onClick={() => operation.path && navigate(operation.path)}
+                >
+                  <operation.icon className="mr-3 h-4 w-4 text-primary" />
+                  <span className="text-sm">{operation.label}</span>
+                </Button>
+              ))}
+            </CardContent>
+          </Card>
+
+          {/* Gerenciar Aeronaves */}
+          <Card className="bg-gradient-card border-border shadow-card static-card rounded-lg">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-foreground flex items-center">
+                <Plane className="mr-2 h-4 w-4 text-primary" />
+                Gerenciar Aeronaves
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 space-y-2">
+              {aircraftOperations.map((operation) => (
                 <Button
                   key={operation.label}
                   variant="outline"

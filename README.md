@@ -1,73 +1,81 @@
-# Welcome to your Lovable project
+# Share Brasil - Portal Colaborador
 
-## Project info
+Plataforma de gestão integrada para colaboradores e operações da Share Brasil.
 
-**URL**: https://lovable.dev/projects/76986235-4485-4f2d-a5f6-189fe9095b35
+## 🚀 Tecnologias
 
-## How can I edit this code?
+- **React 18** - Interface de usuário
+- **TypeScript** - Tipagem estática
+- **Vite** - Build rápido
+- **Tailwind CSS** - Estilização
+- **shadcn/ui** - Componentes prontos
+- **Supabase** - Backend e autenticação
 
-There are several ways of editing your application.
+## 📋 Pré-requisitos
 
-**Use Lovable**
+- Node.js 18+ (instale com [nvm](https://github.com/nvm-sh/nvm#installing-and-updating))
+- npm ou yarn
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/76986235-4485-4f2d-a5f6-189fe9095b35) and start prompting.
+## ⚙️ Instalação
 
-Changes made via Lovable will be committed automatically to this repo.
+```bash
+# 1. Clone o repositório
+git clone <URL_DO_REPOSITORIO>
 
-**Use your preferred IDE**
+# 2. Entre na pasta do projeto
+cd <NOME_DO_PROJETO>
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+# 3. Instale as dependências
+npm install
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# 4. Inicie o servidor de desenvolvimento
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+O aplicativo estará disponível em `http://localhost:8080`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 📦 Comandos Disponíveis
 
-**Use GitHub Codespaces**
+```bash
+npm run dev        # Inicia servidor de desenvolvimento
+npm run build      # Cria build para produção
+npm run build:dev  # Cria build em modo desenvolvimento
+npm run lint       # Verifica erros de código
+npm run preview    # Visualiza build em produção localmente
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 🔐 Variáveis de Ambiente
 
-## What technologies are used for this project?
+Configure as seguintes variáveis no arquivo `.env`:
 
-This project is built with:
+```
+VITE_SUPABASE_URL=sua_url
+VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY=sua_chave
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 📚 Estrutura do Projeto
 
-## How can I deploy this project?
+```
+src/
+├── components/     # Componentes reutilizáveis
+├── pages/         # Páginas da aplicação
+├── hooks/         # Hooks personalizados
+├── services/      # Serviços e APIs
+├── contexts/      # Contextos React
+├── lib/           # Utilitários e helpers
+└── types/         # Definições TypeScript
+```
 
-Simply open [Lovable](https://lovable.dev/projects/76986235-4485-4f2d-a5f6-189fe9095b35) and click on Share -> Publish.
+## 🚀 Deploy
 
-## Can I connect a custom domain to my Lovable project?
+Para fazer deploy, use sua plataforma preferida:
+- Netlify
+- Vercel
+- Firebase Hosting
+- Qualquer servidor com Node.js
 
-Yes, you can!
+Faça o build com `npm run build` e deploy da pasta `dist/`.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 📝 Licença
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+Propriedade da Share Brasil
