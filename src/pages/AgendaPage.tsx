@@ -622,7 +622,7 @@ export default function AgendaPage() {
                                       {contact.precoSingle !== undefined && (
                                         <div className="text-right">
                                           <p className="text-xs text-muted-foreground mb-1">Single</p>
-                                          <p className="text-sm font-semibold text-custom-cyan">
+                                          <p className="text-base font-bold text-custom-cyan">
                                             {currencyFormatter.format(contact.precoSingle)}
                                           </p>
                                         </div>
@@ -630,7 +630,7 @@ export default function AgendaPage() {
                                       {contact.precoDuplo !== undefined && (
                                         <div className="text-right">
                                           <p className="text-xs text-muted-foreground mb-1">Duplo</p>
-                                          <p className="text-sm font-semibold text-custom-cyan">
+                                          <p className="text-base font-bold text-custom-cyan">
                                             {currencyFormatter.format(contact.precoDuplo)}
                                           </p>
                                         </div>
