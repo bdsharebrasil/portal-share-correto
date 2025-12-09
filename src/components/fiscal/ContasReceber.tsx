@@ -363,7 +363,7 @@ export function ContasReceber() {
       if (contasReceberData.banco_conciliacao_id) {
         const { error: updateConciliacao } = await supabase
           .from("bank_reconciliations")
-          .update({ status: "conferido" })
+          .update({ status: "recebido" })
           .eq("id", contasReceberData.banco_conciliacao_id);
 
         if (updateConciliacao) {
