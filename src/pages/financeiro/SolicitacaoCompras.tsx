@@ -245,20 +245,6 @@ export default function SolicitacaoCompras() {
 
       if (insertError) throw insertError;
 
-      // Insert items apenas para compras
-      if (tipo === 'compra' && tempItems.length > 0) {
-        const itemsToInsert = tempItems.map(item => ({
-          purchase_request_id: newRequest.id,
-          ...item
-        }));
-
-        const { error: itemsError } = await supabase
-          .from('purchase_request_items')
-          .insert(itemsToInsert);
-
-        if (itemsError) throw itemsError;
-      }
-
       toast({
         title: "Sucesso",
         description: `Solicitação ${numeroSolicitacao} criada com sucesso!`
