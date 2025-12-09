@@ -691,7 +691,7 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
                               }
                             >
                               {report.status?.toLowerCase() === 'pago' || report.status?.toLowerCase() === 'recebido'
-                                ? 'Recebido'
+                                ? 'Conferido'
                                 : report.status?.toLowerCase() === 'enviado'
                                   ? 'Enviado'
                                   : 'Pendente'}
@@ -888,7 +888,9 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
                                     : 'bg-yellow-500/20 text-yellow-300'
                               }
                             >
-                              {item.status?.charAt(0).toUpperCase() + item.status?.slice(1).toLowerCase()}
+                              {item.status?.toLowerCase() === 'recebido'
+                                ? 'Conferido'
+                                : item.status?.charAt(0).toUpperCase() + item.status?.slice(1).toLowerCase()}
                             </Badge>
                           </div>
 
