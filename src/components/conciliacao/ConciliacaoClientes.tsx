@@ -846,6 +846,7 @@ function AddDespesaForm({
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="pendente">Pendente</SelectItem>
+                      <SelectItem value="enviado">Enviado</SelectItem>
                       <SelectItem value="recebido">Recebido</SelectItem>
                     </SelectContent>
                   </Select>
@@ -1114,6 +1115,7 @@ function NewReconciliationInlineForm({
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="pendente">Pendente</SelectItem>
+                    <SelectItem value="enviado">Enviado</SelectItem>
                     <SelectItem value="recebido">Recebido</SelectItem>
                   </SelectContent>
                 </Select>
