@@ -7,6 +7,14 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Upload, FileText } from "lucide-react";
+import { 
+  createContaAReceber, 
+  createContaAPagar, 
+  createFluxoCaixaEntry,
+  getNextStatus,
+  isStatusFinal,
+  isStatusEnviado 
+} from "@/lib/reconciliation-utils";
 
 interface StatusUpdateDialogProps {
   reconciliation: {
@@ -92,13 +100,11 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
   };
 
   const handleUpdate = async () => {
-    const isStatusFinal = (reconciliation.type === 'cliente' && status?.toLowerCase() === 'conferido') ||
-                          (reconciliation.type === 'colaborador' && status?.toLowerCase() === 'pago');
-
-    const isStatusEnviado = status?.toLowerCase() === 'enviado';
+    const statusFinal = isStatusFinal(status, reconciliation.type || '');
+    const statusEnviado = isStatusEnviado(status);
 
     // Validar banco obrigatório quando status é final
-    if (isStatusFinal && !selectedBanco) {
+    if (statusFinal && !selectedBanco) {
       toast.error("Selecione o banco para registrar a movimentação");
       return;
     }
@@ -111,6 +117,7 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
         comprovanteUrl = await uploadComprovante();
       }
 
+      // 1. Atualizar status na conciliação
       const { error } = await supabase
         .from("bank_reconciliations")
         .update({ status } as any)
@@ -119,230 +126,33 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
       if (error) throw error;
 
       const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Usuário não autenticado");
+        return;
+      }
 
-      // Criar contas a receber/pagar quando status é "enviado"
-      if (user && isStatusEnviado) {
-        const isClientReconciliation = reconciliation.type === 'cliente';
-        const isColaboradorReconciliation = reconciliation.type === 'colaborador';
-
-        // Cliente: Criar conta a receber
-        if (isClientReconciliation && reconciliation.client_id) {
-          // Buscar dados do cliente (nome e CNPJ) e da aeronave (matrícula)
-          const { data: clientData } = await supabase
-            .from('clients')
-            .select('company_name, cnpj')
-            .eq('id', reconciliation.client_id)
-            .single();
-
-          let aircraftRegistration = '';
-          if (reconciliation.aircraft_id) {
-            const { data: aircraftData } = await supabase
-              .from('aircraft')
-              .select('registration')
-              .eq('id', reconciliation.aircraft_id)
-              .single();
-            if (aircraftData) {
-              aircraftRegistration = aircraftData.registration;
-            }
-          }
-
-          if (clientData && clientData.cnpj) {
-            // Gerar número sequencial para conta a receber
-            const year = new Date().getFullYear();
-            const yearShort = year.toString().slice(-2);
-
-            // Buscar o próximo número para contas_areceber
-            const { data: lastRecord } = await supabase
-              .from('contas_areceber')
-              .select('numero')
-              .order('criado_em', { ascending: false })
-              .limit(1);
-
-            let nextNumber = 1;
-            if (lastRecord && lastRecord.length > 0) {
-              const lastNumero = lastRecord[0].numero;
-              const match = lastNumero.match(/CR-(\d+)\//);
-              if (match && match[1]) {
-                nextNumber = parseInt(match[1]) + 1;
-              }
-            }
-
-            const numero = `CR-${String(nextNumber).padStart(4, '0')}/${yearShort}`;
-            const dataVencimento = reconciliation.payment_term || new Date().toISOString().split('T')[0];
-
-            // Verificar se já existe
-            const { data: existing } = await supabase
-              .from('contas_areceber')
-              .select('id')
-              .eq('numero', numero)
-              .maybeSingle();
-
-            if (!existing) {
-              const { error: insertError } = await supabase
-                .from('contas_areceber')
-                .insert({
-                  numero,
-                  cliente_nome: clientData.company_name,
-                  cliente_cnpj: clientData.cnpj,
-                  data_criacao: new Date().toISOString().split('T')[0],
-                  data_vencimento: dataVencimento,
-                  valor: reconciliation.amount || 0,
-                  categoria: reconciliation.category || 'Faturamento',
-                  descricao: reconciliation.description || 'Conta a receber',
-                  status: 'pendente',
-                  aeronave: aircraftRegistration || '',
-                  criado_por: user.id,
-                  banco_conciliacao_id: reconciliation.id
-                } as any);
-
-              if (insertError) {
-                console.error('Erro ao criar conta a receber:', insertError);
-                toast.warning('Status atualizado, mas houve erro ao criar conta a receber');
-              }
-            }
-          }
-        }
-
-        // Colaborador: Criar conta a pagar
-        if (isColaboradorReconciliation && reconciliation.receiver_id) {
-          // Buscar dados do colaborador (nome e CPF) e da aeronave (matrícula)
-          const { data: userProfileData } = await supabase
-            .from('user_profiles')
-            .select('full_name, cpf')
-            .eq('id', reconciliation.receiver_id)
-            .single();
-
-          let aircraftRegistration = '';
-          if (reconciliation.aircraft_id) {
-            const { data: aircraftData } = await supabase
-              .from('aircraft')
-              .select('registration')
-              .eq('id', reconciliation.aircraft_id)
-              .single();
-            if (aircraftData) {
-              aircraftRegistration = aircraftData.registration;
-            }
-          }
-
-          if (userProfileData && userProfileData.cpf) {
-            // Gerar número sequencial para conta a pagar
-            const year = new Date().getFullYear();
-            const yearShort = year.toString().slice(-2);
-
-            // Buscar o próximo número para contas_apagar
-            const { data: lastRecord } = await supabase
-              .from('contas_apagar')
-              .select('numero')
-              .order('criado_em', { ascending: false })
-              .limit(1);
-
-            let nextNumber = 1;
-            if (lastRecord && lastRecord.length > 0) {
-              const lastNumero = lastRecord[0].numero;
-              const match = lastNumero.match(/CP-(\d+)\//);
-              if (match && match[1]) {
-                nextNumber = parseInt(match[1]) + 1;
-              }
-            }
-
-            const numero = `CP-${String(nextNumber).padStart(4, '0')}/${yearShort}`;
-            const dataVencimento = reconciliation.payment_term || new Date().toISOString().split('T')[0];
-
-            // Verificar se já existe
-            const { data: existing } = await supabase
-              .from('contas_apagar')
-              .select('id')
-              .eq('numero', numero)
-              .maybeSingle();
-
-            if (!existing) {
-              const { error: insertError } = await supabase
-                .from('contas_apagar')
-                .insert({
-                  numero,
-                  fornecedor_nome: userProfileData.full_name,
-                  fornecedor_cnpj: userProfileData.cpf,
-                  data_recebimento: new Date().toISOString().split('T')[0],
-                  data_vencimento: dataVencimento,
-                  valor: reconciliation.amount || 0,
-                  categoria: reconciliation.category || 'Despesas',
-                  descricao: reconciliation.description || 'Conta a pagar',
-                  status: 'recebida',
-                  aeronave: aircraftRegistration || '',
-                  criado_por: user.id,
-                  banco_conciliacao_id: reconciliation.id
-                } as any);
-
-              if (insertError) {
-                console.error('Erro ao criar conta a pagar:', insertError);
-                toast.warning('Status atualizado, mas houve erro ao criar conta a pagar');
-              }
-            }
-          }
+      // 2. Criar contas a receber/pagar quando status é "enviado"
+      if (statusEnviado) {
+        if (reconciliation.type === 'cliente') {
+          await createContaAReceber(reconciliation as any, user.id);
+        } else if (reconciliation.type === 'colaborador') {
+          await createContaAPagar(reconciliation as any, user.id);
         }
       }
 
-      // Criar fluxo de caixa automaticamente quando status é final
-      if (user && isStatusFinal) {
-        const isClientReconciliation = reconciliation.type === 'cliente';
-        const isColaboradorReconciliation = reconciliation.type === 'colaborador';
+      // 3. Criar fluxo de caixa quando status é final
+      if (statusFinal) {
+        const contaBancaria = contasBancarias.find(c => c.id === selectedBanco) || null;
+        const success = await createFluxoCaixaEntry(
+          reconciliation as any,
+          status,
+          contaBancaria,
+          comprovanteUrl,
+          user.id
+        );
 
-        // Buscar nome do banco selecionado
-        const contaSelecionada = contasBancarias.find(c => c.id === selectedBanco);
-        const nomeBanco = contaSelecionada ? `${contaSelecionada.nome} - ${contaSelecionada.banco || ''}` : '';
-
-        // Cliente: status "conferido" = entrada no fluxo de caixa
-        if (isClientReconciliation && status?.toLowerCase() === 'conferido') {
-          const referencia = `REC-${reconciliation.id}`;
-
-          // Verificar se já existe
-          const { data: existingEntry } = await supabase
-            .from('controle_bancario')
-            .select('id')
-            .eq('referencia', referencia as any)
-            .maybeSingle();
-
-          if (!existingEntry) {
-            await supabase.from('controle_bancario').insert({
-              data: reconciliation.date || new Date().toISOString().split('T')[0],
-              tipo_movimento: 'entrada',
-              categoria: reconciliation.category || 'Receita',
-              descricao: reconciliation.description || 'Recebimento',
-              valor: reconciliation.amount || 0,
-              referencia,
-              status: 'confirmado',
-              criado_por: user.id,
-              conta_banco: nomeBanco,
-              comprovante_url: comprovanteUrl
-            } as any);
-          }
-        }
-
-        // Colaborador: status "pago" = saída no fluxo de caixa
-        if (isColaboradorReconciliation && status?.toLowerCase() === 'pago') {
-          const referencia = `PAG-${reconciliation.id}`;
-
-          // Verificar se já existe
-          const { data: existingEntry } = await supabase
-            .from('controle_bancario')
-            .select('id')
-            .eq('referencia', referencia as any)
-            .maybeSingle();
-
-          if (!existingEntry) {
-            await supabase.from('controle_bancario').insert({
-              data: reconciliation.date || new Date().toISOString().split('T')[0],
-              tipo_movimento: 'saída',
-              categoria: reconciliation.category || 'Despesa',
-              descricao: reconciliation.description || 'Pagamento',
-              valor: reconciliation.amount || 0,
-              referencia,
-              status: 'confirmado',
-              criado_por: user.id,
-              conta_banco: nomeBanco,
-              comprovante_url: comprovanteUrl
-            } as any);
-          }
+        if (!success) {
+          toast.warning('Status atualizado, mas houve erro ao criar entrada no fluxo de caixa');
         }
       }
 
@@ -358,21 +168,19 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
   };
 
   // Opções de status baseadas no tipo de conciliação
-  const statusOptions = reconciliation.type === 'colaborador' 
-    ? [
-        { value: 'pendente', label: 'Pendente' },
-        { value: 'enviado', label: 'Enviado' },
-        { value: 'pago', label: 'Pago' },
-      ]
-    : [
-        { value: 'pendente', label: 'Pendente' },
-        { value: 'enviado', label: 'Enviado' },
-        { value: 'conferido', label: 'Conferido/Recebido' },
-      ];
+  const statusOptions = getNextStatus(reconciliation.status, reconciliation.type || '')
+    .map(s => {
+      const labels: Record<string, string> = {
+        'pendente': 'Pendente',
+        'enviado': 'Enviado',
+        'conferido': 'Conferido/Recebido',
+        'pago': 'Pago'
+      };
+      return { value: s, label: labels[s] || s };
+    });
 
-  // Verificar se precisa mostrar campos extras (banco e comprovante)
-  const showExtraFields = (reconciliation.type === 'cliente' && status?.toLowerCase() === 'conferido') ||
-                          (reconciliation.type === 'colaborador' && status?.toLowerCase() === 'pago');
+  // Mostrar campos extras apenas quando status é final
+  const showExtraFields = isStatusFinal(status, reconciliation.type || '');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
