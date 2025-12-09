@@ -1,56 +1,88 @@
-// Adicione esta função ao arquivo src/lib/travelReportPDF.ts
+// src/lib/travelReportPDF.ts
 
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-// ... (mantenha as interfaces e funções existentes)
+// =========================================================================
+// INTERFACES (Definições simplificadas - ajuste com seus tipos reais)
+// =========================================================================
+
+export interface TravelExpense {
+  id: string;
+  categoria: 'Combustível' | 'Hospedagem' | 'Alimentação' | 'Transporte' | 'Outros';
+  descricao: string | null;
+  valor: number;
+  pago_por: string | null; // Ex: 'Tripulante 1', 'Cliente', 'ShareBrasil'
+  comprovante_url: string | null;
+}
+
+export interface TravelReport {
+  id: string;
+  numero: string;
+  cliente_nome: string;
+  aeronave: string;
+  tripulante: string; // Nome do Tripulante 1
+  tripulante2: string | null; // Nome do Tripulante 2
+  trecho: string;
+  data_inicio: string; // ISO Date string
+  data_fim: string; // ISO Date string
+  observacoes: string | null;
+
+  // Despesas
+  despesas: TravelExpense[];
+
+  // Totais
+  total_combustivel: number;
+  total_hospedagem: number;
+  total_alimentacao: number;
+  total_transporte: number;
+  total_outros: number;
+
+  total_tripulante1: number;
+  total_tripulante2: number;
+  total_tripulante: number; // Campo de compatibilidade
+  total_cliente: number;
+  total_sharebrasil: number;
+  valor_total: number;
+}
+
+// =========================================================================
+// FUNÇÕES DE UTILIDADE E FORMATAÇÃO
+// =========================================================================
 
 /**
- * Gera o PDF e faz upload para o Supabase Storage
- * Retorna a URL pública do PDF salvo
+ * Formata a data de string ISO para padrão local (pt-BR).
  */
-export async function uploadPDFToStorage(
-  report: TravelReport,
-  supabase: SupabaseClient,
-  userName: string = 'Sistema'
-): Promise<string> {
-  // Gerar o PDF
-  const doc = generatePDFDocument(report, userName);
-
-  // Converter para Blob
-  const pdfBlob = doc.output('blob');
-
-  // Nome do arquivo
-  const fileName = `${report.numero.replace(/\//g, '-')}-${Date.now()}.pdf`;
-  const filePath = `reports/${fileName}`;
-
-  // Upload para o Supabase Storage
-  const { error: uploadError } = await supabase.storage
-    .from('travel-reports')
-    .upload(filePath, pdfBlob, {
-      contentType: 'application/pdf',
-      upsert: false
-    });
-
-  if (uploadError) {
-    throw new Error(`Erro ao fazer upload do PDF: ${uploadError.message}`);
-  }
-
-  // Obter URL pública
-  const { data: { publicUrl } } = supabase.storage
-    .from('travel-reports')
-    .getPublicUrl(filePath);
-
-  return publicUrl;
+function formatDate(dateStr: string): string {
+  if (!dateStr) return '-';
+  // Adicionando 'T00:00:00' garante que o fuso horário local não cause desvios de dia.
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString('pt-BR');
 }
 
 /**
- * Função auxiliar que gera o documento PDF (sem abrir/baixar)
- * Retorna o objeto jsPDF para ser usado em outras funções
+ * Formata o valor numérico para padrão de moeda BRL (R$).
+ */
+function formatCurrency(value: number): string {
+  if (typeof value !== 'number' || isNaN(value)) return 'R$ 0,00';
+  return `R$ ${value.toFixed(2).replace('.', ',')}`;
+}
+
+
+// =========================================================================
+// FUNÇÕES DE GERAÇÃO E MANIPULAÇÃO DO PDF
+// =========================================================================
+
+/**
+ * Função auxiliar que gera o documento PDF (sem abrir/baixar).
+ * Retorna o objeto jsPDF para ser usado em outras funções.
  */
 function generatePDFDocument(report: TravelReport, userName: string = 'Sistema'): jsPDF {
-  const doc = new jsPDF();
+  // @ts-ignore
+  // O type casting é necessário porque 'jspdf-autotable' injeta o autoTable
+  const doc = new jsPDF() as any;
+
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   let yPos = 20;
@@ -107,7 +139,7 @@ function generatePDFDocument(report: TravelReport, userName: string = 'Sistema')
     d.comprovante_url ? '✓' : '✗'
   ]);
 
-  (doc as any).autoTable({
+  doc.autoTable({
     startY: yPos,
     head: [['#', 'Categoria', 'Descrição', 'Valor', 'Pago Por', 'Comprovante']],
     body: tableData,
@@ -124,7 +156,7 @@ function generatePDFDocument(report: TravelReport, userName: string = 'Sistema')
     }
   });
 
-  yPos = (doc as any).lastAutoTable.finalY + 10;
+  yPos = doc.lastAutoTable.finalY + 10;
 
   // Totais por Categoria
   doc.setFont('helvetica', 'bold');
@@ -231,12 +263,88 @@ function generatePDFDocument(report: TravelReport, userName: string = 'Sistema')
   return doc;
 }
 
-function formatDate(dateStr: string): string {
-  if (!dateStr) return '-';
-  const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString('pt-BR');
+
+/**
+ * 1. Gera o PDF e faz upload para o Supabase Storage.
+ * Retorna a URL pública do PDF salvo (usado para salvar no banco de dados).
+ */
+export async function uploadPDFToStorage(
+  report: TravelReport,
+  supabase: SupabaseClient,
+  userName: string = 'Sistema'
+): Promise<string> {
+  // Gerar o PDF
+  const doc = generatePDFDocument(report, userName);
+
+  // Converter para Blob
+  const pdfBlob = doc.output('blob');
+
+  // Nome do arquivo
+  const fileName = `${report.numero.replace(/\//g, '-')}-${Date.now()}.pdf`;
+  const filePath = `reports/${fileName}`;
+
+  // Upload para o Supabase Storage
+  const { error: uploadError } = await supabase.storage
+    .from('travel-reports') // VERIFIQUE O NOME DO SEU BUCKET
+    .upload(filePath, pdfBlob, {
+      contentType: 'application/pdf',
+      upsert: true // Alterei para 'true' para permitir que relatórios atualizados substituam o anterior
+    });
+
+  if (uploadError) {
+    console.error('Erro no upload para Supabase Storage:', uploadError);
+    throw new Error(`Erro ao fazer upload do PDF: ${uploadError.message}`);
+  }
+
+  // Obter URL pública
+  const { data: { publicUrl } } = supabase.storage
+    .from('travel-reports')
+    .getPublicUrl(filePath);
+
+  return publicUrl;
 }
 
-function formatCurrency(value: number): string {
-  return `R$ ${value.toFixed(2).replace('.', ',')}`;
-}
+/**
+ * 2. Baixa o PDF diretamente no navegador (para o botão "Baixar PDF").
+ * Cria um link temporário e simula o clique.
+ */
+export const downloadPDF = (report: TravelReport) => {
+  const doc = generatePDFDocument(report, 'Usuário');
+  const pdfBlob = doc.output('blob');
+
+  const url = URL.createObjectURL(pdfBlob);
+  const link = document.createElement('a');
+
+  // Nome do arquivo para download (CRÍTICO: impede o download vazio)
+  link.download = `${report.numero.replace(/\//g, '-')}-relatorio-viagem.pdf`;
+  link.href = url;
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  // Limpar o objeto URL para liberar memória
+  URL.revokeObjectURL(url);
+};
+
+/**
+ * 3. Abre o PDF em uma nova aba do navegador (para o botão "Visualizar / Eye Icon").
+ * Ideal para visualização, impressão e download nativo do navegador.
+ */
+export const previewPDFForPrint = (report: TravelReport, userName: string) => {
+  const doc = generatePDFDocument(report, userName);
+  const pdfBlob = doc.output('blob');
+
+  const url = URL.createObjectURL(pdfBlob);
+
+  // Abre em uma nova janela/aba
+  const printWindow = window.open(url, '_blank');
+
+  if (!printWindow) {
+    console.error('Falha ao abrir janela de visualização. O bloqueador de pop-ups está ativo?');
+    alert('Falha ao abrir a janela de visualização. Verifique o bloqueador de pop-ups e tente novamente.');
+  }
+
+  // Nota: O URL.revokeObjectURL(url) não é chamado aqui para que a nova janela 
+  // possa continuar acessando o objeto Blob.
+};
