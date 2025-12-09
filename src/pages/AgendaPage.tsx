@@ -603,7 +603,7 @@ export default function AgendaPage() {
                     {filteredContacts.map((contact) => {
                       const isHotel = contact.origin === "hoteis";
 
-                      if (contact.categoria === 'Hotéis') {
+                      if (isHotel) {
                         return (
                           <Card key={contact.id} className="hover:shadow-lg transition-shadow group border border-white/30 bg-slate-900/30">
                             <CardContent className="p-6">
