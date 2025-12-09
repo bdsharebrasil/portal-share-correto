@@ -394,30 +394,30 @@ export default function AeronaveDetalhes() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="p-4 bg-muted/30 rounded-xl">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Nº Série</p>
-                  <p className="font-semibold">{aircraft.serial_number || "N/A"}</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="p-3 bg-slate-700/40 rounded-lg">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Nº Série</p>
+                  <p className="font-semibold text-white">{aircraft.serial_number || "N/A"}</p>
                 </div>
-                <div className="p-4 bg-muted/30 rounded-xl">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Fabricante</p>
-                  <p className="font-semibold">{aircraft.manufacturer || "N/A"}</p>
+                <div className="p-3 bg-slate-700/40 rounded-lg">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Fabricante</p>
+                  <p className="font-semibold text-white">{aircraft.manufacturer || "N/A"}</p>
                 </div>
-                <div className="p-4 bg-muted/30 rounded-xl">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Modelo</p>
-                  <p className="font-semibold">{aircraft.model || "N/A"}</p>
+                <div className="p-3 bg-slate-700/40 rounded-lg">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Modelo</p>
+                  <p className="font-semibold text-white">{aircraft.model || "N/A"}</p>
                 </div>
-                <div className="p-4 bg-muted/30 rounded-xl">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Célula Atual</p>
-                  <p className="font-semibold">{aircraft.cell_hours_current ? `${aircraft.cell_hours_current}h` : "N/A"}</p>
+                <div className="p-3 bg-slate-700/40 rounded-lg">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Célula Atual</p>
+                  <p className="font-semibold text-white">{aircraft.cell_hours_current ? `${aircraft.cell_hours_current}h` : "N/A"}</p>
                 </div>
-                <div className="p-4 bg-muted/30 rounded-xl">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Horímetro</p>
-                  <p className="font-semibold">{aircraft.horimeter_active ? `${aircraft.horimeter_active}h` : "N/A"}</p>
+                <div className="p-3 bg-slate-700/40 rounded-lg">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Horímetro</p>
+                  <p className="font-semibold text-white">{aircraft.horimeter_active ? `${aircraft.horimeter_active}h` : "N/A"}</p>
                 </div>
-                <div className="p-4 bg-muted/30 rounded-xl">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Valor Hora</p>
-                  <p className="font-semibold">{aircraft.hourly_price ? `R$ ${aircraft.hourly_price}` : "N/A"}</p>
+                <div className="p-3 bg-slate-700/40 rounded-lg">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Valor Hora</p>
+                  <p className="font-semibold text-white">{aircraft.hourly_price ? `R$ ${aircraft.hourly_price}` : "N/A"}</p>
                 </div>
               </div>
             </CardContent>
