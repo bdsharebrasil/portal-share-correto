@@ -881,7 +881,7 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
                             </div>
                             <Badge
                               className={
-                                item.status?.toLowerCase() === 'conferido'
+                                item.status?.toLowerCase() === 'recebido'
                                   ? 'bg-green-500/20 text-green-300'
                                   : item.status?.toLowerCase() === 'enviado'
                                     ? 'bg-blue-500/20 text-blue-300'
