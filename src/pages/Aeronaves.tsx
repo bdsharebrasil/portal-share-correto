@@ -210,37 +210,37 @@ export default function Aeronaves() {
             )}
 
             {/* Actions */}
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2 pt-1">
               <Button
                 variant="default"
-                className="flex-1 rounded-xl"
+                className="flex-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate(`/aeronaves/${a.id}`);
                 }}
               >
-                <Eye className="h-4 w-4 mr-2" />
+                <Eye className="h-3.5 w-3.5 mr-1.5" />
                 Ver Detalhes
               </Button>
               <Button
                 size="icon"
                 variant="outline"
-                className="rounded-xl"
+                className="rounded-lg border-slate-600 hover:bg-slate-700 h-9 w-9"
                 onClick={(e) => {
                   e.stopPropagation();
                   setEditing(a);
                   setDialogOpen(true);
                 }}
               >
-                <Edit className="h-4 w-4" />
+                <Edit className="h-3.5 w-3.5 text-white" />
               </Button>
               <Button
                 size="icon"
                 variant="outline"
-                className="rounded-xl text-destructive hover:text-destructive"
+                className="rounded-lg border-slate-600 hover:bg-slate-700 h-9 w-9 text-red-400 hover:text-red-300"
                 onClick={(e) => handleDelete(a.id, e)}
               >
-                <Trash2 className="h-4 w-4" />
+                <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
