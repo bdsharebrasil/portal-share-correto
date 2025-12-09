@@ -441,7 +441,7 @@ export function ConciliacaoClientes() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          {item.status?.toLowerCase() !== 'recebido' ? (
+                          {item.status?.toLowerCase() === 'pendente' ? (
                             <PaymentTermEditor
                               reconciliation={item}
                               onSave={fetchReconciliations}
