@@ -55,6 +55,7 @@ export default function SolicitacaoCompras() {
   const [tipo, setTipo] = useState("compra");
   const [descricao, setDescricao] = useState("");
   const [dataNecessaria, setDataNecessaria] = useState("");
+  const [dataNecessariaDate, setDataNecessariaDate] = useState<Date | undefined>();
   const [departamento, setDepartamento] = useState("");
   const [prioridade, setPrioridade] = useState("normal");
   const [tipoDeServico, setTipoDeServico] = useState("");
