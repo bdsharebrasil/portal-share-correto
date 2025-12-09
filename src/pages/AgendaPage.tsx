@@ -603,34 +603,46 @@ export default function AgendaPage() {
                     {filteredContacts.map((contact) => {
                       const isHotel = contact.origin === "hoteis";
 
-                      if (isHotel) {
+                      if (contact.categoria === 'Hotéis') {
                         return (
-                          <Card key={contact.id} className="hover:shadow-lg transition-shadow group border border-white/10">
+                          <Card key={contact.id} className="hover:shadow-lg transition-shadow group bg-slate-900/50 border-slate-800">
                             <CardContent className="p-5">
-                              <div className="space-y-4">
-                                {/* Header: Hotel name + Prices */}
-                                <div className="flex items-start justify-between gap-6">
-                                  <div className="flex items-start gap-3 flex-1">
-                                    <Hotel className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                                    <h3 className="font-semibold text-foreground text-base">
-                                      {contact.nome}
-                                    </h3>
+                              <div className="space-y-3">
+                                {/* Header Row: Icon + Name + Prices + Actions */}
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                                    <Hotel className="h-5 w-5 text-slate-400 flex-shrink-0 mt-0.5" />
+                                    <div className="flex-1 min-w-0">
+                                      <h3 className="font-semibold text-white text-base mb-1">
+                                        {contact.nome}
+                                      </h3>
+                                      <p className="text-sm text-slate-400">
+                                        {contact.telefone}
+                                        {contact.cidade && (
+                                          <>
+                                            {' • '}
+                                            <span className="text-[#42b6f5] font-medium">{contact.cidade}</span>
+                                          </>
+                                        )}
+                                      </p>
+                                    </div>
                                   </div>
 
+                                  {/* Prices Column */}
                                   {(contact.precoSingle !== undefined || contact.precoDuplo !== undefined) && (
-                                    <div className="flex gap-8 flex-shrink-0">
+                                    <div className="flex gap-6 flex-shrink-0 items-start">
                                       {contact.precoSingle !== undefined && (
                                         <div className="text-right">
-                                          <p className="text-xs text-muted-foreground mb-1">Single</p>
-                                          <p className="text-base font-bold text-custom-#42b6f5">
+                                          <p className="text-xs text-slate-400 mb-0.5">Single</p>
+                                          <p className="text-base font-bold text-[#42b6f5]">
                                             {currencyFormatter.format(contact.precoSingle)}
                                           </p>
                                         </div>
                                       )}
                                       {contact.precoDuplo !== undefined && (
                                         <div className="text-right">
-                                          <p className="text-xs text-muted-foreground mb-1">Duplo</p>
-                                          <p className="text-base font-bold text-custom-#42b6f5">
+                                          <p className="text-xs text-slate-400 mb-0.5">Duplo</p>
+                                          <p className="text-base font-bold text-[#42b6f5]">
                                             {currencyFormatter.format(contact.precoDuplo)}
                                           </p>
                                         </div>
@@ -638,12 +650,13 @@ export default function AgendaPage() {
                                     </div>
                                   )}
 
+                                  {/* Action Buttons */}
                                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                                     <Button
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => handleEditContact(contact)}
-                                      className="h-8 w-8 p-0"
+                                      className="h-8 w-8 p-0 hover:bg-slate-800"
                                     >
                                       <Edit className="h-4 w-4" />
                                     </Button>
@@ -652,7 +665,7 @@ export default function AgendaPage() {
                                         <Button
                                           variant="ghost"
                                           size="sm"
-                                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                          className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-slate-800"
                                         >
                                           <Trash2 className="h-4 w-4" />
                                         </Button>
@@ -678,19 +691,14 @@ export default function AgendaPage() {
                                   </div>
                                 </div>
 
-                                {/* Phone and City */}
-                                <p className="text-sm text-muted-foreground pl-8">
-                                  {contact.telefone} • {contact.cidade}
-                                </p>
-
-                                {/* Separator */}
-                                <div className="border-t border-white/5" />
-
                                 {/* Address */}
                                 {contact.endereco && (
-                                  <p className="text-xs text-muted-foreground pl-8">
-                                    Endereço: {contact.endereco}
-                                  </p>
+                                  <>
+                                    <div className="border-t border-slate-800" />
+                                    <p className="text-xs text-slate-400 pl-8">
+                                      Endereço: {contact.endereco}
+                                    </p>
+                                  </>
                                 )}
                               </div>
                             </CardContent>
