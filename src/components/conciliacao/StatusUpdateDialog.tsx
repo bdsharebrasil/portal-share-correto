@@ -225,7 +225,7 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
           }
 
           if (userProfileData && userProfileData.cpf) {
-            // Gerar número usando padrão similar
+            // Gerar número sequencial para conta a pagar
             const year = new Date().getFullYear();
             const yearShort = year.toString().slice(-2);
 
