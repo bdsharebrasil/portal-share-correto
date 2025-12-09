@@ -191,7 +191,8 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
                   descricao: reconciliation.description || 'Faturamento de serviços',
                   status: 'pendente',
                   aeronave: aircraftRegistration || '',
-                  criado_por: user.id
+                  criado_por: user.id,
+                  banco_conciliacao_id: reconciliation.id
                 } as any);
 
               if (insertError) {
