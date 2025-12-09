@@ -605,35 +605,31 @@ export default function AgendaPage() {
 
                       if (isHotel) {
                         return (
-                          <Card key={contact.id} className="hover:shadow-lg transition-shadow group border border-border/50">
+                          <Card key={contact.id} className="hover:shadow-lg transition-shadow group border border-white/10">
                             <CardContent className="p-5">
-                              <div className="space-y-3">
-                                <div className="flex items-start justify-between gap-4">
+                              <div className="space-y-4">
+                                {/* Header: Hotel name + Prices */}
+                                <div className="flex items-start justify-between gap-6">
                                   <div className="flex items-start gap-3 flex-1">
                                     <Hotel className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                                    <div className="flex-1 min-w-0">
-                                      <h3 className="font-semibold text-foreground">
-                                        {contact.nome}
-                                      </h3>
-                                      <p className="text-sm text-muted-foreground">
-                                        {contact.telefone} • {contact.cidade}
-                                      </p>
-                                    </div>
+                                    <h3 className="font-semibold text-foreground text-base">
+                                      {contact.nome}
+                                    </h3>
                                   </div>
 
                                   {(contact.precoSingle !== undefined || contact.precoDuplo !== undefined) && (
-                                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                    <div className="flex gap-8 flex-shrink-0">
                                       {contact.precoSingle !== undefined && (
-                                        <div>
-                                          <p className="text-xs text-muted-foreground">Single</p>
+                                        <div className="text-right">
+                                          <p className="text-xs text-muted-foreground mb-1">Single</p>
                                           <p className="text-sm font-semibold text-custom-cyan">
                                             {currencyFormatter.format(contact.precoSingle)}
                                           </p>
                                         </div>
                                       )}
                                       {contact.precoDuplo !== undefined && (
-                                        <div>
-                                          <p className="text-xs text-muted-foreground">Duplo</p>
+                                        <div className="text-right">
+                                          <p className="text-xs text-muted-foreground mb-1">Duplo</p>
                                           <p className="text-sm font-semibold text-custom-cyan">
                                             {currencyFormatter.format(contact.precoDuplo)}
                                           </p>
@@ -682,6 +678,15 @@ export default function AgendaPage() {
                                   </div>
                                 </div>
 
+                                {/* Phone and City */}
+                                <p className="text-sm text-muted-foreground pl-8">
+                                  {contact.telefone} • {contact.cidade}
+                                </p>
+
+                                {/* Separator */}
+                                <div className="border-t border-white/5" />
+
+                                {/* Address */}
                                 {contact.endereco && (
                                   <p className="text-xs text-muted-foreground pl-8">
                                     Endereço: {contact.endereco}
