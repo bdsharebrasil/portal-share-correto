@@ -120,15 +120,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ isOpen }) => {
     },
   ];
 
-  const aircraftOperations: FlightOperation[] = [
-    {
-      label: "Aeronaves",
-      icon: Plane,
-      color: "primary",
-      path: "/aeronaves",
-    },
-  ];
-
   const maintenanceItems: MaintenanceItem[] = [
     {
       label: "Controle de Vencimentos",
