@@ -138,7 +138,7 @@ function generatePDFDocument(report: TravelReport, userName: string = 'Sistema')
     d.comprovante_url ? '✓' : '✗'
   ]);
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: yPos,
     head: [['#', 'Categoria', 'Descrição', 'Valor', 'Pago Por', 'Comprovante']],
     body: tableData,
@@ -155,7 +155,7 @@ function generatePDFDocument(report: TravelReport, userName: string = 'Sistema')
     }
   });
 
-  yPos = doc.lastAutoTable.finalY + 10;
+  yPos = (doc as any).lastAutoTable.finalY + 10;
 
   // Totais por Categoria
   doc.setFont('helvetica', 'bold');
