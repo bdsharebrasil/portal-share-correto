@@ -206,6 +206,8 @@ export function ConciliacaoClientes() {
             let reportStatus = 'pendente';
             if (newStatus?.toLowerCase() === 'recebido') {
               reportStatus = 'pago';
+            } else if (newStatus?.toLowerCase() === 'enviado') {
+              reportStatus = 'enviado';
             }
 
             await supabase
