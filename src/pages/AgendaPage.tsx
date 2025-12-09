@@ -605,7 +605,7 @@ export default function AgendaPage() {
 
                       if (contact.categoria === 'Hotéis') {
                         return (
-                          <Card key={contact.id} className="hover:shadow-lg transition-shadow group bg-slate-900/50 border-slate-800">
+                          <Card key={contact.id} className="hover:shadow-lg transition-shadow group border border-slate-700/50 bg-slate-900/30">
                             <CardContent className="p-5">
                               <div className="space-y-3">
                                 {/* Header Row: Icon + Name + Prices + Actions */}
@@ -613,15 +613,15 @@ export default function AgendaPage() {
                                   <div className="flex items-start gap-3 flex-1 min-w-0">
                                     <Hotel className="h-5 w-5 text-slate-400 flex-shrink-0 mt-0.5" />
                                     <div className="flex-1 min-w-0">
-                                      <h3 className="font-semibold text-white text-base mb-1">
+                                      <h3 className="font-semibold text-white text-base mb-1 uppercase">
                                         {contact.nome}
                                       </h3>
                                       <p className="text-sm text-slate-400">
                                         {contact.telefone}
                                         {contact.cidade && (
                                           <>
-                                            {' • '}
-                                            <span className="text-[#42b6f5] font-medium">{contact.cidade}</span>
+                                            <span className="mx-2">•</span>
+                                            <span className="text-[#42b6f5] font-semibold uppercase">{contact.cidade}</span>
                                           </>
                                         )}
                                       </p>
@@ -629,9 +629,10 @@ export default function AgendaPage() {
                                   </div>
 
                                   {/* Prices Column */}
-                                  {(contact.precoSingle !== undefined || contact.precoDuplo !== undefined) && (
+                                  {(contact.precoSingle !== undefined && contact.precoSingle !== null) || 
+                                   (contact.precoDuplo !== undefined && contact.precoDuplo !== null) ? (
                                     <div className="flex gap-6 flex-shrink-0 items-start">
-                                      {contact.precoSingle !== undefined && (
+                                      {contact.precoSingle !== undefined && contact.precoSingle !== null && (
                                         <div className="text-right">
                                           <p className="text-xs text-slate-400 mb-0.5">Single</p>
                                           <p className="text-base font-bold text-[#42b6f5]">
@@ -639,7 +640,7 @@ export default function AgendaPage() {
                                           </p>
                                         </div>
                                       )}
-                                      {contact.precoDuplo !== undefined && (
+                                      {contact.precoDuplo !== undefined && contact.precoDuplo !== null && (
                                         <div className="text-right">
                                           <p className="text-xs text-slate-400 mb-0.5">Duplo</p>
                                           <p className="text-base font-bold text-[#42b6f5]">
@@ -648,7 +649,7 @@ export default function AgendaPage() {
                                         </div>
                                       )}
                                     </div>
-                                  )}
+                                  ) : null}
 
                                   {/* Action Buttons */}
                                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
@@ -694,7 +695,7 @@ export default function AgendaPage() {
                                 {/* Address */}
                                 {contact.endereco && (
                                   <>
-                                    <div className="border-t border-slate-800" />
+                                    <div className="border-t border-slate-700/50" />
                                     <p className="text-xs text-slate-400 pl-8">
                                       Endereço: {contact.endereco}
                                     </p>
@@ -705,7 +706,6 @@ export default function AgendaPage() {
                           </Card>
                         );
                       }
-
                       return (
                         <Card key={contact.id} className="hover:shadow-lg transition-shadow group">
                           <CardContent className="p-4">
