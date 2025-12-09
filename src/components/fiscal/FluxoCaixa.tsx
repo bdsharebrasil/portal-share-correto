@@ -416,8 +416,8 @@ export function FluxoCaixa() {
                         <div className={`w-32 flex-shrink-0 text-right font-semibold whitespace-nowrap ${mov.tipo_movimento === "entrada" ? "text-green-500" : "text-red-500"}`}>
                           {mov.tipo_movimento === "entrada" ? "+" : "-"}R$ {parseFloat(mov.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </div>
-                        <div className="w-24 flex-shrink-0 text-muted-foreground text-xs truncate" title={mov.banco || "-"}>
-                          {mov.banco || "-"}
+                        <div className="w-24 flex-shrink-0 text-muted-foreground text-xs truncate" title={mov.conta_banco || "-"}>
+                          {mov.conta_banco || "-"}
                         </div>
                         <div className="w-24 flex-shrink-0 text-muted-foreground text-xs">
                           {mov.aeronave || "-"}
@@ -519,7 +519,7 @@ export function FluxoCaixa() {
                               </div>
                               <div>
                                 <p className="text-muted-foreground font-medium mb-1">Banco</p>
-                                <p className="text-foreground text-xs">{mov.banco || "-"}</p>
+                                <p className="text-foreground text-xs">{mov.conta_banco || "-"}</p>
                               </div>
                             </div>
 

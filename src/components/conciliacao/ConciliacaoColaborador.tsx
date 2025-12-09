@@ -137,39 +137,6 @@ export function ConciliacaoColaborador() {
 
       if (error) throw error;
 
-      // Se status é "pago", criar saída no fluxo de caixa
-      if (newStatus?.toLowerCase() === 'pago') {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          // Verificar se já existe uma entrada no fluxo de caixa para essa conciliação
-          const { data: existingEntry } = await supabase
-            .from('controle_bancario')
-            .select('id')
-            .eq('referencia', `SAL-${reconciliation.id}` as any)
-            .maybeSingle();
-
-          if (!existingEntry) {
-            const { error: insertError } = await supabase
-              .from('controle_bancario')
-              .insert({
-                data: reconciliation.date,
-                tipo_movimento: 'saída',
-                categoria: reconciliation.category || 'Reembolso Colaborador',
-                descricao: reconciliation.description,
-                valor: reconciliation.amount,
-                referencia: `SAL-${reconciliation.id}`,
-                status: 'confirmado',
-                criado_por: user.id,
-                observacoes: `Pagamento ao colaborador - ${reconciliation.user_profiles?.full_name || 'N/A'}`
-              } as any);
-
-            if (insertError) {
-              console.error('Erro ao criar saída no fluxo de caixa:', insertError);
-            }
-          }
-        }
-      }
-
       setColaboradorData(prev =>
         prev.map(item =>
           item.id === id ? { ...item, status: newStatus } : item
@@ -179,7 +146,7 @@ export function ConciliacaoColaborador() {
       const statusLabel = newStatus === 'enviado' ? 'Enviado' : 'Pago';
       toast({
         title: "Sucesso",
-        description: `Status atualizado para ${statusLabel}. Saída no Fluxo de Caixa criada.`,
+        description: `Status atualizado para ${statusLabel}.`,
       });
     } catch (error) {
       console.error('Erro ao atualizar status:', error);

@@ -181,7 +181,7 @@ export function ConciliacaoClientes() {
       const reconciliation = conciliacaoClientes.find(item => item.id === id);
       if (!reconciliation) return;
 
-      // Update bank_reconciliations
+      // Atualizar status na conciliação
       const { error } = await supabase
         .from('bank_reconciliations')
         .update({ status: newStatus } as any)
@@ -189,47 +189,12 @@ export function ConciliacaoClientes() {
 
       if (error) throw error;
 
-      // Se status é "conferido" (recebido), criar entrada no fluxo de caixa
-      if (newStatus?.toLowerCase() === 'conferido') {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          // Verificar se já existe uma entrada no fluxo de caixa para essa conciliação
-          const { data: existingEntry } = await supabase
-            .from('controle_bancario')
-            .select('id')
-            .eq('referencia', `REC-${reconciliation.id}` as any)
-            .maybeSingle();
-
-          if (!existingEntry) {
-            const { error: insertError } = await supabase
-              .from('controle_bancario')
-              .insert({
-                data: reconciliation.date,
-                tipo_movimento: 'entrada',
-                categoria: reconciliation.category || 'Receita de Cliente',
-                descricao: reconciliation.description,
-                valor: reconciliation.amount,
-                referencia: `REC-${reconciliation.id}`,
-                status: 'confirmado',
-                criado_por: user.id,
-                observacoes: `Pagamento recebido do cliente - ${reconciliation.clients?.company_name || 'N/A'}`
-              } as any);
-
-            if (insertError) {
-              console.error('Erro ao criar entrada no fluxo de caixa:', insertError);
-            }
-          }
-        }
-      }
-
-      // If this reconciliation is related to a travel report, also sync the status back
+      // Se relacionado com relatório de viagem, sincronizar status
       if (reconciliation.description?.includes('RELATORIO DE VIAGEM')) {
-        // Extract report_number from description (format: "RELATORIO DE VIAGEM - {report_number} - STATUS PENDENTE")
         const reportNumberMatch = reconciliation.description.match(/RELATORIO DE VIAGEM - (.+?) - /);
         if (reportNumberMatch && reportNumberMatch[1]) {
           const reportNumber = reportNumberMatch[1];
 
-          // Find and update the related travel_expense_report
           const { data: relatedReport } = await supabase
             .from('travel_expense_reports')
             .select('id')
@@ -238,7 +203,6 @@ export function ConciliacaoClientes() {
             .maybeSingle();
 
           if (relatedReport) {
-            // Map reconciliation status back to travel report status
             let reportStatus = 'pendente';
             if (newStatus?.toLowerCase() === 'conferido') {
               reportStatus = 'pago';
@@ -262,7 +226,7 @@ export function ConciliacaoClientes() {
 
       toast({
         title: "Sucesso",
-        description: `Status atualizado para ${newStatus}. Entrada no Fluxo de Caixa criada.`,
+        description: `Status atualizado para ${newStatus}.`,
       });
     } catch (error) {
       console.error('Erro ao atualizar status:', error);
@@ -502,22 +466,9 @@ export function ConciliacaoClientes() {
                                     setSelectedReconciliation(item);
                                     setOpenStatusDialog(true);
                                   }}
-                                  title="Enviado por email"
+                                  title="Enviar por email"
                                 >
                                   <Mail className="h-4 w-4" />
-                                </Button>
-                              )}
-                              {canApproveStatus && item.status?.toLowerCase() !== 'conferido' && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedReconciliation(item);
-                                    setOpenStatusDialog(true);
-                                  }}
-                                  title="Conferido"
-                                >
-                                  <Check className="h-4 w-4" />
                                 </Button>
                               )}
                             </div>
