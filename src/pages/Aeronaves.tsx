@@ -189,18 +189,18 @@ export default function Aeronaves() {
 
             {/* Clients */}
             {clientList.length > 0 && (
-              <div className="flex items-start gap-2 p-3 bg-primary/5 rounded-xl">
-                <Users className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-2 p-2.5 bg-slate-700/30 rounded-lg">
+                <Users className="h-4 w-4 text-cyan-400 flex-shrink-0 mt-0.5" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Clientes</p>
+                  <p className="text-[9px] text-slate-400 uppercase tracking-wide mb-1">Clientes</p>
                   <div className="flex flex-wrap gap-1">
                     {clientList.slice(0, 2).map((cn, idx) => (
-                      <Badge key={idx} variant="secondary" className="text-xs rounded-lg truncate max-w-[120px]">
+                      <Badge key={idx} variant="secondary" className="text-xs rounded-md bg-slate-600 text-white truncate max-w-[120px]">
                         {cn}
                       </Badge>
                     ))}
                     {clientList.length > 2 && (
-                      <Badge variant="outline" className="text-xs rounded-lg">
+                      <Badge variant="outline" className="text-xs rounded-md border-slate-500 text-slate-300">
                         +{clientList.length - 2}
                       </Badge>
                     )}
