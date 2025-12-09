@@ -80,6 +80,8 @@ export function ConciliacaoClientes() {
   const { roles, user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showNewReconciliationForm, setShowNewReconciliationForm] = useState(false);
+  const [openStatusDialog, setOpenStatusDialog] = useState(false);
+  const [selectedReconciliation, setSelectedReconciliation] = useState<BankReconciliation | null>(null);
 
   const canApproveStatus = roles.some(role => ['admin', 'gestor_master', 'financeiro_master'].includes(role));
 
