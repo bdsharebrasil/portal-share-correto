@@ -90,11 +90,11 @@ function generatePDFDocument(report: TravelReport, userName: string = 'Sistema')
   // Logo e Cabeçalho
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text('SHAREBRASIL AVIAÇÃO', pageWidth / 2, yPos, { align: 'center' });
+  doc.text('SHARE BRASIL', pageWidth / 2, yPos, { align: 'center' });
   yPos += 8;
 
   doc.setFontSize(16);
-  doc.text('RELATÓRIO DE VIAGEM', pageWidth / 2, yPos, { align: 'center' });
+  doc.text('RELATÓRIO DE DESPESA DE VIAGEM', pageWidth / 2, yPos, { align: 'center' });
   yPos += 10;
 
   // Número do Relatório
