@@ -402,16 +402,33 @@ export default function SolicitacaoCompras() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="data-necessaria">Data Necessária</Label>
-                    <div className="relative">
-                      <Input
-                        id="data-necessaria"
-                        type="date"
-                        value={dataNecessaria}
-                        onChange={(e) => setDataNecessaria(e.target.value)}
-                        className="pl-10"
-                      />
-                      <Calendar className="absolute left-3 top-2.5 h-5 w-5 text-blue-500 pointer-events-none" />
-                    </div>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dataNecessariaDate ? format(dataNecessariaDate, "PPP", { locale: ptBR }) : "Selecione a data"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={dataNecessariaDate}
+                          onSelect={(date) => {
+                            setDataNecessariaDate(date);
+                            if (date) {
+                              setDataNecessaria(format(date, "yyyy-MM-dd"));
+                            } else {
+                              setDataNecessaria("");
+                            }
+                          }}
+                          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
 
