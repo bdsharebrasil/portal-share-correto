@@ -8,12 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ShoppingCart, FileText, Clock, CheckCircle, XCircle, Edit, AlertCircle, Calendar } from "lucide-react";
+import { ShoppingCart, FileText, Clock, CheckCircle, XCircle, Edit, AlertCircle, CalendarIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface PurchaseRequest {
@@ -53,6 +55,7 @@ export default function SolicitacaoCompras() {
   const [tipo, setTipo] = useState("compra");
   const [descricao, setDescricao] = useState("");
   const [dataNecessaria, setDataNecessaria] = useState("");
+  const [dataNecessariaDate, setDataNecessariaDate] = useState<Date | undefined>();
   const [departamento, setDepartamento] = useState("");
   const [prioridade, setPrioridade] = useState("normal");
   const [tipoDeServico, setTipoDeServico] = useState("");
@@ -194,6 +197,7 @@ export default function SolicitacaoCompras() {
       setTipo("compra");
       setDescricao("");
       setDataNecessaria("");
+      setDataNecessariaDate(undefined);
       setDepartamento("");
       setPrioridade("normal");
       setTipoDeServico("");
@@ -398,16 +402,33 @@ export default function SolicitacaoCompras() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="data-necessaria">Data Necessária</Label>
-                    <div className="relative">
-                      <Input
-                        id="data-necessaria"
-                        type="date"
-                        value={dataNecessaria}
-                        onChange={(e) => setDataNecessaria(e.target.value)}
-                        className="pl-10"
-                      />
-                      <Calendar className="absolute left-3 top-2.5 h-5 w-5 text-blue-500 pointer-events-none" />
-                    </div>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dataNecessariaDate ? format(dataNecessariaDate, "PPP", { locale: ptBR }) : "Selecione a data"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={dataNecessariaDate}
+                          onSelect={(date) => {
+                            setDataNecessariaDate(date);
+                            if (date) {
+                              setDataNecessaria(format(date, "yyyy-MM-dd"));
+                            } else {
+                              setDataNecessaria("");
+                            }
+                          }}
+                          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
 
