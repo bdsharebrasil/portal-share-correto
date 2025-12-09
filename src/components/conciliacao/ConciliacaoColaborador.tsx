@@ -32,6 +32,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getShortUserId, getIdBadgeColor } from "@/lib/user-id";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { StatusUpdateDialog } from "./StatusUpdateDialog";
 
 interface ColaboradorReconciliation {
   id: string;
@@ -68,6 +69,8 @@ export function ConciliacaoColaborador() {
   const { roles, user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showNewReconciliationForm, setShowNewReconciliationForm] = useState(false);
+  const [openStatusDialog, setOpenStatusDialog] = useState(false);
+  const [selectedReconciliation, setSelectedReconciliation] = useState<ColaboradorReconciliation | null>(null);
 
   const canApprovePaid = roles.some(role => ['admin', 'gestor_master', 'financeiro_master'].includes(role));
 
@@ -430,7 +433,10 @@ export function ConciliacaoColaborador() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleStatusChange(item.id, 'enviado')}
+                                onClick={() => {
+                                  setSelectedReconciliation(item);
+                                  setOpenStatusDialog(true);
+                                }}
                                 title="Enviar por email"
                               >
                                 <Mail className="h-4 w-4" />
@@ -440,7 +446,10 @@ export function ConciliacaoColaborador() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleStatusChange(item.id, 'pago')}
+                                onClick={() => {
+                                  setSelectedReconciliation(item);
+                                  setOpenStatusDialog(true);
+                                }}
                                 title="Marcar como Pago"
                               >
                                 <Check className="h-4 w-4" />
@@ -459,6 +468,15 @@ export function ConciliacaoColaborador() {
           </Table>
         </CardContent>
       </Card>
+
+      {selectedReconciliation && (
+        <StatusUpdateDialog
+          reconciliation={selectedReconciliation}
+          open={openStatusDialog}
+          onOpenChange={setOpenStatusDialog}
+          onUpdate={fetchReconciliations}
+        />
+      )}
     </div>
   );
 }

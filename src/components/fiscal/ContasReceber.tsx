@@ -359,7 +359,19 @@ export function ContasReceber() {
         return;
       }
 
-      // 2. Chamar função RPC para criar entrada no controle_bancario
+      // 2. Atualizar status na conciliação bancária se houver referência
+      if (contasReceberData.banco_conciliacao_id) {
+        const { error: updateConciliacao } = await supabase
+          .from("bank_reconciliations")
+          .update({ status: "conferido" })
+          .eq("id", contasReceberData.banco_conciliacao_id);
+
+        if (updateConciliacao) {
+          console.error("Erro ao atualizar conciliação:", updateConciliacao);
+        }
+      }
+
+      // 3. Chamar função RPC para criar entrada no controle_bancario
       const { error: rpcError } = await supabase.rpc('create_entrada_bancaria_from_conta_receber', {
         p_conta_receber_id: contasReceberData.id,
         p_conta_banco: selectedBank

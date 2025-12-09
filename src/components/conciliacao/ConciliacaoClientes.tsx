@@ -32,6 +32,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getShortUserId, getIdBadgeColor } from "@/lib/user-id";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { StatusUpdateDialog } from "./StatusUpdateDialog";
 
 interface Client {
   id: string;
@@ -79,6 +80,8 @@ export function ConciliacaoClientes() {
   const { roles, user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [showNewReconciliationForm, setShowNewReconciliationForm] = useState(false);
+  const [openStatusDialog, setOpenStatusDialog] = useState(false);
+  const [selectedReconciliation, setSelectedReconciliation] = useState<BankReconciliation | null>(null);
 
   const canApproveStatus = roles.some(role => ['admin', 'gestor_master', 'financeiro_master'].includes(role));
 
@@ -495,7 +498,10 @@ export function ConciliacaoClientes() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleStatusChange(item.id, 'enviado')}
+                                  onClick={() => {
+                                    setSelectedReconciliation(item);
+                                    setOpenStatusDialog(true);
+                                  }}
                                   title="Enviado por email"
                                 >
                                   <Mail className="h-4 w-4" />
@@ -505,7 +511,10 @@ export function ConciliacaoClientes() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleStatusChange(item.id, 'conferido')}
+                                  onClick={() => {
+                                    setSelectedReconciliation(item);
+                                    setOpenStatusDialog(true);
+                                  }}
                                   title="Conferido"
                                 >
                                   <Check className="h-4 w-4" />
@@ -538,6 +547,15 @@ export function ConciliacaoClientes() {
           </div>
         </CardContent>
       </Card>
+
+      {selectedReconciliation && (
+        <StatusUpdateDialog
+          reconciliation={selectedReconciliation}
+          open={openStatusDialog}
+          onOpenChange={setOpenStatusDialog}
+          onUpdate={fetchReconciliations}
+        />
+      )}
     </div>
   );
 }

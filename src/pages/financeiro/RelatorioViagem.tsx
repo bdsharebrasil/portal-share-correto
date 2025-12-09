@@ -856,21 +856,22 @@ export default function RelatorioViagem() {
                           <p className="font-bold text-lg text-green-600 min-w-[100px] text-right">
                             R$ {report.total_amount.toFixed(2)}
                           </p>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => {
-                              if (report.status !== 'Rascunho') {
-                                toast.error(`Não é permitido editar relatórios com status "${report.status}". Apenas rascunhos podem ser editados.`);
-                                return;
-                              }
-                              editReport(report.id!);
-                            }}
-                            title={report.status !== 'Rascunho' ? `Relatório ${report.status.toLowerCase()} - não é permitido editar` : 'Editar Relatório'}
-                            disabled={report.status !== 'Rascunho'}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          {report.status === 'Rascunho' && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => {
+                                if (report.status !== 'Rascunho') {
+                                  toast.error(`Não é permitido editar relatórios com status "${report.status}". Apenas rascunhos podem ser editados.`);
+                                  return;
+                                }
+                                editReport(report.id!);
+                              }}
+                              title="Editar Relatório"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button
                             variant="outline"
                             size="sm"
