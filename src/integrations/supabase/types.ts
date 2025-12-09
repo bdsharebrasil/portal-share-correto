@@ -4220,8 +4220,8 @@ export type Database = {
       is_gestor_master: { Args: never; Returns: boolean }
       is_user_active: { Args: { _user_id: string }; Returns: boolean }
       next_receipt_number:
-        | { Args: { p_year: number }; Returns: string }
         | { Args: never; Returns: number }
+        | { Args: { p_year: number }; Returns: string }
       send_report_to_ctm: { Args: { report_id: string }; Returns: undefined }
       update_controle_bancario_banco: {
         Args: { p_conta_apagar_id: string; p_conta_banco: string }

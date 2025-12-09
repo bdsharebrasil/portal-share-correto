@@ -1,3 +1,5 @@
+import jsPDF from 'jspdf';
+
 export const CATEGORIAS_DESPESA = [
   "Combustível",
   "Hospedagem",
@@ -28,16 +30,6 @@ export const formatDateBR = (value: string | Date) => {
     return `${d}/${m}/${y}`;
   }
   try { return new Date(value).toLocaleDateString('pt-BR'); } catch { return String(value); }
-};
-
-const generatePDFConfig = (reportNumber: string) => {
-  return {
-    margin: 10,
-    filename: `${reportNumber}-relatorio-viagem.pdf`,
-    image: { type: 'jpeg' as const, quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
-  };
 };
 
 export interface TravelExpense {
@@ -92,442 +84,308 @@ const calculateCrewTotals = (despesas: TravelExpense[]) => {
   return { total_tripulante1, total_tripulante2 };
 };
 
-const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') => {
+const formatCurrency = (value: number): string => {
+  return (value || 0).toFixed(2).replace('.', ',');
+};
+
+// Gera PDF usando jsPDF diretamente (mais confiável que html2pdf)
+export const generatePDF = async (report: TravelReport, currentFullName = 'Usuário'): Promise<Blob> => {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 15;
+  let y = margin;
+
+  // Cores
+  const primaryBlue: [number, number, number] = [30, 58, 138];
+  const accentGreen: [number, number, number] = [34, 197, 94];
+  const textGray: [number, number, number] = [51, 51, 51];
+
+  // Calcular dias
   const calcDays = () => {
     if (report?.data_inicio && report?.data_fim) {
       const inicio = parseLocalDate(report.data_inicio);
       const fim = parseLocalDate(report.data_fim);
       const diffTime = Math.abs(fim.getTime() - inicio.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      return diffDays;
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     }
     return 1;
   };
 
-  const formattedNumero = (() => {
-    const raw = String(report?.numero || '').toUpperCase();
-    return raw || 'N/A';
-  })();
-
-  // Calcular totais separados por tripulante
+  // Calcular totais de tripulantes
   const crewTotals = calculateCrewTotals(report.despesas);
   const total_tripulante1 = report.total_tripulante1 || crewTotals.total_tripulante1;
   const total_tripulante2 = report.total_tripulante2 || crewTotals.total_tripulante2;
-
   const hasSecondCrew = report.tripulante2 && report.tripulante2.trim() !== '';
 
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>Relatório de Viagem - ${report.numero}</title>
-        <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
+  // === BORDA VERDE ===
+  doc.setDrawColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+  doc.setLineWidth(1);
+  doc.rect(5, 5, pageWidth - 10, pageHeight - 10);
 
-            body {
-                font-family: Arial, Helvetica, sans-serif;
-                font-size: 12px;
-                color: #333;
-                background: white;
-                line-height: 1.4;
-                padding: 0;
-                margin: 0;
-            }
+  // === CABEÇALHO ===
+  doc.setFontSize(16);
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.setFont('helvetica', 'bold');
+  doc.text('RELATÓRIO DE DESPESA DE VIAGEM', pageWidth / 2, y + 5, { align: 'center' });
 
-            .report-container {
-                width: 100%;
-                border: 3px solid #22c55e;
-                padding: 20px;
-                background: white;
-                page-break-after: always;
-            }
+  y += 12;
+  doc.setFontSize(11);
+  doc.text(`${report.numero || 'N/A'} - ${(report.cliente_nome || 'N/A').toUpperCase()}`, pageWidth / 2, y, { align: 'center' });
 
-            .header {
-                text-align: center;
-                margin-bottom: 20px;
-                padding-bottom: 15px;
-                border-bottom: 3px solid #22c55e;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                gap: 15px;
-            }
+  // Linha separadora
+  y += 8;
+  doc.setDrawColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+  doc.setLineWidth(0.5);
+  doc.line(margin, y, pageWidth - margin, y);
 
-            .logo-box {
-                flex-shrink: 0;
-                width: 120px;
-                height: 120px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
+  // === INFORMAÇÕES DO RELATÓRIO ===
+  y += 10;
+  doc.setFontSize(10);
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.setFont('helvetica', 'normal');
 
-            .logo-box img {
-                max-width: 100%;
-                max-height: 100%;
-                object-fit: contain;
-            }
+  const infoLineHeight = 6;
+  
+  // Cliente e Aeronave
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.text('Cliente:', margin, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.text((report.cliente_nome || 'N/A').toUpperCase(), margin + 20, y);
 
-            .header-content {
-                width: 100%;
-                text-align: center;
-            }
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.text('Aeronave:', pageWidth / 2, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.text(report.aeronave || 'N/A', pageWidth / 2 + 25, y);
 
-            .header-title {
-                color: #1e3a8a;
-                font-size: 18px;
-                font-weight: bold;
-                margin: 0 0 5px 0;
-            }
+  y += infoLineHeight;
 
-            .header-info {
-                font-size: 13px;
-                color: #333;
-                font-weight: bold;
-                margin: 0;
-            }
+  // Tripulantes
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.text('Tripulante 1:', margin, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.text((report.tripulante || 'N/A').toUpperCase(), margin + 28, y);
 
-            .info-section {
-                margin: 20px 0;
-                background: white;
-            }
-
-            .info-row {
-                margin: 8px 0;
-            }
-
-            .info-item {
-                font-size: 12px;
-                margin: 4px 30px 4px 0;
-                display: inline-block;
-            }
-
-            .info-item strong {
-                color: #1e3a8a;
-                font-weight: bold;
-            }
-
-            .despesas-title {
-                color: #1e3a8a;
-                font-size: 14px;
-                font-weight: bold;
-                margin: 15px 0 10px 0;
-            }
-
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                margin: 20px 0;
-                font-size: 11px;
-            }
-
-            th, td {
-                border: 1px solid #999;
-                padding: 6px 8px;
-                text-align: left;
-                vertical-align: top;
-            }
-
-            th {
-                background-color: #e8e8e8;
-                color: #1e3a8a;
-                font-weight: bold;
-            }
-
-            .text-right {
-                text-align: right !important;
-            }
-
-            .totals-box {
-                border: 1px solid #999;
-                padding: 12px;
-                margin: 15px 0;
-                width: 48%;
-                display: inline-block;
-                vertical-align: top;
-                page-break-inside: avoid;
-            }
-
-            .totals-box:nth-child(2n) {
-                margin-left: 2%;
-            }
-
-            .totals-box h3 {
-                color: #22c55e;
-                margin: 0 0 8px 0;
-                font-size: 13px;
-                border-bottom: 1px dotted #22c55e;
-                padding-bottom: 4px;
-                font-weight: bold;
-            }
-
-            .total-row {
-                display: flex;
-                justify-content: space-between;
-                font-size: 11px;
-                padding: 2px 0;
-                margin: 4px 0;
-                border-bottom: 1px solid #f0f0f0;
-            }
-
-            .total-final {
-                font-weight: bold;
-                font-size: 12px;
-                color: #1e3a8a;
-                margin-top: 8px;
-                border-top: 2px solid #22c55e;
-                padding-top: 8px;
-            }
-
-            .total-final span:last-child {
-                color: #22c55e;
-            }
-
-            .receipts-section {
-                margin-top: 40px;
-                page-break-before: always;
-            }
-
-            .receipts-section h2 {
-                color: #1e3a8a;
-                font-size: 16px;
-                margin: 0 0 20px 0;
-                font-weight: bold;
-            }
-
-            .receipt-item {
-                margin: 0 0 30px 0;
-                border: 1px solid #ddd;
-                padding: 12px;
-                page-break-inside: avoid;
-            }
-
-            .receipt-item p {
-                font-size: 11px;
-                margin: 3px 0;
-            }
-
-            .receipt-image {
-                max-width: 100%;
-                height: auto;
-                display: block;
-                margin-top: 12px;
-                border: 1px solid #ccc;
-            }
-
-            hr {
-                border: none;
-                border-top: 1px solid #999;
-                margin: 15px 0;
-            }
-
-            .footer {
-                text-align: right;
-                margin-top: 40px;
-                padding-top: 15px;
-                border-top: 1px solid #999;
-                font-size: 11px;
-                color: #666;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="report-container">
-            <div class="header">
-                <div class="logo-box">
-                    <img src="/logo.share.png" alt="Share Brasil Logo" />
-                </div>
-                <div class="header-content">
-                    <h1 class="header-title">Relatório de Despesa de Viagem</h1>
-                    <p class="header-info">${formattedNumero} - ${(report.cliente_nome || 'N/A').toUpperCase()}</p>
-                </div>
-            </div>
-
-            <div class="info-section">
-                <div class="info-row">
-                    <div class="info-item"><strong>Cliente:</strong> ${(report.cliente_nome || 'N/A').toUpperCase()}</div>
-                    <div class="info-item"><strong>Aeronave:</strong> ${report.aeronave || 'N/A'}</div>
-                </div>
-                <div class="info-row">
-                    <div class="info-item"><strong>Tripulante 1:</strong> ${(report.tripulante || 'N/A').toUpperCase()}</div>
-                    ${hasSecondCrew ? `<div class="info-item"><strong>Tripulante 2:</strong> ${(report.tripulante2 || '').toUpperCase()}</div>` : ''}
-                </div>
-                <div class="info-row">
-                    <div class="info-item"><strong>Trecho:</strong> ${report.trecho || report.destino || 'N/A'}</div>
-                    <div class="info-item"><strong>Período:</strong> ${report.data_inicio ? formatDateBR(report.data_inicio) : 'N/A'} a ${report.data_fim ? formatDateBR(report.data_fim) : 'N/A'} (${calcDays()} dias)</div>
-                </div>
-            </div>
-
-            <h2 class="despesas-title">Detalhes das Despesas</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Categoria</th>
-                        <th>Descrição</th>
-                        <th class="text-right">Valor (R$)</th>
-                        <th>Pago Por</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${report.despesas.map(d => `
-                        <tr>
-                            <td>${d.categoria || 'Outros'}</td>
-                            <td>${d.descricao || 'N/A'}</td>
-                            <td class="text-right">${(Number(d.valor) || 0).toFixed(2).replace('.', ',')}</td>
-                            <td>${d.pago_por || 'N/A'}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-
-            <div>
-                <div class="totals-box">
-                    <h3>Totais por Categoria (R$)</h3>
-                    <div class="total-row"><span>Combustível:</span> <span>${(report.total_combustivel || 0).toFixed(2).replace('.', ',')}</span></div>
-                    <div class="total-row"><span>Hospedagem:</span> <span>${(report.total_hospedagem || 0).toFixed(2).replace('.', ',')}</span></div>
-                    <div class="total-row"><span>Alimentação:</span> <span>${(report.total_alimentacao || 0).toFixed(2).replace('.', ',')}</span></div>
-                    <div class="total-row"><span>Transporte:</span> <span>${(report.total_transporte || 0).toFixed(2).replace('.', ',')}</span></div>
-                    <div class="total-row"><span>Outros:</span> <span>${(report.total_outros || 0).toFixed(2).replace('.', ',')}</span></div>
-                    <div class="total-row total-final"><span>TOTAL GERAL:</span> <span>${(report.valor_total || 0).toFixed(2).replace('.', ',')}</span></div>
-                </div>
-                <div class="totals-box">
-                    <h3>Totais por Pagador (R$)</h3>
-                    <div class="total-row"><span>${report.tripulante ? `Tripulante 1 (${report.tripulante}):` : 'Tripulante 1:'}</span> <span>${(total_tripulante1 || 0).toFixed(2).replace('.', ',')}</span></div>
-                    ${hasSecondCrew ? `<div class="total-row"><span>Tripulante 2 (${report.tripulante2}):</span> <span>${(total_tripulante2 || 0).toFixed(2).replace('.', ',')}</span></div>` : ''}
-                    <div class="total-row"><span>Cliente:</span> <span>${(report.total_cliente || 0).toFixed(2).replace('.', ',')}</span></div>
-                    <div class="total-row"><span>ShareBrasil:</span> <span>${(report.total_sharebrasil || 0).toFixed(2).replace('.', ',')}</span></div>
-                    <div class="total-row total-final"><span>TOTAL GERAL:</span> <span>${(report.valor_total || 0).toFixed(2).replace('.', ',')}</span></div>
-                </div>
-            </div>
-
-            <div class="footer">
-                Gerado por: ${currentFullName || 'Usuário'}
-            </div>
-        </div>
-
-        ${report.despesas.some(d => d.comprovante_url) ? `
-            <div class="report-container receipts-section">
-                <h2>Comprovantes Anexados</h2>
-                ${report.despesas
-        .filter(d => d.comprovante_url)
-        .map((d, index) => `
-                        <div class="receipt-item">
-                            <p><strong>Item Nº:</strong> ${index + 1}</p>
-                            <p><strong>Descrição:</strong> ${d.descricao || 'N/A'}</p>
-                            <p><strong>Categoria:</strong> ${d.categoria || 'Outros'}</p>
-                            <p><strong>Valor:</strong> R$ ${(Number(d.valor) || 0).toFixed(2).replace('.', ',')}</p>
-                            <img class="receipt-image" src="${d.comprovante_url}" alt="Comprovante" />
-                        </div>
-                    `).join('')}
-            </div>
-        ` : ''}
-
-    </body>
-    </html>
-    `;
-};
-
-export const getReportHTML = generateHTMLReport;
-
-const loadHtml2PdfFromCdn = () => {
-  return new Promise<any>((resolve, reject) => {
-    if (typeof window === 'undefined') return reject(new Error('window is undefined'));
-    const w = window as any;
-    if (w.html2pdf) return resolve(w.html2pdf);
-    const existing = document.querySelector('script[data-html2pdf]');
-    if (existing) {
-      existing.addEventListener('load', () => resolve((window as any).html2pdf));
-      existing.addEventListener('error', () => reject(new Error('Failed to load html2pdf script')));
-      return;
-    }
-    const script = document.createElement('script');
-    script.setAttribute('data-html2pdf', '1');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js';
-    script.async = true;
-    script.onload = () => {
-      const w2 = window as any;
-      if (w2.html2pdf) return resolve(w2.html2pdf);
-      if (w2.html2pdf) return resolve(w2.html2pdf);
-      reject(new Error('html2pdf not available after script load'));
-    };
-    script.onerror = () => reject(new Error('Failed to load html2pdf script'));
-    document.head.appendChild(script);
-  });
-};
-
-export const generatePDF = async (report: TravelReport, currentFullName?: string): Promise<Blob> => {
-  const htmlContent = generateHTMLReport(report, currentFullName);
-
-  const iframe = document.createElement('iframe');
-  iframe.style.position = 'absolute';
-  iframe.style.left = '-9999px';
-  iframe.style.top = '0';
-  iframe.style.width = '210mm';
-  iframe.style.height = '297mm';
-  document.body.appendChild(iframe);
-
-  try {
-    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-    if (!iframeDoc) throw new Error('Não foi possível acessar o documento do iframe');
-
-    iframeDoc.open();
-    iframeDoc.write(htmlContent);
-    iframeDoc.close();
-
-    // Aguarda mais tempo para garantir que o conteúdo carregue completamente
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Aguarda todas as imagens carregarem
-    const images = iframeDoc.querySelectorAll('img');
-    await Promise.all(
-      Array.from(images).map(
-        (img) =>
-          new Promise((resolve) => {
-            if (img.complete) {
-              resolve(true);
-            } else {
-              img.onload = () => resolve(true);
-              img.onerror = () => resolve(false); // Continua mesmo se a imagem falhar
-            }
-          })
-      )
-    );
-
-    const config = generatePDFConfig(report.numero);
-    const html2pdf = (window as any).html2pdf ? (window as any).html2pdf : await loadHtml2PdfFromCdn();
-
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      html2pdf()
-        .set({
-          ...config,
-          useCORS: true,
-          logging: true, // Ativar logs para debug
-          allowTaint: true,
-        })
-        .from(iframeDoc.body)
-        .outputPdf('blob')
-        .then((pdfBlob: Blob) => {
-          console.log('PDF gerado com sucesso, tamanho:', pdfBlob.size);
-          resolve(pdfBlob);
-        })
-        .catch((err: any) => {
-          console.error('Erro ao gerar PDF:', err);
-          reject(err);
-        });
-    });
-
-    return blob;
-  } finally {
-    if (iframe.parentNode) {
-      document.body.removeChild(iframe);
-    }
+  if (hasSecondCrew) {
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+    doc.text('Tripulante 2:', pageWidth / 2, y);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+    doc.text((report.tripulante2 || '').toUpperCase(), pageWidth / 2 + 28, y);
   }
+
+  y += infoLineHeight;
+
+  // Trecho e Período
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.text('Trecho:', margin, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.text(report.trecho || report.destino || 'N/A', margin + 18, y);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.text('Período:', pageWidth / 2, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  const periodo = `${formatDateBR(report.data_inicio)} a ${formatDateBR(report.data_fim)} (${calcDays()} dias)`;
+  doc.text(periodo, pageWidth / 2 + 20, y);
+
+  // === TABELA DE DESPESAS ===
+  y += 15;
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.setFontSize(11);
+  doc.text('DETALHES DAS DESPESAS', margin, y);
+
+  y += 6;
+
+  // Cabeçalho da tabela
+  const colWidths = [35, 65, 30, 40];
+  const tableWidth = colWidths.reduce((a, b) => a + b, 0);
+  const startX = margin;
+
+  doc.setFillColor(232, 232, 232);
+  doc.rect(startX, y, tableWidth, 8, 'F');
+  doc.setDrawColor(153, 153, 153);
+  doc.rect(startX, y, tableWidth, 8, 'S');
+
+  doc.setFontSize(9);
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.setFont('helvetica', 'bold');
+
+  let xPos = startX + 2;
+  doc.text('Categoria', xPos, y + 5.5);
+  xPos += colWidths[0];
+  doc.text('Descrição', xPos, y + 5.5);
+  xPos += colWidths[1];
+  doc.text('Valor (R$)', xPos, y + 5.5);
+  xPos += colWidths[2];
+  doc.text('Pago Por', xPos, y + 5.5);
+
+  y += 8;
+
+  // Linhas da tabela
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.setFontSize(8);
+
+  const validExpenses = report.despesas.filter(d => d.categoria && Number(d.valor) > 0);
+
+  validExpenses.forEach((expense, index) => {
+    if (y > pageHeight - 60) {
+      doc.addPage();
+      y = margin;
+    }
+
+    const rowHeight = 7;
+    
+    // Fundo alternado
+    if (index % 2 === 0) {
+      doc.setFillColor(250, 250, 250);
+      doc.rect(startX, y, tableWidth, rowHeight, 'F');
+    }
+    doc.setDrawColor(200, 200, 200);
+    doc.rect(startX, y, tableWidth, rowHeight, 'S');
+
+    xPos = startX + 2;
+    doc.text(expense.categoria || 'Outros', xPos, y + 5);
+    xPos += colWidths[0];
+    
+    // Truncar descrição se muito longa
+    const descricao = (expense.descricao || 'N/A').substring(0, 40);
+    doc.text(descricao, xPos, y + 5);
+    xPos += colWidths[1];
+    
+    doc.text(formatCurrency(expense.valor), xPos, y + 5);
+    xPos += colWidths[2];
+    doc.text(expense.pago_por || 'N/A', xPos, y + 5);
+
+    y += rowHeight;
+  });
+
+  // === TOTAIS ===
+  y += 10;
+
+  if (y > pageHeight - 80) {
+    doc.addPage();
+    y = margin;
+  }
+
+  // Box de totais por categoria
+  const boxWidth = (tableWidth - 5) / 2;
+  const boxStartX = startX;
+
+  // Totais por Categoria
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(153, 153, 153);
+  doc.rect(boxStartX, y, boxWidth, 55, 'S');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+  doc.setFontSize(10);
+  doc.text('Totais por Categoria (R$)', boxStartX + 3, y + 7);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.setFontSize(9);
+
+  let ty = y + 14;
+  const categories = [
+    { label: 'Combustível:', value: report.total_combustivel },
+    { label: 'Hospedagem:', value: report.total_hospedagem },
+    { label: 'Alimentação:', value: report.total_alimentacao },
+    { label: 'Transporte:', value: report.total_transporte },
+    { label: 'Outros:', value: report.total_outros },
+  ];
+
+  categories.forEach(cat => {
+    doc.text(cat.label, boxStartX + 3, ty);
+    doc.text(formatCurrency(cat.value), boxStartX + boxWidth - 25, ty);
+    ty += 6;
+  });
+
+  // Total geral categoria
+  doc.setDrawColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+  doc.line(boxStartX + 3, ty - 2, boxStartX + boxWidth - 3, ty - 2);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.text('TOTAL GERAL:', boxStartX + 3, ty + 4);
+  doc.setTextColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+  doc.text(formatCurrency(report.valor_total), boxStartX + boxWidth - 25, ty + 4);
+
+  // Totais por Pagador
+  const box2X = boxStartX + boxWidth + 5;
+  doc.setDrawColor(153, 153, 153);
+  doc.rect(box2X, y, boxWidth, 55, 'S');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+  doc.setFontSize(10);
+  doc.text('Totais por Pagador (R$)', box2X + 3, y + 7);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(textGray[0], textGray[1], textGray[2]);
+  doc.setFontSize(9);
+
+  ty = y + 14;
+  
+  // Tripulante 1
+  const tripLabel1 = report.tripulante ? `Tripulante 1 (${report.tripulante}):` : 'Tripulante 1:';
+  doc.text(tripLabel1.substring(0, 25), box2X + 3, ty);
+  doc.text(formatCurrency(total_tripulante1), box2X + boxWidth - 25, ty);
+  ty += 6;
+
+  // Tripulante 2 (se houver)
+  if (hasSecondCrew) {
+    const tripLabel2 = `Tripulante 2 (${report.tripulante2}):`;
+    doc.text(tripLabel2.substring(0, 25), box2X + 3, ty);
+    doc.text(formatCurrency(total_tripulante2), box2X + boxWidth - 25, ty);
+    ty += 6;
+  }
+
+  // Cliente
+  doc.text('Cliente:', box2X + 3, ty);
+  doc.text(formatCurrency(report.total_cliente), box2X + boxWidth - 25, ty);
+  ty += 6;
+
+  // ShareBrasil
+  doc.text('ShareBrasil:', box2X + 3, ty);
+  doc.text(formatCurrency(report.total_sharebrasil), box2X + boxWidth - 25, ty);
+  ty += 6;
+
+  // Total geral pagador
+  doc.setDrawColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+  doc.line(box2X + 3, ty - 2, box2X + boxWidth - 3, ty - 2);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(primaryBlue[0], primaryBlue[1], primaryBlue[2]);
+  doc.text('TOTAL GERAL:', box2X + 3, ty + 4);
+  doc.setTextColor(accentGreen[0], accentGreen[1], accentGreen[2]);
+  doc.text(formatCurrency(report.valor_total), box2X + boxWidth - 25, ty + 4);
+
+  // === RODAPÉ ===
+  y = pageHeight - 15;
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(102, 102, 102);
+  doc.setFontSize(8);
+  doc.text(`Gerado por: ${currentFullName}`, pageWidth - margin, y, { align: 'right' });
+  doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, margin, y);
+
+  // Retorna como Blob
+  return doc.output('blob');
 };
 
 export const downloadPDF = async (report: TravelReport, currentFullName?: string) => {
@@ -548,23 +406,13 @@ export const openPDFInNewWindow = async (report: TravelReport, currentFullName?:
   window.open(url, '_blank');
 };
 
-export const viewHTMLPreview = (report: TravelReport, currentFullName?: string) => {
-  const htmlContent = generateHTMLReport(report, currentFullName);
-  const newWindow = window.open('', '_blank');
-  if (newWindow) {
-    newWindow.document.write(htmlContent);
-    newWindow.document.close();
-  }
-};
-
 export const previewPDFForPrint = async (report: TravelReport, currentFullName?: string) => {
-  const htmlContent = generateHTMLReport(report, currentFullName);
-  const newWindow = window.open('', '_blank');
-  if (newWindow) {
-    newWindow.document.write(htmlContent);
-    newWindow.document.close();
-    newWindow.onload = () => {
-      newWindow.print();
+  const blob = await generatePDF(report, currentFullName);
+  const url = window.URL.createObjectURL(blob);
+  const printWindow = window.open(url, '_blank');
+  if (printWindow) {
+    printWindow.onload = () => {
+      printWindow.print();
     };
   }
 };
@@ -574,19 +422,14 @@ export const uploadPDFToStorage = async (
   supabaseClient: any,
   currentFullName?: string
 ): Promise<string> => {
-  // Aguarda um pouco mais para garantir que html2pdf carregue completamente
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
   const blob = await generatePDF(report, currentFullName);
 
   console.log('PDF Blob size:', blob.size, 'bytes');
   console.log('PDF Blob type:', blob.type);
 
-  // Verifica se o blob tem tamanho mínimo razoável para um PDF válido
-  // Um PDF vazio ainda tem headers, então se for menor que 1KB provavelmente falhou
   if (!blob || blob.size < 1000) {
     console.error('PDF gerado parece estar vazio ou muito pequeno:', blob?.size);
-    throw new Error('PDF gerado está vazio ou inválido. Verifique se os dados do relatório estão corretos.');
+    throw new Error('PDF gerado está vazio ou inválido.');
   }
 
   const fileName = `${report.numero.replace(/\//g, '-')}-${Date.now()}.pdf`;
@@ -608,4 +451,89 @@ export const uploadPDFToStorage = async (
     .getPublicUrl(filePath);
 
   return publicUrl;
+};
+
+// Exporta HTML para preview (mantido para compatibilidade)
+export const getReportHTML = (report: TravelReport, currentFullName = 'Usuário') => {
+  const crewTotals = calculateCrewTotals(report.despesas);
+  const total_tripulante1 = report.total_tripulante1 || crewTotals.total_tripulante1;
+  const total_tripulante2 = report.total_tripulante2 || crewTotals.total_tripulante2;
+  const hasSecondCrew = report.tripulante2 && report.tripulante2.trim() !== '';
+
+  const calcDays = () => {
+    if (report?.data_inicio && report?.data_fim) {
+      const inicio = parseLocalDate(report.data_inicio);
+      const fim = parseLocalDate(report.data_fim);
+      const diffTime = Math.abs(fim.getTime() - inicio.getTime());
+      return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    }
+    return 1;
+  };
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Relatório de Viagem - ${report.numero}</title>
+        <style>
+            body { font-family: Arial; font-size: 12px; padding: 20px; }
+            .header { text-align: center; border-bottom: 2px solid #22c55e; padding-bottom: 10px; }
+            .header h1 { color: #1e3a8a; margin: 0; }
+            table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+            th { background: #e5e5e5; color: #1e3a8a; }
+            .totals { display: flex; gap: 20px; margin-top: 20px; }
+            .totals-box { flex: 1; border: 1px solid #ccc; padding: 15px; }
+            .totals-box h3 { color: #22c55e; margin-top: 0; }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h1>RELATÓRIO DE DESPESA DE VIAGEM</h1>
+            <p><strong>${report.numero} - ${(report.cliente_nome || '').toUpperCase()}</strong></p>
+        </div>
+        <p><strong>Cliente:</strong> ${report.cliente_nome} | <strong>Aeronave:</strong> ${report.aeronave}</p>
+        <p><strong>Tripulante 1:</strong> ${report.tripulante}${hasSecondCrew ? ` | <strong>Tripulante 2:</strong> ${report.tripulante2}` : ''}</p>
+        <p><strong>Trecho:</strong> ${report.trecho || report.destino} | <strong>Período:</strong> ${formatDateBR(report.data_inicio)} a ${formatDateBR(report.data_fim)} (${calcDays()} dias)</p>
+        
+        <table>
+            <thead><tr><th>Categoria</th><th>Descrição</th><th>Valor (R$)</th><th>Pago Por</th></tr></thead>
+            <tbody>
+                ${report.despesas.map(d => `<tr><td>${d.categoria}</td><td>${d.descricao}</td><td>${formatCurrency(d.valor)}</td><td>${d.pago_por}</td></tr>`).join('')}
+            </tbody>
+        </table>
+        
+        <div class="totals">
+            <div class="totals-box">
+                <h3>Totais por Categoria</h3>
+                <p>Combustível: R$ ${formatCurrency(report.total_combustivel)}</p>
+                <p>Hospedagem: R$ ${formatCurrency(report.total_hospedagem)}</p>
+                <p>Alimentação: R$ ${formatCurrency(report.total_alimentacao)}</p>
+                <p>Transporte: R$ ${formatCurrency(report.total_transporte)}</p>
+                <p>Outros: R$ ${formatCurrency(report.total_outros)}</p>
+                <p><strong>TOTAL: R$ ${formatCurrency(report.valor_total)}</strong></p>
+            </div>
+            <div class="totals-box">
+                <h3>Totais por Pagador</h3>
+                <p>Tripulante 1 (${report.tripulante}): R$ ${formatCurrency(total_tripulante1)}</p>
+                ${hasSecondCrew ? `<p>Tripulante 2 (${report.tripulante2}): R$ ${formatCurrency(total_tripulante2)}</p>` : ''}
+                <p>Cliente: R$ ${formatCurrency(report.total_cliente)}</p>
+                <p>ShareBrasil: R$ ${formatCurrency(report.total_sharebrasil)}</p>
+                <p><strong>TOTAL: R$ ${formatCurrency(report.valor_total)}</strong></p>
+            </div>
+        </div>
+        <p style="text-align: right; margin-top: 30px; color: #666;">Gerado por: ${currentFullName}</p>
+    </body>
+    </html>
+  `;
+};
+
+export const viewHTMLPreview = (report: TravelReport, currentFullName?: string) => {
+  const htmlContent = getReportHTML(report, currentFullName);
+  const newWindow = window.open('', '_blank');
+  if (newWindow) {
+    newWindow.document.write(htmlContent);
+    newWindow.document.close();
+  }
 };
