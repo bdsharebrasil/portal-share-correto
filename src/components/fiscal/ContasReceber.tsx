@@ -359,7 +359,8 @@ export function ContasReceber() {
         return;
       }
 
-      // 2. Atualizar status na conciliação bancária se houver referência
+      // 2. Atualizar status na conciliação bancária para "recebido" se houver referência
+      // (Isso marca como recebido quando a conta é paga na página de Contas a Receber)
       if (contasReceberData.banco_conciliacao_id) {
         const { error: updateConciliacao } = await supabase
           .from("bank_reconciliations")
