@@ -43,6 +43,7 @@ import PortalClienteDashboard from "./pages/PortalClienteDashboard";
 import PortalClienteColaborador from "./pages/PortalClienteColaborador";
 import Aerodromos from "./pages/Aerodromos";
 import Aeronaves from "./pages/Aeronaves";
+import AeronaveDetalhes from "./pages/AeronaveDetalhes";
 import GestaoSalarios from "./pages/GestaoSalarios";
 import GerenciarUsuarios from "./pages/GerenciarUsuarios";
 import GestaoFuncionarios from "./pages/GestaoFuncionarios";
@@ -53,7 +54,6 @@ import Senhas from "./pages/Senhas";
 import GestaoFiscal from "./pages/financeiro/GestaoFiscal";
 import ConfigMovimentacoes from "./pages/financeiro/ConfigMovimentacoes";
 import CalendarioFerias from "./pages/CalendarioFerias";
-import { PlanoVooForm } from "./components/plano-voo/PlanoVooForm";
 import { configurePDFWorker } from "@/lib/pdfWorkerConfig";
 
 const queryClient = new QueryClient();
@@ -162,7 +162,8 @@ const App = () => {
               <Route path="/abastecimento" element={renderProtected(<ControleAbastecimento />)} />
               <Route path="/diario-bordo" element={renderProtected(<DiarioBordo />)} />
               <Route path="/aerodromos" element={renderProtected(<Aerodromos />)} />
-              <Route path="/aeronaves" element={renderProtected(<Aeronaves />)} />
+                <Route path="/aeronaves" element={renderProtected(<Aeronaves />)} />
+                <Route path="/aeronaves/:id" element={renderProtected(<AeronaveDetalhes />)} />
               <Route path="/diario-bordo/:aircraftId" element={renderProtected(<DiarioBordoDetalhes />)} />
               <Route path="/manutencao/vencimentos" element={renderProtected(<ControleVencimentos />)} />
               <Route path="/manutencao/programacao" element={renderProtected(<ProgramacaoManutencao />)} />
