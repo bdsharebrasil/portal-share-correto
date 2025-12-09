@@ -468,6 +468,15 @@ export function ConciliacaoColaborador() {
           </Table>
         </CardContent>
       </Card>
+
+      {selectedReconciliation && (
+        <StatusUpdateDialog
+          reconciliation={selectedReconciliation}
+          open={openStatusDialog}
+          onOpenChange={setOpenStatusDialog}
+          onUpdate={fetchReconciliations}
+        />
+      )}
     </div>
   );
 }
