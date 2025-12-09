@@ -498,7 +498,10 @@ export function ConciliacaoClientes() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleStatusChange(item.id, 'enviado')}
+                                  onClick={() => {
+                                    setSelectedReconciliation(item);
+                                    setOpenStatusDialog(true);
+                                  }}
                                   title="Enviado por email"
                                 >
                                   <Mail className="h-4 w-4" />
@@ -508,7 +511,10 @@ export function ConciliacaoClientes() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleStatusChange(item.id, 'conferido')}
+                                  onClick={() => {
+                                    setSelectedReconciliation(item);
+                                    setOpenStatusDialog(true);
+                                  }}
                                   title="Conferido"
                                 >
                                   <Check className="h-4 w-4" />
