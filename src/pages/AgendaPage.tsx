@@ -713,108 +713,12 @@ export default function AgendaPage() {
                         );
                       }
                       return (
-                        <Card key={contact.id} className="hover:shadow-lg transition-shadow group">
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3 flex-1">
-                                <div className="flex items-center gap-2">
-                                  {getCategoryIcon(contact.categoria)}
-                                  <div>
-                                    <h3 className="font-semibold text-foreground">
-                                      {contact.nome}
-                                    </h3>
-                                    <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                                      {contact.telefone && <span>{contact.telefone}</span>}
-                                      {contact.email && (
-                                        <>
-                                          <span>•</span>
-                                          <span>{contact.email}</span>
-                                        </>
-                                      )}
-                                      {contact.origin === "clients" ? (
-                                        contact.financial_contact && (
-                                          <>
-                                            <span>•</span>
-                                            <span>{contact.financial_contact}</span>
-                                          </>
-                                        )
-                                      ) : (
-                                        <>
-                                          {contact.empresa && (
-                                            <>
-                                              <span>•</span>
-                                              <span>{contact.empresa}</span>
-                                            </>
-                                          )}
-                                          {contact.cidade && (
-                                            <>
-                                              <span>•</span>
-                                              <span>{contact.cidade}</span>
-                                            </>
-                                          )}
-                                        </>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-2">
-                                {contact.cargo && (
-                                  <Badge variant="outline" className="text-xs">
-                                    {contact.cargo}
-                                  </Badge>
-                                )}
-                                {contact.origin !== "clients" && contact.origin !== "user_profiles" && (
-                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleEditContact(contact)}
-                                      className="h-6 w-6 p-0"
-                                    >
-                                      <Edit className="h-3 w-3" />
-                                    </Button>
-                                    <AlertDialog>
-                                      <AlertDialogTrigger asChild>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                                        >
-                                          <Trash2 className="h-3 w-3" />
-                                        </Button>
-                                      </AlertDialogTrigger>
-                                      <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                          <AlertDialogTitle>Excluir contato</AlertDialogTitle>
-                                          <AlertDialogDescription>
-                                            Tem certeza que deseja excluir o contato "{contact.nome}"? Esta ação não pode ser desfeita.
-                                          </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <AlertDialogFooter>
-                                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                          <AlertDialogAction
-                                            onClick={() => handleDeleteContact(contact)}
-                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                          >
-                                            Excluir
-                                          </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                      </AlertDialogContent>
-                                    </AlertDialog>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {contact.observacoes && (
-                              <div className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border">
-                                <span className="font-medium">Observações:</span> {contact.observacoes}
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
+                        <ContactCard
+                          key={contact.id}
+                          contact={contact}
+                          onEdit={handleEditContact}
+                          onDelete={handleDeleteContact}
+                        />
                       );
                     })}
                   </div>
