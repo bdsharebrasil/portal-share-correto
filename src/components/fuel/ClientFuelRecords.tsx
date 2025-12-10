@@ -72,6 +72,28 @@ export function ClientFuelRecords() {
     setSuppliers(data || []);
   };
 
+  const filterClientsBySupplier = async () => {
+    if (!selectedSupplier) {
+      setFilteredClients(clients);
+      return;
+    }
+
+    const { data: records, error } = await supabase
+      .from('abastecimentos')
+      .select('client_id', { distinct: true })
+      .eq('local', selectedSupplier.city_name);
+
+    if (error) {
+      toast.error('Erro ao filtrar clientes');
+      setFilteredClients(clients);
+      return;
+    }
+
+    const clientIds = new Set(records?.map(r => r.client_id) || []);
+    const filtered = clients.filter(c => clientIds.has(c.id));
+    setFilteredClients(filtered);
+  };
+
   const loadClients = async () => {
     const { data, error } = await supabase
       .from('clients')
