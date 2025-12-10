@@ -604,16 +604,42 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t sticky bottom-0 bg-background">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDialogOpen(false)}
+                  disabled={isUploading}
+                >
                   Cancelar
                 </Button>
-                <Button type="submit" className="bg-primary hover:bg-primary-dark">
-                  {editingRecord ? "Atualizar" : "Criar"}
+                <Button
+                  type="submit"
+                  className="bg-primary hover:bg-primary-dark"
+                  disabled={isUploading}
+                >
+                  {isUploading ? "Salvando..." : (editingRecord ? "Atualizar" : "Criar")}
                 </Button>
               </div>
             </form>
           </DialogContent>
         </Dialog>
+
+        <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Comanda não preenchida</AlertDialogTitle>
+              <AlertDialogDescription>
+                Você está criando um registro sem informar a comanda. Embora não seja obrigatório, é importante ter esse dado para rastreamento. Deseja continuar mesmo assim?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="flex gap-3 justify-end">
+              <AlertDialogCancel>Voltar e Preencher</AlertDialogCancel>
+              <AlertDialogAction onClick={saveRecord}>
+                Continuar sem Comanda
+              </AlertDialogAction>
+            </div>
+          </AlertDialogContent>
+        </AlertDialog>
         <Button
           variant="outline"
           onClick={handleExportPDF}
