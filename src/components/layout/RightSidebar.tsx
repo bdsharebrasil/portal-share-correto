@@ -138,7 +138,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           <Card className="bg-gradient-card border-border shadow-card static-card rounded-lg">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium text-foreground flex items-center">
-                <Plane className="mr-2 text-primary animate-plane-right px-[9px] my-[8px] py-[10px] mx-[4px] h-[3px] w-[20px]" />
+                <Plane className="mr-2 text-primary animate-plane-right px-[9px] my-[8px] py-[10px] mx-[4px] h-[3px] w-[20px] border-0 text-slate-100 border-slate-200" />
                 Operações de Voo
               </CardTitle>
             </CardHeader>
