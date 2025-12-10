@@ -212,6 +212,17 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
       valor_unitario: record.valor_unitario.toString(),
       abastecimento_galoes: record.abastecimento_galoes?.toString() || "",
       ano: record.ano || new Date().getFullYear().toString(),
+      comanda_file: null,
+      nota_file: null,
+      boleto_file: null,
+      comanda_url: record.comanda_url || "",
+      nota_url: record.nota_url || "",
+      boleto_url: record.boleto_url || "",
+    });
+    setUploadedFiles({
+      comanda_url: record.comanda_url || "",
+      nota_url: record.nota_url || "",
+      boleto_url: record.boleto_url || "",
     });
     setIsDialogOpen(true);
   };
