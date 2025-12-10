@@ -158,13 +158,13 @@ export function TimeClockWidget() {
   const canEndLunch = todayEntry && todayEntry.lunch_start && !todayEntry.lunch_end;
   const canClockOut = todayEntry && todayEntry.clock_in && !todayEntry.clock_out && (!todayEntry.lunch_start || todayEntry.lunch_end);
   return <Card className="border border-border/50">
-      <CardHeader className="pb-0 py-0">
-        <CardTitle className="flex items-center gap-2 py-[6px] text-xs text-center">
+      <CardHeader className="pb-0 py-0 shadow rounded bg-transparent">
+        <CardTitle className="flex items-center gap-2 py-[6px] text-xs text-center bg-transparent">
           <Clock className="h-4 w-4" />
           Ponto
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-1 py-0 rounded-xl shadow-xl border-gray-900">
+      <CardContent className="space-y-1 py-0 rounded-xl shadow-xl border-gray-900 px-0 mx-[21px]">
         <div className="text-center py-0">
           <p className="text-3xl font-bold text-foreground tabular-nums">
             {format(currentTime, 'HH:mm:ss', {
