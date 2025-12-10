@@ -37,6 +37,7 @@ export function ClientFuelRecords() {
   const [suppliers, setSuppliers] = useState<FuelSupplier[]>([]);
   const [selectedSupplier, setSelectedSupplier] = useState<FuelSupplier | null>(null);
   const [supplierSearch, setSupplierSearch] = useState("");
+  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
 
   useEffect(() => {
     loadClients();
@@ -48,6 +49,14 @@ export function ClientFuelRecords() {
       loadClientAircrafts();
     }
   }, [selectedClient]);
+
+  useEffect(() => {
+    if (selectedSupplier) {
+      filterClientsBySupplier();
+    } else {
+      setFilteredClients(clients);
+    }
+  }, [selectedSupplier, clients]);
 
   const loadSuppliers = async () => {
     const { data, error } = await supabase
