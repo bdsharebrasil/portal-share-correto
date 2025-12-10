@@ -23,7 +23,6 @@ import { getShortUserId, getIdBadgeColor } from "@/lib/user-id";
 import { useQuery } from "@tanstack/react-query";
 // Payslips hook removed - using pagamento_salario_funcionario directly
 import { EmployeeDocumentsManager } from "@/components/profile/EmployeeDocumentsManager";
-
 type ContactType = "Colaboradores" | "Clientes" | "Fornecedores" | "Hoteis";
 type FormState = {
   full_name: string;
@@ -132,7 +131,7 @@ export default function Perfil() {
   const [avatarUploading, setAvatarUploading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [avatarPosition, setAvatarPosition] = useState<number>(50);
-  
+
   // Password change state
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -206,11 +205,12 @@ export default function Perfil() {
     queryKey: ["profile-salary-payments", userId],
     queryFn: async () => {
       if (!userId) return [] as any[];
-      const { data, error } = await supabase
-        .from("pagamento_salario_funcionario")
-        .select("*")
-        .eq("user_profile", userId)
-        .order("created_at", { ascending: false });
+      const {
+        data,
+        error
+      } = await supabase.from("pagamento_salario_funcionario").select("*").eq("user_profile", userId).order("created_at", {
+        ascending: false
+      });
       if (error) return [] as any[];
       return data as any[];
     },
@@ -266,7 +266,6 @@ export default function Perfil() {
     const start = new Date(admission);
     return new Date(start.getFullYear() + 1, start.getMonth(), start.getDate());
   };
-
   const handleVacationRequest = async () => {
     if (workingMonths < 12) {
       const eligibilityDate = getEligibilityDateForVacation();
@@ -282,7 +281,6 @@ export default function Perfil() {
       });
       return;
     }
-
     if (!startDate || !endDate) {
       toast({
         title: "Datas obrigatórias",
@@ -367,7 +365,6 @@ export default function Perfil() {
       });
       return;
     }
-    
     if (newPassword !== confirmPassword) {
       toast({
         title: "Senhas não conferem",
@@ -376,7 +373,6 @@ export default function Perfil() {
       });
       return;
     }
-    
     if (newPassword.length < 6) {
       toast({
         title: "Senha muito curta",
@@ -385,23 +381,21 @@ export default function Perfil() {
       });
       return;
     }
-    
     setIsChangingPassword(true);
-    
     try {
-      const { error } = await supabase.auth.updateUser({
+      const {
+        error
+      } = await supabase.auth.updateUser({
         password: newPassword
       });
-      
       if (error) {
         throw error;
       }
-      
       toast({
         title: "Senha alterada",
         description: "Sua senha foi alterada com sucesso."
       });
-      
+
       // Clear password fields
       setCurrentPassword("");
       setNewPassword("");
@@ -417,7 +411,6 @@ export default function Perfil() {
       setIsChangingPassword(false);
     }
   };
-
   const resetCropState = useCallback(() => {
     setCropDialogOpen(false);
     setCropImage(null);
@@ -655,7 +648,6 @@ export default function Perfil() {
       if (!user?.id) {
         throw new Error("Usuário não autenticado");
       }
-
       const payload: Record<string, any> = {
         full_name: trimmedFullName,
         display_name: formState.display_name.trim() || null,
@@ -671,19 +663,13 @@ export default function Perfil() {
         bank_pix: formState.bank_pix.trim() || null,
         updated_at: new Date().toISOString()
       };
-
-      const { error } = await supabase
-        .from("user_profiles")
-        .update(payload)
-        .eq("id", user.id)
-        .select()
-        .single();
-
+      const {
+        error
+      } = await supabase.from("user_profiles").update(payload).eq("id", user.id).select().single();
       if (error) {
         console.error("Erro ao atualizar perfil:", error);
         throw new Error(error.message || "Erro ao salvar o perfil");
       }
-
       toast({
         title: "Perfil atualizado",
         description: "Suas informações foram salvas com sucesso."
@@ -698,7 +684,6 @@ export default function Perfil() {
       });
     }
   };
-
   const handleSaveEditableFields = async () => {
     try {
       const payload = {
@@ -710,7 +695,6 @@ export default function Perfil() {
         bank_account: formState.bank_account,
         bank_pix: formState.bank_pix
       };
-
       await updateProfile(payload);
       setIsEditing(false);
       toast({
@@ -726,7 +710,6 @@ export default function Perfil() {
       });
     }
   };
-
   const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -853,23 +836,18 @@ export default function Perfil() {
                       <AvatarFallback className="bg-primary text-primary-foreground text-4xl">{avatarInitials || <UserIcon className="h-12 w-12" />}</AvatarFallback>
                     </Avatar>
                     <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/gif" className="hidden" onChange={handleAvatarUpload} />
-                    <button
-                      onClick={triggerFileDialog}
-                      disabled={avatarUploading}
-                      className="absolute bottom-0 right-0 bg-primary hover:bg-primary-dark p-2 rounded-full shadow-elevated text-white transition-all duration-200 disabled:opacity-50"
-                      aria-label="Alterar foto"
-                    >
+                    <button onClick={triggerFileDialog} disabled={avatarUploading} className="absolute bottom-0 right-0 bg-primary hover:bg-primary-dark p-2 rounded-full shadow-elevated text-white transition-all duration-200 disabled:opacity-50" aria-label="Alterar foto">
                       {avatarUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Camera className="h-5 w-5" />}
                     </button>
                   </div>
 
                   <div className="flex-1 space-y-3 text-center sm:text-left">
                     <div>
-                      <h2 className="text-4xl font-bold text-foreground">{displayName}</h2>
-                      <p className="text-sm text-muted-foreground mt-1">{profile?.email ?? user.email}</p>
+                      <h2 className="font-bold text-foreground text-3xl">{displayName}</h2>
+                      
                     </div>
                     <div className="flex flex-wrap gap-2 justify-center sm:justify-start items-center">
-                      <Badge className="bg-primary/20 text-primary hover:bg-primary/30">{primaryRole ? ROLE_LABELS[primaryRole] : "Sem categoria"}</Badge>
+                      
                       {user?.id && <Badge className={`${getIdBadgeColor(getShortUserId(user.id))} font-semibold px-3 py-1 text-sm`}>{getShortUserId(user.id)}</Badge>}
                     </div>
                   </div>
@@ -889,11 +867,17 @@ export default function Perfil() {
                       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <div className="space-y-2">
                           <Label htmlFor="full-name" className="text-sm font-medium text-foreground">Nome Completo</Label>
-                        <Input id="full-name" value={formState.full_name} onChange={(e) => setFormState({...formState, full_name: e.target.value})} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
+                        <Input id="full-name" value={formState.full_name} onChange={e => setFormState({
+                          ...formState,
+                          full_name: e.target.value
+                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="display-name" className="text-sm font-medium text-foreground">Nome de Exibição</Label>
-                        <Input id="display-name" value={formState.display_name} onChange={(e) => setFormState({...formState, display_name: e.target.value})} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
+                        <Input id="display-name" value={formState.display_name} onChange={e => setFormState({
+                          ...formState,
+                          display_name: e.target.value
+                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="email" className="text-sm font-medium text-foreground">E-mail</Label>
@@ -904,26 +888,41 @@ export default function Perfil() {
                       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <div className="space-y-2">
                           <Label htmlFor="phone" className="text-sm font-medium text-foreground">Telefone</Label>
-                        <Input id="phone" value={formState.phone} onChange={(e) => setFormState({...formState, phone: e.target.value})} placeholder="(XX) XXXXX-XXXX" disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
+                        <Input id="phone" value={formState.phone} onChange={e => setFormState({
+                          ...formState,
+                          phone: e.target.value
+                        })} placeholder="(XX) XXXXX-XXXX" disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="cpf" className="text-sm font-medium text-foreground">CPF</Label>
-                        <Input id="cpf" value={formState.cpf} onChange={(e) => setFormState({...formState, cpf: e.target.value})} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
+                        <Input id="cpf" value={formState.cpf} onChange={e => setFormState({
+                          ...formState,
+                          cpf: e.target.value
+                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="rg" className="text-sm font-medium text-foreground">RG</Label>
-                        <Input id="rg" value={formState.rg} onChange={(e) => setFormState({...formState, rg: e.target.value})} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
+                        <Input id="rg" value={formState.rg} onChange={e => setFormState({
+                          ...formState,
+                          rg: e.target.value
+                        })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
                         </div>
                       </div>
 
                       <div className="space-y-2">
                         <Label htmlFor="birth" className="text-sm font-medium text-foreground">Data de Nascimento</Label>
-                      <Input id="birth" type="date" value={formState.birth_date} onChange={(e) => setFormState({...formState, birth_date: e.target.value})} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
+                      <Input id="birth" type="date" value={formState.birth_date} onChange={e => setFormState({
+                        ...formState,
+                        birth_date: e.target.value
+                      })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
                       </div>
 
                       <div className="space-y-2">
                         <Label htmlFor="address" className="text-sm font-medium text-foreground">Endereço</Label>
-                      <Textarea id="address" value={formState.address} onChange={(e) => setFormState({...formState, address: e.target.value})} rows={3} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
+                      <Textarea id="address" value={formState.address} onChange={e => setFormState({
+                        ...formState,
+                        address: e.target.value
+                      })} rows={3} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
                       </div>
                     </div>
                   </div>
@@ -938,45 +937,33 @@ export default function Perfil() {
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
                           <Label htmlFor="bank_name" className="text-sm font-medium text-foreground">Banco</Label>
-                        <Input
-                          id="bank_name"
-                          value={formState.bank_name}
-                          onChange={(e) => setFormState({...formState, bank_name: e.target.value})}
-                          disabled={!isEditing}
-                          className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`}
-                        />
+                        <Input id="bank_name" value={formState.bank_name} onChange={e => setFormState({
+                        ...formState,
+                        bank_name: e.target.value
+                      })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="bank_agency" className="text-sm font-medium text-foreground">Agência</Label>
-                        <Input
-                          id="bank_agency"
-                          value={formState.bank_agency}
-                          onChange={(e) => setFormState({...formState, bank_agency: e.target.value})}
-                          disabled={!isEditing}
-                          className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`}
-                        />
+                        <Input id="bank_agency" value={formState.bank_agency} onChange={e => setFormState({
+                        ...formState,
+                        bank_agency: e.target.value
+                      })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
                         </div>
                       </div>
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
                           <Label htmlFor="bank_account" className="text-sm font-medium text-foreground">Conta</Label>
-                        <Input
-                          id="bank_account"
-                          value={formState.bank_account}
-                          onChange={(e) => setFormState({...formState, bank_account: e.target.value})}
-                          disabled={!isEditing}
-                          className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`}
-                        />
+                        <Input id="bank_account" value={formState.bank_account} onChange={e => setFormState({
+                        ...formState,
+                        bank_account: e.target.value
+                      })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="bank_pix" className="text-sm font-medium text-foreground">PIX</Label>
-                        <Input
-                          id="bank_pix"
-                          value={formState.bank_pix}
-                          onChange={(e) => setFormState({...formState, bank_pix: e.target.value})}
-                          disabled={!isEditing}
-                          className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`}
-                        />
+                        <Input id="bank_pix" value={formState.bank_pix} onChange={e => setFormState({
+                        ...formState,
+                        bank_pix: e.target.value
+                      })} disabled={!isEditing} className={`rounded-lg border ${isEditing ? 'border-primary bg-background text-foreground cursor-text' : 'border-border bg-muted text-foreground cursor-not-allowed'}`} />
                         </div>
                       </div>
                     </div>
@@ -993,19 +980,8 @@ export default function Perfil() {
                     <div className="space-y-2">
                       <Label htmlFor="new-password" className="text-sm font-medium text-foreground">Nova Senha</Label>
                       <div className="relative">
-                        <Input
-                          id="new-password"
-                          type={showNewPassword ? "text" : "password"}
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          placeholder="Digite a nova senha"
-                          className="rounded-lg border border-primary bg-background text-foreground pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowNewPassword(!showNewPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        >
+                        <Input id="new-password" type={showNewPassword ? "text" : "password"} value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Digite a nova senha" className="rounded-lg border border-primary bg-background text-foreground pr-10" />
+                        <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                           {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
@@ -1013,28 +989,13 @@ export default function Perfil() {
                     <div className="space-y-2">
                       <Label htmlFor="confirm-password" className="text-sm font-medium text-foreground">Confirmar Nova Senha</Label>
                       <div className="relative">
-                        <Input
-                          id="confirm-password"
-                          type={showConfirmPassword ? "text" : "password"}
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          placeholder="Confirme a nova senha"
-                          className="rounded-lg border border-primary bg-background text-foreground pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        >
+                        <Input id="confirm-password" type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Confirme a nova senha" className="rounded-lg border border-primary bg-background text-foreground pr-10" />
+                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                           {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
                     </div>
-                    <Button 
-                      onClick={handlePasswordChange} 
-                      disabled={isChangingPassword || !newPassword || !confirmPassword}
-                      className="flex items-center gap-2"
-                    >
+                    <Button onClick={handlePasswordChange} disabled={isChangingPassword || !newPassword || !confirmPassword} className="flex items-center gap-2">
                       {isChangingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
                       Alterar Senha
                     </Button>
@@ -1042,8 +1003,7 @@ export default function Perfil() {
                 </div>
 
 
-                {isEditing && (
-                  <div className="border-t pt-6 flex gap-3 justify-end">
+                {isEditing && <div className="border-t pt-6 flex gap-3 justify-end">
                     <Button variant="outline" onClick={() => setIsEditing(false)} disabled={isProfileBusy}>
                       Cancelar
                     </Button>
@@ -1051,8 +1011,7 @@ export default function Perfil() {
                       {isProfileBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                       Salvar
                     </Button>
-                  </div>
-                )}
+                  </div>}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1064,47 +1023,36 @@ export default function Perfil() {
                   <CardTitle>Histórico de Pagamentos</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {salaryPayments.length === 0 ? (
-                    <p className="text-muted-foreground">Sem registros de salário.</p>
-                  ) : (
-                    <ul className="space-y-3">
+                  {salaryPayments.length === 0 ? <p className="text-muted-foreground">Sem registros de salário.</p> : <ul className="space-y-3">
                       {salaryPayments.map((s: any) => {
-                        const descriptions: string[] = [];
-                        if (s.base_salary_holerite) descriptions.push(`Salário: R$ ${Number(s.base_salary_holerite).toFixed(2)}`);
-                        if (s.benefit) descriptions.push(`Benefício: ${s.benefit}`);
-                        if (s.horas_voo) descriptions.push(`Horas de Voo: ${s.horas_voo}`);
-                        if (s.extra) descriptions.push(`Extra: ${s.extra}`);
-                        
-                        return (
-                          <li key={s.id} className="rounded-md border p-3 space-y-2">
+                    const descriptions: string[] = [];
+                    if (s.base_salary_holerite) descriptions.push(`Salário: R$ ${Number(s.base_salary_holerite).toFixed(2)}`);
+                    if (s.benefit) descriptions.push(`Benefício: ${s.benefit}`);
+                    if (s.horas_voo) descriptions.push(`Horas de Voo: ${s.horas_voo}`);
+                    if (s.extra) descriptions.push(`Extra: ${s.extra}`);
+                    return <li key={s.id} className="rounded-md border p-3 space-y-2">
                             <div className="flex items-center justify-between">
                               <p className="font-medium text-sm">
                                 {new Date(s.created_at ?? Date.now()).toLocaleDateString("pt-BR", {
-                                  month: "long",
-                                  year: "numeric"
-                                })}
+                            month: "long",
+                            year: "numeric"
+                          })}
                               </p>
                               <div className="flex gap-2">
-                                {s.comprovante_url && (
-                                  <a href={s.comprovante_url} target="_blank" rel="noreferrer">
+                                {s.comprovante_url && <a href={s.comprovante_url} target="_blank" rel="noreferrer">
                                     <Button variant="outline" size="sm" className="h-7 text-xs">
                                       Comprovante
                                     </Button>
-                                  </a>
-                                )}
+                                  </a>}
                               </div>
                             </div>
                             <div className="text-sm text-muted-foreground space-y-1">
-                              {descriptions.map((desc, i) => (
-                                <p key={i}>{desc}</p>
-                              ))}
+                              {descriptions.map((desc, i) => <p key={i}>{desc}</p>)}
                               {s.obs && <p className="text-xs italic mt-2">Obs: {s.obs}</p>}
                             </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
+                          </li>;
+                  })}
+                    </ul>}
                 </CardContent>
               </Card>
 
@@ -1113,20 +1061,14 @@ export default function Perfil() {
                   <CardTitle>Holerites</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {salaryPayments.filter((s: any) => s.holerite_url).length === 0 ? (
-                    <p className="text-muted-foreground">Sem holerites enviados.</p>
-                  ) : (
-                    <ul className="space-y-3">
-                      {salaryPayments
-                        .filter((s: any) => s.holerite_url)
-                        .map((s: any) => (
-                          <li key={s.id} className="flex items-center justify-between rounded-md border p-3">
+                  {salaryPayments.filter((s: any) => s.holerite_url).length === 0 ? <p className="text-muted-foreground">Sem holerites enviados.</p> : <ul className="space-y-3">
+                      {salaryPayments.filter((s: any) => s.holerite_url).map((s: any) => <li key={s.id} className="flex items-center justify-between rounded-md border p-3">
                             <div>
                               <p className="font-medium">
                                 {new Date(s.created_at ?? Date.now()).toLocaleDateString("pt-BR", {
-                                  month: "long",
-                                  year: "numeric"
-                                })}
+                          month: "long",
+                          year: "numeric"
+                        })}
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 {s.base_salary_holerite ? `R$ ${Number(s.base_salary_holerite).toFixed(2)}` : ""}
@@ -1135,10 +1077,8 @@ export default function Perfil() {
                             <a href={s.holerite_url} target="_blank" rel="noreferrer">
                               <Button variant="outline" size="sm">Visualizar</Button>
                             </a>
-                          </li>
-                        ))}
-                    </ul>
-                  )}
+                          </li>)}
+                    </ul>}
                 </CardContent>
               </Card>
             </div>
@@ -1221,8 +1161,7 @@ export default function Perfil() {
                   <CardTitle>Solicitar Férias</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {workingMonths < 12 && (
-                    <Alert className="border-yellow-500/50 bg-yellow-500/5">
+                  {workingMonths < 12 && <Alert className="border-yellow-500/50 bg-yellow-500/5">
                       <AlertCircle className="h-4 w-4 text-yellow-600" />
                       <AlertDescription className="text-yellow-800 dark:text-yellow-200">
                         <p className="font-semibold mb-2">Período aquisitivo não completado</p>
@@ -1230,19 +1169,17 @@ export default function Perfil() {
                           Você poderá solicitar férias a partir de{" "}
                           <span className="font-semibold">
                             {new Intl.DateTimeFormat("pt-BR", {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric"
-                            }).format(getEligibilityDateForVacation()!)}
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric"
+                        }).format(getEligibilityDateForVacation()!)}
                           </span>
                           , quando completar 12 meses de trabalho.
                         </p>
                       </AlertDescription>
-                    </Alert>
-                  )}
+                    </Alert>}
 
-                  {workingMonths >= 12 && (
-                    <>
+                  {workingMonths >= 12 && <>
                       <div className="space-y-2">
                         <Label htmlFor="vacation-type">Tipo de Férias</Label>
                         <Select defaultValue="full">
@@ -1259,30 +1196,17 @@ export default function Perfil() {
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
                           <Label htmlFor="start-date">Data de Início</Label>
-                          <Input
-                            id="start-date"
-                            type="date"
-                            value={startDate}
-                            onChange={e => setStartDate(e.target.value)}
-                            placeholder="dd/mm/aaaa"
-                          />
+                          <Input id="start-date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} placeholder="dd/mm/aaaa" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="end-date">Data de Fim</Label>
-                          <Input
-                            id="end-date"
-                            type="date"
-                            value={endDate}
-                            onChange={e => setEndDate(e.target.value)}
-                            placeholder="dd/mm/aaaa"
-                          />
+                          <Input id="end-date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} placeholder="dd/mm/aaaa" />
                         </div>
                       </div>
 
                       <Button onClick={handleVacationRequest} className="w-full">Solicitar</Button>
                       <p className="text-xs text-muted-foreground">Aviso mínimo de 30 dias e pagamento até 2 dias antes do início.</p>
-                    </>
-                  )}
+                    </>}
                 </CardContent>
               </Card>
 
@@ -1291,12 +1215,8 @@ export default function Perfil() {
                   <CardTitle>Histórico de Solicitações</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {vacationRequests.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-6">Nenhuma solicitação registrada.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {(vacationRequests as any[]).map((r: any) => (
-                        <div key={r.id} className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition">
+                  {vacationRequests.length === 0 ? <p className="text-muted-foreground text-center py-6">Nenhuma solicitação registrada.</p> : <div className="space-y-3">
+                      {(vacationRequests as any[]).map((r: any) => <div key={r.id} className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition">
                           <div className="flex items-center gap-3">
                             <Calendar className="h-5 w-5 text-primary" />
                             <div>
@@ -1307,10 +1227,8 @@ export default function Perfil() {
                           <Badge variant={r.status === 'approved' ? 'default' : r.status === 'rejected' ? 'destructive' : 'secondary'}>
                             {r.status === 'approved' ? 'Aprovado' : r.status === 'rejected' ? 'Rejeitado' : 'Pendente'}
                           </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        </div>)}
+                    </div>}
                 </CardContent>
               </Card>
 
@@ -1350,14 +1268,7 @@ export default function Perfil() {
           </TabsContent>
 
           <TabsContent value="documentos">
-            <EmployeeDocumentsManager
-              userId={userId}
-              userName={displayName}
-              isAdmin={isAdmin}
-              isFinanceiroMaster={roles.includes("financeiro_master")}
-              isGestorMaster={isGestorMaster}
-              currentUserId={user?.id}
-            />
+            <EmployeeDocumentsManager userId={userId} userName={displayName} isAdmin={isAdmin} isFinanceiroMaster={roles.includes("financeiro_master")} isGestorMaster={isGestorMaster} currentUserId={user?.id} />
           </TabsContent>
         </Tabs>
 
