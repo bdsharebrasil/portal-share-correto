@@ -1057,6 +1057,89 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
         clientId={clientId}
         onSuccess={loadData}
       />
+
+      <Dialog open={openStatusDialog} onOpenChange={setOpenStatusDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Atualizar Status da Conciliação</DialogTitle>
+          </DialogHeader>
+          {selectedReconciliation && (
+            <div className="space-y-4">
+              <div className="p-3 bg-muted/50 rounded border border-border">
+                <p className="text-sm text-muted-foreground mb-1">Descrição</p>
+                <p className="font-medium text-foreground">{selectedReconciliation.description}</p>
+              </div>
+
+              <div className="p-3 bg-muted/50 rounded border border-border">
+                <p className="text-sm text-muted-foreground mb-1">Valor</p>
+                <p className="font-medium text-green-400">
+                  R$ {parseFloat(selectedReconciliation.amount as any).toFixed(2)}
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Status Atual</Label>
+                <div className="p-3 bg-muted/50 rounded border border-border">
+                  <Badge
+                    className={
+                      selectedReconciliation.status?.toLowerCase() === 'recebido' || selectedReconciliation.status?.toLowerCase() === 'conferido'
+                        ? 'bg-green-500/20 text-green-300'
+                        : selectedReconciliation.status?.toLowerCase() === 'enviado'
+                          ? 'bg-blue-500/20 text-blue-300'
+                          : 'bg-yellow-500/20 text-yellow-300'
+                    }
+                  >
+                    {selectedReconciliation.status?.toLowerCase() === 'recebido' || selectedReconciliation.status?.toLowerCase() === 'conferido'
+                      ? '✓ Pago'
+                      : selectedReconciliation.status?.toLowerCase() === 'enviado'
+                        ? '↗️ Enviado'
+                        : '⏳ Pendente'}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="status-select">Novo Status</Label>
+                <Select value={newStatus} onValueChange={setNewStatus}>
+                  <SelectTrigger id="status-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pendente">⏳ Pendente</SelectItem>
+                    <SelectItem value="enviado">↗️ Enviado</SelectItem>
+                    <SelectItem value="recebido">✓ Pago</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedReconciliation.payment_term && (
+                <div className="p-3 bg-muted/50 rounded border border-border">
+                  <p className="text-sm text-muted-foreground mb-1">Prazo de Pagamento</p>
+                  <p className="font-medium text-foreground">
+                    {new Date(selectedReconciliation.payment_term).toLocaleDateString('pt-BR')}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setOpenStatusDialog(false)}
+                  disabled={updatingStatus}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleUpdateStatus}
+                  disabled={updatingStatus || newStatus === selectedReconciliation.status}
+                >
+                  {updatingStatus ? "Atualizando..." : "Atualizar"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
