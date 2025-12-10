@@ -494,17 +494,17 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
               </div>
 
               {formData.litros && formData.valor_unitario && (
-                <div className="bg-gradient-to-r from-success/10 to-success/5 border border-success/20 p-3 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">Valor Total</p>
-                  <p className="text-xl font-bold text-success">
+                <div className="bg-gradient-to-r from-success/10 to-success/5 border border-success/20 p-2 rounded-lg">
+                  <p className="text-xs text-muted-foreground">Valor Total</p>
+                  <p className="text-lg font-bold text-success">
                     R$ {(parseFloat(formData.litros) * parseFloat(formData.valor_unitario)).toFixed(2)}
                   </p>
                 </div>
               )}
 
               <div>
-                <Label className="text-base font-semibold mb-3 block">Anexos</Label>
-                <div className="space-y-3">
+                <Label className="text-sm font-semibold mb-2 block">Anexos</Label>
+                <div className="space-y-2">
                   <div>
                     <Label className="text-sm">Comanda (PDF)</Label>
                     <div className="flex items-center gap-2 mt-1.5">
