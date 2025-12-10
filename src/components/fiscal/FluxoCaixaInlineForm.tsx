@@ -63,6 +63,7 @@ export function FluxoCaixaInlineForm({
   };
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm({
+    mode: "onBlur",
     defaultValues: {
       data: getTodayDateString(),
       tipo_movimento: "entrada",
