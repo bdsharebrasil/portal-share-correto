@@ -468,7 +468,7 @@ export default function DiarioBordoDetalhes() {
   const filteredAerodromes = aerodromes?.filter(a => a.designativo?.toLowerCase().includes(searchValue.toLowerCase()) || a.name?.toLowerCase().includes(searchValue.toLowerCase())) || [];
   return <Layout>
     <div className="min-h-screen bg-slate-900">
-      <div className="container mx-auto p-4 space-y-4 bg-slate-900">
+      <div className="container mx-auto p-4 space-y-4 bg-gray-950">
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4 p-4 rounded-lg border-2 border-[#8fbc8f] bg-sky-950">
           <div className="flex items-center gap-4">
@@ -560,12 +560,12 @@ export default function DiarioBordoDetalhes() {
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-14">DE</th>
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-14">PARA</th>
                   <th colSpan={4} className="border border-gray-500 p-1 text-[10px] font-bold text-white bg-[#008B8B]">HORÁRIOS</th>
-                  <th colSpan={5} className="border border-gray-500 p-1 text-[10px] font-bold text-white bg-[#1e40af]">TEMPO DE VOO</th>
+                  <th colSpan={5} className="border border-gray-500 p-1 text-[10px] font-bold text-white bg-sky-950">TEMPO DE VOO</th>
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-12">POUSOS</th>
                   <th colSpan={2} className="border border-gray-500 p-1 text-[10px] font-bold text-white bg-[#1E90FF]">COMBUSTÍVEL</th>
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-14">CTM</th>
                   <th colSpan={2} className="border border-gray-500 p-1 text-[10px] font-bold text-white bg-cyan-950">CANAC</th>
-                  <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white bg-[#374151] w-12">DIÁRIAS</th>
+                  <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-12 bg-emerald-950">DIÁRIAS</th>
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-16">EXTRAS</th>
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-24">VOO PARA</th>
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-16">CONFERE</th>
@@ -578,8 +578,8 @@ export default function DiarioBordoDetalhes() {
                   <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#1e40af] w-12">T VOO</th>
                   <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#1e40af] w-12">T DIA</th>
                   <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#1e40af] w-12">T NOITE</th>
-                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#1e40af] w-12">TOTAL</th>
-                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#1e40af] w-12">IFR</th>
+                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white w-12 bg-sky-950">TOTAL</th>
+                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white w-12 bg-[#021637]">IFR</th>
                   <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#1E90FF] w-12">ABAST</th>
                   <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#1E90FF] w-12">FUEL</th>
                   <th className="border border-gray-500 p-1 text-[9px] font-bold text-white w-14 bg-cyan-950">PIC</th>
@@ -727,7 +727,7 @@ export default function DiarioBordoDetalhes() {
 
                 {/* Totals Row */}
                 <tr className="bg-[#1f2937] font-bold">
-                  <td colSpan={7} className="border border-slate-500 p-2 text-right text-[11px] text-slate-100">TOTAIS DO MÊS:</td>
+                  <td colSpan={7} className="border border-slate-500 p-2 text-right text-[11px] text-slate-100 bg-gray-950">TOTAIS DO MÊS:</td>
                   <td className="border border-slate-500 p-1 text-center text-[11px] text-slate-100 bg-[#1e40af]/30">{formatDecimalToHHMM(totals.tvoo) || totals.tvoo.toFixed(2)}</td>
                   <td className="border border-slate-500 p-1 text-center text-[11px] text-slate-100 bg-[#1e40af]/30">{formatDecimalToHHMM(totals.tdia) || totals.tdia.toFixed(2)}</td>
                   <td className="border border-slate-500 p-1 text-center text-[11px] text-slate-100 bg-[#1e40af]/30">{formatDecimalToHHMM(totals.tnoit) || totals.tnoit.toFixed(2)}</td>
@@ -736,7 +736,7 @@ export default function DiarioBordoDetalhes() {
                   <td className="border border-slate-500 p-1 text-center text-[11px] text-slate-100">{totals.pousos}</td>
                   <td className="border border-slate-500 p-1 text-center text-[11px] text-slate-100 bg-[#1E90FF]/30">{totals.abast.toFixed(1)}</td>
                   <td colSpan={4} className="border border-slate-500 p-1"></td>
-                  <td className="border border-slate-500 p-1 text-center text-[11px] text-slate-100 bg-[#374151]">{totals.diarias}</td>
+                  <td className="border border-slate-500 p-1 text-center text-[11px] text-slate-100 bg-emerald-950">{totals.diarias}</td>
                   <td colSpan={3} className="border border-slate-500 p-1"></td>
                 </tr>
               </tbody>
