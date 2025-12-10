@@ -59,10 +59,27 @@ interface Receipt {
   status?: string;
 }
 
+interface BankReconciliation {
+  id: string;
+  date: string;
+  description: string;
+  amount: number;
+  status: string;
+  category: string | null;
+  client_id: string | null;
+  aircraft_id: string | null;
+  payment_term: string | null;
+  type: string;
+}
+
 export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: ClientDataTabsProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [contractUploadDialogOpen, setContractUploadDialogOpen] = useState(false);
   const [flightDocumentUploadDialogOpen, setFlightDocumentUploadDialogOpen] = useState(false);
+  const [openStatusDialog, setOpenStatusDialog] = useState(false);
+  const [selectedReconciliation, setSelectedReconciliation] = useState<BankReconciliation | null>(null);
+  const [newStatus, setNewStatus] = useState("");
+  const [updatingStatus, setUpdatingStatus] = useState(false);
   const [files, setFiles] = useState<any[]>([]);
   const [flightDocuments, setFlightDocuments] = useState<any[]>([]);
   const [contracts, setContracts] = useState<any[]>([]);
@@ -71,7 +88,7 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
   const [ctmTracking, setCtmTracking] = useState<any[]>([]);
   const [travelReports, setTravelReports] = useState<TravelReport[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
-  const [bankReconciliations, setBankReconciliations] = useState<any[]>([]);
+  const [bankReconciliations, setBankReconciliations] = useState<BankReconciliation[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Carregador de dados principal
