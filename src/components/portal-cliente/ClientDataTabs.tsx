@@ -725,13 +725,17 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
           <div className="space-y-4">
             <Card className="bg-gradient-card border-border">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-foreground">
-                  <FileText className="h-5 w-5 text-primary" />
-                  Conciliação Bancária - Despesas
-                </CardTitle>
-                <CardDescription className="text-muted-foreground">
-                  Todas as despesas de viagem e outras movimentações para conciliação
-                </CardDescription>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-foreground">
+                      <FileText className="h-5 w-5 text-primary" />
+                      Conciliação Bancária - Despesas
+                    </CardTitle>
+                    <CardDescription className="text-muted-foreground mt-2">
+                      Acompanhamento de todas as despesas de viagem e outras movimentações
+                    </CardDescription>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {bankReconciliations && bankReconciliations.length === 0 ? (
