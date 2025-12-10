@@ -31,10 +31,10 @@ export default function GestaoFiscal() {
       </Layout>;
   }
   return <Layout>
-      <div className="min-h-[calc(100vh-4rem)] flex-col bg-background flex items-start justify-center mb-[3px] pb-[19px] mt-0 py-[10px] my-[9px] mx-0 px-0">
+      <div className="flex-col bg-background flex items-start justify-start px-4 sm:px-6 lg:px-8 py-6">
         {/* Header */}
-        <div className="space-y-6 pb-8 mb-[80px] my-0 py-[2px] px-0">
-          <div className="flex items-center justify-between py-0 my-0 px-[13px]">
+        <div className="space-y-4 pb-4 w-full">
+          <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-gradient-to-br from-primary/30 via-primary/15 to-primary/5 border-primary/30 shadow-primary/10 border-0 rounded-xl shadow">
                 <DollarSign className="w-8 h-8 text-primary" />
@@ -47,7 +47,7 @@ export default function GestaoFiscal() {
           </div>
 
           {/* Tabs Container */}
-          <Tabs defaultValue="fluxo" className="flex flex-col py-[3px] my-[25px]">
+          <Tabs defaultValue="fluxo" className="flex flex-col w-full">
             {/* Modern Tab Navigation */}
             <div className="w-full">
               <TabsList className="bg-gradient-to-r from-card/80 to-card/40 backdrop-blur-xl rounded-2xl p-2 border border-border/40 shadow-lg w-full inline-flex flex-wrap gap-2 h-auto justify-start">
@@ -103,7 +103,7 @@ export default function GestaoFiscal() {
             </div>
 
             {/* Tab Content */}
-            <div className="flex-1 pt-6 my-[17px] py-[36px] px-0 mx-[3px]">
+            <div className="w-full pt-4">
               <TabsContent value="fluxo" className="mt-0">
                 <FluxoCaixa />
               </TabsContent>
