@@ -153,6 +153,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
           return canAccessFinancialControl;
         }
 
+        // Dashboard Gestor - apenas para admin/gestor_master
+        if (item.itemId === "dashboard_gestor") {
+          return canManageUsersGlobal;
+        }
+
         // Usuários - apenas para admin/gestor
         if (item.itemId === "admin_usuarios") {
           return canManageUsersGlobal;
