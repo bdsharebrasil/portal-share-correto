@@ -357,11 +357,9 @@ export default function DiarioBordoDetalhes() {
       const newEditing = new Set(editingRows);
       newEditing.delete(index);
       setEditingRows(newEditing);
-
       const newExpanded = new Set(expandedRows);
       newExpanded.delete(index);
       setExpandedRows(newExpanded);
-
       toast.success("Entrada salva");
       loadEntries();
     } catch (error: any) {
@@ -504,7 +502,7 @@ export default function DiarioBordoDetalhes() {
                 }, (_, i) => new Date().getFullYear() - 5 + i).map(year => <SelectItem key={year} value={String(year)} className="text-slate-100 hover:bg-slate-600 focus:bg-slate-600">{year}</SelectItem>)}
               </SelectContent>
             </Select>
-            {canAddOrEdit && <Button onClick={addNewRow} className="bg-green-800 hover:bg-green-700 text-slate-100">
+            {canAddOrEdit && <Button onClick={addNewRow} className="text-slate-100 px-[2px] my-[6px] mx-[6px] py-[7px] text-sm border-slate-500 shadow-2xl bg-slate-950 hover:bg-slate-800">
               <Plus className="h-4 w-4 mr-1" /> Novo Trecho
             </Button>}
             {!isClosed && canConfirm && entries.length > 0 && <Button onClick={closeMonth} variant="destructive">Fechar Diário</Button>}
@@ -566,7 +564,7 @@ export default function DiarioBordoDetalhes() {
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-12">POUSOS</th>
                   <th colSpan={2} className="border border-gray-500 p-1 text-[10px] font-bold text-white bg-[#1E90FF]">COMBUSTÍVEL</th>
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-14">CTM</th>
-                  <th colSpan={2} className="border border-gray-500 p-1 text-[10px] font-bold text-white bg-[#00008B]">CANAC</th>
+                  <th colSpan={2} className="border border-gray-500 p-1 text-[10px] font-bold text-white bg-cyan-950">CANAC</th>
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white bg-[#374151] w-12">DIÁRIAS</th>
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-16">EXTRAS</th>
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-24">VOO PARA</th>
@@ -584,8 +582,8 @@ export default function DiarioBordoDetalhes() {
                   <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#1e40af] w-12">IFR</th>
                   <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#1E90FF] w-12">ABAST</th>
                   <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#1E90FF] w-12">FUEL</th>
-                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#00008B] w-14">PIC</th>
-                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#00008B] w-14">SIC</th>
+                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white w-14 bg-cyan-950">PIC</th>
+                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white w-14 bg-cyan-950">SIC</th>
                 </tr>
               </thead>
               <tbody>
@@ -598,23 +596,17 @@ export default function DiarioBordoDetalhes() {
                     <td className="border border-slate-500 p-0.5 group relative">
                       <div className="flex items-center gap-1">
                         <Input type="date" value={entry.data} onChange={e => updateEntry(index, 'data', e.target.value)} disabled={!canAddOrEdit} className={`${cellHeight} text-[10px] border border-slate-400 bg-slate-700 p-1 font-semibold text-slate-100 flex-1`} />
-                        {isEditing && (
-                          <button
-                            onClick={() => setExpandedRows(prev => {
-                              const newSet = new Set(prev);
-                              if (newSet.has(index)) {
-                                newSet.delete(index);
-                              } else {
-                                newSet.add(index);
-                              }
-                              return newSet;
-                            })}
-                            className="p-0.5 hover:bg-slate-500 rounded text-slate-300 hover:text-white transition-colors"
-                            title={isExpanded ? "Recolher" : "Expandir"}
-                          >
+                        {isEditing && <button onClick={() => setExpandedRows(prev => {
+                          const newSet = new Set(prev);
+                          if (newSet.has(index)) {
+                            newSet.delete(index);
+                          } else {
+                            newSet.add(index);
+                          }
+                          return newSet;
+                        })} className="p-0.5 hover:bg-slate-500 rounded text-slate-300 hover:text-white transition-colors" title={isExpanded ? "Recolher" : "Expandir"}>
                             {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                          </button>
-                        )}
+                          </button>}
                       </div>
                     </td>
                     <td className="border border-slate-500 p-0.5">
