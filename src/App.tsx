@@ -126,6 +126,13 @@ const App = () => {
                   </RoleProtected>
                 )
               } />
+              <Route path="/financeiro/dashboard-gestor" element={
+                renderProtected(
+                  <RoleProtected allowedRoles={["admin","gestor_master"]}>
+                    <DashboardGestor />
+                  </RoleProtected>
+                )
+              } />
               <Route path="/cartao/alimentacao" element={renderProtected(<ValeAlimentacao />)} />
               
               <Route path="/cartao/combustivel" element={renderProtected(<ValeCombustivel />)} />
