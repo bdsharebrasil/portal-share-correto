@@ -240,6 +240,14 @@ export function CategoriasCrud() {
             </div>
 
             <div>
+              <Label htmlFor="categoria">Categoria (Opcional)</Label>
+              <Input id="categoria" placeholder="Ex: Despesa Operacional" value={formData.categoria} onChange={e => setFormData(prev => ({
+              ...prev,
+              categoria: e.target.value
+            }))} className="mt-1" />
+            </div>
+
+            <div>
               <Label htmlFor="descricao">Descrição</Label>
               <Textarea id="descricao" placeholder="Descrição opcional" value={formData.descricao} onChange={e => setFormData(prev => ({
               ...prev,
