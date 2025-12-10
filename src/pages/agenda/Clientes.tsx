@@ -590,7 +590,7 @@ export default function Clientes() {
             </CardContent>
           </Card> : <div className="space-y-6">
             {/* Active Clients */}
-            {!showInactive && activeClientes.length > 0 && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {!showInactive && activeClientes.length > 0 && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {activeClientes.map(cliente => <ClienteCard key={cliente.id} cliente={cliente} onView={handleViewCliente} onEdit={handleOpenDialog} onDelete={setDeleteId} />)}
               </div>}
 
@@ -601,7 +601,7 @@ export default function Clientes() {
                   <h2 className="text-lg font-semibold text-foreground">Clientes Inativos</h2>
                   <Badge variant="secondary">{inactiveClientes.length}</Badge>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {inactiveClientes.map(cliente => <ClienteCard key={cliente.id} cliente={cliente} onView={handleViewCliente} onEdit={handleOpenDialog} onDelete={setDeleteId} />)}
                 </div>
               </div>}
@@ -632,7 +632,7 @@ export default function Clientes() {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                   <div className="flex items-center gap-5">
                     <Avatar className="h-20 w-20 sm:h-24 sm:w-24 ring-4 ring-background shadow-xl">
-                      {viewingCliente.logo_url && <AvatarImage src={viewingCliente.logo_url} alt={viewingCliente.company_name} className="object-cover" />}
+                      {viewingCliente.logo_url && <AvatarImage src={viewingCliente.logo_url} alt={viewingCliente.company_name} className="object-contain" />}
                       <AvatarFallback className="bg-gradient-to-br from-primary to-primary/60 text-primary-foreground text-2xl font-bold">
                         {viewingCliente.company_name.split(' ').map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()}
                       </AvatarFallback>

@@ -2,13 +2,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2, Mail, Phone, MapPin, FileCheck, Edit, Trash2, Plane } from "lucide-react";
+import { Building2, Mail, Phone, MapPin, FileCheck, Plane } from "lucide-react";
+
 interface AircraftOwnership {
   aircraft: string;
   aircraft_registration?: string;
   aircraft_model?: string;
   ownership_percentage: number;
 }
+
 interface Cliente {
   id: string;
   company_name: string;
@@ -25,12 +27,14 @@ interface Cliente {
   logo_url?: string;
   aircraft_ownerships?: AircraftOwnership[];
 }
+
 interface ClienteCardProps {
   cliente: Cliente;
   onView?: (cliente: Cliente) => void;
   onEdit?: (cliente: Cliente) => void;
   onDelete?: (id: string) => void;
 }
+
 export function ClienteCard({
   cliente,
   onView,
@@ -42,23 +46,22 @@ export function ClienteCard({
       onView(cliente);
     }
   };
+
   const getInitials = (name: string) => {
     return name.split(' ').map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase();
   };
+
   const location = [cliente.city, cliente.uf].filter(Boolean).join(' - ');
-  return <Card className="group cursor-pointer relative overflow-hidden border-border/50 bg-card hover:border-primary/50 hover:shadow-lg transition-all duration-300" onClick={handleCardClick}>
-      {/* Gradient accent top */}
+
+  return (
+    <Card className="group cursor-pointer relative overflow-hidden border-border/50 bg-card hover:border-primary/50 hover:shadow-lg transition-all duration-300" onClick={handleCardClick}>
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
       
-      {/* Action Buttons */}
-      
-
       <CardContent className="p-5 my-0 py-0">
-        {/* Header com Avatar e Nome */}
         <div className="mb-4 shadow-sm bg-transparent mx-[22px] gap-[9px] px-0 flex-col flex items-center justify-center my-[23px] py-[5px]">
-          <Avatar className="h-14 w-14 ring-2 ring-border shadow-sm flex-shrink-0">
-            {cliente.logo_url ? <AvatarImage src={cliente.logo_url} alt={cliente.company_name} className="object-cover" /> : null}
-            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary font-bold text-lg">
+          <Avatar className="h-16 w-16 ring-2 ring-border shadow-sm flex-shrink-0">
+            {cliente.logo_url ? <AvatarImage src={cliente.logo_url} alt={cliente.company_name} className="object-contain" /> : null}
+            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary font-bold text-sm">
               {getInitials(cliente.company_name)}
             </AvatarFallback>
           </Avatar>
@@ -73,7 +76,6 @@ export function ClienteCard({
           </div>
         </div>
 
-        {/* Info Grid */}
         <div className="space-y-2.5">
           {cliente.phone && <div className="flex items-center gap-2.5 text-sm">
               <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
@@ -96,7 +98,6 @@ export function ClienteCard({
             </div>}
         </div>
 
-        {/* Aeronaves */}
         {cliente.aircraft_ownerships && cliente.aircraft_ownerships.length > 0 && <div className="mt-4 pt-3 border-t border-border/50 my-[15px] py-[14px]">
             <div className="gap-2 mb-2 flex items-center justify-center">
               <Plane className="h-3.5 w-3.5 text-muted-foreground" />
@@ -112,7 +113,6 @@ export function ClienteCard({
             </div>
           </div>}
 
-        {/* Footer badges */}
         {(cliente.inscricao_estadual || cliente.cnpj_card_url) && <div className="gap-2 mt-4 pt-3 border-t border-border/50 flex items-center justify-center py-[22px]">
             {cliente.inscricao_estadual && <Badge variant="outline" className="text-xs font-normal rounded-md mx-[50px] px-[18px]">
                 I/E: {cliente.inscricao_estadual}
@@ -127,5 +127,6 @@ export function ClienteCard({
             Clique para ver detalhes
           </p>}
       </CardContent>
-    </Card>;
+    </Card>
+  );
 }
