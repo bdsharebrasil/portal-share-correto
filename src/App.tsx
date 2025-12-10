@@ -54,6 +54,7 @@ import Senhas from "./pages/Senhas";
 import GestaoFiscal from "./pages/financeiro/GestaoFiscal";
 import ConfigMovimentacoes from "./pages/financeiro/ConfigMovimentacoes";
 import CalendarioFerias from "./pages/CalendarioFerias";
+import DashboardGestor from "./pages/financeiro/DashboardGestor";
 import { configurePDFWorker } from "@/lib/pdfWorkerConfig";
 
 const queryClient = new QueryClient();
