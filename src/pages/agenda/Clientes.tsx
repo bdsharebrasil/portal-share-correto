@@ -10,43 +10,24 @@ import { ClienteCard } from "@/components/clientes/ClienteCard";
 import { Plus, Search, Building, Upload, FileText, X, Image, ChevronLeft, Edit, Phone, Mail, MapPin, Folder } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
 interface ClientDocument {
   name: string;
   url: string;
   type: string;
   uploaded_at: string;
 }
-
 interface AircraftOwnership {
   aircraft: string;
   aircraft_registration?: string;
   aircraft_model?: string;
   ownership_percentage: number;
 }
-
 interface Cliente {
   id: string;
   company_name: string;
@@ -65,26 +46,22 @@ interface Cliente {
   documents?: ClientDocument[];
   status?: string | null;
 }
-
 interface AircraftOption {
   id: string;
   registration: string;
   model: string;
 }
-
-const toFolder = (s: string) => (s || 'sem_cliente')
-  .normalize('NFKD')
-  .replace(/[\u0300-\u036f]/g, '')
-  .replace(/[^a-zA-Z0-9-_]/g, '_');
-
+const toFolder = (s: string) => (s || 'sem_cliente').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9-_]/g, '_');
 const ensureTravelReportsFolder = async (name: string) => {
   const folder = toFolder(name);
-  const emptyBlob = new Blob([''], { type: 'text/plain' });
-  await supabase.storage
-    .from('travel-reports')
-    .upload(`${folder}/.keep`, emptyBlob, { upsert: true, contentType: 'text/plain' });
+  const emptyBlob = new Blob([''], {
+    type: 'text/plain'
+  });
+  await supabase.storage.from('travel-reports').upload(`${folder}/.keep`, emptyBlob, {
+    upsert: true,
+    contentType: 'text/plain'
+  });
 };
-
 export default function Clientes() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -94,8 +71,9 @@ export default function Clientes() {
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
-  const { toast } = useToast();
-
+  const {
+    toast
+  } = useToast();
   const [formData, setFormData] = useState({
     company_name: "",
     cnpj: "",
@@ -107,7 +85,7 @@ export default function Clientes() {
     email: "",
     financial_contact: "",
     observations: "",
-    status: "ativo",
+    status: "ativo"
   });
   const [aircraftOwnerships, setAircraftOwnerships] = useState<AircraftOwnership[]>([]);
   const [aircraftOptions, setAircraftOptions] = useState<AircraftOption[]>([]);
@@ -117,7 +95,6 @@ export default function Clientes() {
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<ClientDocument | null>(null);
   const [loadingAircraft, setLoadingAircraft] = useState(false);
-
   useEffect(() => {
     loadClientes();
     loadAircraftOptions();
@@ -129,27 +106,25 @@ export default function Clientes() {
       loadAircraftOptions();
     }
   }, [isDialogOpen]);
-
   const loadClientes = async () => {
     try {
       setLoading(true);
       // Primeiro buscamos os clientes
-      const { data, error } = await supabase.from("clients").select("*");
-
+      const {
+        data,
+        error
+      } = await supabase.from("clients").select("*");
       if (error) throw error;
-
-      const rows = (data as any[]) || [];
+      const rows = data as any[] || [];
       const clientIds = rows.map(r => r.id).filter(Boolean);
 
       // Buscar as relações de aeronaves
       let clientAircraftMap: Record<string, AircraftOwnership[]> = {};
-
       if (clientIds.length > 0) {
-        const { data: clientAircraftData, error: caError } = await supabase
-          .from("client_aircraft")
-          .select("client_id, aircraft_id, share_percentage, aircraft:aircraft_id(id, registration, model)")
-          .in("client_id", clientIds);
-
+        const {
+          data: clientAircraftData,
+          error: caError
+        } = await supabase.from("client_aircraft").select("client_id, aircraft_id, share_percentage, aircraft:aircraft_id(id, registration, model)").in("client_id", clientIds);
         if (!caError && Array.isArray(clientAircraftData)) {
           clientAircraftData.forEach((ca: any) => {
             if (!clientAircraftMap[ca.client_id]) {
@@ -159,56 +134,48 @@ export default function Clientes() {
               aircraft: ca.aircraft_id,
               aircraft_registration: ca.aircraft?.registration,
               aircraft_model: ca.aircraft?.model,
-              ownership_percentage: ca.share_percentage,
+              ownership_percentage: ca.share_percentage
             });
           });
         }
       }
-
       const mapped: Cliente[] = rows.map((row: any) => ({
         ...row,
-        aircraft_ownerships: clientAircraftMap[row.id] || [],
+        aircraft_ownerships: clientAircraftMap[row.id] || []
       })).sort((a, b) => (a.company_name || '').localeCompare(b.company_name || '', 'pt-BR'));
-
       setClientes(mapped);
     } catch (error) {
       console.error("Erro ao carregar clientes:", error);
       toast({
         title: "Erro",
         description: "Erro ao carregar clientes",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
-
   const loadAircraftOptions = async () => {
     try {
       setLoadingAircraft(true);
       console.log("Carregando aeronaves...");
-
-      const { data, error } = await supabase
-        .from("aircraft")
-        .select("id, registration, model")
-        .neq("status", "inativa")
-        .order("registration");
-
+      const {
+        data,
+        error
+      } = await supabase.from("aircraft").select("id, registration, model").neq("status", "inativa").order("registration");
       if (error) {
         console.error("Erro ao carregar aeronaves:", error);
         toast({
           title: "Erro ao carregar aeronaves",
           description: error.message || "Não foi possível carregar as aeronaves disponíveis",
-          variant: "destructive",
+          variant: "destructive"
         });
         setAircraftOptions([]);
         return;
       }
-
-      const aircraftData = (data as any) || [];
+      const aircraftData = data as any || [];
       console.log("Aeronaves carregadas:", aircraftData.length, aircraftData);
       setAircraftOptions(aircraftData);
-
       if (aircraftData.length === 0) {
         console.warn("Nenhuma aeronave ativa encontrada no banco de dados");
       }
@@ -217,22 +184,19 @@ export default function Clientes() {
       toast({
         title: "Erro",
         description: "Erro inesperado ao carregar aeronaves",
-        variant: "destructive",
+        variant: "destructive"
       });
       setAircraftOptions([]);
     } finally {
       setLoadingAircraft(false);
     }
   };
-
   const handleViewCliente = (cliente: Cliente) => {
     setViewingCliente(cliente);
   };
-
   const handleCloseView = () => {
     setViewingCliente(null);
   };
-
   const handleOpenDialog = (cliente?: Cliente) => {
     setViewingCliente(null);
     if (cliente) {
@@ -248,7 +212,7 @@ export default function Clientes() {
         email: cliente.email || "",
         financial_contact: cliente.financial_contact || "",
         observations: cliente.observations || "",
-        status: (cliente.status as string | null) ?? "ativo",
+        status: cliente.status as string | null ?? "ativo"
       });
       setAircraftOwnerships(cliente.aircraft_ownerships || []);
       setLogoPreview(cliente.logo_url || null);
@@ -265,7 +229,7 @@ export default function Clientes() {
         email: "",
         financial_contact: "",
         observations: "",
-        status: "ativo",
+        status: "ativo"
       });
       setAircraftOwnerships([]);
       setLogoPreview(null);
@@ -274,25 +238,26 @@ export default function Clientes() {
     setDocumentFiles([]);
     setIsDialogOpen(true);
   };
-
   const handleCloseDialog = () => {
     setIsDialogOpen(false);
     setEditingCliente(null);
     setAircraftOwnerships([]);
   };
-
   const addAircraftOwnership = () => {
-    setAircraftOwnerships([...aircraftOwnerships, { aircraft: "", ownership_percentage: 0 }]);
+    setAircraftOwnerships([...aircraftOwnerships, {
+      aircraft: "",
+      ownership_percentage: 0
+    }]);
   };
-
   const removeAircraftOwnership = (index: number) => {
     setAircraftOwnerships(aircraftOwnerships.filter((_, i) => i !== index));
   };
-
   const updateAircraftOwnership = (index: number, field: string, value: any) => {
     const updated = [...aircraftOwnerships];
-    updated[index] = { ...updated[index], [field]: value };
-
+    updated[index] = {
+      ...updated[index],
+      [field]: value
+    };
     if (field === 'aircraft') {
       const aircraft = aircraftOptions.find(a => a.id === value);
       if (aircraft) {
@@ -300,10 +265,8 @@ export default function Clientes() {
         updated[index].aircraft_model = aircraft.model;
       }
     }
-
     setAircraftOwnerships(updated);
   };
-
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -315,71 +278,59 @@ export default function Clientes() {
       reader.readAsDataURL(file);
     }
   };
-
   const handleDocumentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    setDocumentFiles((prev) => [...prev, ...files]);
+    setDocumentFiles(prev => [...prev, ...files]);
   };
-
   const removeDocument = (index: number) => {
-    setDocumentFiles((prev) => prev.filter((_, i) => i !== index));
+    setDocumentFiles(prev => prev.filter((_, i) => i !== index));
   };
-
   const uploadFile = async (file: File, path: string) => {
     const fileExt = file.name.split(".").pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
     const filePath = `${path}/${fileName}`;
-
-    const { error: uploadError, data } = await supabase.storage
-      .from("client-documents")
-      .upload(filePath, file);
-
+    const {
+      error: uploadError,
+      data
+    } = await supabase.storage.from("client-documents").upload(filePath, file);
     if (uploadError) throw uploadError;
-
-    const { data: urlData } = supabase.storage
-      .from("client-documents")
-      .getPublicUrl(filePath);
-
+    const {
+      data: urlData
+    } = supabase.storage.from("client-documents").getPublicUrl(filePath);
     return urlData.publicUrl;
   };
-
   const deleteDocumentFile = async (documentUrl: string) => {
     try {
       const urlParts = documentUrl.split("/");
       const bucketPath = urlParts.slice(urlParts.indexOf("client-documents") + 1).join("/");
-
       if (!bucketPath) return;
-
-      const { error } = await supabase.storage
-        .from("client-documents")
-        .remove([bucketPath]);
-
+      const {
+        error
+      } = await supabase.storage.from("client-documents").remove([bucketPath]);
       if (error) throw error;
     } catch (error) {
       console.error("Erro ao deletar arquivo:", error);
     }
   };
-
   const deleteClientDocuments = async (documents: ClientDocument[] = []) => {
     for (const doc of documents) {
       await deleteDocumentFile(doc.url);
     }
   };
-
   const removeDocumentFromEditing = async (index: number) => {
     const docToRemove = editingCliente?.documents?.[index];
     if (!docToRemove) return;
-
     try {
       await deleteDocumentFile(docToRemove.url);
-
       if (editingCliente?.documents) {
         const updatedDocs = editingCliente.documents.filter((_, i) => i !== index);
-        setEditingCliente({ ...editingCliente, documents: updatedDocs });
-
+        setEditingCliente({
+          ...editingCliente,
+          documents: updatedDocs
+        });
         toast({
           title: "Sucesso",
-          description: "Documento removido",
+          description: "Documento removido"
         });
       }
     } catch (error) {
@@ -387,45 +338,36 @@ export default function Clientes() {
       toast({
         title: "Erro",
         description: "Erro ao remover documento",
-        variant: "destructive",
+        variant: "destructive"
       });
     }
   };
-
   const handleSave = async () => {
     try {
       if (!formData.company_name || !formData.cnpj) {
         toast({
           title: "Campos obrigatórios",
           description: "Nome da empresa e CNPJ são obrigatórios",
-          variant: "destructive",
+          variant: "destructive"
         });
         return;
       }
-
       setUploadingFiles(true);
-
       let logoUrl = editingCliente?.logo_url;
       let existingDocs = editingCliente?.documents || [];
-
       if (logoFile) {
         const fileExt = logoFile.name.split(".").pop();
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
         const filePath = `logos/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("company-logos")
-          .upload(filePath, logoFile);
-
+        const {
+          error: uploadError
+        } = await supabase.storage.from("company-logos").upload(filePath, logoFile);
         if (uploadError) throw uploadError;
-
-        const { data: urlData } = supabase.storage
-          .from("company-logos")
-          .getPublicUrl(filePath);
-
+        const {
+          data: urlData
+        } = supabase.storage.from("company-logos").getPublicUrl(filePath);
         logoUrl = urlData.publicUrl;
       }
-
       const newDocs: ClientDocument[] = [];
       for (const file of documentFiles) {
         const url = await uploadFile(file, "documents");
@@ -433,10 +375,9 @@ export default function Clientes() {
           name: file.name,
           url,
           type: file.type,
-          uploaded_at: new Date().toISOString(),
+          uploaded_at: new Date().toISOString()
         });
       }
-
       const updatedData = {
         company_name: formData.company_name,
         cnpj: formData.cnpj,
@@ -450,28 +391,21 @@ export default function Clientes() {
         observations: formData.observations,
         status: (formData as any).status ?? "ativo",
         logo_url: logoUrl,
-        documents: [...existingDocs, ...newDocs],
+        documents: [...existingDocs, ...newDocs]
       };
-
       let clientId = editingCliente?.id;
-
       if (editingCliente) {
-        const { error } = await supabase
-          .from("clients")
-          .update(updatedData as any)
-          .eq("id", editingCliente.id);
-
+        const {
+          error
+        } = await supabase.from("clients").update(updatedData as any).eq("id", editingCliente.id);
         if (error) throw error;
 
         // Delete existing aircraft relationships
-        const { error: deleteError } = await supabase
-          .from("client_aircraft")
-          .delete()
-          .eq("client_id", editingCliente.id);
-
+        const {
+          error: deleteError
+        } = await supabase.from("client_aircraft").delete().eq("client_id", editingCliente.id);
         if (deleteError) throw deleteError;
-
-        const prevActive = String((editingCliente.status as any) || '').toLowerCase();
+        const prevActive = String(editingCliente.status as any || '').toLowerCase();
         const newActive = String((updatedData as any).status || '').toLowerCase();
         const becameActive = !(prevActive === 'ativo' || prevActive === 'active' || prevActive === '') && (newActive === 'ativo' || newActive === 'active' || newActive === '');
         if (becameActive) {
@@ -481,67 +415,59 @@ export default function Clientes() {
             console.warn('Falha ao criar pasta do cliente (ativação):', e);
           }
         }
-
         toast({
           title: "Sucesso",
-          description: "Cliente atualizado com sucesso",
+          description: "Cliente atualizado com sucesso"
         });
       } else {
-        const { data: insertData, error } = await supabase
-          .from("clients")
-          .insert([updatedData as any])
-          .select()
-          .single();
-
+        const {
+          data: insertData,
+          error
+        } = await supabase.from("clients").insert([updatedData as any]).select().single();
         if (error) throw error;
-
         clientId = insertData?.id;
-
         const isActive = String((updatedData as any).status || '').toLowerCase() === 'ativo' || String((updatedData as any).status || '').toLowerCase() === 'active';
         if (isActive) {
           try {
             const folder = toFolder(updatedData.company_name);
-            const emptyBlob = new Blob([''], { type: 'text/plain' });
-            await supabase.storage
-              .from('travel-reports')
-              .upload(`${folder}/.keep`, emptyBlob, { upsert: true, contentType: 'text/plain' });
+            const emptyBlob = new Blob([''], {
+              type: 'text/plain'
+            });
+            await supabase.storage.from('travel-reports').upload(`${folder}/.keep`, emptyBlob, {
+              upsert: true,
+              contentType: 'text/plain'
+            });
           } catch (e) {
             console.warn('Não foi possível criar a pasta do cliente em travel-reports:', e);
           }
         }
-
         toast({
           title: "Sucesso",
-          description: "Cliente cadastrado com sucesso",
+          description: "Cliente cadastrado com sucesso"
         });
       }
 
       // Save aircraft relationships
       if (clientId && aircraftOwnerships.length > 0) {
-        const aircraftData = aircraftOwnerships
-          .filter(ownership => ownership.aircraft)
-          .map(ownership => ({
-            client_id: clientId,
-            aircraft_id: ownership.aircraft,
-            share_percentage: Math.max(0, Math.min(100, ownership.ownership_percentage || 0)),
-          }));
-
+        const aircraftData = aircraftOwnerships.filter(ownership => ownership.aircraft).map(ownership => ({
+          client_id: clientId,
+          aircraft_id: ownership.aircraft,
+          share_percentage: Math.max(0, Math.min(100, ownership.ownership_percentage || 0))
+        }));
         if (aircraftData.length > 0) {
-          const { error: aircraftError } = await supabase
-            .from("client_aircraft")
-            .insert(aircraftData);
-
+          const {
+            error: aircraftError
+          } = await supabase.from("client_aircraft").insert(aircraftData);
           if (aircraftError) {
             console.error("Erro ao salvar aeronaves:", aircraftError);
             toast({
               title: "Aviso",
               description: "Cliente salvo, mas houve erro ao salvar as aeronaves",
-              variant: "destructive",
+              variant: "destructive"
             });
           }
         }
       }
-
       handleCloseDialog();
       loadClientes();
     } catch (error) {
@@ -549,66 +475,48 @@ export default function Clientes() {
       toast({
         title: "Erro",
         description: "Erro ao salvar cliente",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setUploadingFiles(false);
     }
   };
-
   const handleDelete = async () => {
     if (!deleteId) return;
-
     try {
       const clienteToDelete = clientes.find(c => c.id === deleteId);
-
       if (clienteToDelete?.documents && clienteToDelete.documents.length > 0) {
         await deleteClientDocuments(clienteToDelete.documents);
       }
-
-      const { error } = await supabase
-        .from("clients")
-        .delete()
-        .eq("id", deleteId);
-
+      const {
+        error
+      } = await supabase.from("clients").delete().eq("id", deleteId);
       if (error) throw error;
-
       toast({
         title: "Sucesso",
-        description: "Cliente excluído com sucesso",
+        description: "Cliente excluído com sucesso"
       });
-
       loadClientes();
     } catch (error) {
       console.error("Erro ao excluir cliente:", error);
       toast({
         title: "Erro",
         description: "Erro ao excluir cliente",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setDeleteId(null);
     }
   };
-
-  const filteredClientes = clientes.filter((cliente) =>
-    cliente.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cliente.cnpj?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cliente.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
+  const filteredClientes = clientes.filter(cliente => cliente.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) || cliente.cnpj?.toLowerCase().includes(searchTerm.toLowerCase()) || cliente.email?.toLowerCase().includes(searchTerm.toLowerCase()));
   const isActive = (status?: string | null) => {
     const s = String(status ?? '').toLowerCase();
     return s === 'active' || s === 'ativo' || s === '';
   };
-
-  const activeClientes = filteredClientes.filter((c) => isActive(c.status));
-  const inactiveClientes = filteredClientes.filter((c) => !isActive(c.status));
-
-  return (
-    <Layout>
-      {!viewingCliente && (
-      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+  const activeClientes = filteredClientes.filter(c => isActive(c.status));
+  const inactiveClientes = filteredClientes.filter(c => !isActive(c.status));
+  return <Layout>
+      {!viewingCliente && <div className="p-6 space-y-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -619,7 +527,7 @@ export default function Clientes() {
               Gerencie o cadastro de clientes e cotistas
             </p>
           </div>
-          <Button onClick={() => handleOpenDialog()} size="lg" className="gap-2 shadow-md">
+          <Button onClick={() => handleOpenDialog()} size="lg" className="gap-2 shadow-md rounded-lg px-[4px] bg-teal-700 hover:bg-teal-600">
             <Plus className="h-4 w-4" />
             Novo Cadastro
           </Button>
@@ -627,10 +535,7 @@ export default function Clientes() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card 
-            onClick={() => setShowInactive(false)} 
-            className={`cursor-pointer transition-all duration-200 hover:shadow-md ${!showInactive ? 'ring-2 ring-primary shadow-md' : 'hover:border-primary/50'}`}
-          >
+          <Card onClick={() => setShowInactive(false)} className={`cursor-pointer transition-all duration-200 hover:shadow-md ${!showInactive ? 'ring-2 ring-primary shadow-md' : 'hover:border-primary/50'}`}>
             <CardContent className="p-5">
               <div className="flex items-center gap-4">
                 <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -644,17 +549,14 @@ export default function Clientes() {
             </CardContent>
           </Card>
 
-          <Card 
-            onClick={() => setShowInactive(true)} 
-            className={`cursor-pointer transition-all duration-200 hover:shadow-md ${showInactive ? 'ring-2 ring-muted-foreground/50 shadow-md' : 'hover:border-muted-foreground/30'}`}
-          >
+          <Card onClick={() => setShowInactive(true)} className={`cursor-pointer transition-all duration-200 hover:shadow-md ${showInactive ? 'ring-2 ring-muted-foreground/50 shadow-md' : 'hover:border-muted-foreground/30'}`}>
             <CardContent className="p-5">
               <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
+                <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center text-orange-900">
                   <Folder className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-3xl font-bold text-foreground">{inactiveClientes.length}</p>
+                  <p className="text-3xl font-bold text-foreground text-orange-400">{inactiveClientes.length}</p>
                   <p className="text-sm text-muted-foreground">Clientes Inativos</p>
                 </div>
               </div>
@@ -665,24 +567,16 @@ export default function Clientes() {
         {/* Search */}
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome, CNPJ ou cidade..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 h-11"
-          />
+          <Input placeholder="Buscar por nome, CNPJ ou cidade..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10 h-11" />
         </div>
 
         {/* Content */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
+        {loading ? <div className="flex items-center justify-center py-20">
             <div className="flex flex-col items-center gap-3">
               <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               <p className="text-muted-foreground text-sm">Carregando clientes...</p>
             </div>
-          </div>
-        ) : filteredClientes.length === 0 ? (
-          <Card className="border-dashed">
+          </div> : filteredClientes.length === 0 ? <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
               <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
                 <Building className="h-8 w-8 text-muted-foreground" />
@@ -694,67 +588,36 @@ export default function Clientes() {
                 Cadastrar Cliente
               </Button>
             </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-6">
+          </Card> : <div className="space-y-6">
             {/* Active Clients */}
-            {!showInactive && activeClientes.length > 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {activeClientes.map((cliente) => (
-                  <ClienteCard
-                    key={cliente.id}
-                    cliente={cliente}
-                    onView={handleViewCliente}
-                    onEdit={handleOpenDialog}
-                    onDelete={setDeleteId}
-                  />
-                ))}
-              </div>
-            )}
+            {!showInactive && activeClientes.length > 0 && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {activeClientes.map(cliente => <ClienteCard key={cliente.id} cliente={cliente} onView={handleViewCliente} onEdit={handleOpenDialog} onDelete={setDeleteId} />)}
+              </div>}
 
             {/* Inactive Clients */}
-            {showInactive && inactiveClientes.length > 0 && (
-              <div className="space-y-4">
+            {showInactive && inactiveClientes.length > 0 && <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <Folder className="h-5 w-5 text-muted-foreground" />
                   <h2 className="text-lg font-semibold text-foreground">Clientes Inativos</h2>
                   <Badge variant="secondary">{inactiveClientes.length}</Badge>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {inactiveClientes.map((cliente) => (
-                    <ClienteCard
-                      key={cliente.id}
-                      cliente={cliente}
-                      onView={handleViewCliente}
-                      onEdit={handleOpenDialog}
-                      onDelete={setDeleteId}
-                    />
-                  ))}
+                  {inactiveClientes.map(cliente => <ClienteCard key={cliente.id} cliente={cliente} onView={handleViewCliente} onEdit={handleOpenDialog} onDelete={setDeleteId} />)}
                 </div>
-              </div>
-            )}
+              </div>}
 
-            {showInactive && inactiveClientes.length === 0 && (
-              <Card className="border-dashed">
+            {showInactive && inactiveClientes.length === 0 && <Card className="border-dashed">
                 <CardContent className="py-12 text-center">
                   <p className="text-muted-foreground">Nenhum cliente inativo</p>
                 </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
-      </div>
-      )}
+              </Card>}
+          </div>}
+      </div>}
 
       {/* Perfil do Cliente */}
-      {viewingCliente && (
-        <div className="p-6 space-y-6 max-w-5xl mx-auto">
+      {viewingCliente && <div className="p-6 space-y-6 max-w-5xl mx-auto">
           {/* Back Button */}
-          <Button 
-            variant="ghost" 
-            onClick={handleCloseView} 
-            className="gap-2 text-muted-foreground hover:text-foreground -ml-2"
-          >
+          <Button variant="ghost" onClick={handleCloseView} className="gap-2 text-muted-foreground hover:text-foreground -ml-2">
             <ChevronLeft className="h-4 w-4" />
             Voltar para Clientes
           </Button>
@@ -769,17 +632,9 @@ export default function Clientes() {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                   <div className="flex items-center gap-5">
                     <Avatar className="h-20 w-20 sm:h-24 sm:w-24 ring-4 ring-background shadow-xl">
-                      {viewingCliente.logo_url && (
-                        <AvatarImage src={viewingCliente.logo_url} alt={viewingCliente.company_name} className="object-cover" />
-                      )}
+                      {viewingCliente.logo_url && <AvatarImage src={viewingCliente.logo_url} alt={viewingCliente.company_name} className="object-cover" />}
                       <AvatarFallback className="bg-gradient-to-br from-primary to-primary/60 text-primary-foreground text-2xl font-bold">
-                        {viewingCliente.company_name
-                          .split(' ')
-                          .map((p) => p[0])
-                          .filter(Boolean)
-                          .slice(0, 2)
-                          .join('')
-                          .toUpperCase()}
+                        {viewingCliente.company_name.split(' ').map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div>
@@ -818,26 +673,21 @@ export default function Clientes() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {viewingCliente.phone && (
-                  <div className="flex items-start gap-3">
+                {viewingCliente.phone && <div className="flex items-start gap-3">
                     <Phone className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-xs text-muted-foreground mb-0.5">Telefone</p>
                       <p className="text-sm font-medium text-foreground">{viewingCliente.phone}</p>
                     </div>
-                  </div>
-                )}
-                {viewingCliente.email && (
-                  <div className="flex items-start gap-3">
+                  </div>}
+                {viewingCliente.email && <div className="flex items-start gap-3">
                     <Mail className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-xs text-muted-foreground mb-0.5">E-mail</p>
                       <p className="text-sm font-medium text-foreground break-all">{viewingCliente.email}</p>
                     </div>
-                  </div>
-                )}
-                {(viewingCliente.address || viewingCliente.city || viewingCliente.uf) && (
-                  <div className="flex items-start gap-3">
+                  </div>}
+                {(viewingCliente.address || viewingCliente.city || viewingCliente.uf) && <div className="flex items-start gap-3">
                     <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-xs text-muted-foreground mb-0.5">Endereço</p>
@@ -845,20 +695,15 @@ export default function Clientes() {
                         {[viewingCliente.address, [viewingCliente.city, viewingCliente.uf].filter(Boolean).join(' - ')].filter(Boolean).join(', ')}
                       </p>
                     </div>
-                  </div>
-                )}
-                {viewingCliente.financial_contact && (
-                  <div className="flex items-start gap-3">
+                  </div>}
+                {viewingCliente.financial_contact && <div className="flex items-start gap-3">
                     <Building className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-xs text-muted-foreground mb-0.5">Contato Financeiro</p>
                       <p className="text-sm font-medium text-foreground">{viewingCliente.financial_contact}</p>
                     </div>
-                  </div>
-                )}
-                {!viewingCliente.phone && !viewingCliente.email && !viewingCliente.address && !viewingCliente.city && !viewingCliente.uf && !viewingCliente.financial_contact && (
-                  <p className="text-sm text-muted-foreground text-center py-6">Nenhuma informação de contato</p>
-                )}
+                  </div>}
+                {!viewingCliente.phone && !viewingCliente.email && !viewingCliente.address && !viewingCliente.city && !viewingCliente.uf && !viewingCliente.financial_contact && <p className="text-sm text-muted-foreground text-center py-6">Nenhuma informação de contato</p>}
               </CardContent>
             </Card>
 
@@ -873,40 +718,30 @@ export default function Clientes() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {viewingCliente.inscricao_estadual && (
-                  <div>
+                {viewingCliente.inscricao_estadual && <div>
                     <p className="text-xs text-muted-foreground mb-1">Inscrição Estadual</p>
                     <p className="text-sm font-medium text-foreground font-mono">{viewingCliente.inscricao_estadual}</p>
-                  </div>
-                )}
-                {viewingCliente.aircraft_ownerships && viewingCliente.aircraft_ownerships.length > 0 && (
-                  <div>
+                  </div>}
+                {viewingCliente.aircraft_ownerships && viewingCliente.aircraft_ownerships.length > 0 && <div>
                     <p className="text-xs text-muted-foreground mb-2">Aeronaves e Participação</p>
                     <div className="space-y-2">
-                      {viewingCliente.aircraft_ownerships.map((ownership, idx) => (
-                        <div key={idx} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                      {viewingCliente.aircraft_ownerships.map((ownership, idx) => <div key={idx} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
                           <span className="text-sm font-medium text-foreground">
                             {ownership.aircraft_registration} - {ownership.aircraft_model}
                           </span>
                           <Badge variant="secondary" className="font-semibold">
                             {ownership.ownership_percentage}%
                           </Badge>
-                        </div>
-                      ))}
+                        </div>)}
                     </div>
-                  </div>
-                )}
-                {viewingCliente.observations && (
-                  <div>
+                  </div>}
+                {viewingCliente.observations && <div>
                     <p className="text-xs text-muted-foreground mb-2">Observações</p>
                     <p className="text-sm text-foreground whitespace-pre-wrap bg-muted/50 p-3 rounded-lg">
                       {viewingCliente.observations}
                     </p>
-                  </div>
-                )}
-                {!viewingCliente.inscricao_estadual && !viewingCliente.aircraft_ownerships?.length && !viewingCliente.observations && (
-                  <p className="text-sm text-muted-foreground text-center py-6">Nenhuma informação adicional</p>
-                )}
+                  </div>}
+                {!viewingCliente.inscricao_estadual && !viewingCliente.aircraft_ownerships?.length && !viewingCliente.observations && <p className="text-sm text-muted-foreground text-center py-6">Nenhuma informação adicional</p>}
               </CardContent>
             </Card>
           </div>
@@ -922,15 +757,8 @@ export default function Clientes() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {viewingCliente.documents && viewingCliente.documents.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {viewingCliente.documents.map((doc, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      onClick={() => setPreviewDoc(doc)}
-                      className="flex items-center gap-3 p-4 border border-border rounded-lg hover:bg-muted/50 hover:border-primary/50 transition-all text-left group"
-                    >
+              {viewingCliente.documents && viewingCliente.documents.length > 0 ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {viewingCliente.documents.map((doc, index) => <button key={index} type="button" onClick={() => setPreviewDoc(doc)} className="flex items-center gap-3 p-4 border border-border rounded-lg hover:bg-muted/50 hover:border-primary/50 transition-all text-left group">
                       <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
                         <FileText className="h-5 w-5 text-primary" />
                       </div>
@@ -942,33 +770,22 @@ export default function Clientes() {
                           {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-8">Nenhum documento anexado</p>
-              )}
+                    </button>)}
+                </div> : <p className="text-sm text-muted-foreground text-center py-8">Nenhum documento anexado</p>}
             </CardContent>
           </Card>
-        </div>
-      )}
+        </div>}
 
       {/* Visualizador de Documento */}
-      <Dialog open={!!previewDoc} onOpenChange={(open) => { if (!open) setPreviewDoc(null); }}>
+      <Dialog open={!!previewDoc} onOpenChange={open => {
+      if (!open) setPreviewDoc(null);
+    }}>
         <DialogContent className="max-w-5xl w-[95vw] h-[85vh] p-0 overflow-hidden">
           <div className="h-full w-full">
-            {previewDoc && (previewDoc.type?.includes("pdf") || previewDoc.name.toLowerCase().endsWith(".pdf")) ? (
-              <iframe
-                src={`${previewDoc.url}#toolbar=1&navpanes=0`}
-                className="w-full h-full"
-                title={previewDoc.name}
-              />
-            ) : (
-              <div className="p-6 space-y-3">
+            {previewDoc && (previewDoc.type?.includes("pdf") || previewDoc.name.toLowerCase().endsWith(".pdf")) ? <iframe src={`${previewDoc.url}#toolbar=1&navpanes=0`} className="w-full h-full" title={previewDoc.name} /> : <div className="p-6 space-y-3">
                 <p className="text-sm text-muted-foreground">Visualização não suportada. Faça o download abaixo.</p>
                 <a href={previewDoc?.url} target="_blank" rel="noopener noreferrer" className="underline">Baixar arquivo</a>
-              </div>
-            )}
+              </div>}
           </div>
         </DialogContent>
       </Dialog>
@@ -995,232 +812,149 @@ export default function Clientes() {
               <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <Label htmlFor="company_name">Nome da Empresa *</Label>
-                <Input
-                  id="company_name"
-                  value={formData.company_name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, company_name: e.target.value })
-                  }
-                  placeholder="Razão Social"
-                />
+                <Input id="company_name" value={formData.company_name} onChange={e => setFormData({
+                  ...formData,
+                  company_name: e.target.value
+                })} placeholder="Razão Social" />
               </div>
 
               <div>
                 <Label htmlFor="cnpj">CNPJ *</Label>
-                <Input
-                  id="cnpj"
-                  value={formData.cnpj}
-                  onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
-                  placeholder="00.000.000/0000-00"
-                />
+                <Input id="cnpj" value={formData.cnpj} onChange={e => setFormData({
+                  ...formData,
+                  cnpj: e.target.value
+                })} placeholder="00.000.000/0000-00" />
               </div>
 
               <div>
                 <Label htmlFor="inscricao_estadual">Inscrição Estadual</Label>
-                <Input
-                  id="inscricao_estadual"
-                  value={formData.inscricao_estadual}
-                  onChange={(e) =>
-                    setFormData({ ...formData, inscricao_estadual: e.target.value })
-                  }
-                  placeholder="000.000.000.000"
-                />
+                <Input id="inscricao_estadual" value={formData.inscricao_estadual} onChange={e => setFormData({
+                  ...formData,
+                  inscricao_estadual: e.target.value
+                })} placeholder="000.000.000.000" />
               </div>
 
               <div className="col-span-2">
                 <Label htmlFor="address">Endereço</Label>
-                <Input
-                  id="address"
-                  value={formData.address}
-                  onChange={(e) =>
-                    setFormData({ ...formData, address: e.target.value })
-                  }
-                  placeholder="Rua, número, bairro"
-                />
+                <Input id="address" value={formData.address} onChange={e => setFormData({
+                  ...formData,
+                  address: e.target.value
+                })} placeholder="Rua, número, bairro" />
               </div>
 
               <div>
                 <Label htmlFor="city">Cidade</Label>
-                <Input
-                  id="city"
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  placeholder="São Paulo"
-                />
+                <Input id="city" value={formData.city} onChange={e => setFormData({
+                  ...formData,
+                  city: e.target.value
+                })} placeholder="São Paulo" />
               </div>
 
               <div>
                 <Label htmlFor="uf">UF</Label>
-                <Input
-                  id="uf"
-                  value={formData.uf}
-                  onChange={(e) => setFormData({ ...formData, uf: e.target.value.toUpperCase().slice(0,2) })}
-                  placeholder="SP"
-                  maxLength={2}
-                />
+                <Input id="uf" value={formData.uf} onChange={e => setFormData({
+                  ...formData,
+                  uf: e.target.value.toUpperCase().slice(0, 2)
+                })} placeholder="SP" maxLength={2} />
               </div>
 
               <div>
                 <Label htmlFor="phone">Telefone</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="(00) 00000-0000"
-                />
+                <Input id="phone" value={formData.phone} onChange={e => setFormData({
+                  ...formData,
+                  phone: e.target.value
+                })} placeholder="(00) 00000-0000" />
               </div>
 
               <div>
                 <Label htmlFor="email">E-mail</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="contato@empresa.com"
-                />
+                <Input id="email" type="email" value={formData.email} onChange={e => setFormData({
+                  ...formData,
+                  email: e.target.value
+                })} placeholder="contato@empresa.com" />
               </div>
 
               <div>
                 <Label htmlFor="financial_contact">Contato Financeiro</Label>
-                <Input
-                  id="financial_contact"
-                  value={formData.financial_contact}
-                  onChange={(e) =>
-                    setFormData({ ...formData, financial_contact: e.target.value })
-                  }
-                  placeholder="Nome do responsável financeiro"
-                />
+                <Input id="financial_contact" value={formData.financial_contact} onChange={e => setFormData({
+                  ...formData,
+                  financial_contact: e.target.value
+                })} placeholder="Nome do responsável financeiro" />
               </div>
 
               <div className="col-span-2">
                 <div className="flex items-center justify-between mb-3">
                   <Label className="text-base font-semibold">Aeronaves e Percentual de Sociedade</Label>
                   <div className="flex gap-2">
-                    {aircraftOptions.length === 0 && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={loadAircraftOptions}
-                        disabled={loadingAircraft}
-                        className="flex items-center gap-2"
-                      >
+                    {aircraftOptions.length === 0 && <Button type="button" variant="outline" size="sm" onClick={loadAircraftOptions} disabled={loadingAircraft} className="flex items-center gap-2">
                         🔄 Recarregar
-                      </Button>
-                    )}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={addAircraftOwnership}
-                      disabled={aircraftOptions.length === 0 || loadingAircraft}
-                      className="flex items-center gap-2"
-                      title={aircraftOptions.length === 0 ? "Nenhuma aeronave disponível para vincular" : "Adicionar aeronave"}
-                    >
+                      </Button>}
+                    <Button type="button" variant="outline" size="sm" onClick={addAircraftOwnership} disabled={aircraftOptions.length === 0 || loadingAircraft} className="flex items-center gap-2" title={aircraftOptions.length === 0 ? "Nenhuma aeronave disponível para vincular" : "Adicionar aeronave"}>
                       <Plus className="h-4 w-4" />
                       Adicionar Aeronave
                     </Button>
                   </div>
                 </div>
 
-                {loadingAircraft && (
-                  <div className="p-4 border border-blue-200 bg-blue-50 rounded-lg text-sm text-blue-800 mb-3">
+                {loadingAircraft && <div className="p-4 border border-blue-200 bg-blue-50 rounded-lg text-sm text-blue-800 mb-3">
                     ⏳ Carregando aeronaves...
-                  </div>
-                )}
+                  </div>}
 
-                {!loadingAircraft && aircraftOptions.length === 0 && (
-                  <div className="p-4 border border-yellow-200 bg-yellow-50 rounded-lg text-sm text-yellow-800 mb-3 space-y-2">
+                {!loadingAircraft && aircraftOptions.length === 0 && <div className="p-4 border border-yellow-200 bg-yellow-50 rounded-lg text-sm text-yellow-800 mb-3 space-y-2">
                     <p>⚠️ <strong>Nenhuma aeronave disponível</strong></p>
                     <p>Cadastre uma aeronave em "Gestão de Aeronaves" para vincular a este cliente.</p>
                     <p className="text-xs">Se já cadastrou, clique em "Recarregar" acima.</p>
-                  </div>
-                )}
+                  </div>}
 
-                {aircraftOwnerships.length === 0 ? (
-                  <div className="p-4 border border-dashed rounded-lg text-center text-muted-foreground">
+                {aircraftOwnerships.length === 0 ? <div className="p-4 border border-dashed rounded-lg text-center text-muted-foreground">
                     Nenhuma aeronave adicionada. Clique em "Adicionar Aeronave" para começar.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {aircraftOwnerships.map((ownership, index) => (
-                      <div key={index} className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                  </div> : <div className="space-y-3">
+                    {aircraftOwnerships.map((ownership, index) => <div key={index} className="space-y-3 p-4 border rounded-lg bg-muted/30">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
                             <Label className="text-sm font-medium text-foreground mb-2 block">Aeronave *</Label>
-                            {loadingAircraft ? (
-                              <div className="p-3 border rounded text-center text-sm text-muted-foreground bg-muted">
+                            {loadingAircraft ? <div className="p-3 border rounded text-center text-sm text-muted-foreground bg-muted">
                                 Carregando aeronaves...
-                              </div>
-                            ) : aircraftOptions.length === 0 ? (
-                              <div className="p-3 border border-yellow-300 rounded text-center text-sm text-yellow-700 bg-yellow-50">
+                              </div> : aircraftOptions.length === 0 ? <div className="p-3 border border-yellow-300 rounded text-center text-sm text-yellow-700 bg-yellow-50">
                                 Nenhuma aeronave disponível
-                              </div>
-                            ) : (
-                              <Select
-                                value={ownership.aircraft}
-                                onValueChange={(v) => updateAircraftOwnership(index, 'aircraft', v)}
-                              >
+                              </div> : <Select value={ownership.aircraft} onValueChange={v => updateAircraftOwnership(index, 'aircraft', v)}>
                                 <SelectTrigger className="w-full bg-background">
                                   <SelectValue placeholder="Selecione a aeronave..." />
                                 </SelectTrigger>
                                 <SelectContent className="max-h-64">
-                                  {aircraftOptions.length === 0 ? (
-                                    <div className="p-2 text-sm text-muted-foreground text-center">
+                                  {aircraftOptions.length === 0 ? <div className="p-2 text-sm text-muted-foreground text-center">
                                       Nenhuma aeronave disponível
-                                    </div>
-                                  ) : (
-                                    aircraftOptions.map((a) => (
-                                      <SelectItem key={a.id} value={a.id}>
+                                    </div> : aircraftOptions.map(a => <SelectItem key={a.id} value={a.id}>
                                         <div className="flex items-center gap-2">
                                           <span className="font-semibold text-primary">{a.registration}</span>
                                           <span className="text-muted-foreground">-</span>
                                           <span>{a.model}</span>
                                         </div>
-                                      </SelectItem>
-                                    ))
-                                  )}
+                                      </SelectItem>)}
                                 </SelectContent>
-                              </Select>
-                            )}
+                              </Select>}
                           </div>
 
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => removeAircraftOwnership(index)}
-                            className="h-9 w-9 p-0 mt-7"
-                            title="Remover"
-                          >
+                          <Button type="button" variant="destructive" size="sm" onClick={() => removeAircraftOwnership(index)} className="h-9 w-9 p-0 mt-7" title="Remover">
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
 
                         <div>
                           <Label className="text-sm text-muted-foreground mb-1 block">Percentual de Participação (%)</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            value={ownership.ownership_percentage}
-                            onChange={(e) => updateAircraftOwnership(index, 'ownership_percentage', parseFloat(e.target.value) || 0)}
-                            placeholder="Ex: 50"
-                            className="text-right"
-                          />
+                          <Input type="number" min="0" max="100" step="0.01" value={ownership.ownership_percentage} onChange={e => updateAircraftOwnership(index, 'ownership_percentage', parseFloat(e.target.value) || 0)} placeholder="Ex: 50" className="text-right" />
                           <p className="text-xs text-muted-foreground mt-1">Sua participação nesta aeronave</p>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      </div>)}
+                  </div>}
               </div>
 
               <div>
                 <Label htmlFor="status">Status</Label>
-                <Select value={(formData as any).status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
+                <Select value={(formData as any).status} onValueChange={v => setFormData({
+                  ...formData,
+                  status: v
+                })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o status" />
                   </SelectTrigger>
@@ -1233,15 +967,10 @@ export default function Clientes() {
 
               <div className="col-span-2">
                 <Label htmlFor="observations">Observações</Label>
-                <Textarea
-                  id="observations"
-                  value={formData.observations}
-                  onChange={(e) =>
-                    setFormData({ ...formData, observations: e.target.value })
-                  }
-                  placeholder="Informações adicionais sobre o cliente"
-                  rows={3}
-                />
+                <Textarea id="observations" value={formData.observations} onChange={e => setFormData({
+                  ...formData,
+                  observations: e.target.value
+                })} placeholder="Informações adicionais sobre o cliente" rows={3} />
               </div>
             </div>
           </TabsContent>
@@ -1257,21 +986,14 @@ export default function Clientes() {
                   </div>
 
                   <div className="flex items-center gap-4">
-                    {logoPreview && (
-                      <Avatar className="h-20 w-20">
+                    {logoPreview && <Avatar className="h-20 w-20">
                         <AvatarImage src={logoPreview} alt="Logo" />
                         <AvatarFallback>
                           <Image className="h-8 w-8" />
                         </AvatarFallback>
-                      </Avatar>
-                    )}
+                      </Avatar>}
                     <div className="flex-1">
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleLogoChange}
-                        className="cursor-pointer"
-                      />
+                      <Input type="file" accept="image/*" onChange={handleLogoChange} className="cursor-pointer" />
                     </div>
                   </div>
                 </div>
@@ -1285,22 +1007,12 @@ export default function Clientes() {
                   </div>
 
                   <div className="space-y-2">
-                    <Input
-                      type="file"
-                      multiple
-                      onChange={handleDocumentChange}
-                      className="cursor-pointer"
-                    />
+                    <Input type="file" multiple onChange={handleDocumentChange} className="cursor-pointer" />
                   </div>
 
-                  {documentFiles.length > 0 && (
-                    <div className="space-y-2">
+                  {documentFiles.length > 0 && <div className="space-y-2">
                       <Label className="text-sm">Novos documentos:</Label>
-                      {documentFiles.map((file, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-2 border rounded-lg"
-                        >
+                      {documentFiles.map((file, index) => <div key={index} className="flex items-center justify-between p-2 border rounded-lg">
                           <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4 text-muted-foreground" />
                             <span className="text-sm">{file.name}</span>
@@ -1308,51 +1020,26 @@ export default function Clientes() {
                               ({(file.size / 1024).toFixed(1)} KB)
                             </span>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeDocument(index)}
-                            className="h-6 w-6 p-0"
-                          >
+                          <Button variant="ghost" size="sm" onClick={() => removeDocument(index)} className="h-6 w-6 p-0">
                             <X className="h-4 w-4" />
                           </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        </div>)}
+                    </div>}
 
-                  {editingCliente?.documents && editingCliente.documents.length > 0 && (
-                    <div className="space-y-2">
+                  {editingCliente?.documents && editingCliente.documents.length > 0 && <div className="space-y-2">
                       <Label className="text-sm">Documentos existentes:</Label>
-                      {editingCliente.documents.map((doc, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-2 border rounded-lg bg-muted/50"
-                        >
+                      {editingCliente.documents.map((doc, index) => <div key={index} className="flex items-center justify-between p-2 border rounded-lg bg-muted/50">
                           <div className="flex items-center gap-2">
                             <FileText className="h-4 w-4 text-muted-foreground" />
-                            <a
-                              href={doc.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm hover:underline"
-                            >
+                            <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-sm hover:underline">
                               {doc.name}
                             </a>
                           </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeDocumentFromEditing(index)}
-                            className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                          >
+                          <Button type="button" variant="ghost" size="sm" onClick={() => removeDocumentFromEditing(index)} className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10">
                             <X className="h-4 w-4" />
                           </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        </div>)}
+                    </div>}
                 </div>
               </div>
             </TabsContent>
@@ -1380,15 +1067,11 @@ export default function Clientes() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Excluir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Layout>
-  );
+    </Layout>;
 }
