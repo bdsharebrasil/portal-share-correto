@@ -496,7 +496,7 @@ export function FluxoCaixa() {
                               </div>
                             </div>
                             <div className="flex flex-col items-end gap-2 ml-2 flex-shrink-0">
-                              <span className={`font-semibold text-sm whitespace-nowrap ${mov.tipo_movimento === "entrada" ? "text-green-500" : "text-red-500"}`}>
+                              <span className={`font-semibold text-sm whitespace-nowrap ${mov.tipo_movimento === "entrada" ? "text-blue-500" : "text-red-500"}`}>
                                 {mov.tipo_movimento === "entrada" ? "+" : "-"}R$ {parseFloat(mov.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                               </span>
                               <Badge className={`${getStatusColor(mov.status)} text-xs`}>
