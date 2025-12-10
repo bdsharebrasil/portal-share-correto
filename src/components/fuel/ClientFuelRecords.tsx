@@ -177,35 +177,6 @@ export function ClientFuelRecords() {
     supplier.city_name.toLowerCase().includes(supplierSearch.toLowerCase())
   );
 
-  const getFilteredClients = async () => {
-    if (!selectedSupplier) {
-      return clients;
-    }
-
-    const { data: records, error } = await supabase
-      .from('abastecimentos')
-      .select('client_id')
-      .eq('local', selectedSupplier.city_name);
-
-    if (error) {
-      return clients;
-    }
-
-    const clientIds = new Set(records?.map(r => r.client_id) || []);
-    return clients.filter(c => clientIds.has(c.id));
-  };
-
-  const displayedClients = selectedSupplier
-    ? clients.filter(async (client) => {
-        const { data } = await supabase
-          .from('abastecimentos')
-          .select('id', { count: 'exact', head: true })
-          .eq('client_id', client.id)
-          .eq('local', selectedSupplier.city_name);
-        return !!data || data?.length! > 0;
-      })
-    : clients;
-
   if (selectedAircraft && selectedClient) {
     return (
       <FuelRecordsByAircraft
