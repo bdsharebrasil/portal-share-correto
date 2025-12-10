@@ -196,7 +196,15 @@ export function ClientFuelRecords() {
               <Building2 className="h-6 w-6 text-primary" />
               Selecione um Cliente
             </h2>
-            <p className="text-sm text-muted-foreground mt-1">{clients.length} cliente(s) disponível(is)</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {selectedSupplier ? (
+                <>
+                  {filteredClients.length} cliente(s) com registros em <span className="font-medium text-primary">{selectedSupplier.city_name}</span>
+                </>
+              ) : (
+                <>{clients.length} cliente(s) disponível(is)</>
+              )}
+            </p>
           </div>
 
           <div className="space-y-3">
