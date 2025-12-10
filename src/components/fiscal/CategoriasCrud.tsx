@@ -183,6 +183,9 @@ export function CategoriasCrud() {
                       <Badge variant={categoria.tipo === "receita" ? "default" : "destructive"} className="text-xs bg-red-900 rounded-lg shadow-md">
                         {categoria.tipo === "receita" ? "Receita" : "Despesa"}
                       </Badge>
+                      {categoria.categoria && <Badge variant="secondary" className="text-xs">
+                          {categoria.categoria}
+                        </Badge>}
                       {categoria.cliente_nome && <Badge variant="outline" className="text-xs">
                           {categoria.cliente_nome}
                         </Badge>}
