@@ -3,8 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ChevronRight, ChevronLeft, Building2, Plane, Search, X } from "lucide-react";
+import { ChevronRight, ChevronLeft, Building2, Plane } from "lucide-react";
 import { FuelRecordsByAircraft } from "./FuelRecordsByAircraft";
 
 interface Client {
@@ -23,25 +22,14 @@ interface Aircraft {
   model?: string;
 }
 
-interface FuelSupplier {
-  id: string;
-  supplier_name: string;
-  city_name: string;
-}
-
 export function ClientFuelRecords() {
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [aircrafts, setAircrafts] = useState<Aircraft[]>([]);
   const [selectedAircraft, setSelectedAircraft] = useState<Aircraft | null>(null);
-  const [suppliers, setSuppliers] = useState<FuelSupplier[]>([]);
-  const [selectedSupplier, setSelectedSupplier] = useState<FuelSupplier | null>(null);
-  const [supplierSearch, setSupplierSearch] = useState("");
-  const [filteredClients, setFilteredClients] = useState<Client[]>([]);
 
   useEffect(() => {
     loadClients();
-    loadSuppliers();
   }, []);
 
   useEffect(() => {
@@ -49,14 +37,6 @@ export function ClientFuelRecords() {
       loadClientAircrafts();
     }
   }, [selectedClient]);
-
-  useEffect(() => {
-    if (selectedSupplier) {
-      filterClientsBySupplier();
-    } else {
-      setFilteredClients(clients);
-    }
-  }, [selectedSupplier, clients]);
 
   const loadSuppliers = async () => {
     const { data, error } = await supabase
@@ -196,78 +176,20 @@ export function ClientFuelRecords() {
               <Building2 className="h-6 w-6 text-primary" />
               Selecione um Cliente
             </h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              {selectedSupplier ? (
-                <>
-                  {filteredClients.length} cliente(s) com registros em <span className="font-medium text-primary">{selectedSupplier.city_name}</span>
-                </>
-              ) : (
-                <>{clients.length} cliente(s) disponível(is)</>
-              )}
-            </p>
+            <p className="text-sm text-muted-foreground mt-1">{clients.length} cliente(s) disponível(is)</p>
           </div>
 
-          <div className="space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar fornecedor de combustível..."
-                value={supplierSearch}
-                onChange={(e) => setSupplierSearch(e.target.value)}
-                className="pl-10 pr-4"
-              />
-
-              {supplierSearch && filteredSuppliers.length > 0 && (
-                <div className="absolute top-full left-0 right-0 bg-card border border-border rounded-b-md shadow-lg z-50 max-h-64 overflow-y-auto">
-                  {filteredSuppliers.map((supplier) => (
-                    <button
-                      key={supplier.id}
-                      onClick={() => handleSupplierSelect(supplier)}
-                      className="w-full text-left px-4 py-3 hover:bg-muted transition-colors border-b border-border/50 last:border-b-0"
-                    >
-                      <p className="font-medium text-foreground">{supplier.supplier_name}</p>
-                      <p className="text-xs text-muted-foreground">{supplier.city_name}</p>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {selectedSupplier && (
-              <Card className="border border-primary/30 bg-primary/5">
-                <CardContent className="p-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{selectedSupplier.supplier_name}</p>
-                    <p className="text-xs text-muted-foreground">{selectedSupplier.city_name}</p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleClearSupplier}
-                    className="h-8 w-8 p-0 hover:bg-primary/10"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {filteredClients.length === 0 ? (
+          {clients.length === 0 ? (
             <Card className="border border-border/50">
               <CardContent className="py-16 text-center">
                 <Building2 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                <p className="font-medium text-foreground">
-                  {selectedSupplier ? "Nenhum cliente encontrado para este fornecedor" : "Nenhum cliente cadastrado"}
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {selectedSupplier ? "Tente selecionar outro fornecedor" : "Crie um cliente primeiro para começar"}
-                </p>
+                <p className="font-medium text-foreground">Nenhum cliente cadastrado</p>
+                <p className="text-sm text-muted-foreground mt-1">Crie um cliente primeiro para começar</p>
               </CardContent>
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredClients.map((client) => (
+              {clients.map((client) => (
                 <Card
                   key={client.id}
                   className="cursor-pointer border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-200 group"
