@@ -49,11 +49,25 @@ export function ClientFuelRecords() {
     }
   }, [selectedClient]);
 
+  const loadSuppliers = async () => {
+    const { data, error } = await supabase
+      .from('fuel_suppliers')
+      .select('id, supplier_name, city_name')
+      .order('supplier_name', { ascending: true });
+
+    if (error) {
+      toast.error('Erro ao carregar fornecedores');
+      return;
+    }
+
+    setSuppliers(data || []);
+  };
+
   const loadClients = async () => {
     const { data, error } = await supabase
       .from('clients')
       .select(`
-        id, 
+        id,
         company_name,
         client_aircraft (
           aircraft_id,
