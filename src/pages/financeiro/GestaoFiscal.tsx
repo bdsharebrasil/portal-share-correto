@@ -36,7 +36,7 @@ export default function GestaoFiscal() {
         <div className="space-y-6 pb-8 mb-[80px] my-0 py-[2px] px-0">
           <div className="flex items-center justify-between py-0 my-0 px-[13px]">
             <div className="flex items-center gap-4">
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-primary/30 via-primary/15 to-primary/5 border border-primary/30 shadow-lg shadow-primary/10">
+              <div className="p-3 bg-gradient-to-br from-primary/30 via-primary/15 to-primary/5 border-primary/30 shadow-primary/10 border-0 rounded-xl shadow">
                 <DollarSign className="w-8 h-8 text-primary" />
               </div>
               <div>
