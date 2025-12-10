@@ -60,6 +60,12 @@ const baseMenuGroups: MenuGroup[] = [
     href: "/financeiro/dashboard-gestor",
     itemId: "dashboard_gestor",
   },
+  {
+    title: "Acesso Gestor",
+    icon: ExternalLink,
+    isSSOLink: true,
+    itemId: "acesso_gestor",
+  },
     ],
   },
   {
