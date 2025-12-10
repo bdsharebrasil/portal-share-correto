@@ -191,7 +191,6 @@ export function useCategoriasConta() {
       const { data, error } = await supabase
         .from("contas_bancarias")
         .select("*")
-        .eq("empresa_id", DEFAULT_EMPRESA_ID)
         .eq("ativo", true)
         .order("nome");
 
@@ -208,7 +207,6 @@ export function useCategoriasConta() {
         tipo_conta: conta.tipo_conta || "corrente",
         ativo: conta.ativo ?? true,
         saldo: conta.saldo || 0,
-        empresa_id: conta.empresa_id,
         criado_por: conta.criado_por
       }));
 
@@ -241,7 +239,6 @@ export function useCategoriasConta() {
           tipo_conta: conta.tipo_conta || "corrente",
           ativo: true,
           saldo: conta.saldo || 0,
-          empresa_id: DEFAULT_EMPRESA_ID,
           criado_por: user.id
         }]);
 
@@ -275,8 +272,7 @@ export function useCategoriasConta() {
       const { error } = await supabase
         .from("contas_bancarias")
         .update(updateData)
-        .eq("id", id)
-        .eq("empresa_id", DEFAULT_EMPRESA_ID);
+        .eq("id", id);
 
       if (error) {
         toast.error(`Erro ao atualizar conta: ${error.message}`);
@@ -300,8 +296,7 @@ export function useCategoriasConta() {
           ativo: false,
           atualizado_em: new Date().toISOString()
         })
-        .eq("id", id)
-        .eq("empresa_id", DEFAULT_EMPRESA_ID);
+        .eq("id", id);
 
       if (error) {
         toast.error(`Erro ao excluir conta: ${error.message}`);
