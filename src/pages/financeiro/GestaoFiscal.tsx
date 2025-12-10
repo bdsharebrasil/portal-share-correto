@@ -103,7 +103,7 @@ export default function GestaoFiscal() {
             </div>
 
             {/* Tab Content */}
-            <div className="flex-1 pt-6">
+            <div className="flex-1 pt-6 my-[16px]">
               <TabsContent value="fluxo" className="mt-0">
                 <FluxoCaixa />
               </TabsContent>
@@ -113,7 +113,7 @@ export default function GestaoFiscal() {
               </TabsContent>
 
               <TabsContent value="pagamento-salario" className="mt-0">
-                <PagamentoSalarioTab />
+                <PagamentoSalarioTab className="py-[8px] my-[20px]" />
               </TabsContent>
 
               <TabsContent value="saida" className="mt-0">
