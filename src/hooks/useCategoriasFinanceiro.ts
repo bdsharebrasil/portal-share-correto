@@ -16,6 +16,7 @@ export interface CategoriaFinanceiro {
   id: string;
   nome: string;
   tipo: "receita" | "despesa";
+  categoria?: string | null;
   descricao?: string;
   ativo?: boolean;
   cliente_id?: string | null;
@@ -56,6 +57,7 @@ export function useCategoriasFinanceiro() {
         id: cat.id,
         nome: cat.nome,
         tipo: cat.tipo as "receita" | "despesa",
+        categoria: cat.categoria || null,
         descricao: cat.descricao || undefined,
         ativo: cat.ativo ?? true,
         cliente_id: cat.cliente_id || null,
@@ -86,6 +88,7 @@ export function useCategoriasFinanceiro() {
         .insert([{
           nome: categoria.nome,
           tipo: categoria.tipo,
+          categoria: categoria.categoria || null,
           descricao: categoria.descricao || null,
           ativo: true,
           cliente_id: categoria.cliente_id || null,
@@ -112,6 +115,7 @@ export function useCategoriasFinanceiro() {
 
       if (updates.nome !== undefined) updateData.nome = updates.nome;
       if (updates.tipo !== undefined) updateData.tipo = updates.tipo;
+      if (updates.categoria !== undefined) updateData.categoria = updates.categoria || null;
       if (updates.descricao !== undefined) updateData.descricao = updates.descricao || null;
       if (updates.cliente_id !== undefined) updateData.cliente_id = updates.cliente_id || null;
       if (updates.cliente_nome !== undefined) updateData.cliente_nome = updates.cliente_nome || null;
