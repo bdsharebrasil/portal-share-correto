@@ -94,49 +94,111 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
     setRecords(data || []);
   };
 
+  const uploadFile = async (file: File | null, fieldName: string): Promise<string | null> => {
+    if (!file) return null;
+
+    try {
+      const timestamp = Date.now();
+      const fileName = `${client.id}/${aircraft.id}/${timestamp}-${fieldName}-${file.name}`;
+
+      const { error } = await supabase.storage
+        .from("abastecimento")
+        .upload(fileName, file);
+
+      if (error) {
+        toast.error(`Erro ao fazer upload do ${fieldName}`);
+        return null;
+      }
+
+      const { data } = supabase.storage
+        .from("abastecimento")
+        .getPublicUrl(fileName);
+
+      return data.publicUrl;
+    } catch (err) {
+      toast.error(`Erro ao processar upload do ${fieldName}`);
+      return null;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const litros = parseFloat(formData.litros);
-    const valorUnitario = parseFloat(formData.valor_unitario);
-    const valorTotal = litros * valorUnitario;
-
-    const recordData = {
-      client_id: client.id,
-      aeronave_id: aircraft.id,
-      data: formData.data,
-      trecho: formData.trecho || null,
-      local: formData.local || null,
-      comanda: formData.comanda,
-      litros: litros,
-      valor_unitario: valorUnitario,
-      valor_total: valorTotal,
-      abastecimento_galoes: formData.abastecimento_galoes ? parseFloat(formData.abastecimento_galoes) : null,
-      ano: formData.ano,
-      abastecedor: "Sistema",
-    };
-
-    if (editingRecord) {
-      const { error } = await supabase.from("abastecimentos").update(recordData).eq("id", editingRecord.id);
-
-      if (error) {
-        toast.error("Erro ao atualizar registro");
-        return;
-      }
-      toast.success("Registro atualizado com sucesso");
-    } else {
-      const { error } = await supabase.from("abastecimentos").insert(recordData);
-
-      if (error) {
-        toast.error("Erro ao criar registro");
-        return;
-      }
-      toast.success("Registro criado com sucesso");
+    // Verificar se comanda está preenchida
+    if (!formData.comanda.trim() && !editingRecord) {
+      setShowConfirmation(true);
+      return;
     }
 
-    resetForm();
-    setIsDialogOpen(false);
-    loadRecords();
+    await saveRecord();
+  };
+
+  const saveRecord = async () => {
+    setIsUploading(true);
+    setShowConfirmation(false);
+
+    try {
+      const litros = parseFloat(formData.litros);
+      const valorUnitario = parseFloat(formData.valor_unitario);
+      const valorTotal = litros * valorUnitario;
+
+      // Fazer upload dos arquivos
+      let comandaUrl = uploadedFiles.comanda_url;
+      let notaUrl = uploadedFiles.nota_url;
+      let boletoUrl = uploadedFiles.boleto_url;
+
+      if (formData.comanda_file && !comandaUrl) {
+        comandaUrl = await uploadFile(formData.comanda_file, "comanda") || "";
+      }
+      if (formData.nota_file && !notaUrl) {
+        notaUrl = await uploadFile(formData.nota_file, "nota-fiscal") || "";
+      }
+      if (formData.boleto_file && !boletoUrl) {
+        boletoUrl = await uploadFile(formData.boleto_file, "boleto") || "";
+      }
+
+      const recordData = {
+        client_id: client.id,
+        aeronave_id: aircraft.id,
+        data: formData.data,
+        trecho: formData.trecho || null,
+        local: formData.local || null,
+        comanda: formData.comanda || null,
+        litros: litros,
+        valor_unitario: valorUnitario,
+        valor_total: valorTotal,
+        abastecimento_galoes: formData.abastecimento_galoes ? parseFloat(formData.abastecimento_galoes) : null,
+        ano: formData.ano,
+        abastecedor: "Sistema",
+        comanda_url: comandaUrl || null,
+        nota_url: notaUrl || null,
+        boleto_url: boletoUrl || null,
+      };
+
+      if (editingRecord) {
+        const { error } = await supabase.from("abastecimentos").update(recordData).eq("id", editingRecord.id);
+
+        if (error) {
+          toast.error("Erro ao atualizar registro");
+          return;
+        }
+        toast.success("Registro atualizado com sucesso");
+      } else {
+        const { error } = await supabase.from("abastecimentos").insert(recordData);
+
+        if (error) {
+          toast.error("Erro ao criar registro");
+          return;
+        }
+        toast.success("Registro criado com sucesso");
+      }
+
+      resetForm();
+      setIsDialogOpen(false);
+      loadRecords();
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleEdit = (record: FuelRecord) => {
