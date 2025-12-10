@@ -643,9 +643,9 @@ export default function DiarioBordoDetalhes() {
                             {filteredAerodromes.slice(0, 10).map(a => <button key={a.id} onClick={() => {
                               updateEntry(index, 'para', a.designativo);
                               setParaSearchOpen(null);
-                            }} className="w-full text-left px-2 py-1.5 text-xs hover:bg-slate-300 border-b bg-slate-50 text-slate-900">
+                            }} className="w-full text-left px-2 py-1.5 text-xs border-b text-slate-100 rounded-xl bg-slate-950 hover:bg-slate-800">
                               <span className="font-bold">{a.designativo}</span>
-                              <span className="text-slate-600 ml-1 text-[10px]">{a.name?.substring(0, 15)}</span>
+                              <span className="ml-1 text-[10px] text-slate-400">{a.name?.substring(0, 15)}</span>
                             </button>)}
                           </div>
                         </PopoverContent>
