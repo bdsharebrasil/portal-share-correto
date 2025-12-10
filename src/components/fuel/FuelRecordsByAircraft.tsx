@@ -33,6 +33,9 @@ interface FuelRecord {
   valor_total: number;
   abastecimento_galoes: number | null;
   ano: string | null;
+  comanda_url: string | null;
+  nota_url: string | null;
+  boleto_url: string | null;
 }
 
 interface Props {
