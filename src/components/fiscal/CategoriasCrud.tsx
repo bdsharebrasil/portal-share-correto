@@ -81,6 +81,7 @@ export function CategoriasCrud() {
         success = await updateCategoria(editingCategoria.id, {
           nome: formData.nome,
           tipo: formData.tipo,
+          categoria: formData.categoria || null,
           descricao: formData.descricao,
           cliente_id: formData.cliente_id || null,
           cliente_nome: formData.cliente_nome || null
@@ -90,6 +91,7 @@ export function CategoriasCrud() {
         success = await addCategoria({
           nome: formData.nome,
           tipo: formData.tipo,
+          categoria: formData.categoria || null,
           descricao: formData.descricao,
           cliente_id: formData.cliente_id || null,
           cliente_nome: formData.cliente_nome || null
@@ -101,6 +103,7 @@ export function CategoriasCrud() {
         setFormData({
           nome: "",
           tipo: "receita",
+          categoria: "",
           descricao: "",
           cliente_id: "",
           cliente_nome: ""
