@@ -26,53 +26,50 @@ export function TimeClockWidget() {
   }, []);
   const loadTodayEntry = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: {
+          user
+        }
+      } = await supabase.auth.getUser();
       if (!user) return;
-
       const today = format(new Date(), 'yyyy-MM-dd');
-      const { data, error } = await supabase
-        .from('time_entries')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('entry_date', today)
-        .maybeSingle();
-
+      const {
+        data,
+        error
+      } = await supabase.from('time_entries').select('*').eq('user_id', user.id).eq('entry_date', today).maybeSingle();
       if (error && error.code !== 'PGRST116') {
         console.error('Erro ao carregar ponto:', error);
         return;
       }
-
       setTodayEntry(data);
     } catch (error) {
       console.error('Erro ao carregar ponto:', error);
     }
   };
-
   const handleClockIn = async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: {
+          user
+        }
+      } = await supabase.auth.getUser();
       if (!user) {
         toast.error("Usuário não autenticado");
         return;
       }
-
       const today = format(new Date(), 'yyyy-MM-dd');
       const now = new Date().toISOString();
-
-      const { data, error } = await supabase
-        .from('time_entries')
-        .insert({
-          user_id: user.id,
-          entry_date: today,
-          clock_in: now,
-          status: 'em_andamento'
-        })
-        .select()
-        .single();
-
+      const {
+        data,
+        error
+      } = await supabase.from('time_entries').insert({
+        user_id: user.id,
+        entry_date: today,
+        clock_in: now,
+        status: 'em_andamento'
+      }).select().single();
       if (error) throw error;
-
       setTodayEntry(data);
       toast.success("Ponto iniciado com sucesso!");
       await loadTodayEntry();
@@ -83,19 +80,17 @@ export function TimeClockWidget() {
       setLoading(false);
     }
   };
-
   const handleLunchStart = async () => {
     if (!todayEntry) return;
     setLoading(true);
     try {
       const now = new Date().toISOString();
-      const { error } = await supabase
-        .from('time_entries')
-        .update({ lunch_start: now })
-        .eq('id', todayEntry.id);
-
+      const {
+        error
+      } = await supabase.from('time_entries').update({
+        lunch_start: now
+      }).eq('id', todayEntry.id);
       if (error) throw error;
-
       toast.success("Início do almoço registrado!");
       await loadTodayEntry();
     } catch (error) {
@@ -105,19 +100,17 @@ export function TimeClockWidget() {
       setLoading(false);
     }
   };
-
   const handleLunchEnd = async () => {
     if (!todayEntry) return;
     setLoading(true);
     try {
       const now = new Date().toISOString();
-      const { error } = await supabase
-        .from('time_entries')
-        .update({ lunch_end: now })
-        .eq('id', todayEntry.id);
-
+      const {
+        error
+      } = await supabase.from('time_entries').update({
+        lunch_end: now
+      }).eq('id', todayEntry.id);
       if (error) throw error;
-
       toast.success("Retorno do almoço registrado!");
       await loadTodayEntry();
     } catch (error) {
@@ -127,7 +120,6 @@ export function TimeClockWidget() {
       setLoading(false);
     }
   };
-
   const handleClockOut = async () => {
     if (!todayEntry) return;
     setLoading(true);
@@ -135,9 +127,8 @@ export function TimeClockWidget() {
       const now = new Date().toISOString();
       const clockIn = new Date(todayEntry.clock_in!);
       const clockOut = new Date(now);
-      
       let totalMinutes = (clockOut.getTime() - clockIn.getTime()) / (1000 * 60);
-      
+
       // Subtrai tempo de almoço se houver
       if (todayEntry.lunch_start && todayEntry.lunch_end) {
         const lunchStart = new Date(todayEntry.lunch_start);
@@ -145,20 +136,15 @@ export function TimeClockWidget() {
         const lunchMinutes = (lunchEnd.getTime() - lunchStart.getTime()) / (1000 * 60);
         totalMinutes -= lunchMinutes;
       }
-      
       const totalHours = Number((totalMinutes / 60).toFixed(2));
-
-      const { error } = await supabase
-        .from('time_entries')
-        .update({ 
-          clock_out: now,
-          total_hours: totalHours,
-          status: 'concluido'
-        })
-        .eq('id', todayEntry.id);
-
+      const {
+        error
+      } = await supabase.from('time_entries').update({
+        clock_out: now,
+        total_hours: totalHours,
+        status: 'concluido'
+      }).eq('id', todayEntry.id);
       if (error) throw error;
-
       toast.success("Ponto encerrado com sucesso!");
       await loadTodayEntry();
     } catch (error) {
@@ -172,19 +158,23 @@ export function TimeClockWidget() {
   const canEndLunch = todayEntry && todayEntry.lunch_start && !todayEntry.lunch_end;
   const canClockOut = todayEntry && todayEntry.clock_in && !todayEntry.clock_out && (!todayEntry.lunch_start || todayEntry.lunch_end);
   return <Card className="border border-border/50">
-      <CardHeader className="pb-0">
-        <CardTitle className="flex items-center gap-2 text-sm">
+      <CardHeader className="pb-0 py-0">
+        <CardTitle className="flex items-center gap-2 py-[6px] text-xs text-center">
           <Clock className="h-4 w-4" />
           Ponto
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-1 py-2">
+      <CardContent className="space-y-1 py-0 rounded-xl shadow-xl border-gray-900">
         <div className="text-center py-0">
           <p className="text-3xl font-bold text-foreground tabular-nums">
-            {format(currentTime, 'HH:mm:ss', { locale: ptBR })}
+            {format(currentTime, 'HH:mm:ss', {
+            locale: ptBR
+          })}
           </p>
-          <p className="text-xs text-muted-foreground mt-0">
-            {format(currentTime, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+          <p className="text-xs text-muted-foreground mt-0 py-[2px]">
+            {format(currentTime, "EEEE, dd 'de' MMMM", {
+            locale: ptBR
+          })}
           </p>
         </div>
 
@@ -195,7 +185,7 @@ export function TimeClockWidget() {
               </p>}
           </div> : <div className="space-y-1">
             {!todayEntry && <div className="flex justify-center py-1">
-              <Button onClick={handleClockIn} disabled={loading} variant="secondary" size="sm">
+              <Button onClick={handleClockIn} disabled={loading} variant="secondary" size="sm" className="py-0 bg-[#060c1c]/80">
                 <Play className="h-4 w-4 mr-1.5" />
                 Iniciar Dia
               </Button>

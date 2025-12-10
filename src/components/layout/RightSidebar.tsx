@@ -118,7 +118,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
       {isOpen && <div className="p-4 space-y-6">
           {/* Horário do Sistema */}
           <Card className="bg-gradient-to-b from-slate-800 to-slate-900 border-slate-700 shadow-lg rounded-lg">
-            <CardContent className="py-6 px-4">
+            <CardContent className="py-[7px] px-[9px]">
               <div className="text-center space-y-2">
                 <div className="flex items-center justify-center gap-2">
                   <Clock className="h-5 w-5 text-cyan-400" />
