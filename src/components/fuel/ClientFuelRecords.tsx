@@ -131,6 +131,21 @@ export function ClientFuelRecords() {
     }
   };
 
+  const handleSupplierSelect = (supplier: FuelSupplier) => {
+    setSelectedSupplier(supplier);
+    setSupplierSearch("");
+  };
+
+  const handleClearSupplier = () => {
+    setSelectedSupplier(null);
+    setSupplierSearch("");
+  };
+
+  const filteredSuppliers = suppliers.filter(supplier =>
+    supplier.supplier_name.toLowerCase().includes(supplierSearch.toLowerCase()) ||
+    supplier.city_name.toLowerCase().includes(supplierSearch.toLowerCase())
+  );
+
   if (selectedAircraft && selectedClient) {
     return (
       <FuelRecordsByAircraft
