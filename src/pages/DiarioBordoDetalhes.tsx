@@ -475,7 +475,7 @@ export default function DiarioBordoDetalhes() {
             <Button variant="ghost" size="icon" onClick={() => navigate('/diario-bordo')}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <img src="/logoshare.branco.png" alt="Share Brasil Logo" className="h-16 w-auto" />
+            <img src="/logoshare.branco.png" alt="Share Brasil Logo" className="h-16 w-auto shadow-sm object-cover" />
             <div>
               <h1 className="text-2xl font-bold text-slate-50">
                 DIÁRIO {monthName} {selectedYear} <span className="text-green-400">{aircraft?.registration}</span>
