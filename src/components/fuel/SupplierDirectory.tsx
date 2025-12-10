@@ -147,7 +147,9 @@ export function SupplierDirectory() {
             <MapPin className="h-6 w-6 text-primary" />
             Fornecedores de Combustível
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">{suppliers.length} fornecedor(es) cadastrado(s)</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {filteredSuppliers.length} de {suppliers.length} fornecedor(es)
+          </p>
         </div>
         <Dialog
           open={isDialogOpen}
@@ -270,6 +272,24 @@ export function SupplierDirectory() {
         </Dialog>
       </div>
 
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por nome, cidade ou ICAO..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10 pr-10"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
       <Card className="border border-border/50 shadow-card">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -287,7 +307,7 @@ export function SupplierDirectory() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {suppliers.map((supplier) => (
+                {filteredSuppliers.map((supplier) => (
                   <TableRow
                     key={supplier.id}
                     className="border-b border-border/50 hover:bg-muted/30 transition-colors"
@@ -344,11 +364,15 @@ export function SupplierDirectory() {
                 ))}
               </TableBody>
             </Table>
-            {suppliers.length === 0 && (
+            {filteredSuppliers.length === 0 && (
               <div className="text-center py-16 text-muted-foreground">
                 <MapPin className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                <p className="font-medium">Nenhum fornecedor cadastrado</p>
-                <p className="text-sm mt-1">Comece criando seu primeiro fornecedor</p>
+                <p className="font-medium">
+                  {searchQuery ? "Nenhum fornecedor encontrado" : "Nenhum fornecedor cadastrado"}
+                </p>
+                <p className="text-sm mt-1">
+                  {searchQuery ? "Tente ajustar sua busca" : "Comece criando seu primeiro fornecedor"}
+                </p>
               </div>
             )}
           </div>
