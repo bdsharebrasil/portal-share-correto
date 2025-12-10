@@ -494,15 +494,116 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
               </div>
 
               {formData.litros && formData.valor_unitario && (
-                <div className="bg-gradient-to-r from-success/10 to-success/5 border border-success/20 p-4 rounded-lg">
-                  <p className="text-sm text-muted-foreground mb-1">Valor Total</p>
-                  <p className="text-2xl font-bold text-success">
+                <div className="bg-gradient-to-r from-success/10 to-success/5 border border-success/20 p-3 rounded-lg">
+                  <p className="text-xs text-muted-foreground mb-1">Valor Total</p>
+                  <p className="text-xl font-bold text-success">
                     R$ {(parseFloat(formData.litros) * parseFloat(formData.valor_unitario)).toFixed(2)}
                   </p>
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
+              <div>
+                <Label className="text-base font-semibold mb-3 block">Anexos</Label>
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-sm">Comanda (PDF)</Label>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <Input
+                        type="file"
+                        accept=".pdf"
+                        onChange={(e) => setFormData({ ...formData, comanda_file: e.target.files?.[0] || null })}
+                        className="flex-1"
+                      />
+                      {(formData.comanda_file || formData.comanda_url) && (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setFormData({ ...formData, comanda_file: null });
+                            setUploadedFiles({ ...uploadedFiles, comanda_url: "" });
+                          }}
+                          className="h-9 w-9"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    {formData.comanda_file && (
+                      <p className="text-xs text-success mt-1">✓ {formData.comanda_file.name}</p>
+                    )}
+                    {formData.comanda_url && !formData.comanda_file && (
+                      <p className="text-xs text-muted-foreground mt-1">Arquivo já enviado</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label className="text-sm">Nota Fiscal (PDF)</Label>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <Input
+                        type="file"
+                        accept=".pdf"
+                        onChange={(e) => setFormData({ ...formData, nota_file: e.target.files?.[0] || null })}
+                        className="flex-1"
+                      />
+                      {(formData.nota_file || formData.nota_url) && (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setFormData({ ...formData, nota_file: null });
+                            setUploadedFiles({ ...uploadedFiles, nota_url: "" });
+                          }}
+                          className="h-9 w-9"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    {formData.nota_file && (
+                      <p className="text-xs text-success mt-1">✓ {formData.nota_file.name}</p>
+                    )}
+                    {formData.nota_url && !formData.nota_file && (
+                      <p className="text-xs text-muted-foreground mt-1">Arquivo já enviado</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <Label className="text-sm">Boleto (PDF)</Label>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <Input
+                        type="file"
+                        accept=".pdf"
+                        onChange={(e) => setFormData({ ...formData, boleto_file: e.target.files?.[0] || null })}
+                        className="flex-1"
+                      />
+                      {(formData.boleto_file || formData.boleto_url) && (
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => {
+                            setFormData({ ...formData, boleto_file: null });
+                            setUploadedFiles({ ...uploadedFiles, boleto_url: "" });
+                          }}
+                          className="h-9 w-9"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    {formData.boleto_file && (
+                      <p className="text-xs text-success mt-1">✓ {formData.boleto_file.name}</p>
+                    )}
+                    {formData.boleto_url && !formData.boleto_file && (
+                      <p className="text-xs text-muted-foreground mt-1">Arquivo já enviado</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t sticky bottom-0 bg-background">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Cancelar
                 </Button>
