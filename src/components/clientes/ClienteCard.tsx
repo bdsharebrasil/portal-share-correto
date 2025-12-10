@@ -94,7 +94,7 @@ export function ClienteCard({
             </div>}
 
           {cliente.email && <div className="flex items-center gap-2.5 text-sm">
-              <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0 text-emerald-400" />
+              <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0 text-orange-400" />
               <span className="text-foreground truncate">{cliente.email}</span>
             </div>}
 
@@ -110,13 +110,13 @@ export function ClienteCard({
         </div>
 
         {/* Aeronaves */}
-        {cliente.aircraft_ownerships && cliente.aircraft_ownerships.length > 0 && <div className="mt-4 pt-3 border-t border-border/50">
+        {cliente.aircraft_ownerships && cliente.aircraft_ownerships.length > 0 && <div className="mt-4 pt-3 border-t border-border/50 py-[36px]">
             <div className="flex items-center gap-2 mb-2">
               <Plane className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Aeronaves</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {cliente.aircraft_ownerships.slice(0, 3).map((ownership, idx) => <Badge key={idx} variant="secondary" className="text-xs font-medium px-2 py-0.5 rounded-lg border border-slate-900">
+              {cliente.aircraft_ownerships.slice(0, 3).map((ownership, idx) => <Badge key={idx} variant="secondary" className="text-xs font-medium px-2 py-0.5 rounded-lg border border-slate-900 bg-[#03121c]/[0.84]">
                   {ownership.aircraft_registration} <span className="text-muted-foreground ml-1">({ownership.ownership_percentage}%)</span>
                 </Badge>)}
               {cliente.aircraft_ownerships.length > 3 && <Badge variant="outline" className="text-xs px-2 py-0.5">
