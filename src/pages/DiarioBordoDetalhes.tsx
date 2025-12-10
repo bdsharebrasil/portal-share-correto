@@ -468,7 +468,7 @@ export default function DiarioBordoDetalhes() {
   const filteredAerodromes = aerodromes?.filter(a => a.designativo?.toLowerCase().includes(searchValue.toLowerCase()) || a.name?.toLowerCase().includes(searchValue.toLowerCase())) || [];
   return <Layout>
     <div className="min-h-screen bg-slate-900">
-      <div className="container mx-auto p-4 space-y-4 bg-gray-950">
+      <div className="container mx-auto p-4 space-y-4 bg-[#070b12]/[0.47] shadow-2xl border-slate-400">
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4 p-4 rounded-lg border-2 border-[#8fbc8f] bg-sky-950">
           <div className="flex items-center gap-4">
@@ -562,7 +562,7 @@ export default function DiarioBordoDetalhes() {
                   <th colSpan={4} className="border border-gray-500 p-1 text-[10px] font-bold text-white bg-emerald-900">HORÁRIOS</th>
                   <th colSpan={5} className="border border-gray-500 p-1 text-[10px] font-bold text-white bg-sky-950">TEMPO DE VOO</th>
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-12">POUSOS</th>
-                  <th colSpan={2} className="border border-gray-500 p-1 text-[10px] font-bold text-white bg-[#1E90FF]">COMBUSTÍVEL</th>
+                  <th colSpan={2} className="border border-gray-500 p-1 text-[10px] font-bold text-white bg-sky-700">COMBUSTÍVEL</th>
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-14">CTM</th>
                   <th colSpan={2} className="border border-gray-500 p-1 text-[10px] font-bold text-white bg-cyan-950">CANAC</th>
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-12 bg-emerald-950">DIÁRIAS</th>
@@ -580,8 +580,8 @@ export default function DiarioBordoDetalhes() {
                   <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#1e40af] w-12">T NOITE</th>
                   <th className="border border-gray-500 p-1 text-[9px] font-bold text-white w-12 bg-sky-950">TOTAL</th>
                   <th className="border border-gray-500 p-1 text-[9px] font-bold text-white w-12 bg-[#021637]">IFR</th>
-                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#1E90FF] w-12">ABAST</th>
-                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#1E90FF] w-12">FUEL</th>
+                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white w-12 bg-cyan-700">ABAST</th>
+                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white w-12 bg-cyan-700">FUEL</th>
                   <th className="border border-gray-500 p-1 text-[9px] font-bold text-white w-14 bg-cyan-950">PIC</th>
                   <th className="border border-gray-500 p-1 text-[9px] font-bold text-white w-14 bg-cyan-950">SIC</th>
                 </tr>
