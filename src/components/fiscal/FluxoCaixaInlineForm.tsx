@@ -171,6 +171,11 @@ export function FluxoCaixaInlineForm({
       return;
     }
 
+    if (!formData.categoria || formData.categoria.trim() === "") {
+      toast.error("Categoria é obrigatória");
+      return;
+    }
+
     try {
       const valor = parseFloat(formData.valor);
       if (isNaN(valor) || valor <= 0) {
