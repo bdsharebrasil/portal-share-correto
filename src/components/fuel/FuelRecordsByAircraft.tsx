@@ -48,6 +48,8 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
   const [records, setRecords] = useState<FuelRecord[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<FuelRecord | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [formData, setFormData] = useState({
     data: "",
     trecho: "",
@@ -57,6 +59,17 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
     valor_unitario: "",
     abastecimento_galoes: "",
     ano: new Date().getFullYear().toString(),
+    comanda_file: null as File | null,
+    nota_file: null as File | null,
+    boleto_file: null as File | null,
+    comanda_url: "",
+    nota_url: "",
+    boleto_url: "",
+  });
+  const [uploadedFiles, setUploadedFiles] = useState({
+    comanda_url: "",
+    nota_url: "",
+    boleto_url: "",
   });
   const printRef = useRef<HTMLDivElement>(null);
 
