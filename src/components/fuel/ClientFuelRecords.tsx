@@ -34,9 +34,13 @@ export function ClientFuelRecords() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [aircrafts, setAircrafts] = useState<Aircraft[]>([]);
   const [selectedAircraft, setSelectedAircraft] = useState<Aircraft | null>(null);
+  const [suppliers, setSuppliers] = useState<FuelSupplier[]>([]);
+  const [selectedSupplier, setSelectedSupplier] = useState<FuelSupplier | null>(null);
+  const [supplierSearch, setSupplierSearch] = useState("");
 
   useEffect(() => {
     loadClients();
+    loadSuppliers();
   }, []);
 
   useEffect(() => {
