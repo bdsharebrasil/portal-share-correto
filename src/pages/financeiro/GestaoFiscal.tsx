@@ -11,15 +11,15 @@ import { ConfiguracoesFiscais } from "@/components/fiscal/ConfiguracoesFiscais";
 import { ContasPagar } from "@/components/fiscal/ContasPagar";
 import { ContasReceber } from "@/components/fiscal/ContasReceber";
 import { useUserRole } from "@/hooks/useUserRole";
-
 export default function GestaoFiscal() {
-  const { isAdmin, isGestorMaster, isFinanceiroMaster } = useUserRole();
-
+  const {
+    isAdmin,
+    isGestorMaster,
+    isFinanceiroMaster
+  } = useUserRole();
   const isAuthorized = isAdmin || isGestorMaster || isFinanceiroMaster;
-
   if (!isAuthorized) {
-    return (
-      <Layout>
+    return <Layout>
         <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
           <Card className="border-destructive/50 bg-destructive/5">
             <CardContent className="pt-6">
@@ -28,15 +28,12 @@ export default function GestaoFiscal() {
             </CardContent>
           </Card>
         </div>
-      </Layout>
-    );
+      </Layout>;
   }
-
-  return (
-    <Layout>
-      <div className="min-h-[calc(100vh-4rem)] flex flex-col bg-background">
+  return <Layout>
+      <div className="min-h-[calc(100vh-4rem)] flex-col bg-background flex items-start justify-center py-[48px] my-[40px] mb-[3px] pb-[19px] mt-0">
         {/* Header */}
-        <div className="space-y-6 pb-8">
+        <div className="space-y-6 pb-8 my-[37px] py-[48px] mb-[80px]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-2xl bg-gradient-to-br from-primary/30 via-primary/15 to-primary/5 border border-primary/30 shadow-lg shadow-primary/10">
@@ -54,72 +51,51 @@ export default function GestaoFiscal() {
             {/* Modern Tab Navigation */}
             <div className="w-full">
               <TabsList className="bg-gradient-to-r from-card/80 to-card/40 backdrop-blur-xl rounded-2xl p-2 border border-border/40 shadow-lg w-full inline-flex flex-wrap gap-2 h-auto justify-start">
-                <TabsTrigger
-                  value="fluxo"
-                  className="rounded-lg py-2.5 px-4 text-sm font-medium transition-all duration-300
+                <TabsTrigger value="fluxo" className="rounded-lg py-2.5 px-4 text-sm font-medium transition-all duration-300
                     data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/40
-                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/95 data-[state=active]:to-primary/85 data-[state=active]:text-primary-foreground data-[state=active]:shadow-md data-[state=active]:shadow-primary/30"
-                >
+                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary/95 data-[state=active]:to-primary/85 data-[state=active]:text-primary-foreground data-[state=active]:shadow-md data-[state=active]:shadow-primary/30">
                   <Wallet className="w-4 h-4 mr-2" />
                   Fluxo de Caixa
                 </TabsTrigger>
 
-                <TabsTrigger
-                  value="contas-recorrentes"
-                  className="rounded-lg py-2.5 px-4 text-sm font-medium transition-all duration-300
+                <TabsTrigger value="contas-recorrentes" className="rounded-lg py-2.5 px-4 text-sm font-medium transition-all duration-300
                     data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/40
-                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600/95 data-[state=active]:to-emerald-500/85 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-emerald-500/30"
-                >
+                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600/95 data-[state=active]:to-emerald-500/85 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-emerald-500/30">
                   <Repeat className="w-4 h-4 mr-2" />
                   Contas Recorrentes
                 </TabsTrigger>
 
-                <TabsTrigger
-                  value="pagamento-salario"
-                  className="rounded-lg py-2.5 px-4 text-sm font-medium transition-all duration-300
+                <TabsTrigger value="pagamento-salario" className="rounded-lg py-2.5 px-4 text-sm font-medium transition-all duration-300
                     data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/40
-                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600/95 data-[state=active]:to-emerald-500/85 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-emerald-500/30"
-                >
+                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600/95 data-[state=active]:to-emerald-500/85 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-emerald-500/30">
                   <Users className="w-4 h-4 mr-2" />
                   Salários
                 </TabsTrigger>
 
-                <TabsTrigger
-                  value="saida"
-                  className="rounded-lg py-2.5 px-4 text-sm font-medium transition-all duration-300
+                <TabsTrigger value="saida" className="rounded-lg py-2.5 px-4 text-sm font-medium transition-all duration-300
                     data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/40
-                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-600/95 data-[state=active]:to-sky-500/85 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-sky-500/30"
-                >
+                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-600/95 data-[state=active]:to-sky-500/85 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-sky-500/30">
                   <ArrowUp className="w-4 h-4 mr-2" />
                   NF Saída
                 </TabsTrigger>
 
-                <TabsTrigger
-                  value="contas-pagar"
-                  className="rounded-lg py-2.5 px-4 text-sm font-medium transition-all duration-300
+                <TabsTrigger value="contas-pagar" className="rounded-lg py-2.5 px-4 text-sm font-medium transition-all duration-300
                     data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/40
-                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600/95 data-[state=active]:to-blue-500/85 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-blue-500/30"
-                >
+                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600/95 data-[state=active]:to-blue-500/85 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-blue-500/30">
                   <ArrowUp className="w-4 h-4 mr-2" />
                   Contas a Pagar
                 </TabsTrigger>
 
-                <TabsTrigger
-                  value="contas-receber"
-                  className="rounded-lg py-2.5 px-4 text-sm font-medium transition-all duration-300
+                <TabsTrigger value="contas-receber" className="rounded-lg py-2.5 px-4 text-sm font-medium transition-all duration-300
                     data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/40
-                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/95 data-[state=active]:to-purple-500/85 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-purple-500/30"
-                >
+                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/95 data-[state=active]:to-purple-500/85 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-purple-500/30">
                   <ArrowDown className="w-4 h-4 mr-2" />
                   Contas a Receber
                 </TabsTrigger>
 
-                <TabsTrigger
-                  value="configuracoes"
-                  className="rounded-lg py-2.5 px-4 text-sm font-medium transition-all duration-300
+                <TabsTrigger value="configuracoes" className="rounded-lg py-2.5 px-4 text-sm font-medium transition-all duration-300
                     data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/40
-                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600/95 data-[state=active]:to-slate-500/85 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-slate-500/30"
-                >
+                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-600/95 data-[state=active]:to-slate-500/85 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-slate-500/30">
                   <Settings className="w-4 h-4 mr-2" />
                   Configurações
                 </TabsTrigger>
@@ -159,6 +135,5 @@ export default function GestaoFiscal() {
           </Tabs>
         </div>
       </div>
-    </Layout>
-  );
+    </Layout>;
 }
