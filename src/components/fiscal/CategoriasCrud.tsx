@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Edit2, Search, Loader2, Check } from "lucide-react";
+import { Plus, Trash2, Edit2, Search, Loader2, Check, TrendingUp, TrendingDown } from "lucide-react";
 import { useCategoriasFinanceiro, CategoriaFinanceiro } from "@/hooks/useCategoriasFinanceiro";
 import { useClientesCombo } from "@/hooks/useClientesCombo";
 import { toast } from "sonner";
