@@ -105,7 +105,7 @@ export default function GestaoFiscal() {
             {/* Tab Content */}
             <div className="flex-1 pt-6 my-[17px] py-[36px] px-0 mx-[3px]">
               <TabsContent value="fluxo" className="mt-0">
-                <FluxoCaixa className="py-[8px] my-[15px] mx-[5px] px-[5px]" />
+                <FluxoCaixa />
               </TabsContent>
 
               <TabsContent value="contas-recorrentes" className="mt-0">
@@ -113,7 +113,7 @@ export default function GestaoFiscal() {
               </TabsContent>
 
               <TabsContent value="pagamento-salario" className="mt-0">
-                <PagamentoSalarioTab className="py-[8px] my-[20px]" />
+                <PagamentoSalarioTab />
               </TabsContent>
 
               <TabsContent value="saida" className="mt-0">
@@ -129,7 +129,7 @@ export default function GestaoFiscal() {
               </TabsContent>
 
               <TabsContent value="configuracoes" className="mt-0">
-                <ConfiguracoesFiscais className="py-[23px]" />
+                <ConfiguracoesFiscais />
               </TabsContent>
             </div>
           </Tabs>
