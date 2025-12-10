@@ -47,46 +47,53 @@ export function TripulacaoCard({ member }: TripulacaoCardProps) {
 
   return (
     <Card
-      className="h-full cursor-pointer transition hover:shadow-lg"
+      className="group cursor-pointer relative overflow-hidden border-white/30 bg-slate-900/30 hover:shadow-lg transition-shadow"
       onClick={() => {
         navigate(`/tripulacao/${member.id}`, { state: { member } });
       }}
     >
-      <div className="space-y-4 p-4">
-        <div className="flex items-start gap-3">
-          <Avatar className="h-12 w-12 flex-shrink-0">
-            <AvatarImage src={member.avatar_url ?? undefined} alt={member.full_name} />
-            <AvatarFallback className="bg-primary text-primary-foreground">{getInitials(member.full_name)}</AvatarFallback>
-          </Avatar>
-
-          <div className="flex-1 min-w-0">
-            <h3 className="truncate text-sm font-semibold text-foreground">{member.full_name}</h3>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {member.roles.map((role) => (
-                <Badge key={role} variant={ROLE_BADGE_VARIANT[role] || "secondary"} className="text-xs">
-                  {ROLE_LABELS[role]}
-                </Badge>
-              ))}
-            </div>
-
-            <div className="mt-3 space-y-1 text-xs text-muted-foreground">
-              {member.email && (
-                <div className="flex items-center gap-2 truncate">
-                  <Mail className="h-4 w-4 text-primary" />
-                  <span className="truncate">{member.email}</span>
-                </div>
-              )}
-
-              {formattedPhone && (
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-primary" />
-                  <span>{formattedPhone}</span>
+      <CardContent className="p-6">
+        <div className="space-y-4">
+          {/* Header with Name and Role */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <User className="h-5 w-5 text-slate-300 flex-shrink-0" />
+                <h3 className="font-bold text-white text-lg uppercase">
+                  {member.full_name}
+                </h3>
+              </div>
+              {member.roles.length > 0 && (
+                <div className="ml-8 flex flex-wrap gap-2">
+                  {member.roles.map((role) => (
+                    <Badge key={role} variant={ROLE_BADGE_VARIANT[role] || "secondary"} className="text-xs font-medium">
+                      {ROLE_LABELS[role]}
+                    </Badge>
+                  ))}
                 </div>
               )}
             </div>
           </div>
+
+          {/* Email */}
+          {member.email && (
+            <div className="flex items-center gap-3 text-sm">
+              <Mail className="h-4 w-4 text-slate-400 flex-shrink-0" />
+              <span className="text-slate-300">{member.email}</span>
+            </div>
+          )}
+
+          {/* Phone */}
+          {formattedPhone && (
+            <div className="border-t border-white/20 pt-3">
+              <p className="text-xs text-slate-400 flex items-center gap-2">
+                <Phone className="h-4 w-4 flex-shrink-0" />
+                <span>{formattedPhone}</span>
+              </p>
+            </div>
+          )}
         </div>
-      </div>
+      </CardContent>
     </Card>
   );
 }
