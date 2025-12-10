@@ -188,68 +188,43 @@ export function FornecedoresFavoritos() {
         ) : (
           <div className="space-y-3">
             {filteredFornecedores.map((fornecedor) => (
-              <Card key={fornecedor.id} className="group border-white/30 bg-slate-900/30 hover:shadow-lg transition-shadow">
-                <CardContent className="p-6">
-                  <div className="space-y-4">
-                    {/* Header with Supplier Name and Document */}
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <Building2 className="h-5 w-5 text-slate-300 flex-shrink-0" />
-                          <h3 className="font-bold text-white text-lg uppercase">
-                            {fornecedor.nome_completo}
-                          </h3>
-                        </div>
-                        {fornecedor.documento && (
-                          <div className="ml-8">
-                            <p className="text-sm font-semibold text-cyan-400 uppercase tracking-wide">
-                              {fornecedor.documento}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenDialog(fornecedor)}
-                          className="h-8 w-8 p-0 hover:bg-slate-800"
-                        >
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDeleteConfirmId(fornecedor.id)}
-                          className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-slate-800"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Phone */}
-                    {fornecedor.telefone && (
-                      <div className="flex items-center gap-3 text-sm">
-                        <Phone className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                        <span className="text-slate-300">{fornecedor.telefone}</span>
-                      </div>
+              <div
+                key={fornecedor.id}
+                className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50 hover:border-border transition-colors"
+              >
+                <div className="flex-1">
+                  <h4 className="font-medium text-foreground">{fornecedor.nome_completo}</h4>
+                  <div className="flex flex-wrap gap-4 mt-1 text-sm text-muted-foreground">
+                    {fornecedor.documento && (
+                      <span>CPF/CNPJ: {fornecedor.documento}</span>
                     )}
-
-                    {/* City */}
                     {fornecedor.cidade && (
-                      <div className="border-t border-white/20 pt-3">
-                        <p className="text-xs text-slate-400 flex items-center gap-2">
-                          <MapPin className="h-4 w-4 flex-shrink-0 text-red-500" />
-                          <span>{fornecedor.cidade}</span>
-                        </p>
-                      </div>
+                      <span>Cidade: {fornecedor.cidade}</span>
+                    )}
+                    {fornecedor.telefone && (
+                      <span>Tel: {fornecedor.telefone}</span>
                     )}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleOpenDialog(fornecedor)}
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setDeleteConfirmId(fornecedor.id)}
+                    className="h-8 w-8 text-muted-foreground hover:text-red-500"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             ))}
           </div>
         )}
