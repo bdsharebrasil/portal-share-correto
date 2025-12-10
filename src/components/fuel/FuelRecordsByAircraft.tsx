@@ -240,6 +240,17 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
       valor_unitario: "",
       abastecimento_galoes: "",
       ano: new Date().getFullYear().toString(),
+      comanda_file: null,
+      nota_file: null,
+      boleto_file: null,
+      comanda_url: "",
+      nota_url: "",
+      boleto_url: "",
+    });
+    setUploadedFiles({
+      comanda_url: "",
+      nota_url: "",
+      boleto_url: "",
     });
     setEditingRecord(null);
   };
