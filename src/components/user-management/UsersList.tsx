@@ -214,7 +214,7 @@ export function UsersList() {
                   </TableCell>
                   <TableCell>
                     {user.roles?.length > 0 ? <div className="flex gap-1 flex-wrap">
-                        {user.roles.map((role: string) => <Badge key={role} variant="outline" className="text-xs">
+                        {user.roles.map((role: string) => <Badge key={role} variant="outline" className="text-xs bg-slate-900 shadow-xl rounded-md border border-[#010d2b]/[0.82]">
                             {formatRoleLabel(role)}
                           </Badge>)}
                       </div> : '-'}
