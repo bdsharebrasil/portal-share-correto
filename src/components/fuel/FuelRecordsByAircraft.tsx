@@ -396,101 +396,101 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1 pr-4">
               <div>
-                <Label className="text-base font-semibold mb-3 block">Data</Label>
-                <div className="grid grid-cols-2 gap-4">
+                <Label className="text-sm font-semibold mb-2 block">Data</Label>
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label className="text-sm">Data do Abastecimento</Label>
+                    <Label className="text-xs text-muted-foreground">Data</Label>
                     <Input
                       type="date"
                       value={formData.data}
                       onChange={(e) => setFormData({ ...formData, data: e.target.value })}
                       required
-                      className="mt-1.5"
+                      className="mt-1 h-9 text-sm"
                     />
                   </div>
                   <div>
-                    <Label className="text-sm">Ano</Label>
+                    <Label className="text-xs text-muted-foreground">Ano</Label>
                     <Input
                       value={formData.ano}
                       onChange={(e) => setFormData({ ...formData, ano: e.target.value })}
                       required
-                      className="mt-1.5"
+                      className="mt-1 h-9 text-sm"
                     />
                   </div>
                 </div>
               </div>
 
               <div>
-                <Label className="text-base font-semibold mb-3 block">Rota e Local</Label>
-                <div className="grid grid-cols-2 gap-4">
+                <Label className="text-sm font-semibold mb-2 block">Rota</Label>
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label className="text-sm">Trecho</Label>
+                    <Label className="text-xs text-muted-foreground">Trecho</Label>
                     <Input
                       value={formData.trecho}
                       onChange={(e) => setFormData({ ...formData, trecho: e.target.value })}
-                      placeholder="Ex: SBSP X SBRJ"
-                      className="mt-1.5"
+                      placeholder="SBSP X SBRJ"
+                      className="mt-1 h-9 text-sm"
                     />
                   </div>
                   <div>
-                    <Label className="text-sm">Local de Abastecimento</Label>
+                    <Label className="text-xs text-muted-foreground">Local</Label>
                     <Input
                       value={formData.local}
                       onChange={(e) => setFormData({ ...formData, local: e.target.value })}
-                      placeholder="Ex: CUIABA"
-                      className="mt-1.5"
+                      placeholder="CUIABA"
+                      className="mt-1 h-9 text-sm"
                     />
                   </div>
                 </div>
               </div>
 
               <div>
-                <Label className="text-sm">Nº Comanda</Label>
+                <Label className="text-xs text-muted-foreground">Nº Comanda</Label>
                 <Input
                   value={formData.comanda}
                   onChange={(e) => setFormData({ ...formData, comanda: e.target.value })}
                   placeholder="Número da comanda"
-                  required
-                  className="mt-1.5"
+                  className="mt-1 h-9 text-sm"
                 />
               </div>
 
               <div>
-                <Label className="text-base font-semibold mb-3 block">Quantidades e Valores</Label>
-                <div className="grid grid-cols-3 gap-4">
+                <Label className="text-sm font-semibold mb-2 block">Combustível</Label>
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label className="text-sm">Litros Abastecidos</Label>
+                    <Label className="text-xs text-muted-foreground">Litros</Label>
                     <Input
                       type="number"
                       step="0.01"
                       value={formData.litros}
                       onChange={(e) => setFormData({ ...formData, litros: e.target.value })}
                       required
-                      className="mt-1.5"
+                      className="mt-1 h-9 text-sm"
                     />
                   </div>
                   <div>
-                    <Label className="text-sm">Valor Unitário (R$)</Label>
+                    <Label className="text-xs text-muted-foreground">Valor Unit. (R$)</Label>
                     <Input
                       type="number"
                       step="0.0001"
                       value={formData.valor_unitario}
                       onChange={(e) => setFormData({ ...formData, valor_unitario: e.target.value })}
                       required
-                      className="mt-1.5"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-sm">Abastecimento Galões</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData.abastecimento_galoes}
-                      onChange={(e) => setFormData({ ...formData, abastecimento_galoes: e.target.value })}
-                      className="mt-1.5"
+                      className="mt-1 h-9 text-sm"
                     />
                   </div>
                 </div>
+              </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground">Galões</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.abastecimento_galoes}
+                  onChange={(e) => setFormData({ ...formData, abastecimento_galoes: e.target.value })}
+                  className="mt-1 h-9 text-sm"
+                />
               </div>
 
               {formData.litros && formData.valor_unitario && (
