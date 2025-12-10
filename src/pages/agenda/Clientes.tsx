@@ -628,7 +628,7 @@ export default function Clientes() {
               {/* Background gradient */}
               <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
               
-              <CardContent className="relative p-6 sm:p-8">
+              <CardContent className="relative p-6 sm:p-8 shadow-sm rounded-2xl bg-[#00263d]">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                   <div className="flex items-center gap-5">
                     <Avatar className="h-20 w-20 sm:h-24 sm:w-24 ring-4 ring-background shadow-xl">
@@ -642,10 +642,10 @@ export default function Clientes() {
                         {viewingCliente.company_name}
                       </h1>
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
-                          Cliente Ativo
+                        <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20 px-[6px] rounded-md">
+                          ativo
                         </Badge>
-                        <Badge variant="outline" className="font-mono text-xs">
+                        <Badge variant="outline" className="font-mono text-xs shadow-xl bg-emerald-950 border-slate-800 rounded-lg">
                           {viewingCliente.cnpj}
                         </Badge>
                       </div>
@@ -725,7 +725,7 @@ export default function Clientes() {
                 {viewingCliente.aircraft_ownerships && viewingCliente.aircraft_ownerships.length > 0 && <div>
                     <p className="text-xs text-muted-foreground mb-2">Aeronaves e Participação</p>
                     <div className="space-y-2">
-                      {viewingCliente.aircraft_ownerships.map((ownership, idx) => <div key={idx} className="flex justify-between items-center p-3 bg-muted/50 bg-gray-950/[0.83] border-cyan-900 shadow-lg rounded-xl opacity-90">
+                      {viewingCliente.aircraft_ownerships.map((ownership, idx) => <div key={idx} className="flex justify-between items-center p-3 bg-muted/50 rounded-xl opacity-90 bg-[#080817]/[0.78] shadow-xl border-slate-400 py-[11px] px-[14px]">
                           <span className="text-sm font-medium text-foreground">
                             {ownership.aircraft_registration} - {ownership.aircraft_model}
                           </span>
@@ -757,7 +757,7 @@ export default function Clientes() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {viewingCliente.documents && viewingCliente.documents.length > 0 ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {viewingCliente.documents && viewingCliente.documents.length > 0 ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 px-[13px]">
                   {viewingCliente.documents.map((doc, index) => <button key={index} type="button" onClick={() => setPreviewDoc(doc)} className="p-4 border border-border rounded-lg hover:bg-muted/50 hover:border-primary/50 transition-all text-left group mx-0 my-[2px] flex items-center justify-start gap-[30px] text-lg px-[9px] py-[28px]">
                       <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
                         <FileText className="h-5 w-5 text-primary" />
