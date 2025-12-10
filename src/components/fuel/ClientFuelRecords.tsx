@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, ChevronLeft, Building2, Plane } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ChevronRight, ChevronLeft, Building2, Plane, Search, X } from "lucide-react";
 import { FuelRecordsByAircraft } from "./FuelRecordsByAircraft";
 
 interface Client {
@@ -20,6 +21,12 @@ interface Aircraft {
   registration: string;
   year: number | null;
   model?: string;
+}
+
+interface FuelSupplier {
+  id: string;
+  supplier_name: string;
+  city_name: string;
 }
 
 export function ClientFuelRecords() {
