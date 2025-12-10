@@ -505,7 +505,7 @@ export default function DiarioBordoDetalhes() {
             {canAddOrEdit && <Button onClick={addNewRow} className="text-slate-100 my-[6px] py-[7px] mx-[9px] px-[11px] text-xs font-normal border border-slate-400 border-none rounded-2xl shadow-md bg-slate-950 hover:bg-slate-800">
               <Plus className="h-4 w-4 mr-1" /> Novo Trecho
             </Button>}
-            {!isClosed && canConfirm && entries.length > 0 && <Button onClick={closeMonth} variant="destructive">Fechar Diário</Button>}
+            {!isClosed && canConfirm && entries.length > 0 && <Button onClick={closeMonth} variant="destructive" className="bg-red-800 hover:bg-red-700 px-[9px] my-[6px] py-[4px] mx-[8px] border-red-950 rounded-xl shadow-lg opacity-100">Fechar Diário</Button>}
           </div>
         </div>
 
