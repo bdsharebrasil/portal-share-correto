@@ -49,6 +49,7 @@ export function CategoriasCrud() {
       setFormData({
         nome: categoria.nome,
         tipo: categoria.tipo,
+        categoria: categoria.categoria || "",
         descricao: categoria.descricao || "",
         cliente_id: categoria.cliente_id || "",
         cliente_nome: categoria.cliente_nome || ""
@@ -58,6 +59,7 @@ export function CategoriasCrud() {
       setFormData({
         nome: "",
         tipo: "receita",
+        categoria: "",
         descricao: "",
         cliente_id: "",
         cliente_nome: ""
