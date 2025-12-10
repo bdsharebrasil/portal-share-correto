@@ -31,7 +31,7 @@ export default function GestaoFiscal() {
       </Layout>;
   }
   return <Layout>
-      <div className="min-h-[calc(100vh-4rem)] flex-col bg-background flex items-start justify-center mb-[3px] pb-[19px] mt-0 my-[10px] py-0">
+      <div className="min-h-[calc(100vh-4rem)] flex-col bg-background flex items-start justify-center mb-[3px] pb-[19px] mt-0 py-[10px] my-[9px]">
         {/* Header */}
         <div className="space-y-6 pb-8 mb-[80px] my-0 py-[2px]">
           <div className="flex items-center justify-between py-0 my-0 px-[13px]">
@@ -103,9 +103,9 @@ export default function GestaoFiscal() {
             </div>
 
             {/* Tab Content */}
-            <div className="flex-1 pt-6 my-[17px] py-[36px]">
+            <div className="flex-1 pt-6 my-[17px] py-[36px] px-[10px] mx-[11px]">
               <TabsContent value="fluxo" className="mt-0">
-                <FluxoCaixa className="py-[8px] my-[15px]" />
+                <FluxoCaixa className="py-[8px] my-[15px] mx-[5px] px-[5px]" />
               </TabsContent>
 
               <TabsContent value="contas-recorrentes" className="mt-0">
