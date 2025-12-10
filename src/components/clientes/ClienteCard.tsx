@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building2, Mail, Phone, MapPin, FileCheck, Edit, Trash2, Plane } from "lucide-react";
+import { Building2, Mail, Phone, MapPin, Edit, Trash2, Plane } from "lucide-react";
 interface AircraftOwnership {
   aircraft: string;
   aircraft_registration?: string;
