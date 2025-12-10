@@ -30,7 +30,6 @@ export interface Conta {
   tipo_conta?: "corrente" | "poupanca" | "investimento";
   ativo?: boolean;
   saldo?: number;
-  empresa_id?: string;
   criado_por?: string;
 }
 
