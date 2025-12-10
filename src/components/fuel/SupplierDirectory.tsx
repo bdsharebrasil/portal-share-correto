@@ -200,46 +200,97 @@ export function SupplierDirectory() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cidade</TableHead>
-                <TableHead>ICAO</TableHead>
-                <TableHead>Fornecedor</TableHead>
-                <TableHead>Contato</TableHead>
-                <TableHead>Telefone</TableHead>
-                <TableHead className="text-right">AVGAS (R$)</TableHead>
-                <TableHead className="text-right">JET (R$)</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {suppliers.map((supplier) => (
-                <TableRow key={supplier.id}>
-                  <TableCell>{supplier.city_name}</TableCell>
-                  <TableCell className="font-mono">{supplier.icao_code}</TableCell>
-                  <TableCell>{supplier.supplier_name}</TableCell>
-                  <TableCell>{supplier.contact_person || "-"}</TableCell>
-                  <TableCell>{supplier.phone || "-"}</TableCell>
-                  <TableCell className="text-right">{supplier.fuel_price_avgas ? supplier.fuel_price_avgas.toFixed(4) : "-"}</TableCell>
-                  <TableCell className="text-right">{supplier.fuel_price_jet ? supplier.fuel_price_jet.toFixed(4) : "-"}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => handleEdit(supplier)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(supplier.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          {suppliers.length === 0 && (
+        <div className="space-y-3">
+          {suppliers.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">Nenhum fornecedor cadastrado</div>
+          ) : (
+            suppliers.map((supplier) => (
+              <Card key={supplier.id} className="group border-white/30 bg-slate-900/30 hover:shadow-lg transition-shadow">
+                <CardContent className="p-6">
+                  <div className="space-y-4">
+                    {/* Header with Supplier Name and City */}
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <Fuel className="h-5 w-5 text-slate-300 flex-shrink-0" />
+                          <h3 className="font-bold text-white text-lg uppercase">
+                            {supplier.supplier_name}
+                          </h3>
+                        </div>
+                        {supplier.icao_code && (
+                          <div className="ml-8">
+                            <p className="text-sm font-semibold text-cyan-400 uppercase tracking-wide">
+                              {supplier.city_name} - {supplier.icao_code}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEdit(supplier)}
+                          className="h-8 w-8 p-0 hover:bg-slate-800"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(supplier.id)}
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-slate-800"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Contact Person */}
+                    {supplier.contact_person && (
+                      <div className="flex items-center gap-3 text-sm">
+                        <span className="text-slate-400 flex-shrink-0">👤</span>
+                        <span className="text-slate-300">{supplier.contact_person}</span>
+                      </div>
+                    )}
+
+                    {/* Phone */}
+                    {supplier.phone && (
+                      <div className="flex items-center gap-3 text-sm">
+                        <Phone className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                        <span className="text-slate-300">{supplier.phone}</span>
+                      </div>
+                    )}
+
+                    {/* Prices Section */}
+                    {(supplier.fuel_price_avgas || supplier.fuel_price_jet) && (
+                      <div className="border-t border-white/20 pt-4">
+                        <p className="text-xs text-slate-400 mb-3 font-semibold uppercase">Combustível</p>
+                        <div className="grid grid-cols-2 gap-4">
+                          {supplier.fuel_price_avgas && (
+                            <div className="bg-slate-800/50 rounded-lg p-3 border border-cyan-500/30">
+                              <p className="text-xs text-slate-400 mb-1 font-medium">AVGAS</p>
+                              <p className="text-lg font-bold text-cyan-400">
+                                R$ {supplier.fuel_price_avgas.toFixed(4)}
+                              </p>
+                            </div>
+                          )}
+                          {supplier.fuel_price_jet && (
+                            <div className="bg-slate-800/50 rounded-lg p-3 border border-cyan-500/30">
+                              <p className="text-xs text-slate-400 mb-1 font-medium">JET-A1</p>
+                              <p className="text-lg font-bold text-cyan-400">
+                                R$ {supplier.fuel_price_jet.toFixed(4)}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))
           )}
         </div>
       </CardContent>
