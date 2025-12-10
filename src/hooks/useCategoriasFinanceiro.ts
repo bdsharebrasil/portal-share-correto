@@ -34,8 +34,6 @@ export interface Conta {
   criado_por?: string;
 }
 
-const DEFAULT_EMPRESA_ID = "00000000-0000-0000-0000-000000000001";
-
 export function useCategoriasFinanceiro() {
   const { user } = useAuth();
   const [categorias, setCategorias] = useState<CategoriaFinanceiro[]>([]);
@@ -47,6 +45,7 @@ export function useCategoriasFinanceiro() {
       const { data, error } = await supabase
         .from("categorias_movimentacao")
         .select("*")
+        .eq("ativo", true)
         .order("nome");
 
       if (error) {
@@ -92,8 +91,7 @@ export function useCategoriasFinanceiro() {
           ativo: true,
           cliente_id: categoria.cliente_id || null,
           cliente_nome: categoria.cliente_nome || null,
-          criado_por: user.id,
-          empresa_id: DEFAULT_EMPRESA_ID
+          criado_por: user.id
         }]);
 
       if (error) {
@@ -111,19 +109,13 @@ export function useCategoriasFinanceiro() {
 
   const updateCategoria = useCallback(async (id: string, updates: Partial<CategoriaFinanceiro>) => {
     try {
-      const updateData: any = {
-        nome: updates.nome,
-        tipo: updates.tipo,
-        descricao: updates.descricao || null
-      };
+      const updateData: any = {};
 
-      if (updates.cliente_id !== undefined) {
-        updateData.cliente_id = updates.cliente_id || null;
-      }
-
-      if (updates.cliente_nome !== undefined) {
-        updateData.cliente_nome = updates.cliente_nome || null;
-      }
+      if (updates.nome !== undefined) updateData.nome = updates.nome;
+      if (updates.tipo !== undefined) updateData.tipo = updates.tipo;
+      if (updates.descricao !== undefined) updateData.descricao = updates.descricao || null;
+      if (updates.cliente_id !== undefined) updateData.cliente_id = updates.cliente_id || null;
+      if (updates.cliente_nome !== undefined) updateData.cliente_nome = updates.cliente_nome || null;
 
       const { error } = await supabase
         .from("categorias_movimentacao")
