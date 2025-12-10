@@ -208,7 +208,7 @@ export function UsersList() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={isActive ? "default" : "secondary"}>
+                    <Badge variant={isActive ? "default" : "secondary"} className="rounded-lg bg-teal-600">
                       {isActive ? "Ativo" : "Inativo"}
                     </Badge>
                   </TableCell>
