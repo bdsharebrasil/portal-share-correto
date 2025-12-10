@@ -502,7 +502,7 @@ export default function DiarioBordoDetalhes() {
                 }, (_, i) => new Date().getFullYear() - 5 + i).map(year => <SelectItem key={year} value={String(year)} className="text-slate-100 hover:bg-slate-600 focus:bg-slate-600">{year}</SelectItem>)}
               </SelectContent>
             </Select>
-            {canAddOrEdit && <Button onClick={addNewRow} className="text-slate-100 px-[2px] my-[6px] mx-[6px] py-[7px] text-sm border-slate-500 shadow-2xl bg-slate-950 hover:bg-slate-800">
+            {canAddOrEdit && <Button onClick={addNewRow} className="text-slate-100 my-[6px] py-[7px] mx-[9px] px-[11px] text-xs font-normal border border-slate-400 border-none rounded-2xl shadow-md bg-slate-950 hover:bg-slate-800">
               <Plus className="h-4 w-4 mr-1" /> Novo Trecho
             </Button>}
             {!isClosed && canConfirm && entries.length > 0 && <Button onClick={closeMonth} variant="destructive">Fechar Diário</Button>}
