@@ -32,6 +32,7 @@ interface MenuItem {
   externalUrl?: string;
   subItems?: { title: string; href: string }[];
   itemId?: string;
+  isSSOLink?: boolean;
 }
 
 interface MenuGroup {
