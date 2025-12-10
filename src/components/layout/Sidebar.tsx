@@ -236,7 +236,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
                 <CardContent className="pt-0 space-y-2">
                   {group.items.map((item) => (
                     <div key={item.title}>
-                      {item.isExternal ? (
+                      {item.isSSOLink ? (
+                        // Link SSO para app do gestor
+                        <button
+                          onClick={handleGestorAccess}
+                          className="flex items-center w-full px-3 py-2 rounded-md text-sm font-medium border border-border hover:bg-amber-600/20 hover:border-amber-500/50 transition-smooth text-amber-400"
+                        >
+                          {item.icon && <item.icon className="mr-3 h-4 w-4" />}
+                          {item.title}
+                        </button>
+                      ) : item.isExternal ? (
                         // Link Externo (Controle Financeiro)
                         <a
                           href={item.externalUrl}
