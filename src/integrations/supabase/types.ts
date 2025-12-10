@@ -1863,36 +1863,56 @@ export type Database = {
       }
       flight_documents: {
         Row: {
+          aircraft_id: string | null
           created_at: string | null
           description: string | null
+          document_type: string | null
+          expiry_date: string | null
           file_path: string
           file_size: number | null
           file_type: string | null
           id: string
           name: string
+          updated_at: string | null
           uploaded_by: string | null
         }
         Insert: {
+          aircraft_id?: string | null
           created_at?: string | null
           description?: string | null
+          document_type?: string | null
+          expiry_date?: string | null
           file_path: string
           file_size?: number | null
           file_type?: string | null
           id?: string
           name: string
+          updated_at?: string | null
           uploaded_by?: string | null
         }
         Update: {
+          aircraft_id?: string | null
           created_at?: string | null
           description?: string | null
+          document_type?: string | null
+          expiry_date?: string | null
           file_path?: string
           file_size?: number | null
           file_type?: string | null
           id?: string
           name?: string
+          updated_at?: string | null
           uploaded_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "flight_documents_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "aircraft"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       flight_payments: {
         Row: {
@@ -2906,6 +2926,7 @@ export type Database = {
           horas_voo: string | null
           id: string
           obs: string | null
+          obs2: string | null
           updated_at: string | null
           user_profile: string | null
         }
@@ -2923,6 +2944,7 @@ export type Database = {
           horas_voo?: string | null
           id?: string
           obs?: string | null
+          obs2?: string | null
           updated_at?: string | null
           user_profile?: string | null
         }
@@ -2940,6 +2962,7 @@ export type Database = {
           horas_voo?: string | null
           id?: string
           obs?: string | null
+          obs2?: string | null
           updated_at?: string | null
           user_profile?: string | null
         }
@@ -3697,6 +3720,8 @@ export type Database = {
           total_amount: number | null
           total_client: number | null
           total_crew: number | null
+          total_crew1: number | null
+          total_crew2: number | null
           total_food: number | null
           total_fuel: number | null
           total_lodging: number | null
@@ -3727,6 +3752,8 @@ export type Database = {
           total_amount?: number | null
           total_client?: number | null
           total_crew?: number | null
+          total_crew1?: number | null
+          total_crew2?: number | null
           total_food?: number | null
           total_fuel?: number | null
           total_lodging?: number | null
@@ -3757,6 +3784,8 @@ export type Database = {
           total_amount?: number | null
           total_client?: number | null
           total_crew?: number | null
+          total_crew1?: number | null
+          total_crew2?: number | null
           total_food?: number | null
           total_fuel?: number | null
           total_lodging?: number | null
