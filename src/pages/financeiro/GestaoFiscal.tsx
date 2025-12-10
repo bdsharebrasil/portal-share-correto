@@ -47,7 +47,7 @@ export default function GestaoFiscal() {
           </div>
 
           {/* Tabs Container */}
-          <Tabs defaultValue="fluxo" className="flex flex-col">
+          <Tabs defaultValue="fluxo" className="flex flex-col py-[3px] my-[25px]">
             {/* Modern Tab Navigation */}
             <div className="w-full">
               <TabsList className="bg-gradient-to-r from-card/80 to-card/40 backdrop-blur-xl rounded-2xl p-2 border border-border/40 shadow-lg w-full inline-flex flex-wrap gap-2 h-auto justify-start">
@@ -103,7 +103,7 @@ export default function GestaoFiscal() {
             </div>
 
             {/* Tab Content */}
-            <div className="flex-1 pt-6 my-[16px]">
+            <div className="flex-1 pt-6 my-[17px] py-[36px]">
               <TabsContent value="fluxo" className="mt-0">
                 <FluxoCaixa />
               </TabsContent>
