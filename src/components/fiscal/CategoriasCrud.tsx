@@ -35,6 +35,7 @@ export function CategoriasCrud() {
   const [formData, setFormData] = useState({
     nome: "",
     tipo: "receita" as "receita" | "despesa",
+    categoria: "",
     descricao: "",
     cliente_id: "",
     cliente_nome: ""
