@@ -738,6 +738,12 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded">
+                  <p className="text-xs sm:text-sm text-blue-600">
+                    ℹ️ Os status de conciliação são atualizados automaticamente pelo fluxo financeiro. As alterações são sincronizadas em tempo real.
+                  </p>
+                </div>
+
                 {bankReconciliations && bankReconciliations.length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">Nenhuma conciliação registrada</p>
                 ) : (
