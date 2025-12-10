@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Download, Edit, Trash2 } from "lucide-react";
+import { Plus, Download, Edit, Trash2, ChevronLeft, Plane, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 
 interface Client {
@@ -210,10 +210,72 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
 
   const currentYear = formData.ano || new Date().getFullYear().toString();
 
+  const totalRecords = records.length;
+  const totalLitros = records.reduce((sum, r) => sum + r.litros, 0);
+  const totalValue = records.reduce((sum, r) => sum + r.valor_total, 0);
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onBack}
+          className="gap-2"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Voltar
+        </Button>
+        <div>
+          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Plane className="h-6 w-6 text-primary" />
+            Registros de Abastecimento
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">{client.company_name} • {aircraft.registration}</p>
+        </div>
+      </div>
+
+      {totalRecords > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="border border-border/50 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Total de Registros</p>
+                  <p className="text-3xl font-bold text-foreground">{totalRecords}</p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-primary/30" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border border-border/50 bg-gradient-to-br from-success/5 via-transparent to-transparent">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Total de Litros</p>
+                  <p className="text-3xl font-bold text-foreground">{totalLitros.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">litros</p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-success/30" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border border-border/50 bg-gradient-to-br from-accent/5 via-transparent to-transparent">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Gasto Total</p>
+                  <p className="text-3xl font-bold text-foreground">R$ {totalValue.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">valor total</p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-accent/30" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <div className="flex gap-2">
-        <Button variant="outline" onClick={onBack}>Voltar</Button>
         <Dialog
           open={isDialogOpen}
           onOpenChange={(open) => {
@@ -222,8 +284,8 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
           }}
         >
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button className="gap-2 bg-gradient-to-r from-primary to-primary-dark hover:from-primary hover:to-primary-dark">
+              <Plus className="h-4 w-4" />
               Novo Registro
             </Button>
           </DialogTrigger>
@@ -231,63 +293,131 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
             <DialogHeader>
               <DialogTitle>{editingRecord ? "Editar Registro" : "Novo Registro"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Data</Label>
-                  <Input type="date" value={formData.data} onChange={(e) => setFormData({ ...formData, data: e.target.value })} required />
-                </div>
-                <div>
-                  <Label>Ano</Label>
-                  <Input value={formData.ano} onChange={(e) => setFormData({ ...formData, ano: e.target.value })} required />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Trecho</Label>
-                  <Input value={formData.trecho} onChange={(e) => setFormData({ ...formData, trecho: e.target.value })} placeholder="Ex: SBSP X SBRJ" />
-                </div>
-                <div>
-                  <Label>Local</Label>
-                  <Input value={formData.local} onChange={(e) => setFormData({ ...formData, local: e.target.value })} placeholder="Ex: CUIABA" />
-                </div>
-              </div>
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <Label>Nº Comanda</Label>
-                <Input value={formData.comanda} onChange={(e) => setFormData({ ...formData, comanda: e.target.value })} required />
+                <Label className="text-base font-semibold mb-3 block">Data</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm">Data do Abastecimento</Label>
+                    <Input
+                      type="date"
+                      value={formData.data}
+                      onChange={(e) => setFormData({ ...formData, data: e.target.value })}
+                      required
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm">Ano</Label>
+                    <Input
+                      value={formData.ano}
+                      onChange={(e) => setFormData({ ...formData, ano: e.target.value })}
+                      required
+                      className="mt-1.5"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label>Litros Abastecidos</Label>
-                  <Input type="number" step="0.01" value={formData.litros} onChange={(e) => setFormData({ ...formData, litros: e.target.value })} required />
-                </div>
-                <div>
-                  <Label>Valor Unitário (R$)</Label>
-                  <Input type="number" step="0.0001" value={formData.valor_unitario} onChange={(e) => setFormData({ ...formData, valor_unitario: e.target.value })} required />
-                </div>
-                <div>
-                  <Label>Abastecimento Galões</Label>
-                  <Input type="number" step="0.01" value={formData.abastecimento_galoes} onChange={(e) => setFormData({ ...formData, abastecimento_galoes: e.target.value })} />
+
+              <div>
+                <Label className="text-base font-semibold mb-3 block">Rota e Local</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm">Trecho</Label>
+                    <Input
+                      value={formData.trecho}
+                      onChange={(e) => setFormData({ ...formData, trecho: e.target.value })}
+                      placeholder="Ex: SBSP X SBRJ"
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm">Local de Abastecimento</Label>
+                    <Input
+                      value={formData.local}
+                      onChange={(e) => setFormData({ ...formData, local: e.target.value })}
+                      placeholder="Ex: CUIABA"
+                      className="mt-1.5"
+                    />
+                  </div>
                 </div>
               </div>
+
+              <div>
+                <Label className="text-sm">Nº Comanda</Label>
+                <Input
+                  value={formData.comanda}
+                  onChange={(e) => setFormData({ ...formData, comanda: e.target.value })}
+                  placeholder="Número da comanda"
+                  required
+                  className="mt-1.5"
+                />
+              </div>
+
+              <div>
+                <Label className="text-base font-semibold mb-3 block">Quantidades e Valores</Label>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label className="text-sm">Litros Abastecidos</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={formData.litros}
+                      onChange={(e) => setFormData({ ...formData, litros: e.target.value })}
+                      required
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm">Valor Unitário (R$)</Label>
+                    <Input
+                      type="number"
+                      step="0.0001"
+                      value={formData.valor_unitario}
+                      onChange={(e) => setFormData({ ...formData, valor_unitario: e.target.value })}
+                      required
+                      className="mt-1.5"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm">Abastecimento Galões</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={formData.abastecimento_galoes}
+                      onChange={(e) => setFormData({ ...formData, abastecimento_galoes: e.target.value })}
+                      className="mt-1.5"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {formData.litros && formData.valor_unitario && (
-                <div className="bg-muted p-3 rounded">
-                  <p className="text-sm font-medium">
-                    Valor Total: R$ {(parseFloat(formData.litros) * parseFloat(formData.valor_unitario)).toFixed(2)}
+                <div className="bg-gradient-to-r from-success/10 to-success/5 border border-success/20 p-4 rounded-lg">
+                  <p className="text-sm text-muted-foreground mb-1">Valor Total</p>
+                  <p className="text-2xl font-bold text-success">
+                    R$ {(parseFloat(formData.litros) * parseFloat(formData.valor_unitario)).toFixed(2)}
                   </p>
                 </div>
               )}
-              <div className="flex justify-end gap-2">
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
                 <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit">{editingRecord ? "Atualizar" : "Criar"}</Button>
+                <Button type="submit" className="bg-primary hover:bg-primary-dark">
+                  {editingRecord ? "Atualizar" : "Criar"}
+                </Button>
               </div>
             </form>
           </DialogContent>
         </Dialog>
-        <Button variant="outline" onClick={handleExportPDF}>
-          <Download className="mr-2 h-4 w-4" />
+        <Button
+          variant="outline"
+          onClick={handleExportPDF}
+          className="gap-2"
+        >
+          <Download className="h-4 w-4" />
           Exportar PDF
         </Button>
       </div>
@@ -334,43 +464,63 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Controle de Abastecimento - {client.company_name} - {aircraft.registration}</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <Card className="border border-border/50 shadow-card">
+        <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Trecho</TableHead>
-                  <TableHead>Local</TableHead>
-                  <TableHead>Comanda</TableHead>
-                  <TableHead className="text-right">Litros</TableHead>
-                  <TableHead className="text-right">Valor Unit.</TableHead>
-                  <TableHead className="text-right">Valor Total</TableHead>
-                  <TableHead className="text-right">Galões</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+              <TableHeader className="bg-muted/50">
+                <TableRow className="border-b border-border/50 hover:bg-transparent">
+                  <TableHead className="font-semibold text-foreground">Data</TableHead>
+                  <TableHead className="font-semibold text-foreground">Trecho</TableHead>
+                  <TableHead className="font-semibold text-foreground">Local</TableHead>
+                  <TableHead className="font-semibold text-foreground">Comanda</TableHead>
+                  <TableHead className="text-right font-semibold text-foreground">Litros</TableHead>
+                  <TableHead className="text-right font-semibold text-foreground">Valor Unit.</TableHead>
+                  <TableHead className="text-right font-semibold text-foreground">Valor Total</TableHead>
+                  <TableHead className="text-right font-semibold text-foreground">Galões</TableHead>
+                  <TableHead className="text-right font-semibold text-foreground">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {records.map((record) => (
-                  <TableRow key={record.id}>
-                    <TableCell>{format(new Date(record.data), "dd/MM/yyyy")}</TableCell>
-                    <TableCell>{record.trecho || "-"}</TableCell>
-                    <TableCell>{record.local || "-"}</TableCell>
-                    <TableCell>{record.comanda}</TableCell>
-                    <TableCell className="text-right">{record.litros.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">R$ {record.valor_unitario.toFixed(5)}</TableCell>
-                    <TableCell className="text-right">R$ {record.valor_total.toFixed(2)}</TableCell>
-                    <TableCell className="text-right">{record.abastecimento_galoes?.toFixed(2) || "-"}</TableCell>
+                  <TableRow
+                    key={record.id}
+                    className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                  >
+                    <TableCell className="font-medium text-foreground">
+                      {format(new Date(record.data), "dd/MM/yyyy")}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{record.trecho || "-"}</TableCell>
+                    <TableCell className="text-muted-foreground">{record.local || "-"}</TableCell>
+                    <TableCell className="font-mono text-foreground">{record.comanda}</TableCell>
+                    <TableCell className="text-right font-medium text-foreground">
+                      {record.litros.toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      R$ {record.valor_unitario.toFixed(5)}
+                    </TableCell>
+                    <TableCell className="text-right font-semibold text-success">
+                      R$ {record.valor_total.toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {record.abastecimento_galoes?.toFixed(2) || "-"}
+                    </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(record)}>
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(record)}
+                          className="h-8 w-8 hover:bg-primary/10 hover:text-primary"
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(record.id)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(record.id)}
+                          className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive"
+                        >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
@@ -380,7 +530,11 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
               </TableBody>
             </Table>
             {records.length === 0 && (
-              <div className="text-center py-12 text-muted-foreground">Nenhum registro de abastecimento encontrado</div>
+              <div className="text-center py-16 text-muted-foreground">
+                <TrendingUp className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                <p className="font-medium">Nenhum registro de abastecimento</p>
+                <p className="text-sm mt-1">Comece criando um novo registro</p>
+              </div>
             )}
           </div>
         </CardContent>
