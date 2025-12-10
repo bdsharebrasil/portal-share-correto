@@ -295,7 +295,7 @@ export function CategoriasCrud() {
                     <Search className="h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[280px] p-0 z-50" align="start">
+                <PopoverContent className="w-[280px] p-0" align="start" sideOffset={5} style={{ zIndex: 9999 }}>
                   <div className="p-3 space-y-2 bg-card">
                     <Input
                       autoFocus
