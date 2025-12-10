@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Edit, Trash2, MapPin, Phone, DollarSign } from "lucide-react";
+import { Plus, Edit, Trash2, MapPin, Phone, DollarSign, Search, X } from "lucide-react";
 
 interface FuelSupplier {
   id: string;
@@ -24,6 +24,7 @@ export function SupplierDirectory() {
   const [suppliers, setSuppliers] = useState<FuelSupplier[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<FuelSupplier | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState({
     city_name: "",
     icao_code: "",
@@ -131,6 +132,12 @@ export function SupplierDirectory() {
     });
     setEditingSupplier(null);
   };
+
+  const filteredSuppliers = suppliers.filter(supplier =>
+    supplier.supplier_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    supplier.city_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    supplier.icao_code.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
