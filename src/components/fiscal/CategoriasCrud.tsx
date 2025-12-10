@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Edit2, Search, Loader2, Check } from "lucide-react";
+import { Plus, Trash2, Edit2, Search, Loader2, Check, TrendingUp, TrendingDown } from "lucide-react";
 import { useCategoriasFinanceiro, CategoriaFinanceiro } from "@/hooks/useCategoriasFinanceiro";
 import { useClientesCombo } from "@/hooks/useClientesCombo";
 import { toast } from "sonner";
@@ -35,6 +35,7 @@ export function CategoriasCrud() {
   const [formData, setFormData] = useState({
     nome: "",
     tipo: "receita" as "receita" | "despesa",
+    categoria: "",
     descricao: "",
     cliente_id: "",
     cliente_nome: ""
@@ -48,6 +49,7 @@ export function CategoriasCrud() {
       setFormData({
         nome: categoria.nome,
         tipo: categoria.tipo,
+        categoria: categoria.categoria || "",
         descricao: categoria.descricao || "",
         cliente_id: categoria.cliente_id || "",
         cliente_nome: categoria.cliente_nome || ""
@@ -57,6 +59,7 @@ export function CategoriasCrud() {
       setFormData({
         nome: "",
         tipo: "receita",
+        categoria: "",
         descricao: "",
         cliente_id: "",
         cliente_nome: ""
@@ -78,6 +81,7 @@ export function CategoriasCrud() {
         success = await updateCategoria(editingCategoria.id, {
           nome: formData.nome,
           tipo: formData.tipo,
+          categoria: formData.categoria || null,
           descricao: formData.descricao,
           cliente_id: formData.cliente_id || null,
           cliente_nome: formData.cliente_nome || null
@@ -87,6 +91,7 @@ export function CategoriasCrud() {
         success = await addCategoria({
           nome: formData.nome,
           tipo: formData.tipo,
+          categoria: formData.categoria || null,
           descricao: formData.descricao,
           cliente_id: formData.cliente_id || null,
           cliente_nome: formData.cliente_nome || null
@@ -98,6 +103,7 @@ export function CategoriasCrud() {
         setFormData({
           nome: "",
           tipo: "receita",
+          categoria: "",
           descricao: "",
           cliente_id: "",
           cliente_nome: ""
@@ -174,9 +180,19 @@ export function CategoriasCrud() {
                       <h4 className="font-semibold text-foreground">
                         {categoria.nome}
                       </h4>
-                      <Badge variant={categoria.tipo === "receita" ? "default" : "destructive"} className="text-xs bg-red-900 rounded-lg shadow-md">
-                        {categoria.tipo === "receita" ? "Receita" : "Despesa"}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {categoria.tipo === "receita" ? (
+                          <TrendingUp className="w-4 h-4 text-blue-500" />
+                        ) : (
+                          <TrendingDown className="w-4 h-4 text-red-500" />
+                        )}
+                        <Badge variant={categoria.tipo === "receita" ? "default" : "destructive"} className="text-xs bg-red-900 rounded-lg shadow-md">
+                          {categoria.tipo === "receita" ? "Receita" : "Despesa"}
+                        </Badge>
+                      </div>
+                      {categoria.categoria && <Badge variant="secondary" className="text-xs">
+                          {categoria.categoria}
+                        </Badge>}
                       {categoria.cliente_nome && <Badge variant="outline" className="text-xs">
                           {categoria.cliente_nome}
                         </Badge>}
@@ -231,6 +247,14 @@ export function CategoriasCrud() {
                   <SelectItem value="despesa">Despesa</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="categoria">Categoria (Opcional)</Label>
+              <Input id="categoria" placeholder="Ex: Despesa Operacional" value={formData.categoria} onChange={e => setFormData(prev => ({
+              ...prev,
+              categoria: e.target.value
+            }))} className="mt-1" />
             </div>
 
             <div>

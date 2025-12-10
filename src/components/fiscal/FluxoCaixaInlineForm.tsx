@@ -63,6 +63,7 @@ export function FluxoCaixaInlineForm({
   };
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm({
+    mode: "onBlur",
     defaultValues: {
       data: getTodayDateString(),
       tipo_movimento: "entrada",
@@ -167,6 +168,11 @@ export function FluxoCaixaInlineForm({
   const onSubmit = async (formData: any) => {
     if (!user) {
       toast.error("Usuário não autenticado");
+      return;
+    }
+
+    if (!formData.categoria || formData.categoria.trim() === "") {
+      toast.error("Categoria é obrigatória");
       return;
     }
 
@@ -295,9 +301,11 @@ export function FluxoCaixaInlineForm({
             <Label htmlFor="categoria" className="text-sm font-semibold text-foreground mb-2">
               Categoria *
             </Label>
-            <Select defaultValue="" onValueChange={(value) => setValue("categoria", value)}>
-              <SelectTrigger className="h-10 w-full bg-background">
-                <SelectValue placeholder="Selecione" />
+            <Select value={watch("categoria") || ""} onValueChange={(value) => {
+              setValue("categoria", value);
+            }}>
+              <SelectTrigger className={`h-10 w-full bg-background ${!watch("categoria") ? "border-red-500/50" : ""}`}>
+                <SelectValue placeholder="Selecione uma categoria" />
               </SelectTrigger>
               <SelectContent align="start">
                 {categoriaNomes.map((cat) => (
@@ -312,7 +320,7 @@ export function FluxoCaixaInlineForm({
                 )}
               </SelectContent>
             </Select>
-            {errors.categoria && <span className="text-xs text-red-500 mt-1 block">Obrigatório</span>}
+            <p className="text-xs text-muted-foreground mt-1">Campo obrigatório para entrada ou saída</p>
           </div>
 
           <div className="md:col-span-2">

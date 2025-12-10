@@ -16,6 +16,7 @@ export interface CategoriaFinanceiro {
   id: string;
   nome: string;
   tipo: "receita" | "despesa";
+  categoria?: string | null;
   descricao?: string;
   ativo?: boolean;
   cliente_id?: string | null;
@@ -30,11 +31,8 @@ export interface Conta {
   tipo_conta?: "corrente" | "poupanca" | "investimento";
   ativo?: boolean;
   saldo?: number;
-  empresa_id?: string;
   criado_por?: string;
 }
-
-const DEFAULT_EMPRESA_ID = "00000000-0000-0000-0000-000000000001";
 
 export function useCategoriasFinanceiro() {
   const { user } = useAuth();
@@ -47,6 +45,7 @@ export function useCategoriasFinanceiro() {
       const { data, error } = await supabase
         .from("categorias_movimentacao")
         .select("*")
+        .eq("ativo", true)
         .order("nome");
 
       if (error) {
@@ -58,6 +57,7 @@ export function useCategoriasFinanceiro() {
         id: cat.id,
         nome: cat.nome,
         tipo: cat.tipo as "receita" | "despesa",
+        categoria: cat.categoria || null,
         descricao: cat.descricao || undefined,
         ativo: cat.ativo ?? true,
         cliente_id: cat.cliente_id || null,
@@ -88,12 +88,12 @@ export function useCategoriasFinanceiro() {
         .insert([{
           nome: categoria.nome,
           tipo: categoria.tipo,
+          categoria: categoria.categoria || null,
           descricao: categoria.descricao || null,
           ativo: true,
           cliente_id: categoria.cliente_id || null,
           cliente_nome: categoria.cliente_nome || null,
-          criado_por: user.id,
-          empresa_id: DEFAULT_EMPRESA_ID
+          criado_por: user.id
         }]);
 
       if (error) {
@@ -111,19 +111,14 @@ export function useCategoriasFinanceiro() {
 
   const updateCategoria = useCallback(async (id: string, updates: Partial<CategoriaFinanceiro>) => {
     try {
-      const updateData: any = {
-        nome: updates.nome,
-        tipo: updates.tipo,
-        descricao: updates.descricao || null
-      };
+      const updateData: any = {};
 
-      if (updates.cliente_id !== undefined) {
-        updateData.cliente_id = updates.cliente_id || null;
-      }
-
-      if (updates.cliente_nome !== undefined) {
-        updateData.cliente_nome = updates.cliente_nome || null;
-      }
+      if (updates.nome !== undefined) updateData.nome = updates.nome;
+      if (updates.tipo !== undefined) updateData.tipo = updates.tipo;
+      if (updates.categoria !== undefined) updateData.categoria = updates.categoria || null;
+      if (updates.descricao !== undefined) updateData.descricao = updates.descricao || null;
+      if (updates.cliente_id !== undefined) updateData.cliente_id = updates.cliente_id || null;
+      if (updates.cliente_nome !== undefined) updateData.cliente_nome = updates.cliente_nome || null;
 
       const { error } = await supabase
         .from("categorias_movimentacao")
@@ -200,7 +195,6 @@ export function useCategoriasConta() {
       const { data, error } = await supabase
         .from("contas_bancarias")
         .select("*")
-        .eq("empresa_id", DEFAULT_EMPRESA_ID)
         .eq("ativo", true)
         .order("nome");
 
@@ -217,7 +211,6 @@ export function useCategoriasConta() {
         tipo_conta: conta.tipo_conta || "corrente",
         ativo: conta.ativo ?? true,
         saldo: conta.saldo || 0,
-        empresa_id: conta.empresa_id,
         criado_por: conta.criado_por
       }));
 
@@ -250,7 +243,6 @@ export function useCategoriasConta() {
           tipo_conta: conta.tipo_conta || "corrente",
           ativo: true,
           saldo: conta.saldo || 0,
-          empresa_id: DEFAULT_EMPRESA_ID,
           criado_por: user.id
         }]);
 
@@ -284,8 +276,7 @@ export function useCategoriasConta() {
       const { error } = await supabase
         .from("contas_bancarias")
         .update(updateData)
-        .eq("id", id)
-        .eq("empresa_id", DEFAULT_EMPRESA_ID);
+        .eq("id", id);
 
       if (error) {
         toast.error(`Erro ao atualizar conta: ${error.message}`);
@@ -309,8 +300,7 @@ export function useCategoriasConta() {
           ativo: false,
           atualizado_em: new Date().toISOString()
         })
-        .eq("id", id)
-        .eq("empresa_id", DEFAULT_EMPRESA_ID);
+        .eq("id", id);
 
       if (error) {
         toast.error(`Erro ao excluir conta: ${error.message}`);
