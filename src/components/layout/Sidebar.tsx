@@ -55,12 +55,6 @@ const baseMenuGroups: MenuGroup[] = [
     itemId: "gestao_fiscal",
   },
   {
-    title: "Dashboard Gestor",
-    icon: BarChart3,
-    href: "/financeiro/dashboard-gestor",
-    itemId: "dashboard_gestor",
-  },
-  {
     title: "Acesso Gestor",
     icon: ExternalLink,
     isSSOLink: true,
@@ -178,11 +172,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
         // Gestão Fiscal - apenas para roles específicas
         if (item.itemId === "gestao_fiscal") {
           return canAccessFinancialControl;
-        }
-
-        // Dashboard Gestor - apenas para admin/gestor_master
-        if (item.itemId === "dashboard_gestor") {
-          return canManageUsersGlobal;
         }
 
         // Acesso Gestor - apenas para admin/gestor_master
