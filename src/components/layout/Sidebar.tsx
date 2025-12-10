@@ -46,11 +46,17 @@ const baseMenuGroups: MenuGroup[] = [
       { title: "Início", icon: Home, href: "/", isMain: true },
       { title: "Minhas Tarefas", icon: CheckSquare, href: "/minhas-tarefas" },
       {
-        title: "Gestão Fiscal",
-        icon: BarChart3,
-        href: "/financeiro/gestao-fiscal",
-        itemId: "gestao_fiscal",
-      },
+    title: "Gestão Fiscal",
+    icon: BarChart3,
+    href: "/financeiro/gestao-fiscal",
+    itemId: "gestao_fiscal",
+  },
+  {
+    title: "Dashboard Gestor",
+    icon: BarChart3,
+    href: "/financeiro/dashboard-gestor",
+    itemId: "dashboard_gestor",
+  },
     ],
   },
   {
