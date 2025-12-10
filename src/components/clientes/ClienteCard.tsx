@@ -59,9 +59,9 @@ export function ClienteCard({
       
       <CardContent className="p-5 my-0 py-0">
         <div className="mb-4 shadow-sm bg-transparent mx-[22px] gap-[9px] px-0 flex-col flex items-center justify-center my-[23px] py-[5px]">
-          <Avatar className="h-14 w-14 ring-2 ring-border shadow-sm flex-shrink-0">
-            {cliente.logo_url ? <AvatarImage src={cliente.logo_url} alt={cliente.company_name} className="object-cover" /> : null}
-            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary font-bold text-lg">
+          <Avatar className="h-10 w-10 ring-2 ring-border shadow-sm flex-shrink-0">
+            {cliente.logo_url ? <AvatarImage src={cliente.logo_url} alt={cliente.company_name} className="object-contain" /> : null}
+            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary font-bold text-xs">
               {getInitials(cliente.company_name)}
             </AvatarFallback>
           </Avatar>
