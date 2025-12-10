@@ -168,6 +168,52 @@ export function ClientFuelRecords() {
             <p className="text-sm text-muted-foreground mt-1">{clients.length} cliente(s) disponível(is)</p>
           </div>
 
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar fornecedor de combustível..."
+                value={supplierSearch}
+                onChange={(e) => setSupplierSearch(e.target.value)}
+                className="pl-10 pr-4"
+              />
+            </div>
+
+            {supplierSearch && filteredSuppliers.length > 0 && (
+              <div className="absolute top-full left-0 right-0 bg-card border border-border rounded-md shadow-lg z-50 max-h-64 overflow-y-auto mt-1">
+                {filteredSuppliers.map((supplier) => (
+                  <button
+                    key={supplier.id}
+                    onClick={() => handleSupplierSelect(supplier)}
+                    className="w-full text-left px-4 py-2 hover:bg-muted transition-colors border-b border-border/50 last:border-b-0"
+                  >
+                    <p className="font-medium text-foreground">{supplier.supplier_name}</p>
+                    <p className="text-xs text-muted-foreground">{supplier.city_name}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {selectedSupplier && (
+              <Card className="border border-primary/30 bg-primary/5">
+                <CardContent className="p-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{selectedSupplier.supplier_name}</p>
+                    <p className="text-xs text-muted-foreground">{selectedSupplier.city_name}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleClearSupplier}
+                    className="h-8 w-8 p-0 hover:bg-primary/10"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
           {clients.length === 0 ? (
             <Card className="border border-border/50">
               <CardContent className="py-16 text-center">
