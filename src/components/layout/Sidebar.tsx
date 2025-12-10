@@ -167,6 +167,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
           return canManageUsersGlobal;
         }
 
+        // Acesso Gestor - apenas para admin/gestor_master
+        if (item.itemId === "acesso_gestor") {
+          return canManageUsersGlobal;
+        }
+
         // Usuários - apenas para admin/gestor
         if (item.itemId === "admin_usuarios") {
           return canManageUsersGlobal;
