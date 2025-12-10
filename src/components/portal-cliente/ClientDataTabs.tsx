@@ -89,13 +89,6 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
   const [bankReconciliations, setBankReconciliations] = useState<BankReconciliation[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Atualizar status quando conciliação é selecionada
-  useEffect(() => {
-    if (selectedReconciliation) {
-      setNewStatus(selectedReconciliation.status);
-    }
-  }, [selectedReconciliation]);
-
   // Carregador de dados principal
   useEffect(() => {
     loadData();
