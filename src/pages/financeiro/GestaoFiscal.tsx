@@ -31,10 +31,10 @@ export default function GestaoFiscal() {
       </Layout>;
   }
   return <Layout>
-      <div className="min-h-[calc(100vh-4rem)] flex-col bg-background flex items-start justify-center py-[48px] my-[40px] mb-[3px] pb-[19px] mt-0">
+      <div className="min-h-[calc(100vh-4rem)] flex-col bg-background flex items-start justify-center mb-[3px] pb-[19px] mt-0 my-[10px] py-0">
         {/* Header */}
         <div className="space-y-6 pb-8 mb-[80px] my-0 py-[2px]">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between py-0 my-0 px-[13px]">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-2xl bg-gradient-to-br from-primary/30 via-primary/15 to-primary/5 border border-primary/30 shadow-lg shadow-primary/10">
                 <DollarSign className="w-8 h-8 text-primary" />
@@ -129,7 +129,7 @@ export default function GestaoFiscal() {
               </TabsContent>
 
               <TabsContent value="configuracoes" className="mt-0">
-                <ConfiguracoesFiscais />
+                <ConfiguracoesFiscais className="py-[23px]" />
               </TabsContent>
             </div>
           </Tabs>
