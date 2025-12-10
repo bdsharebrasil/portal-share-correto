@@ -608,42 +608,53 @@ export default function Clientes() {
   return (
     <Layout>
       {!viewingCliente && (
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="p-6 space-y-6 max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Clientes / Cotistas</h1>
-            <p className="text-muted-foreground mt-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+              Clientes / Cotistas
+            </h1>
+            <p className="text-muted-foreground mt-1">
               Gerencie o cadastro de clientes e cotistas
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button onClick={() => handleOpenDialog()} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Novo Cadastro
-            </Button>
-          </div>
+          <Button onClick={() => handleOpenDialog()} size="lg" className="gap-2 shadow-md">
+            <Plus className="h-4 w-4" />
+            Novo Cadastro
+          </Button>
         </div>
 
-        {/* Cards de Resumo */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card onClick={() => setShowInactive(false)} className="cursor-pointer">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <Building className="h-8 w-8 text-primary" />
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Card 
+            onClick={() => setShowInactive(false)} 
+            className={`cursor-pointer transition-all duration-200 hover:shadow-md ${!showInactive ? 'ring-2 ring-primary shadow-md' : 'hover:border-primary/50'}`}
+          >
+            <CardContent className="p-5">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Building className="h-6 w-6 text-primary" />
+                </div>
                 <div>
-                  <p className="text-2xl font-bold">{activeClientes.length}</p>
-                  <p className="text-sm text-muted-foreground">Total de Clientes</p>
+                  <p className="text-3xl font-bold text-foreground">{activeClientes.length}</p>
+                  <p className="text-sm text-muted-foreground">Clientes Ativos</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card onClick={() => setShowInactive(true)} className="cursor-pointer">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <Folder className="h-8 w-8 text-muted-foreground" />
+          <Card 
+            onClick={() => setShowInactive(true)} 
+            className={`cursor-pointer transition-all duration-200 hover:shadow-md ${showInactive ? 'ring-2 ring-muted-foreground/50 shadow-md' : 'hover:border-muted-foreground/30'}`}
+          >
+            <CardContent className="p-5">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center">
+                  <Folder className="h-6 w-6 text-muted-foreground" />
+                </div>
                 <div>
-                  <p className="text-2xl font-bold">{inactiveClientes.length}</p>
+                  <p className="text-3xl font-bold text-foreground">{inactiveClientes.length}</p>
                   <p className="text-sm text-muted-foreground">Clientes Inativos</p>
                 </div>
               </div>
@@ -651,247 +662,291 @@ export default function Clientes() {
           </Card>
         </div>
 
-        {/* Filtros e Busca */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Cadastros</CardTitle>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar cliente..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64"
-                />
-              </div>
+        {/* Search */}
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, CNPJ ou cidade..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 h-11"
+          />
+        </div>
+
+        {/* Content */}
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <p className="text-muted-foreground text-sm">Carregando clientes...</p>
             </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-muted-foreground">Carregando...</div>
+          </div>
+        ) : filteredClientes.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                <Building className="h-8 w-8 text-muted-foreground" />
               </div>
-            ) : filteredClientes.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Building className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Nenhum cliente cadastrado</p>
-                <Button onClick={() => handleOpenDialog()} className="mt-4" variant="outline">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Cadastrar Primeiro Cliente
-                </Button>
+              <h3 className="text-lg font-semibold text-foreground mb-1">Nenhum cliente cadastrado</h3>
+              <p className="text-muted-foreground text-sm mb-4">Comece adicionando seu primeiro cliente</p>
+              <Button onClick={() => handleOpenDialog()} variant="outline" className="gap-2">
+                <Plus className="h-4 w-4" />
+                Cadastrar Cliente
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-6">
+            {/* Active Clients */}
+            {!showInactive && activeClientes.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {activeClientes.map((cliente) => (
+                  <ClienteCard
+                    key={cliente.id}
+                    cliente={cliente}
+                    onView={handleViewCliente}
+                    onEdit={handleOpenDialog}
+                    onDelete={setDeleteId}
+                  />
+                ))}
               </div>
-            ) : (
-              <>
-                {activeClientes.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {activeClientes.map((cliente) => (
-                      <ClienteCard
-                        key={cliente.id}
-                        cliente={cliente}
-                        onView={handleViewCliente}
-                        onEdit={handleOpenDialog}
-                        onDelete={setDeleteId}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {inactiveClientes.length > 0 && (
-                  <div className="space-y-3 mt-8">
-                    <button
-                      type="button"
-                      className="w-full flex items-center justify-between rounded-md border border-border bg-card px-4 py-3 text-left"
-                      onClick={() => setShowInactive((v) => !v)}
-                      aria-expanded={showInactive}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Folder className="h-5 w-5 text-muted-foreground" />
-                        <span className="text-xl font-semibold text-foreground">Clientes Inativos</span>
-                        <Badge variant="secondary">{inactiveClientes.length}</Badge>
-                      </div>
-                      <span className="text-sm text-muted-foreground">{showInactive ? 'Ocultar' : 'Abrir pasta'}</span>
-                    </button>
-
-                    {showInactive && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {inactiveClientes.map((cliente) => (
-                          <ClienteCard
-                            key={cliente.id}
-                            cliente={cliente}
-                            onView={handleViewCliente}
-                            onEdit={handleOpenDialog}
-                            onDelete={setDeleteId}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
             )}
-          </CardContent>
-        </Card>
+
+            {/* Inactive Clients */}
+            {showInactive && inactiveClientes.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Folder className="h-5 w-5 text-muted-foreground" />
+                  <h2 className="text-lg font-semibold text-foreground">Clientes Inativos</h2>
+                  <Badge variant="secondary">{inactiveClientes.length}</Badge>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {inactiveClientes.map((cliente) => (
+                    <ClienteCard
+                      key={cliente.id}
+                      cliente={cliente}
+                      onView={handleViewCliente}
+                      onEdit={handleOpenDialog}
+                      onDelete={setDeleteId}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {showInactive && inactiveClientes.length === 0 && (
+              <Card className="border-dashed">
+                <CardContent className="py-12 text-center">
+                  <p className="text-muted-foreground">Nenhum cliente inativo</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
       </div>
       )}
 
-      {/* Perfil do Cliente - renderizado dentro do projeto */}
+      {/* Perfil do Cliente */}
       {viewingCliente && (
-        <div className="p-6 space-y-6">
-          <Button variant="ghost" onClick={handleCloseView} className="flex items-center gap-2 w-fit">
+        <div className="p-6 space-y-6 max-w-5xl mx-auto">
+          {/* Back Button */}
+          <Button 
+            variant="ghost" 
+            onClick={handleCloseView} 
+            className="gap-2 text-muted-foreground hover:text-foreground -ml-2"
+          >
             <ChevronLeft className="h-4 w-4" />
-            Voltar para Contatos
+            Voltar para Clientes
           </Button>
 
-          <div className="rounded-2xl border border-blue-400/20 bg-gradient-to-br from-blue-950/40 via-blue-900/30 to-blue-950/40 backdrop-blur-sm shadow-lg p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-6">
-                <Avatar className="h-20 w-20 ring-4 ring-blue-200/50 dark:ring-blue-900/30">
-                  {viewingCliente.logo_url && (
-                    <AvatarImage src={viewingCliente.logo_url} alt={viewingCliente.company_name} />
-                  )}
-                  <AvatarFallback className="bg-gradient-to-br from-blue-500/20 to-cyan-500/20 text-lg font-bold text-blue-600">
-                    {viewingCliente.company_name
-                      .split(' ')
-                      .map((p) => p[0])
-                      .filter(Boolean)
-                      .slice(0, 2)
-                      .join('')
-                      .toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <h2 className="text-3xl font-bold text-foreground mb-2">{viewingCliente.company_name}</h2>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200/50 dark:border-blue-800/50">
-                      Cliente Ativo
-                    </Badge>
-                    <Badge variant="outline" className="font-mono text-sm">
-                      {viewingCliente.cnpj}
-                    </Badge>
+          {/* Header Card */}
+          <Card className="overflow-hidden border-0 shadow-lg">
+            <div className="relative">
+              {/* Background gradient */}
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
+              
+              <CardContent className="relative p-6 sm:p-8">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                  <div className="flex items-center gap-5">
+                    <Avatar className="h-20 w-20 sm:h-24 sm:w-24 ring-4 ring-background shadow-xl">
+                      {viewingCliente.logo_url && (
+                        <AvatarImage src={viewingCliente.logo_url} alt={viewingCliente.company_name} className="object-cover" />
+                      )}
+                      <AvatarFallback className="bg-gradient-to-br from-primary to-primary/60 text-primary-foreground text-2xl font-bold">
+                        {viewingCliente.company_name
+                          .split(' ')
+                          .map((p) => p[0])
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .join('')
+                          .toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+                        {viewingCliente.company_name}
+                      </h1>
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
+                        <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
+                          Cliente Ativo
+                        </Badge>
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {viewingCliente.cnpj}
+                        </Badge>
+                      </div>
+                    </div>
                   </div>
+                  <Button onClick={() => handleOpenDialog(viewingCliente)} className="gap-2 shadow-md">
+                    <Edit className="h-4 w-4" />
+                    Editar
+                  </Button>
                 </div>
-              </div>
-              <Button onClick={() => handleOpenDialog(viewingCliente)}>
-                <Edit className="h-4 w-4 mr-2" /> Editar
-              </Button>
+              </CardContent>
             </div>
-          </div>
+          </Card>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="bg-gradient-card border-border shadow-card">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
-                  <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                    <Phone className="h-5 w-5 text-primary" />
+          {/* Info Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Contact Card */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Phone className="h-4 w-4 text-primary" />
                   </div>
                   Informações de Contato
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {viewingCliente.phone && (
-                  <div className="pb-4 border-b border-border">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Telefone</p>
-                    <p className="text-base font-medium text-foreground">{viewingCliente.phone}</p>
+                  <div className="flex items-start gap-3">
+                    <Phone className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">Telefone</p>
+                      <p className="text-sm font-medium text-foreground">{viewingCliente.phone}</p>
+                    </div>
                   </div>
                 )}
                 {viewingCliente.email && (
-                  <div className="pb-4 border-b border-border">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">E-mail</p>
-                    <p className="text-base font-medium text-foreground break-all">{viewingCliente.email}</p>
+                  <div className="flex items-start gap-3">
+                    <Mail className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">E-mail</p>
+                      <p className="text-sm font-medium text-foreground break-all">{viewingCliente.email}</p>
+                    </div>
                   </div>
                 )}
                 {(viewingCliente.address || viewingCliente.city || viewingCliente.uf) && (
-                  <div className="pb-4 border-b border-border">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Endereço</p>
-                    <p className="text-base font-medium text-foreground">{[viewingCliente.address, [viewingCliente.city, viewingCliente.uf].filter(Boolean).join(' - ')].filter(Boolean).join(' | ')}</p>
+                  <div className="flex items-start gap-3">
+                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">Endereço</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {[viewingCliente.address, [viewingCliente.city, viewingCliente.uf].filter(Boolean).join(' - ')].filter(Boolean).join(', ')}
+                      </p>
+                    </div>
                   </div>
                 )}
                 {viewingCliente.financial_contact && (
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Contato Financeiro</p>
-                    <p className="text-base font-medium text-foreground">{viewingCliente.financial_contact}</p>
+                  <div className="flex items-start gap-3">
+                    <Building className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-0.5">Contato Financeiro</p>
+                      <p className="text-sm font-medium text-foreground">{viewingCliente.financial_contact}</p>
+                    </div>
                   </div>
                 )}
                 {!viewingCliente.phone && !viewingCliente.email && !viewingCliente.address && !viewingCliente.city && !viewingCliente.uf && !viewingCliente.financial_contact && (
-                  <p className="text-sm text-muted-foreground text-center py-4">Nenhuma informação de contato</p>
+                  <p className="text-sm text-muted-foreground text-center py-6">Nenhuma informação de contato</p>
                 )}
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-card border-border shadow-card">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
-                  <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                    <Building className="h-5 w-5 text-primary" />
+            {/* Additional Info Card */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-semibold flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Building className="h-4 w-4 text-primary" />
                   </div>
                   Informações Adicionais
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {viewingCliente.inscricao_estadual && (
-                  <div className="pb-4 border-b border-border">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Inscrição Estadual</p>
-                    <p className="text-base font-medium text-foreground font-mono">{viewingCliente.inscricao_estadual}</p>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Inscrição Estadual</p>
+                    <p className="text-sm font-medium text-foreground font-mono">{viewingCliente.inscricao_estadual}</p>
                   </div>
                 )}
-                {viewingCliente.aircraft_ownerships && viewingCliente.aircraft_ownerships.length > 0 ? (
-                  <div className="pb-4 border-b border-border">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Aeronaves e Participação</p>
+                {viewingCliente.aircraft_ownerships && viewingCliente.aircraft_ownerships.length > 0 && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">Aeronaves e Participação</p>
                     <div className="space-y-2">
                       {viewingCliente.aircraft_ownerships.map((ownership, idx) => (
-                        <div key={idx} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg border border-border">
-                          <span className="text-sm font-medium text-foreground">{ownership.aircraft_registration} - {ownership.aircraft_model}</span>
-                          <Badge className="bg-primary/20 text-primary border-primary/30">{ownership.ownership_percentage}%</Badge>
+                        <div key={idx} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                          <span className="text-sm font-medium text-foreground">
+                            {ownership.aircraft_registration} - {ownership.aircraft_model}
+                          </span>
+                          <Badge variant="secondary" className="font-semibold">
+                            {ownership.ownership_percentage}%
+                          </Badge>
                         </div>
                       ))}
                     </div>
                   </div>
-                ) : null}
+                )}
                 {viewingCliente.observations && (
                   <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Observações</p>
-                    <p className="text-sm text-foreground whitespace-pre-wrap bg-muted/50 p-3 rounded-lg border border-border">{viewingCliente.observations}</p>
+                    <p className="text-xs text-muted-foreground mb-2">Observações</p>
+                    <p className="text-sm text-foreground whitespace-pre-wrap bg-muted/50 p-3 rounded-lg">
+                      {viewingCliente.observations}
+                    </p>
                   </div>
                 )}
                 {!viewingCliente.inscricao_estadual && !viewingCliente.aircraft_ownerships?.length && !viewingCliente.observations && (
-                  <p className="text-sm text-muted-foreground text-center py-4">Nenhuma informação adicional</p>
+                  <p className="text-sm text-muted-foreground text-center py-6">Nenhuma informação adicional</p>
                 )}
               </CardContent>
             </Card>
           </div>
 
-          <Card className="bg-gradient-card border-border shadow-card">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
-                <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                  <FileText className="h-5 w-5 text-primary" />
+          {/* Documents Card */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <FileText className="h-4 w-4 text-primary" />
                 </div>
                 Documentos
               </CardTitle>
             </CardHeader>
             <CardContent>
               {viewingCliente.documents && viewingCliente.documents.length > 0 ? (
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {viewingCliente.documents.map((doc, index) => (
                     <button
                       key={index}
                       type="button"
                       onClick={() => setPreviewDoc(doc)}
-                      className="w-full text-left flex items-center gap-4 p-4 border border-border rounded-lg hover:bg-muted hover:border-primary transition-colors group"
+                      className="flex items-center gap-3 p-4 border border-border rounded-lg hover:bg-muted/50 hover:border-primary/50 transition-all text-left group"
                     >
-                      <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
                         <FileText className="h-5 w-5 text-primary" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-foreground truncate group-hover:text-blue-600 transition-colors">{doc.name}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}</p>
+                        <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                          {doc.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}
+                        </p>
                       </div>
                     </button>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground text-center py-6">Nenhum documento anexado</p>
+                <p className="text-sm text-muted-foreground text-center py-8">Nenhum documento anexado</p>
               )}
             </CardContent>
           </Card>
