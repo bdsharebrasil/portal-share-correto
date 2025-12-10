@@ -51,20 +51,7 @@ export function ClienteCard({
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
       
       {/* Action Buttons */}
-      <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200 z-10">
-        {onEdit && <Button variant="secondary" size="icon" onClick={e => {
-        e.stopPropagation();
-        onEdit(cliente);
-      }} className="h-8 w-8 rounded-full shadow-md hover:shadow-lg">
-            <Edit className="h-3.5 w-3.5" />
-          </Button>}
-        {onDelete && <Button variant="secondary" size="icon" onClick={e => {
-        e.stopPropagation();
-        onDelete(cliente.id);
-      }} className="h-8 w-8 rounded-full shadow-md hover:shadow-lg hover:bg-destructive hover:text-destructive-foreground">
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>}
-      </div>
+      
 
       <CardContent className="p-5">
         {/* Header com Avatar e Nome */}
