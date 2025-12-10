@@ -713,10 +713,105 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-foreground">
                   <FileText className="h-5 w-5 text-primary" />
+                  Conciliação Bancária - Despesas
+                </CardTitle>
+                <CardDescription className="text-muted-foreground">
+                  Todas as despesas de viagem e outras movimentações para conciliação
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {bankReconciliations && bankReconciliations.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">Nenhuma conciliação registrada</p>
+                ) : (
+                  (bankReconciliations || [])
+                    .filter(item => item.client_id === clientId && item.aircraft_id === aircraftId && item.type === 'cliente')
+                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-5 bg-muted/50 rounded-lg border border-border hover:border-primary/50 transition-colors"
+                      >
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-start gap-4">
+                            <div className="flex-1">
+                              <p className="font-semibold text-foreground text-lg">{item.description}</p>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                📅 {new Date(item.date).toLocaleDateString('pt-BR')}
+                              </p>
+                              {item.category && (
+                                <p className="text-sm text-muted-foreground">
+                                  🏷️ {item.category.replace(/_/g, ' ')}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              {item.amount && (
+                                <p className="text-xl font-bold text-green-400">
+                                  R$ {parseFloat(item.amount).toFixed(2)}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-border">
+                            <div className="bg-background/50 p-3 rounded">
+                              <p className="text-xs text-muted-foreground font-semibold mb-1">STATUS ATUAL</p>
+                              <Badge
+                                className={
+                                  item.status?.toLowerCase() === 'recebido' || item.status?.toLowerCase() === 'conferido'
+                                    ? 'bg-green-500/20 text-green-300 w-full justify-center py-2'
+                                    : item.status?.toLowerCase() === 'enviado'
+                                      ? 'bg-blue-500/20 text-blue-300 w-full justify-center py-2'
+                                      : 'bg-yellow-500/20 text-yellow-300 w-full justify-center py-2'
+                                }
+                              >
+                                {item.status?.toLowerCase() === 'recebido' || item.status?.toLowerCase() === 'conferido'
+                                  ? '✓ Pago'
+                                  : item.status?.toLowerCase() === 'enviado'
+                                    ? '↗️ Enviado'
+                                    : '⏳ Pendente'}
+                              </Badge>
+                            </div>
+
+                            <div className="bg-background/50 p-3 rounded">
+                              <p className="text-xs text-muted-foreground font-semibold mb-1">VENCIMENTO</p>
+                              <p className="text-sm text-foreground font-medium">
+                                {item.payment_term
+                                  ? new Date(item.payment_term).toLocaleDateString('pt-BR')
+                                  : '—'}
+                              </p>
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                              <button
+                                onClick={() => {
+                                  setSelectedReconciliation(item);
+                                  setOpenStatusDialog(true);
+                                }}
+                                className="px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded text-sm font-medium transition-colors"
+                                title="Atualizar status da conciliação"
+                              >
+                                ⚙️ Atualizar Status
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-4">
+            <Card className="bg-gradient-card border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-foreground">
+                  <FileText className="h-5 w-5 text-primary" />
                   Notas Fiscais e Boletos
                 </CardTitle>
                 <CardDescription className="text-muted-foreground">
-                  Documentos financeiros para conciliação
+                  Documentos financeiros anexados às conciliações
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -726,7 +821,7 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
                   files.map((file) => (
                     <div
                       key={file.id}
-                      className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border"
+                      className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border hover:border-primary/50 transition-colors"
                     >
                       <div className="flex items-center gap-3">
                         <FileText className="h-5 w-5 text-primary" />
@@ -839,78 +934,6 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
                       </div>
                     );
                   })
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="space-y-4">
-            <Card className="bg-gradient-card border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-foreground">
-                  <FileText className="h-5 w-5 text-primary" />
-                  Status da Conciliação Bancária
-                </CardTitle>
-                <CardDescription className="text-muted-foreground">
-                  Status sincronizado com o relatório de viagem
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {bankReconciliations && bankReconciliations.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">Nenhuma conciliação registrada</p>
-                ) : (
-                  (bankReconciliations || [])
-                    .filter(item => item.client_id === clientId && item.aircraft_id === aircraftId)
-                    .map((item) => (
-                      <div
-                        key={item.id}
-                        className="p-4 bg-muted/50 rounded-lg border border-border"
-                      >
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <p className="font-medium text-foreground">{item.description}</p>
-                              <p className="text-sm text-muted-foreground">
-                                Data: {new Date(item.date).toLocaleDateString('pt-BR')}
-                              </p>
-                              {item.amount && (
-                                <p className="text-sm font-semibold text-green-400 mt-1">
-                                  Valor: R$ {parseFloat(item.amount).toFixed(2)}
-                                </p>
-                              )}
-                            </div>
-                            <Badge
-                              className={
-                                item.status?.toLowerCase() === 'recebido'
-                                  ? 'bg-green-500/20 text-green-300'
-                                  : item.status?.toLowerCase() === 'enviado'
-                                    ? 'bg-blue-500/20 text-blue-300'
-                                    : 'bg-yellow-500/20 text-yellow-300'
-                              }
-                            >
-                              {item.status?.toLowerCase() === 'recebido'
-                                ? 'Conferido'
-                                : item.status?.charAt(0).toUpperCase() + item.status?.slice(1).toLowerCase()}
-                            </Badge>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Prazo de Pagamento</p>
-                              <p className="text-sm text-foreground">
-                                {item.payment_term ? new Date(item.payment_term).toLocaleDateString('pt-BR') : '-'}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Categoria</p>
-                              <p className="text-sm text-foreground">
-                                {item.category ? item.category.replace(/_/g, ' ') : '-'}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))
                 )}
               </CardContent>
             </Card>
