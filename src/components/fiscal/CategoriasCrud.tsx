@@ -180,9 +180,16 @@ export function CategoriasCrud() {
                       <h4 className="font-semibold text-foreground">
                         {categoria.nome}
                       </h4>
-                      <Badge variant={categoria.tipo === "receita" ? "default" : "destructive"} className="text-xs bg-red-900 rounded-lg shadow-md">
-                        {categoria.tipo === "receita" ? "Receita" : "Despesa"}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        {categoria.tipo === "receita" ? (
+                          <TrendingUp className="w-4 h-4 text-blue-500" />
+                        ) : (
+                          <TrendingDown className="w-4 h-4 text-red-500" />
+                        )}
+                        <Badge variant={categoria.tipo === "receita" ? "default" : "destructive"} className="text-xs bg-red-900 rounded-lg shadow-md">
+                          {categoria.tipo === "receita" ? "Receita" : "Despesa"}
+                        </Badge>
+                      </div>
                       {categoria.categoria && <Badge variant="secondary" className="text-xs">
                           {categoria.categoria}
                         </Badge>}
