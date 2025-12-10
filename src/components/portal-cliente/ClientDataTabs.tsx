@@ -771,7 +771,7 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-border">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-3 border-t border-border">
                             <div className="bg-background/50 p-3 rounded">
                               <p className="text-xs text-muted-foreground font-semibold mb-1">STATUS ATUAL</p>
                               <Badge
@@ -800,6 +800,12 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
                               </p>
                             </div>
 
+                            <div className="bg-background/50 p-3 rounded sm:col-span-2 md:col-span-1">
+                              <p className="text-xs text-muted-foreground font-semibold mb-1">ATUALIZADO</p>
+                              <p className="text-sm text-foreground font-medium">
+                                {new Date(item.date).toLocaleDateString('pt-BR')}
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
