@@ -617,7 +617,7 @@ export default function Clientes() {
       {/* Perfil do Cliente */}
       {viewingCliente && <div className="p-6 space-y-6 max-w-5xl mx-auto">
           {/* Back Button */}
-          <Button variant="ghost" onClick={handleCloseView} className="gap-2 text-muted-foreground hover:text-foreground -ml-2">
+          <Button variant="ghost" onClick={handleCloseView} className="gap-2 text-muted-foreground hover:text-foreground -ml-2 text-slate-100">
             <ChevronLeft className="h-4 w-4" />
             Voltar para Clientes
           </Button>
@@ -725,7 +725,7 @@ export default function Clientes() {
                 {viewingCliente.aircraft_ownerships && viewingCliente.aircraft_ownerships.length > 0 && <div>
                     <p className="text-xs text-muted-foreground mb-2">Aeronaves e Participação</p>
                     <div className="space-y-2">
-                      {viewingCliente.aircraft_ownerships.map((ownership, idx) => <div key={idx} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                      {viewingCliente.aircraft_ownerships.map((ownership, idx) => <div key={idx} className="flex justify-between items-center p-3 bg-muted/50 bg-gray-950/[0.83] border-cyan-900 shadow-lg rounded-xl opacity-90">
                           <span className="text-sm font-medium text-foreground">
                             {ownership.aircraft_registration} - {ownership.aircraft_model}
                           </span>
@@ -758,7 +758,7 @@ export default function Clientes() {
             </CardHeader>
             <CardContent>
               {viewingCliente.documents && viewingCliente.documents.length > 0 ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {viewingCliente.documents.map((doc, index) => <button key={index} type="button" onClick={() => setPreviewDoc(doc)} className="flex items-center gap-3 p-4 border border-border rounded-lg hover:bg-muted/50 hover:border-primary/50 transition-all text-left group">
+                  {viewingCliente.documents.map((doc, index) => <button key={index} type="button" onClick={() => setPreviewDoc(doc)} className="p-4 border border-border rounded-lg hover:bg-muted/50 hover:border-primary/50 transition-all text-left group mx-0 my-[2px] flex items-center justify-start gap-[30px] text-lg px-[9px] py-[28px]">
                       <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
                         <FileText className="h-5 w-5 text-primary" />
                       </div>
