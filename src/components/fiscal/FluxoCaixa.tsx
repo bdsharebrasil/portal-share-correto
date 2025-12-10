@@ -183,10 +183,10 @@ export function FluxoCaixa() {
         <Card className="bg-card border-border/50 hover:border-border transition-colors">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-4 px-4 md:px-6">
             <CardTitle className="text-sm font-medium text-muted-foreground">Entradas</CardTitle>
-            <TrendingUp className="h-5 w-5 text-green-500" />
+            <TrendingUp className="h-5 w-5 text-blue-500" />
           </CardHeader>
           <CardContent className="px-4 md:px-6 pb-4">
-            <div className="text-2xl md:text-3xl font-bold text-green-500">
+            <div className="text-2xl md:text-3xl font-bold text-blue-500">
               R$ {totals.entradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground mt-2">Receitas do período</p>
