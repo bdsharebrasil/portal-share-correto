@@ -890,16 +890,16 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
                               </p>
                             </div>
 
-                            <div className="flex flex-col gap-2">
+                            <div className="flex flex-col gap-2 w-full">
                               <button
                                 onClick={() => {
                                   setSelectedReconciliation(item);
                                   setOpenStatusDialog(true);
                                 }}
-                                className="px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded text-sm font-medium transition-colors"
-                                title="Atualizar status da conciliação"
+                                className="px-2 sm:px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded text-xs sm:text-sm font-medium transition-colors whitespace-nowrap"
+                                title={canUpdateToFinal ? "Atualizar status da conciliação" : "Abrir dialog para atualizar status"}
                               >
-                                ⚙️ Atualizar Status
+                                ⚙️ <span className="hidden sm:inline">Atualizar Status</span><span className="sm:hidden">Atualizar</span>
                               </button>
                             </div>
                           </div>
