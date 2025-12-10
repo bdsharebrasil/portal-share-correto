@@ -559,7 +559,7 @@ export default function DiarioBordoDetalhes() {
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-20">DATA</th>
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-14">DE</th>
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-14">PARA</th>
-                  <th colSpan={4} className="border border-gray-500 p-1 text-[10px] font-bold text-white bg-[#008B8B]">HORÁRIOS</th>
+                  <th colSpan={4} className="border border-gray-500 p-1 text-[10px] font-bold text-white bg-emerald-900">HORÁRIOS</th>
                   <th colSpan={5} className="border border-gray-500 p-1 text-[10px] font-bold text-white bg-sky-950">TEMPO DE VOO</th>
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-12">POUSOS</th>
                   <th colSpan={2} className="border border-gray-500 p-1 text-[10px] font-bold text-white bg-[#1E90FF]">COMBUSTÍVEL</th>
@@ -571,10 +571,10 @@ export default function DiarioBordoDetalhes() {
                   <th rowSpan={2} className="border border-gray-500 p-1.5 text-[10px] font-bold text-white w-16">CONFERE</th>
                 </tr>
                 <tr className="bg-[#111827]">
-                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#008B8B] w-14">AC</th>
-                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#008B8B] w-14">DEP</th>
-                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#008B8B] w-14">POU</th>
-                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#008B8B] w-14">COR</th>
+                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white w-14 bg-emerald-950">AC</th>
+                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white w-14 bg-emerald-950">DEP</th>
+                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white w-14 bg-emerald-950">POU</th>
+                  <th className="border border-gray-500 p-1 text-[9px] font-bold text-white w-14 bg-emerald-950">COR</th>
                   <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#1e40af] w-12">T VOO</th>
                   <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#1e40af] w-12">T DIA</th>
                   <th className="border border-gray-500 p-1 text-[9px] font-bold text-white bg-[#1e40af] w-12">T NOITE</th>
