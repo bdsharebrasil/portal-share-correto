@@ -33,7 +33,7 @@ export default function GestaoFiscal() {
   return <Layout>
       <div className="min-h-[calc(100vh-4rem)] flex-col bg-background flex items-start justify-center py-[48px] my-[40px] mb-[3px] pb-[19px] mt-0">
         {/* Header */}
-        <div className="space-y-6 pb-8 my-[37px] py-[48px] mb-[80px]">
+        <div className="space-y-6 pb-8 mb-[80px] my-0 py-[2px]">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-2xl bg-gradient-to-br from-primary/30 via-primary/15 to-primary/5 border border-primary/30 shadow-lg shadow-primary/10">
