@@ -810,7 +810,7 @@ export default function Perfil() {
               Gerencie suas informações pessoais e mantenha seus dados sempre atualizados.
             </p>
           </div>
-          <Button onClick={() => setIsEditing(true)} disabled={isFetching || isLoading || isEditing} variant="default">
+          <Button onClick={() => setIsEditing(true)} disabled={isFetching || isLoading || isEditing} variant="default" className="text-xs shadow-xl rounded-lg opacity-90 bg-teal-700 hover:bg-teal-600 text-gray-950 px-[9px] mx-[2px] py-[7px] my-[5px]">
             {isFetching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit className="mr-2 h-4 w-4" />}
             Editar
           </Button>
