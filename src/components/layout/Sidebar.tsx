@@ -138,6 +138,9 @@ interface SidebarProps {
   isOpen: boolean;
 }
 
+// URL da aplicação do gestor
+const GESTOR_APP_URL = "https://financeiro-gestor.vercel.app/";
+
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   const [expandedItems, setExpandedItems] = useState<string[]>(["Agenda", "Portal Financeiro", "Saldo Cartão"]);
 
@@ -146,6 +149,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   // Variáveis de permissão
   const canManageUsersGlobal = useMemo(() => isAdmin || isGestorMaster, [isAdmin, isGestorMaster]);
   const canAccessFinancialControl = useMemo(() => isAdmin || isGestorMaster || isFinanceiroMaster, [isAdmin, isGestorMaster, isFinanceiroMaster]);
+
+  // Função para acessar o app do gestor com SSO
+  const handleGestorAccess = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session) {
+        // Redireciona com os tokens de acesso
+        const gestorUrl = `${GESTOR_APP_URL}auth?access_token=${session.access_token}&refresh_token=${session.refresh_token}`;
+        window.open(gestorUrl, "_blank");
+      }
+    } catch (error) {
+      console.error("Erro ao acessar app do gestor:", error);
+    }
+  };
 
   // Filtrar menu baseado em permissões
   const filteredMenuGroups = useMemo(() => {
