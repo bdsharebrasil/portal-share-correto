@@ -413,7 +413,7 @@ export function FluxoCaixa() {
                             {mov.tipo_movimento === "entrada" ? "Entrada" : "Saída"}
                           </Badge>
                         </div>
-                        <div className={`w-32 flex-shrink-0 text-right font-semibold whitespace-nowrap ${mov.tipo_movimento === "entrada" ? "text-green-500" : "text-red-500"}`}>
+                        <div className={`w-32 flex-shrink-0 text-right font-semibold whitespace-nowrap ${mov.tipo_movimento === "entrada" ? "text-blue-500" : "text-red-500"}`}>
                           {mov.tipo_movimento === "entrada" ? "+" : "-"}R$ {parseFloat(mov.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </div>
                         <div className="w-24 flex-shrink-0 text-muted-foreground text-xs truncate" title={mov.conta_banco || "-"}>
