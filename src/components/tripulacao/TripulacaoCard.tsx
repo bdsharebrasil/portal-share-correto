@@ -1,7 +1,7 @@
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Mail, Phone } from "lucide-react";
+import { Mail, Phone, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { CrewMember, CrewRole } from "@/services/crew";
 import { ROLE_LABELS } from "@/lib/roles";
