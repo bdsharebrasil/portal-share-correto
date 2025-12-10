@@ -53,9 +53,9 @@ export function ClienteCard({
       {/* Action Buttons */}
       
 
-      <CardContent className="p-5">
+      <CardContent className="p-5 my-0 py-0">
         {/* Header com Avatar e Nome */}
-        <div className="gap-4 mb-4 shadow-sm flex items-center justify-start bg-transparent">
+        <div className="mb-4 shadow-sm bg-transparent mx-[22px] gap-[9px] px-0 flex-col flex items-center justify-center my-[23px] py-[5px]">
           <Avatar className="h-14 w-14 ring-2 ring-border shadow-sm flex-shrink-0">
             {cliente.logo_url ? <AvatarImage src={cliente.logo_url} alt={cliente.company_name} className="object-cover" /> : null}
             <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary font-bold text-lg">
@@ -64,10 +64,10 @@ export function ClienteCard({
           </Avatar>
           
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-foreground text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+            <h3 className="font-semibold text-foreground text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors text-center my-[14px] py-[6px]">
               {cliente.company_name}
             </h3>
-            <p className="text-xs text-muted-foreground font-mono mt-1">
+            <p className="text-xs text-muted-foreground font-mono mt-1 text-center">
               {cliente.cnpj}
             </p>
           </div>
@@ -85,25 +85,25 @@ export function ClienteCard({
               <span className="text-foreground truncate">{cliente.email}</span>
             </div>}
 
-          {location && <div className="flex items-center gap-2.5 text-sm">
+          {location && <div className="gap-2.5 text-sm flex items-center justify-center">
               <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0 text-red-600" />
               <span className="text-foreground truncate">{location}</span>
             </div>}
 
-          {cliente.financial_contact && <div className="flex items-center gap-2.5 text-sm">
+          {cliente.financial_contact && <div className="gap-2.5 text-sm flex items-center justify-center">
               <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0 text-zinc-500" />
               <span className="text-foreground truncate">{cliente.financial_contact}</span>
             </div>}
         </div>
 
         {/* Aeronaves */}
-        {cliente.aircraft_ownerships && cliente.aircraft_ownerships.length > 0 && <div className="mt-4 pt-3 border-t border-border/50 py-[36px]">
-            <div className="flex items-center gap-2 mb-2">
+        {cliente.aircraft_ownerships && cliente.aircraft_ownerships.length > 0 && <div className="mt-4 pt-3 border-t border-border/50 my-[15px] py-[14px]">
+            <div className="gap-2 mb-2 flex items-center justify-center">
               <Plane className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Aeronaves</span>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {cliente.aircraft_ownerships.slice(0, 3).map((ownership, idx) => <Badge key={idx} variant="secondary" className="text-xs font-medium px-2 py-0.5 rounded-lg border border-slate-900 bg-[#03121c]/[0.84]">
+            <div className="flex-wrap gap-1.5 rounded-md shadow-sm bg-transparent flex items-center justify-center">
+              {cliente.aircraft_ownerships.slice(0, 3).map((ownership, idx) => <Badge key={idx} variant="secondary" className="text-xs font-medium px-2 py-0.5 border border-slate-900 rounded-md shadow-sm bg-[#041a28]/[0.72]">
                   {ownership.aircraft_registration} <span className="text-muted-foreground ml-1">({ownership.ownership_percentage}%)</span>
                 </Badge>)}
               {cliente.aircraft_ownerships.length > 3 && <Badge variant="outline" className="text-xs px-2 py-0.5">
@@ -113,8 +113,8 @@ export function ClienteCard({
           </div>}
 
         {/* Footer badges */}
-        {(cliente.inscricao_estadual || cliente.cnpj_card_url) && <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border/50">
-            {cliente.inscricao_estadual && <Badge variant="outline" className="text-xs font-normal rounded-md">
+        {(cliente.inscricao_estadual || cliente.cnpj_card_url) && <div className="gap-2 mt-4 pt-3 border-t border-border/50 flex items-center justify-center py-[22px]">
+            {cliente.inscricao_estadual && <Badge variant="outline" className="text-xs font-normal rounded-md mx-[50px] px-[18px]">
                 I/E: {cliente.inscricao_estadual}
               </Badge>}
             {cliente.cnpj_card_url && <Badge variant="outline" className="text-xs gap-1 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800">
