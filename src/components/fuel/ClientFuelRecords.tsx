@@ -245,17 +245,21 @@ export function ClientFuelRecords() {
             )}
           </div>
 
-          {clients.length === 0 ? (
+          {filteredClients.length === 0 ? (
             <Card className="border border-border/50">
               <CardContent className="py-16 text-center">
                 <Building2 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                <p className="font-medium text-foreground">Nenhum cliente cadastrado</p>
-                <p className="text-sm text-muted-foreground mt-1">Crie um cliente primeiro para começar</p>
+                <p className="font-medium text-foreground">
+                  {selectedSupplier ? "Nenhum cliente encontrado para este fornecedor" : "Nenhum cliente cadastrado"}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {selectedSupplier ? "Tente selecionar outro fornecedor" : "Crie um cliente primeiro para começar"}
+                </p>
               </CardContent>
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {clients.map((client) => (
+              {filteredClients.map((client) => (
                 <Card
                   key={client.id}
                   className="cursor-pointer border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-200 group"
