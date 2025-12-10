@@ -590,7 +590,7 @@ export default function Clientes() {
             </CardContent>
           </Card> : <div className="space-y-6">
             {/* Active Clients */}
-            {!showInactive && activeClientes.length > 0 && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {!showInactive && activeClientes.length > 0 && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {activeClientes.map(cliente => <ClienteCard key={cliente.id} cliente={cliente} onView={handleViewCliente} onEdit={handleOpenDialog} onDelete={setDeleteId} />)}
               </div>}
 
@@ -601,7 +601,7 @@ export default function Clientes() {
                   <h2 className="text-lg font-semibold text-foreground">Clientes Inativos</h2>
                   <Badge variant="secondary">{inactiveClientes.length}</Badge>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {inactiveClientes.map(cliente => <ClienteCard key={cliente.id} cliente={cliente} onView={handleViewCliente} onEdit={handleOpenDialog} onDelete={setDeleteId} />)}
                 </div>
               </div>}
