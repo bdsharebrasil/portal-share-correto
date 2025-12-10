@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Users, Building, Truck, Hotel, Plus, Edit, Trash2 } from "lucide-react";
 import { ContactModal } from "@/components/ContactModal";
+import { ContactCard } from "@/components/agenda/ContactCard";
 import {
   AlertDialog,
   AlertDialogAction,
