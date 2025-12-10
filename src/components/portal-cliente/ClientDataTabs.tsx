@@ -290,9 +290,21 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
     }
   };
 
+  const canUpdateToFinal = roles.some(role =>
+    ['admin', 'gestor_master', 'financeiro_master'].includes(role)
+  );
+
   const handleUpdateStatus = async () => {
     if (!selectedReconciliation || !newStatus) {
       toast.error('Selecione um status válido');
+      return;
+    }
+
+    // Verificar permissão para atualizar para status "pago" ou "recebido"
+    const isFinalStatus = newStatus.toLowerCase() === 'recebido' || newStatus.toLowerCase() === 'conferido';
+    if (isFinalStatus && !canUpdateToFinal) {
+      toast.error('Você não tem permissão para marcar como pago. Entre em contato com o administrador.');
+      setOpenStatusDialog(false);
       return;
     }
 
