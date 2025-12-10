@@ -468,7 +468,7 @@ export default function DiarioBordoDetalhes() {
   const filteredAerodromes = aerodromes?.filter(a => a.designativo?.toLowerCase().includes(searchValue.toLowerCase()) || a.name?.toLowerCase().includes(searchValue.toLowerCase())) || [];
   return <Layout>
     <div className="min-h-screen bg-slate-900">
-      <div className="container mx-auto p-4 space-y-4 bg-[#070b12]/[0.47] shadow-2xl border-slate-400">
+      <div className="container mx-auto p-4 space-y-4 shadow-2xl border-slate-400 bg-[#08080a]/[0.66]">
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4 p-4 rounded-lg border-2 border-[#8fbc8f] bg-sky-950">
           <div className="flex items-center gap-4">
