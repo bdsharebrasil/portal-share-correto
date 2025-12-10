@@ -2109,6 +2109,39 @@ export type Database = {
           },
         ]
       }
+      fornecedores_favoritos: {
+        Row: {
+          atualizado_em: string
+          cidade: string | null
+          criado_em: string
+          criado_por: string
+          documento: string | null
+          id: string
+          nome_completo: string
+          telefone: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          cidade?: string | null
+          criado_em?: string
+          criado_por: string
+          documento?: string | null
+          id?: string
+          nome_completo: string
+          telefone?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          cidade?: string | null
+          criado_em?: string
+          criado_por?: string
+          documento?: string | null
+          id?: string
+          nome_completo?: string
+          telefone?: string | null
+        }
+        Relationships: []
+      }
       fuel_suppliers: {
         Row: {
           city_name: string

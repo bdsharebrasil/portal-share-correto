@@ -25,7 +25,15 @@ interface Referencia {
   id: string;
   nome: string;
   documento: string;
-  tipo: 'client' | 'user';
+  tipo: 'client' | 'user' | 'fornecedor';
+}
+
+interface FornecedorFavorito {
+  id: string;
+  nome_completo: string;
+  documento: string | null;
+  cidade: string | null;
+  telefone: string | null;
 }
 
 export function FluxoCaixaInlineForm({
@@ -78,9 +86,10 @@ export function FluxoCaixaInlineForm({
 
   const loadReferencias = async () => {
     try {
-      const [clientsData, usersData] = await Promise.all([
+      const [clientsData, usersData, fornecedoresData] = await Promise.all([
         supabase.from("clients").select("id, company_name, cnpj").order("company_name"),
-        supabase.from("user_profiles").select("id, full_name, cpf").order("full_name")
+        supabase.from("user_profiles").select("id, full_name, cpf").order("full_name"),
+        supabase.from("fornecedores_favoritos").select("id, nome_completo, documento, cidade, telefone").order("nome_completo")
       ]);
 
       const referenciasList: Referencia[] = [];
@@ -108,6 +117,17 @@ export function FluxoCaixaInlineForm({
               tipo: 'user'
             });
           }
+        });
+      }
+
+      if (fornecedoresData.data) {
+        fornecedoresData.data.forEach((fornecedor: FornecedorFavorito) => {
+          referenciasList.push({
+            id: fornecedor.id,
+            nome: fornecedor.nome_completo,
+            documento: fornecedor.documento || "",
+            tipo: 'fornecedor'
+          });
         });
       }
 
@@ -389,6 +409,36 @@ export function FluxoCaixaInlineForm({
                       <CommandGroup heading="Clientes" className="text-muted-foreground">
                         {referencias
                           .filter(r => r.tipo === 'client')
+                          .filter(r =>
+                            r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
+                            r.documento.includes(referenciaSearch)
+                          )
+                          .slice(0, 10)
+                          .map((r) => (
+                            <CommandItem
+                              key={r.id}
+                              onSelect={() => {
+                                setValue("referencia", r.nome);
+                                setOpenReferenciaPopover(false);
+                                setReferenciaSearch("");
+                              }}
+                              className="cursor-pointer hover:bg-muted"
+                            >
+                              <div>
+                                <p className="font-medium text-foreground">{r.nome}</p>
+                                {r.documento && <p className="text-xs text-muted-foreground">{r.documento}</p>}
+                              </div>
+                            </CommandItem>
+                          ))}
+                      </CommandGroup>
+                    )}
+                    {referencias.filter(r => r.tipo === 'fornecedor').some(r =>
+                      r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
+                      r.documento.includes(referenciaSearch)
+                    ) && (
+                      <CommandGroup heading="Fornecedores Favoritos" className="text-muted-foreground">
+                        {referencias
+                          .filter(r => r.tipo === 'fornecedor')
                           .filter(r =>
                             r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
                             r.documento.includes(referenciaSearch)
