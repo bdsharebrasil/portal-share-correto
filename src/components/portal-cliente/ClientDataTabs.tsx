@@ -74,6 +74,7 @@ interface BankReconciliation {
 }
 
 export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: ClientDataTabsProps) {
+  const { roles } = useAuth();
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [contractUploadDialogOpen, setContractUploadDialogOpen] = useState(false);
   const [flightDocumentUploadDialogOpen, setFlightDocumentUploadDialogOpen] = useState(false);
