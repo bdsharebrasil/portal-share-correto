@@ -47,8 +47,8 @@ export function ContasBancarias() {
   };
 
   const handleSaveConta = async () => {
-    if (!formData.nome.trim()) {
-      toast.error("Nome da conta é obrigatório");
+    if (!formData.banco.trim()) {
+      toast.error("Nome do banco é obrigatório");
       return;
     }
 
@@ -155,14 +155,9 @@ export function ContasBancarias() {
                 >
                   <div className="flex-1">
                     <h4 className="font-semibold text-foreground text-lg">
-                      {conta.nome}
+                      {conta.banco || conta.nome}
                     </h4>
                     <div className="grid grid-cols-2 gap-2 mt-2">
-                      {conta.banco && (
-                        <p className="text-sm text-muted-foreground">
-                          Banco: {conta.banco}
-                        </p>
-                      )}
                       {conta.numero_conta && (
                         <p className="text-sm text-muted-foreground">
                           Conta: {conta.numero_conta}
@@ -217,38 +212,25 @@ export function ContasBancarias() {
 
           <div className="space-y-4">
             <div>
-              <Label htmlFor="nome">Nome da Conta *</Label>
+              <Label htmlFor="banco">Nome do Banco *</Label>
               <Input
-                id="nome"
-                placeholder="Ex: Conta Principal"
-                value={formData.nome}
-                onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
+                id="banco"
+                placeholder="Ex: Banco do Brasil, Itaú, Bradesco..."
+                value={formData.banco}
+                onChange={(e) => setFormData(prev => ({ ...prev, banco: e.target.value, nome: e.target.value }))}
                 className="mt-1"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="banco">Banco</Label>
-                <Input
-                  id="banco"
-                  placeholder="Ex: Banco do Brasil"
-                  value={formData.banco}
-                  onChange={(e) => setFormData(prev => ({ ...prev, banco: e.target.value }))}
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="numero_conta">Número da Conta</Label>
-                <Input
-                  id="numero_conta"
-                  placeholder="Ex: 123456-7"
-                  value={formData.numero_conta}
-                  onChange={(e) => setFormData(prev => ({ ...prev, numero_conta: e.target.value }))}
-                  className="mt-1"
-                />
-              </div>
+            <div>
+              <Label htmlFor="numero_conta">Número da Conta</Label>
+              <Input
+                id="numero_conta"
+                placeholder="Ex: 123456-7"
+                value={formData.numero_conta}
+                onChange={(e) => setFormData(prev => ({ ...prev, numero_conta: e.target.value }))}
+                className="mt-1"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
