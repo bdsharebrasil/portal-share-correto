@@ -506,13 +506,13 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
                 <Label className="text-sm font-semibold mb-2 block">Anexos</Label>
                 <div className="space-y-2">
                   <div>
-                    <Label className="text-sm">Comanda (PDF)</Label>
-                    <div className="flex items-center gap-2 mt-1.5">
+                    <Label className="text-xs text-muted-foreground">Comanda (PDF)</Label>
+                    <div className="flex items-center gap-1.5 mt-1">
                       <Input
                         type="file"
                         accept=".pdf"
                         onChange={(e) => setFormData({ ...formData, comanda_file: e.target.files?.[0] || null })}
-                        className="flex-1"
+                        className="flex-1 h-8 text-xs"
                       />
                       {(formData.comanda_file || formData.comanda_url) && (
                         <Button
@@ -523,28 +523,28 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
                             setFormData({ ...formData, comanda_file: null });
                             setUploadedFiles({ ...uploadedFiles, comanda_url: "" });
                           }}
-                          className="h-9 w-9"
+                          className="h-8 w-8"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3 w-3" />
                         </Button>
                       )}
                     </div>
                     {formData.comanda_file && (
-                      <p className="text-xs text-success mt-1">✓ {formData.comanda_file.name}</p>
+                      <p className="text-xs text-success mt-0.5 truncate">✓ {formData.comanda_file.name}</p>
                     )}
                     {formData.comanda_url && !formData.comanda_file && (
-                      <p className="text-xs text-muted-foreground mt-1">Arquivo já enviado</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Arquivo já enviado</p>
                     )}
                   </div>
 
                   <div>
-                    <Label className="text-sm">Nota Fiscal (PDF)</Label>
-                    <div className="flex items-center gap-2 mt-1.5">
+                    <Label className="text-xs text-muted-foreground">Nota Fiscal (PDF)</Label>
+                    <div className="flex items-center gap-1.5 mt-1">
                       <Input
                         type="file"
                         accept=".pdf"
                         onChange={(e) => setFormData({ ...formData, nota_file: e.target.files?.[0] || null })}
-                        className="flex-1"
+                        className="flex-1 h-8 text-xs"
                       />
                       {(formData.nota_file || formData.nota_url) && (
                         <Button
@@ -555,28 +555,28 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
                             setFormData({ ...formData, nota_file: null });
                             setUploadedFiles({ ...uploadedFiles, nota_url: "" });
                           }}
-                          className="h-9 w-9"
+                          className="h-8 w-8"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3 w-3" />
                         </Button>
                       )}
                     </div>
                     {formData.nota_file && (
-                      <p className="text-xs text-success mt-1">✓ {formData.nota_file.name}</p>
+                      <p className="text-xs text-success mt-0.5 truncate">✓ {formData.nota_file.name}</p>
                     )}
                     {formData.nota_url && !formData.nota_file && (
-                      <p className="text-xs text-muted-foreground mt-1">Arquivo já enviado</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Arquivo já enviado</p>
                     )}
                   </div>
 
                   <div>
-                    <Label className="text-sm">Boleto (PDF)</Label>
-                    <div className="flex items-center gap-2 mt-1.5">
+                    <Label className="text-xs text-muted-foreground">Boleto (PDF)</Label>
+                    <div className="flex items-center gap-1.5 mt-1">
                       <Input
                         type="file"
                         accept=".pdf"
                         onChange={(e) => setFormData({ ...formData, boleto_file: e.target.files?.[0] || null })}
-                        className="flex-1"
+                        className="flex-1 h-8 text-xs"
                       />
                       {(formData.boleto_file || formData.boleto_url) && (
                         <Button
@@ -587,17 +587,17 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
                             setFormData({ ...formData, boleto_file: null });
                             setUploadedFiles({ ...uploadedFiles, boleto_url: "" });
                           }}
-                          className="h-9 w-9"
+                          className="h-8 w-8"
                         >
-                          <X className="h-4 w-4" />
+                          <X className="h-3 w-3" />
                         </Button>
                       )}
                     </div>
                     {formData.boleto_file && (
-                      <p className="text-xs text-success mt-1">✓ {formData.boleto_file.name}</p>
+                      <p className="text-xs text-success mt-0.5 truncate">✓ {formData.boleto_file.name}</p>
                     )}
                     {formData.boleto_url && !formData.boleto_file && (
-                      <p className="text-xs text-muted-foreground mt-1">Arquivo já enviado</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Arquivo já enviado</p>
                     )}
                   </div>
                 </div>
