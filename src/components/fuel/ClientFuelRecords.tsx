@@ -208,22 +208,22 @@ export function ClientFuelRecords() {
                 onChange={(e) => setSupplierSearch(e.target.value)}
                 className="pl-10 pr-4"
               />
-            </div>
 
-            {supplierSearch && filteredSuppliers.length > 0 && (
-              <div className="absolute top-full left-0 right-0 bg-card border border-border rounded-md shadow-lg z-50 max-h-64 overflow-y-auto mt-1">
-                {filteredSuppliers.map((supplier) => (
-                  <button
-                    key={supplier.id}
-                    onClick={() => handleSupplierSelect(supplier)}
-                    className="w-full text-left px-4 py-2 hover:bg-muted transition-colors border-b border-border/50 last:border-b-0"
-                  >
-                    <p className="font-medium text-foreground">{supplier.supplier_name}</p>
-                    <p className="text-xs text-muted-foreground">{supplier.city_name}</p>
-                  </button>
-                ))}
-              </div>
-            )}
+              {supplierSearch && filteredSuppliers.length > 0 && (
+                <div className="absolute top-full left-0 right-0 bg-card border border-border rounded-b-md shadow-lg z-50 max-h-64 overflow-y-auto">
+                  {filteredSuppliers.map((supplier) => (
+                    <button
+                      key={supplier.id}
+                      onClick={() => handleSupplierSelect(supplier)}
+                      className="w-full text-left px-4 py-3 hover:bg-muted transition-colors border-b border-border/50 last:border-b-0"
+                    >
+                      <p className="font-medium text-foreground">{supplier.supplier_name}</p>
+                      <p className="text-xs text-muted-foreground">{supplier.city_name}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {selectedSupplier && (
               <Card className="border border-primary/30 bg-primary/5">
