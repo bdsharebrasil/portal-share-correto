@@ -390,11 +390,11 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
               Novo Registro
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>{editingRecord ? "Editar Registro" : "Novo Registro"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1 pr-4">
               <div>
                 <Label className="text-base font-semibold mb-3 block">Data</Label>
                 <div className="grid grid-cols-2 gap-4">
