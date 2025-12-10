@@ -2,7 +2,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Building, Mail, Phone, MapPin, FileText, Edit, Trash2 } from "lucide-react";
+import { Building2, Mail, Phone, MapPin, FileCheck, Edit, Trash2, Plane } from "lucide-react";
+
+interface AircraftOwnership {
+  aircraft: string;
+  aircraft_registration?: string;
+  aircraft_model?: string;
+  ownership_percentage: number;
+}
 
 interface Cliente {
   id: string;
@@ -11,12 +18,14 @@ interface Cliente {
   inscricao_estadual?: string;
   address?: string;
   city?: string;
+  uf?: string;
   phone?: string;
   email?: string;
   financial_contact?: string;
   observations?: string;
   cnpj_card_url?: string;
   logo_url?: string;
+  aircraft_ownerships?: AircraftOwnership[];
 }
 
 interface ClienteCardProps {
@@ -33,144 +42,156 @@ export function ClienteCard({ cliente, onView, onEdit, onDelete }: ClienteCardPr
     }
   };
 
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map((p) => p[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join('')
+      .toUpperCase();
+  };
+
+  const location = [cliente.city, cliente.uf].filter(Boolean).join(' - ');
+
   return (
-    <Card className="hover:shadow-xl transition-all duration-300 group cursor-pointer relative overflow-hidden flex flex-col bg-gradient-card border-border shadow-card hover:border-primary" onClick={handleCardClick}>
+    <Card 
+      className="group cursor-pointer relative overflow-hidden border-border/50 bg-card hover:border-primary/50 hover:shadow-lg transition-all duration-300"
+      onClick={handleCardClick}
+    >
+      {/* Gradient accent top */}
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+      
       {/* Action Buttons */}
-      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2 z-10">
+      <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200 z-10">
         {onEdit && (
           <Button
-            variant="ghost"
-            size="sm"
+            variant="secondary"
+            size="icon"
             onClick={(e) => {
               e.stopPropagation();
               onEdit(cliente);
             }}
-            className="h-8 w-8 p-0 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 hover:text-blue-700"
+            className="h-8 w-8 rounded-full shadow-md hover:shadow-lg"
           >
-            <Edit className="h-4 w-4" />
+            <Edit className="h-3.5 w-3.5" />
           </Button>
         )}
         {onDelete && (
           <Button
-            variant="ghost"
-            size="sm"
+            variant="secondary"
+            size="icon"
             onClick={(e) => {
               e.stopPropagation();
               onDelete(cliente.id);
             }}
-            className="h-8 w-8 p-0 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-600 hover:text-red-700"
+            className="h-8 w-8 rounded-full shadow-md hover:shadow-lg hover:bg-destructive hover:text-destructive-foreground"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-3.5 w-3.5" />
           </Button>
         )}
       </div>
 
-      <CardContent className="p-5 space-y-4 flex-1 flex flex-col">
-        {/* Logo e Nome */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-center">
+      <CardContent className="p-5">
+        {/* Header com Avatar e Nome */}
+        <div className="flex items-start gap-4 mb-4">
+          <Avatar className="h-14 w-14 ring-2 ring-border shadow-sm flex-shrink-0">
             {cliente.logo_url ? (
-              <Avatar className="h-16 w-16 ring-4 ring-primary/30">
-                <AvatarImage src={cliente.logo_url} alt={cliente.company_name} />
-                <AvatarFallback className="bg-gradient-to-br from-primary/30 to-cyan-500/30">
-                  <Building className="h-8 w-8 text-primary" />
-                </AvatarFallback>
-              </Avatar>
-            ) : (
-              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-primary/30 to-cyan-500/30 flex items-center justify-center ring-4 ring-primary/30">
-                <Building className="h-8 w-8 text-primary" />
-              </div>
-            )}
-          </div>
-
-          <div className="text-center space-y-1">
-            <h3 className="font-bold text-base text-foreground line-clamp-2">
+              <AvatarImage src={cliente.logo_url} alt={cliente.company_name} className="object-cover" />
+            ) : null}
+            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary font-bold text-lg">
+              {getInitials(cliente.company_name)}
+            </AvatarFallback>
+          </Avatar>
+          
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-foreground text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors">
               {cliente.company_name}
             </h3>
-            <Badge variant="secondary" className="text-xs justify-center w-full font-mono">
+            <p className="text-xs text-muted-foreground font-mono mt-1">
               {cliente.cnpj}
-            </Badge>
+            </p>
           </div>
         </div>
 
-        {/* Divider */}
-        <div className="h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent" />
-
-        {/* Informações de Contato */}
-        <div className="space-y-3 flex-1">
+        {/* Info Grid */}
+        <div className="space-y-2.5">
           {cliente.phone && (
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                <Phone className="h-4 w-4 text-primary" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Telefone</p>
-                <p className="text-sm font-medium text-foreground break-all">{cliente.phone}</p>
-              </div>
+            <div className="flex items-center gap-2.5 text-sm">
+              <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-foreground truncate">{cliente.phone}</span>
             </div>
           )}
 
           {cliente.email && (
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                <Mail className="h-4 w-4 text-primary" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">E-mail</p>
-                <p className="text-sm font-medium text-foreground truncate">{cliente.email}</p>
-              </div>
+            <div className="flex items-center gap-2.5 text-sm">
+              <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-foreground truncate">{cliente.email}</span>
             </div>
           )}
 
-          {(cliente.address || cliente.city) && (
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                <MapPin className="h-4 w-4 text-primary" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Local</p>
-                <p className="text-sm font-medium text-foreground">
-                  {[cliente.address, cliente.city].filter(Boolean).join(', ')}
-                </p>
-              </div>
+          {location && (
+            <div className="flex items-center gap-2.5 text-sm">
+              <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-foreground truncate">{location}</span>
             </div>
           )}
 
           {cliente.financial_contact && (
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 h-8 w-8 rounded-lg bg-primary/20 flex items-center justify-center">
-                <Building className="h-4 w-4 text-primary" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Contato Financeiro</p>
-                <p className="text-sm font-medium text-foreground truncate">{cliente.financial_contact}</p>
-              </div>
+            <div className="flex items-center gap-2.5 text-sm">
+              <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-foreground truncate">{cliente.financial_contact}</span>
             </div>
-          )}
-
-          {!cliente.phone && !cliente.email && !cliente.address && !cliente.city && !cliente.financial_contact && (
-            <p className="text-sm text-muted-foreground text-center py-2">Sem informações de contato</p>
           )}
         </div>
 
-        {/* Badges com informações adicionais */}
-        {(cliente.inscricao_estadual || cliente.cnpj_card_url) && (
-          <>
-            <div className="h-px bg-gradient-to-r from-transparent via-slate-200 dark:via-slate-700 to-transparent" />
-            <div className="flex flex-wrap gap-2">
-              {cliente.inscricao_estadual && (
-                <Badge variant="secondary" className="text-xs px-2 py-1">
-                  I/E: {cliente.inscricao_estadual}
+        {/* Aeronaves */}
+        {cliente.aircraft_ownerships && cliente.aircraft_ownerships.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-border/50">
+            <div className="flex items-center gap-2 mb-2">
+              <Plane className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Aeronaves</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {cliente.aircraft_ownerships.slice(0, 3).map((ownership, idx) => (
+                <Badge 
+                  key={idx} 
+                  variant="secondary"
+                  className="text-xs font-medium px-2 py-0.5"
+                >
+                  {ownership.aircraft_registration} <span className="text-muted-foreground ml-1">({ownership.ownership_percentage}%)</span>
                 </Badge>
-              )}
-              {cliente.cnpj_card_url && (
-                <Badge variant="outline" className="text-xs px-2 py-1 flex items-center gap-1 bg-green-50/50 dark:bg-green-900/10 border-green-200/50 dark:border-green-800/50 text-green-700 dark:text-green-400">
-                  <FileText className="h-3 w-3" />
-                  Documento
+              ))}
+              {cliente.aircraft_ownerships.length > 3 && (
+                <Badge variant="outline" className="text-xs px-2 py-0.5">
+                  +{cliente.aircraft_ownerships.length - 3}
                 </Badge>
               )}
             </div>
-          </>
+          </div>
+        )}
+
+        {/* Footer badges */}
+        {(cliente.inscricao_estadual || cliente.cnpj_card_url) && (
+          <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border/50">
+            {cliente.inscricao_estadual && (
+              <Badge variant="outline" className="text-xs font-normal">
+                I/E: {cliente.inscricao_estadual}
+              </Badge>
+            )}
+            {cliente.cnpj_card_url && (
+              <Badge variant="outline" className="text-xs gap-1 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800">
+                <FileCheck className="h-3 w-3" />
+                Doc
+              </Badge>
+            )}
+          </div>
+        )}
+
+        {!cliente.phone && !cliente.email && !location && !cliente.financial_contact && !cliente.aircraft_ownerships?.length && (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            Clique para ver detalhes
+          </p>
         )}
       </CardContent>
     </Card>
