@@ -505,6 +505,66 @@ export function CategoriasCrud() {
         </CardContent>
       </Card>
 
+      {/* Dialog para confirmar ações nas selecionadas */}
+      <Dialog open={actionDialogOpen} onOpenChange={setActionDialogOpen}>
+        <DialogContent className="max-w-md bg-gradient-to-br from-slate-900/95 to-slate-950/95 border-slate-700/50 backdrop-blur-xl">
+          <DialogHeader>
+            <DialogTitle className={cn(
+              "flex items-center gap-3 text-lg font-bold",
+              actionType === "delete" ? "text-red-400" : "text-blue-400"
+            )}>
+              {actionType === "delete" ? (
+                <div className="p-2 rounded-lg bg-red-500/20 border border-red-500/30">
+                  <Trash2 className="h-5 w-5 text-red-400" />
+                </div>
+              ) : (
+                <div className="p-2 rounded-lg bg-blue-500/20 border border-blue-500/30">
+                  <Edit2 className="h-5 w-5 text-blue-400" />
+                </div>
+              )}
+              <span>
+                {actionType === "delete"
+                  ? `Deletar ${selectedIds.size} categoria${selectedIds.size > 1 ? 's' : ''}?`
+                  : "Editar categoria"}
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {actionType === "delete" ? (
+              <p className="text-muted-foreground/80">
+                Tem certeza que deseja deletar {selectedIds.size === 1 ? "esta categoria" : "estas categorias"}? Esta ação não pode ser desfeita.
+              </p>
+            ) : (
+              <p className="text-muted-foreground/80">
+                Selecione uma categoria para editar.
+              </p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setActionDialogOpen(false)}
+              className="border-slate-700/60 hover:bg-slate-800/50 text-foreground/80"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={executeSelectedAction}
+              className={cn(
+                "transition-all duration-300 shadow-lg",
+                actionType === "delete"
+                  ? "bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-red-500/30"
+                  : "bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-blue-500/30"
+              )}
+            >
+              {actionType === "delete" ? "Deletar" : "Editar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog para adicionar/editar */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-md bg-gradient-to-br from-slate-900/95 to-slate-950/95 border-slate-700/50 backdrop-blur-xl">
