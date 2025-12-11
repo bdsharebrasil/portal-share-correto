@@ -339,21 +339,66 @@ export function CategoriasCrud() {
             </TabsList>
 
             <TabsContent value="receita" className="space-y-4">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center flex-wrap gap-3">
                 <div className="flex items-center gap-2">
                   <div className="h-3 w-3 rounded-full bg-gradient-to-r from-blue-400 to-cyan-400 shadow-lg shadow-blue-500/50"></div>
                   <span className="text-sm font-medium text-muted-foreground/90">
                     Categorias de entrada de valores
                   </span>
                 </div>
-                <Button
-                  onClick={() => handleOpenDialog()}
-                  size="sm"
-                  className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/30 transition-all duration-300 hover:scale-105"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nova Receita
-                </Button>
+                <div className="flex gap-2">
+                  {selectionMode && activeTab === "receita" && (
+                    <>
+                      <Button
+                        onClick={() => {
+                          setSelectionMode(false);
+                          setSelectedIds(new Set());
+                        }}
+                        size="sm"
+                        variant="outline"
+                        className="text-muted-foreground"
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        onClick={() => handleActionOnSelected("edit")}
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        <Edit2 className="w-4 h-4 mr-2" />
+                        Editar ({selectedIds.size})
+                      </Button>
+                      <Button
+                        onClick={() => handleActionOnSelected("delete")}
+                        size="sm"
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Deletar ({selectedIds.size})
+                      </Button>
+                    </>
+                  )}
+                  {!selectionMode && (
+                    <>
+                      <Button
+                        onClick={() => setSelectionMode(true)}
+                        size="sm"
+                        variant="outline"
+                        className="text-blue-400 border-blue-600/30 hover:bg-blue-950/20"
+                      >
+                        Selecionar
+                      </Button>
+                      <Button
+                        onClick={() => handleOpenDialog()}
+                        size="sm"
+                        className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/30 transition-all duration-300 hover:scale-105"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Nova Receita
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
 
               {categoriasReceita.length === 0 ? (
@@ -376,21 +421,66 @@ export function CategoriasCrud() {
             </TabsContent>
 
             <TabsContent value="despesa" className="space-y-4">
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center flex-wrap gap-3">
                 <div className="flex items-center gap-2">
                   <div className="h-3 w-3 rounded-full bg-gradient-to-r from-red-400 to-rose-400 shadow-lg shadow-red-500/50"></div>
                   <span className="text-sm font-medium text-muted-foreground/90">
                     Categorias de saída de valores
                   </span>
                 </div>
-                <Button
-                  onClick={() => handleOpenDialog()}
-                  size="sm"
-                  className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-lg shadow-red-500/30 transition-all duration-300 hover:scale-105"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nova Despesa
-                </Button>
+                <div className="flex gap-2">
+                  {selectionMode && activeTab === "despesa" && (
+                    <>
+                      <Button
+                        onClick={() => {
+                          setSelectionMode(false);
+                          setSelectedIds(new Set());
+                        }}
+                        size="sm"
+                        variant="outline"
+                        className="text-muted-foreground"
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        onClick={() => handleActionOnSelected("edit")}
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        <Edit2 className="w-4 h-4 mr-2" />
+                        Editar ({selectedIds.size})
+                      </Button>
+                      <Button
+                        onClick={() => handleActionOnSelected("delete")}
+                        size="sm"
+                        className="bg-red-600 hover:bg-red-700 text-white"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Deletar ({selectedIds.size})
+                      </Button>
+                    </>
+                  )}
+                  {!selectionMode && (
+                    <>
+                      <Button
+                        onClick={() => setSelectionMode(true)}
+                        size="sm"
+                        variant="outline"
+                        className="text-red-400 border-red-600/30 hover:bg-red-950/20"
+                      >
+                        Selecionar
+                      </Button>
+                      <Button
+                        onClick={() => handleOpenDialog()}
+                        size="sm"
+                        className="bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-lg shadow-red-500/30 transition-all duration-300 hover:scale-105"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Nova Despesa
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
 
               {categoriasDespesa.length === 0 ? (
