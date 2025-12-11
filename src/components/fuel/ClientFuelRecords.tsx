@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronRight, ChevronLeft, Building2, Plane } from "lucide-react";
 import { FuelRecordsByAircraft } from "./FuelRecordsByAircraft";
@@ -37,42 +37,6 @@ export function ClientFuelRecords() {
       loadClientAircrafts();
     }
   }, [selectedClient]);
-
-  const loadSuppliers = async () => {
-    const { data, error } = await supabase
-      .from('fuel_suppliers')
-      .select('id, supplier_name, city_name')
-      .order('supplier_name', { ascending: true });
-
-    if (error) {
-      toast.error('Erro ao carregar fornecedores');
-      return;
-    }
-
-    setSuppliers(data || []);
-  };
-
-  const filterClientsBySupplier = async () => {
-    if (!selectedSupplier) {
-      setFilteredClients(clients);
-      return;
-    }
-
-    const { data: records, error } = await supabase
-      .from('abastecimentos')
-      .select('client_id', { distinct: true })
-      .eq('local', selectedSupplier.city_name);
-
-    if (error) {
-      toast.error('Erro ao filtrar clientes');
-      setFilteredClients(clients);
-      return;
-    }
-
-    const clientIds = new Set(records?.map(r => r.client_id) || []);
-    const filtered = clients.filter(c => clientIds.has(c.id));
-    setFilteredClients(filtered);
-  };
 
   const loadClients = async () => {
     const { data, error } = await supabase
@@ -141,21 +105,6 @@ export function ClientFuelRecords() {
       setAircrafts([]);
     }
   };
-
-  const handleSupplierSelect = (supplier: FuelSupplier) => {
-    setSelectedSupplier(supplier);
-    setSupplierSearch("");
-  };
-
-  const handleClearSupplier = () => {
-    setSelectedSupplier(null);
-    setSupplierSearch("");
-  };
-
-  const filteredSuppliers = suppliers.filter(supplier =>
-    supplier.supplier_name.toLowerCase().includes(supplierSearch.toLowerCase()) ||
-    supplier.city_name.toLowerCase().includes(supplierSearch.toLowerCase())
-  );
 
   if (selectedAircraft && selectedClient) {
     return (

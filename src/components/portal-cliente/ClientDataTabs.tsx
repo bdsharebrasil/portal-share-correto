@@ -771,7 +771,7 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
                             <div className="text-right">
                               {item.amount && (
                                 <p className="text-xl font-bold text-green-400">
-                                  R$ {parseFloat(item.amount).toFixed(2)}
+                                  R$ {Number(item.amount).toFixed(2)}
                                 </p>
                               )}
                             </div>
