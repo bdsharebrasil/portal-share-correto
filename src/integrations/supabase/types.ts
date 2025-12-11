@@ -20,13 +20,16 @@ export type Database = {
           abastecimento_galoes: number | null
           aeronave_id: string | null
           ano: string | null
+          boleto_url: string | null
           client_id: string | null
           comanda: string | null
+          comanda_url: string | null
           created_at: string | null
           data: string
           id: string
           litros: number
           local: string
+          nota_url: string | null
           trecho: string
           updated_at: string | null
           valor_total: number | null
@@ -37,13 +40,16 @@ export type Database = {
           abastecimento_galoes?: number | null
           aeronave_id?: string | null
           ano?: string | null
+          boleto_url?: string | null
           client_id?: string | null
           comanda?: string | null
+          comanda_url?: string | null
           created_at?: string | null
           data: string
           id?: string
           litros?: number
           local: string
+          nota_url?: string | null
           trecho: string
           updated_at?: string | null
           valor_total?: number | null
@@ -54,13 +60,16 @@ export type Database = {
           abastecimento_galoes?: number | null
           aeronave_id?: string | null
           ano?: string | null
+          boleto_url?: string | null
           client_id?: string | null
           comanda?: string | null
+          comanda_url?: string | null
           created_at?: string | null
           data?: string
           id?: string
           litros?: number
           local?: string
+          nota_url?: string | null
           trecho?: string
           updated_at?: string | null
           valor_total?: number | null
@@ -496,6 +505,7 @@ export type Database = {
         Row: {
           ativo: boolean | null
           atualizado_em: string | null
+          categoria: string | null
           cliente_id: string | null
           cliente_nome: string | null
           criado_em: string | null
@@ -508,6 +518,7 @@ export type Database = {
         Insert: {
           ativo?: boolean | null
           atualizado_em?: string | null
+          categoria?: string | null
           cliente_id?: string | null
           cliente_nome?: string | null
           criado_em?: string | null
@@ -520,6 +531,7 @@ export type Database = {
         Update: {
           ativo?: boolean | null
           atualizado_em?: string | null
+          categoria?: string | null
           cliente_id?: string | null
           cliente_nome?: string | null
           criado_em?: string | null
