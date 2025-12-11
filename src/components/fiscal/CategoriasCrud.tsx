@@ -148,20 +148,19 @@ export function CategoriasCrud() {
     <div
       key={categoria.id}
       className={cn(
-        "group relative flex items-center justify-between p-5 rounded-xl border backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:scale-102",
-        "overflow-hidden before:absolute before:inset-0 before:opacity-0 before:transition-opacity before:duration-300 group-hover:before:opacity-100",
+        "group relative flex items-center justify-between p-5 rounded-xl border-2 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:scale-102",
         categoria.tipo === "receita"
-          ? "bg-gradient-to-br from-blue-950/50 to-blue-900/30 border-blue-800/40 before:bg-gradient-to-r before:from-blue-500/10 before:to-cyan-500/10 dark:bg-gradient-to-br dark:from-blue-950/60 dark:to-blue-900/40 dark:border-blue-700/50"
-          : "bg-gradient-to-br from-red-950/50 to-rose-900/30 border-red-800/40 before:bg-gradient-to-r before:from-red-500/10 before:to-orange-500/10 dark:bg-gradient-to-br dark:from-red-950/60 dark:to-rose-900/40 dark:border-red-700/50"
+          ? "border-blue-600/60 hover:border-blue-500/80 hover:bg-card/80"
+          : "border-red-600/60 hover:border-red-500/80 hover:bg-card/80"
       )}
     >
-      <div className="flex-1 relative z-10">
+      <div className="flex-1">
         <div className="flex items-center gap-3 mb-2">
           <div className={cn(
             "p-2 rounded-lg transition-all duration-300",
             categoria.tipo === "receita"
-              ? "bg-blue-500/20 group-hover:bg-blue-500/30"
-              : "bg-red-500/20 group-hover:bg-red-500/30"
+              ? "bg-blue-500/15"
+              : "bg-red-500/15"
           )}>
             {categoria.tipo === "receita" ? (
               <ArrowUpCircle className="w-4 h-4 text-blue-400" />
@@ -169,17 +168,17 @@ export function CategoriasCrud() {
               <ArrowDownCircle className="w-4 h-4 text-red-400" />
             )}
           </div>
-          <h4 className="font-semibold text-foreground group-hover:text-white transition-colors">
+          <h4 className="font-semibold text-foreground">
             {categoria.nome}
           </h4>
           {categoria.categoria && (
             <Badge
               variant="secondary"
               className={cn(
-                "text-xs font-medium transition-all",
+                "text-xs font-medium",
                 categoria.tipo === "receita"
-                  ? "bg-blue-500/20 text-blue-300 border-blue-700/50"
-                  : "bg-red-500/20 text-red-300 border-red-700/50"
+                  ? "bg-blue-950/40 text-blue-300 border-blue-700/40"
+                  : "bg-red-950/40 text-red-300 border-red-700/40"
               )}
             >
               {categoria.categoria}
@@ -187,7 +186,7 @@ export function CategoriasCrud() {
           )}
         </div>
         {categoria.descricao && (
-          <p className="text-sm text-muted-foreground/80 group-hover:text-muted-foreground transition-colors">
+          <p className="text-sm text-muted-foreground">
             {categoria.descricao}
           </p>
         )}
@@ -196,10 +195,10 @@ export function CategoriasCrud() {
             <Badge
               variant="outline"
               className={cn(
-                "text-xs border transition-all",
+                "text-xs border",
                 categoria.tipo === "receita"
-                  ? "border-blue-600/40 bg-blue-950/40 text-blue-300"
-                  : "border-red-600/40 bg-red-950/40 text-red-300"
+                  ? "border-blue-600/40 bg-blue-950/30 text-blue-300"
+                  : "border-red-600/40 bg-red-950/30 text-red-300"
               )}
             >
               {categoria.cliente_nome}
@@ -208,13 +207,13 @@ export function CategoriasCrud() {
         )}
       </div>
 
-      <div className="flex gap-2 ml-4 relative z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+      <div className="flex gap-2 ml-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
         <Button
           variant="outline"
           size="sm"
           onClick={() => handleOpenDialog(categoria)}
           className={cn(
-            "h-9 w-9 p-0 backdrop-blur-sm transition-all duration-300",
+            "h-9 w-9 p-0 transition-all duration-300",
             categoria.tipo === "receita"
               ? "border-blue-600/40 hover:bg-blue-500/20 hover:border-blue-500 text-blue-400 hover:text-blue-300"
               : "border-red-600/40 hover:bg-red-500/20 hover:border-red-500 text-red-400 hover:text-red-300"
@@ -225,7 +224,7 @@ export function CategoriasCrud() {
         <Button
           variant="outline"
           size="sm"
-          className="h-9 w-9 p-0 backdrop-blur-sm transition-all duration-300 border-red-600/40 hover:bg-red-500/20 hover:border-red-500 text-red-400 hover:text-red-300"
+          className="h-9 w-9 p-0 transition-all duration-300 border-red-600/40 hover:bg-red-500/20 hover:border-red-500 text-red-400 hover:text-red-300"
           onClick={() => handleDeleteCategoria(categoria.id)}
         >
           <Trash2 className="w-4 h-4" />
