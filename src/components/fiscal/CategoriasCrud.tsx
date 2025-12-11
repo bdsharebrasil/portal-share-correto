@@ -159,13 +159,13 @@ export function CategoriasCrud() {
           <div className={cn(
             "p-2 rounded-lg transition-all duration-300",
             categoria.tipo === "receita"
-              ? "bg-blue-500/15"
-              : "bg-red-500/15"
+              ? "bg-blue-500/10"
+              : "bg-red-500/10"
           )}>
             {categoria.tipo === "receita" ? (
-              <ArrowUpCircle className="w-4 h-4 text-blue-400" />
+              <ArrowUpCircle className="w-4 h-4 text-blue-500" />
             ) : (
-              <ArrowDownCircle className="w-4 h-4 text-red-400" />
+              <ArrowDownCircle className="w-4 h-4 text-red-500" />
             )}
           </div>
           <h4 className="font-semibold text-foreground">
@@ -177,8 +177,8 @@ export function CategoriasCrud() {
               className={cn(
                 "text-xs font-medium",
                 categoria.tipo === "receita"
-                  ? "bg-blue-950/40 text-blue-300 border-blue-700/40"
-                  : "bg-red-950/40 text-red-300 border-red-700/40"
+                  ? "bg-blue-950/30 text-blue-400 border-blue-700/30"
+                  : "bg-red-950/30 text-red-400 border-red-700/30"
               )}
             >
               {categoria.categoria}
@@ -197,8 +197,8 @@ export function CategoriasCrud() {
               className={cn(
                 "text-xs border",
                 categoria.tipo === "receita"
-                  ? "border-blue-600/40 bg-blue-950/30 text-blue-300"
-                  : "border-red-600/40 bg-red-950/30 text-red-300"
+                  ? "border-blue-600/30 bg-blue-950/20 text-blue-400"
+                  : "border-red-600/30 bg-red-950/20 text-red-400"
               )}
             >
               {categoria.cliente_nome}
@@ -215,8 +215,8 @@ export function CategoriasCrud() {
           className={cn(
             "h-9 w-9 p-0 transition-all duration-300",
             categoria.tipo === "receita"
-              ? "border-blue-600/40 hover:bg-blue-500/20 hover:border-blue-500 text-blue-400 hover:text-blue-300"
-              : "border-red-600/40 hover:bg-red-500/20 hover:border-red-500 text-red-400 hover:text-red-300"
+              ? "border-blue-600/30 hover:bg-blue-500/15 hover:border-blue-500/50 text-blue-500 hover:text-blue-400"
+              : "border-red-600/30 hover:bg-red-500/15 hover:border-red-500/50 text-red-500 hover:text-red-400"
           )}
         >
           <Edit2 className="w-4 h-4" />
@@ -224,7 +224,7 @@ export function CategoriasCrud() {
         <Button
           variant="outline"
           size="sm"
-          className="h-9 w-9 p-0 transition-all duration-300 border-red-600/40 hover:bg-red-500/20 hover:border-red-500 text-red-400 hover:text-red-300"
+          className="h-9 w-9 p-0 transition-all duration-300 border-red-600/30 hover:bg-red-500/15 hover:border-red-500/50 text-red-500 hover:text-red-400"
           onClick={() => handleDeleteCategoria(categoria.id)}
         >
           <Trash2 className="w-4 h-4" />
