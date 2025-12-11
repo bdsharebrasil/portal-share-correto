@@ -148,17 +148,81 @@ export function CategoriasCrud() {
     }
   };
 
+  const toggleSelection = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleActionOnSelected = (action: "edit" | "delete") => {
+    if (selectedIds.size === 0) {
+      toast.error("Selecione pelo menos uma categoria");
+      return;
+    }
+    if (selectedIds.size > 1 && action === "edit") {
+      toast.error("Você pode editar apenas uma categoria por vez");
+      return;
+    }
+    setActionType(action);
+    setActionDialogOpen(true);
+  };
+
+  const executeSelectedAction = async () => {
+    if (actionType === "delete") {
+      for (const id of selectedIds) {
+        await deleteCategoria(id);
+      }
+      toast.success("Categorias excluídas com sucesso!");
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+    } else if (actionType === "edit" && selectedIds.size === 1) {
+      const categoriaId = Array.from(selectedIds)[0];
+      const categoria = categorias.find(c => c.id === categoriaId);
+      if (categoria) {
+        handleOpenDialog(categoria);
+      }
+    }
+    setActionDialogOpen(false);
+    setActionType(null);
+  };
+
   const renderCategoriaItem = (categoria: CategoriaFinanceiro) => (
     <div
       key={categoria.id}
       className={cn(
-        "group relative flex items-center justify-between p-5 rounded-xl border-2 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:scale-102",
-        categoria.tipo === "receita"
-          ? "border-blue-600/60 hover:border-blue-500/80 hover:bg-card/80"
-          : "border-red-600/60 hover:border-red-500/80 hover:bg-card/80"
+        "group relative flex items-center justify-between p-5 rounded-xl border-2 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:scale-102 cursor-pointer",
+        selectionMode && selectedIds.has(categoria.id)
+          ? categoria.tipo === "receita"
+            ? "border-blue-500/80 bg-blue-950/20"
+            : "border-red-500/80 bg-red-950/20"
+          : categoria.tipo === "receita"
+            ? "border-blue-600/60 hover:border-blue-500/80 hover:bg-card/80"
+            : "border-red-600/60 hover:border-red-500/80 hover:bg-card/80"
       )}
+      onClick={() => selectionMode && toggleSelection(categoria.id)}
     >
-      <div className="flex-1">
+      {selectionMode && (
+        <div className="absolute left-4 top-1/2 -translate-y-1/2">
+          <div className={cn(
+            "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
+            selectedIds.has(categoria.id)
+              ? categoria.tipo === "receita"
+                ? "bg-blue-500/30 border-blue-500"
+                : "bg-red-500/30 border-red-500"
+              : "border-muted-foreground/30"
+          )}>
+            {selectedIds.has(categoria.id) && (
+              <Check className="w-3 h-3 text-white" />
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className={cn("flex-1", selectionMode && "pl-6")}>
         <div className="flex items-center gap-3 mb-2">
           <div className={cn(
             "p-2 rounded-lg transition-all duration-300",
@@ -175,19 +239,6 @@ export function CategoriasCrud() {
           <h4 className="font-semibold text-foreground">
             {categoria.nome}
           </h4>
-          {categoria.categoria && (
-            <Badge
-              variant="secondary"
-              className={cn(
-                "text-xs font-medium",
-                categoria.tipo === "receita"
-                  ? "bg-blue-950/30 text-blue-400 border-blue-700/30"
-                  : "bg-red-950/30 text-red-400 border-red-700/30"
-              )}
-            >
-              {categoria.categoria}
-            </Badge>
-          )}
         </div>
         {categoria.descricao && (
           <p className="text-sm text-muted-foreground">
@@ -211,29 +262,19 @@ export function CategoriasCrud() {
         )}
       </div>
 
-      <div className="flex gap-2 ml-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleOpenDialog(categoria)}
+      {categoria.categoria && (
+        <Badge
+          variant="secondary"
           className={cn(
-            "h-9 w-9 p-0 transition-all duration-300",
+            "text-xs font-medium ml-4",
             categoria.tipo === "receita"
-              ? "border-blue-600/30 hover:bg-blue-500/15 hover:border-blue-500/50 text-blue-500 hover:text-blue-400"
-              : "border-red-600/30 hover:bg-red-500/15 hover:border-red-500/50 text-red-500 hover:text-red-400"
+              ? "bg-blue-950/30 text-blue-400 border-blue-700/30"
+              : "bg-red-950/30 text-red-400 border-red-700/30"
           )}
         >
-          <Edit2 className="w-4 h-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9 w-9 p-0 transition-all duration-300 border-red-600/30 hover:bg-red-500/15 hover:border-red-500/50 text-red-500 hover:text-red-400"
-          onClick={() => handleDeleteCategoria(categoria.id)}
-        >
-          <Trash2 className="w-4 h-4" />
-        </Button>
-      </div>
+          {categoria.categoria}
+        </Badge>
+      )}
     </div>
   );
 
