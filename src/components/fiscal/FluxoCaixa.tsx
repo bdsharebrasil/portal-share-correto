@@ -683,17 +683,17 @@ export function FluxoCaixa() {
               <p className="text-muted-foreground text-sm">Carregando...</p>
             </div> : <div className="space-y-0 w-full">
               {/* Cabeçalho Fixo - Desktop */}
-              <div className="hidden lg:flex items-center gap-4 px-6 py-4 bg-slate-800/30 border-b border-slate-700/40 font-semibold text-sm text-muted-foreground/80 sticky top-0 z-10 backdrop-blur-sm">
-                <div className="w-24 flex-shrink-0">Data Pgto</div>
-                <div className="w-24 flex-shrink-0">Criação</div>
-                <div className="flex-1 min-w-[180px]">Descrição</div>
-                <div className="w-28 flex-shrink-0">Categoria</div>
-                <div className="w-20 flex-shrink-0 text-center">Tipo</div>
-                <div className="w-32 flex-shrink-0 text-right">Valor</div>
-                <div className="w-24 flex-shrink-0">Banco</div>
-                <div className="w-24 flex-shrink-0">Aeronave</div>
-                <div className="w-20 flex-shrink-0 text-center">Status</div>
-                <div className="w-28 flex-shrink-0 text-right">Ações</div>
+              <div className="hidden lg:flex items-center gap-2 xl:gap-3 px-3 xl:px-6 py-3 bg-slate-800/30 border-b border-slate-700/40 font-semibold text-xs xl:text-sm text-muted-foreground/80 sticky top-0 z-10 backdrop-blur-sm">
+                <div className="w-20 xl:w-24 flex-shrink-0">Data Pgto</div>
+                <div className="hidden xl:flex w-24 flex-shrink-0">Criação</div>
+                <div className="flex-1 min-w-[100px] xl:min-w-[180px]">Descrição</div>
+                <div className="w-20 xl:w-28 flex-shrink-0">Categoria</div>
+                <div className="w-16 xl:w-20 flex-shrink-0 text-center">Tipo</div>
+                <div className="w-24 xl:w-32 flex-shrink-0 text-right">Valor</div>
+                <div className="w-16 xl:w-24 flex-shrink-0">Banco</div>
+                <div className="hidden md:block w-16 xl:w-24 flex-shrink-0">Aeronave</div>
+                <div className="w-14 xl:w-20 flex-shrink-0 text-center">Status</div>
+                <div className="w-16 xl:w-28 flex-shrink-0 text-right">Ações</div>
               </div>
 
               {/* Nova linha em edição */}
