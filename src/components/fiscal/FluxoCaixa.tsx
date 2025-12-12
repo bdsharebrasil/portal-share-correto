@@ -29,8 +29,8 @@ export function FluxoCaixa() {
   const categoriaNomes = allCategorias.map(c => c.nome);
   const [movimentacoes, setMovimentacoes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showInlineForm, setShowInlineForm] = useState(false);
-  const [editingMovimentacao, setEditingMovimentacao] = useState<any>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [newRowId, setNewRowId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
