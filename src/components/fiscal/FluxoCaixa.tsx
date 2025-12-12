@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { MonthYearPicker } from "@/components/ui/month-year-picker";
 
 const parseLocalDate = (dateString: string): Date => {
   const [year, month, day] = dateString.split('-').map(Number);
@@ -584,10 +585,7 @@ export function FluxoCaixa() {
               </Button>
             </div>
 
-            {filters.periodo === "mes" ? <Input type="month" value={filters.mes} onChange={e => setFilters(prev => ({
-            ...prev,
-            mes: e.target.value
-          }))} className="bg-slate-800/50 border-slate-700/60 text-foreground w-full sm:w-auto sm:min-w-[160px] text-xs sm:text-sm h-9 focus:border-blue-400/40" /> : <Select value={filters.ano} onValueChange={value => setFilters(prev => ({
+            {filters.periodo === "mes" ? <MonthYearPicker value={filters.mes} onChange={mes => setFilters(prev => ({ ...prev, mes }))} /> : <Select value={filters.ano} onValueChange={value => setFilters(prev => ({
             ...prev,
             ano: value
           }))}>
@@ -685,17 +683,17 @@ export function FluxoCaixa() {
               <p className="text-muted-foreground text-sm">Carregando...</p>
             </div> : <div className="space-y-0 w-full">
               {/* Cabeçalho Fixo - Desktop */}
-              <div className="hidden lg:flex items-center gap-4 px-6 py-4 bg-slate-800/30 border-b border-slate-700/40 font-semibold text-sm text-muted-foreground/80 sticky top-0 z-10 backdrop-blur-sm">
-                <div className="w-24 flex-shrink-0">Data Pgto</div>
-                <div className="w-24 flex-shrink-0">Criação</div>
-                <div className="flex-1 min-w-[180px]">Descrição</div>
-                <div className="w-28 flex-shrink-0">Categoria</div>
-                <div className="w-20 flex-shrink-0 text-center">Tipo</div>
-                <div className="w-32 flex-shrink-0 text-right">Valor</div>
-                <div className="w-24 flex-shrink-0">Banco</div>
-                <div className="w-24 flex-shrink-0">Aeronave</div>
-                <div className="w-20 flex-shrink-0 text-center">Status</div>
-                <div className="w-28 flex-shrink-0 text-right">Ações</div>
+              <div className="hidden lg:flex items-center gap-2 xl:gap-3 px-3 xl:px-6 py-3 bg-slate-800/30 border-b border-slate-700/40 font-semibold text-xs xl:text-sm text-muted-foreground/80 sticky top-0 z-10 backdrop-blur-sm">
+                <div className="w-20 xl:w-24 flex-shrink-0">Data Pgto</div>
+                <div className="hidden xl:flex w-24 flex-shrink-0">Criação</div>
+                <div className="flex-1 min-w-[100px] xl:min-w-[180px]">Descrição</div>
+                <div className="w-20 xl:w-28 flex-shrink-0">Categoria</div>
+                <div className="w-24 xl:w-28 flex-shrink-0 text-center">Tipo</div>
+                <div className="w-24 xl:w-32 flex-shrink-0 text-right">Valor</div>
+                <div className="w-16 xl:w-24 flex-shrink-0">Banco</div>
+                <div className="hidden md:block w-16 xl:w-24 flex-shrink-0">Aeronave</div>
+                <div className="w-16 xl:w-20 flex-shrink-0 text-center">Status</div>
+                <div className="w-18 xl:w-24 flex-shrink-0 text-right">Ações</div>
               </div>
 
               {/* Nova linha em edição */}
@@ -739,41 +737,41 @@ export function FluxoCaixa() {
 
                     return <div key={mov.id} className="border-b border-slate-700/40 hover:bg-slate-800/30 transition-colors last:border-b-0 backdrop-blur-sm">
                       {/* Desktop Layout - Flex */}
-                      <div className="hidden lg:flex items-center gap-4 px-6 py-4 text-sm">
-                        <div className="w-24 flex-shrink-0 text-foreground font-medium">
+                      <div className="hidden lg:flex items-center gap-2 xl:gap-3 px-3 xl:px-6 py-3 text-xs xl:text-sm">
+                        <div className="w-20 xl:w-24 flex-shrink-0 text-foreground font-medium">
                           {format(parseLocalDate(mov.data), "dd/MM/yyyy")}
                         </div>
-                        <div className="w-24 flex-shrink-0 text-muted-foreground text-xs">
+                        <div className="hidden xl:flex w-24 flex-shrink-0 text-muted-foreground text-xs">
                           {mov.criado_em ? format(new Date(mov.criado_em), "dd/MM/yyyy") : "-"}
                         </div>
-                        <div className="flex-1 min-w-[180px] font-medium text-foreground truncate" title={mov.descricao}>
+                        <div className="flex-1 min-w-[100px] xl:min-w-[180px] font-medium text-foreground truncate" title={mov.descricao}>
                           {mov.descricao}
                         </div>
-                        <div className="w-28 flex-shrink-0 text-muted-foreground/80 text-xs truncate" title={mov.categoria}>
+                        <div className="w-20 xl:w-28 flex-shrink-0 text-muted-foreground/80 text-xs truncate" title={mov.categoria}>
                           {mov.categoria}
                         </div>
-                        <div className="w-20 flex-shrink-0 flex justify-center">
+                        <div className="w-24 xl:w-28 flex-shrink-0 flex justify-center">
                           <Badge className={`text-xs whitespace-nowrap font-medium ${mov.tipo_movimento === "entrada" ? "bg-blue-950/40 text-blue-400 border-blue-700/40" : "bg-red-950/40 text-red-400 border-red-700/40"}`}>
                             {mov.tipo_movimento === "entrada" ? "Entrada" : "Saída"}
                           </Badge>
                         </div>
-                        <div className={`w-32 flex-shrink-0 text-right font-semibold whitespace-nowrap ${mov.tipo_movimento === "entrada" ? "text-blue-500" : "text-red-500"}`}>
+                        <div className={`w-24 xl:w-32 flex-shrink-0 text-right font-semibold whitespace-nowrap text-xs xl:text-sm ${mov.tipo_movimento === "entrada" ? "text-blue-500" : "text-red-500"}`}>
                           {mov.tipo_movimento === "entrada" ? "+" : "-"}R$ {parseFloat(mov.valor).toLocaleString('pt-BR', {
                     minimumFractionDigits: 2
                   })}
                         </div>
-                        <div className="w-24 flex-shrink-0 text-muted-foreground/80 text-xs truncate" title={mov.conta_banco || "-"}>
+                        <div className="w-16 xl:w-24 flex-shrink-0 text-muted-foreground/80 text-xs truncate" title={mov.conta_banco || "-"}>
                           {mov.conta_banco || "-"}
                         </div>
-                        <div className="w-24 flex-shrink-0 text-muted-foreground/80 text-xs">
+                        <div className="hidden md:flex w-16 xl:w-24 flex-shrink-0 text-muted-foreground/80 text-xs">
                           {mov.aeronave || "-"}
                         </div>
-                        <div className="w-20 flex-shrink-0 flex justify-center">
+                        <div className="w-16 xl:w-20 flex-shrink-0 flex justify-center">
                           <Badge className={`text-xs whitespace-nowrap font-medium border ${getStatusColor(mov.status)}`}>
                             {getStatusLabel(mov.status, mov.tipo_movimento)}
                           </Badge>
                         </div>
-                        <div className="w-28 flex-shrink-0 flex gap-1 justify-end items-center">
+                        <div className="w-18 xl:w-24 flex-shrink-0 flex gap-1 justify-end items-center">
                           {mov.referencia && (mov.referencia.startsWith('nf_entrada_') || mov.referencia.startsWith('nf_saida_')) && <Button variant="ghost" size="sm" onClick={() => {
                     const isEntrada = mov.referencia.startsWith('nf_entrada_');
                     toast.info(`Origem: ${isEntrada ? 'Nota Fiscal de Entrada' : 'Nota Fiscal de Saída'}`, {
