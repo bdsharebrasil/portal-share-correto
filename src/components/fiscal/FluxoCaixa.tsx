@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { MonthYearPicker } from "@/components/ui/month-year-picker";
 
 const parseLocalDate = (dateString: string): Date => {
   const [year, month, day] = dateString.split('-').map(Number);
@@ -584,10 +585,7 @@ export function FluxoCaixa() {
               </Button>
             </div>
 
-            {filters.periodo === "mes" ? <Input type="month" value={filters.mes} onChange={e => setFilters(prev => ({
-            ...prev,
-            mes: e.target.value
-          }))} className="bg-slate-800/50 border-slate-700/60 text-foreground w-full sm:w-auto sm:min-w-[160px] text-xs sm:text-sm h-9 focus:border-blue-400/40" /> : <Select value={filters.ano} onValueChange={value => setFilters(prev => ({
+            {filters.periodo === "mes" ? <MonthYearPicker value={filters.mes} onChange={mes => setFilters(prev => ({ ...prev, mes }))} /> : <Select value={filters.ano} onValueChange={value => setFilters(prev => ({
             ...prev,
             ano: value
           }))}>
