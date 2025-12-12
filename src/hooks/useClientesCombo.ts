@@ -4,16 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 export interface ClienteCombo {
   id: string;
   company_name: string;
+  status?: string;
 }
 
 export const useClientesCombo = () => {
   const query = useQuery<ClienteCombo[]>({
-    queryKey: ["clients-combo"],
+    queryKey: ["clients-combo-all"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("clients")
-        .select("id, company_name")
-        .eq("status", "ativo")
+        .select("id, company_name, status")
         .order("company_name");
 
       if (error) {
