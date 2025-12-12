@@ -15,6 +15,10 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { useAeronaves } from "@/hooks/useAeronaves";
+import { useCategoriasConta } from "@/hooks/useCategoriasFinanceiro";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 const parseLocalDate = (dateString: string): Date => {
   const [year, month, day] = dateString.split('-').map(Number);
   return new Date(year, month - 1, day);
