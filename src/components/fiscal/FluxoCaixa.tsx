@@ -737,41 +737,41 @@ export function FluxoCaixa() {
 
                     return <div key={mov.id} className="border-b border-slate-700/40 hover:bg-slate-800/30 transition-colors last:border-b-0 backdrop-blur-sm">
                       {/* Desktop Layout - Flex */}
-                      <div className="hidden lg:flex items-center gap-4 px-6 py-4 text-sm">
-                        <div className="w-24 flex-shrink-0 text-foreground font-medium">
+                      <div className="hidden lg:flex items-center gap-2 xl:gap-3 px-3 xl:px-6 py-3 text-xs xl:text-sm">
+                        <div className="w-20 xl:w-24 flex-shrink-0 text-foreground font-medium">
                           {format(parseLocalDate(mov.data), "dd/MM/yyyy")}
                         </div>
-                        <div className="w-24 flex-shrink-0 text-muted-foreground text-xs">
+                        <div className="hidden xl:flex w-24 flex-shrink-0 text-muted-foreground text-xs">
                           {mov.criado_em ? format(new Date(mov.criado_em), "dd/MM/yyyy") : "-"}
                         </div>
-                        <div className="flex-1 min-w-[180px] font-medium text-foreground truncate" title={mov.descricao}>
+                        <div className="flex-1 min-w-[100px] xl:min-w-[180px] font-medium text-foreground truncate" title={mov.descricao}>
                           {mov.descricao}
                         </div>
-                        <div className="w-28 flex-shrink-0 text-muted-foreground/80 text-xs truncate" title={mov.categoria}>
+                        <div className="w-20 xl:w-28 flex-shrink-0 text-muted-foreground/80 text-xs truncate" title={mov.categoria}>
                           {mov.categoria}
                         </div>
-                        <div className="w-20 flex-shrink-0 flex justify-center">
+                        <div className="w-16 xl:w-20 flex-shrink-0 flex justify-center">
                           <Badge className={`text-xs whitespace-nowrap font-medium ${mov.tipo_movimento === "entrada" ? "bg-blue-950/40 text-blue-400 border-blue-700/40" : "bg-red-950/40 text-red-400 border-red-700/40"}`}>
-                            {mov.tipo_movimento === "entrada" ? "Entrada" : "Saída"}
+                            {mov.tipo_movimento === "entrada" ? "Ent" : "Saí"}
                           </Badge>
                         </div>
-                        <div className={`w-32 flex-shrink-0 text-right font-semibold whitespace-nowrap ${mov.tipo_movimento === "entrada" ? "text-blue-500" : "text-red-500"}`}>
+                        <div className={`w-24 xl:w-32 flex-shrink-0 text-right font-semibold whitespace-nowrap text-xs xl:text-sm ${mov.tipo_movimento === "entrada" ? "text-blue-500" : "text-red-500"}`}>
                           {mov.tipo_movimento === "entrada" ? "+" : "-"}R$ {parseFloat(mov.valor).toLocaleString('pt-BR', {
                     minimumFractionDigits: 2
                   })}
                         </div>
-                        <div className="w-24 flex-shrink-0 text-muted-foreground/80 text-xs truncate" title={mov.conta_banco || "-"}>
+                        <div className="w-16 xl:w-24 flex-shrink-0 text-muted-foreground/80 text-xs truncate" title={mov.conta_banco || "-"}>
                           {mov.conta_banco || "-"}
                         </div>
-                        <div className="w-24 flex-shrink-0 text-muted-foreground/80 text-xs">
+                        <div className="hidden md:flex w-16 xl:w-24 flex-shrink-0 text-muted-foreground/80 text-xs">
                           {mov.aeronave || "-"}
                         </div>
-                        <div className="w-20 flex-shrink-0 flex justify-center">
+                        <div className="w-14 xl:w-20 flex-shrink-0 flex justify-center">
                           <Badge className={`text-xs whitespace-nowrap font-medium border ${getStatusColor(mov.status)}`}>
                             {getStatusLabel(mov.status, mov.tipo_movimento)}
                           </Badge>
                         </div>
-                        <div className="w-28 flex-shrink-0 flex gap-1 justify-end items-center">
+                        <div className="w-16 xl:w-28 flex-shrink-0 flex gap-1 justify-end items-center">
                           {mov.referencia && (mov.referencia.startsWith('nf_entrada_') || mov.referencia.startsWith('nf_saida_')) && <Button variant="ghost" size="sm" onClick={() => {
                     const isEntrada = mov.referencia.startsWith('nf_entrada_');
                     toast.info(`Origem: ${isEntrada ? 'Nota Fiscal de Entrada' : 'Nota Fiscal de Saída'}`, {
