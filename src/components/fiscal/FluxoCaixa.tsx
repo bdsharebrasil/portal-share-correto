@@ -496,55 +496,55 @@ export function FluxoCaixa() {
 
   return <div className="space-y-6 w-full">
       {/* Cards de Totais */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mx-[11px] my-[81px] py-[45px] px-[22px]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 mx-0 my-0 py-4 px-4">
         <Card className="bg-card/50 border-2 border-blue-600/60 hover:border-blue-500/80 hover:bg-card/80 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:scale-102">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-4 px-4 md:px-6">
-            <CardTitle className="text-sm font-medium text-muted-foreground/90">Entradas</CardTitle>
-            <div className="p-2 rounded-lg bg-blue-500/15">
-              <TrendingUp className="h-5 w-5 text-blue-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-3 px-3">
+            <CardTitle className="text-xs font-medium text-muted-foreground/90">Entradas</CardTitle>
+            <div className="p-1 rounded-lg bg-blue-500/15">
+              <TrendingUp className="h-4 w-4 text-blue-500" />
             </div>
           </CardHeader>
-          <CardContent className="px-4 md:px-6 pb-4 mx-[9px]">
-            <div className="text-2xl md:text-3xl font-bold text-blue-500">
+          <CardContent className="px-3 pb-3 mx-0">
+            <div className="text-lg font-bold text-blue-500">
               R$ {totals.entradas.toLocaleString('pt-BR', {
               minimumFractionDigits: 2
             })}
             </div>
-            <p className="text-xs text-muted-foreground/80 mt-2">Receitas do período</p>
+            <p className="text-xs text-muted-foreground/80 mt-1">Receitas do período</p>
           </CardContent>
         </Card>
 
         <Card className="bg-card/50 border-2 border-red-600/60 hover:border-red-500/80 hover:bg-card/80 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:scale-102">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-4 px-4 md:px-6">
-            <CardTitle className="text-sm font-medium text-muted-foreground/90">Saídas</CardTitle>
-            <div className="p-2 rounded-lg bg-red-500/15">
-              <TrendingDown className="h-5 w-5 text-red-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-3 px-3">
+            <CardTitle className="text-xs font-medium text-muted-foreground/90">Saídas</CardTitle>
+            <div className="p-1 rounded-lg bg-red-500/15">
+              <TrendingDown className="h-4 w-4 text-red-500" />
             </div>
           </CardHeader>
-          <CardContent className="px-4 md:px-6 pb-4 mx-[27px]">
-            <div className="text-2xl md:text-3xl font-bold text-red-500">
+          <CardContent className="px-3 pb-3 mx-0">
+            <div className="text-lg font-bold text-red-500">
               R$ {totals.saidas.toLocaleString('pt-BR', {
               minimumFractionDigits: 2
             })}
             </div>
-            <p className="text-xs text-muted-foreground/80 mt-2">Despesas do período</p>
+            <p className="text-xs text-muted-foreground/80 mt-1">Despesas do período</p>
           </CardContent>
         </Card>
 
         <Card className="bg-card/50 border-2 border-cyan-600/60 hover:border-cyan-500/80 hover:bg-card/80 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:scale-102">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-4 px-4 md:px-6">
-            <CardTitle className="text-sm font-medium text-muted-foreground/90">Saldo do Mês</CardTitle>
-            <div className="p-2 rounded-lg bg-cyan-500/15">
-              <Wallet className="h-5 w-5 text-cyan-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-3 px-3">
+            <CardTitle className="text-xs font-medium text-muted-foreground/90">Saldo do Mês</CardTitle>
+            <div className="p-1 rounded-lg bg-cyan-500/15">
+              <Wallet className="h-4 w-4 text-cyan-500" />
             </div>
           </CardHeader>
-          <CardContent className="px-4 pb-4 py-0 md:px-[20px] my-0 mx-[28px]">
-            <div className={`text-2xl md:text-3xl font-bold ${totals.saldo >= 0 ? "text-cyan-500" : "text-orange-500"}`}>
+          <CardContent className="px-3 pb-3 my-0 mx-0">
+            <div className={`text-lg font-bold ${totals.saldo >= 0 ? "text-cyan-500" : "text-orange-500"}`}>
               R$ {totals.saldo.toLocaleString('pt-BR', {
               minimumFractionDigits: 2
             })}
             </div>
-            <p className="text-xs text-muted-foreground/80 mt-2">Diferença entre entradas e saídas</p>
+            <p className="text-xs text-muted-foreground/80 mt-1">Diferença entre entradas e saídas</p>
           </CardContent>
         </Card>
       </div>
