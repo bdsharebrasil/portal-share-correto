@@ -276,7 +276,7 @@ function InlineEditRow({
         </div>
 
         <div>
-          <Label className="text-xs font-medium text-muted-foreground mb-1">Conta</Label>
+          <Label className="text-xs font-medium text-muted-foreground mb-1">Banco</Label>
           <Select value={formData.conta_banco} onValueChange={(value) => setFormData(prev => ({ ...prev, conta_banco: value }))}>
             <SelectTrigger className="h-8 bg-background text-xs">
               <SelectValue placeholder="Sel" />
