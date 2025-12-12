@@ -2,21 +2,343 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Search, Filter, Trash2, Edit2, TrendingUp, TrendingDown, Wallet, ChevronDown, FileText, ExternalLink, Eye } from "lucide-react";
+import { Plus, Search, Filter, Trash2, Edit2, TrendingUp, TrendingDown, Wallet, ChevronDown, FileText, ExternalLink, Eye, Check, X as CloseIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
+import { useCategoriasFinanceiro, useCategoriasConta } from "@/hooks/useCategoriasFinanceiro";
+import { useAeronaves } from "@/hooks/useAeronaves";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FluxoCaixaInlineForm } from "@/components/fiscal/FluxoCaixaInlineForm";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+
 const parseLocalDate = (dateString: string): Date => {
   const [year, month, day] = dateString.split('-').map(Number);
   return new Date(year, month - 1, day);
 };
+
+interface InlineEditRowProps {
+  movimentacao: any;
+  isNew: boolean;
+  onSuccess: () => void;
+  onCancel: () => void;
+  user: any;
+  allCategorias: any[];
+  contaNomes: string[];
+  aeronaves: any[];
+}
+
+function InlineEditRow({ 
+  movimentacao, 
+  isNew, 
+  onSuccess, 
+  onCancel, 
+  user, 
+  allCategorias, 
+  contaNomes, 
+  aeronaves 
+}: InlineEditRowProps) {
+  const [formData, setFormData] = useState({
+    data: movimentacao?.data || new Date().toISOString().split('T')[0],
+    tipo_movimento: movimentacao?.tipo_movimento || 'entrada',
+    categoria: movimentacao?.categoria || '',
+    descricao: movimentacao?.descricao || '',
+    valor: movimentacao?.valor?.toString() || '',
+    conta_banco: movimentacao?.conta_banco || '',
+    status: movimentacao?.status || 'recebido',
+    aeronave: movimentacao?.aeronave || ''
+  });
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [openCategoriaPopover, setOpenCategoriaPopover] = useState(false);
+  const [selectedSubcategoria, setSelectedSubcategoria] = useState<string | null>(null);
+
+  const categoriasPorSubcategoria = useMemo(() => {
+    const filteredByType = formData.tipo_movimento === "saída"
+      ? allCategorias.filter(c => c.tipo === "despesa")
+      : allCategorias.filter(c => c.tipo === "receita");
+
+    const grouped: Record<string, typeof allCategorias> = {};
+
+    filteredByType.forEach(cat => {
+      const subcategoria = cat.categoria || "Sem Grupo";
+      if (!grouped[subcategoria]) {
+        grouped[subcategoria] = [];
+      }
+      grouped[subcategoria].push(cat);
+    });
+
+    return grouped;
+  }, [allCategorias, formData.tipo_movimento]);
+
+  const subcategorias = useMemo(() => {
+    return Object.keys(categoriasPorSubcategoria).sort();
+  }, [categoriasPorSubcategoria]);
+
+  useEffect(() => {
+    if (formData.categoria) {
+      const cat = allCategorias.find(c => c.nome === formData.categoria);
+      if (cat && cat.categoria) {
+        setSelectedSubcategoria(cat.categoria);
+      }
+    }
+  }, [formData.categoria, allCategorias]);
+
+  const handleSave = async () => {
+    if (!formData.categoria || formData.categoria.trim() === '') {
+      toast.error("Categoria é obrigatória");
+      return;
+    }
+
+    if (!formData.descricao || formData.descricao.trim() === '') {
+      toast.error("Descrição é obrigatória");
+      return;
+    }
+
+    const valor = parseFloat(formData.valor);
+    if (isNaN(valor) || valor <= 0) {
+      toast.error("Valor deve ser maior que zero");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const data = {
+        data: formData.data,
+        tipo_movimento: formData.tipo_movimento,
+        categoria: formData.categoria,
+        descricao: formData.descricao,
+        valor,
+        conta_banco: formData.conta_banco || null,
+        status: formData.status,
+        aeronave: formData.aeronave || null,
+        atualizado_por: user?.id
+      };
+
+      if (isNew) {
+        const { error } = await supabase
+          .from("controle_bancario")
+          .insert([{
+            ...data,
+            criado_por: user?.id
+          }]);
+
+        if (error) {
+          toast.error(`Erro ao criar: ${error.message}`);
+          return;
+        }
+        toast.success("Movimentação criada com sucesso!");
+      } else {
+        const { error } = await supabase
+          .from("controle_bancario")
+          .update(data)
+          .eq("id", movimentacao.id);
+
+        if (error) {
+          toast.error(`Erro ao atualizar: ${error.message}`);
+          return;
+        }
+        toast.success("Movimentação atualizada com sucesso!");
+      }
+
+      onSuccess();
+      onCancel();
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao processar movimentação");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleTipoChange = (novoTipo: string) => {
+    setFormData(prev => ({ ...prev, tipo_movimento: novoTipo, status: novoTipo === 'entrada' ? 'recebido' : 'pago' }));
+    setSelectedSubcategoria(null);
+  };
+
+  return (
+    <div className="px-4 sm:px-6 py-4 bg-slate-800/40 border-b border-slate-700/40 space-y-4 backdrop-blur-sm">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+        <div>
+          <Label className="text-xs font-medium text-muted-foreground mb-1">Data</Label>
+          <Input
+            type="date"
+            value={formData.data}
+            onChange={(e) => setFormData(prev => ({ ...prev, data: e.target.value }))}
+            className="h-8 bg-background text-xs"
+          />
+        </div>
+
+        <div>
+          <Label className="text-xs font-medium text-muted-foreground mb-1">Tipo</Label>
+          <Select value={formData.tipo_movimento} onValueChange={handleTipoChange}>
+            <SelectTrigger className="h-8 bg-background text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="entrada">Entrada</SelectItem>
+              <SelectItem value="saída">Saída</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label className="text-xs font-medium text-muted-foreground mb-1">Valor</Label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            value={formData.valor}
+            onChange={(e) => setFormData(prev => ({ ...prev, valor: e.target.value }))}
+            className="h-8 bg-background text-xs"
+            placeholder="0.00"
+          />
+        </div>
+
+        <div>
+          <Label className="text-xs font-medium text-muted-foreground mb-1">Categoria</Label>
+          <Popover open={openCategoriaPopover} onOpenChange={setOpenCategoriaPopover}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="h-8 w-full justify-between bg-background text-xs text-left px-2"
+              >
+                <span className="truncate">{formData.categoria || 'Sel'}</span>
+                <ChevronDown className="h-3 w-3 shrink-0" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[220px] p-0 bg-card border-border" align="start">
+              <div className="p-2 border-b border-border/50">
+                <p className="text-xs font-medium text-foreground mb-1">
+                  {!selectedSubcategoria ? "Grupo" : selectedSubcategoria}
+                </p>
+                {selectedSubcategoria && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedSubcategoria(null)}
+                    className="text-xs h-6"
+                  >
+                    ← Voltar
+                  </Button>
+                )}
+              </div>
+              <div className="max-h-[180px] overflow-y-auto p-1">
+                {!selectedSubcategoria ? (
+                  <div className="space-y-1">
+                    {subcategorias.map((sub) => (
+                      <Button
+                        key={sub}
+                        variant="ghost"
+                        className="w-full justify-start h-6 text-xs"
+                        onClick={() => setSelectedSubcategoria(sub)}
+                      >
+                        {sub}
+                      </Button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {(categoriasPorSubcategoria[selectedSubcategoria] || []).map((cat: any) => (
+                      <Button
+                        key={cat.id}
+                        variant="ghost"
+                        className="w-full justify-start h-6 text-xs"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, categoria: cat.nome }));
+                          setOpenCategoriaPopover(false);
+                        }}
+                      >
+                        {cat.nome}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+        <div className="sm:col-span-2 lg:col-span-2">
+          <Label className="text-xs font-medium text-muted-foreground mb-1">Descrição</Label>
+          <Input
+            value={formData.descricao}
+            onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
+            className="h-8 bg-background text-xs"
+            placeholder="Descreva a movimentação"
+          />
+        </div>
+
+        <div>
+          <Label className="text-xs font-medium text-muted-foreground mb-1">Banco</Label>
+          <Select value={formData.conta_banco} onValueChange={(value) => setFormData(prev => ({ ...prev, conta_banco: value }))}>
+            <SelectTrigger className="h-8 bg-background text-xs">
+              <SelectValue placeholder="Sel" />
+            </SelectTrigger>
+            <SelectContent>
+              {contaNomes.length > 0 ? (
+                contaNomes.map((conta) => (
+                  <SelectItem key={conta} value={conta} className="text-xs">{conta}</SelectItem>
+                ))
+              ) : (
+                <div className="text-center py-2 text-xs text-muted-foreground">
+                  Nenhum banco
+                </div>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label className="text-xs font-medium text-muted-foreground mb-1">Status</Label>
+          <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+            <SelectTrigger className="h-8 bg-background text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {formData.tipo_movimento === "entrada" ? (
+                <SelectItem value="recebido" className="text-xs">Recebido</SelectItem>
+              ) : (
+                <SelectItem value="pago" className="text-xs">Pago</SelectItem>
+              )}
+              <SelectItem value="cancelado" className="text-xs">Cancelado</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="flex gap-2 justify-end pt-2 border-t border-slate-700/40">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onCancel}
+          disabled={isSaving}
+          className="h-7 px-3 text-xs"
+        >
+          <CloseIcon className="w-3 h-3 mr-1" />
+          Cancelar
+        </Button>
+        <Button
+          type="button"
+          onClick={handleSave}
+          disabled={isSaving}
+          className="bg-primary hover:bg-primary/90 h-7 px-3 text-xs"
+        >
+          <Check className="w-3 h-3 mr-1" />
+          {isSaving ? "Salvando..." : "Salvar"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function FluxoCaixa() {
   const {
     user
@@ -24,15 +346,19 @@ export function FluxoCaixa() {
   const {
     categorias: allCategorias
   } = useCategoriasFinanceiro();
+  const { contas } = useCategoriasConta();
+  const { aeronaves } = useAeronaves();
+
   const categoriaNomes = allCategorias.map(c => c.nome);
+  const contaNomes = contas.map(c => c.nome);
+
   const [movimentacoes, setMovimentacoes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showInlineForm, setShowInlineForm] = useState(false);
-  const [editingMovimentacao, setEditingMovimentacao] = useState<any>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [newRowId, setNewRowId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-  // Initialize with current month using explicit year/month to avoid timezone issues
   const getCurrentMonth = () => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -46,13 +372,14 @@ export function FluxoCaixa() {
     categoria: "all",
     status: "all",
     periodo: "mes",
-    // "mes" | "ano"
     mes: getCurrentMonth(),
     ano: getCurrentYear()
   });
+
   useEffect(() => {
     loadMovimentacoes();
   }, []);
+
   const loadMovimentacoes = async () => {
     setIsLoading(true);
     try {
@@ -72,6 +399,7 @@ export function FluxoCaixa() {
     }
     setIsLoading(false);
   };
+
   const filteredMovimentacoes = useMemo(() => {
     return movimentacoes.filter(mov => {
       const searchMatch = filters.searchTerm === "" || mov.descricao.toLowerCase().includes(filters.searchTerm.toLowerCase()) || mov.numero_documento && mov.numero_documento.toLowerCase().includes(filters.searchTerm.toLowerCase());
@@ -79,7 +407,6 @@ export function FluxoCaixa() {
       const categoriaMatch = filters.categoria === "all" || mov.categoria === filters.categoria;
       const statusMatch = filters.status === "all" || mov.status === filters.status;
 
-      // Period match - either month or year
       let periodoMatch = true;
       if (filters.periodo === "mes") {
         periodoMatch = mov.data.startsWith(filters.mes);
@@ -89,6 +416,7 @@ export function FluxoCaixa() {
       return searchMatch && tipoMatch && categoriaMatch && statusMatch && periodoMatch;
     });
   }, [movimentacoes, filters]);
+
   const totals = useMemo(() => {
     const entradas = filteredMovimentacoes.filter(m => m.tipo_movimento === "entrada").reduce((sum, m) => sum + parseFloat(m.valor), 0);
     const saidas = filteredMovimentacoes.filter(m => m.tipo_movimento === "saída").reduce((sum, m) => sum + parseFloat(m.valor), 0);
@@ -98,6 +426,7 @@ export function FluxoCaixa() {
       saldo: entradas - saidas
     };
   }, [filteredMovimentacoes]);
+
   const handleDelete = async () => {
     if (!deleteConfirmId) return;
     try {
@@ -115,15 +444,24 @@ export function FluxoCaixa() {
       toast.error(error.message || "Erro ao deletar");
     }
   };
-  const handleOpenForm = (movimentacao?: any) => {
-    setEditingMovimentacao(movimentacao || null);
-    setShowInlineForm(true);
+
+  const handleEditRow = (id: string) => {
+    setEditingId(id);
     setExpandedRows(new Set());
   };
-  const handleCloseForm = () => {
-    setShowInlineForm(false);
-    setEditingMovimentacao(null);
+
+  const handleNewRow = () => {
+    const tempId = `new_${Date.now()}`;
+    setNewRowId(tempId);
+    setEditingId(tempId);
+    setExpandedRows(new Set());
   };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setNewRowId(null);
+  };
+
   const toggleRowExpand = (id: string) => {
     const newExpanded = new Set(expandedRows);
     if (newExpanded.has(id)) {
@@ -133,6 +471,7 @@ export function FluxoCaixa() {
     }
     setExpandedRows(newExpanded);
   };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "recebido":
@@ -145,66 +484,67 @@ export function FluxoCaixa() {
         return "bg-muted text-muted-foreground";
     }
   };
+
   const getStatusLabel = (status: string, tipo: string) => {
     if (status === "recebido") return "Recebido";
     if (status === "pago") return "Pago";
     if (status === "cancelado") return "Cancelado";
-    // Fallback para registros antigos
     if (status === "confirmado") return tipo === "entrada" ? "Recebido" : "Pago";
     if (status === "pendente") return tipo === "entrada" ? "Recebido" : "Pago";
     return status;
   };
+
   return <div className="space-y-6 w-full">
       {/* Cards de Totais */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mx-[11px] my-[81px] py-[45px] px-[22px]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 mx-0 my-0 py-4 px-4">
         <Card className="bg-card/50 border-2 border-blue-600/60 hover:border-blue-500/80 hover:bg-card/80 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:scale-102">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-4 px-4 md:px-6">
-            <CardTitle className="text-sm font-medium text-muted-foreground/90">Entradas</CardTitle>
-            <div className="p-2 rounded-lg bg-blue-500/15">
-              <TrendingUp className="h-5 w-5 text-blue-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-3 px-3">
+            <CardTitle className="text-xs font-medium text-muted-foreground/90">Entradas</CardTitle>
+            <div className="p-1 rounded-lg bg-blue-500/15">
+              <TrendingUp className="h-4 w-4 text-blue-500" />
             </div>
           </CardHeader>
-          <CardContent className="px-4 md:px-6 pb-4 mx-[9px]">
-            <div className="text-2xl md:text-3xl font-bold text-blue-500">
+          <CardContent className="px-3 pb-3 mx-0">
+            <div className="text-lg font-bold text-blue-500">
               R$ {totals.entradas.toLocaleString('pt-BR', {
               minimumFractionDigits: 2
             })}
             </div>
-            <p className="text-xs text-muted-foreground/80 mt-2">Receitas do período</p>
+            <p className="text-xs text-muted-foreground/80 mt-1">Receitas do período</p>
           </CardContent>
         </Card>
 
         <Card className="bg-card/50 border-2 border-red-600/60 hover:border-red-500/80 hover:bg-card/80 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:scale-102">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-4 px-4 md:px-6">
-            <CardTitle className="text-sm font-medium text-muted-foreground/90">Saídas</CardTitle>
-            <div className="p-2 rounded-lg bg-red-500/15">
-              <TrendingDown className="h-5 w-5 text-red-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-3 px-3">
+            <CardTitle className="text-xs font-medium text-muted-foreground/90">Saídas</CardTitle>
+            <div className="p-1 rounded-lg bg-red-500/15">
+              <TrendingDown className="h-4 w-4 text-red-500" />
             </div>
           </CardHeader>
-          <CardContent className="px-4 md:px-6 pb-4 mx-[27px]">
-            <div className="text-2xl md:text-3xl font-bold text-red-500">
+          <CardContent className="px-3 pb-3 mx-0">
+            <div className="text-lg font-bold text-red-500">
               R$ {totals.saidas.toLocaleString('pt-BR', {
               minimumFractionDigits: 2
             })}
             </div>
-            <p className="text-xs text-muted-foreground/80 mt-2">Despesas do período</p>
+            <p className="text-xs text-muted-foreground/80 mt-1">Despesas do período</p>
           </CardContent>
         </Card>
 
         <Card className="bg-card/50 border-2 border-cyan-600/60 hover:border-cyan-500/80 hover:bg-card/80 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:scale-102">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-4 px-4 md:px-6">
-            <CardTitle className="text-sm font-medium text-muted-foreground/90">Saldo do Mês</CardTitle>
-            <div className="p-2 rounded-lg bg-cyan-500/15">
-              <Wallet className="h-5 w-5 text-cyan-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-3 px-3">
+            <CardTitle className="text-xs font-medium text-muted-foreground/90">Saldo do Mês</CardTitle>
+            <div className="p-1 rounded-lg bg-cyan-500/15">
+              <Wallet className="h-4 w-4 text-cyan-500" />
             </div>
           </CardHeader>
-          <CardContent className="px-4 pb-4 py-0 md:px-[20px] my-0 mx-[28px]">
-            <div className={`text-2xl md:text-3xl font-bold ${totals.saldo >= 0 ? "text-cyan-500" : "text-orange-500"}`}>
+          <CardContent className="px-3 pb-3 my-0 mx-0">
+            <div className={`text-lg font-bold ${totals.saldo >= 0 ? "text-cyan-500" : "text-orange-500"}`}>
               R$ {totals.saldo.toLocaleString('pt-BR', {
               minimumFractionDigits: 2
             })}
             </div>
-            <p className="text-xs text-muted-foreground/80 mt-2">Diferença entre entradas e saídas</p>
+            <p className="text-xs text-muted-foreground/80 mt-1">Diferença entre entradas e saídas</p>
           </CardContent>
         </Card>
       </div>
@@ -219,7 +559,7 @@ export function FluxoCaixa() {
               </div>
               <span>Filtros e Período</span>
             </CardTitle>
-            <Button onClick={() => handleOpenForm()} className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/30 transition-all duration-300 w-full sm:w-auto text-sm" disabled={showInlineForm}>
+            <Button onClick={handleNewRow} className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg shadow-blue-400/20 transition-all duration-300 w-full sm:w-auto text-sm" disabled={editingId !== null}>
               <Plus className="w-4 h-4 mr-2" />
               Nova Movimentação
             </Button>
@@ -233,13 +573,13 @@ export function FluxoCaixa() {
               <Button variant={filters.periodo === "mes" ? "default" : "outline"} size="sm" onClick={() => setFilters(prev => ({
               ...prev,
               periodo: "mes"
-            }))} className={`text-xs min-w-[70px] transition-all duration-300 ${filters.periodo === "mes" ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30" : "border-slate-700/60 hover:bg-slate-800/50 text-foreground/80"}`}>
+            }))} className={`text-xs min-w-[70px] transition-all duration-300 ${filters.periodo === "mes" ? "bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-400/20" : "border-slate-700/60 hover:bg-slate-800/50 text-foreground/80"}`}>
                 Mês
               </Button>
               <Button variant={filters.periodo === "ano" ? "default" : "outline"} size="sm" onClick={() => setFilters(prev => ({
               ...prev,
               periodo: "ano"
-            }))} className={`text-xs min-w-[70px] transition-all duration-300 ${filters.periodo === "ano" ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30" : "border-slate-700/60 hover:bg-slate-800/50 text-foreground/80"}`}>
+            }))} className={`text-xs min-w-[70px] transition-all duration-300 ${filters.periodo === "ano" ? "bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-400/20" : "border-slate-700/60 hover:bg-slate-800/50 text-foreground/80"}`}>
                 Ano
               </Button>
             </div>
@@ -247,11 +587,11 @@ export function FluxoCaixa() {
             {filters.periodo === "mes" ? <Input type="month" value={filters.mes} onChange={e => setFilters(prev => ({
             ...prev,
             mes: e.target.value
-          }))} className="bg-slate-800/50 border-slate-700/60 text-foreground w-full sm:w-auto sm:min-w-[160px] text-xs sm:text-sm h-9 focus:border-blue-500/60" /> : <Select value={filters.ano} onValueChange={value => setFilters(prev => ({
+          }))} className="bg-slate-800/50 border-slate-700/60 text-foreground w-full sm:w-auto sm:min-w-[160px] text-xs sm:text-sm h-9 focus:border-blue-400/40" /> : <Select value={filters.ano} onValueChange={value => setFilters(prev => ({
             ...prev,
             ano: value
           }))}>
-                <SelectTrigger className="bg-slate-800/50 border-slate-700/60 text-foreground w-full sm:w-[130px] h-9 text-xs sm:text-sm focus:border-blue-500/60">
+                <SelectTrigger className="bg-slate-800/50 border-slate-700/60 text-foreground w-full sm:w-[130px] h-9 text-xs sm:text-sm focus:border-blue-400/40">
                   <SelectValue placeholder="Ano" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900/95 border-slate-700/50 backdrop-blur-xl">
@@ -274,14 +614,14 @@ export function FluxoCaixa() {
               <Input placeholder="Buscar descrição..." value={filters.searchTerm} onChange={e => setFilters(prev => ({
               ...prev,
               searchTerm: e.target.value
-            }))} className="pl-10 bg-slate-800/50 border-slate-700/60 text-foreground placeholder:text-muted-foreground/50 focus:border-blue-500/60 h-11" />
+            }))} className="pl-10 bg-slate-800/50 border-slate-700/60 text-foreground placeholder:text-muted-foreground/50 focus:border-blue-400/40 h-11" />
             </div>
 
             <Select value={filters.tipo} onValueChange={value => setFilters(prev => ({
             ...prev,
             tipo: value
           }))}>
-              <SelectTrigger className="bg-slate-800/50 border-slate-700/60 text-foreground h-11 focus:border-blue-500/60">
+              <SelectTrigger className="bg-slate-800/50 border-slate-700/60 text-foreground h-11 focus:border-blue-400/40">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent className="bg-slate-900/95 border-slate-700/50 backdrop-blur-xl">
@@ -295,7 +635,7 @@ export function FluxoCaixa() {
             ...prev,
             categoria: value
           }))}>
-              <SelectTrigger className="bg-slate-800/50 border-slate-700/60 text-foreground h-11 focus:border-blue-500/60">
+              <SelectTrigger className="bg-slate-800/50 border-slate-700/60 text-foreground h-11 focus:border-blue-400/40">
                 <SelectValue placeholder="Categoria" />
               </SelectTrigger>
               <SelectContent className="bg-slate-900/95 border-slate-700/50 backdrop-blur-xl">
@@ -308,7 +648,7 @@ export function FluxoCaixa() {
             ...prev,
             status: value
           }))}>
-              <SelectTrigger className="bg-slate-800/50 border-slate-700/60 text-foreground h-11 focus:border-blue-500/60">
+              <SelectTrigger className="bg-slate-800/50 border-slate-700/60 text-foreground h-11 focus:border-blue-400/40">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent className="bg-slate-900/95 border-slate-700/50 backdrop-blur-xl">
@@ -358,20 +698,46 @@ export function FluxoCaixa() {
                 <div className="w-28 flex-shrink-0 text-right">Ações</div>
               </div>
 
-              {showInlineForm && <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-700/40 bg-slate-800/20 space-y-4 backdrop-blur-sm">
-                  <FluxoCaixaInlineForm onSuccess={() => {
-              handleCloseForm();
-              loadMovimentacoes();
-            }} onCancel={handleCloseForm} movimentacao={editingMovimentacao} />
-                </div>}
+              {/* Nova linha em edição */}
+              {newRowId && editingId === newRowId && (
+                <InlineEditRow
+                  key={newRowId}
+                  movimentacao={null}
+                  isNew={true}
+                  onSuccess={loadMovimentacoes}
+                  onCancel={handleCancelEdit}
+                  user={user}
+                  allCategorias={allCategorias}
+                  contaNomes={contaNomes}
+                  aeronaves={aeronaves || []}
+                />
+              )}
 
-              {filteredMovimentacoes.length === 0 ? <div className="text-center py-12 sm:py-16 px-4 sm:px-6">
+              {filteredMovimentacoes.length === 0 && !newRowId ? <div className="text-center py-12 sm:py-16 px-4 sm:px-6">
                   <Wallet className="w-16 sm:w-20 h-16 sm:h-20 text-muted-foreground/20 mx-auto mb-4 sm:mb-6" />
                   <p className="text-muted-foreground text-base sm:text-lg font-medium">Nenhuma movimentação encontrada</p>
                   <p className="text-muted-foreground text-xs sm:text-sm mt-2">Clique em "Nova Movimentação" para adicionar</p>
-                </div> : filteredMovimentacoes.map(mov => {
-            const isExpanded = expandedRows.has(mov.id);
-            return <div key={mov.id} className="border-b border-slate-700/40 hover:bg-slate-800/30 transition-colors last:border-b-0 backdrop-blur-sm">
+                </div> : (
+                <>
+                  {filteredMovimentacoes.map(mov => {
+                    const isEditing = editingId === mov.id;
+                    const isExpanded = expandedRows.has(mov.id);
+
+                    if (isEditing) {
+                      return <InlineEditRow
+                        key={mov.id}
+                        movimentacao={mov}
+                        isNew={false}
+                        onSuccess={loadMovimentacoes}
+                        onCancel={handleCancelEdit}
+                        user={user}
+                        allCategorias={allCategorias}
+                        contaNomes={contaNomes}
+                        aeronaves={aeronaves || []}
+                      />;
+                    }
+
+                    return <div key={mov.id} className="border-b border-slate-700/40 hover:bg-slate-800/30 transition-colors last:border-b-0 backdrop-blur-sm">
                       {/* Desktop Layout - Flex */}
                       <div className="hidden lg:flex items-center gap-4 px-6 py-4 text-sm">
                         <div className="w-24 flex-shrink-0 text-foreground font-medium">
@@ -419,7 +785,7 @@ export function FluxoCaixa() {
                           {mov.comprovante_url && <Button variant="ghost" size="sm" onClick={() => window.open(mov.comprovante_url, '_blank')} className="h-8 w-8 p-0 text-cyan-500 hover:bg-cyan-500/15 hover:text-cyan-400 transition-all duration-300" title="Ver comprovante">
                               <FileText className="w-4 h-4" />
                             </Button>}
-                          <Button variant="ghost" size="sm" onClick={() => handleOpenForm(mov)} className="h-8 w-8 p-0 text-muted-foreground/80 hover:text-foreground hover:bg-slate-700/30 transition-all duration-300">
+                          <Button variant="ghost" size="sm" onClick={() => handleEditRow(mov.id)} className="h-8 w-8 p-0 text-muted-foreground/80 hover:text-foreground hover:bg-slate-700/30 transition-all duration-300">
                             <Edit2 className="w-4 h-4" />
                           </Button>
                           <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:bg-red-500/15 hover:text-red-400 transition-all duration-300" onClick={() => setDeleteConfirmId(mov.id)}>
@@ -494,7 +860,7 @@ export function FluxoCaixa() {
                               </div>}
 
                             <div className="flex gap-2 pt-3 border-t border-slate-700/40">
-                              <Button variant="outline" size="sm" onClick={() => handleOpenForm(mov)} className="flex-1 text-xs h-8 border-slate-700/60 hover:bg-slate-800/50">
+                              <Button variant="outline" size="sm" onClick={() => handleEditRow(mov.id)} className="flex-1 text-xs h-8 border-slate-700/60 hover:bg-slate-800/50">
                                 <Edit2 className="w-3 h-3 mr-1" />
                                 Editar
                               </Button>
@@ -505,7 +871,9 @@ export function FluxoCaixa() {
                           </div>}
                       </div>
                     </div>;
-          })}
+                  })}
+                </>
+              )}
             </div>}
         </CardContent>
       </Card>
