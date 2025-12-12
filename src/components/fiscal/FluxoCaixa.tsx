@@ -369,7 +369,21 @@ export function FluxoCaixa() {
               </div>
 
 
-              {filteredMovimentacoes.length === 0 ? <div className="text-center py-12 sm:py-16 px-4 sm:px-6">
+              {newRowId && editingId === newRowId && (
+                <InlineEditRow
+                  key={newRowId}
+                  movimentacao={null}
+                  isNew={true}
+                  onSuccess={loadMovimentacoes}
+                  onCancel={handleCancelEdit}
+                  user={user}
+                  allCategorias={allCategorias}
+                  contaNomes={[]}
+                  aeronaves={[]}
+                />
+              )}
+
+              {filteredMovimentacoes.length === 0 && !newRowId ? <div className="text-center py-12 sm:py-16 px-4 sm:px-6">
                   <Wallet className="w-16 sm:w-20 h-16 sm:h-20 text-muted-foreground/20 mx-auto mb-4 sm:mb-6" />
                   <p className="text-muted-foreground text-base sm:text-lg font-medium">Nenhuma movimentação encontrada</p>
                   <p className="text-muted-foreground text-xs sm:text-sm mt-2">Clique em "Nova Movimentação" para adicionar</p>
