@@ -164,7 +164,7 @@ export function FluxoCaixa() {
               <TrendingUp className="h-5 w-5 text-blue-500" />
             </div>
           </CardHeader>
-          <CardContent className="px-4 md:px-6 pb-4">
+          <CardContent className="px-4 md:px-6 pb-4 mx-[9px]">
             <div className="text-2xl md:text-3xl font-bold text-blue-500">
               R$ {totals.entradas.toLocaleString('pt-BR', {
               minimumFractionDigits: 2
