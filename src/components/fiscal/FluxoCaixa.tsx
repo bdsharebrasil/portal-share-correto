@@ -181,7 +181,7 @@ export function FluxoCaixa() {
               <TrendingDown className="h-5 w-5 text-red-500" />
             </div>
           </CardHeader>
-          <CardContent className="px-4 md:px-6 pb-4">
+          <CardContent className="px-4 md:px-6 pb-4 mx-[27px]">
             <div className="text-2xl md:text-3xl font-bold text-red-500">
               R$ {totals.saidas.toLocaleString('pt-BR', {
               minimumFractionDigits: 2
@@ -198,7 +198,7 @@ export function FluxoCaixa() {
               <Wallet className="h-5 w-5 text-cyan-500" />
             </div>
           </CardHeader>
-          <CardContent className="px-4 pb-4 py-0 md:px-[20px] mx-0 my-0">
+          <CardContent className="px-4 pb-4 py-0 md:px-[20px] my-0 mx-[28px]">
             <div className={`text-2xl md:text-3xl font-bold ${totals.saldo >= 0 ? "text-cyan-500" : "text-orange-500"}`}>
               R$ {totals.saldo.toLocaleString('pt-BR', {
               minimumFractionDigits: 2
