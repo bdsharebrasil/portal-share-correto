@@ -288,7 +288,7 @@ function InlineEditRow({
                 ))
               ) : (
                 <div className="text-center py-2 text-xs text-muted-foreground">
-                  Nenhuma conta
+                  Nenhum banco
                 </div>
               )}
             </SelectContent>
