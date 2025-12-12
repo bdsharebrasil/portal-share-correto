@@ -688,12 +688,12 @@ export function FluxoCaixa() {
                 <div className="hidden xl:flex w-24 flex-shrink-0">Criação</div>
                 <div className="flex-1 min-w-[100px] xl:min-w-[180px]">Descrição</div>
                 <div className="w-20 xl:w-28 flex-shrink-0">Categoria</div>
-                <div className="w-16 xl:w-20 flex-shrink-0 text-center">Tipo</div>
+                <div className="w-24 xl:w-28 flex-shrink-0 text-center">Tipo</div>
                 <div className="w-24 xl:w-32 flex-shrink-0 text-right">Valor</div>
                 <div className="w-16 xl:w-24 flex-shrink-0">Banco</div>
                 <div className="hidden md:block w-16 xl:w-24 flex-shrink-0">Aeronave</div>
-                <div className="w-14 xl:w-20 flex-shrink-0 text-center">Status</div>
-                <div className="w-16 xl:w-28 flex-shrink-0 text-right">Ações</div>
+                <div className="w-16 xl:w-20 flex-shrink-0 text-center">Status</div>
+                <div className="w-18 xl:w-24 flex-shrink-0 text-right">Ações</div>
               </div>
 
               {/* Nova linha em edição */}
@@ -750,9 +750,9 @@ export function FluxoCaixa() {
                         <div className="w-20 xl:w-28 flex-shrink-0 text-muted-foreground/80 text-xs truncate" title={mov.categoria}>
                           {mov.categoria}
                         </div>
-                        <div className="w-16 xl:w-20 flex-shrink-0 flex justify-center">
+                        <div className="w-24 xl:w-28 flex-shrink-0 flex justify-center">
                           <Badge className={`text-xs whitespace-nowrap font-medium ${mov.tipo_movimento === "entrada" ? "bg-blue-950/40 text-blue-400 border-blue-700/40" : "bg-red-950/40 text-red-400 border-red-700/40"}`}>
-                            {mov.tipo_movimento === "entrada" ? "Ent" : "Saí"}
+                            {mov.tipo_movimento === "entrada" ? "Entrada" : "Saída"}
                           </Badge>
                         </div>
                         <div className={`w-24 xl:w-32 flex-shrink-0 text-right font-semibold whitespace-nowrap text-xs xl:text-sm ${mov.tipo_movimento === "entrada" ? "text-blue-500" : "text-red-500"}`}>
@@ -766,12 +766,12 @@ export function FluxoCaixa() {
                         <div className="hidden md:flex w-16 xl:w-24 flex-shrink-0 text-muted-foreground/80 text-xs">
                           {mov.aeronave || "-"}
                         </div>
-                        <div className="w-14 xl:w-20 flex-shrink-0 flex justify-center">
+                        <div className="w-16 xl:w-20 flex-shrink-0 flex justify-center">
                           <Badge className={`text-xs whitespace-nowrap font-medium border ${getStatusColor(mov.status)}`}>
                             {getStatusLabel(mov.status, mov.tipo_movimento)}
                           </Badge>
                         </div>
-                        <div className="w-16 xl:w-28 flex-shrink-0 flex gap-1 justify-end items-center">
+                        <div className="w-18 xl:w-24 flex-shrink-0 flex gap-1 justify-end items-center">
                           {mov.referencia && (mov.referencia.startsWith('nf_entrada_') || mov.referencia.startsWith('nf_saida_')) && <Button variant="ghost" size="sm" onClick={() => {
                     const isEntrada = mov.referencia.startsWith('nf_entrada_');
                     toast.info(`Origem: ${isEntrada ? 'Nota Fiscal de Entrada' : 'Nota Fiscal de Saída'}`, {
