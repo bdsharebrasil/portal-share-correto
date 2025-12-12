@@ -614,7 +614,7 @@ export function FluxoCaixa() {
               <Input placeholder="Buscar descrição..." value={filters.searchTerm} onChange={e => setFilters(prev => ({
               ...prev,
               searchTerm: e.target.value
-            }))} className="pl-10 bg-slate-800/50 border-slate-700/60 text-foreground placeholder:text-muted-foreground/50 focus:border-blue-500/60 h-11" />
+            }))} className="pl-10 bg-slate-800/50 border-slate-700/60 text-foreground placeholder:text-muted-foreground/50 focus:border-blue-400/40 h-11" />
             </div>
 
             <Select value={filters.tipo} onValueChange={value => setFilters(prev => ({
