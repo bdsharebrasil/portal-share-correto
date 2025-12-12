@@ -559,7 +559,7 @@ export function FluxoCaixa() {
               </div>
               <span>Filtros e Período</span>
             </CardTitle>
-            <Button onClick={handleNewRow} className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/30 transition-all duration-300 w-full sm:w-auto text-sm" disabled={editingId !== null}>
+            <Button onClick={handleNewRow} className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg shadow-blue-400/20 transition-all duration-300 w-full sm:w-auto text-sm" disabled={editingId !== null}>
               <Plus className="w-4 h-4 mr-2" />
               Nova Movimentação
             </Button>
@@ -573,13 +573,13 @@ export function FluxoCaixa() {
               <Button variant={filters.periodo === "mes" ? "default" : "outline"} size="sm" onClick={() => setFilters(prev => ({
               ...prev,
               periodo: "mes"
-            }))} className={`text-xs min-w-[70px] transition-all duration-300 ${filters.periodo === "mes" ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30" : "border-slate-700/60 hover:bg-slate-800/50 text-foreground/80"}`}>
+            }))} className={`text-xs min-w-[70px] transition-all duration-300 ${filters.periodo === "mes" ? "bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-400/20" : "border-slate-700/60 hover:bg-slate-800/50 text-foreground/80"}`}>
                 Mês
               </Button>
               <Button variant={filters.periodo === "ano" ? "default" : "outline"} size="sm" onClick={() => setFilters(prev => ({
               ...prev,
               periodo: "ano"
-            }))} className={`text-xs min-w-[70px] transition-all duration-300 ${filters.periodo === "ano" ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30" : "border-slate-700/60 hover:bg-slate-800/50 text-foreground/80"}`}>
+            }))} className={`text-xs min-w-[70px] transition-all duration-300 ${filters.periodo === "ano" ? "bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-400/20" : "border-slate-700/60 hover:bg-slate-800/50 text-foreground/80"}`}>
                 Ano
               </Button>
             </div>
