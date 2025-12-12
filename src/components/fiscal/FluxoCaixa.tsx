@@ -117,14 +117,22 @@ export function FluxoCaixa() {
       toast.error(error.message || "Erro ao deletar");
     }
   };
-  const handleOpenForm = (movimentacao?: any) => {
-    setEditingMovimentacao(movimentacao || null);
-    setShowInlineForm(true);
+
+  const handleEditRow = (id: string) => {
+    setEditingId(id);
     setExpandedRows(new Set());
   };
-  const handleCloseForm = () => {
-    setShowInlineForm(false);
-    setEditingMovimentacao(null);
+
+  const handleNewRow = () => {
+    const tempId = `new_${Date.now()}`;
+    setNewRowId(tempId);
+    setEditingId(tempId);
+    setExpandedRows(new Set());
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setNewRowId(null);
   };
   const toggleRowExpand = (id: string) => {
     const newExpanded = new Set(expandedRows);
