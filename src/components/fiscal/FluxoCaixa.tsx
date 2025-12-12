@@ -156,7 +156,7 @@ export function FluxoCaixa() {
   };
   return <div className="space-y-6 w-full">
       {/* Cards de Totais */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mx-[11px] my-[16px] px-px py-[15px]">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mx-[11px] my-[81px] py-[45px] px-[22px]">
         <Card className="bg-card/50 border-2 border-blue-600/60 hover:border-blue-500/80 hover:bg-card/80 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:scale-102">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-4 px-4 md:px-6">
             <CardTitle className="text-sm font-medium text-muted-foreground/90">Entradas</CardTitle>
