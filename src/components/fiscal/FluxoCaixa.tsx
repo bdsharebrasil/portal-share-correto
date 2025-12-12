@@ -621,7 +621,7 @@ export function FluxoCaixa() {
             ...prev,
             tipo: value
           }))}>
-              <SelectTrigger className="bg-slate-800/50 border-slate-700/60 text-foreground h-11 focus:border-blue-500/60">
+              <SelectTrigger className="bg-slate-800/50 border-slate-700/60 text-foreground h-11 focus:border-blue-400/40">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent className="bg-slate-900/95 border-slate-700/50 backdrop-blur-xl">
