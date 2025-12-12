@@ -229,7 +229,7 @@ export function FluxoCaixa() {
               </div>
               <span>Filtros e Período</span>
             </CardTitle>
-            <Button onClick={() => handleOpenForm()} className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/30 transition-all duration-300 w-full sm:w-auto text-sm" disabled={showInlineForm}>
+            <Button onClick={handleNewRow} className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/30 transition-all duration-300 w-full sm:w-auto text-sm" disabled={editingId !== null}>
               <Plus className="w-4 h-4 mr-2" />
               Nova Movimentação
             </Button>
