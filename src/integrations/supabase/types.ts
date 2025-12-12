@@ -832,6 +832,45 @@ export type Database = {
           },
         ]
       }
+      colaborador_departamento: {
+        Row: {
+          cargo: string | null
+          colaborador_id: string
+          criado_em: string | null
+          departamento_id: string
+          id: string
+        }
+        Insert: {
+          cargo?: string | null
+          colaborador_id: string
+          criado_em?: string | null
+          departamento_id: string
+          id?: string
+        }
+        Update: {
+          cargo?: string | null
+          colaborador_id?: string
+          criado_em?: string | null
+          departamento_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "colaborador_departamento_colaborador_id_fkey"
+            columns: ["colaborador_id"]
+            isOneToOne: false
+            referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "colaborador_departamento_departamento_id_fkey"
+            columns: ["departamento_id"]
+            isOneToOne: false
+            referencedRelation: "departamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_settings: {
         Row: {
           cep: string | null
@@ -1444,6 +1483,50 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      departamentos: {
+        Row: {
+          atualizado_em: string | null
+          cor: string | null
+          criado_em: string | null
+          criado_por: string
+          departamento_pai_id: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          ordem: number | null
+        }
+        Insert: {
+          atualizado_em?: string | null
+          cor?: string | null
+          criado_em?: string | null
+          criado_por: string
+          departamento_pai_id?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          ordem?: number | null
+        }
+        Update: {
+          atualizado_em?: string | null
+          cor?: string | null
+          criado_em?: string | null
+          criado_por?: string
+          departamento_pai_id?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          ordem?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "departamentos_departamento_pai_id_fkey"
+            columns: ["departamento_pai_id"]
+            isOneToOne: false
+            referencedRelation: "departamentos"
             referencedColumns: ["id"]
           },
         ]
@@ -3936,6 +4019,7 @@ export type Database = {
           canac: string | null
           cpf: string | null
           created_at: string | null
+          departamento: string | null
           display_name: string | null
           email: string
           employment_status: string | null
@@ -3943,6 +4027,7 @@ export type Database = {
           id: string
           phone: string | null
           rg: string | null
+          salario: number | null
           tipo: string | null
           updated_at: string | null
         }
@@ -3958,6 +4043,7 @@ export type Database = {
           canac?: string | null
           cpf?: string | null
           created_at?: string | null
+          departamento?: string | null
           display_name?: string | null
           email: string
           employment_status?: string | null
@@ -3965,6 +4051,7 @@ export type Database = {
           id: string
           phone?: string | null
           rg?: string | null
+          salario?: number | null
           tipo?: string | null
           updated_at?: string | null
         }
@@ -3980,6 +4067,7 @@ export type Database = {
           canac?: string | null
           cpf?: string | null
           created_at?: string | null
+          departamento?: string | null
           display_name?: string | null
           email?: string
           employment_status?: string | null
@@ -3987,6 +4075,7 @@ export type Database = {
           id?: string
           phone?: string | null
           rg?: string | null
+          salario?: number | null
           tipo?: string | null
           updated_at?: string | null
         }

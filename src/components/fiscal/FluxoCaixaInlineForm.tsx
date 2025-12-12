@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,13 +7,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { X, Search } from "lucide-react";
+import { X, Search, ChevronRight, Folder } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCategoriasFinanceiro, useCategoriasConta } from "@/hooks/useCategoriasFinanceiro";
 import { useAeronaves } from "@/hooks/useAeronaves";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 interface FluxoCaixaInlineFormProps {
   onSuccess: () => void;
@@ -36,6 +38,68 @@ interface FornecedorFavorito {
   telefone: string | null;
 }
 
+// Cores para os grupos de subcategorias
+const SUBCATEGORIA_COLORS: Record<string, { bg: string; border: string; text: string; badge: string }> = {
+  "Despesa Particular": { 
+    bg: "bg-orange-950/30", 
+    border: "border-orange-600/50", 
+    text: "text-orange-400",
+    badge: "bg-orange-500/20 text-orange-300 border-orange-500/40"
+  },
+  "Despesas Reembolsáveis Cliente": { 
+    bg: "bg-purple-950/30", 
+    border: "border-purple-600/50", 
+    text: "text-purple-400",
+    badge: "bg-purple-500/20 text-purple-300 border-purple-500/40"
+  },
+  "Impostos": { 
+    bg: "bg-blue-950/30", 
+    border: "border-blue-600/50", 
+    text: "text-blue-400",
+    badge: "bg-blue-500/20 text-blue-300 border-blue-500/40"
+  },
+  "Folha de Pagamento": { 
+    bg: "bg-green-950/30", 
+    border: "border-green-600/50", 
+    text: "text-green-400",
+    badge: "bg-green-500/20 text-green-300 border-green-500/40"
+  },
+  "Manutenção": { 
+    bg: "bg-yellow-950/30", 
+    border: "border-yellow-600/50", 
+    text: "text-yellow-400",
+    badge: "bg-yellow-500/20 text-yellow-300 border-yellow-500/40"
+  },
+  "Operacional": { 
+    bg: "bg-cyan-950/30", 
+    border: "border-cyan-600/50", 
+    text: "text-cyan-400",
+    badge: "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
+  },
+  "Administrativo": { 
+    bg: "bg-pink-950/30", 
+    border: "border-pink-600/50", 
+    text: "text-pink-400",
+    badge: "bg-pink-500/20 text-pink-300 border-pink-500/40"
+  },
+  "Combustível": { 
+    bg: "bg-red-950/30", 
+    border: "border-red-600/50", 
+    text: "text-red-400",
+    badge: "bg-red-500/20 text-red-300 border-red-500/40"
+  },
+  "default": { 
+    bg: "bg-slate-800/30", 
+    border: "border-slate-600/50", 
+    text: "text-slate-400",
+    badge: "bg-slate-500/20 text-slate-300 border-slate-500/40"
+  }
+};
+
+const getSubcategoriaColor = (subcategoria: string) => {
+  return SUBCATEGORIA_COLORS[subcategoria] || SUBCATEGORIA_COLORS["default"];
+};
+
 export function FluxoCaixaInlineForm({
   onSuccess,
   onCancel,
@@ -49,8 +113,9 @@ export function FluxoCaixaInlineForm({
   const [referencias, setReferencias] = useState<Referencia[]>([]);
   const [referenciaSearch, setReferenciaSearch] = useState("");
   const [openReferenciaPopover, setOpenReferenciaPopover] = useState(false);
+  const [selectedSubcategoria, setSelectedSubcategoria] = useState<string | null>(null);
+  const [openCategoriaPopover, setOpenCategoriaPopover] = useState(false);
 
-  const categoriaNomes = allCategorias.map(c => c.nome);
   const contaNomes = contas.map(c => c.nome);
 
   // Get today's date in local timezone without conversion issues
@@ -80,6 +145,37 @@ export function FluxoCaixaInlineForm({
   });
 
   const tipoMovimento = watch("tipo_movimento");
+  const selectedCategoria = watch("categoria");
+
+  // Agrupar categorias por subcategoria (campo 'categoria' na tabela)
+  const categoriasPorSubcategoria = useMemo(() => {
+    const filteredByType = tipoMovimento === "saída" 
+      ? allCategorias.filter(c => c.tipo === "despesa")
+      : allCategorias.filter(c => c.tipo === "receita");
+    
+    const grouped: Record<string, typeof allCategorias> = {};
+    
+    filteredByType.forEach(cat => {
+      const subcategoria = cat.categoria || "Sem Grupo";
+      if (!grouped[subcategoria]) {
+        grouped[subcategoria] = [];
+      }
+      grouped[subcategoria].push(cat);
+    });
+    
+    return grouped;
+  }, [allCategorias, tipoMovimento]);
+
+  // Lista de subcategorias únicas
+  const subcategorias = useMemo(() => {
+    return Object.keys(categoriasPorSubcategoria).sort();
+  }, [categoriasPorSubcategoria]);
+
+  // Categorias da subcategoria selecionada
+  const categoriasDoGrupo = useMemo(() => {
+    if (!selectedSubcategoria) return [];
+    return categoriasPorSubcategoria[selectedSubcategoria] || [];
+  }, [selectedSubcategoria, categoriasPorSubcategoria]);
 
   useEffect(() => {
     loadReferencias();
@@ -151,17 +247,26 @@ export function FluxoCaixaInlineForm({
       setValue("status", movimentacao.status);
       setValue("observacoes", movimentacao.observacoes || "");
       setValue("aeronave", movimentacao.aeronave || "");
+      
+      // Encontrar a subcategoria correspondente
+      const cat = allCategorias.find(c => c.nome === movimentacao.categoria);
+      if (cat && cat.categoria) {
+        setSelectedSubcategoria(cat.categoria);
+      }
     } else {
       reset();
       setValue("data", getTodayDateString());
       setValue("status", "recebido");
+      setSelectedSubcategoria(null);
     }
-  }, [movimentacao, setValue, reset]);
+  }, [movimentacao, setValue, reset, allCategorias]);
 
   // Atualiza o status quando o tipo de movimento muda
   useEffect(() => {
     if (!movimentacao) {
       setValue("status", tipoMovimento === "entrada" ? "recebido" : "pago");
+      setSelectedSubcategoria(null);
+      setValue("categoria", "");
     }
   }, [tipoMovimento, movimentacao, setValue]);
 
@@ -295,32 +400,130 @@ export function FluxoCaixaInlineForm({
           </div>
         </div>
 
-        {/* Row 2: Categoria e Descrição */}
+        {/* Row 2: Categoria Hierárquica e Descrição */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div>
             <Label htmlFor="categoria" className="text-sm font-semibold text-foreground mb-2">
               Categoria *
             </Label>
-            <Select value={watch("categoria") || ""} onValueChange={(value) => {
-              setValue("categoria", value);
-            }}>
-              <SelectTrigger className={`h-10 w-full bg-background ${!watch("categoria") ? "border-red-500/50" : ""}`}>
-                <SelectValue placeholder="Selecione uma categoria" />
-              </SelectTrigger>
-              <SelectContent align="start">
-                {categoriaNomes.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
-                  </SelectItem>
-                ))}
-                {categoriaNomes.length === 0 && (
-                  <div className="text-center py-3 text-muted-foreground text-sm">
-                    Nenhuma categoria disponível
-                  </div>
-                )}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground mt-1">Campo obrigatório para entrada ou saída</p>
+            <Popover open={openCategoriaPopover} onOpenChange={setOpenCategoriaPopover}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "h-10 w-full justify-between bg-background",
+                    !selectedCategoria ? "border-red-500/50" : "",
+                    selectedCategoria && selectedSubcategoria 
+                      ? getSubcategoriaColor(selectedSubcategoria).border 
+                      : ""
+                  )}
+                >
+                  {selectedCategoria ? (
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      {selectedSubcategoria && (
+                        <Badge 
+                          variant="outline" 
+                          className={cn("text-xs shrink-0", getSubcategoriaColor(selectedSubcategoria).badge)}
+                        >
+                          {selectedSubcategoria}
+                        </Badge>
+                      )}
+                      <span className="truncate">{selectedCategoria}</span>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">Selecione uma categoria</span>
+                  )}
+                  <ChevronRight className="h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[400px] p-0 bg-card border-border" align="start">
+                <div className="p-3 border-b border-border/50">
+                  <p className="text-sm font-medium text-foreground mb-2">
+                    {!selectedSubcategoria ? "Selecione o grupo" : `Categorias de: ${selectedSubcategoria}`}
+                  </p>
+                  {selectedSubcategoria && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedSubcategoria(null)}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      ← Voltar aos grupos
+                    </Button>
+                  )}
+                </div>
+                <div className="max-h-[300px] overflow-y-auto p-2">
+                  {!selectedSubcategoria ? (
+                    // Mostrar subcategorias/grupos
+                    <div className="space-y-1">
+                      {subcategorias.map((sub) => {
+                        const colors = getSubcategoriaColor(sub);
+                        const count = categoriasPorSubcategoria[sub]?.length || 0;
+                        return (
+                          <Button
+                            key={sub}
+                            variant="ghost"
+                            className={cn(
+                              "w-full justify-between h-auto py-3 px-3 rounded-lg transition-all",
+                              colors.bg,
+                              colors.border,
+                              "border hover:opacity-80"
+                            )}
+                            onClick={() => setSelectedSubcategoria(sub)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <Folder className={cn("h-4 w-4", colors.text)} />
+                              <span className={cn("font-medium", colors.text)}>{sub}</span>
+                            </div>
+                            <Badge variant="secondary" className="text-xs">
+                              {count}
+                            </Badge>
+                          </Button>
+                        );
+                      })}
+                      {subcategorias.length === 0 && (
+                        <p className="text-center py-4 text-muted-foreground text-sm">
+                          Nenhum grupo disponível para {tipoMovimento === "saída" ? "despesas" : "receitas"}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    // Mostrar categorias do grupo selecionado
+                    <div className="space-y-1">
+                      {categoriasDoGrupo.map((cat) => {
+                        const colors = getSubcategoriaColor(selectedSubcategoria);
+                        return (
+                          <Button
+                            key={cat.id}
+                            variant="ghost"
+                            className={cn(
+                              "w-full justify-start h-auto py-2 px-3 rounded-lg",
+                              selectedCategoria === cat.nome 
+                                ? cn(colors.bg, colors.border, "border") 
+                                : "hover:bg-muted/50"
+                            )}
+                            onClick={() => {
+                              setValue("categoria", cat.nome);
+                              setOpenCategoriaPopover(false);
+                            }}
+                          >
+                            <span className={selectedCategoria === cat.nome ? colors.text : "text-foreground"}>
+                              {cat.nome}
+                            </span>
+                          </Button>
+                        );
+                      })}
+                      {categoriasDoGrupo.length === 0 && (
+                        <p className="text-center py-4 text-muted-foreground text-sm">
+                          Nenhuma categoria neste grupo
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
+            <p className="text-xs text-muted-foreground mt-1">Selecione o grupo e depois a categoria</p>
           </div>
 
           <div className="md:col-span-2">

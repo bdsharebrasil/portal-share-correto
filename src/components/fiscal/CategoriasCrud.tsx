@@ -236,17 +236,32 @@ export function CategoriasCrud() {
               <ArrowDownCircle className="w-4 h-4 text-red-500" />
             )}
           </div>
-          <h4 className="font-semibold text-foreground">
-            {categoria.nome}
-          </h4>
+          <div>
+            {categoria.categoria && (
+              <Badge
+                variant="secondary"
+                className={cn(
+                  "text-xs font-medium mb-1",
+                  categoria.tipo === "receita"
+                    ? "bg-blue-950/30 text-blue-400 border-blue-700/30"
+                    : "bg-red-950/30 text-red-400 border-red-700/30"
+                )}
+              >
+                {categoria.categoria}
+              </Badge>
+            )}
+            <h4 className="font-semibold text-foreground">
+              {categoria.nome}
+            </h4>
+          </div>
         </div>
         {categoria.descricao && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground ml-11">
             {categoria.descricao}
           </p>
         )}
         {categoria.cliente_nome && (
-          <div className="mt-2">
+          <div className="mt-2 ml-11">
             <Badge
               variant="outline"
               className={cn(
@@ -261,20 +276,6 @@ export function CategoriasCrud() {
           </div>
         )}
       </div>
-
-      {categoria.categoria && (
-        <Badge
-          variant="secondary"
-          className={cn(
-            "text-xs font-medium ml-4",
-            categoria.tipo === "receita"
-              ? "bg-blue-950/30 text-blue-400 border-blue-700/30"
-              : "bg-red-950/30 text-red-400 border-red-700/30"
-          )}
-        >
-          {categoria.categoria}
-        </Badge>
-      )}
     </div>
   );
 
@@ -590,10 +591,27 @@ export function CategoriasCrud() {
 
           <div className="space-y-4">
             <div>
-              <Label htmlFor="nome" className="text-foreground/90">Nome *</Label>
+              <Label htmlFor="categoria" className="text-foreground/90">Grupo *</Label>
+              <Input
+                id="categoria"
+                placeholder="Ex: Despesa Particular, Despesas Reembolsáveis Cliente, Impostos"
+                value={formData.categoria}
+                onChange={e => setFormData(prev => ({
+                  ...prev,
+                  categoria: e.target.value
+                }))}
+                className="mt-1 bg-slate-800/50 border-slate-700/60 text-foreground placeholder:text-muted-foreground/50 focus:border-blue-500/60 transition-colors"
+              />
+              <p className="text-xs text-muted-foreground/60 mt-1">
+                Define o grupo/cor da categoria (ex: Despesa Particular = laranja)
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="nome" className="text-foreground/90">Categoria *</Label>
               <Input
                 id="nome"
-                placeholder={formData.tipo === "receita" ? "Ex: Receita de Serviço" : "Ex: Despesa Operacional"}
+                placeholder={formData.tipo === "receita" ? "Ex: Receita de Serviço" : "Ex: Aluguel, Combustível"}
                 value={formData.nome}
                 onChange={e => setFormData(prev => ({
                   ...prev,
@@ -601,6 +619,9 @@ export function CategoriasCrud() {
                 }))}
                 className="mt-1 bg-slate-800/50 border-slate-700/60 text-foreground placeholder:text-muted-foreground/50 focus:border-blue-500/60 transition-colors"
               />
+              <p className="text-xs text-muted-foreground/60 mt-1">
+                Nome da categoria dentro do grupo
+              </p>
             </div>
 
             <div>
@@ -630,20 +651,6 @@ export function CategoriasCrud() {
                   </SelectItem>
                 </SelectContent>
               </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="categoria" className="text-foreground/90">Subcategoria (Opcional)</Label>
-              <Input
-                id="categoria"
-                placeholder="Ex: Serviços, Materiais, etc."
-                value={formData.categoria}
-                onChange={e => setFormData(prev => ({
-                  ...prev,
-                  categoria: e.target.value
-                }))}
-                className="mt-1 bg-slate-800/50 border-slate-700/60 text-foreground placeholder:text-muted-foreground/50 focus:border-blue-500/60 transition-colors"
-              />
             </div>
 
             <div>
