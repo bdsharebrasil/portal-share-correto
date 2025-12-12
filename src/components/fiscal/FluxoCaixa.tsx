@@ -23,6 +23,320 @@ const parseLocalDate = (dateString: string): Date => {
   const [year, month, day] = dateString.split('-').map(Number);
   return new Date(year, month - 1, day);
 };
+interface InlineEditRowProps {
+  movimentacao: any;
+  isNew: boolean;
+  onSuccess: () => void;
+  onCancel: () => void;
+  user: any;
+  allCategorias: any[];
+  contaNomes: string[];
+  aeronaves: any[];
+  editingId?: string;
+}
+
+function InlineEditRow({ movimentacao, isNew, onSuccess, onCancel, user, allCategorias, contaNomes, aeronaves, editingId }: InlineEditRowProps) {
+  const [formData, setFormData] = useState({
+    data: movimentacao?.data || new Date().toISOString().split('T')[0],
+    tipo_movimento: movimentacao?.tipo_movimento || 'entrada',
+    categoria: movimentacao?.categoria || '',
+    descricao: movimentacao?.descricao || '',
+    valor: movimentacao?.valor?.toString() || '',
+    conta_banco: movimentacao?.conta_banco || '',
+    numero_documento: movimentacao?.numero_documento || '',
+    referencia: movimentacao?.referencia || '',
+    status: movimentacao?.status || 'recebido',
+    observacoes: movimentacao?.observacoes || '',
+    aeronave: movimentacao?.aeronave || ''
+  });
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [openCategoriaPopover, setOpenCategoriaPopover] = useState(false);
+  const [selectedSubcategoria, setSelectedSubcategoria] = useState<string | null>(null);
+
+  const categoriasPorSubcategoria = useMemo(() => {
+    const filteredByType = formData.tipo_movimento === "saída"
+      ? allCategorias.filter(c => c.tipo === "despesa")
+      : allCategorias.filter(c => c.tipo === "receita");
+
+    const grouped: Record<string, typeof allCategorias> = {};
+
+    filteredByType.forEach(cat => {
+      const subcategoria = cat.categoria || "Sem Grupo";
+      if (!grouped[subcategoria]) {
+        grouped[subcategoria] = [];
+      }
+      grouped[subcategoria].push(cat);
+    });
+
+    return grouped;
+  }, [allCategorias, formData.tipo_movimento]);
+
+  const subcategorias = useMemo(() => {
+    return Object.keys(categoriasPorSubcategoria).sort();
+  }, [categoriasPorSubcategoria]);
+
+  useEffect(() => {
+    if (formData.categoria) {
+      const cat = allCategorias.find(c => c.nome === formData.categoria);
+      if (cat && cat.categoria) {
+        setSelectedSubcategoria(cat.categoria);
+      }
+    }
+  }, [formData.categoria, allCategorias]);
+
+  const handleSave = async () => {
+    if (!formData.categoria || formData.categoria.trim() === '') {
+      toast.error("Categoria é obrigatória");
+      return;
+    }
+
+    if (!formData.descricao || formData.descricao.trim() === '') {
+      toast.error("Descrição é obrigatória");
+      return;
+    }
+
+    if (!formData.valor || parseFloat(formData.valor) <= 0) {
+      toast.error("Valor deve ser maior que zero");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const data = {
+        data: formData.data,
+        tipo_movimento: formData.tipo_movimento,
+        categoria: formData.categoria,
+        descricao: formData.descricao,
+        valor: parseFloat(formData.valor),
+        conta_banco: formData.conta_banco || null,
+        numero_documento: formData.numero_documento || null,
+        referencia: formData.referencia || null,
+        status: formData.status,
+        observacoes: formData.observacoes || null,
+        aeronave: formData.aeronave || null,
+        atualizado_por: user?.id
+      };
+
+      if (isNew) {
+        const { error } = await supabase
+          .from("controle_bancario")
+          .insert([{
+            ...data,
+            criado_por: user?.id
+          }]);
+
+        if (error) {
+          toast.error(`Erro ao criar: ${error.message}`);
+          return;
+        }
+        toast.success("Movimentação criada com sucesso!");
+      } else {
+        const { error } = await supabase
+          .from("controle_bancario")
+          .update(data)
+          .eq("id", movimentacao.id);
+
+        if (error) {
+          toast.error(`Erro ao atualizar: ${error.message}`);
+          return;
+        }
+        toast.success("Movimentação atualizada com sucesso!");
+      }
+
+      onSuccess();
+      onCancel();
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao processar movimentação");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleTipoChange = (novoTipo: string) => {
+    setFormData(prev => ({ ...prev, tipo_movimento: novoTipo, status: novoTipo === 'entrada' ? 'recebido' : 'pago' }));
+    setSelectedSubcategoria(null);
+  };
+
+  return (
+    <div className="px-4 sm:px-6 py-4 bg-slate-800/40 border-b border-slate-700/40 space-y-4 backdrop-blur-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div>
+          <Label className="text-xs font-medium text-muted-foreground mb-1">Data</Label>
+          <Input
+            type="date"
+            value={formData.data}
+            onChange={(e) => setFormData(prev => ({ ...prev, data: e.target.value }))}
+            className="h-9 bg-background text-sm"
+          />
+        </div>
+
+        <div>
+          <Label className="text-xs font-medium text-muted-foreground mb-1">Tipo</Label>
+          <Select value={formData.tipo_movimento} onValueChange={handleTipoChange}>
+            <SelectTrigger className="h-9 bg-background text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="entrada">Entrada</SelectItem>
+              <SelectItem value="saída">Saída</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label className="text-xs font-medium text-muted-foreground mb-1">Valor</Label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            value={formData.valor}
+            onChange={(e) => setFormData(prev => ({ ...prev, valor: e.target.value }))}
+            className="h-9 bg-background text-sm"
+            placeholder="0.00"
+          />
+        </div>
+
+        <div>
+          <Label className="text-xs font-medium text-muted-foreground mb-1">Categoria</Label>
+          <Popover open={openCategoriaPopover} onOpenChange={setOpenCategoriaPopover}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="h-9 w-full justify-between bg-background text-sm text-left"
+              >
+                <span className="truncate text-xs">{formData.categoria || 'Selecione'}</span>
+                <ChevronDown className="h-3 w-3 shrink-0" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[250px] p-0 bg-card border-border" align="start">
+              <div className="p-2 border-b border-border/50">
+                <p className="text-xs font-medium text-foreground mb-1">
+                  {!selectedSubcategoria ? "Grupo" : selectedSubcategoria}
+                </p>
+                {selectedSubcategoria && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedSubcategoria(null)}
+                    className="text-xs h-7"
+                  >
+                    ← Voltar
+                  </Button>
+                )}
+              </div>
+              <div className="max-h-[200px] overflow-y-auto p-1">
+                {!selectedSubcategoria ? (
+                  <div className="space-y-1">
+                    {subcategorias.map((sub) => (
+                      <Button
+                        key={sub}
+                        variant="ghost"
+                        className="w-full justify-start h-7 text-xs"
+                        onClick={() => setSelectedSubcategoria(sub)}
+                      >
+                        {sub}
+                      </Button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {(categoriasPorSubcategoria[selectedSubcategoria] || []).map((cat: any) => (
+                      <Button
+                        key={cat.id}
+                        variant="ghost"
+                        className="w-full justify-start h-7 text-xs"
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, categoria: cat.nome }));
+                          setOpenCategoriaPopover(false);
+                        }}
+                      >
+                        {cat.nome}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="lg:col-span-2">
+          <Label className="text-xs font-medium text-muted-foreground mb-1">Descrição</Label>
+          <Input
+            value={formData.descricao}
+            onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
+            className="h-9 bg-background text-sm"
+            placeholder="Descreva a movimentação"
+          />
+        </div>
+
+        <div>
+          <Label className="text-xs font-medium text-muted-foreground mb-1">Conta</Label>
+          <Select value={formData.conta_banco} onValueChange={(value) => setFormData(prev => ({ ...prev, conta_banco: value }))}>
+            <SelectTrigger className="h-9 bg-background text-sm">
+              <SelectValue placeholder="Selecione" />
+            </SelectTrigger>
+            <SelectContent>
+              {contaNomes.length > 0 ? (
+                contaNomes.map((conta) => (
+                  <SelectItem key={conta} value={conta}>{conta}</SelectItem>
+                ))
+              ) : (
+                <div className="text-center py-2 text-xs text-muted-foreground">
+                  Nenhuma conta
+                </div>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <Label className="text-xs font-medium text-muted-foreground mb-1">Status</Label>
+          <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+            <SelectTrigger className="h-9 bg-background text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {formData.tipo_movimento === "entrada" ? (
+                <SelectItem value="recebido">Recebido</SelectItem>
+              ) : (
+                <SelectItem value="pago">Pago</SelectItem>
+              )}
+              <SelectItem value="cancelado">Cancelado</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="flex gap-2 justify-end pt-2 border-t border-slate-700/40">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onCancel}
+          disabled={isSaving}
+          className="h-8 text-xs"
+        >
+          <CloseIcon className="w-3 h-3 mr-1" />
+          Cancelar
+        </Button>
+        <Button
+          type="button"
+          onClick={handleSave}
+          disabled={isSaving}
+          className="bg-primary hover:bg-primary/90 h-8 px-3 text-xs"
+        >
+          <Check className="w-3 h-3 mr-1" />
+          {isSaving ? "Salvando..." : "Salvar"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function FluxoCaixa() {
   const {
     user
@@ -30,7 +344,11 @@ export function FluxoCaixa() {
   const {
     categorias: allCategorias
   } = useCategoriasFinanceiro();
+  const { contas } = useCategoriasConta();
+  const { aeronaves } = useAeronaves();
+
   const categoriaNomes = allCategorias.map(c => c.nome);
+  const contaNomes = contas.map(c => c.nome);
   const [movimentacoes, setMovimentacoes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
