@@ -368,12 +368,6 @@ export function FluxoCaixa() {
                 <div className="w-28 flex-shrink-0 text-right">Ações</div>
               </div>
 
-              {showInlineForm && <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-700/40 bg-slate-800/20 space-y-4 backdrop-blur-sm">
-                  <FluxoCaixaInlineForm onSuccess={() => {
-              handleCloseForm();
-              loadMovimentacoes();
-            }} onCancel={handleCloseForm} movimentacao={editingMovimentacao} />
-                </div>}
 
               {filteredMovimentacoes.length === 0 ? <div className="text-center py-12 sm:py-16 px-4 sm:px-6">
                   <Wallet className="w-16 sm:w-20 h-16 sm:h-20 text-muted-foreground/20 mx-auto mb-4 sm:mb-6" />
