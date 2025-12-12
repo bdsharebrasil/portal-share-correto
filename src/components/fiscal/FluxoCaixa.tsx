@@ -9,20 +9,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Plus, Search, Filter, Trash2, Edit2, TrendingUp, TrendingDown, Wallet, ChevronDown, FileText, ExternalLink, Eye, Check, X as CloseIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
+import { useCategoriasFinanceiro, useCategoriasConta } from "@/hooks/useCategoriasFinanceiro";
+import { useAeronaves } from "@/hooks/useAeronaves";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { useAeronaves } from "@/hooks/useAeronaves";
-import { useCategoriasConta } from "@/hooks/useCategoriasFinanceiro";
-import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+
 const parseLocalDate = (dateString: string): Date => {
   const [year, month, day] = dateString.split('-').map(Number);
   return new Date(year, month - 1, day);
 };
+
 interface InlineEditRowProps {
   movimentacao: any;
   isNew: boolean;
@@ -32,10 +31,18 @@ interface InlineEditRowProps {
   allCategorias: any[];
   contaNomes: string[];
   aeronaves: any[];
-  editingId?: string;
 }
 
-function InlineEditRow({ movimentacao, isNew, onSuccess, onCancel, user, allCategorias, contaNomes, aeronaves, editingId }: InlineEditRowProps) {
+function InlineEditRow({ 
+  movimentacao, 
+  isNew, 
+  onSuccess, 
+  onCancel, 
+  user, 
+  allCategorias, 
+  contaNomes, 
+  aeronaves 
+}: InlineEditRowProps) {
   const [formData, setFormData] = useState({
     data: movimentacao?.data || new Date().toISOString().split('T')[0],
     tipo_movimento: movimentacao?.tipo_movimento || 'entrada',
@@ -43,10 +50,7 @@ function InlineEditRow({ movimentacao, isNew, onSuccess, onCancel, user, allCate
     descricao: movimentacao?.descricao || '',
     valor: movimentacao?.valor?.toString() || '',
     conta_banco: movimentacao?.conta_banco || '',
-    numero_documento: movimentacao?.numero_documento || '',
-    referencia: movimentacao?.referencia || '',
     status: movimentacao?.status || 'recebido',
-    observacoes: movimentacao?.observacoes || '',
     aeronave: movimentacao?.aeronave || ''
   });
 
@@ -96,7 +100,8 @@ function InlineEditRow({ movimentacao, isNew, onSuccess, onCancel, user, allCate
       return;
     }
 
-    if (!formData.valor || parseFloat(formData.valor) <= 0) {
+    const valor = parseFloat(formData.valor);
+    if (isNaN(valor) || valor <= 0) {
       toast.error("Valor deve ser maior que zero");
       return;
     }
@@ -108,12 +113,9 @@ function InlineEditRow({ movimentacao, isNew, onSuccess, onCancel, user, allCate
         tipo_movimento: formData.tipo_movimento,
         categoria: formData.categoria,
         descricao: formData.descricao,
-        valor: parseFloat(formData.valor),
+        valor,
         conta_banco: formData.conta_banco || null,
-        numero_documento: formData.numero_documento || null,
-        referencia: formData.referencia || null,
         status: formData.status,
-        observacoes: formData.observacoes || null,
         aeronave: formData.aeronave || null,
         atualizado_por: user?.id
       };
@@ -160,21 +162,21 @@ function InlineEditRow({ movimentacao, isNew, onSuccess, onCancel, user, allCate
 
   return (
     <div className="px-4 sm:px-6 py-4 bg-slate-800/40 border-b border-slate-700/40 space-y-4 backdrop-blur-sm">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
         <div>
           <Label className="text-xs font-medium text-muted-foreground mb-1">Data</Label>
           <Input
             type="date"
             value={formData.data}
             onChange={(e) => setFormData(prev => ({ ...prev, data: e.target.value }))}
-            className="h-9 bg-background text-sm"
+            className="h-8 bg-background text-xs"
           />
         </div>
 
         <div>
           <Label className="text-xs font-medium text-muted-foreground mb-1">Tipo</Label>
           <Select value={formData.tipo_movimento} onValueChange={handleTipoChange}>
-            <SelectTrigger className="h-9 bg-background text-sm">
+            <SelectTrigger className="h-8 bg-background text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -192,7 +194,7 @@ function InlineEditRow({ movimentacao, isNew, onSuccess, onCancel, user, allCate
             min="0"
             value={formData.valor}
             onChange={(e) => setFormData(prev => ({ ...prev, valor: e.target.value }))}
-            className="h-9 bg-background text-sm"
+            className="h-8 bg-background text-xs"
             placeholder="0.00"
           />
         </div>
@@ -203,13 +205,13 @@ function InlineEditRow({ movimentacao, isNew, onSuccess, onCancel, user, allCate
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
-                className="h-9 w-full justify-between bg-background text-sm text-left"
+                className="h-8 w-full justify-between bg-background text-xs text-left px-2"
               >
-                <span className="truncate text-xs">{formData.categoria || 'Selecione'}</span>
+                <span className="truncate">{formData.categoria || 'Sel'}</span>
                 <ChevronDown className="h-3 w-3 shrink-0" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[250px] p-0 bg-card border-border" align="start">
+            <PopoverContent className="w-[220px] p-0 bg-card border-border" align="start">
               <div className="p-2 border-b border-border/50">
                 <p className="text-xs font-medium text-foreground mb-1">
                   {!selectedSubcategoria ? "Grupo" : selectedSubcategoria}
@@ -219,20 +221,20 @@ function InlineEditRow({ movimentacao, isNew, onSuccess, onCancel, user, allCate
                     variant="ghost"
                     size="sm"
                     onClick={() => setSelectedSubcategoria(null)}
-                    className="text-xs h-7"
+                    className="text-xs h-6"
                   >
                     ← Voltar
                   </Button>
                 )}
               </div>
-              <div className="max-h-[200px] overflow-y-auto p-1">
+              <div className="max-h-[180px] overflow-y-auto p-1">
                 {!selectedSubcategoria ? (
                   <div className="space-y-1">
                     {subcategorias.map((sub) => (
                       <Button
                         key={sub}
                         variant="ghost"
-                        className="w-full justify-start h-7 text-xs"
+                        className="w-full justify-start h-6 text-xs"
                         onClick={() => setSelectedSubcategoria(sub)}
                       >
                         {sub}
@@ -245,7 +247,7 @@ function InlineEditRow({ movimentacao, isNew, onSuccess, onCancel, user, allCate
                       <Button
                         key={cat.id}
                         variant="ghost"
-                        className="w-full justify-start h-7 text-xs"
+                        className="w-full justify-start h-6 text-xs"
                         onClick={() => {
                           setFormData(prev => ({ ...prev, categoria: cat.nome }));
                           setOpenCategoriaPopover(false);
@@ -262,13 +264,13 @@ function InlineEditRow({ movimentacao, isNew, onSuccess, onCancel, user, allCate
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
+        <div className="sm:col-span-2 lg:col-span-2">
           <Label className="text-xs font-medium text-muted-foreground mb-1">Descrição</Label>
           <Input
             value={formData.descricao}
             onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
-            className="h-9 bg-background text-sm"
+            className="h-8 bg-background text-xs"
             placeholder="Descreva a movimentação"
           />
         </div>
@@ -276,13 +278,13 @@ function InlineEditRow({ movimentacao, isNew, onSuccess, onCancel, user, allCate
         <div>
           <Label className="text-xs font-medium text-muted-foreground mb-1">Conta</Label>
           <Select value={formData.conta_banco} onValueChange={(value) => setFormData(prev => ({ ...prev, conta_banco: value }))}>
-            <SelectTrigger className="h-9 bg-background text-sm">
-              <SelectValue placeholder="Selecione" />
+            <SelectTrigger className="h-8 bg-background text-xs">
+              <SelectValue placeholder="Sel" />
             </SelectTrigger>
             <SelectContent>
               {contaNomes.length > 0 ? (
                 contaNomes.map((conta) => (
-                  <SelectItem key={conta} value={conta}>{conta}</SelectItem>
+                  <SelectItem key={conta} value={conta} className="text-xs">{conta}</SelectItem>
                 ))
               ) : (
                 <div className="text-center py-2 text-xs text-muted-foreground">
@@ -296,16 +298,16 @@ function InlineEditRow({ movimentacao, isNew, onSuccess, onCancel, user, allCate
         <div>
           <Label className="text-xs font-medium text-muted-foreground mb-1">Status</Label>
           <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
-            <SelectTrigger className="h-9 bg-background text-sm">
+            <SelectTrigger className="h-8 bg-background text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {formData.tipo_movimento === "entrada" ? (
-                <SelectItem value="recebido">Recebido</SelectItem>
+                <SelectItem value="recebido" className="text-xs">Recebido</SelectItem>
               ) : (
-                <SelectItem value="pago">Pago</SelectItem>
+                <SelectItem value="pago" className="text-xs">Pago</SelectItem>
               )}
-              <SelectItem value="cancelado">Cancelado</SelectItem>
+              <SelectItem value="cancelado" className="text-xs">Cancelado</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -318,7 +320,7 @@ function InlineEditRow({ movimentacao, isNew, onSuccess, onCancel, user, allCate
           size="sm"
           onClick={onCancel}
           disabled={isSaving}
-          className="h-8 text-xs"
+          className="h-7 px-3 text-xs"
         >
           <CloseIcon className="w-3 h-3 mr-1" />
           Cancelar
@@ -327,7 +329,7 @@ function InlineEditRow({ movimentacao, isNew, onSuccess, onCancel, user, allCate
           type="button"
           onClick={handleSave}
           disabled={isSaving}
-          className="bg-primary hover:bg-primary/90 h-8 px-3 text-xs"
+          className="bg-primary hover:bg-primary/90 h-7 px-3 text-xs"
         >
           <Check className="w-3 h-3 mr-1" />
           {isSaving ? "Salvando..." : "Salvar"}
@@ -349,6 +351,7 @@ export function FluxoCaixa() {
 
   const categoriaNomes = allCategorias.map(c => c.nome);
   const contaNomes = contas.map(c => c.nome);
+
   const [movimentacoes, setMovimentacoes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -356,7 +359,6 @@ export function FluxoCaixa() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-  // Initialize with current month using explicit year/month to avoid timezone issues
   const getCurrentMonth = () => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -370,13 +372,14 @@ export function FluxoCaixa() {
     categoria: "all",
     status: "all",
     periodo: "mes",
-    // "mes" | "ano"
     mes: getCurrentMonth(),
     ano: getCurrentYear()
   });
+
   useEffect(() => {
     loadMovimentacoes();
   }, []);
+
   const loadMovimentacoes = async () => {
     setIsLoading(true);
     try {
@@ -396,6 +399,7 @@ export function FluxoCaixa() {
     }
     setIsLoading(false);
   };
+
   const filteredMovimentacoes = useMemo(() => {
     return movimentacoes.filter(mov => {
       const searchMatch = filters.searchTerm === "" || mov.descricao.toLowerCase().includes(filters.searchTerm.toLowerCase()) || mov.numero_documento && mov.numero_documento.toLowerCase().includes(filters.searchTerm.toLowerCase());
@@ -403,7 +407,6 @@ export function FluxoCaixa() {
       const categoriaMatch = filters.categoria === "all" || mov.categoria === filters.categoria;
       const statusMatch = filters.status === "all" || mov.status === filters.status;
 
-      // Period match - either month or year
       let periodoMatch = true;
       if (filters.periodo === "mes") {
         periodoMatch = mov.data.startsWith(filters.mes);
@@ -413,6 +416,7 @@ export function FluxoCaixa() {
       return searchMatch && tipoMatch && categoriaMatch && statusMatch && periodoMatch;
     });
   }, [movimentacoes, filters]);
+
   const totals = useMemo(() => {
     const entradas = filteredMovimentacoes.filter(m => m.tipo_movimento === "entrada").reduce((sum, m) => sum + parseFloat(m.valor), 0);
     const saidas = filteredMovimentacoes.filter(m => m.tipo_movimento === "saída").reduce((sum, m) => sum + parseFloat(m.valor), 0);
@@ -422,6 +426,7 @@ export function FluxoCaixa() {
       saldo: entradas - saidas
     };
   }, [filteredMovimentacoes]);
+
   const handleDelete = async () => {
     if (!deleteConfirmId) return;
     try {
@@ -456,6 +461,7 @@ export function FluxoCaixa() {
     setEditingId(null);
     setNewRowId(null);
   };
+
   const toggleRowExpand = (id: string) => {
     const newExpanded = new Set(expandedRows);
     if (newExpanded.has(id)) {
@@ -465,6 +471,7 @@ export function FluxoCaixa() {
     }
     setExpandedRows(newExpanded);
   };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "recebido":
@@ -477,15 +484,16 @@ export function FluxoCaixa() {
         return "bg-muted text-muted-foreground";
     }
   };
+
   const getStatusLabel = (status: string, tipo: string) => {
     if (status === "recebido") return "Recebido";
     if (status === "pago") return "Pago";
     if (status === "cancelado") return "Cancelado";
-    // Fallback para registros antigos
     if (status === "confirmado") return tipo === "entrada" ? "Recebido" : "Pago";
     if (status === "pendente") return tipo === "entrada" ? "Recebido" : "Pago";
     return status;
   };
+
   return <div className="space-y-6 w-full">
       {/* Cards de Totais */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6 mx-[11px] my-[81px] py-[45px] px-[22px]">
@@ -690,7 +698,7 @@ export function FluxoCaixa() {
                 <div className="w-28 flex-shrink-0 text-right">Ações</div>
               </div>
 
-
+              {/* Nova linha em edição */}
               {newRowId && editingId === newRowId && (
                 <InlineEditRow
                   key={newRowId}
@@ -700,8 +708,8 @@ export function FluxoCaixa() {
                   onCancel={handleCancelEdit}
                   user={user}
                   allCategorias={allCategorias}
-                  contaNomes={[]}
-                  aeronaves={[]}
+                  contaNomes={contaNomes}
+                  aeronaves={aeronaves || []}
                 />
               )}
 
@@ -709,9 +717,27 @@ export function FluxoCaixa() {
                   <Wallet className="w-16 sm:w-20 h-16 sm:h-20 text-muted-foreground/20 mx-auto mb-4 sm:mb-6" />
                   <p className="text-muted-foreground text-base sm:text-lg font-medium">Nenhuma movimentação encontrada</p>
                   <p className="text-muted-foreground text-xs sm:text-sm mt-2">Clique em "Nova Movimentação" para adicionar</p>
-                </div> : filteredMovimentacoes.map(mov => {
-            const isExpanded = expandedRows.has(mov.id);
-            return <div key={mov.id} className="border-b border-slate-700/40 hover:bg-slate-800/30 transition-colors last:border-b-0 backdrop-blur-sm">
+                </div> : (
+                <>
+                  {filteredMovimentacoes.map(mov => {
+                    const isEditing = editingId === mov.id;
+                    const isExpanded = expandedRows.has(mov.id);
+
+                    if (isEditing) {
+                      return <InlineEditRow
+                        key={mov.id}
+                        movimentacao={mov}
+                        isNew={false}
+                        onSuccess={loadMovimentacoes}
+                        onCancel={handleCancelEdit}
+                        user={user}
+                        allCategorias={allCategorias}
+                        contaNomes={contaNomes}
+                        aeronaves={aeronaves || []}
+                      />;
+                    }
+
+                    return <div key={mov.id} className="border-b border-slate-700/40 hover:bg-slate-800/30 transition-colors last:border-b-0 backdrop-blur-sm">
                       {/* Desktop Layout - Flex */}
                       <div className="hidden lg:flex items-center gap-4 px-6 py-4 text-sm">
                         <div className="w-24 flex-shrink-0 text-foreground font-medium">
@@ -759,7 +785,7 @@ export function FluxoCaixa() {
                           {mov.comprovante_url && <Button variant="ghost" size="sm" onClick={() => window.open(mov.comprovante_url, '_blank')} className="h-8 w-8 p-0 text-cyan-500 hover:bg-cyan-500/15 hover:text-cyan-400 transition-all duration-300" title="Ver comprovante">
                               <FileText className="w-4 h-4" />
                             </Button>}
-                          <Button variant="ghost" size="sm" onClick={() => handleOpenForm(mov)} className="h-8 w-8 p-0 text-muted-foreground/80 hover:text-foreground hover:bg-slate-700/30 transition-all duration-300">
+                          <Button variant="ghost" size="sm" onClick={() => handleEditRow(mov.id)} className="h-8 w-8 p-0 text-muted-foreground/80 hover:text-foreground hover:bg-slate-700/30 transition-all duration-300">
                             <Edit2 className="w-4 h-4" />
                           </Button>
                           <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:bg-red-500/15 hover:text-red-400 transition-all duration-300" onClick={() => setDeleteConfirmId(mov.id)}>
@@ -834,7 +860,7 @@ export function FluxoCaixa() {
                               </div>}
 
                             <div className="flex gap-2 pt-3 border-t border-slate-700/40">
-                              <Button variant="outline" size="sm" onClick={() => handleOpenForm(mov)} className="flex-1 text-xs h-8 border-slate-700/60 hover:bg-slate-800/50">
+                              <Button variant="outline" size="sm" onClick={() => handleEditRow(mov.id)} className="flex-1 text-xs h-8 border-slate-700/60 hover:bg-slate-800/50">
                                 <Edit2 className="w-3 h-3 mr-1" />
                                 Editar
                               </Button>
@@ -845,7 +871,9 @@ export function FluxoCaixa() {
                           </div>}
                       </div>
                     </div>;
-          })}
+                  })}
+                </>
+              )}
             </div>}
         </CardContent>
       </Card>
