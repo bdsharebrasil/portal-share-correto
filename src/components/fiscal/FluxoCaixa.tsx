@@ -587,11 +587,11 @@ export function FluxoCaixa() {
             {filters.periodo === "mes" ? <Input type="month" value={filters.mes} onChange={e => setFilters(prev => ({
             ...prev,
             mes: e.target.value
-          }))} className="bg-slate-800/50 border-slate-700/60 text-foreground w-full sm:w-auto sm:min-w-[160px] text-xs sm:text-sm h-9 focus:border-blue-500/60" /> : <Select value={filters.ano} onValueChange={value => setFilters(prev => ({
+          }))} className="bg-slate-800/50 border-slate-700/60 text-foreground w-full sm:w-auto sm:min-w-[160px] text-xs sm:text-sm h-9 focus:border-blue-400/40" /> : <Select value={filters.ano} onValueChange={value => setFilters(prev => ({
             ...prev,
             ano: value
           }))}>
-                <SelectTrigger className="bg-slate-800/50 border-slate-700/60 text-foreground w-full sm:w-[130px] h-9 text-xs sm:text-sm focus:border-blue-500/60">
+                <SelectTrigger className="bg-slate-800/50 border-slate-700/60 text-foreground w-full sm:w-[130px] h-9 text-xs sm:text-sm focus:border-blue-400/40">
                   <SelectValue placeholder="Ano" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-900/95 border-slate-700/50 backdrop-blur-xl">
