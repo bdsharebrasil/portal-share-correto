@@ -4,11 +4,15 @@ export type CTMTab = "os" | "componentes" | "peso" | "ras";
 // Maintenance category types
 export type MaintenanceCategory = 
   | "TUDO"
-  | "PREVENTIVA"
-  | "CORRETIVA"
-  | "INSPEÇÃO"
-  | "MODIFICAÇÃO"
-  | "REVISÃO";
+  | "CORRETIVO"
+  | "50HORAS"
+  | "100HORAS"
+  | "CVA"
+  | "HELICE_GOVERNADOR"
+  | "OLEO"
+  | "PNEU_DIREITO"
+  | "PNEU_ESQUERDO"
+  | "PNEU_TREM_NARIZ";
 
 // Maintenance category display configuration
 export interface MaintenanceCategoryConfig {
@@ -20,11 +24,15 @@ export interface MaintenanceCategoryConfig {
 
 export const MAINTENANCE_CATEGORIES: MaintenanceCategoryConfig[] = [
   { value: "TUDO", label: "Todas" },
-  { value: "PREVENTIVA", label: "Preventiva" },
-  { value: "CORRETIVA", label: "Corretiva" },
-  { value: "INSPEÇÃO", label: "Inspeção" },
-  { value: "MODIFICAÇÃO", label: "Modificação" },
-  { value: "REVISÃO", label: "Revisão" },
+  { value: "CORRETIVO", label: "Corretivo" },
+  { value: "50HORAS", label: "50 Horas" },
+  { value: "100HORAS", label: "100 Horas" },
+  { value: "CVA", label: "C.V.A" },
+  { value: "HELICE_GOVERNADOR", label: "Hélice-Governador" },
+  { value: "OLEO", label: "Óleo" },
+  { value: "PNEU_DIREITO", label: "Pneu Direito" },
+  { value: "PNEU_ESQUERDO", label: "Pneu Esquerdo" },
+  { value: "PNEU_TREM_NARIZ", label: "Pneu Trem de Nariz" },
 ];
 
 // RAS (Relatório de Acompanhamento de Serviço) types
