@@ -47,15 +47,27 @@ const statusLabels: Record<string, string> = {
 };
 
 const tipoManutencaoLabels: Record<string, string> = {
-  CORRETIVA: 'Corretiva',
-  PREVENTIVA: 'Preventiva',
-  REVISÃO: 'Revisão',
+  CORRETIVO: 'Corretivo',
+  '50HORAS': '50 Horas',
+  '100HORAS': '100 Horas',
+  CVA: 'C.V.A',
+  HELICE_GOVERNADOR: 'Hélice-Governador',
+  OLEO: 'Óleo',
+  PNEU_DIREITO: 'Pneu Direito',
+  PNEU_ESQUERDO: 'Pneu Esquerdo',
+  PNEU_TREM_NARIZ: 'Pneu Trem de Nariz',
 };
 
 const tipoManutencaoColors: Record<string, string> = {
-  CORRETIVA: 'bg-red-100 text-red-800',
-  PREVENTIVA: 'bg-blue-100 text-blue-800',
-  REVISÃO: 'bg-green-100 text-green-800',
+  CORRETIVO: 'bg-red-100 text-red-800',
+  '50HORAS': 'bg-blue-100 text-blue-800',
+  '100HORAS': 'bg-green-100 text-green-800',
+  CVA: 'bg-purple-100 text-purple-800',
+  HELICE_GOVERNADOR: 'bg-orange-100 text-orange-800',
+  OLEO: 'bg-yellow-100 text-yellow-800',
+  PNEU_DIREITO: 'bg-cyan-100 text-cyan-800',
+  PNEU_ESQUERDO: 'bg-teal-100 text-teal-800',
+  PNEU_TREM_NARIZ: 'bg-indigo-100 text-indigo-800',
 };
 
 export function CTMServiceOrderList({

@@ -19,19 +19,15 @@ interface NewServiceOrderDialogProps {
 }
 
 const MAINTENANCE_TYPES = [
-  "50_HORAS",
-  "100_HORAS",
-  "200_HORAS",
-  "500_HORAS",
-  "1000_HORAS",
-  "MOTOR",
-  "PNEUS",
+  "CORRETIVO",
+  "50HORAS",
+  "100HORAS",
   "CVA",
-  "HELICE",
+  "HELICE_GOVERNADOR",
   "OLEO",
-  "CORRETIVA",
-  "INSPEÇÃO",
-  "REVISÃO",
+  "PNEU_DIREITO",
+  "PNEU_ESQUERDO",
+  "PNEU_TREM_NARIZ",
 ];
 
 const SERVICE_STATUS = [
@@ -53,7 +49,7 @@ export function NewServiceOrderDialog({
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     numero: "",
-    tipo_manutencao: "PREVENTIVA" as MaintenanceCategory,
+    tipo_manutencao: "CORRETIVO" as MaintenanceCategory,
     os_oficina: "",
     oficina_nome: "",
     oficina_contato: "",
@@ -125,7 +121,7 @@ export function NewServiceOrderDialog({
       
       setFormData({
         numero: "",
-        tipo_manutencao: "PREVENTIVA",
+        tipo_manutencao: "CORRETIVO",
         os_oficina: "",
         oficina_nome: "",
         oficina_contato: "",
