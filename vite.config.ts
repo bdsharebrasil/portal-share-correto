@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { execSync } from "child_process";
+import { componentTagger } from "lovable-tagger";
 
 // Hook para copiar o PDF worker antes de qualquer coisa
 function ensurePDFWorker() {
@@ -26,6 +27,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    mode === 'development' && componentTagger(),
     ensurePDFWorker(),
   ].filter(Boolean),
   resolve: {
