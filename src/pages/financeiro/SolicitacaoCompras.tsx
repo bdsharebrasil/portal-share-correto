@@ -52,6 +52,7 @@ export default function SolicitacaoCompras() {
   const [loading, setLoading] = useState(false);
 
   // Form states
+  const [formExpanded, setFormExpanded] = useState(false);
   const [tipo, setTipo] = useState("compra");
   const [descricao, setDescricao] = useState("");
   const [dataNecessaria, setDataNecessaria] = useState("");
@@ -332,64 +333,54 @@ export default function SolicitacaoCompras() {
 
   return (
     <Layout>
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="p-4 md:p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between flex-col sm:flex-row gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Solicitação de Compras/Serviços</h1>
-            <p className="text-muted-foreground mt-2">
-              Gerencie e acompanhe as solicitações de compras e serviços
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Solicitação de Compras/Serviços</h1>
+            <p className="text-sm md:text-base text-muted-foreground mt-1">
+              Gerencie e acompanhe suas solicitações
             </p>
           </div>
+          <Button
+            onClick={() => setFormExpanded(!formExpanded)}
+            className="w-full sm:w-auto gap-2 bg-gradient-to-r from-primary to-primary/90 hover:shadow-lg transition-all"
+          >
+            <ShoppingCart className="h-4 w-4" />
+            <span className="hidden sm:inline">Nova Solicitação</span>
+            <span className="sm:hidden">Nova</span>
+          </Button>
         </div>
 
-        <div className="grid grid-cols-1 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Nova Solicitação
+        {/* Form Card - Collapsible */}
+        {formExpanded && (
+          <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/2">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="h-5 w-5 text-primary" />
+                Criar Nova Solicitação
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="tipo">Tipo *</Label>
-                  <Select value={tipo} onValueChange={setTipo} required>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="compra">Compra</SelectItem>
-                      <SelectItem value="servico">Serviço</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {tipo === 'servico' && (
+              <form onSubmit={handleSubmit} className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Label htmlFor="tipo-servico">Tipo de Serviço *</Label>
-                    <Select value={tipoDeServico} onValueChange={setTipoDeServico}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o tipo de serviço" />
+                    <Label htmlFor="tipo" className="text-xs md:text-sm">Tipo *</Label>
+                    <Select value={tipo} onValueChange={setTipo} required>
+                      <SelectTrigger className="text-xs md:text-sm h-9">
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="manutencao_infraestrutura">Manutenção Infraestrutura</SelectItem>
-                        <SelectItem value="servicos_tecnicos">Serviços Técnicos</SelectItem>
-                        <SelectItem value="limpeza_conservacao">Serviços de Limpeza e Conservação</SelectItem>
-                        <SelectItem value="seguranca_controle">Segurança e Controle</SelectItem>
-                        <SelectItem value="servicos_logisticos">Serviços Logísticos</SelectItem>
-                        <SelectItem value="servicos_ti">Serviços de T.I</SelectItem>
-                        <SelectItem value="outros">Outros</SelectItem>
+                        <SelectItem value="compra">Compra</SelectItem>
+                        <SelectItem value="servico">Serviço</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                )}
 
-                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="prioridade">Prioridade *</Label>
+                    <Label htmlFor="prioridade" className="text-xs md:text-sm">Prioridade *</Label>
                     <Select value={prioridade} onValueChange={setPrioridade}>
-                      <SelectTrigger>
+                      <SelectTrigger className="text-xs md:text-sm h-9">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -400,16 +391,50 @@ export default function SolicitacaoCompras() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+
+                {tipo === 'servico' && (
                   <div className="space-y-2">
-                    <Label htmlFor="data-necessaria">Data Necessária</Label>
+                    <Label htmlFor="tipo-servico" className="text-xs md:text-sm">Tipo de Serviço *</Label>
+                    <Select value={tipoDeServico} onValueChange={setTipoDeServico}>
+                      <SelectTrigger className="text-xs md:text-sm h-9">
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="manutencao_infraestrutura">Manutenção Infraestrutura</SelectItem>
+                        <SelectItem value="servicos_tecnicos">Serviços Técnicos</SelectItem>
+                        <SelectItem value="limpeza_conservacao">Limpeza e Conservação</SelectItem>
+                        <SelectItem value="seguranca_controle">Segurança e Controle</SelectItem>
+                        <SelectItem value="servicos_logisticos">Serviços Logísticos</SelectItem>
+                        <SelectItem value="servicos_ti">Serviços de T.I</SelectItem>
+                        <SelectItem value="outros">Outros</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="departamento" className="text-xs md:text-sm">Departamento</Label>
+                    <Input
+                      id="departamento"
+                      placeholder="Ex: Operações"
+                      className="text-xs md:text-sm h-9"
+                      value={departamento}
+                      onChange={(e) => setDepartamento(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="data-necessaria" className="text-xs md:text-sm">Data Necessária</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className="w-full justify-start text-left font-normal"
+                          className="w-full justify-start text-left font-normal text-xs md:text-sm h-9"
                         >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {dataNecessariaDate ? format(dataNecessariaDate, "PPP", { locale: ptBR }) : "Selecione a data"}
+                          <CalendarIcon className="mr-2 h-3 w-3 md:h-4 md:w-4" />
+                          {dataNecessariaDate ? format(dataNecessariaDate, "dd/MM") : "Selecione"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
@@ -433,187 +458,244 @@ export default function SolicitacaoCompras() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="descricao">Descrição da Solicitação *</Label>
+                  <Label htmlFor="descricao" className="text-xs md:text-sm">Descrição *</Label>
                   <Textarea
                     id="descricao"
-                    placeholder={tipo === 'compra' ? "Descreva o que está sendo solicitado" : "Descreva detalhadamente o serviço necessário, incluindo escopo, requisitos e especificações"}
-                    rows={tipo === 'servico' ? 4 : 2}
+                    placeholder={tipo === 'compra' ? "O que está sendo solicitado?" : "Descreva o serviço necessário"}
+                    rows={2}
+                    className="text-xs md:text-sm"
                     value={descricao}
                     onChange={(e) => setDescricao(e.target.value)}
                     required
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="departamento">Departamento</Label>
-                  <Input
-                    id="departamento"
-                    placeholder="Ex: Operações"
-                    value={departamento}
-                    onChange={(e) => setDepartamento(e.target.value)}
-                  />
+                <div className="flex gap-2 pt-2">
+                  <Button type="submit" disabled={loading} className="flex-1 h-9 text-xs md:text-sm gap-2">
+                    <ShoppingCart className="h-4 w-4" />
+                    {loading ? 'Criando...' : 'Criar'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setFormExpanded(false)}
+                    className="h-9"
+                  >
+                    Cancelar
+                  </Button>
                 </div>
-
-
-                <Button type="submit" className="w-full" disabled={loading}>
-                  <ShoppingCart className="h-4 w-4 mr-2" />
-                  {loading ? 'Criando...' : 'Criar Solicitação'}
-                </Button>
               </form>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 md:gap-4">
+          <Card className="text-center hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="p-3 md:p-4">
+              <p className="text-xs md:text-sm text-muted-foreground">Total</p>
+              <p className="text-xl md:text-2xl font-bold text-foreground">{stats.total}</p>
+            </CardContent>
+          </Card>
+          <Card className="text-center hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="p-3 md:p-4">
+              <p className="text-xs md:text-sm text-muted-foreground">Rascunhos</p>
+              <p className="text-xl md:text-2xl font-bold text-gray-600">{stats.rascunhos}</p>
+            </CardContent>
+          </Card>
+          <Card className="text-center hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="p-3 md:p-4">
+              <p className="text-xs md:text-sm text-muted-foreground">Enviadas</p>
+              <p className="text-xl md:text-2xl font-bold text-blue-600">{stats.enviadas}</p>
+            </CardContent>
+          </Card>
+          <Card className="text-center hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="p-3 md:p-4">
+              <p className="text-xs md:text-sm text-muted-foreground">Aprovadas</p>
+              <p className="text-xl md:text-2xl font-bold text-green-600">{stats.aprovadas}</p>
+            </CardContent>
+          </Card>
+          <Card className="text-center hover:shadow-md transition-shadow cursor-pointer">
+            <CardContent className="p-3 md:p-4">
+              <p className="text-xs md:text-sm text-muted-foreground">Reprovadas</p>
+              <p className="text-xl md:text-2xl font-bold text-red-600">{stats.reprovadas}</p>
             </CardContent>
           </Card>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShoppingCart className="h-5 w-5" />
-              Solicitações
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {requests.length === 0 ? (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Nenhuma solicitação encontrada. Crie uma nova solicitação para começar.
-                </AlertDescription>
-              </Alert>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Número</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {requests.map((request) => (
-                    <TableRow key={request.id}>
-                      <TableCell className="font-mono text-xs">{request.numero_solicitacao}</TableCell>
-                      <TableCell className="font-medium max-w-xs truncate">
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(request.status)}
+        {/* Requests Grid */}
+        <div>
+          <h2 className="text-lg md:text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
+            <ShoppingCart className="h-5 w-5" />
+            Solicitações
+          </h2>
+
+          {requests.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Nenhuma solicitação. Crie uma para começar.
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {requests.map((request) => (
+                <Card
+                  key={request.id}
+                  className="flex flex-col hover:shadow-lg transition-all duration-300 border-primary/10 hover:border-primary/30"
+                >
+                  <CardContent className="p-4 flex-1 flex flex-col">
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <p className="text-xs font-mono text-muted-foreground bg-muted px-2 py-1 rounded w-fit">
+                          {request.numero_solicitacao}
+                        </p>
+                        <h3 className="font-semibold text-sm text-foreground mt-2 line-clamp-2">
                           {request.descricao}
-                        </div>
-                      </TableCell>
-                      <TableCell className="capitalize">{request.tipo}</TableCell>
-                      <TableCell className="font-semibold">
-                        {formatCurrency(request.valor_total)}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {formatDistanceToNow(new Date(request.data_solicitacao), {
-                          addSuffix: true,
-                          locale: ptBR
-                        })}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(request.status)}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          {request.status === 'rascunho' && request.user_id === currentUserId && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => enviarSolicitacao(request.id)}
-                            >
-                              Enviar
-                            </Button>
-                          )}
-                          {canEditRequests && request.status !== 'rascunho' && (
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setEditingRequest(request);
-                                    setEditStatus(request.status);
-                                    setEditAprovador("");
-                                    setEditMotivo("");
-                                  }}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-md">
-                                <DialogHeader>
-                                  <DialogTitle>Gerenciar Solicitação</DialogTitle>
-                                </DialogHeader>
-                                <div className="space-y-4 py-4">
+                        </h3>
+                      </div>
+                      <div className="ml-2">
+                        {getStatusIcon(request.status)}
+                      </div>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="border-t border-border my-3"></div>
+
+                    {/* Body */}
+                    <div className="space-y-2 flex-1 mb-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Tipo:</span>
+                        <span className="text-xs font-medium text-foreground capitalize">{request.tipo}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Valor:</span>
+                        <span className="text-xs font-semibold text-primary">
+                          {formatCurrency(request.valor_total)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Data:</span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatDistanceToNow(new Date(request.data_solicitacao), {
+                            addSuffix: true,
+                            locale: ptBR
+                          })}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Status and Actions */}
+                    <div className="space-y-3">
+                      <div>{getStatusBadge(request.status)}</div>
+                      <div className="flex gap-2">
+                        {request.status === 'rascunho' && request.user_id === currentUserId && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => enviarSolicitacao(request.id)}
+                            className="flex-1 text-xs h-8"
+                          >
+                            Enviar
+                          </Button>
+                        )}
+                        {canEditRequests && request.status !== 'rascunho' && (
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingRequest(request);
+                                  setEditStatus(request.status);
+                                  setEditAprovador("");
+                                  setEditMotivo("");
+                                }}
+                                className="flex-1 text-xs h-8 gap-1"
+                              >
+                                <Edit className="h-3 w-3" />
+                                <span>Gerenciar</span>
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-md">
+                              <DialogHeader>
+                                <DialogTitle>Gerenciar Solicitação</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                  <Label className="text-xs">Número</Label>
+                                  <p className="text-sm text-muted-foreground">{request.numero_solicitacao}</p>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label className="text-xs">Descrição</Label>
+                                  <p className="text-sm text-muted-foreground line-clamp-3">{request.descricao}</p>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="edit-status" className="text-xs">Status</Label>
+                                  <Select value={editStatus} onValueChange={setEditStatus}>
+                                    <SelectTrigger className="h-9 text-sm">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="enviado">Enviado</SelectItem>
+                                      <SelectItem value="em_analise">Em Análise</SelectItem>
+                                      <SelectItem value="aprovado">Aprovado</SelectItem>
+                                      <SelectItem value="reprovado">Reprovado</SelectItem>
+                                      <SelectItem value="cancelado">Cancelado</SelectItem>
+                                      <SelectItem value="entregue">Entregue</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+
+                                {editStatus === 'aprovado' && (
                                   <div className="space-y-2">
-                                    <Label>Número</Label>
-                                    <p className="text-sm text-muted-foreground">{request.numero_solicitacao}</p>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label>Descrição</Label>
-                                    <p className="text-sm text-muted-foreground">{request.descricao}</p>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor="edit-status">Status</Label>
-                                    <Select value={editStatus} onValueChange={setEditStatus}>
-                                      <SelectTrigger>
-                                        <SelectValue />
+                                    <Label htmlFor="edit-aprovador" className="text-xs">Nível de Aprovação</Label>
+                                    <Select value={editAprovador} onValueChange={setEditAprovador}>
+                                      <SelectTrigger className="h-9 text-sm">
+                                        <SelectValue placeholder="Selecione" />
                                       </SelectTrigger>
                                       <SelectContent>
-                                        <SelectItem value="enviado">Enviado</SelectItem>
-                                        <SelectItem value="em_analise">Em Análise</SelectItem>
-                                        <SelectItem value="aprovado">Aprovado</SelectItem>
-                                        <SelectItem value="reprovado">Reprovado</SelectItem>
-                                        <SelectItem value="cancelado">Cancelado</SelectItem>
-                                        <SelectItem value="entregue">Entregue</SelectItem>
+                                        <SelectItem value="nivel1">Gestor Direto (Nível 1)</SelectItem>
+                                        <SelectItem value="nivel2">Admin/Gestor Master (Nível 2)</SelectItem>
                                       </SelectContent>
                                     </Select>
                                   </div>
+                                )}
 
-                                  {editStatus === 'aprovado' && (
-                                    <div className="space-y-2">
-                                      <Label htmlFor="edit-aprovador">Nível de Aprovação</Label>
-                                      <Select value={editAprovador} onValueChange={setEditAprovador}>
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Selecione o nível" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="nivel1">Gestor Direto (Nível 1)</SelectItem>
-                                          <SelectItem value="nivel2">Admin/Gestor Master (Nível 2)</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  )}
+                                {editStatus === 'reprovado' && (
+                                  <div className="space-y-2">
+                                    <Label htmlFor="edit-motivo" className="text-xs">Motivo da Rejeição</Label>
+                                    <Textarea
+                                      id="edit-motivo"
+                                      placeholder="Descreva o motivo"
+                                      rows={3}
+                                      className="text-sm"
+                                      value={editMotivo}
+                                      onChange={(e) => setEditMotivo(e.target.value)}
+                                    />
+                                  </div>
+                                )}
 
-                                  {editStatus === 'reprovado' && (
-                                    <div className="space-y-2">
-                                      <Label htmlFor="edit-motivo">Motivo da Rejeição</Label>
-                                      <Textarea
-                                        id="edit-motivo"
-                                        placeholder="Descreva o motivo da rejeição"
-                                        rows={3}
-                                        value={editMotivo}
-                                        onChange={(e) => setEditMotivo(e.target.value)}
-                                      />
-                                    </div>
-                                  )}
-
-                                  <Button onClick={handleUpdateStatus} className="w-full">
-                                    Salvar Alterações
-                                  </Button>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                                <Button onClick={handleUpdateStatus} className="w-full h-9">
+                                  Salvar
+                                </Button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </Layout>
   );

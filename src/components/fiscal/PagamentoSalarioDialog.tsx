@@ -170,7 +170,7 @@ export function PagamentoSalarioDialog({
           return;
         }
 
-        // Insert into controle_bancario as expense
+        // Insert into controle_bancario as expense with colaborador_id
         if (totalValue > 0 && user?.id) {
           const now = new Date();
           const { error: fluxoError } = await supabase
@@ -178,16 +178,18 @@ export function PagamentoSalarioDialog({
             .insert({
               data: format(now, "yyyy-MM-dd"),
               tipo_movimento: "saída",
-              categoria: "Salário",
+              categoria_id: null,
               descricao: `Pagamento de salário - ${employeeName}`,
               valor: totalValue,
               status: "confirmado",
               comprovante_url: formData.comprovante_url || null,
               criado_por: user.id,
-              referencia: newPayment?.id || null,
+              colaborador_id: formData.user_profile,
+              numero_documento: newPayment?.id || null,
               observacoes: formData.obs || null,
-              conta_banco: formData.conta_banco || null
-            });
+              conta_banco: formData.conta_banco || null,
+              grupo_categoria: "Pessoal"
+            } as any);
 
           if (fluxoError) {
             console.error("Erro ao registrar no fluxo de caixa:", fluxoError);

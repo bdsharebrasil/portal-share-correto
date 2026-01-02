@@ -1055,14 +1055,14 @@ export default function RelatorioViagem() {
                             draftStorage.saveDraft({ ...currentReport, aircraft_registration: value, aircraft_id: '' } as TravelReportDraft);
                           }
                         }}
-                        options={aeronaves.map(a => ({
+                        options={Array.isArray(aeronaves) ? aeronaves.map(a => ({
                           id: a.id,
                           label: `${a.registration} - ${a.model || ''}`
-                        }))}
+                        })) : []}
                         placeholder="Digite a matrícula ou selecione"
                         isLoading={isLoadingAeronaves}
                         onSelect={(option) => {
-                          const selectedAircraft = aeronaves.find(a => a.id === option.id);
+                          const selectedAircraft = Array.isArray(aeronaves) ? aeronaves.find(a => a.id === option.id) : undefined;
                           if (selectedAircraft) {
                             const updated = { ...currentReport, aircraft_id: option.id, aircraft_registration: selectedAircraft.registration };
                             setCurrentReport(updated);

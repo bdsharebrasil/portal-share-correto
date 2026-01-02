@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CheckCircle, Clock, User, Mail, Check, ChevronLeft, ChevronRight, Plus, X, Calendar as CalendarIcon } from "lucide-react";
+import { CheckCircle, Clock, User, Mail, Check, ChevronLeft, ChevronRight, Plus, X, Calendar as CalendarIcon, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -34,6 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { StatusUpdateDialog } from "./StatusUpdateDialog";
 
+// --- Interfaces ---
 interface ColaboradorReconciliation {
   id: string;
   date: string;
@@ -52,6 +53,7 @@ interface UserProfile {
   full_name: string;
 }
 
+// --- Schemas ---
 const addDespesaSchema = z.object({
   date: z.string().min(1, "Data é obrigatória"),
   description: z.string().min(1, "Descrição é obrigatória"),
@@ -61,6 +63,17 @@ const addDespesaSchema = z.object({
 
 type AddDespesaFormValues = z.infer<typeof addDespesaSchema>;
 
+const newReconciliationSchema = z.object({
+  date: z.string().min(1, "Data é obrigatória"),
+  description: z.string().min(1, "Descrição é obrigatória"),
+  amount: z.string().min(1, "Valor é obrigatório"),
+  status: z.enum(["pendente", "enviado", "pago"]),
+  receiverId: z.string().min(1, "Colaborador é obrigatório"),
+});
+
+type NewReconciliationFormValues = z.infer<typeof newReconciliationSchema>;
+
+// --- Componente Principal ---
 export function ConciliacaoColaborador() {
   const [colaboradorData, setColaboradorData] = useState<ColaboradorReconciliation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +85,7 @@ export function ConciliacaoColaborador() {
   const [openStatusDialog, setOpenStatusDialog] = useState(false);
   const [selectedReconciliation, setSelectedReconciliation] = useState<ColaboradorReconciliation | null>(null);
 
+  // Permissão: Apenas Financeiro pode marcar como "Pago"
   const canApprovePaid = roles.some(role => ['admin', 'gestor_master', 'financeiro_master'].includes(role));
 
   useEffect(() => {
@@ -125,39 +139,6 @@ export function ConciliacaoColaborador() {
     }
   };
 
-  const handleStatusChange = async (id: string, newStatus: string) => {
-    try {
-      const reconciliation = colaboradorData.find(item => item.id === id);
-      if (!reconciliation) return;
-
-      const { error } = await supabase
-        .from('bank_reconciliations')
-        .update({ status: newStatus } as any)
-        .eq('id', id as any);
-
-      if (error) throw error;
-
-      setColaboradorData(prev =>
-        prev.map(item =>
-          item.id === id ? { ...item, status: newStatus } : item
-        )
-      );
-
-      const statusLabel = newStatus === 'enviado' ? 'Enviado' : 'Pago';
-      toast({
-        title: "Sucesso",
-        description: `Status atualizado para ${statusLabel}.`,
-      });
-    } catch (error) {
-      console.error('Erro ao atualizar status:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível atualizar o status.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const previousMonth = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
   };
@@ -176,11 +157,11 @@ export function ConciliacaoColaborador() {
     const statusLower = status?.toLowerCase() || '';
     switch (statusLower) {
       case "pago":
-        return <Badge className="bg-green-100 text-green-800">Pago</Badge>;
+        return <Badge className="bg-green-100 text-green-800 border-green-200">Pago</Badge>;
       case "enviado":
-        return <Badge className="bg-blue-100 text-blue-800">Enviado</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Enviado</Badge>;
       case "pendente":
-        return <Badge className="bg-yellow-100 text-yellow-800">Pendente</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Pendente</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -247,7 +228,7 @@ export function ConciliacaoColaborador() {
         </div>
       </div>
 
-      {/* Resumo Colaborador */}
+      {/* Cards de Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="rounded-xl border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden">
           <CardContent className="p-5">
@@ -298,7 +279,7 @@ export function ConciliacaoColaborador() {
         </Card>
       </div>
 
-      {/* Tabela de Movimentações Colaborador */}
+      {/* Tabela de Conciliação Colaborador */}
       <Card className="rounded-xl border-border/50 bg-card/50 backdrop-blur-sm">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -315,6 +296,7 @@ export function ConciliacaoColaborador() {
             </Button>
           </div>
         </CardHeader>
+
         {showNewReconciliationForm && (
           <CardContent className="py-4 bg-muted/30">
             <NewReconciliationInlineForm
@@ -327,112 +309,118 @@ export function ConciliacaoColaborador() {
             />
           </CardContent>
         )}
+
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>ID</TableHead>
-                <TableHead>Colaborador</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Prazo de Pagamento</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-cyan-500 scrollbar-track-slate-700/20">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
-                    Carregando...
-                  </TableCell>
+                  <TableHead>Data</TableHead>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Colaborador</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead>Valor</TableHead>
+                  <TableHead>Prazo</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Ações</TableHead>
                 </TableRow>
-              ) : colaboradorData.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    Nenhuma movimentação encontrada
-                  </TableCell>
-                </TableRow>
-              ) : (
-                colaboradorData.map((item) => (
-                  <React.Fragment key={item.id}>
-                    <TableRow className="hover:bg-muted/50">
-                      <TableCell>{item.date ? format(new Date(item.date + 'T12:00:00'), 'dd/MM/yyyy') : '-'}</TableCell>
-                      <TableCell>
-                        <Badge className={`${getIdBadgeColor(getShortUserId(item.created_by || ''))} font-semibold`}>
-                          {getShortUserId(item.created_by || '')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="max-w-xs">
-                        <span className="font-medium">{item.user_profiles?.full_name || '-'}</span>
-                      </TableCell>
-                      <TableCell className="max-w-xs">
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(item.status)}
-                          <span className="truncate">{item.description}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <span className={Number(item.amount) > 0 ? "text-green-600" : "text-red-600"}>
-                          {formatCurrency(Number(item.amount))}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {item.status?.toLowerCase() !== 'enviado' && item.status?.toLowerCase() !== 'pago' ? (
-                          <PaymentTermEditor
-                            reconciliation={item}
-                            onSave={fetchReconciliations}
-                          />
-                        ) : item.payment_term ? (
-                          <span className="text-sm">{format(new Date(item.payment_term + 'T12:00:00'), 'dd/MM/yyyy')}</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {getStatusBadge(item.status)}
-                      </TableCell>
-                      <TableCell>
-                        {item.status?.toLowerCase() !== 'pago' ? (
-                          <div className="flex gap-2">
-                            {item.status?.toLowerCase() !== 'enviado' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedReconciliation(item);
-                                  setOpenStatusDialog(true);
-                                }}
-                                title="Enviar por email"
-                              >
-                                <Mail className="h-4 w-4" />
-                              </Button>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8">
+                      Carregando...
+                    </TableCell>
+                  </TableRow>
+                ) : colaboradorData.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      Nenhuma movimentação encontrada
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  colaboradorData.map((item) => {
+                    // Verifica se já foi pago (status final)
+                    const isFinalized = item.status?.toLowerCase() === 'pago';
+
+                    return (
+                      <React.Fragment key={item.id}>
+                        <TableRow className={`hover:bg-muted/50 ${isFinalized ? 'bg-muted/10 opacity-80' : ''}`}>
+                          <TableCell>{item.date ? format(new Date(item.date + 'T12:00:00'), 'dd/MM/yyyy') : '-'}</TableCell>
+                          <TableCell>
+                            <Badge className={`${getIdBadgeColor(getShortUserId(item.created_by || ''))} font-semibold`}>
+                              {getShortUserId(item.created_by || '')}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-xs">
+                            <span className="font-medium text-sm">{item.user_profiles?.full_name || '-'}</span>
+                          </TableCell>
+                          <TableCell className="max-w-xs">
+                            <div className="flex items-center gap-2">
+                              {getStatusIcon(item.status)}
+                              <span className="truncate" title={item.description}>{item.description}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className={`font-medium ${Number(item.amount) > 0 ? "text-green-600" : "text-red-600"}`}>
+                              {formatCurrency(Number(item.amount))}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {item.status?.toLowerCase() !== 'enviado' && item.status?.toLowerCase() !== 'pago' ? (
+                              <PaymentTermEditor
+                                reconciliation={item}
+                                onSave={fetchReconciliations}
+                              />
+                            ) : item.payment_term ? (
+                              <span className="text-sm">{format(new Date(item.payment_term + 'T12:00:00'), 'dd/MM/yyyy')}</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
                             )}
-                            {canApprovePaid && item.status?.toLowerCase() !== 'pago' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedReconciliation(item);
-                                  setOpenStatusDialog(true);
-                                }}
-                                title="Marcar como Pago"
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(item.status)}
+                          </TableCell>
+                          
+                          {/* --- COLUNA DE AÇÕES COM LÓGICA DE ESPELHO --- */}
+                          <TableCell>
+                            {isFinalized ? (
+                                // Modo Espelho: Só mostra que foi pago
+                                <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-green-500/10 text-green-600 border border-green-500/20 w-fit" title="Pago pelo Financeiro">
+                                    <CheckCircle className="h-3.5 w-3.5" />
+                                    <span className="text-[10px] font-bold uppercase tracking-wide">Pago</span>
+                                </div>
+                            ) : item.status?.toLowerCase() === 'enviado' ? (
+                                // Modo Enviado: Mostra que foi enviado
+                                <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-blue-500/10 text-blue-600 border border-blue-500/20 w-fit" title="Aguardando processamento">
+                                    <Mail className="h-3.5 w-3.5" />
+                                    <span className="text-[10px] font-bold uppercase tracking-wide">Enviado</span>
+                                </div>
+                            ) : (
+                                // Modo Ação: Permite Enviar
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedReconciliation(item);
+                                    setOpenStatusDialog(true);
+                                  }}
+                                  className="h-8 border-dashed hover:border-solid hover:bg-primary/5 hover:text-primary transition-all"
+                                  title="Enviar Solicitação"
+                                >
+                                  <Mail className="h-3.5 w-3.5 mr-1.5" />
+                                  <span className="text-xs">Enviar</span>
+                                </Button>
                             )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Finalizado</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  </React.Fragment>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                          </TableCell>
+                        </TableRow>
+                      </React.Fragment>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -447,6 +435,8 @@ export function ConciliacaoColaborador() {
     </div>
   );
 }
+
+// --- Sub-componentes (Helpers) ---
 
 interface PaymentTermEditorProps {
   reconciliation: ColaboradorReconciliation;
@@ -463,11 +453,7 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
 
   const handleSave = async () => {
     if (!selectedDate) {
-      toast({
-        title: "Erro",
-        description: "Selecione uma data.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Selecione uma data.", variant: "destructive" });
       return;
     }
 
@@ -480,29 +466,13 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
         .update({ payment_term: dateStr } as any)
         .eq('id', reconciliation.id as any);
 
-      if (error) {
-        // If column doesn't exist, provide helpful message
-        if (error.message?.includes('payment_term') || error.code === '42703') {
-          throw new Error(
-            'Campo "payment_term" não existe na tabela. Execute as migrações do Supabase: supabase db push'
-          );
-        }
-        throw error;
-      }
+      if (error) throw error;
 
-      toast({
-        title: "Sucesso",
-        description: "Prazo de pagamento atualizado.",
-      });
+      toast({ title: "Sucesso", description: "Prazo atualizado." });
       setIsEditing(false);
       onSave();
     } catch (error: any) {
-      console.error('Erro ao atualizar prazo:', error);
-      toast({
-        title: "Erro",
-        description: error.message || "Não foi possível atualizar o prazo.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Erro ao atualizar prazo.", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -510,294 +480,22 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
 
   if (!isEditing) {
     return (
-      <button
-        onClick={() => setIsEditing(true)}
-        className="text-sm hover:text-blue-600 hover:underline"
-      >
-        {reconciliation.payment_term ? (
-          format(new Date(reconciliation.payment_term + 'T12:00:00'), 'dd/MM/yyyy')
-        ) : (
-          <span className="text-xs text-muted-foreground">Clique para adicionar</span>
-        )}
+      <button onClick={() => setIsEditing(true)} className="text-sm hover:text-blue-600 hover:underline flex items-center gap-1">
+        {reconciliation.payment_term ? format(new Date(reconciliation.payment_term + 'T12:00:00'), 'dd/MM/yyyy') : <span className="text-xs text-muted-foreground italic flex items-center gap-1"><Plus className="w-3 h-3"/>Prazo</span>}
       </button>
     );
   }
 
   return (
-    <div className="flex gap-2 items-center">
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="justify-start text-left font-normal w-32"
-          >
-            <CalendarIcon className="mr-2 h-4 w-4 text-white" />
-            {selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Selecione"}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={setSelectedDate}
-            locale={ptBR}
-          />
-        </PopoverContent>
-      </Popover>
-      <Button
-        size="sm"
-        onClick={handleSave}
-        disabled={isSaving}
-        className="h-8"
-      >
-        <Check className="h-4 w-4" />
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => setIsEditing(false)}
-        disabled={isSaving}
-        className="h-8"
-      >
-        <X className="h-4 w-4" />
-      </Button>
-    </div>
-  );
-}
-
-interface AddDespesaFormProps {
-  parentReconciliation: ColaboradorReconciliation;
-  users: UserProfile[];
-  onClose: () => void;
-  onSuccess: () => void;
-}
-
-function AddDespesaForm({
-  parentReconciliation,
-  users,
-  onClose,
-  onSuccess,
-}: AddDespesaFormProps) {
-  const { toast } = useToast();
-  const { user } = useAuth();
-  const [submitting, setSubmitting] = useState(false);
-
-  const form = useForm<AddDespesaFormValues>({
-    resolver: zodResolver(addDespesaSchema),
-    defaultValues: {
-      date: new Date().toISOString().split('T')[0],
-      description: "",
-      amount: "",
-      status: "pendente",
-    },
-  });
-
-  const receiverName = users.find(u => u.id === parentReconciliation.receiver_id)?.full_name ||
-    parentReconciliation.user_profiles?.full_name ||
-    "Colaborador";
-
-  const onSubmit = async (data: AddDespesaFormValues) => {
-    if (!user) {
-      toast({
-        title: "Erro",
-        description: "Usuário não autenticado.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-
-      if (!parentReconciliation.receiver_id) {
-        throw new Error("Colaborador não identificado.");
-      }
-
-      // Validar que o receiver_id ainda existe em user_profiles e está ativo
-      const { data: receiverExists, error: checkError } = await supabase
-        .from("user_profiles")
-        .select("id, full_name, employment_status")
-        .eq("id", parentReconciliation.receiver_id as any)
-        .eq("employment_status", "ativo" as any)
-        .single();
-
-      if (checkError || !receiverExists) {
-        throw new Error(
-          "Colaborador associado está inativo ou foi removido. Não é possível adicionar despesa. Por favor, tente criar uma nova conciliação com um colaborador ativo."
-        );
-      }
-
-      const { error } = await supabase
-        .from("bank_reconciliations")
-        .insert([{
-          type: "colaborador",
-          date: data.date,
-          description: data.description,
-          amount: parseFloat(data.amount),
-          status: data.status,
-          receiver_id: parentReconciliation.receiver_id,
-          created_by: user.id,
-        }] as any);
-
-      if (error) {
-        if (error.message?.includes("user_profiles")) {
-          throw new Error(
-            "Colaborador associado não existe mais. Por favor, tente criar uma nova conciliação."
-          );
-        }
-        throw error;
-      }
-
-      toast({
-        title: "Sucesso",
-        description: "Despesa adicionada com sucesso.",
-      });
-
-      form.reset();
-      onClose();
-      onSuccess();
-    } catch (error: any) {
-      console.error("Erro ao adicionar despesa:", error);
-      toast({
-        title: "Erro",
-        description: error.message || "Não foi possível adicionar a despesa.",
-        variant: "destructive",
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="bg-background rounded-lg border p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-lg font-semibold">Adicionar Nova Despesa</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Colaborador: <strong>{receiverName}</strong>
-          </p>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClose}
-          className="h-8 w-8 p-0"
-        >
-          <X className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => {
-                const dateValue = field.value ? new Date(field.value) : undefined;
-                return (
-                  <FormItem>
-                    <FormLabel>Data *</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4 text-white" />
-                          {dateValue ? format(dateValue, "dd/MM/yyyy", { locale: ptBR }) : "Selecione a data"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={dateValue}
-                          onSelect={(date) => {
-                            if (date) {
-                              field.onChange(format(date, "yyyy-MM-dd"));
-                            }
-                          }}
-                          disabled={(date) => date > new Date()}
-                          locale={ptBR}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                );
-              }}
-            />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Descrição *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex: Reembolso" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Valor (R$) *</FormLabel>
-                  <FormControl>
-                    <Input type="number" step="0.01" placeholder="0.00" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status *</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="pendente">Pendente</SelectItem>
-                      <SelectItem value="enviado">Enviado</SelectItem>
-                      <SelectItem value="pago">Pago</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={submitting}
-            >
-              {submitting ? "Adicionando..." : "Adicionar Despesa"}
-            </Button>
-          </div>
-        </form>
-      </Form>
+    <div className="flex gap-1 items-center z-50">
+      <Input 
+        type="date" 
+        className="h-8 w-[130px] text-xs" 
+        value={selectedDate ? format(selectedDate, "yyyy-MM-dd") : ""}
+        onChange={(e) => setSelectedDate(e.target.value ? new Date(e.target.value) : undefined)}
+      />
+      <Button size="icon" className="h-8 w-8" onClick={handleSave} disabled={isSaving}><Check className="h-3 w-3" /></Button>
+      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setIsEditing(false)}><X className="h-3 w-3" /></Button>
     </div>
   );
 }
@@ -808,21 +506,7 @@ interface NewReconciliationInlineFormProps {
   onSuccess: () => void;
 }
 
-const newReconciliationSchema = z.object({
-  date: z.string().min(1, "Data é obrigatória"),
-  description: z.string().min(1, "Descrição é obrigatória"),
-  amount: z.string().min(1, "Valor é obrigatório"),
-  status: z.enum(["pendente", "enviado", "pago"]),
-  receiverId: z.string().min(1, "Colaborador é obrigatório"),
-});
-
-type NewReconciliationFormValues = z.infer<typeof newReconciliationSchema>;
-
-function NewReconciliationInlineForm({
-  users,
-  onClose,
-  onSuccess,
-}: NewReconciliationInlineFormProps) {
+function NewReconciliationInlineForm({ users, onClose, onSuccess }: NewReconciliationInlineFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
@@ -839,39 +523,24 @@ function NewReconciliationInlineForm({
   });
 
   const onSubmit = async (data: NewReconciliationFormValues) => {
-    if (!user) {
-      toast({
-        title: "Erro",
-        description: "Usuário não autenticado.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    if (!user) return;
     try {
       setSubmitting(true);
+      if (!data.receiverId) throw new Error("Colaborador deve ser selecionado.");
 
-      if (!data.receiverId) {
-        throw new Error("Colaborador deve ser selecionado.");
-      }
-
-      // Validar que o receiver_id existe em user_profiles e está ativo
+      // Validação Extra
       const { data: receiverExists, error: checkError } = await supabase
         .from("user_profiles")
-        .select("id, full_name, employment_status")
+        .select("id, full_name")
         .eq("id", data.receiverId as any)
         .eq("employment_status", "ativo" as any)
         .single();
 
       if (checkError || !receiverExists) {
-        throw new Error(
-          "Colaborador selecionado não existe, está inativo ou você não tem permissão para acessá-lo. Selecione um colaborador ativo da lista."
-        );
+        throw new Error("Colaborador inválido ou inativo.");
       }
 
-      const { error } = await supabase
-        .from("bank_reconciliations")
-        .insert([{
+      const { error } = await supabase.from("bank_reconciliations").insert([{
           type: "colaborador",
           date: data.date,
           description: data.description,
@@ -881,29 +550,13 @@ function NewReconciliationInlineForm({
           created_by: user.id,
         }] as any);
 
-      if (error) {
-        if (error.message?.includes("user_profiles")) {
-          throw new Error(
-            "Colaborador selecionado não existe. Por favor, selecione um colaborador válido da lista."
-          );
-        }
-        throw error;
-      }
+      if (error) throw error;
 
-      toast({
-        title: "Sucesso",
-        description: "Conciliação adicionada com sucesso.",
-      });
-
+      toast({ title: "Sucesso", description: "Conciliação criada." });
       form.reset();
       onSuccess();
     } catch (error: any) {
-      console.error("Erro ao adicionar conciliação:", error);
-      toast({
-        title: "Erro",
-        description: error.message || "Não foi possível adicionar a conciliação.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -911,139 +564,40 @@ function NewReconciliationInlineForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-0">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-          <FormField
-            control={form.control}
-            name="date"
-            render={({ field }) => {
-              const dateValue = field.value ? new Date(field.value) : undefined;
-              return (
-                <FormItem>
-                  <FormLabel className="text-xs">Data</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="h-9 w-full justify-start text-left font-normal"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4 text-white" />
-                        {dateValue ? format(dateValue, "dd/MM/yyyy", { locale: ptBR }) : "Selecione a data"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={dateValue}
-                        onSelect={(date) => {
-                          if (date) {
-                            field.onChange(format(date, "yyyy-MM-dd"));
-                          }
-                        }}
-                        disabled={(date) => date > new Date()}
-                        locale={ptBR}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              );
-            }}
-          />
-
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-xs">Descrição</FormLabel>
-                <FormControl>
-                  <Input placeholder="Descrição" {...field} className="h-9" />
-                </FormControl>
-                <FormMessage className="text-xs" />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="receiverId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-xs">Colaborador</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="Colaborador" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {users.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.full_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage className="text-xs" />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="amount"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-xs">Valor (R$)</FormLabel>
-                <FormControl>
-                  <Input type="number" step="0.01" placeholder="0.00" {...field} className="h-9" />
-                </FormControl>
-                <FormMessage className="text-xs" />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-xs">Status</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger className="h-9 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="pendente">Pendente</SelectItem>
-                    <SelectItem value="enviado">Enviado</SelectItem>
-                    <SelectItem value="pago">Pago</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage className="text-xs" />
-              </FormItem>
-            )}
-          />
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+             <FormField control={form.control} name="date" render={({field}) => (
+                 <FormItem><FormControl><Input type="date" {...field} className="h-9" /></FormControl></FormItem>
+             )} />
+             <FormField control={form.control} name="receiverId" render={({field}) => (
+                 <FormItem>
+                     <Select value={field.value} onValueChange={field.onChange}>
+                         <FormControl><SelectTrigger className="h-9"><SelectValue placeholder="Colaborador" /></SelectTrigger></FormControl>
+                         <SelectContent>{users.map(u => <SelectItem key={u.id} value={u.id}>{u.full_name}</SelectItem>)}</SelectContent>
+                     </Select>
+                 </FormItem>
+             )} />
+             <FormField control={form.control} name="description" render={({field}) => (
+                 <FormItem><FormControl><Input placeholder="Descrição" {...field} className="h-9" /></FormControl></FormItem>
+             )} />
+             <FormField control={form.control} name="amount" render={({field}) => (
+                 <FormItem><FormControl><Input type="number" placeholder="Valor" {...field} className="h-9" /></FormControl></FormItem>
+             )} />
+             <FormField control={form.control} name="status" render={({field}) => (
+                 <FormItem>
+                     <Select value={field.value} onValueChange={field.onChange}>
+                         <FormControl><SelectTrigger className="h-9"><SelectValue /></SelectTrigger></FormControl>
+                         <SelectContent>
+                             <SelectItem value="pendente">Pendente</SelectItem>
+                             <SelectItem value="enviado">Enviado</SelectItem>
+                         </SelectContent>
+                     </Select>
+                 </FormItem>
+             )} />
         </div>
-
-        <div className="flex justify-end gap-2 pt-4">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onClose}
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            size="sm"
-            disabled={submitting}
-          >
-            {submitting ? "Adicionando..." : "Adicionar"}
-          </Button>
+        <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" size="sm" disabled={submitting}>Salvar</Button>
         </div>
       </form>
     </Form>

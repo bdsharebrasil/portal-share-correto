@@ -4,11 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Fuel, Wrench, Plane, Download, Upload, FileCheck, Plus, Eye } from "lucide-react";
+import { FileText, Fuel, Wrench, Plane, Download, Upload, FileCheck, Eye } from "lucide-react";
 import { previewPDFForPrint, TravelReport as TravelReportPDF, TravelExpense } from "@/lib/travelReportPDF";
 import { FileUploadDialog } from "./FileUploadDialog";
 import { ContractUploadDialog } from "./ContractUploadDialog";
-import { FlightDocumentUploadDialog } from "./FlightDocumentUploadDialog";
+import { FinancialHistoryTab } from "./FinancialHistoryTab";
 import { toast } from "sonner";
 
 interface ClientDataTabsProps {
@@ -45,43 +45,16 @@ interface TravelReport {
   total_sharebrasil?: number;
 }
 
-interface Receipt {
-  id: string;
-  receipt_number: string;
-  issue_date: string;
-  amount: number;
-  receipt_type?: string;
-  service_description: string;
-  payment_term?: string;
-  status?: string;
-}
-
-interface BankReconciliation {
-  id: string;
-  date: string;
-  description: string;
-  amount: number;
-  status: string;
-  category: string | null;
-  client_id: string | null;
-  aircraft_id: string | null;
-  payment_term: string | null;
-  type: string;
-}
 
 export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: ClientDataTabsProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [contractUploadDialogOpen, setContractUploadDialogOpen] = useState(false);
-  const [flightDocumentUploadDialogOpen, setFlightDocumentUploadDialogOpen] = useState(false);
   const [files, setFiles] = useState<any[]>([]);
-  const [flightDocuments, setFlightDocuments] = useState<any[]>([]);
   const [contracts, setContracts] = useState<any[]>([]);
   const [logbookEntries, setLogbookEntries] = useState<any[]>([]);
   const [fuelRecords, setFuelRecords] = useState<any[]>([]);
   const [ctmTracking, setCtmTracking] = useState<any[]>([]);
   const [travelReports, setTravelReports] = useState<TravelReport[]>([]);
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
-  const [bankReconciliations, setBankReconciliations] = useState<BankReconciliation[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Carregador de dados principal
@@ -98,12 +71,6 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
         .from('client_portal_files')
         .select('*')
         .eq('client_id', clientId)
-        .order('created_at', { ascending: false });
-
-      // Load flight documents - removed client_id filter as this table doesn't have that column
-      const { data: flightDocsData } = await supabase
-        .from('flight_documents')
-        .select('*')
         .order('created_at', { ascending: false });
 
       // Load contracts
@@ -148,53 +115,12 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
         .order('created_at', { ascending: false })
         .limit(10);
 
-      // Load bank reconciliations for syncing payment term and status
-      const { data: bankReconciliations } = await supabase
-        .from('bank_reconciliations')
-        .select('*')
-        .eq('client_id', clientId)
-        .order('date', { ascending: false });
-
-      // Load receipts for specific aircraft
-      const { data: receiptsData } = await supabase
-        .from('receipts')
-        .select('*')
-        .eq('client_id', clientId)
-        .order('issue_date', { ascending: false })
-        .limit(10);
-
       setFiles(filesData || []);
-      setFlightDocuments(flightDocsData || []);
       setContracts(contractsData || []);
       setLogbookEntries(logbookData || []);
       setFuelRecords(fuelData || []);
       setCtmTracking(ctmData || []);
-      setBankReconciliations(bankReconciliations || []);
-
-      // Sync bank reconciliation data with travel reports
-      const enrichedReports = (reportsData || []).map((report) => {
-        // Find the related reconciliation by report_number in the description
-        // The reconciliation description follows the pattern: "RELATORIO DE VIAGEM - {report_number} - STATUS PENDENTE"
-        const relatedReconciliation = bankReconciliations?.find(
-          (rec) => {
-            const hasMatchingClient = rec.client_id === clientId;
-            const hasMatchingAircraft = rec.aircraft_id === aircraftId;
-            const hasMatchingDescription = rec.description?.includes(`RELATORIO DE VIAGEM - ${report.report_number}`);
-            const isClientType = rec.type === 'cliente';
-
-            return hasMatchingClient && hasMatchingAircraft && hasMatchingDescription && isClientType;
-          }
-        );
-
-        return {
-          ...report,
-          payment_term: report.payment_term || relatedReconciliation?.payment_term,
-          status: report.status || (relatedReconciliation?.status === 'conferido' ? 'pago' : relatedReconciliation?.status === 'enviado' ? 'enviado' : 'pendente')
-        };
-      });
-
-      setTravelReports(enrichedReports);
-      setReceipts(receiptsData || []);
+      setTravelReports(reportsData || []);
     } catch (error) {
       console.error('Error loading client data:', error);
       // Não mostrar toast de erro para não assustar o usuário
@@ -223,29 +149,6 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
     } catch (error) {
       console.error('Error downloading file:', error);
       toast.error('Erro ao baixar arquivo');
-    }
-  };
-
-  const deleteFlightDocument = async (docId: string, filePath: string) => {
-    try {
-      const { error: storageError } = await supabase.storage
-        .from('flight-documents')
-        .remove([filePath]);
-
-      if (storageError) throw storageError;
-
-      const { error: dbError } = await supabase
-        .from('flight_documents')
-        .delete()
-        .eq('id', docId);
-
-      if (dbError) throw dbError;
-
-      setFlightDocuments(prev => prev.filter(d => d.id !== docId));
-      toast.success('Documento removido com sucesso');
-    } catch (error) {
-      console.error('Error deleting document:', error);
-      toast.error('Erro ao remover documento');
     }
   };
 
@@ -282,83 +185,18 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
 
   return (
     <>
-      <Tabs defaultValue="files" className="w-full">
+      <Tabs defaultValue="financial-history" className="w-full">
         <TabsList className="flex w-full gap-2 bg-gradient-card border-b border-border overflow-x-auto px-4 py-3 h-auto rounded-none flex-wrap md:flex-nowrap">
-          <TabsTrigger value="files">Documentos da Aeronave</TabsTrigger>
+          <TabsTrigger value="financial-history">Histórico Financeiro</TabsTrigger>
           <TabsTrigger value="contracts">Contrato Share</TabsTrigger>
           <TabsTrigger value="logbook">Diário de Bordo</TabsTrigger>
           <TabsTrigger value="fuel">Abastecimento</TabsTrigger>
           <TabsTrigger value="ctm">CTM</TabsTrigger>
           <TabsTrigger value="travel-reports">Relatórios</TabsTrigger>
-          <TabsTrigger value="bank-reconciliation">Conciliação</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="files" className="space-y-4">
-          <Card className="bg-gradient-card border-border">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-foreground">Documentos da Aeronave</CardTitle>
-                  <CardDescription className="text-muted-foreground mt-1">
-                    Certificados, registros e documentação da aeronave
-                  </CardDescription>
-                </div>
-                <Button
-                  onClick={() => setFlightDocumentUploadDialogOpen(true)}
-                  size="sm"
-                  variant="default"
-                  className="gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  Adicionar Documento
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {flightDocuments.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">Nenhum documento disponível</p>
-              ) : (
-                flightDocuments.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border hover:border-primary/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 flex-1">
-                      <FileText className="h-5 w-5 text-primary" />
-                      <div className="flex-1">
-                        <p className="font-medium text-foreground">{doc.file_name}</p>
-                        <p className="text-sm text-muted-foreground">{doc.description}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Tipo: {doc.document_type === 'outro' ? 'Outro' : doc.document_type?.replace(/_/g, ' ') || 'Sem tipo'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => downloadFile(doc.file_path, 'flight-documents')}
-                        className="gap-2"
-                      >
-                        <Download className="h-4 w-4" />
-                        Baixar
-                      </Button>
-                      {isAdmin && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => deleteFlightDocument(doc.id, doc.file_path)}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                        >
-                          ✕
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+        <TabsContent value="financial-history" className="space-y-4">
+          <FinancialHistoryTab clientId={clientId} aircraftId={aircraftId} />
         </TabsContent>
 
         <TabsContent value="contracts" className="space-y-4">
@@ -508,7 +346,22 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
                       <div>
                         <p className="text-sm text-muted-foreground">Data</p>
                         <p className="font-medium text-foreground">
-                          {new Date(record.data).toLocaleDateString('pt-BR')}
+                          {(() => {
+                            // Handle both ISO timestamps and date-only strings
+                            let dateStr = record.data;
+                            if (typeof dateStr === 'string') {
+                              // If it's a date-only string (YYYY-MM-DD), parse it directly
+                              if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                                const [year, month, day] = dateStr.split('-').map(Number);
+                                return new Date(year, month - 1, day).toLocaleDateString('pt-BR');
+                              }
+                              // If it's an ISO timestamp, extract the date part
+                              const datePart = dateStr.split('T')[0];
+                              const [year, month, day] = datePart.split('-').map(Number);
+                              return new Date(year, month - 1, day).toLocaleDateString('pt-BR');
+                            }
+                            return new Date(record.data).toLocaleDateString('pt-BR');
+                          })()}
                         </p>
                       </div>
                       <div>
@@ -721,242 +574,6 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
           </Card>
         </TabsContent>
 
-        <TabsContent value="bank-reconciliation" className="space-y-6">
-          <div className="space-y-4">
-            <Card className="bg-gradient-card border-border">
-              <CardHeader>
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <CardTitle className="flex items-center gap-2 text-foreground">
-                      <FileText className="h-5 w-5 text-primary" />
-                      Conciliação Bancária - Despesas
-                    </CardTitle>
-                    <CardDescription className="text-muted-foreground mt-2">
-                      Acompanhamento de todas as despesas de viagem e outras movimentações
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded">
-                  <p className="text-xs sm:text-sm text-blue-600">
-                    ℹ️ Os status de conciliação são atualizados automaticamente pelo fluxo financeiro. As alterações são sincronizadas em tempo real.
-                  </p>
-                </div>
-
-                {bankReconciliations && bankReconciliations.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">Nenhuma conciliação registrada</p>
-                ) : (
-                  (bankReconciliations || [])
-                    .filter(item => item.client_id === clientId && item.aircraft_id === aircraftId && item.type === 'cliente')
-                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .map((item) => (
-                      <div
-                        key={item.id}
-                        className="p-5 bg-muted/50 rounded-lg border border-border hover:border-primary/50 transition-colors"
-                      >
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-start gap-4">
-                            <div className="flex-1">
-                              <p className="font-semibold text-foreground text-lg">{item.description}</p>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                📅 {new Date(item.date).toLocaleDateString('pt-BR')}
-                              </p>
-                              {item.category && (
-                                <p className="text-sm text-muted-foreground">
-                                  🏷️ {item.category.replace(/_/g, ' ')}
-                                </p>
-                              )}
-                            </div>
-                            <div className="text-right">
-                              {item.amount && (
-                                <p className="text-xl font-bold text-green-400">
-                                  R$ {Number(item.amount).toFixed(2)}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pt-3 border-t border-border">
-                            <div className="bg-background/50 p-3 rounded">
-                              <p className="text-xs text-muted-foreground font-semibold mb-1">STATUS ATUAL</p>
-                              <Badge
-                                className={
-                                  item.status?.toLowerCase() === 'recebido' || item.status?.toLowerCase() === 'conferido'
-                                    ? 'bg-green-500/20 text-green-300 w-full justify-center py-2'
-                                    : item.status?.toLowerCase() === 'enviado'
-                                      ? 'bg-blue-500/20 text-blue-300 w-full justify-center py-2'
-                                      : 'bg-yellow-500/20 text-yellow-300 w-full justify-center py-2'
-                                }
-                              >
-                                {item.status?.toLowerCase() === 'recebido' || item.status?.toLowerCase() === 'conferido'
-                                  ? '✓ Pago'
-                                  : item.status?.toLowerCase() === 'enviado'
-                                    ? '↗️ Enviado'
-                                    : '⏳ Pendente'}
-                              </Badge>
-                            </div>
-
-                            <div className="bg-background/50 p-3 rounded">
-                              <p className="text-xs text-muted-foreground font-semibold mb-1">VENCIMENTO</p>
-                              <p className="text-sm text-foreground font-medium">
-                                {item.payment_term
-                                  ? new Date(item.payment_term).toLocaleDateString('pt-BR')
-                                  : '—'}
-                              </p>
-                            </div>
-
-                            <div className="bg-background/50 p-3 rounded sm:col-span-2 md:col-span-1">
-                              <p className="text-xs text-muted-foreground font-semibold mb-1">ATUALIZADO</p>
-                              <p className="text-sm text-foreground font-medium">
-                                {new Date(item.date).toLocaleDateString('pt-BR')}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="space-y-4">
-            <Card className="bg-gradient-card border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-foreground">
-                  <FileText className="h-5 w-5 text-primary" />
-                  Notas Fiscais e Boletos
-                </CardTitle>
-                <CardDescription className="text-muted-foreground">
-                  Documentos financeiros anexados às conciliações
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {files.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">Nenhum documento disponível</p>
-                ) : (
-                  files.map((file) => (
-                    <div
-                      key={file.id}
-                      className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border hover:border-primary/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <FileText className="h-5 w-5 text-primary" />
-                        <div>
-                          <p className="font-medium text-foreground">{file.file_name}</p>
-                          <p className="text-sm text-muted-foreground">{file.description}</p>
-                          {file.due_date && (
-                            <p className="text-sm text-muted-foreground">
-                              Vencimento: {new Date(file.due_date).toLocaleDateString('pt-BR')}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {file.amount && (
-                          <Badge variant="secondary" className="bg-emerald-500/20 text-emerald-300">
-                            R$ {parseFloat(file.amount).toFixed(2)}
-                          </Badge>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => downloadFile(file.file_path)}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="space-y-4">
-            <Card className="bg-gradient-card border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-foreground">
-                  <FileText className="h-5 w-5 text-primary" />
-                  Recibos de Pagamento e Reembolso
-                </CardTitle>
-                <CardDescription className="text-muted-foreground">
-                  Comprovantes de pagamento e reembolsos
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {receipts.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">Nenhum recibo disponível</p>
-                ) : (
-                  receipts.map((receipt) => {
-                    const isPaymentReceipt = receipt.receipt_type === 'pagamento';
-                    return (
-                      <div
-                        key={receipt.id}
-                        className="p-4 bg-muted/50 rounded-lg border border-border"
-                      >
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <p className="font-medium text-foreground">{receipt.receipt_number}</p>
-                                <Badge variant="secondary" className={isPaymentReceipt ? "bg-green-500/20 text-green-300" : "bg-blue-500/20 text-blue-300"}>
-                                  {isPaymentReceipt ? 'Pagamento' : 'Reembolso'}
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-muted-foreground">
-                                Emitido em: {new Date(receipt.issue_date).toLocaleDateString('pt-BR')}
-                              </p>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {receipt.service_description}
-                              </p>
-                              <p className="text-sm font-semibold text-green-400 mt-1">
-                                Valor: R$ {receipt.amount.toFixed(2)}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Prazo de Pagamento</p>
-                              {!isPaymentReceipt ? (
-                                <p className="text-sm text-foreground">
-                                  {receipt.payment_term ? new Date(receipt.payment_term).toLocaleDateString('pt-BR') : 'Não definido'}
-                                </p>
-                              ) : (
-                                <p className="text-sm text-muted-foreground">-</p>
-                              )}
-                            </div>
-
-                            <div>
-                              <p className="text-xs text-muted-foreground mb-1">Status</p>
-                              <Badge
-                                className={
-                                  isPaymentReceipt || receipt.status?.toLowerCase() === 'pago'
-                                    ? 'bg-green-500/20 text-green-300'
-                                    : receipt.status?.toLowerCase() === 'enviado'
-                                      ? 'bg-blue-500/20 text-blue-300'
-                                      : 'bg-yellow-500/20 text-yellow-300'
-                                }
-                              >
-                                {isPaymentReceipt || receipt.status?.toLowerCase() === 'pago'
-                                  ? 'Pago'
-                                  : receipt.status?.toLowerCase() === 'enviado'
-                                    ? 'Enviado'
-                                    : 'Pendente'}
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
       </Tabs>
 
       <FileUploadDialog
@@ -970,14 +587,6 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
       <ContractUploadDialog
         open={contractUploadDialogOpen}
         onOpenChange={setContractUploadDialogOpen}
-        clientId={clientId}
-        onSuccess={loadData}
-      />
-
-      <FlightDocumentUploadDialog
-        open={flightDocumentUploadDialogOpen}
-        onOpenChange={setFlightDocumentUploadDialogOpen}
-        aircraftId={aircraftId}
         clientId={clientId}
         onSuccess={loadData}
       />

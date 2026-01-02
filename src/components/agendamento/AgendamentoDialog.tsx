@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AutocompleteInput, type AutocompleteOption } from "@/components/ui/autocomplete-input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plane } from "lucide-react";
@@ -32,10 +33,17 @@ interface Client {
   company_name: string;
 }
 
+interface Aerodrome {
+  id: string;
+  name: string;
+  designativo: string;
+}
+
 export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId }: FlightScheduleDialogProps) {
   const [aircraft, setAircraft] = useState<Aircraft[]>([]);
   const [crewMembers, setCrewMembers] = useState<CrewMember[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [aerodromes, setAerodromes] = useState<Aerodrome[]>([]);
   const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -46,7 +54,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId
     client_id: "",
     contact: "",
     passengers: "1",
-    flight_type: "treinamento",
+    flight_type: "particular",
     origin: "",
     destination: "",
     crew_member_id: "",
@@ -101,19 +109,22 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId
   const loadData = async () => {
     setLoading(true);
     try {
-      const [aircraftRes, crewRes, clientsRes] = await Promise.all([
+      const [aircraftRes, crewRes, clientsRes, aerodromeRes] = await Promise.all([
         supabase.from("aircraft").select("id, registration, model"),
-        supabase.from("crew_members").select("id, full_name").eq("status", "active" as any),
+        supabase.from("crew_members").select("id, full_name").eq("status", "ativo" as any),
         supabase.from("clients").select("id, company_name"),
+        supabase.from("aerodromes").select("id, name, designativo"),
       ]);
 
       if (aircraftRes.error) throw aircraftRes.error;
       if (crewRes.error) throw crewRes.error;
       if (clientsRes.error) throw clientsRes.error;
+      if (aerodromeRes.error) throw aerodromeRes.error;
 
       setAircraft((aircraftRes.data || []) as Aircraft[]);
       setCrewMembers((crewRes.data || []) as CrewMember[]);
       setClients((clientsRes.data || []) as Client[]);
+      setAerodromes((aerodromeRes.data || []) as Aerodrome[]);
     } catch (error) {
       console.error("Error loading data:", error);
       toast.error("Erro ao carregar dados");
@@ -190,7 +201,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId
       client_id: "",
       contact: "",
       passengers: "1",
-      flight_type: "treinamento",
+      flight_type: "particular",
       origin: "",
       destination: "",
       crew_member_id: "",
@@ -326,10 +337,9 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="particular">👤 Particular</SelectItem>
                     <SelectItem value="treinamento">📚 Treinamento</SelectItem>
                     <SelectItem value="manutencao">🔧 Manutenção</SelectItem>
-                    <SelectItem value="particular">👤 Particular</SelectItem>
-                    <SelectItem value="executivo">✈️ Executivo</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -343,23 +353,31 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess, scheduleId
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="origin">Origem</Label>
-                <Input
+                <AutocompleteInput
                   id="origin"
-                  placeholder="Aeroporto/cidade de origem"
-                  className="bg-secondary"
                   value={formData.origin}
-                  onChange={(e) => setFormData(prev => ({ ...prev, origin: e.target.value.toUpperCase() }))}
+                  onChange={(value) => setFormData(prev => ({ ...prev, origin: value.toUpperCase() }))}
+                  options={aerodromes.map(a => ({
+                    id: a.id,
+                    label: `${a.designativo} - ${a.name}`
+                  }))}
+                  placeholder="Busque ou digite o aeroporto..."
+                  isLoading={loading}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="destination">Destino</Label>
-                <Input
+                <AutocompleteInput
                   id="destination"
-                  placeholder="Aeroporto/cidade de destino"
-                  className="bg-secondary"
                   value={formData.destination}
-                  onChange={(e) => setFormData(prev => ({ ...prev, destination: e.target.value.toUpperCase() }))}
+                  onChange={(value) => setFormData(prev => ({ ...prev, destination: value.toUpperCase() }))}
+                  options={aerodromes.map(a => ({
+                    id: a.id,
+                    label: `${a.designativo} - ${a.name}`
+                  }))}
+                  placeholder="Busque ou digite o aeroporto..."
+                  isLoading={loading}
                 />
               </div>
             </div>

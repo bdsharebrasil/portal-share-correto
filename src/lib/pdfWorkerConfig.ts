@@ -7,8 +7,15 @@ let pdfWorkerConfigured = false;
  * Configura o worker do PDF.js com múltiplas estratégias de fallback
  * Garante que o worker seja carregado corretamente em desenvolvimento e produção
  * A configuração é feita apenas uma vez para evitar conflitos
+ * Esta função é segura para ser chamada apenas no navegador (via useEffect)
  */
 export function configurePDFWorker(): void {
+  // Guard para ambiente servidor
+  if (typeof window === 'undefined') {
+    console.log('⚠️ PDF Worker configuration skipped on server');
+    return;
+  }
+
   // Se já foi configurado, não fazer novamente
   if (pdfWorkerConfigured && pdfjs.GlobalWorkerOptions.workerSrc) {
     console.log(`✅ PDF Worker já configurado: ${pdfjs.GlobalWorkerOptions.workerSrc}`);

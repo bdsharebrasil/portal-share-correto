@@ -76,8 +76,13 @@ export function useWeather() {
         fetchWeather(latitude, longitude);
       },
       (error) => {
-        console.error('Geolocation error:', error);
-        // Fallback para localização padrão quando geolocation falha
+        // Geolocation é bloqueada por política de permissões ou usuário recusou acesso
+        // Usar localização padrão como fallback
+        if (error.code === 1) {
+          console.warn('Geolocation bloqueada: usando localização padrão (São Paulo)');
+        } else {
+          console.warn('Erro ao obter geolocalização:', error.message);
+        }
         fetchWeather(-23.5505, -46.6333); // São Paulo, Brasil
       },
       {

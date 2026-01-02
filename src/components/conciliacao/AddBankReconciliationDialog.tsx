@@ -30,6 +30,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { Upload, Loader2 } from "lucide-react";
 
 interface Client {
   id: string;
@@ -60,6 +61,8 @@ const schema = z.object({
   aircraftId: z.string().optional(),
   category: z.string().optional(),
   receiverId: z.string().optional(),
+  reembolsavel: z.enum(["sim", "nao"]).optional(),
+  percentual: z.string().optional(),
 }).superRefine((data, ctx) => {
   if (data.type === "cliente") {
     if (!data.clientId) {
@@ -76,11 +79,18 @@ const schema = z.object({
         message: "Aeronave é obrigatória para este tipo",
       });
     }
-    if (!data.category) {
+    if (data.reembolsavel === "sim" && !data.category) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["category"],
-        message: "Categoria é obrigatória para este tipo",
+        message: "Categoria é obrigatória para despesa reembolsável",
+      });
+    }
+    if (data.reembolsavel === "nao" && !data.percentual) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["percentual"],
+        message: "Percentual é obrigatório para despesa não-reembolsável",
       });
     }
   }
@@ -113,7 +123,12 @@ export function AddBankReconciliationDialog({
   const [clients, setClients] = useState<Client[]>([]);
   const [aircraft, setAircraft] = useState<Aircraft[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [categories, setCategories] = useState<{ id: string; nome: string }[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [boletoFile, setBoletoFile] = useState<File | null>(null);
+  const [notaFile, setNotaFile] = useState<File | null>(null);
+  const [uploadingBoleto, setUploadingBoleto] = useState(false);
+  const [uploadingNota, setUploadingNota] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -129,10 +144,13 @@ export function AddBankReconciliationDialog({
       aircraftId: "",
       category: "",
       receiverId: "",
+      reembolsavel: "sim",
+      percentual: "",
     },
   });
 
   const watchType = form.watch("type");
+  const watchReembolsavel = form.watch("reembolsavel");
 
   useEffect(() => {
     if (open) {
@@ -144,7 +162,7 @@ export function AddBankReconciliationDialog({
     try {
       setLoadingData(true);
 
-      const [clientsResponse, aircraftResponse, usersResponse] = await Promise.all([
+      const [clientsResponse, aircraftResponse, usersResponse, categoriesResponse] = await Promise.all([
         supabase.from("clients").select("id, company_name").order("company_name"),
         supabase.from("aircraft").select("id, registration").order("registration"),
         supabase
@@ -152,15 +170,24 @@ export function AddBankReconciliationDialog({
           .select("id, full_name, employment_status")
           .eq("employment_status", "ativo" as any)
           .order("full_name"),
+        supabase
+          .from("categorias_movimentacao")
+          .select("id, nome")
+          .eq("tipo", "despesa")
+          .eq("reembolsavel", true)
+          .eq("ativo", true)
+          .order("nome"),
       ]);
 
       if (clientsResponse.error) throw clientsResponse.error;
       if (aircraftResponse.error) throw aircraftResponse.error;
       if (usersResponse.error) throw usersResponse.error;
+      if (categoriesResponse.error) throw categoriesResponse.error;
 
       setClients((clientsResponse.data || []) as any);
       setAircraft((aircraftResponse.data || []) as any);
       setUsers((usersResponse.data || []) as any);
+      setCategories((categoriesResponse.data || []) as any);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
       toast({
@@ -170,6 +197,45 @@ export function AddBankReconciliationDialog({
       });
     } finally {
       setLoadingData(false);
+    }
+  };
+
+  const uploadFile = async (
+    file: File,
+    fieldName: string,
+    setUploading: (val: boolean) => void
+  ): Promise<string | null> => {
+    if (!file) return null;
+
+    try {
+      setUploading(true);
+      const timestamp = Date.now();
+      const fileExt = file.name.split('.').pop();
+      const fileName = `reconciliation/${timestamp}-${fieldName}.${fileExt}`;
+
+      const { error: uploadError, data } = await supabase.storage
+        .from("documents")
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("documents")
+        .getPublicUrl(fileName);
+
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error(`Erro ao fazer upload de ${fieldName}:`, error);
+      toast({
+        title: "Erro",
+        description: `Falha ao enviar ${fieldName}`,
+        variant: "destructive",
+      });
+      return null;
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -186,6 +252,19 @@ export function AddBankReconciliationDialog({
     try {
       setLoading(true);
 
+      let boletoUrl: string | null = null;
+      let notaUrl: string | null = null;
+
+      // Upload de arquivos se for não-reembolsável
+      if (data.type === "cliente" && data.reembolsavel === "nao") {
+        if (boletoFile) {
+          boletoUrl = await uploadFile(boletoFile, "boleto", setUploadingBoleto);
+        }
+        if (notaFile) {
+          notaUrl = await uploadFile(notaFile, "nota-fiscal", setUploadingNota);
+        }
+      }
+
       const insertData: Record<string, any> = {
         type: data.type,
         date: data.date,
@@ -193,18 +272,26 @@ export function AddBankReconciliationDialog({
         amount: parseFloat(data.amount),
         status: data.status,
         created_by: user.id,
+        afeta_caixa_empresa: data.reembolsavel === "sim",
+        forma_pagamento: data.reembolsavel === "sim" ? "empresa_paga" : "rateio_direto",
       };
 
       if (data.type === "cliente") {
         insertData.client_id = data.clientId;
         insertData.aircraft_id = data.aircraftId;
-        insertData.category = data.category;
+
+        if (data.reembolsavel === "sim") {
+          insertData.category = data.category;
+        } else {
+          insertData.boleto_url = boletoUrl;
+          insertData.nf_url = notaUrl;
+          insertData.percentual = data.percentual;
+        }
       } else if (data.type === "colaborador") {
         if (!data.receiverId) {
           throw new Error("Colaborador deve ser selecionado.");
         }
 
-        // Validar que o receiver_id existe em user_profiles e está ativo
         const { data: receiverExists, error: checkError } = await supabase
           .from("user_profiles")
           .select("id, full_name, employment_status")
@@ -221,9 +308,11 @@ export function AddBankReconciliationDialog({
         insertData.receiver_id = data.receiverId;
       }
 
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from("bank_reconciliations")
-        .insert([insertData] as any);
+        .insert([insertData] as any)
+        .select()
+        .single();
 
       if (error) {
         if (error.message?.includes("user_profiles")) {
@@ -234,12 +323,81 @@ export function AddBankReconciliationDialog({
         throw error;
       }
 
+      // Se é tipo cliente não-reembolsável, criar rateio
+      if (data.type === "cliente" && data.reembolsavel === "nao" && inserted && data.clientId) {
+        try {
+          const percentual = parseFloat(data.percentual || "0");
+          const valorRateado = (parseFloat(data.amount) * percentual) / 100;
+
+          await supabase.from("rateio_despesas").insert({
+            despesa_id: inserted.id,
+            client_id: data.clientId,
+            aeronave_id: data.aircraftId || null,
+            percentual: percentual,
+            valor_rateado: valorRateado,
+            status: "pendente",
+            boleto: boletoUrl,
+            nota_fiscal: notaUrl,
+          });
+        } catch (rateioError) {
+          console.error("Erro ao criar rateio:", rateioError);
+          toast({
+            title: "Aviso",
+            description: "Reconciliação criada, mas houve erro ao criar o rateio.",
+            variant: "default",
+          });
+        }
+      }
+
+      // Se é tipo cliente reembolsável, criar conta a receber
+      if (data.type === "cliente" && data.reembolsavel === "sim" && data.clientId && inserted) {
+        try {
+          const { data: clientData } = await supabase
+            .from("clients")
+            .select("company_name, cnpj")
+            .eq("id", data.clientId)
+            .single();
+
+          let aircraftRegistration = "";
+          if (data.aircraftId) {
+            const { data: aircraftData } = await supabase
+              .from("aircraft")
+              .select("registration")
+              .eq("id", data.aircraftId)
+              .single();
+            if (aircraftData) {
+              aircraftRegistration = aircraftData.registration;
+            }
+          }
+
+          const numeroDocumento = `REIMB-${Date.now().toString().slice(-6)}`;
+
+          await supabase.from("contas_areceber").insert({
+            numero: numeroDocumento,
+            cliente_nome: clientData?.company_name || "Cliente",
+            cliente_cnpj: clientData?.cnpj || "",
+            data_criacao: data.date,
+            data_vencimento: data.date,
+            valor: parseFloat(data.amount),
+            categoria: data.category || "Reembolso de Despesa",
+            descricao: data.description,
+            status: "pendente",
+            aeronave: aircraftRegistration,
+            criado_por: user.id,
+          });
+        } catch (err) {
+          console.error("Erro ao criar conta a receber:", err);
+        }
+      }
+
       toast({
         title: "Sucesso",
         description: "Reconciliação bancária adicionada com sucesso.",
       });
 
       form.reset();
+      setBoletoFile(null);
+      setNotaFile(null);
       onOpenChange(false);
       onSuccess?.();
     } catch (error: any) {
@@ -256,7 +414,7 @@ export function AddBankReconciliationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-screen overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Adicionar Reconciliação Bancária</DialogTitle>
           <DialogDescription>
@@ -427,20 +585,115 @@ export function AddBankReconciliationDialog({
 
                 <FormField
                   control={form.control}
-                  name="category"
+                  name="reembolsavel"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Categoria *</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Ex: combustivel, manutencao, locacao"
-                          {...field}
-                        />
-                      </FormControl>
+                      <FormLabel>Tipo de Despesa *</FormLabel>
+                      <Select value={field.value || "sim"} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="sim">Reembolsável</SelectItem>
+                          <SelectItem value="nao">Não Reembolsável (Rateio)</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
+                {watchReembolsavel === "sim" && (
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Categoria (Despesa Reembolsável) *</FormLabel>
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          disabled={loadingData}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione uma categoria" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {categories.length > 0 ? (
+                              categories.map((category) => (
+                                <SelectItem key={category.id} value={category.nome}>
+                                  {category.nome}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                                Nenhuma categoria reembolsável disponível
+                              </div>
+                            )}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
+
+                {watchReembolsavel === "nao" && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="percentual"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Percentual (%) *</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="Ex: 50.00"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div className="space-y-2">
+                      <FormLabel>Boleto *</FormLabel>
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) => setBoletoFile(e.target.files?.[0] || null)}
+                          disabled={uploadingBoleto}
+                          className="flex-1"
+                        />
+                        {uploadingBoleto && <Loader2 className="h-4 w-4 animate-spin" />}
+                      </div>
+                      {boletoFile && <p className="text-xs text-slate-500">{boletoFile.name}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <FormLabel>Nota Fiscal *</FormLabel>
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png,.xml"
+                          onChange={(e) => setNotaFile(e.target.files?.[0] || null)}
+                          disabled={uploadingNota}
+                          className="flex-1"
+                        />
+                        {uploadingNota && <Loader2 className="h-4 w-4 animate-spin" />}
+                      </div>
+                      {notaFile && <p className="text-xs text-slate-500">{notaFile.name}</p>}
+                    </div>
+                  </>
+                )}
               </>
             )}
 
@@ -484,7 +737,10 @@ export function AddBankReconciliationDialog({
               >
                 Cancelar
               </Button>
-              <Button type="submit" disabled={loading || loadingData}>
+              <Button 
+                type="submit" 
+                disabled={loading || loadingData || uploadingBoleto || uploadingNota}
+              >
                 {loading ? "Adicionando..." : "Adicionar"}
               </Button>
             </DialogFooter>

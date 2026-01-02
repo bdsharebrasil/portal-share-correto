@@ -16,8 +16,9 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { useUserRole } from "@/hooks/useUserRole";
-import { User, Plane, Calendar, Award, AlertTriangle, Plus, Edit, Trash2, Phone, Mail, MapPin, Clock, FileText, Eye, Lock } from "lucide-react";
+import { User, Plane, Calendar, Award, AlertTriangle, Plus, Edit, Trash2, Phone, Mail, MapPin, Clock, FileText, Eye, Lock, Users, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { CrewMemberCard } from "@/components/tripulacao/TripulacaoCard";
 interface CrewMember {
   id: string;
   full_name: string;
@@ -168,20 +169,22 @@ export default function GestaoDeTripulacao() {
     }).limit(10);
     setSchedules(schedulesData || []);
   };
-  const getLicenseStatusBadge = (license: CrewLicense) => {
+  const getLicenseStatusBadge = (license: CrewLicense, onEdit?: () => void) => {
     const expiryDate = new Date(license.expiry_date);
     const today = new Date();
     const daysUntilExpiry = Math.floor((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    const badgeClass = "flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity";
+
     if (daysUntilExpiry < 0) {
-      return <Badge variant="destructive" className="flex items-center gap-1">
+      return <Badge variant="destructive" className={badgeClass} onClick={onEdit}>
         <AlertTriangle size={14} /> Vencida
       </Badge>;
     } else if (daysUntilExpiry <= 60) {
-      return <Badge className="bg-yellow-500 flex items-center gap-1">
+      return <Badge className={`bg-yellow-500 ${badgeClass}`} onClick={onEdit}>
         <AlertTriangle size={14} /> Vence em {daysUntilExpiry} dias
       </Badge>;
     } else {
-      return <Badge className="bg-green-500">Válida</Badge>;
+      return <Badge className={`bg-green-500 ${badgeClass}`} onClick={onEdit}>Válida</Badge>;
     }
   };
   const saveLicense = async (licenseData: Partial<CrewLicense>) => {
@@ -240,413 +243,383 @@ export default function GestaoDeTripulacao() {
   const filteredCrewMembers = crewMembers.filter(crew => crew.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || crew.canac.toLowerCase().includes(searchTerm.toLowerCase()));
   const formatDate = formatDateToBR;
   return <Layout>
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
+    <div className="p-4 md:p-6 space-y-6 bg-background min-h-screen">
+      {/* Header com busca integrada */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/')}
+            className="h-10 w-10 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+            title="Voltar ao dashboard"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
           <div>
-            <h1 className="text-3xl font-bold">Gestão de Tripulação</h1>
-            <p className="text-muted-foreground">Gerencie tripulantes, horas de voo e habilitações</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Gestão de Tripulação</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {filteredCrewMembers.length} tripulante{filteredCrewMembers.length !== 1 ? 's' : ''} {statusFilter === 'ativo' ? 'ativos' : 'inativos'}
+            </p>
           </div>
         </div>
 
-        {/* Header com busca e abas */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between gap-4">
-                <Input placeholder="Buscar por nome ou CANAC..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="max-w-md" />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant={statusFilter === 'ativo' ? 'default' : 'outline'}
-                  onClick={() => setStatusFilter('ativo')}
-                  className="gap-2"
-                >
-                  <User size={16} />
-                  Ativos
-                </Button>
-                <Button
-                  variant={statusFilter === 'inativo' ? 'default' : 'outline'}
-                  onClick={() => setStatusFilter('inativo')}
-                  className="gap-2"
-                >
-                  <User size={16} />
-                  Inativos
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-
-        {/* Grid de Cards de Tripulantes */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredCrewMembers.map(crew => <Card key={crew.id} className="group relative overflow-hidden border-0 bg-gradient-to-br from-card to-card/50 hover:shadow-2xl transition-all duration-300 hover:scale-105 hover:border-primary/20 shadow-lg rounded-2xl">
-              <div className="absolute inset-0 bg-gradient-to-t from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <CardContent className="relative p-5 space-y-4 h-full flex flex-col">
-                {/* Avatar e Badge de Status */}
-                <div className="flex flex-col items-center space-y-3">
-                  <div className="relative">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-primary/5 rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    <Avatar className="relative h-24 w-24 border-3 border-primary/30 shadow-lg bg-gradient-to-br from-primary/20 to-primary/5">
-                      <AvatarImage src={crew.photo_url} alt={crew.full_name} />
-                      <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/10 text-primary text-2xl font-bold">
-                        {crew.full_name.split(' ').map(n => n[0]).slice(0, 2).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2">
-                      <Badge variant={crew.role === 'Piloto Chefe' ? 'default' : 'secondary'} className="whitespace-nowrap shadow-md px-2.5 py-1 text-xs font-medium">
-                        {crew.role || 'Tripulante'}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Nome */}
-                  <div className="text-center space-y-1 w-full">
-                    <h3 className="font-bold text-base leading-snug line-clamp-2 text-foreground break-words">
-                      {crew.full_name}
-                    </h3>
-                  </div>
-                </div>
-
-                {/* Informações */}
-                <div className="space-y-3 pt-4 border-t border-border/50">
-                  {crew.phone && <div className="flex items-center gap-3">
-                      <Phone size={16} className="flex-shrink-0 text-primary/60" />
-                      <span className="text-muted-foreground text-sm font-medium">{crew.phone}</span>
-                    </div>}
-                  {crew.email && <div className="flex items-center gap-3">
-                      <Mail size={16} className="flex-shrink-0 text-primary/60" />
-                      <span className="text-muted-foreground truncate text-xs">{crew.email}</span>
-                    </div>}
-                  {crew.canac && <div className="flex items-center gap-3 pt-1">
-                    <Badge variant="outline" className="w-full justify-center bg-gradient-to-r from-amber-500/10 to-amber-500/5 text-amber-700 border-amber-500/30 font-semibold rounded-lg px-3 py-2 text-sm">
-                      CANAC: {crew.canac}
-                    </Badge>
-                  </div>}
-                </div>
-
-                {/* Botão de Ação */}
-                <div className="mt-auto pt-3">
-                  <Button
-                    onClick={() => navigate(`/tripulacao/${crew.id}?tab=dados`)}
-                    className="w-full gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-semibold rounded-lg transition-all duration-300 text-sm h-10"
-                    size="sm"
-                  >
-                    <Eye size={16} />
-                    abrir
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>)}
+        {/* Barra de busca e filtros */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome ou CANAC..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="pl-10 bg-zinc-900/50 border-zinc-700/50 focus:border-primary h-10"
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setStatusFilter('ativo')}
+              className={`h-10 px-4 ${statusFilter === 'ativo'
+                ? 'bg-primary/10 text-primary border-primary/30 hover:bg-primary/20'
+                : 'bg-zinc-900/50 border-zinc-700/50 text-muted-foreground hover:text-foreground hover:bg-zinc-800'}`}
+            >
+              Ativos
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setStatusFilter('inativo')}
+              className={`h-10 px-4 ${statusFilter === 'inativo'
+                ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
+                : 'bg-zinc-900/50 border-zinc-700/50 text-muted-foreground hover:text-foreground hover:bg-zinc-800'}`}
+            >
+              Inativos
+            </Button>
+          </div>
         </div>
+      </div>
 
-        {/* Dialog de Detalhes do Tripulante */}
-        <Dialog open={!!selectedCrew} onOpenChange={open => !open && setSelectedCrew(null)}>
-          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <User size={24} />
-                Perfil Completo - {selectedCrew?.full_name}
-              </DialogTitle>
-            </DialogHeader>
-            {selectedCrew ? <Tabs defaultValue="profile" className="space-y-4">
-                <TabsList className="grid w-full grid-cols-4">
-                  <TabsTrigger value="profile">Perfil</TabsTrigger>
-                  <TabsTrigger value="hours">Horas de Voo</TabsTrigger>
-                  <TabsTrigger value="licenses">Habilitações</TabsTrigger>
-                  <TabsTrigger value="schedule">Escala</TabsTrigger>
-                </TabsList>
+      {/* Grid de Cards de Tripulantes */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {filteredCrewMembers.length === 0 ? (
+          <div className="col-span-full text-center py-20">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-zinc-800/50 flex items-center justify-center">
+              <Users className="h-8 w-8 text-zinc-600" />
+            </div>
+            <p className="text-foreground font-medium">Nenhum tripulante encontrado</p>
+            <p className="text-sm text-muted-foreground mt-1">Ajuste os filtros ou adicione novos tripulantes</p>
+          </div>
+        ) : (
+          filteredCrewMembers.map(crew => (
+            <CrewMemberCard key={crew.id} member={crew} />
+          ))
+        )}
+      </div>
 
-                {/* Perfil */}
-                <TabsContent value="profile">
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center gap-2">
-                          <User size={20} />
-                          Dados Pessoais e Profissionais
-                        </CardTitle>
-                        {canEditProfile ? (
-                          <Button
-                            size="sm"
-                            variant={isEditingProfile ? "default" : "outline"}
-                            onClick={() => {
-                              if (isEditingProfile) {
-                                setEditingProfileData(null);
-                              } else {
-                                setEditingProfileData(selectedCrew);
-                              }
-                              setIsEditingProfile(!isEditingProfile);
-                            }}
-                            className="gap-2"
-                          >
-                            <Edit size={16} />
-                            {isEditingProfile ? 'Cancelar' : 'Editar'}
-                          </Button>
-                        ) : (
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Lock size={14} />
-                            Sem permissão
-                          </div>
-                        )}
+      {/* Dialog de Detalhes do Tripulante */}
+      <Dialog open={!!selectedCrew} onOpenChange={open => !open && setSelectedCrew(null)}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User size={24} />
+              Perfil Completo - {selectedCrew?.full_name}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedCrew ? <Tabs defaultValue="profile" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="profile">Perfil</TabsTrigger>
+              <TabsTrigger value="hours">Horas de Voo</TabsTrigger>
+              <TabsTrigger value="licenses">Habilitações</TabsTrigger>
+              <TabsTrigger value="schedule">Escala</TabsTrigger>
+            </TabsList>
+
+            {/* Perfil */}
+            <TabsContent value="profile">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <User size={20} />
+                      Dados Pessoais e Profissionais
+                    </CardTitle>
+                    {canEditProfile ? (
+                      <Button
+                        size="sm"
+                        variant={isEditingProfile ? "default" : "outline"}
+                        onClick={() => {
+                          if (isEditingProfile) {
+                            setEditingProfileData(null);
+                          } else {
+                            setEditingProfileData(selectedCrew);
+                          }
+                          setIsEditingProfile(!isEditingProfile);
+                        }}
+                        className="gap-2"
+                      >
+                        <Edit size={16} />
+                        {isEditingProfile ? 'Cancelar' : 'Editar'}
+                      </Button>
+                    ) : (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Lock size={14} />
+                        Sem permissão
                       </div>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      {isEditingProfile && editingProfileData ? (
-                        <EditProfileForm
-                          crew={editingProfileData}
-                          onChange={setEditingProfileData}
-                          onSave={async () => {
-                            try {
-                              if (!editingProfileData.user_id) {
-                                toast({
-                                  title: "Erro",
-                                  description: "Tripulante sem usuário associado",
-                                  variant: "destructive"
-                                });
-                                return;
-                              }
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {isEditingProfile && editingProfileData ? (
+                    <EditProfileForm
+                      crew={editingProfileData}
+                      onChange={setEditingProfileData}
+                      onSave={async () => {
+                        try {
+                          if (!editingProfileData.user_id) {
+                            toast({
+                              title: "Erro",
+                              description: "Tripulante sem usuário associado",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
 
-                              const { error } = await supabase
-                                .from('user_profiles')
-                                .update({
-                                  cpf: editingProfileData.cpf || null,
-                                  rg: editingProfileData.rg || null,
-                                  address: editingProfileData.address || null
-                                })
-                                .eq('id', editingProfileData.user_id);
+                          const { error } = await supabase
+                            .from('user_profiles')
+                            .update({
+                              cpf: editingProfileData.cpf || null,
+                              rg: editingProfileData.rg || null,
+                              address: editingProfileData.address || null
+                            })
+                            .eq('id', editingProfileData.user_id);
 
-                              if (error) throw error;
+                          if (error) throw error;
 
-                              setSelectedCrew({ ...selectedCrew, ...editingProfileData });
-                              setIsEditingProfile(false);
-                              setEditingProfileData(null);
-                              toast({
-                                title: "Sucesso",
-                                description: "Perfil atualizado com sucesso"
-                              });
-                              loadCrewDetails(selectedCrew.id);
-                            } catch (error: any) {
-                              toast({
-                                title: "Erro ao salvar",
-                                description: error.message,
-                                variant: "destructive"
-                              });
-                            }
-                          }}
-                        />
-                      ) : (
-                        <div className="flex items-center gap-6">
-                          {selectedCrew.photo_url ? <img src={selectedCrew.photo_url} alt={selectedCrew.full_name} className="w-32 h-32 rounded-full object-cover" /> : <div className="w-32 h-32 rounded-full bg-primary/10 flex items-center justify-center">
-                              <User size={48} className="text-primary" />
-                            </div>}
-                          <div className="space-y-3 flex-1">
-                            <h2 className="text-2xl font-bold">{selectedCrew.full_name}</h2>
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                              <div className="flex items-center gap-2">
-                                <Award className="text-primary" size={16} />
-                                <span><strong>CANAC:</strong> {selectedCrew.canac}</span>
-                              </div>
-                              {selectedCrew.cpf && <div className="flex items-center gap-2">
-                                  <FileText className="text-primary" size={16} />
-                                  <span><strong>CPF:</strong> {selectedCrew.cpf}</span>
-                                </div>}
-                              {selectedCrew.rg && <div className="flex items-center gap-2">
-                                  <FileText className="text-primary" size={16} />
-                                  <span><strong>RG:</strong> {selectedCrew.rg}</span>
-                                </div>}
-                              {selectedCrew.email && <div className="flex items-center gap-2">
-                                  <Mail className="text-primary" size={16} />
-                                  <span>{selectedCrew.email}</span>
-                                </div>}
-                              {selectedCrew.phone && <div className="flex items-center gap-2">
-                                  <Phone className="text-primary" size={16} />
-                                  <span>{selectedCrew.phone}</span>
-                                </div>}
-                              {selectedCrew.birth_date && <div className="flex items-center gap-2">
-                                  <Calendar className="text-primary" size={16} />
-                                  <span><strong>Nascimento:</strong> {formatDate(selectedCrew.birth_date)}</span>
-                                </div>}
-                              {selectedCrew.address && <div className="flex items-center gap-2 col-span-2">
-                                  <MapPin className="text-primary" size={16} />
-                                  <span><strong>Endereço:</strong> {selectedCrew.address}</span>
-                                </div>}
-                            </div>
+                          setSelectedCrew({ ...selectedCrew, ...editingProfileData });
+                          setIsEditingProfile(false);
+                          setEditingProfileData(null);
+                          toast({
+                            title: "Sucesso",
+                            description: "Perfil atualizado com sucesso"
+                          });
+                          loadCrewDetails(selectedCrew.id);
+                        } catch (error: any) {
+                          toast({
+                            title: "Erro ao salvar",
+                            description: error.message,
+                            variant: "destructive"
+                          });
+                        }
+                      }}
+                    />
+                  ) : (
+                    <div className="flex items-center gap-6">
+                      {selectedCrew.photo_url ? <img src={selectedCrew.photo_url} alt={selectedCrew.full_name} className="w-32 h-32 rounded-full object-cover" /> : <div className="w-32 h-32 rounded-full bg-primary/10 flex items-center justify-center">
+                        <User size={48} className="text-primary" />
+                      </div>}
+                      <div className="space-y-3 flex-1">
+                        <h2 className="text-2xl font-bold">{selectedCrew.full_name}</h2>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div className="flex items-center gap-2">
+                            <Award className="text-primary" size={16} />
+                            <span><strong>CANAC:</strong> {selectedCrew.canac}</span>
                           </div>
+                          {selectedCrew.cpf && <div className="flex items-center gap-2">
+                            <FileText className="text-primary" size={16} />
+                            <span><strong>CPF:</strong> {selectedCrew.cpf}</span>
+                          </div>}
+                          {selectedCrew.rg && <div className="flex items-center gap-2">
+                            <FileText className="text-primary" size={16} />
+                            <span><strong>RG:</strong> {selectedCrew.rg}</span>
+                          </div>}
+                          {selectedCrew.email && <div className="flex items-center gap-2">
+                            <Mail className="text-primary" size={16} />
+                            <span>{selectedCrew.email}</span>
+                          </div>}
+                          {selectedCrew.phone && <div className="flex items-center gap-2">
+                            <Phone className="text-primary" size={16} />
+                            <span>{selectedCrew.phone}</span>
+                          </div>}
+                          {selectedCrew.birth_date && <div className="flex items-center gap-2">
+                            <Calendar className="text-primary" size={16} />
+                            <span><strong>Nascimento:</strong> {formatDate(selectedCrew.birth_date)}</span>
+                          </div>}
+                          {selectedCrew.address && <div className="flex items-center gap-2 col-span-2">
+                            <MapPin className="text-primary" size={16} />
+                            <span><strong>Endereço:</strong> {selectedCrew.address}</span>
+                          </div>}
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-                {/* Horas de Voo */}
-                <TabsContent value="hours">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Clock size={20} />
-                        Horas de Voo por Aeronave
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {flightHours.length > 0 ? <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Aeronave</TableHead>
-                              <TableHead className="text-right">Total de Horas</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {flightHours.map(hours => <TableRow key={hours.id}>
-                                <TableCell className="font-medium">
-                                  {(hours.aircraft as any)?.registration} - {(hours.aircraft as any)?.model}
-                                </TableCell>
-                                <TableCell className="text-right">{hours.total_hours.toFixed(1)}h</TableCell>
-                              </TableRow>)}
-                            <TableRow className="font-bold bg-muted">
-                              <TableCell>TOTAL GERAL</TableCell>
-                              <TableCell className="text-right">
-                                {flightHours.reduce((acc, h) => acc + h.total_hours, 0).toFixed(1)}h
-                              </TableCell>
-                            </TableRow>
-                          </TableBody>
-                        </Table> : <div className="text-center py-8 text-muted-foreground">
-                          Nenhuma hora de voo registrada
-                        </div>}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
+            {/* Horas de Voo */}
+            <TabsContent value="hours">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock size={20} />
+                    Horas de Voo por Aeronave
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {flightHours.length > 0 ? <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Aeronave</TableHead>
+                        <TableHead className="text-right">Total de Horas</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {flightHours.map(hours => <TableRow key={hours.id}>
+                        <TableCell className="font-medium">
+                          {(hours.aircraft as any)?.registration} - {(hours.aircraft as any)?.model}
+                        </TableCell>
+                        <TableCell className="text-right">{hours.total_hours.toFixed(1)}h</TableCell>
+                      </TableRow>)}
+                      <TableRow className="font-bold bg-muted">
+                        <TableCell>TOTAL GERAL</TableCell>
+                        <TableCell className="text-right">
+                          {flightHours.reduce((acc, h) => acc + h.total_hours, 0).toFixed(1)}h
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table> : <div className="text-center py-8 text-muted-foreground">
+                    Nenhuma hora de voo registrada
+                  </div>}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-                {/* Habilitações */}
-                <TabsContent value="licenses">
-                  <Card>
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center gap-2">
-                          <Award size={20} />
-                          Habilitações e Licenças
-                        </CardTitle>
-                        <Dialog open={isLicenseDialogOpen} onOpenChange={setIsLicenseDialogOpen}>
-                          <DialogTrigger asChild>
-                            <Button onClick={() => setEditingLicense(null)}>
-                              <Plus className="mr-2" size={16} />
-                              Nova Habilitação
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                              <DialogTitle>
-                                {editingLicense ? 'Editar Habilitação' : 'Nova Habilitação'}
-                              </DialogTitle>
-                            </DialogHeader>
-                            <LicenseForm license={editingLicense} onSave={saveLicense} onCancel={() => {
+            {/* Habilitações */}
+            <TabsContent value="licenses">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <Award size={20} />
+                      Habilitações e Licenças
+                    </CardTitle>
+                    <Dialog open={isLicenseDialogOpen} onOpenChange={setIsLicenseDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button onClick={() => setEditingLicense(null)}>
+                          <Plus className="mr-2" size={16} />
+                          Nova Habilitação
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                          <DialogTitle>
+                            {editingLicense ? 'Editar Habilitação' : 'Nova Habilitação'}
+                          </DialogTitle>
+                        </DialogHeader>
+                        <LicenseForm license={editingLicense} onSave={saveLicense} onCancel={() => {
                           setIsLicenseDialogOpen(false);
                           setEditingLicense(null);
                         }} />
-                          </DialogContent>
-                        </Dialog>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {licenses.length > 0 ? <div className="space-y-4">
+                    {licenses.map(license => <div key={license.id} className="relative border rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 space-y-3">
+                          <div className="flex items-center gap-3">
+                            <h3 className="font-semibold text-lg">{license.license_type}</h3>
+                            {getLicenseStatusBadge(license, () => {
+                              setEditingLicense(license);
+                              setIsLicenseDialogOpen(true);
+                            })}
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            {license.license_type === 'CMA' ? (
+                              <>
+                                {license.CMA && <div><strong>Classe:</strong> {license.CMA}</div>}
+                                {license.FS_RH && <div><strong>FS/RH:</strong> {license.FS_RH}</div>}
+                                {license.validade_cma && <div className="col-span-2"><strong>Validade CMA:</strong> {formatDate(license.validade_cma)}</div>}
+                                {license.license_number && <div><strong>Número:</strong> {license.license_number}</div>}
+                              </>
+                            ) : license.license_type === 'CHT' ? (
+                              <>
+                                {license.license_number && <div><strong>Tipo de Aeronave:</strong> {license.license_number}</div>}
+                                {license.issue_date && <div><strong>Emissão:</strong> {formatDate(license.issue_date)}</div>}
+                                <div><strong>Validade:</strong> {formatDate(license.expiry_date)}</div>
+                              </>
+                            ) : (
+                              <>
+                                {license.license_number && <div><strong>Número:</strong> {license.license_number}</div>}
+                                {license.issuing_authority && <div><strong>Emissor:</strong> {license.issuing_authority}</div>}
+                                {license.issue_date && <div><strong>Emissão:</strong> {formatDate(license.issue_date)}</div>}
+                                <div><strong>Validade:</strong> {formatDate(license.expiry_date)}</div>
+                              </>
+                            )}
+                          </div>
+                          {license.observations && <p className="text-sm text-muted-foreground">{license.observations}</p>}
+                        </div>
+                        <div className="flex gap-2 ml-4">
+                          <Button variant="ghost" size="sm" onClick={() => deleteLicense(license.id)}>
+                            <Trash2 size={16} />
+                          </Button>
+                        </div>
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      {licenses.length > 0 ? <div className="space-y-4">
-                          {licenses.map(license => <div key={license.id} className="border rounded-lg p-4">
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1 space-y-3">
-                                  <div className="flex items-center gap-3">
-                                    <h3 className="font-semibold text-lg">{license.license_type}</h3>
-                                    {getLicenseStatusBadge(license)}
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-3 text-sm">
-                                    {license.license_type === 'CMA' ? (
-                                      <>
-                                        {license.CMA && <div><strong>Classe:</strong> {license.CMA}</div>}
-                                        {license.FS_RH && <div><strong>FS/RH:</strong> {license.FS_RH}</div>}
-                                        {license.validade_cma && <div className="col-span-2"><strong>Validade CMA:</strong> {formatDate(license.validade_cma)}</div>}
-                                        {license.license_number && <div><strong>Número:</strong> {license.license_number}</div>}
-                                      </>
-                                    ) : license.license_type === 'CHT' ? (
-                                      <>
-                                        {license.license_number && <div><strong>Tipo de Aeronave:</strong> {license.license_number}</div>}
-                                        {license.issue_date && <div><strong>Emissão:</strong> {formatDate(license.issue_date)}</div>}
-                                        <div><strong>Validade:</strong> {formatDate(license.expiry_date)}</div>
-                                      </>
-                                    ) : (
-                                      <>
-                                        {license.license_number && <div><strong>Número:</strong> {license.license_number}</div>}
-                                        {license.issuing_authority && <div><strong>Emissor:</strong> {license.issuing_authority}</div>}
-                                        {license.issue_date && <div><strong>Emissão:</strong> {formatDate(license.issue_date)}</div>}
-                                        <div><strong>Validade:</strong> {formatDate(license.expiry_date)}</div>
-                                      </>
-                                    )}
-                                  </div>
-                                  {license.observations && <p className="text-sm text-muted-foreground">{license.observations}</p>}
-                                </div>
-                                <div className="flex gap-2">
-                                  <Button variant="ghost" size="sm" onClick={() => {
-                            setEditingLicense(license);
-                            setIsLicenseDialogOpen(true);
-                          }}>
-                                    <Edit size={16} />
-                                  </Button>
-                                  <Button variant="ghost" size="sm" onClick={() => deleteLicense(license.id)}>
-                                    <Trash2 size={16} />
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>)}
-                        </div> : <div className="text-center py-8 text-muted-foreground">
-                          Nenhuma habilitação cadastrada
-                        </div>}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
+                    </div>)}
+                  </div> : <div className="text-center py-8 text-muted-foreground">
+                    Nenhuma habilitação cadastrada
+                  </div>}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-                {/* Escala de Voo */}
-                <TabsContent value="schedule">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Calendar size={20} />
-                        Próximas Escalas de Voo
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      {schedules.length > 0 ? <div className="space-y-3">
-                          {schedules.map(schedule => <div key={schedule.id} className="border rounded-lg p-4 flex items-center justify-between">
-                              <div className="flex items-center gap-4">
-                                <div className="text-center">
-                                  <p className="text-2xl font-bold">
-                                    {new Date(schedule.flight_date).getDate()}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    {new Date(schedule.flight_date).toLocaleDateString('pt-BR', {
+            {/* Escala de Voo */}
+            <TabsContent value="schedule">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar size={20} />
+                    Próximas Escalas de Voo
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {schedules.length > 0 ? <div className="space-y-3">
+                    {schedules.map(schedule => <div key={schedule.id} className="border rounded-lg p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="text-center">
+                          <p className="text-2xl font-bold">
+                            {new Date(schedule.flight_date).getDate()}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(schedule.flight_date).toLocaleDateString('pt-BR', {
                               month: 'short'
                             })}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="font-semibold">
-                                    {schedule.origin} → {schedule.destination}
-                                  </p>
-                                  <p className="text-sm text-muted-foreground">
-                                    Horário: {schedule.flight_time}
-                                  </p>
-                                </div>
-                              </div>
-                              <Badge variant={schedule.status === 'confirmado' ? 'default' : 'secondary'}>
-                                {schedule.status}
-                              </Badge>
-                            </div>)}
-                        </div> : <div className="text-center py-8 text-muted-foreground">
-                          Nenhuma escala programada
-                        </div>}
-                    </CardContent>
-                  </Card>
-                 </TabsContent>
-               </Tabs> : null}
-           </DialogContent>
-         </Dialog>
-       </div>
-     </Layout>;
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-semibold">
+                            {schedule.origin} → {schedule.destination}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Horário: {schedule.flight_time}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge variant={schedule.status === 'confirmado' ? 'default' : 'secondary'}>
+                        {schedule.status}
+                      </Badge>
+                    </div>)}
+                  </div> : <div className="text-center py-8 text-muted-foreground">
+                    Nenhuma escala programada
+                  </div>}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs> : null}
+        </DialogContent>
+      </Dialog>
+    </div>
+  </Layout>;
 }
 
 // Componente de formulário de licença
@@ -700,119 +673,119 @@ function LicenseForm({
     onSave(formData);
   };
   return <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Tipo de Habilitação *</Label>
-          <Select value={formData.license_type} onValueChange={value => setFormData({
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <Label>Tipo de Habilitação *</Label>
+        <Select value={formData.license_type} onValueChange={value => setFormData({
           ...formData,
           license_type: value
         })}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="PPL">PPL - Piloto Privado</SelectItem>
-              <SelectItem value="CPL">CPL - Piloto Comercial</SelectItem>
-              <SelectItem value="ATPL">ATPL - Piloto de Linha Aérea</SelectItem>
-              <SelectItem value="INVA">INVA - Instrutor de Voo</SelectItem>
-              <SelectItem value="IFR">IFR - Instrumentos</SelectItem>
-              <SelectItem value="MLTE">MLTE - Multi-motor Terrestre</SelectItem>
-              <SelectItem value="MNTE">MNTE - Mono-motor Terrestre</SelectItem>
-              <SelectItem value="CMA">CMA - Certificado Médico Aeronáutico</SelectItem>
-              <SelectItem value="CHT">CHT - Habilitação de Tipo</SelectItem>
-              <SelectItem value="Outro">Outro</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+          <SelectTrigger>
+            <SelectValue placeholder="Selecione" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="PPL">PPL - Piloto Privado</SelectItem>
+            <SelectItem value="CPL">CPL - Piloto Comercial</SelectItem>
+            <SelectItem value="ATPL">ATPL - Piloto de Linha Aérea</SelectItem>
+            <SelectItem value="INVA">INVA - Instrutor de Voo</SelectItem>
+            <SelectItem value="IFR">IFR - Instrumentos</SelectItem>
+            <SelectItem value="MLTE">MLTE - Multi-motor Terrestre</SelectItem>
+            <SelectItem value="MNTE">MNTE - Mono-motor Terrestre</SelectItem>
+            <SelectItem value="CMA">CMA - Certificado Médico Aeronáutico</SelectItem>
+            <SelectItem value="CHT">CHT - Habilitação de Tipo</SelectItem>
+            <SelectItem value="Outro">Outro</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-        {formData.license_type === 'CMA' ? (
-          <>
-            <div>
-              <Label>Classe CMA</Label>
-              <Input value={formData.CMA || ''} onChange={e => setFormData({
+      {formData.license_type === 'CMA' ? (
+        <>
+          <div>
+            <Label>Classe CMA</Label>
+            <Input value={formData.CMA || ''} onChange={e => setFormData({
               ...formData,
               CMA: e.target.value
             })} placeholder="Ex: Primeira, Segunda, Terceira" />
-            </div>
-            <div>
-              <Label>FS/RH</Label>
-              <Input value={formData.FS_RH || ''} onChange={e => setFormData({
+          </div>
+          <div>
+            <Label>FS/RH</Label>
+            <Input value={formData.FS_RH || ''} onChange={e => setFormData({
               ...formData,
               FS_RH: e.target.value
             })} />
-            </div>
-            <div>
-              <Label>Validade CMA</Label>
-              <Input type="date" value={formData.validade_cma || ''} onChange={e => setFormData({
+          </div>
+          <div>
+            <Label>Validade CMA</Label>
+            <Input type="date" value={formData.validade_cma || ''} onChange={e => setFormData({
               ...formData,
               validade_cma: e.target.value
             })} />
-            </div>
-          </>
-        ) : formData.license_type === 'CHT' ? (
-          <div>
-            <Label>Tipo de Aeronave</Label>
-            <Input value={formData.license_number || ''} onChange={e => setFormData({
+          </div>
+        </>
+      ) : formData.license_type === 'CHT' ? (
+        <div>
+          <Label>Tipo de Aeronave</Label>
+          <Input value={formData.license_number || ''} onChange={e => setFormData({
             ...formData,
             license_number: e.target.value
           })} placeholder="Ex: PA-28, C-172" />
-          </div>
-        ) : (
-          <>
-            <div>
-              <Label>Número da Licença</Label>
-              <Input value={formData.license_number} onChange={e => setFormData({
+        </div>
+      ) : (
+        <>
+          <div>
+            <Label>Número da Licença</Label>
+            <Input value={formData.license_number} onChange={e => setFormData({
               ...formData,
               license_number: e.target.value
             })} />
-            </div>
-            <div>
-              <Label>Data de Emissão</Label>
-              <Input type="date" value={formData.issue_date} onChange={e => setFormData({
+          </div>
+          <div>
+            <Label>Data de Emissão</Label>
+            <Input type="date" value={formData.issue_date} onChange={e => setFormData({
               ...formData,
               issue_date: e.target.value
             })} />
-            </div>
-          </>
-        )}
+          </div>
+        </>
+      )}
 
-        {formData.license_type !== 'CMA' && (
-          <div>
-            <Label>Data de Validade *</Label>
-            <Input type="date" value={formData.expiry_date} onChange={e => setFormData({
+      {formData.license_type !== 'CMA' && (
+        <div>
+          <Label>Data de Validade *</Label>
+          <Input type="date" value={formData.expiry_date} onChange={e => setFormData({
             ...formData,
             expiry_date: e.target.value
           })} required />
-          </div>
-        )}
+        </div>
+      )}
 
-        {formData.license_type !== 'CMA' && (
-          <div className="col-span-2">
-            <Label>Autoridade Emissora</Label>
-            <Input value={formData.issuing_authority} onChange={e => setFormData({
+      {formData.license_type !== 'CMA' && (
+        <div className="col-span-2">
+          <Label>Autoridade Emissora</Label>
+          <Input value={formData.issuing_authority} onChange={e => setFormData({
             ...formData,
             issuing_authority: e.target.value
           })} placeholder="Ex: ANAC, FAA, EASA" />
-          </div>
-        )}
+        </div>
+      )}
 
-        <div className="col-span-2">
-          <Label>Observações</Label>
-          <Textarea value={formData.observations} onChange={e => setFormData({
+      <div className="col-span-2">
+        <Label>Observações</Label>
+        <Textarea value={formData.observations} onChange={e => setFormData({
           ...formData,
           observations: e.target.value
         })} rows={3} />
-        </div>
       </div>
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button type="submit">
-          Salvar
-        </Button>
-      </div>
-    </form>;
+    </div>
+    <div className="flex justify-end gap-2">
+      <Button type="button" variant="outline" onClick={onCancel}>
+        Cancelar
+      </Button>
+      <Button type="submit">
+        Salvar
+      </Button>
+    </div>
+  </form>;
 }
 
 // Componente de formulário de edição de perfil

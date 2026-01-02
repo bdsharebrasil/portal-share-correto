@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { format } from "date-fns";
 import { Plus, TrendingDown, Receipt, History, Trash2, Edit } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -65,7 +66,7 @@ export function BenefitCalculatorReal({
   const [newTransaction, setNewTransaction] = useState({
     description: "",
     amount: "",
-    transaction_date: new Date().toISOString().split('T')[0]
+    transaction_date: format(new Date(), 'yyyy-MM-dd')
   });
   useEffect(() => {
     loadBenefitCard();
@@ -177,7 +178,7 @@ export function BenefitCalculatorReal({
     setNewTransaction({
       description: "",
       amount: "",
-      transaction_date: new Date().toISOString().split('T')[0]
+      transaction_date: format(new Date(), 'yyyy-MM-dd')
     });
     loadTransactions();
   };

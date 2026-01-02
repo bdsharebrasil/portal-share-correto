@@ -20,38 +20,68 @@ interface Notification {
   created_at: string;
 }
 
-export function NotificationBell() {
+function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     loadNotifications();
-    
-    // Subscribe to new notifications
-    const channel = supabase
-      .channel('notifications-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications'
-        },
-        (payload) => {
-          const newNotification = payload.new as Notification;
-          setNotifications(prev => [newNotification, ...prev]);
-          setUnreadCount(prev => prev + 1);
-          
-          // Show toast for new notification
-          toast.info(newNotification.title, {
-            description: newNotification.message
-          });
+
+    // Subscribe to new notifications (with error handling)
+    let channel: any = null;
+    let subscriptionTimeout: NodeJS.Timeout;
+
+    try {
+      channel = supabase
+        .channel('notifications-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications'
+          },
+          (payload) => {
+            try {
+              const newNotification = payload.new as Notification;
+              setNotifications(prev => [newNotification, ...prev]);
+              setUnreadCount(prev => prev + 1);
+
+              // Show toast for new notification
+              toast.info(newNotification.title, {
+                description: newNotification.message
+              });
+            } catch (err) {
+              console.warn('Error processing notification payload:', err);
+            }
+          }
+        )
+        .subscribe((status) => {
+          if (status === 'CHANNEL_ERROR') {
+            console.warn('Failed to subscribe to notifications realtime');
+          }
+        });
+
+      // Set timeout to prevent hanging connections
+      subscriptionTimeout = setTimeout(() => {
+        if (channel && channel.state !== 'joined') {
+          console.warn('Notification realtime subscription timeout');
+          channel?.unsubscribe?.();
         }
-      )
-      .subscribe();
+      }, 5000);
+    } catch (err) {
+      console.warn('Failed to setup notification subscription:', err);
+    }
 
     return () => {
-      supabase.removeChannel(channel);
+      clearTimeout(subscriptionTimeout);
+      if (channel) {
+        try {
+          supabase.removeChannel(channel);
+        } catch (err) {
+          console.warn('Error removing notification channel:', err);
+        }
+      }
     };
   }, []);
 
@@ -184,3 +214,5 @@ export function NotificationBell() {
     </Popover>
   );
 }
+
+export default NotificationBell;

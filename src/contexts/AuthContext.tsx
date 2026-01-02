@@ -7,7 +7,7 @@ interface AuthContextType {
   session: Session | null;
   isLoading: boolean;
   roles: string[];
-  refreshRoles: (userId?: string) => Promise<void>;
+  refreshRoles: (userId?: string) => Promise<string[]>;
   signOut: () => Promise<void>;
 }
 
@@ -19,12 +19,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [roles, setRoles] = useState<string[]>([]);
 
-  const fetchRoles = async (userId?: string) => {
+  const fetchRoles = async (userId?: string): Promise<string[]> => {
     try {
       const id = userId || user?.id;
       if (!id) {
         setRoles([]);
-        return;
+        return [];
       }
       const { data, error } = await supabase
         .from('user_roles')
@@ -33,17 +33,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (error) {
         console.warn('Warning fetching roles:', error.message);
         // Keep existing roles on error instead of clearing them
-        return;
+        return roles;
       }
-      setRoles(data?.map((r: any) => r.role) || []);
+      const loadedRoles = data?.map((r: any) => r.role) || [];
+      setRoles(loadedRoles);
+      return loadedRoles;
     } catch (err) {
       console.warn('Warning fetching roles:', err);
       // Keep existing roles on error instead of clearing them
+      return roles;
     }
   };
 
-  const refreshRoles = async (userId?: string) => {
-    await fetchRoles(userId);
+  const refreshRoles = async (userId?: string): Promise<string[]> => {
+    return await fetchRoles(userId);
   };
 
   useEffect(() => {

@@ -59,8 +59,8 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
     tripulante2_id: "",
     destination: "",
     route: "",
-    start_date: new Date().toISOString().split('T')[0],
-    end_date: new Date().toISOString().split('T')[0],
+    start_date: format(new Date(), 'yyyy-MM-dd'),
+    end_date: format(new Date(), 'yyyy-MM-dd'),
     description: ""
   });
 
@@ -114,7 +114,7 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
     const { data } = await supabase
       .from('crew_members')
       .select('id, full_name, canac')
-      .eq('status', 'active')
+      .eq('status', 'ativo')
       .order('full_name');
     if (data) {
       setCrewMembers(data);
@@ -379,6 +379,32 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
 
       if (reportError) throw reportError;
 
+      // Criar entrada na conciliação bancária com categoria "RELATORIO DE DESPESA DE VIAGEM"
+      if (report && report.id) {
+        const creationDate = new Date().toISOString().split('T')[0];
+        // Formato padrão da descrição para sincronização de payment_term
+        const standardDescription = `RELATORIO DE VIAGEM - ${reportNumber} - STATUS PENDENTE`;
+
+        const { error: reconciliationError } = await supabase
+          .from('bank_reconciliations')
+          .insert([{
+            type: 'cliente',
+            date: creationDate,
+            description: standardDescription,
+            amount: totals.total_amount,
+            category: 'RELATORIO DE DESPESA DE VIAGEM',
+            client_id: formData.cotista,
+            aircraft_id: formData.aeronave,
+            status: 'pendente',
+            payment_term: null,
+            created_by: null
+          }]);
+
+        if (reconciliationError) {
+          console.warn('Aviso: Entrada de conciliação não criada:', reconciliationError);
+        }
+      }
+
       toast.success("Relatório salvo como rascunho com sucesso!");
       onSave();
     } catch (error: any) {
@@ -421,7 +447,7 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
                 </SelectTrigger>
                 <SelectContent>
                   {aircraft.map(ac => (
-                    <SelectItem key={ac.id} value={ac.registration}>
+                    <SelectItem key={ac.id} value={ac.id}>
                       {ac.registration}
                     </SelectItem>
                   ))}

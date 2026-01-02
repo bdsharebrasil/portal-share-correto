@@ -20,7 +20,8 @@ import { DocumentUploadWidget } from "@/components/profile/DocumentUploadWidget"
 import { ThirteenthSalaryManager } from "@/components/vencimentos/ThirteenthSalaryManager";
 import { VacationManagement } from "@/components/vacation/VacationManagement";
 import { EmployeeVacationTab } from "@/components/vacation/EmployeeVacationTab";
-import { Users, FileText, Calendar, Building, Phone, Mail, CreditCard, DollarSign, User as UserIcon, Edit, Save, X, Aperture, Upload, Camera, Trash2, Clock, Palmtree, Search } from "lucide-react";
+import { Users, FileText, Calendar, Building, Phone, Mail, CreditCard, DollarSign, User as UserIcon, Edit, Save, X, Aperture, Upload, Camera, Trash2, Clock, Palmtree, Search, Receipt } from "lucide-react";
+import { EmployeeStatementTab } from "@/components/funcionarios/EmployeeStatementTab";
 import { APP_ROLE_VALUES, ROLE_LABELS, type AppRole } from "@/lib/roles";
 import { formatRoleLabel } from "@/lib/roles";
 interface CrewMemberData {
@@ -481,10 +482,11 @@ export default function GestaoFuncionarios() {
         </CardHeader>
         <CardContent className="pt-6">
           <Tabs defaultValue="info" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto mb-6 rounded-2xl p-1.5 h-auto bg-transparent border-2 border-border">
+            <TabsList className="grid w-full grid-cols-4 max-w-lg mx-auto mb-6 rounded-2xl p-1.5 h-auto bg-transparent border-2 border-border">
               <TabsTrigger value="info" className="py-3 text-sm font-medium rounded-xl border-2 border-transparent data-[state=inactive]:bg-muted/10 data-[state=inactive]:shadow-sm data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm">Informações</TabsTrigger>
               <TabsTrigger value="documents" className="py-3 text-sm font-medium rounded-xl border-2 border-transparent data-[state=inactive]:bg-muted/10 data-[state=inactive]:shadow-sm data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm">Documentos</TabsTrigger>
               <TabsTrigger value="vacation" className="py-3 text-sm font-medium rounded-xl border-2 border-transparent data-[state=inactive]:bg-muted/10 data-[state=inactive]:shadow-sm data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm">Férias</TabsTrigger>
+              <TabsTrigger value="statement" className="py-3 text-sm font-medium rounded-xl border-2 border-transparent data-[state=inactive]:bg-muted/10 data-[state=inactive]:shadow-sm data-[state=active]:border-primary data-[state=active]:bg-primary/10 data-[state=active]:shadow-sm">Extrato</TabsTrigger>
             </TabsList>
 
             <TabsContent value="info" className="space-y-6 mt-0">
@@ -540,6 +542,10 @@ export default function GestaoFuncionarios() {
 
             <TabsContent value="vacation" className="min-h-[400px] mt-0">
               <EmployeeVacationTab employeeId={selectedEmployee.id} employeeName={selectedEmployee.full_name} />
+            </TabsContent>
+
+            <TabsContent value="statement" className="min-h-[400px] mt-0">
+              <EmployeeStatementTab employeeId={selectedEmployee.id} employeeName={selectedEmployee.full_name} />
             </TabsContent>
           </Tabs>
         </CardContent>

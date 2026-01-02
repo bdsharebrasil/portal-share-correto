@@ -100,40 +100,40 @@ const PortalClienteDashboard = () => {
             </Button>
           </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card className="border-border bg-card">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-foreground text-lg">
-                <DollarSign className="w-5 h-5 text-primary" />
-                Pagamentos Pendentes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground mb-1">R$ {pendingPayments.total_amount.toFixed(2)}</div>
-              <p className="text-muted-foreground text-xs">{pendingPayments.count} pagamento(s) pendente(s)</p>
-            </CardContent>
-          </Card>
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card className="border-border bg-card">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-foreground text-lg">
+                  <DollarSign className="w-5 h-5 text-primary" />
+                  Pagamentos Pendentes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-foreground mb-1">R$ {pendingPayments.total_amount.toFixed(2)}</div>
+                <p className="text-muted-foreground text-xs">{pendingPayments.count} pagamento(s) pendente(s)</p>
+              </CardContent>
+            </Card>
 
-          <Card className="border-border bg-card">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-foreground text-lg">
-                <Plane className="w-5 h-5 text-primary" />
-                Aeronave
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-foreground mb-1">{session.registration}</div>
-              <p className="text-muted-foreground text-xs">Em operação</p>
-            </CardContent>
-          </Card>
-        </div>
+            <Card className="border-border bg-card">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-foreground text-lg">
+                  <Plane className="w-5 h-5 text-primary" />
+                  Aeronave
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-foreground mb-1">{session.registration}</div>
+                <p className="text-muted-foreground text-xs">Em operação</p>
+              </CardContent>
+            </Card>
+          </div>
 
-        {/* Client Data Tabs */}
-        <ClientDataTabs
-          clientId={session.clientId}
-          aircraftId={session.aircraftId}
-          isAdmin={false}
-        />
+          {/* Client Data Tabs */}
+          <ClientDataTabs
+            clientId={session.clientId}
+            aircraftId={session.aircraftId}
+            isAdmin={false}
+          />
         </div>
       </div>
     </Layout>

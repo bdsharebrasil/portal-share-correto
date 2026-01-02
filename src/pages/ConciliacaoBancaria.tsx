@@ -1,19 +1,17 @@
 import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Filter, Download } from "lucide-react";
+import { Filter } from "lucide-react";
 import { ConciliacaoClientes } from "@/components/conciliacao/ConciliacaoClientes";
 import { ConciliacaoColaborador } from "@/components/conciliacao/ConciliacaoColaborador";
 
 export default function ConciliacaoBancaria() {
   const [selectedPeriod, setSelectedPeriod] = useState("30");
-
-  return (
-    <Layout>
+  return <Layout>
       <div className="p-4 lg:p-6 space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -25,8 +23,8 @@ export default function ConciliacaoBancaria() {
           </div>
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             <Button variant="outline" className="flex items-center gap-2 justify-center rounded-lg border-border/50 hover:bg-accent/50">
-              <Download className="h-4 w-4" />
-              <span className="hidden sm:inline">Exportar Relatório</span>
+
+
               <span className="sm:hidden">Exportar</span>
             </Button>
           </div>
@@ -71,16 +69,10 @@ export default function ConciliacaoBancaria() {
         {/* Tabs para Conciliação */}
         <Tabs defaultValue="clientes" className="w-full">
           <TabsList className="grid w-full grid-cols-2 gap-2 bg-card/50 p-1.5 rounded-xl border border-border/50 h-auto">
-            <TabsTrigger 
-              value="clientes" 
-              className="rounded-lg py-3 px-4 text-sm font-medium transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent/50"
-            >
+            <TabsTrigger value="clientes" className="rounded-lg py-3 px-4 text-sm font-medium transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent/50">
               Conciliação com Clientes
             </TabsTrigger>
-            <TabsTrigger 
-              value="colaborador" 
-              className="rounded-lg py-3 px-4 text-sm font-medium transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent/50"
-            >
+            <TabsTrigger value="colaborador" className="rounded-lg py-3 px-4 text-sm font-medium transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-accent/50">
               Conciliação Colaborador
             </TabsTrigger>
           </TabsList>
@@ -94,6 +86,5 @@ export default function ConciliacaoBancaria() {
           </TabsContent>
         </Tabs>
       </div>
-    </Layout>
-  );
+    </Layout>;
 }

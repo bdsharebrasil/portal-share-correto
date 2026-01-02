@@ -408,6 +408,8 @@ export function NotasFiscaisSaida() {
       const nota = notas.find(n => n.id === notaId);
       if (!nota) return;
 
+      const previousStatus = nota.status;
+
       // Se mudando para "recebido", mostrar diálogo de seleção de banco
       if (newStatus === "recebido") {
         setNotaBeingStatusChanged(nota);
@@ -424,16 +426,31 @@ export function NotasFiscaisSaida() {
 
       if (error) throw error;
 
-      // Se o novo status é "pendente", apenas pendente
-      if (newStatus === "pendente") {
+      // ESTORNO: Se estava "recebido" e mudou para outro status, deletar do controle_bancario
+      if (previousStatus === "recebido" && (newStatus === "pendente" || newStatus === "cancelado")) {
+        const { error: deleteError } = await supabase
+          .from("controle_bancario")
+          .delete()
+          .eq("numero_documento", nota.numero)
+          .eq("tipo_movimento", "entrada");
+
+        if (deleteError) {
+          console.error("Erro ao remover do fluxo de caixa:", deleteError);
+          toast({
+            title: "Aviso",
+            description: "Status atualizado, mas houve erro ao remover do fluxo de caixa",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Sucesso",
+            description: `Status atualizado para ${newStatus === "pendente" ? "Pendente" : "Cancelado"} e entrada removida do fluxo de caixa`,
+          });
+        }
+      } else {
         toast({
           title: "Sucesso",
-          description: "Status atualizado para Pendente",
-        });
-      } else if (newStatus === "cancelado") {
-        toast({
-          title: "Sucesso",
-          description: "Nota fiscal cancelada",
+          description: newStatus === "pendente" ? "Status atualizado para Pendente" : "Nota fiscal cancelada",
         });
       }
 
@@ -730,7 +747,7 @@ export function NotasFiscaisSaida() {
                                 Nenhuma aeronave encontrada
                               </CommandEmpty>
                               <CommandGroup heading="Aeronaves" className="text-muted-foreground">
-                                {aeronaves.filter(a =>
+                                {(Array.isArray(aeronaves) ? aeronaves : []).filter(a =>
                                   a.registration.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
                                   a.model.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
                                   a.manufacturer.toLowerCase().includes(aeronaveSearch.toLowerCase())

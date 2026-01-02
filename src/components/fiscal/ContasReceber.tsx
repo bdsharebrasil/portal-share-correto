@@ -118,18 +118,22 @@ export function ContasReceber() {
   const loadContasBancarias = async () => {
     try {
       const { data, error } = await supabase
-        .from("categorias_financeiro")
-        .select("id, nome")
+        .from("contas_bancarias")
+        .select("id, nome, banco")
+        .eq("ativo", true)
         .order("nome", { ascending: true });
 
       if (error) {
         console.error("Erro ao carregar contas bancárias:", error);
+        toast.error("Erro ao carregar contas bancárias");
         return;
       }
 
-      setContasBancarias(data || []);
+      const filteredData = (data || []).filter(conta => conta.nome && conta.nome.trim() !== "");
+      setContasBancarias(filteredData);
     } catch (error: any) {
       console.error("Erro ao carregar contas bancárias:", error.message);
+      toast.error("Erro ao carregar contas bancárias");
     }
   };
 
@@ -713,7 +717,7 @@ export function ContasReceber() {
                             Nenhuma aeronave encontrada
                           </CommandEmpty>
                           <CommandGroup heading="Aeronaves" className="text-muted-foreground">
-                            {aeronaves.filter(a =>
+                            {(Array.isArray(aeronaves) ? aeronaves : []).filter(a =>
                               a.registration.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
                               a.model.toLowerCase().includes(aeronaveSearch.toLowerCase())
                             ).slice(0, 10).map((aero) => (

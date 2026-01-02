@@ -4,13 +4,30 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, AlertTriangle, Calendar, Clock, Repeat, DollarSign, Trash2, Edit2, CheckCircle, Bell } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Plus, AlertTriangle, Calendar, Clock, Repeat, DollarSign, Trash2, Edit2, CheckCircle, Bell, FileCheck, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { format, isBefore, isWithinInterval, addDays } from "date-fns";
+import { format, isBefore, isWithinInterval, addDays, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ContaRecorrenteForm } from "@/components/fiscal/ContaRecorrenteForm";
+
+const MONTHS = [
+  { value: "01", label: "Janeiro" },
+  { value: "02", label: "Fevereiro" },
+  { value: "03", label: "Março" },
+  { value: "04", label: "Abril" },
+  { value: "05", label: "Maio" },
+  { value: "06", label: "Junho" },
+  { value: "07", label: "Julho" },
+  { value: "08", label: "Agosto" },
+  { value: "09", label: "Setembro" },
+  { value: "10", label: "Outubro" },
+  { value: "11", label: "Novembro" },
+  { value: "12", label: "Dezembro" }
+];
 
 export function ContasRecorrentesTab() {
   const { user } = useAuth();
@@ -19,6 +36,10 @@ export function ContasRecorrentesTab() {
   const [showForm, setShowForm] = useState(false);
   const [editingConta, setEditingConta] = useState<any>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [showGenerateDialog, setShowGenerateDialog] = useState(false);
+  const [generateMonth, setGenerateMonth] = useState<string>("");
+  const [generateYear, setGenerateYear] = useState<string>("");
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     loadContas();
@@ -137,6 +158,85 @@ export function ContasRecorrentesTab() {
     loadContas();
   };
 
+  const generateContasAPagar = async () => {
+    if (!generateMonth || !generateYear || !user) {
+      toast.error("Selecione mês e ano");
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const activeContas = contas.filter(c => c.status === 'agendado');
+      
+      if (activeContas.length === 0) {
+        toast.info("Nenhuma conta recorrente ativa para gerar");
+        setIsGenerating(false);
+        return;
+      }
+
+      let generated = 0;
+      let skipped = 0;
+
+      for (const conta of activeContas) {
+        // Calcular data de vencimento baseada no dia de recorrência
+        const diaVencimento = conta.dia_recorrencia || 1;
+        const dataVencimento = `${generateYear}-${generateMonth}-${String(diaVencimento).padStart(2, '0')}`;
+        const dataRecebimento = new Date().toISOString().split('T')[0];
+
+        // Verificar se já existe uma conta a pagar para este fornecedor/mês
+        const { data: existing } = await supabase
+          .from("contas_apagar")
+          .select("id")
+          .eq("fornecedor_nome", conta.fornecedor)
+          .eq("descricao", conta.descricao)
+          .gte("data_vencimento", `${generateYear}-${generateMonth}-01`)
+          .lte("data_vencimento", `${generateYear}-${generateMonth}-31`)
+          .maybeSingle();
+
+        if (existing) {
+          skipped++;
+          continue;
+        }
+
+        // Criar conta a pagar
+        const { error } = await supabase.from("contas_apagar").insert({
+          numero: `REC-${conta.id.slice(0, 6)}-${generateMonth}/${generateYear}`,
+          fornecedor_nome: conta.fornecedor,
+          fornecedor_cnpj: "",
+          data_recebimento: dataRecebimento,
+          data_vencimento: dataVencimento,
+          valor: conta.valor || 0,
+          categoria: conta.categoria || "Despesa Recorrente",
+          descricao: conta.descricao,
+          status: "pendente",
+          aeronave: "N/A",
+          criado_por: user.id
+        });
+
+        if (error) {
+          console.error("Erro ao criar conta a pagar:", error);
+        } else {
+          generated++;
+        }
+      }
+
+      if (generated > 0) {
+        toast.success(`${generated} conta(s) a pagar criada(s) com sucesso!`);
+      }
+      if (skipped > 0) {
+        toast.info(`${skipped} conta(s) já existiam e foram ignoradas`);
+      }
+
+      setShowGenerateDialog(false);
+      setGenerateMonth("");
+      setGenerateYear("");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao gerar contas a pagar");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "pago":
@@ -168,6 +268,8 @@ export function ContasRecorrentesTab() {
       default: return frequency;
     }
   };
+
+  const years = ["2025", "2026", "2027"];
 
   return (
     <div className="space-y-6">
@@ -233,14 +335,20 @@ export function ContasRecorrentesTab() {
 
       {/* Lista de Contas Recorrentes */}
       <Card className="bg-card border-border">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-foreground">Contas Recorrentes</CardTitle>
-          {!showForm && (
-            <Button onClick={() => handleOpenForm()} className="bg-primary hover:bg-primary/90">
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Conta Recorrente
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={() => setShowGenerateDialog(true)} variant="outline" className="border-primary/50 text-primary hover:bg-primary/10">
+              <FileCheck className="w-4 h-4 mr-2" />
+              Gerar Contas a Pagar
             </Button>
-          )}
+            {!showForm && (
+              <Button onClick={() => handleOpenForm()} className="bg-primary hover:bg-primary/90">
+                <Plus className="w-4 h-4 mr-2" />
+                Nova Conta Recorrente
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -339,6 +447,79 @@ export function ContasRecorrentesTab() {
             </Button>
             <Button variant="destructive" onClick={handleDelete}>
               Deletar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para gerar contas a pagar */}
+      <Dialog open={showGenerateDialog} onOpenChange={setShowGenerateDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileCheck className="h-5 w-5 text-primary" />
+              Gerar Contas a Pagar
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Selecione o período para gerar as contas a pagar a partir das contas recorrentes ativas.
+            </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Mês</Label>
+                <Select value={generateMonth} onValueChange={setGenerateMonth}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o mês" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTHS.map(month => (
+                      <SelectItem key={month.value} value={month.value}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Ano</Label>
+                <Select value={generateYear} onValueChange={setGenerateYear}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Ano" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {years.map(year => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Alert className="border-blue-500/30 bg-blue-500/10">
+              <AlertDescription className="text-blue-400 text-sm">
+                <strong>{contas.filter(c => c.status === 'agendado').length}</strong> conta(s) recorrente(s) ativa(s) serão processadas.
+                Contas já existentes para o período serão ignoradas.
+              </AlertDescription>
+            </Alert>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowGenerateDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={generateContasAPagar} disabled={isGenerating || !generateMonth || !generateYear}>
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Gerando...
+                </>
+              ) : (
+                <>
+                  <FileCheck className="h-4 w-4 mr-2" />
+                  Gerar Contas
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -23,6 +23,8 @@ import { getShortUserId, getIdBadgeColor } from "@/lib/user-id";
 import { useQuery } from "@tanstack/react-query";
 // Payslips hook removed - using pagamento_salario_funcionario directly
 import { EmployeeDocumentsManager } from "@/components/profile/EmployeeDocumentsManager";
+import { TimeClockTab } from "@/components/profile/TimeClockTab";
+import EmployeeBankStatement from "@/components/financeiro/EmployeeBankStatement";
 type ContactType = "Colaboradores" | "Clientes" | "Fornecedores" | "Hoteis";
 type FormState = {
   full_name: string;
@@ -810,17 +812,19 @@ export default function Perfil() {
               Gerencie suas informações pessoais e mantenha seus dados sempre atualizados.
             </p>
           </div>
-          <Button onClick={() => setIsEditing(true)} disabled={isFetching || isLoading || isEditing} variant="default" className="text-xs shadow-xl rounded-lg opacity-90 bg-teal-700 hover:bg-teal-600 text-gray-950 px-[9px] mx-[2px] py-[7px] my-[5px]">
+          <Button onClick={() => setIsEditing(true)} disabled={isFetching || isLoading || isEditing} variant="default" className="text-xs rounded-lg opacity-90 bg-teal-700 hover:bg-teal-600 text-gray-950 px-[9px] mx-[2px] py-[7px] my-[5px] shadow-sm">
             {isFetching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit className="mr-2 h-4 w-4" />}
             Editar
           </Button>
         </div>
 
         <Tabs defaultValue="dados" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-gradient-card border border-border rounded-xl p-2 shadow-card h-auto">
+          <TabsList className={`grid w-full ${showTimeClock ? 'grid-cols-6' : 'grid-cols-5'} bg-gradient-card border border-border rounded-xl p-2 shadow-card h-auto`}>
             <TabsTrigger value="dados" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Dados</TabsTrigger>
+            {showTimeClock && <TabsTrigger value="ponto" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Ponto</TabsTrigger>}
             <TabsTrigger value="salario" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Salário</TabsTrigger>
             <TabsTrigger value="ferias" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Férias</TabsTrigger>
+            <TabsTrigger value="extrato" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Extrato</TabsTrigger>
             <TabsTrigger value="documentos" className="rounded-lg data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200">Documentos</TabsTrigger>
           </TabsList>
 
@@ -1267,9 +1271,21 @@ export default function Perfil() {
             </div>
           </TabsContent>
 
+          <TabsContent value="extrato">
+            <EmployeeBankStatement employeeId={userId} employeeName={displayName} />
+          </TabsContent>
+
           <TabsContent value="documentos">
             <EmployeeDocumentsManager userId={userId} userName={displayName} isAdmin={isAdmin} isFinanceiroMaster={roles.includes("financeiro_master")} isGestorMaster={isGestorMaster} currentUserId={user?.id} />
           </TabsContent>
+
+          {showTimeClock && <TabsContent value="ponto">
+              <Card className="border-border shadow-elevated rounded-xl">
+                <CardContent className="pt-6">
+                  <TimeClockTab />
+                </CardContent>
+              </Card>
+            </TabsContent>}
         </Tabs>
 
         {(isLoading || isFetching) && <Card>

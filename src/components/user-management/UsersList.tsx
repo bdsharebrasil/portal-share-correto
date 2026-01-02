@@ -188,46 +188,46 @@ export function UsersList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Email</TableHead>
-              <TableHead>Nome Completo</TableHead>
-              <TableHead>ID</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Roles</TableHead>
-              <TableHead>Ações</TableHead>
+              <TableHead className="border border-inherit">Email</TableHead>
+              <TableHead className="border border-inherit">Nome Completo</TableHead>
+              <TableHead className="border border-inherit">ID</TableHead>
+              <TableHead className="border border-inherit">Status</TableHead>
+              <TableHead className="border border-inherit">Roles</TableHead>
+              <TableHead className="border">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {users.map((user: any) => {
             const isActive = user.employment_status !== 'inativo';
             return <TableRow key={user.id}>
-                  <TableCell>{user.email}</TableCell>
-                  <TableCell>{user.full_name || '-'}</TableCell>
-                  <TableCell>
+                  <TableCell className="border">{user.email}</TableCell>
+                  <TableCell className="border">{user.full_name || '-'}</TableCell>
+                  <TableCell className="border">
                     <Badge className={`${getIdBadgeColor(getShortUserId(user.id))} font-semibold`}>
                       {getShortUserId(user.id)}
                     </Badge>
                   </TableCell>
-                  <TableCell>
-                    <Badge variant={isActive ? "default" : "secondary"} className="rounded-lg bg-teal-600">
+                  <TableCell className="border">
+                    <Badge variant={isActive ? "default" : "secondary"} className="rounded-lg bg-teal-600 shadow-md border-slate-500">
                       {isActive ? "Ativo" : "Inativo"}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="border">
                     {user.roles?.length > 0 ? <div className="flex gap-1 flex-wrap">
                         {user.roles.map((role: string) => <Badge key={role} variant="outline" className="text-xs bg-slate-900 shadow-xl rounded-md border border-[#010d2b]/[0.82]">
                             {formatRoleLabel(role)}
                           </Badge>)}
                       </div> : '-'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="border">
                     <div className="flex gap-2">
-                      {(isAdmin || isGestorMaster) && <Button variant={isActive ? "outline" : "default"} size="sm" onClick={() => handleStatusToggle(user.id, user.employment_status || 'ativo')} className="rounded-3xl text-xs">
+                      {(isAdmin || isGestorMaster) && <Button variant={isActive ? "outline" : "default"} size="sm" onClick={() => handleStatusToggle(user.id, user.employment_status || 'ativo')} className="rounded-3xl mx-0 text-sm">
                           {isActive ? <>
                               <UserMinus className="h-4 w-4 mr-1" />
                               Inativar
                             </> : 'Reativar'}
                         </Button>}
-                      {(isAdmin || isGestorMaster) && <Button variant="destructive" size="sm" onClick={() => handleDelete(user.id)} className="text-xs font-thin rounded-lg shadow-lg bg-[#ba1c1c]/[0.76] px-[6px] text-justify">
+                      {(isAdmin || isGestorMaster) && <Button variant="destructive" size="sm" onClick={() => handleDelete(user.id)} className="rounded-lg shadow-lg bg-[#ba1c1c]/[0.76] px-[6px] text-sm text-center font-extralight">
                           <Trash2 className="mr-1 rounded-2xl shadow-sm mx-0 px-0 py-0 h-[16px] w-[19px]" />
                           ​
                         </Button>}

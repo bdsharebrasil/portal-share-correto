@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pencil, Plus, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { apiClient } from "@/lib/api-client";
 import { useToast } from "@/hooks/use-toast";
 
 interface Manutencao {
@@ -62,13 +62,12 @@ export function ManutencaoDialog({ manutencao, onSave, mode = "create" }: Manute
 
   const loadAircrafts = async () => {
     try {
-      const { data, error } = await supabase
-        .from("aircraft")
-        .select("id, registration")
-        .order("registration");
-
-      if (error) throw error;
-      setAircrafts(data || []);
+      const data = await apiClient.getAircraft() as any;
+      const aircraftList = Array.isArray(data) ? data : data?.data || [];
+      const filtered = aircraftList
+        .map((a: any) => ({ id: a.id, registration: a.registration }))
+        .sort((a: Aircraft, b: Aircraft) => a.registration.localeCompare(b.registration));
+      setAircrafts(filtered);
     } catch (error) {
       console.error("Erro ao carregar aeronaves:", error);
       toast({
@@ -106,27 +105,16 @@ export function ManutencaoDialog({ manutencao, onSave, mode = "create" }: Manute
       };
 
       if (mode === "edit" && manutencao?.id) {
-        const { error } = await supabase
-          .from("manutencoes")
-          .update(payload)
-          .eq("id", manutencao.id);
-
-        if (error) throw error;
+        await apiClient.updateMaintenance(manutencao.id, payload);
 
         toast({
           title: "Sucesso",
           description: "Manutenção atualizada com sucesso.",
         });
       } else {
-        const { data, error } = await supabase
-          .from("manutencoes")
-          .insert([payload])
-          .select()
-          .single();
-
-        if (error) throw error;
-        if (data) {
-          formData.id = data.id;
+        const data = await apiClient.createMaintenance(payload) as { id?: string };
+        if (data && data.id) {
+          (formData as any).id = data.id;
         }
 
         toast({

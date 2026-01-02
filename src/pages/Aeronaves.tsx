@@ -1,27 +1,33 @@
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AddAircraftDialog } from "@/components/diario/AddAircraftDialog";
-import { useMemo, useState } from "react";
-import { ArrowLeft, Edit, Plus, Trash2, Plane, Calendar, MapPin, Users, Fuel, Search, Eye, FileText } from "lucide-react";
+import { useAircraftImages } from "@/hooks/useAircraftImages";
+import { useMemo, useState, useRef } from "react";
+import { Plus, Plane, Calendar, MapPin, Users, Search, Upload, Image as ImageIcon, X, ChevronLeft, ChevronRight, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+
+const ITEMS_PER_PAGE = 9;
 
 export default function Aeronaves() {
   const navigate = useNavigate();
+  const { uploadAircraftImage } = useAircraftImages();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilter, setActiveFilter] = useState<"todas" | "ativas" | "inativas">("todas");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [imageUploadOpen, setImageUploadOpen] = useState(false);
+  const [selectedAircraftForImage, setSelectedAircraftForImage] = useState<any | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: aircraft, isLoading, refetch } = useQuery({
     queryKey: ["aircraft"],
@@ -32,7 +38,7 @@ export default function Aeronaves() {
         .order("registration", { ascending: true });
       if (error) throw error;
       return data;
-    },
+    }
   });
 
   const { data: clients } = useQuery({
@@ -40,41 +46,23 @@ export default function Aeronaves() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("clients")
-        .select(`
-          id, 
-          company_name,
-          client_aircraft(aircraft_id)
-        `);
+        .select(`id, company_name, client_aircraft(aircraft_id)`);
       if (error) throw error;
-      return data as Array<{ id: string; company_name: string | null; client_aircraft: Array<{ aircraft_id: string }> }>;
-    },
+      return data as Array<{
+        id: string;
+        company_name: string | null;
+        client_aircraft: Array<{ aircraft_id: string }>;
+      }>;
+    }
   });
 
-  const { data: documentCounts } = useQuery({
-    queryKey: ["aircraft-document-counts"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("aircraft_documents")
-        .select("aircraft_id");
-      if (error) throw error;
-
-      const counts = new Map<string, number>();
-      data?.forEach(d => {
-        counts.set(d.aircraft_id, (counts.get(d.aircraft_id) || 0) + 1);
-      });
-      return counts;
-    },
-  });
-
-  const clientsByAircraft = useMemo(() => {
-    const map = new Map<string, string[]>();
-    (clients || []).forEach((c) => {
+  const clientCountByAircraft = useMemo(() => {
+    const map = new Map<string, number>();
+    (clients || []).forEach(c => {
       if (c.client_aircraft && Array.isArray(c.client_aircraft)) {
         c.client_aircraft.forEach((ca: any) => {
           if (ca.aircraft_id) {
-            const arr = map.get(ca.aircraft_id) || [];
-            arr.push(c.company_name || "-");
-            map.set(ca.aircraft_id, arr);
+            map.set(ca.aircraft_id, (map.get(ca.aircraft_id) || 0) + 1);
           }
         });
       }
@@ -82,146 +70,144 @@ export default function Aeronaves() {
     return map;
   }, [clients]);
 
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!confirm("Excluir esta aeronave?")) return;
-    const { error } = await supabase.from("aircraft").delete().eq("id", id);
-    if (error) {
-      toast.error("Erro ao excluir aeronave");
-    } else {
-      toast.success("Aeronave excluída com sucesso");
-      refetch();
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Por favor, selecione uma imagem válida");
+      return;
+    }
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUploadImage = async () => {
+    if (!imageFile || !selectedAircraftForImage) return;
+    setIsUploadingImage(true);
+    try {
+      const result = await uploadAircraftImage(selectedAircraftForImage.id, imageFile);
+      if (result.success) {
+        toast.success("Imagem da aeronave salva com sucesso");
+        setImageUploadOpen(false);
+        setImageFile(null);
+        setImagePreview(null);
+        setSelectedAircraftForImage(null);
+        refetch();
+      }
+    } catch (error) {
+      console.error("Erro ao fazer upload da imagem:", error);
+      toast.error("Erro ao salvar imagem da aeronave");
+    } finally {
+      setIsUploadingImage(false);
     }
   };
 
   const filteredAircraft = useMemo(() => {
     if (!aircraft) return [];
-    if (!searchTerm) return aircraft;
+    let filtered = aircraft;
+    
+    // Apply status filter
+    if (activeFilter === "ativas") {
+      filtered = filtered.filter(a => a.status !== "inativa");
+    } else if (activeFilter === "inativas") {
+      filtered = filtered.filter(a => a.status === "inativa");
+    }
+    
+    // Apply search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(a =>
+        a.registration?.toLowerCase().includes(term) ||
+        a.model?.toLowerCase().includes(term) ||
+        a.manufacturer?.toLowerCase().includes(term) ||
+        a.base?.toLowerCase().includes(term)
+      );
+    }
+    
+    return filtered;
+  }, [aircraft, searchTerm, activeFilter]);
 
-    const term = searchTerm.toLowerCase();
-    return aircraft.filter(a =>
-      a.registration?.toLowerCase().includes(term) ||
-      a.model?.toLowerCase().includes(term) ||
-      a.manufacturer?.toLowerCase().includes(term) ||
-      a.base?.toLowerCase().includes(term)
-    );
-  }, [aircraft, searchTerm]);
+  // Pagination
+  const totalPages = Math.ceil(filteredAircraft.length / ITEMS_PER_PAGE);
+  const paginatedAircraft = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredAircraft.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredAircraft, currentPage]);
 
-  const activeAircraft = useMemo(() => {
-    return filteredAircraft.filter((a) => a.status !== "inativa");
-  }, [filteredAircraft]);
-
-  const inactiveAircraft = useMemo(() => {
-    return filteredAircraft.filter((a) => a.status === "inativa");
-  }, [filteredAircraft]);
+  // Reset to page 1 when filter changes
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [searchTerm, activeFilter]);
 
   const AircraftCard = ({ aircraft: a }: { aircraft: any }) => {
-    const clientList = clientsByAircraft.get(a.id) || [];
-    const docCount = documentCounts?.get(a.id) || 0;
-
+    const sociosCount = clientCountByAircraft.get(a.id) || 0;
+    
     return (
-      <Card
-        className="overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group rounded-2xl border-0 shadow-lg"
+      <Card 
+        className="overflow-hidden hover:ring-2 hover:ring-primary/50 transition-all duration-300 cursor-pointer group rounded-xl border-border/50 bg-card"
         onClick={() => navigate(`/aeronaves/${a.id}`)}
       >
         <CardContent className="p-0">
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900 p-4 space-y-3">
-            {/* Header */}
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3 flex-1 min-w-0">
-                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
-                  <Plane className="h-6 w-6 text-white" />
-                </div>
-                <div className="min-w-0 pt-0.5">
-                  <h3 className="text-xl font-bold text-white uppercase tracking-wider">
-                    {a.registration}
-                  </h3>
-                  <p className="text-xs text-slate-400 mt-0.5">{a.model}</p>
-                </div>
-              </div>
-              <Badge
-                className={`rounded-lg px-2.5 py-1 text-xs font-medium flex-shrink-0 ${a.status === "inativa"
-                    ? "bg-red-500/20 text-red-300 border border-red-500/30"
-                    : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                  }`}
-              >
-                {a.status === "inativa" ? "Inativa" : "Ativa"}
-              </Badge>
-            </div>
-
-            {/* Info Grid */}
-            <div className="grid grid-cols-2 gap-2">
-              {a.year && (
-                <div className="flex items-center gap-2 p-2.5 bg-slate-700/40 rounded-lg">
-                  <Calendar className="h-4 w-4 text-blue-400 flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-[9px] text-slate-400 uppercase tracking-wide">Ano</p>
-                    <p className="text-xs font-semibold text-white truncate">{a.year}</p>
-                  </div>
+          <div className="flex">
+            {/* Imagem da Aeronave */}
+            <div className="relative w-24 h-24 flex-shrink-0 bg-muted overflow-hidden">
+              {a.image_url ? (
+                <img
+                  src={a.image_url}
+                  alt={a.registration}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-muted">
+                  <Plane className="h-8 w-8 text-muted-foreground/40" />
                 </div>
               )}
-              {a.base && (
-                <div className="flex items-center gap-2 p-2.5 bg-slate-700/40 rounded-lg">
-                  <MapPin className="h-4 w-4 text-green-400 flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-[9px] text-slate-400 uppercase tracking-wide">Base</p>
-                    <p className="text-xs font-semibold text-white uppercase truncate">{a.base}</p>
-                  </div>
-                </div>
-              )}
-              {a.fuel_consumption && (
-                <div className="flex items-center gap-2 p-2.5 bg-slate-700/40 rounded-lg">
-                  <Fuel className="h-4 w-4 text-orange-400 flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-[9px] text-slate-400 uppercase tracking-wide">Consumo</p>
-                    <p className="text-xs font-semibold text-white">{a.fuel_consumption} L/H</p>
-                  </div>
-                </div>
-              )}
-              <div className="flex items-center gap-2 p-2.5 bg-slate-700/40 rounded-lg">
-                <FileText className="h-4 w-4 text-purple-400 flex-shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-[9px] text-slate-400 uppercase tracking-wide">Docs</p>
-                  <p className="text-xs font-semibold text-white">{docCount}/8</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Clients */}
-            {clientList.length > 0 && (
-              <div className="flex items-start gap-2 p-2.5 bg-slate-700/30 rounded-lg">
-                <Users className="h-4 w-4 text-cyan-400 flex-shrink-0 mt-0.5" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[9px] text-slate-400 uppercase tracking-wide mb-1">Clientes</p>
-                  <div className="flex flex-wrap gap-1">
-                    {clientList.slice(0, 2).map((cn, idx) => (
-                      <Badge key={idx} variant="secondary" className="text-xs rounded-md bg-slate-600 text-white truncate max-w-[200px]">
-                        {cn}
-                      </Badge>
-                    ))}
-                    {clientList.length > 2 && (
-                      <Badge variant="outline" className="text-xs rounded-md border-slate-500 text-slate-300">
-                        +{clientList.length - 2}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div className="flex gap-2 pt-1">
-              <Button
-                variant="default"
-                className="w-full rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm"
+              {/* Botão de upload de imagem */}
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  navigate(`/aeronaves/${a.id}`);
+                  setSelectedAircraftForImage(a);
+                  setImageUploadOpen(true);
                 }}
+                className="absolute inset-0 bg-black/0 hover:bg-black/50 opacity-0 hover:opacity-100 transition-all duration-200 flex items-center justify-center"
               >
-                <Eye className="h-3.5 w-3.5 mr-1.5" />
-                Ver Detalhes
-              </Button>
+                <div className="bg-primary p-2 rounded-full">
+                  <Upload className="h-4 w-4 text-primary-foreground" />
+                </div>
+              </button>
+            </div>
+
+            {/* Conteúdo */}
+            <div className="flex-1 p-3 min-w-0">
+              <h3 className="text-base font-bold text-foreground uppercase tracking-wide truncate">
+                {a.registration}
+              </h3>
+              
+              <div className="mt-2 space-y-1">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <MapPin className="h-3 w-3 text-primary flex-shrink-0" />
+                  <span>Base:</span>
+                  <span className="font-medium text-foreground uppercase">{a.base || "-"}</span>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                    <span>Ano:</span>
+                    <span className="font-medium text-foreground">{a.year || "-"}</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Users className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                    <span>Sócios:</span>
+                    <span className="font-medium text-foreground">{sociosCount}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </CardContent>
@@ -229,127 +215,211 @@ export default function Aeronaves() {
     );
   };
 
-  const AircraftGrid = ({ aircraftList }: { aircraftList: any[] }) => (
-    <>
-      {aircraftList.length === 0 ? (
-        <div className="py-16 text-center">
-          <Plane className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
-          <p className="text-muted-foreground text-lg">Nenhuma aeronave encontrada</p>
-          {searchTerm && (
-            <p className="text-muted-foreground text-sm mt-2">
-              Tente buscar por outro termo
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
-          {aircraftList.map((a: any) => (
-            <AircraftCard key={a.id} aircraft={a} />
-          ))}
-        </div>
-      )}
-    </>
+  const FilterButton = ({ value, label }: { value: "todas" | "ativas" | "inativas"; label: string }) => (
+    <button
+      onClick={() => setActiveFilter(value)}
+      className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+        activeFilter === value
+          ? "bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted"
+      }`}
+    >
+      {label}
+    </button>
   );
 
   return (
     <Layout>
       <div className="p-4 lg:p-6 space-y-6 max-w-7xl mx-auto">
+        {/* Back Button */}
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-foreground hover:text-primary transition-colors group w-fit"
+        >
+          <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
+          <span className="text-sm">Voltar</span>
+        </button>
+
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white p-6 lg:p-8 rounded-3xl shadow-xl">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-white hover:bg-white/10 rounded-xl"
-                onClick={() => navigate("/diario-bordo")}
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div>
-                <h1 className="text-3xl lg:text-4xl font-bold">Gestão de Aeronaves</h1>
-                <p className="text-white/70 mt-1">Gerenciamento centralizado da frota</p>
-              </div>
-            </div>
-            <Button
-              onClick={() => { setEditing(null); setDialogOpen(true); }}
-              className="bg-white text-slate-800 hover:bg-white/90 rounded-xl shadow-lg"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Aeronave
-            </Button>
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <div>
+            <h1 className="text-2xl lg:text-3xl font-bold text-foreground">Gerenciar Aeronaves</h1>
+            <p className="text-muted-foreground mt-1">
+              Gerencie sua frota e visualize detalhes das aeronaves.
+            </p>
+          </div>
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setDialogOpen(true);
+            }}
+            className="bg-primary hover:bg-primary/90"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Adicionar Nova
+          </Button>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-card/50 p-4 rounded-xl border border-border/50">
+          <div className="relative flex-1 max-w-md w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por matrícula ou base..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-background border-border"
+            />
+          </div>
+          
+          <div className="flex items-center gap-1 bg-muted/50 p-1 rounded-lg">
+            <FilterButton value="todas" label="Todas" />
+            <FilterButton value="ativas" label="Ativas" />
+            <FilterButton value="inativas" label="Inativas" />
           </div>
         </div>
 
-        {/* Search */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por prefixo, modelo, fabricante..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-11 h-12 rounded-xl border-0 shadow-lg"
-          />
-        </div>
-
+        {/* Aircraft Grid */}
         {isLoading ? (
-          <Card className="p-12 rounded-2xl border-0 shadow-lg">
-            <div className="text-center">
-              <Plane className="h-12 w-12 mx-auto text-muted-foreground/40 animate-pulse mb-4" />
-              <p className="text-muted-foreground">Carregando aeronaves...</p>
-            </div>
-          </Card>
-        ) : !aircraft || aircraft.length === 0 ? (
-          <Card className="p-12 rounded-2xl border-0 shadow-lg">
-            <div className="text-center space-y-4">
-              <Plane className="h-16 w-16 mx-auto text-muted-foreground/30" />
-              <p className="text-muted-foreground text-lg">Nenhuma aeronave cadastrada</p>
-              <Button
-                onClick={() => { setEditing(null); setDialogOpen(true); }}
-                className="rounded-xl"
-              >
-                <Plus className="h-4 w-4 mr-2" /> Cadastrar primeira aeronave
-              </Button>
-            </div>
-          </Card>
+          <div className="py-16 text-center">
+            <Plane className="h-12 w-12 mx-auto text-muted-foreground/40 animate-pulse mb-4" />
+            <p className="text-muted-foreground">Carregando aeronaves...</p>
+          </div>
+        ) : paginatedAircraft.length === 0 ? (
+          <div className="py-16 text-center">
+            <Plane className="h-16 w-16 mx-auto text-muted-foreground/30 mb-4" />
+            <p className="text-muted-foreground text-lg">Nenhuma aeronave encontrada</p>
+            {(searchTerm || activeFilter !== "todas") && (
+              <p className="text-muted-foreground text-sm mt-2">
+                Tente ajustar os filtros de busca
+              </p>
+            )}
+          </div>
         ) : (
-          <Tabs defaultValue="ativas" className="space-y-6">
-            <TabsList className="bg-card/50 backdrop-blur p-1.5 rounded-2xl border border-border/40 w-full max-w-md">
-              <TabsTrigger
-                value="ativas"
-                className="flex-1 rounded-xl py-2.5 data-[state=active]:bg-emerald-500 data-[state=active]:text-white data-[state=active]:shadow-md"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-emerald-400 data-[state=inactive]:bg-muted-foreground" />
-                  Ativas ({activeAircraft.length})
-                </div>
-              </TabsTrigger>
-              <TabsTrigger
-                value="inativas"
-                className="flex-1 rounded-xl py-2.5 data-[state=active]:bg-red-500 data-[state=active]:text-white data-[state=active]:shadow-md"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-red-400 data-[state=inactive]:bg-muted-foreground" />
-                  Inativas ({inactiveAircraft.length})
-                </div>
-              </TabsTrigger>
-            </TabsList>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {paginatedAircraft.map((a: any) => (
+                <AircraftCard key={a.id} aircraft={a} />
+              ))}
+            </div>
 
-            <TabsContent value="ativas" className="mt-6">
-              <AircraftGrid aircraftList={activeAircraft} />
-            </TabsContent>
-
-            <TabsContent value="inativas" className="mt-6">
-              <AircraftGrid aircraftList={inactiveAircraft} />
-            </TabsContent>
-          </Tabs>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="h-9 w-9"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? "default" : "outline"}
+                    size="icon"
+                    onClick={() => setCurrentPage(page)}
+                    className="h-9 w-9"
+                  >
+                    {page}
+                  </Button>
+                ))}
+                
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="h-9 w-9"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </>
         )}
 
-        <AddAircraftDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          aircraft={editing}
-        />
+        {/* Dialog de Upload de Imagem */}
+        <Dialog open={imageUploadOpen} onOpenChange={setImageUploadOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Salvar Imagem da Aeronave</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {imagePreview ? (
+                <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-muted border border-border">
+                  <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                  <button
+                    onClick={() => {
+                      setImagePreview(null);
+                      setImageFile(null);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = "";
+                      }
+                    }}
+                    className="absolute top-2 right-2 p-1 bg-black/50 hover:bg-black/70 rounded-lg text-white transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full aspect-video rounded-xl border-2 border-dashed border-border hover:border-primary transition-colors bg-muted/50 flex flex-col items-center justify-center cursor-pointer group"
+                >
+                  <ImageIcon className="h-12 w-12 text-muted-foreground group-hover:text-primary mb-2 transition-colors" />
+                  <p className="text-sm text-muted-foreground group-hover:text-primary transition-colors">
+                    Clique para selecionar uma imagem
+                  </p>
+                  <p className="text-xs text-muted-foreground">PNG, JPG ou WebP</p>
+                </div>
+              )}
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+
+              {selectedAircraftForImage && (
+                <div className="p-3 bg-muted rounded-lg border border-border">
+                  <p className="text-sm text-foreground">
+                    <span className="font-semibold">Aeronave:</span> {selectedAircraftForImage.registration}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">{selectedAircraftForImage.model}</p>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setImageUploadOpen(false);
+                  setImageFile(null);
+                  setImagePreview(null);
+                  setSelectedAircraftForImage(null);
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleUploadImage}
+                disabled={!imageFile || isUploadingImage}
+              >
+                {isUploadingImage ? "Salvando..." : "Salvar Imagem"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <AddAircraftDialog open={dialogOpen} onOpenChange={setDialogOpen} aircraft={editing} />
       </div>
     </Layout>
   );

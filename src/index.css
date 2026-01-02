@@ -73,6 +73,11 @@
     --sidebar-accent-foreground: 210 40% 98%;
     --sidebar-border: 222 20% 20%;
     --sidebar-ring: 192 70% 50%;
+
+    /* Folder colors */
+    --folder-back: 35 80% 45%;
+    --folder-tab: 35 90% 55%;
+    --folder-front: 25 85% 50%;
   }
 }
 
@@ -234,5 +239,59 @@
 
   input[type="number"] {
     -moz-appearance: textfield;
+  }
+
+  /* Flight Plan Map Panel Styling */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Modern scrollbar styling for map panel */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #111722;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #232f48;
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #324467;
+  }
+
+  /* Animations for flight plan visualization */
+  @keyframes dash {
+    to {
+      stroke-dashoffset: -1000;
+    }
+  }
+
+  .animate-route-dash {
+    animation: dash 60s linear infinite;
+  }
+
+  /* Font imports for modern look */
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap');
+
+  html {
+    font-family: 'Noto Sans', sans-serif;
+  }
+
+  .font-display {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .font-body {
+    font-family: 'Noto Sans', sans-serif;
   }
 }

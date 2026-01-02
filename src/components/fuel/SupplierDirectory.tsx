@@ -62,8 +62,8 @@ export function SupplierDirectory() {
       supplier_name: formData.supplier_name,
       contact_person: formData.contact_person || null,
       phone: formData.phone || null,
-      avgas_price: parseFloat(formData.avgas_price) || 0,
-      jet_price: parseFloat(formData.jet_price) || 0,
+      fuel_price_avgas: parseFloat(formData.avgas_price) || 0,
+      fuel_price_jet: parseFloat(formData.jet_price) || 0,
     } as const;
 
     if (editingSupplier) {

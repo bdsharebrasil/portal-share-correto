@@ -36,6 +36,11 @@ export interface ReceiptFormData {
   formaPagamento?: string;
   clienteId?: string;
   aircraftId?: string;
+  reembolsoCategoriaId?: string;
+  reembolsoValorTotal?: string;
+  reembolsoPorcentagem?: string;
+  reembolsoBoletoFile?: File | null;
+  reembolsoNotaFiscalFile?: File | null;
 }
 
 export interface ValidationError {
@@ -154,6 +159,40 @@ export function validateReceiptForm(data: ReceiptFormData): ValidationError[] {
   // Forma de pagamento (opcional)
   if (data.formaPagamento && data.formaPagamento.length > 100) {
     errors.push({ field: "formaPagamento", message: "Forma de pagamento não pode exceder 100 caracteres" });
+  }
+
+  // Validação de reembolso - campos adicionais para bank_reconciliations
+  if (data.receiptType === "reembolso") {
+    // Categoria é usada apenas em bank_reconciliations, não validar aqui
+    // Os campos abaixo são opcionais no recibo mas serão obrigatórios no reconciliation
+
+    // Valor total da despesa (opcional no recibo, mas se preenchido deve ser válido)
+    if (data.reembolsoValorTotal) {
+      let valorTotal = 0;
+      if (typeof data.reembolsoValorTotal === 'string') {
+        valorTotal = parseFloat(data.reembolsoValorTotal.trim().replace(",", "."));
+      } else if (typeof data.reembolsoValorTotal === 'number') {
+        valorTotal = data.reembolsoValorTotal;
+      }
+
+      if (isNaN(valorTotal) || valorTotal <= 0) {
+        errors.push({ field: "reembolsoValorTotal", message: "Valor total inválido" });
+      }
+    }
+
+    // Porcentagem (opcional no recibo, mas se preenchido deve ser válida)
+    if (data.reembolsoPorcentagem) {
+      let porcentagem = 0;
+      if (typeof data.reembolsoPorcentagem === 'string') {
+        porcentagem = parseFloat(data.reembolsoPorcentagem.trim().replace(",", "."));
+      } else if (typeof data.reembolsoPorcentagem === 'number') {
+        porcentagem = data.reembolsoPorcentagem;
+      }
+
+      if (isNaN(porcentagem) || porcentagem <= 0 || porcentagem > 100) {
+        errors.push({ field: "reembolsoPorcentagem", message: "Porcentagem inválida" });
+      }
+    }
   }
 
   return errors;

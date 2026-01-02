@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ClienteCard } from "@/components/clientes/ClienteCard";
-import { Plus, Search, Building, Upload, FileText, X, Image, ChevronLeft, Edit, Phone, Mail, MapPin, Folder } from "lucide-react";
+import { Plus, Search, Building, Upload, FileText, X, Image, ChevronLeft, Edit, Phone, Mail, MapPin, Folder, Grid3x3, List } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -32,6 +31,7 @@ interface Cliente {
   id: string;
   company_name: string;
   cnpj: string;
+  proprietario?: string;
   inscricao_estadual?: string;
   address?: string;
   city?: string;
@@ -40,7 +40,6 @@ interface Cliente {
   email?: string;
   financial_contact?: string;
   observations?: string;
-  cnpj_card_url?: string;
   aircraft_ownerships?: AircraftOwnership[];
   logo_url?: string;
   documents?: ClientDocument[];
@@ -62,6 +61,13 @@ const ensureTravelReportsFolder = async (name: string) => {
     contentType: 'text/plain'
   });
 };
+const formatPhoneNumber = (value: string): string => {
+  const digitsOnly = value.replace(/\D/g, '');
+  if (digitsOnly.length === 0) return '';
+  if (digitsOnly.length <= 2) return `(${digitsOnly}`;
+  if (digitsOnly.length <= 7) return `(${digitsOnly.slice(0, 2)}) ${digitsOnly.slice(2)}`;
+  return `(${digitsOnly.slice(0, 2)}) ${digitsOnly.slice(2, 7)}-${digitsOnly.slice(7, 11)}`;
+};
 export default function Clientes() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -71,12 +77,28 @@ export default function Clientes() {
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
+  const [viewMode, setViewMode] = useState<'card' | 'list'>('card');
   const {
     toast
   } = useToast();
+
+  // Load view preference from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('clientesViewMode') as 'card' | 'list' | null;
+    if (saved) {
+      setViewMode(saved);
+    }
+  }, []);
+
+  // Save view preference to localStorage
+  const handleViewModeChange = (mode: 'card' | 'list') => {
+    setViewMode(mode);
+    localStorage.setItem('clientesViewMode', mode);
+  };
   const [formData, setFormData] = useState({
     company_name: "",
     cnpj: "",
+    proprietario: "",
     inscricao_estadual: "",
     address: "",
     city: "",
@@ -204,6 +226,7 @@ export default function Clientes() {
       setFormData({
         company_name: cliente.company_name || "",
         cnpj: cliente.cnpj || "",
+        proprietario: cliente.proprietario || "",
         inscricao_estadual: cliente.inscricao_estadual || "",
         address: cliente.address || "",
         city: cliente.city || "",
@@ -221,6 +244,7 @@ export default function Clientes() {
       setFormData({
         company_name: "",
         cnpj: "",
+        proprietario: "",
         inscricao_estadual: "",
         address: "",
         city: "",
@@ -266,6 +290,15 @@ export default function Clientes() {
       }
     }
     setAircraftOwnerships(updated);
+  };
+  const calculateTotalOwnership = () => {
+    return aircraftOwnerships.reduce((sum, ownership) => sum + (ownership.ownership_percentage || 0), 0);
+  };
+  const getTotalOwnershipColor = () => {
+    const total = calculateTotalOwnership();
+    if (total === 100) return 'text-green-400';
+    if (total > 100) return 'text-red-400';
+    return 'text-yellow-400';
   };
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -344,7 +377,10 @@ export default function Clientes() {
   };
   const handleSave = async () => {
     try {
+      console.log("🔵 INICIANDO SALVAMENTO DE CLIENTE");
+
       if (!formData.company_name || !formData.cnpj) {
+        console.warn("❌ Campos obrigatórios faltando");
         toast({
           title: "Campos obrigatórios",
           description: "Nome da empresa e CNPJ são obrigatórios",
@@ -352,9 +388,32 @@ export default function Clientes() {
         });
         return;
       }
+
+      console.log("✅ Campos obrigatórios OK", { company_name: formData.company_name, cnpj: formData.cnpj });
+
+      // Warn if aircraft ownership percentages don't sum to 100
+      let aircraftValidationWarning = "";
+      if (aircraftOwnerships.length > 0) {
+        const totalOwnership = calculateTotalOwnership();
+        const missingAircraft = aircraftOwnerships.some(ownership => !ownership.aircraft);
+
+        if (missingAircraft) {
+          toast({
+            title: "Aviso",
+            description: "Algumas aeronaves não foram selecionadas e serão ignoradas",
+            variant: "default"
+          });
+        } else if (totalOwnership !== 100) {
+          aircraftValidationWarning = ` (participação total: ${totalOwnership.toFixed(2)}%)`;
+        }
+      }
       setUploadingFiles(true);
+      console.log("📋 Processando validação de aeronaves");
+
       let logoUrl = editingCliente?.logo_url;
       let existingDocs = editingCliente?.documents || [];
+
+      console.log("📁 Processando upload de logo");
       if (logoFile) {
         const fileExt = logoFile.name.split(".").pop();
         const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
@@ -381,6 +440,7 @@ export default function Clientes() {
       const updatedData = {
         company_name: formData.company_name,
         cnpj: formData.cnpj,
+        proprietario: formData.proprietario,
         inscricao_estadual: formData.inscricao_estadual,
         address: formData.address,
         city: formData.city,
@@ -395,10 +455,15 @@ export default function Clientes() {
       };
       let clientId = editingCliente?.id;
       if (editingCliente) {
+        console.log("🔄 ATUALIZANDO CLIENTE EXISTENTE");
         const {
           error
         } = await supabase.from("clients").update(updatedData as any).eq("id", editingCliente.id);
-        if (error) throw error;
+        if (error) {
+          console.error("❌ Erro ao atualizar cliente:", error);
+          throw error;
+        }
+        console.log("✅ Cliente atualizado com sucesso");
 
         // Delete existing aircraft relationships
         const {
@@ -420,12 +485,17 @@ export default function Clientes() {
           description: "Cliente atualizado com sucesso"
         });
       } else {
+        console.log("➕ CRIANDO NOVO CLIENTE");
         const {
           data: insertData,
           error
         } = await supabase.from("clients").insert([updatedData as any]).select().single();
-        if (error) throw error;
+        if (error) {
+          console.error("❌ Erro ao inserir cliente:", error);
+          throw error;
+        }
         clientId = insertData?.id;
+        console.log("✅ Cliente criado com sucesso, ID:", clientId);
         const isActive = String((updatedData as any).status || '').toLowerCase() === 'ativo' || String((updatedData as any).status || '').toLowerCase() === 'active';
         if (isActive) {
           try {
@@ -448,36 +518,65 @@ export default function Clientes() {
       }
 
       // Save aircraft relationships
+      console.log("🔍 Verificando se deve salvar aeronaves: clientId =", clientId, ", aircraftOwnerships.length =", aircraftOwnerships.length);
       if (clientId && aircraftOwnerships.length > 0) {
+        console.log("🛩️  SALVANDO RELAÇÕES DE AERONAVES");
+        console.log("Cliente ID:", clientId);
+        console.log("Aeronaves para salvar:", aircraftOwnerships);
+
         const aircraftData = aircraftOwnerships.filter(ownership => ownership.aircraft).map(ownership => ({
           client_id: clientId,
           aircraft_id: ownership.aircraft,
           share_percentage: Math.max(0, Math.min(100, ownership.ownership_percentage || 0))
         }));
+        console.log("Dados formatados para inserção:", aircraftData);
+
         if (aircraftData.length > 0) {
+          console.log("✅ Enviando dados de aeronaves:", aircraftData);
           const {
-            error: aircraftError
+            error: aircraftError,
+            data: aircraftResult
           } = await supabase.from("client_aircraft").insert(aircraftData);
           if (aircraftError) {
-            console.error("Erro ao salvar aeronaves:", aircraftError);
+            console.error("Erro ao salvar aeronaves - Status:", aircraftError.code);
+            console.error("Erro ao salvar aeronaves - Mensagem:", aircraftError.message);
+            console.error("Erro ao salvar aeronaves - Detalhes:", aircraftError.details);
+            console.error("Erro completo:", JSON.stringify(aircraftError, null, 2));
             toast({
               title: "Aviso",
-              description: "Cliente salvo, mas houve erro ao salvar as aeronaves",
+              description: `Cliente salvo, mas houve erro ao salvar as aeronaves: ${aircraftError.message || 'Erro desconhecido'}`,
               variant: "destructive"
             });
+          } else {
+            console.log("Aeronaves salvas com sucesso:", aircraftResult);
+            toast({
+              title: "Sucesso",
+              description: "Aeronaves vinculadas com sucesso"
+            });
           }
+        } else {
+          console.log("⚠️ Nenhuma aeronave para salvar (aircraftData.length = 0)");
         }
+      } else {
+        console.log("⚠️ Não salvando aeronaves: clientId =", clientId, ", aircraftOwnerships.length =", aircraftOwnerships.length);
       }
+      console.log("✅ SALVAMENTO COMPLETADO COM SUCESSO");
       handleCloseDialog();
       loadClientes();
     } catch (error) {
-      console.error("Erro ao salvar cliente:", error);
+      console.error("❌ ERRO AO SALVAR CLIENTE");
+      console.error("Tipo de erro:", typeof error);
+      console.error("Mensagem de erro:", error instanceof Error ? error.message : String(error));
+      console.error("Stack:", error instanceof Error ? error.stack : "N/A");
+      console.error("Objeto completo:", JSON.stringify(error, null, 2));
+
       toast({
         title: "Erro",
-        description: "Erro ao salvar cliente",
+        description: error instanceof Error ? error.message : "Erro ao salvar cliente",
         variant: "destructive"
       });
     } finally {
+      console.log("🔸 Finalizando salvamento");
       setUploadingFiles(false);
     }
   };
@@ -515,7 +614,8 @@ export default function Clientes() {
   };
   const activeClientes = filteredClientes.filter(c => isActive(c.status));
   const inactiveClientes = filteredClientes.filter(c => !isActive(c.status));
-  return <Layout>
+  return (
+    <>
       {!viewingCliente && <div className="p-6 space-y-6 max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -527,10 +627,32 @@ export default function Clientes() {
               Gerencie o cadastro de clientes e cotistas
             </p>
           </div>
-          <Button onClick={() => handleOpenDialog()} size="lg" className="gap-2 shadow-md rounded-lg px-[4px] bg-teal-700 hover:bg-teal-600">
-            <Plus className="h-4 w-4" />
-            Novo Cadastro
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="flex border border-border rounded-lg p-1">
+              <Button
+                onClick={() => handleViewModeChange('card')}
+                variant={viewMode === 'card' ? 'default' : 'ghost'}
+                size="sm"
+                className="h-9 w-9 p-0"
+                title="Visualização em cards"
+              >
+                <Grid3x3 className="h-4 w-4" />
+              </Button>
+              <Button
+                onClick={() => handleViewModeChange('list')}
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                className="h-9 w-9 p-0"
+                title="Visualização em lista"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button onClick={() => handleOpenDialog()} size="lg" className="gap-2 shadow-md rounded-lg px-[4px] bg-teal-700 hover:bg-teal-600">
+              <Plus className="h-4 w-4" />
+              Novo Cadastro
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -590,8 +712,29 @@ export default function Clientes() {
             </CardContent>
           </Card> : <div className="space-y-6">
             {/* Active Clients */}
-            {!showInactive && activeClientes.length > 0 && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {!showInactive && activeClientes.length > 0 && viewMode === 'card' && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {activeClientes.map(cliente => <ClienteCard key={cliente.id} cliente={cliente} onView={handleViewCliente} onEdit={handleOpenDialog} onDelete={setDeleteId} />)}
+              </div>}
+
+            {!showInactive && activeClientes.length > 0 && viewMode === 'list' && <div className="space-y-2 border border-border rounded-lg divide-y divide-border">
+                {activeClientes.map(cliente => <button key={cliente.id} onClick={() => handleViewCliente(cliente)} className="w-full p-4 flex items-center gap-4 hover:bg-muted/50 transition-colors text-left group">
+                    <Avatar className="h-10 w-10 flex-shrink-0">
+                      {cliente.logo_url && <AvatarImage src={cliente.logo_url} alt={cliente.company_name} className="object-contain" />}
+                      <AvatarFallback className="bg-white text-primary font-bold text-xs">
+                        {cliente.company_name.split(' ').map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                        {cliente.company_name}
+                      </h3>
+                      {cliente.aircraft_ownerships && cliente.aircraft_ownerships.length > 0 && <div className="flex flex-wrap gap-1 mt-1">
+                          {cliente.aircraft_ownerships.map((ownership, idx) => <Badge key={idx} variant="secondary" className="text-xs font-medium px-2 py-0.5">
+                              {ownership.aircraft_registration}
+                            </Badge>)}
+                        </div>}
+                    </div>
+                  </button>)}
               </div>}
 
             {/* Inactive Clients */}
@@ -601,9 +744,29 @@ export default function Clientes() {
                   <h2 className="text-lg font-semibold text-foreground">Clientes Inativos</h2>
                   <Badge variant="secondary">{inactiveClientes.length}</Badge>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {viewMode === 'card' && <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {inactiveClientes.map(cliente => <ClienteCard key={cliente.id} cliente={cliente} onView={handleViewCliente} onEdit={handleOpenDialog} onDelete={setDeleteId} />)}
-                </div>
+                </div>}
+                {viewMode === 'list' && <div className="space-y-2 border border-border rounded-lg divide-y divide-border">
+                  {inactiveClientes.map(cliente => <button key={cliente.id} onClick={() => handleViewCliente(cliente)} className="w-full p-4 flex items-center gap-4 hover:bg-muted/50 transition-colors text-left group">
+                      <Avatar className="h-10 w-10 flex-shrink-0">
+                        {cliente.logo_url && <AvatarImage src={cliente.logo_url} alt={cliente.company_name} className="object-contain" />}
+                        <AvatarFallback className="bg-white text-primary font-bold text-xs">
+                          {cliente.company_name.split(' ').map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                          {cliente.company_name}
+                        </h3>
+                        {cliente.aircraft_ownerships && cliente.aircraft_ownerships.length > 0 && <div className="flex flex-wrap gap-1 mt-1">
+                            {cliente.aircraft_ownerships.map((ownership, idx) => <Badge key={idx} variant="secondary" className="text-xs font-medium px-2 py-0.5">
+                                {ownership.aircraft_registration}
+                              </Badge>)}
+                          </div>}
+                      </div>
+                    </button>)}
+                </div>}
               </div>}
 
             {showInactive && inactiveClientes.length === 0 && <Card className="border-dashed">
@@ -626,32 +789,32 @@ export default function Clientes() {
           <Card className="overflow-hidden border-0 shadow-lg">
             <div className="relative">
               {/* Background gradient */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
-              
-              <CardContent className="relative p-6 sm:p-8 shadow-sm rounded-2xl bg-[#00263d]">
+              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-blue-500/5 to-transparent" />
+
+              <CardContent className="relative p-6 sm:p-8 shadow-sm rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
                   <div className="flex items-center gap-5">
-                    <Avatar className="h-20 w-20 sm:h-24 sm:w-24 ring-4 ring-background shadow-xl">
-                      {viewingCliente.logo_url && <AvatarImage src={viewingCliente.logo_url} alt={viewingCliente.company_name} className="object-contain" />}
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-primary/60 text-primary-foreground text-2xl font-bold">
+                    <Avatar className="h-20 w-20 sm:h-24 sm:w-24 ring-4 ring-cyan-400/50 shadow-xl bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">
+                      {viewingCliente.logo_url && <AvatarImage src={viewingCliente.logo_url} alt={viewingCliente.company_name} className="object-contain p-2" />}
+                      <AvatarFallback className="bg-gradient-to-br from-cyan-500 to-blue-500 text-white text-2xl font-bold">
                         {viewingCliente.company_name.split(' ').map(p => p[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
+                      <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
                         {viewingCliente.company_name}
                       </h1>
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20 px-[6px] rounded-md">
-                          ativo
+                        <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/40 px-[6px] rounded-md font-semibold">
+                          ✓ ativo
                         </Badge>
-                        <Badge variant="outline" className="font-mono text-xs shadow-xl bg-emerald-950 border-slate-800 rounded-lg">
+                        <Badge variant="outline" className="font-mono text-xs shadow-xl bg-slate-800/50 border-slate-600 rounded-lg text-slate-300">
                           {viewingCliente.cnpj}
                         </Badge>
                       </div>
                     </div>
                   </div>
-                  <Button onClick={() => handleOpenDialog(viewingCliente)} className="gap-2 shadow-md">
+                  <Button onClick={() => handleOpenDialog(viewingCliente)} className="gap-2 shadow-md bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white">
                     <Edit className="h-4 w-4" />
                     Editar
                   </Button>
@@ -660,91 +823,96 @@ export default function Clientes() {
             </div>
           </Card>
 
-          {/* Info Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Contact Card */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-semibold flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Phone className="h-4 w-4 text-primary" />
-                  </div>
-                  Informações de Contato
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {viewingCliente.phone && <div className="flex items-start gap-3">
-                    <Phone className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-0.5">Telefone</p>
-                      <p className="text-sm font-medium text-foreground">{viewingCliente.phone}</p>
-                    </div>
+          {/* Contact Information */}
+          {(viewingCliente.phone || viewingCliente.email || viewingCliente.address || viewingCliente.city || viewingCliente.uf || viewingCliente.financial_contact) && <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Phone className="h-4 w-4 text-primary" />
+                </div>
+                Informações de Contato
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {viewingCliente.phone && <div>
+                    <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                      <Phone className="h-3 w-3" />
+                      Telefone
+                    </p>
+                    <p className="text-sm font-medium text-foreground">{viewingCliente.phone}</p>
                   </div>}
-                {viewingCliente.email && <div className="flex items-start gap-3">
-                    <Mail className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-0.5">E-mail</p>
-                      <p className="text-sm font-medium text-foreground break-all">{viewingCliente.email}</p>
-                    </div>
+                {viewingCliente.email && <div>
+                    <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                      <Mail className="h-3 w-3" />
+                      E-mail
+                    </p>
+                    <p className="text-sm font-medium text-foreground break-all">{viewingCliente.email}</p>
                   </div>}
-                {(viewingCliente.address || viewingCliente.city || viewingCliente.uf) && <div className="flex items-start gap-3">
-                    <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-0.5">Endereço</p>
-                      <p className="text-sm font-medium text-foreground">
-                        {[viewingCliente.address, [viewingCliente.city, viewingCliente.uf].filter(Boolean).join(' - ')].filter(Boolean).join(', ')}
-                      </p>
-                    </div>
+                {(viewingCliente.address || viewingCliente.city || viewingCliente.uf) && <div>
+                    <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      Endereço
+                    </p>
+                    <p className="text-sm font-medium text-foreground">
+                      {[viewingCliente.address, [viewingCliente.city, viewingCliente.uf].filter(Boolean).join(' - ')].filter(Boolean).join(', ')}
+                    </p>
                   </div>}
-                {viewingCliente.financial_contact && <div className="flex items-start gap-3">
-                    <Building className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-0.5">Contato Financeiro</p>
-                      <p className="text-sm font-medium text-foreground">{viewingCliente.financial_contact}</p>
-                    </div>
+                {viewingCliente.financial_contact && <div>
+                    <p className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                      <Building className="h-3 w-3" />
+                      Contato Financeiro
+                    </p>
+                    <p className="text-sm font-medium text-foreground">{viewingCliente.financial_contact}</p>
                   </div>}
-                {!viewingCliente.phone && !viewingCliente.email && !viewingCliente.address && !viewingCliente.city && !viewingCliente.uf && !viewingCliente.financial_contact && <p className="text-sm text-muted-foreground text-center py-6">Nenhuma informação de contato</p>}
-              </CardContent>
-            </Card>
+              </div>
+            </CardContent>
+          </Card>}
 
-            {/* Additional Info Card */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-semibold flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Building className="h-4 w-4 text-primary" />
-                  </div>
-                  Informações Adicionais
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+          {/* Additional Information */}
+          {(viewingCliente.proprietario || viewingCliente.inscricao_estadual || viewingCliente.aircraft_ownerships?.length || viewingCliente.observations) && <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-semibold flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Building className="h-4 w-4 text-primary" />
+                </div>
+                Informações Adicionais
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {viewingCliente.proprietario && <div>
+                    <p className="text-xs text-muted-foreground mb-1">Proprietário ou Responsável</p>
+                    <p className="text-sm font-medium text-foreground">{viewingCliente.proprietario}</p>
+                  </div>}
                 {viewingCliente.inscricao_estadual && <div>
                     <p className="text-xs text-muted-foreground mb-1">Inscrição Estadual</p>
                     <p className="text-sm font-medium text-foreground font-mono">{viewingCliente.inscricao_estadual}</p>
                   </div>}
-                {viewingCliente.aircraft_ownerships && viewingCliente.aircraft_ownerships.length > 0 && <div>
-                    <p className="text-xs text-muted-foreground mb-2">Aeronaves e Participação</p>
-                    <div className="space-y-2">
-                      {viewingCliente.aircraft_ownerships.map((ownership, idx) => <div key={idx} className="flex justify-between items-center p-3 bg-muted/50 rounded-xl opacity-90 bg-[#080817]/[0.78] shadow-xl border-slate-400 py-[11px] px-[14px]">
-                          <span className="text-sm font-medium text-foreground">
-                            {ownership.aircraft_registration} - {ownership.aircraft_model}
-                          </span>
-                          <Badge variant="secondary" className="font-semibold">
-                            {ownership.ownership_percentage}%
-                          </Badge>
-                        </div>)}
-                    </div>
-                  </div>}
-                {viewingCliente.observations && <div>
-                    <p className="text-xs text-muted-foreground mb-2">Observações</p>
-                    <p className="text-sm text-foreground whitespace-pre-wrap bg-muted/50 p-3 rounded-lg">
-                      {viewingCliente.observations}
-                    </p>
-                  </div>}
-                {!viewingCliente.inscricao_estadual && !viewingCliente.aircraft_ownerships?.length && !viewingCliente.observations && <p className="text-sm text-muted-foreground text-center py-6">Nenhuma informação adicional</p>}
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+
+              {viewingCliente.aircraft_ownerships && viewingCliente.aircraft_ownerships.length > 0 && <div>
+                  <p className="text-xs text-muted-foreground mb-3">Aeronaves e Participação</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {viewingCliente.aircraft_ownerships.map((ownership, idx) => <div key={idx} className="flex justify-between items-center p-3 bg-muted/50 rounded-xl opacity-90 bg-[#080817]/[0.78] shadow-xl border-slate-400">
+                        <span className="text-sm font-medium text-foreground">
+                          {ownership.aircraft_registration} - {ownership.aircraft_model}
+                        </span>
+                        <Badge variant="secondary" className="font-semibold">
+                          {ownership.ownership_percentage}%
+                        </Badge>
+                      </div>)}
+                  </div>
+                </div>}
+
+              {viewingCliente.observations && <div>
+                  <p className="text-xs text-muted-foreground mb-2">Observações</p>
+                  <p className="text-sm text-foreground whitespace-pre-wrap bg-muted/50 p-3 rounded-lg">
+                    {viewingCliente.observations}
+                  </p>
+                </div>}
+            </CardContent>
+          </Card>}
 
           {/* Documents Card */}
           <Card>
@@ -792,142 +960,183 @@ export default function Clientes() {
 
       {/* Dialog de Cadastro/Edição */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingCliente ? "Editar Cliente" : "Novo Cliente"}
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-gradient-to-b from-slate-950 to-slate-900 border-slate-800">
+          <DialogHeader className="border-b border-slate-800 pb-4">
+            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
+              {editingCliente ? "✏️ Editar Cliente" : "➕ Novo Cliente"}
             </DialogTitle>
-            <DialogDescription>
-              Preencha as informações do cliente / cotista
+            <DialogDescription className="text-slate-400 mt-1">
+              {editingCliente ? "Atualize as informações do cliente / cotista" : "Preencha as informações do novo cliente / cotista"}
             </DialogDescription>
           </DialogHeader>
 
-          <Tabs defaultValue="info" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="info">Informações</TabsTrigger>
-              <TabsTrigger value="files">Logo e Documentos</TabsTrigger>
+          <Tabs defaultValue="info" className="w-full mt-4">
+            <TabsList className="grid w-full grid-cols-2 bg-slate-800/50 border border-slate-700 rounded-lg p-1">
+              <TabsTrigger value="info" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-blue-500 data-[state=active]:text-white rounded-md transition-all">
+                📋 Informações
+              </TabsTrigger>
+              <TabsTrigger value="files" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500 data-[state=active]:to-blue-500 data-[state=active]:text-white rounded-md transition-all">
+                📁 Logo e Documentos
+              </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="info" className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <Label htmlFor="company_name">Nome da Empresa *</Label>
-                <Input id="company_name" value={formData.company_name} onChange={e => setFormData({
-                  ...formData,
-                  company_name: e.target.value
-                })} placeholder="Razão Social" />
+            <TabsContent value="info" className="space-y-6 mt-4">
+              {/* Seção Principal */}
+              <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
+                  <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">Informações Principais</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <Label htmlFor="company_name" className="text-slate-300 font-semibold mb-2 block">Nome da Empresa *</Label>
+                    <Input id="company_name" value={formData.company_name} onChange={e => setFormData({
+                      ...formData,
+                      company_name: e.target.value
+                    })} placeholder="Razão Social" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                  </div>
+
+                  <div className="col-span-2">
+                    <Label htmlFor="proprietario" className="text-slate-300 font-semibold mb-2 block">Proprietário ou Responsável</Label>
+                    <Input id="proprietario" value={formData.proprietario} onChange={e => setFormData({
+                      ...formData,
+                      proprietario: e.target.value
+                    })} placeholder="Nome do proprietário ou responsável" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="cnpj" className="text-slate-300 font-semibold mb-2 block">CNPJ *</Label>
+                    <Input id="cnpj" value={formData.cnpj} onChange={e => setFormData({
+                      ...formData,
+                      cnpj: e.target.value
+                    })} placeholder="00.000.000/0000-00" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="inscricao_estadual" className="text-slate-300 font-semibold mb-2 block">Inscrição Estadual</Label>
+                    <Input id="inscricao_estadual" value={formData.inscricao_estadual} onChange={e => setFormData({
+                      ...formData,
+                      inscricao_estadual: e.target.value
+                    })} placeholder="000.000.000.000" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <Label htmlFor="cnpj">CNPJ *</Label>
-                <Input id="cnpj" value={formData.cnpj} onChange={e => setFormData({
-                  ...formData,
-                  cnpj: e.target.value
-                })} placeholder="00.000.000/0000-00" />
+              {/* Seção de Endereço */}
+              <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
+                  <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">Endereço</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <Label htmlFor="address" className="text-slate-300 font-semibold mb-2 block">Endereço</Label>
+                    <Input id="address" value={formData.address} onChange={e => setFormData({
+                      ...formData,
+                      address: e.target.value
+                    })} placeholder="Rua, número, bairro" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="city" className="text-slate-300 font-semibold mb-2 block">Cidade</Label>
+                    <Input id="city" value={formData.city} onChange={e => setFormData({
+                      ...formData,
+                      city: e.target.value
+                    })} placeholder="São Paulo" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="uf" className="text-slate-300 font-semibold mb-2 block">UF</Label>
+                    <Input id="uf" value={formData.uf} onChange={e => setFormData({
+                      ...formData,
+                      uf: e.target.value.toUpperCase().slice(0, 2)
+                    })} placeholder="SP" maxLength={2} className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500 uppercase" />
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <Label htmlFor="inscricao_estadual">Inscrição Estadual</Label>
-                <Input id="inscricao_estadual" value={formData.inscricao_estadual} onChange={e => setFormData({
-                  ...formData,
-                  inscricao_estadual: e.target.value
-                })} placeholder="000.000.000.000" />
+              {/* Seção de Contato */}
+              <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
+                  <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">Contato</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="phone" className="text-slate-300 font-semibold mb-2 block">📱 Telefone</Label>
+                    <Input id="phone" value={formData.phone} onChange={e => setFormData({
+                      ...formData,
+                      phone: formatPhoneNumber(e.target.value)
+                    })} placeholder="(00) 00000-0000" maxLength={15} className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="email" className="text-slate-300 font-semibold mb-2 block">📧 E-mail</Label>
+                    <Input id="email" type="email" value={formData.email} onChange={e => setFormData({
+                      ...formData,
+                      email: e.target.value
+                    })} placeholder="contato@empresa.com" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                  </div>
+
+                  <div className="col-span-2">
+                    <Label htmlFor="financial_contact" className="text-slate-300 font-semibold mb-2 block">💼 Contato Financeiro</Label>
+                    <Input id="financial_contact" value={formData.financial_contact} onChange={e => setFormData({
+                      ...formData,
+                      financial_contact: e.target.value
+                    })} placeholder="Nome do responsável financeiro" className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
+                  </div>
+                </div>
               </div>
 
-              <div className="col-span-2">
-                <Label htmlFor="address">Endereço</Label>
-                <Input id="address" value={formData.address} onChange={e => setFormData({
-                  ...formData,
-                  address: e.target.value
-                })} placeholder="Rua, número, bairro" />
-              </div>
-
-              <div>
-                <Label htmlFor="city">Cidade</Label>
-                <Input id="city" value={formData.city} onChange={e => setFormData({
-                  ...formData,
-                  city: e.target.value
-                })} placeholder="São Paulo" />
-              </div>
-
-              <div>
-                <Label htmlFor="uf">UF</Label>
-                <Input id="uf" value={formData.uf} onChange={e => setFormData({
-                  ...formData,
-                  uf: e.target.value.toUpperCase().slice(0, 2)
-                })} placeholder="SP" maxLength={2} />
-              </div>
-
-              <div>
-                <Label htmlFor="phone">Telefone</Label>
-                <Input id="phone" value={formData.phone} onChange={e => setFormData({
-                  ...formData,
-                  phone: e.target.value
-                })} placeholder="(00) 00000-0000" />
-              </div>
-
-              <div>
-                <Label htmlFor="email">E-mail</Label>
-                <Input id="email" type="email" value={formData.email} onChange={e => setFormData({
-                  ...formData,
-                  email: e.target.value
-                })} placeholder="contato@empresa.com" />
-              </div>
-
-              <div>
-                <Label htmlFor="financial_contact">Contato Financeiro</Label>
-                <Input id="financial_contact" value={formData.financial_contact} onChange={e => setFormData({
-                  ...formData,
-                  financial_contact: e.target.value
-                })} placeholder="Nome do responsável financeiro" />
-              </div>
-
-              <div className="col-span-2">
-                <div className="flex items-center justify-between mb-3">
-                  <Label className="text-base font-semibold">Aeronaves e Percentual de Sociedade</Label>
+              {/* Seção de Aeronaves */}
+              <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
+                    <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">✈️ Aeronaves</h3>
+                  </div>
                   <div className="flex gap-2">
-                    {aircraftOptions.length === 0 && <Button type="button" variant="outline" size="sm" onClick={loadAircraftOptions} disabled={loadingAircraft} className="flex items-center gap-2">
+                    {aircraftOptions.length === 0 && <Button type="button" variant="outline" size="sm" onClick={loadAircraftOptions} disabled={loadingAircraft} className="flex items-center gap-2 bg-slate-900 border-slate-600 hover:bg-slate-800 text-slate-200">
                         🔄 Recarregar
                       </Button>}
-                    <Button type="button" variant="outline" size="sm" onClick={addAircraftOwnership} disabled={aircraftOptions.length === 0 || loadingAircraft} className="flex items-center gap-2" title={aircraftOptions.length === 0 ? "Nenhuma aeronave disponível para vincular" : "Adicionar aeronave"}>
+                    <Button type="button" variant="outline" size="sm" onClick={addAircraftOwnership} disabled={aircraftOptions.length === 0 || loadingAircraft} className="flex items-center gap-2 bg-slate-900 border-slate-600 hover:bg-slate-800 text-slate-200" title={aircraftOptions.length === 0 ? "Nenhuma aeronave disponível para vincular" : "Adicionar aeronave"}>
                       <Plus className="h-4 w-4" />
-                      Adicionar Aeronave
+                      Adicionar
                     </Button>
                   </div>
                 </div>
 
-                {loadingAircraft && <div className="p-4 border border-blue-200 bg-blue-50 rounded-lg text-sm text-blue-800 mb-3">
+                {loadingAircraft && <div className="p-4 border border-blue-500/30 bg-blue-500/10 rounded-lg text-sm text-blue-300 mb-3">
                     ⏳ Carregando aeronaves...
                   </div>}
 
-                {!loadingAircraft && aircraftOptions.length === 0 && <div className="p-4 border border-yellow-200 bg-yellow-50 rounded-lg text-sm text-yellow-800 mb-3 space-y-2">
+                {!loadingAircraft && aircraftOptions.length === 0 && <div className="p-4 border border-yellow-500/30 bg-yellow-500/10 rounded-lg text-sm text-yellow-300 mb-3 space-y-2">
                     <p>⚠️ <strong>Nenhuma aeronave disponível</strong></p>
                     <p>Cadastre uma aeronave em "Gestão de Aeronaves" para vincular a este cliente.</p>
-                    <p className="text-xs">Se já cadastrou, clique em "Recarregar" acima.</p>
                   </div>}
 
-                {aircraftOwnerships.length === 0 ? <div className="p-4 border border-dashed rounded-lg text-center text-muted-foreground">
-                    Nenhuma aeronave adicionada. Clique em "Adicionar Aeronave" para começar.
+                {aircraftOwnerships.length === 0 ? <div className="p-4 border border-dashed border-slate-600 rounded-lg text-center text-slate-400">
+                    Nenhuma aeronave adicionada
                   </div> : <div className="space-y-3">
-                    {aircraftOwnerships.map((ownership, index) => <div key={index} className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                    {aircraftOwnerships.map((ownership, index) => <div key={index} className="space-y-3 p-4 border border-slate-600 rounded-lg bg-slate-900/50">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
-                            <Label className="text-sm font-medium text-foreground mb-2 block">Aeronave *</Label>
-                            {loadingAircraft ? <div className="p-3 border rounded text-center text-sm text-muted-foreground bg-muted">
+                            <Label className="text-sm font-medium text-slate-300 mb-2 block">Aeronave *</Label>
+                            {loadingAircraft ? <div className="p-3 border border-slate-600 rounded text-center text-sm text-slate-400 bg-slate-900">
                                 Carregando aeronaves...
-                              </div> : aircraftOptions.length === 0 ? <div className="p-3 border border-yellow-300 rounded text-center text-sm text-yellow-700 bg-yellow-50">
+                              </div> : aircraftOptions.length === 0 ? <div className="p-3 border border-yellow-500/30 rounded text-center text-sm text-yellow-300 bg-yellow-500/10">
                                 Nenhuma aeronave disponível
                               </div> : <Select value={ownership.aircraft} onValueChange={v => updateAircraftOwnership(index, 'aircraft', v)}>
-                                <SelectTrigger className="w-full bg-background">
+                                <SelectTrigger className="w-full bg-slate-900 border-slate-600 text-slate-100">
                                   <SelectValue placeholder="Selecione a aeronave..." />
                                 </SelectTrigger>
-                                <SelectContent className="max-h-64">
-                                  {aircraftOptions.length === 0 ? <div className="p-2 text-sm text-muted-foreground text-center">
+                                <SelectContent className="max-h-64 bg-slate-900 border-slate-600">
+                                  {aircraftOptions.length === 0 ? <div className="p-2 text-sm text-slate-400 text-center">
                                       Nenhuma aeronave disponível
-                                    </div> : aircraftOptions.map(a => <SelectItem key={a.id} value={a.id}>
+                                    </div> : aircraftOptions.map(a => <SelectItem key={a.id} value={a.id} className="text-slate-100">
                                         <div className="flex items-center gap-2">
-                                          <span className="font-semibold text-primary">{a.registration}</span>
-                                          <span className="text-muted-foreground">-</span>
+                                          <span className="font-semibold text-cyan-400">{a.registration}</span>
+                                          <span className="text-slate-400">-</span>
                                           <span>{a.model}</span>
                                         </div>
                                       </SelectItem>)}
@@ -941,116 +1150,182 @@ export default function Clientes() {
                         </div>
 
                         <div>
-                          <Label className="text-sm text-muted-foreground mb-1 block">Percentual de Participação (%)</Label>
-                          <Input type="number" min="0" max="100" step="0.01" value={ownership.ownership_percentage} onChange={e => updateAircraftOwnership(index, 'ownership_percentage', parseFloat(e.target.value) || 0)} placeholder="Ex: 50" className="text-right" />
-                          <p className="text-xs text-muted-foreground mt-1">Sua participação nesta aeronave</p>
+                          <Label className="text-sm text-slate-400 mb-1 block">Percentual de Participação (%) - Aceita decimais</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            value={ownership.ownership_percentage}
+                            onChange={e => {
+                              const val = parseFloat(e.target.value);
+                              if (!isNaN(val) && val >= 0) {
+                                updateAircraftOwnership(index, 'ownership_percentage', Math.min(val, 100));
+                              }
+                            }}
+                            placeholder="Ex: 33.33"
+                            className="text-right bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100"
+                          />
                         </div>
                       </div>)}
                   </div>}
+
+                {aircraftOwnerships.length > 0 && (
+                  <div className="mt-4 p-3 bg-slate-900/50 rounded-lg border border-slate-600">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-slate-400">Total de Participação:</span>
+                      <span className={`text-lg font-semibold ${getTotalOwnershipColor()}`}>
+                        {calculateTotalOwnership().toFixed(2)}%
+                      </span>
+                    </div>
+                    {calculateTotalOwnership() !== 100 && (
+                      <p className="text-xs text-slate-500 mt-1">
+                        {calculateTotalOwnership() < 100
+                          ? `Faltam ${(100 - calculateTotalOwnership()).toFixed(2)}%`
+                          : `Excesso de ${(calculateTotalOwnership() - 100).toFixed(2)}%`}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
-              <div>
-                <Label htmlFor="status">Status</Label>
-                <Select value={(formData as any).status} onValueChange={v => setFormData({
-                  ...formData,
-                  status: v
-                })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ativo">Ativo</SelectItem>
-                    <SelectItem value="inativo">Inativo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="col-span-2">
-                <Label htmlFor="observations">Observações</Label>
-                <Textarea id="observations" value={formData.observations} onChange={e => setFormData({
-                  ...formData,
-                  observations: e.target.value
-                })} placeholder="Informações adicionais sobre o cliente" rows={3} />
-              </div>
-            </div>
-          </TabsContent>
-
-            <TabsContent value="files" className="space-y-4 mt-4">
-              <div className="space-y-6">
+              {/* Seção de Status e Observações */}
+              <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
+                  <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">Status e Observações</h3>
+                </div>
                 <div className="space-y-4">
                   <div>
-                    <Label>Logo da Empresa</Label>
-                    <p className="text-sm text-muted-foreground mb-2">
-                       upload da logo da empresa (formatos: PNG, JPG, SVG)
-                    </p>
+                    <Label htmlFor="status" className="text-slate-300 font-semibold mb-2 block">Status</Label>
+                    <Select value={(formData as any).status} onValueChange={v => setFormData({
+                      ...formData,
+                      status: v
+                    })}>
+                      <SelectTrigger className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100">
+                        <SelectValue placeholder="Selecione o status" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-900 border-slate-600">
+                        <SelectItem value="ativo" className="text-slate-100">✅ Ativo</SelectItem>
+                        <SelectItem value="inativo" className="text-slate-100">❌ Inativo</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
-                  <div className="flex items-center gap-4">
-                    {logoPreview && <Avatar className="h-20 w-20">
-                        <AvatarImage src={logoPreview} alt="Logo" />
-                        <AvatarFallback>
-                          <Image className="h-8 w-8" />
-                        </AvatarFallback>
-                      </Avatar>}
-                    <div className="flex-1">
-                      <Input type="file" accept="image/*" onChange={handleLogoChange} className="cursor-pointer" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t pt-4 space-y-4">
                   <div>
-                    <Label>Documentos</Label>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Anexe documentos como CNPJ, contratos, etc.
-                    </p>
+                    <Label htmlFor="observations" className="text-slate-300 font-semibold mb-2 block">Observações</Label>
+                    <Textarea id="observations" value={formData.observations} onChange={e => setFormData({
+                      ...formData,
+                      observations: e.target.value
+                    })} placeholder="Informações adicionais sobre o cliente" rows={3} className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
                   </div>
-
-                  <div className="space-y-2">
-                    <Input type="file" multiple onChange={handleDocumentChange} className="cursor-pointer" />
-                  </div>
-
-                  {documentFiles.length > 0 && <div className="space-y-2">
-                      <Label className="text-sm">Novos documentos:</Label>
-                      {documentFiles.map((file, index) => <div key={index} className="flex items-center justify-between p-2 border rounded-lg">
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm">{file.name}</span>
-                            <span className="text-xs text-muted-foreground">
-                              ({(file.size / 1024).toFixed(1)} KB)
-                            </span>
-                          </div>
-                          <Button variant="ghost" size="sm" onClick={() => removeDocument(index)} className="h-6 w-6 p-0">
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>)}
-                    </div>}
-
-                  {editingCliente?.documents && editingCliente.documents.length > 0 && <div className="space-y-2">
-                      <Label className="text-sm">Documentos existentes:</Label>
-                      {editingCliente.documents.map((doc, index) => <div key={index} className="flex items-center justify-between p-2 border rounded-lg bg-muted/50">
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                            <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-sm hover:underline">
-                              {doc.name}
-                            </a>
-                          </div>
-                          <Button type="button" variant="ghost" size="sm" onClick={() => removeDocumentFromEditing(index)} className="h-6 w-6 p-0 text-destructive hover:text-destructive hover:bg-destructive/10">
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>)}
-                    </div>}
                 </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="files" className="space-y-6 mt-4">
+              {/* Logo da Empresa */}
+              <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
+                  <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">🎨 Logo da Empresa</h3>
+                </div>
+                <p className="text-sm text-slate-400 mb-4">
+                  Envie a logo da empresa (formatos: PNG, JPG, SVG)
+                </p>
+
+                <div className="flex items-center gap-6">
+                  {logoPreview && <div className="flex-shrink-0">
+                    <Avatar className="h-24 w-24 border-2 border-cyan-400/50">
+                      <AvatarImage src={logoPreview} alt="Logo" className="object-contain" />
+                      <AvatarFallback className="bg-slate-900">
+                        <Image className="h-8 w-8 text-slate-400" />
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>}
+                  <div className="flex-1">
+                    <label className="block cursor-pointer">
+                      <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 hover:border-cyan-400 transition-colors text-center">
+                        <Image className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                        <p className="text-sm text-slate-300 font-medium">Clique para upload</p>
+                        <p className="text-xs text-slate-500 mt-1">PNG, JPG ou SVG</p>
+                      </div>
+                      <Input type="file" accept="image/*" onChange={handleLogoChange} className="hidden cursor-pointer" />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Documentos */}
+              <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
+                  <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">📄 Documentos</h3>
+                </div>
+                <p className="text-sm text-slate-400 mb-4">
+                  Anexe documentos como CNPJ, contratos, certificados, etc.
+                </p>
+
+                <label className="block cursor-pointer">
+                  <div className="border-2 border-dashed border-slate-600 rounded-lg p-8 hover:border-cyan-400 transition-colors text-center">
+                    <FileText className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                    <p className="text-sm text-slate-300 font-medium">Clique para upload ou arraste arquivos</p>
+                    <p className="text-xs text-slate-500 mt-1">Todos os formatos são suportados</p>
+                  </div>
+                  <Input type="file" multiple onChange={handleDocumentChange} className="hidden cursor-pointer" />
+                </label>
+
+                {documentFiles.length > 0 && <div className="space-y-3 mt-4">
+                    <h4 className="text-sm font-semibold text-slate-300">📥 Novos documentos:</h4>
+                    <div className="space-y-2">
+                      {documentFiles.map((file, index) => <div key={index} className="flex items-center justify-between p-3 border border-slate-600 rounded-lg bg-slate-900/50 hover:bg-slate-900 transition-colors">
+                          <div className="flex items-center gap-3 flex-1">
+                            <FileText className="h-5 w-5 text-cyan-400 flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-slate-200 truncate">{file.name}</p>
+                              <p className="text-xs text-slate-500">
+                                {(file.size / 1024).toFixed(1)} KB
+                              </p>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="sm" onClick={() => removeDocument(index)} className="h-8 w-8 p-0 text-slate-400 hover:text-red-400 hover:bg-red-400/10 flex-shrink-0">
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>)}
+                    </div>
+                  </div>}
+
+                {editingCliente?.documents && editingCliente.documents.length > 0 && <div className="space-y-3 mt-6 pt-6 border-t border-slate-700">
+                    <h4 className="text-sm font-semibold text-slate-300">📎 Documentos existentes:</h4>
+                    <div className="space-y-2">
+                      {editingCliente.documents.map((doc, index) => <div key={index} className="flex items-center justify-between p-3 border border-slate-600 rounded-lg bg-slate-900/50 hover:bg-slate-900 transition-colors">
+                          <div className="flex items-center gap-3 flex-1">
+                            <FileText className="h-5 w-5 text-cyan-400 flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-sm text-cyan-400 hover:text-cyan-300 hover:underline truncate block">
+                                {doc.name}
+                              </a>
+                              <p className="text-xs text-slate-500">
+                                {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}
+                              </p>
+                            </div>
+                          </div>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => removeDocumentFromEditing(index)} className="h-8 w-8 p-0 text-slate-400 hover:text-red-400 hover:bg-red-400/10 flex-shrink-0">
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>)}
+                    </div>
+                  </div>}
               </div>
             </TabsContent>
           </Tabs>
 
-          <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={handleCloseDialog}>
-              Cancelar
+          <DialogFooter className="mt-6 pt-6 border-t border-slate-700 flex gap-3 justify-end">
+            <Button variant="outline" onClick={handleCloseDialog} className="bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-slate-200">
+              ❌ Cancelar
             </Button>
-            <Button onClick={handleSave} disabled={uploadingFiles}>
-              {uploadingFiles ? "Salvando..." : editingCliente ? "Atualizar" : "Cadastrar"}
+            <Button onClick={handleSave} disabled={uploadingFiles} className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white">
+              {uploadingFiles ? "⏳ Salvando..." : editingCliente ? "✅ Atualizar" : "➕ Cadastrar"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1073,5 +1348,6 @@ export default function Clientes() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Layout>;
+    </>
+  );
 }

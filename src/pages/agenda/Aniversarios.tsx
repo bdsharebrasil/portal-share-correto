@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from "react";
-import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -71,8 +70,7 @@ export default function Aniversarios() {
   }, [filter, getFilteredBirthdays]);
 
   return (
-    <Layout>
-      <div className="p-6 space-y-8">
+    <div className="p-6 space-y-8">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -384,6 +382,5 @@ export default function Aniversarios() {
           </DialogContent>
         </Dialog>
       </div>
-    </Layout>
   );
 }

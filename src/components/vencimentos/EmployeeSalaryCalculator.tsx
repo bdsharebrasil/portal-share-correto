@@ -89,11 +89,13 @@ export function EmployeeSalaryCalculator() {
 
   const years = useMemo(() => {
     const yearList = [];
-    for (let i = currentYear - 2; i <= currentYear + 1; i++) {
+    const startYear = Math.min(currentYear - 2, 2024);
+    const endYear = Math.max(currentYear + 1, 2024);
+    for (let i = startYear; i <= endYear; i++) {
       yearList.push(i);
     }
-    return yearList;
-  }, []);
+    return yearList.sort((a, b) => b - a);
+  }, [currentYear]);
 
   // Função para calcular 13º salário conforme legislação brasileira
   const calculateThirteenth = (baseSalary: number, workedMonths: number): { gross: number; net: number; inss: number; ir: number } => {

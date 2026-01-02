@@ -14,6 +14,10 @@ import { toast } from "sonner";
 interface FlightPlanWizardProps {
   selectedFlight: FlightScheduleWithDetails | null;
   onBack: () => void;
+  onComplete?: (flightPlan: FlightPlanData) => void;
+  onStep1Complete?: (flightPlan: FlightPlanData) => void;
+  initialFormData?: FlightPlanData;
+  initialStep?: number;
 }
 
 export interface FlightPlanData {
@@ -62,45 +66,58 @@ const STEPS = [
   { id: 6, title: "Resumo", icon: Check },
 ];
 
-export function FlightPlanWizard({ selectedFlight, onBack }: FlightPlanWizardProps) {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<FlightPlanData>(() => ({
-    // Pre-fill from selected flight if available
-    aircraftRegistration: selectedFlight?.aircraft?.registration || "",
-    aircraftType: selectedFlight?.aircraft?.model || "",
-    aircraftId: selectedFlight?.aircraft_id || "",
-    flightRules: "I",
-    flightType: "N",
-    numberOfAircraft: "1",
-    wakeCategory: "L",
-    equipment: "SDFGHIRY",
-    transponder: "LB1",
-    departureAirport: selectedFlight?.origin || "",
-    departureTime: selectedFlight?.flight_time?.replace(":", "") || "",
-    cruiseSpeed: "N0250",
-    cruiseAltitude: "A085",
-    route: "DCT",
-    destinationAirport: selectedFlight?.destination || "",
-    estimatedTime: selectedFlight?.estimated_duration?.replace(":", "") || "0130",
-    alternateAirport: "",
-    fuelEndurance: "0400",
-    departureMetar: "",
-    departureTaf: "",
-    destinationMetar: "",
-    destinationTaf: "",
-    checklistItems: {},
-    pilotInCommand: selectedFlight?.crew_members?.full_name || "",
-    pilotId: selectedFlight?.crew_member_id || "",
-    clientName: selectedFlight?.clients?.company_name || "",
-    clientId: selectedFlight?.client_id || "",
-    remarks: "",
-  }));
+export function FlightPlanWizard({ selectedFlight, onBack, onComplete, onStep1Complete, initialFormData, initialStep }: FlightPlanWizardProps) {
+  const [currentStep, setCurrentStep] = useState(initialStep || 1);
+  const [formData, setFormData] = useState<FlightPlanData>(() => {
+    // If initial form data is provided, use it instead of creating new
+    if (initialFormData) {
+      return initialFormData;
+    }
+
+    return {
+      // Pre-fill from selected flight if available
+      aircraftRegistration: selectedFlight?.aircraft?.registration || "",
+      aircraftType: selectedFlight?.aircraft?.model || "",
+      aircraftId: selectedFlight?.aircraft_id || "",
+      flightRules: "I",
+      flightType: "N",
+      numberOfAircraft: "1",
+      wakeCategory: "L",
+      equipment: "SDFGHIRY",
+      transponder: "LB1",
+      departureAirport: selectedFlight?.origin || "",
+      departureTime: selectedFlight?.flight_time?.replace(":", "") || "",
+      cruiseSpeed: "N0250",
+      cruiseAltitude: "A085",
+      route: "DCT",
+      destinationAirport: selectedFlight?.destination || "",
+      estimatedTime: selectedFlight?.estimated_duration?.replace(":", "") || "0130",
+      alternateAirport: "",
+      fuelEndurance: "0400",
+      departureMetar: "",
+      departureTaf: "",
+      destinationMetar: "",
+      destinationTaf: "",
+      checklistItems: {},
+      pilotInCommand: selectedFlight?.crew_members?.full_name || "",
+      pilotId: selectedFlight?.crew_member_id || "",
+      clientName: selectedFlight?.clients?.company_name || "",
+      clientId: selectedFlight?.client_id || "",
+      remarks: "",
+    };
+  });
 
   const updateFormData = (data: Partial<FlightPlanData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
   };
 
   const handleNext = () => {
+    // If on Step 1 and moving to Step 2, trigger the Step 1 complete callback
+    if (currentStep === 1 && onStep1Complete) {
+      onStep1Complete(formData);
+      return;
+    }
+
     if (currentStep < STEPS.length) {
       setCurrentStep(currentStep + 1);
     }
@@ -116,7 +133,11 @@ export function FlightPlanWizard({ selectedFlight, onBack }: FlightPlanWizardPro
 
   const handleSubmit = () => {
     toast.success("Plano de voo criado com sucesso!");
-    onBack();
+    if (onComplete) {
+      onComplete(formData);
+    } else {
+      onBack();
+    }
   };
 
   const renderStep = () => {

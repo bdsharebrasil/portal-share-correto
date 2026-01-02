@@ -90,18 +90,19 @@ export function EmployeeVacationTab({ employeeId, employeeName }: EmployeeVacati
       // Get request details for notification
       const request = vacationRequests.find(r => r.id === requestId);
 
-      // Create notification
-      const { error: notificationError } = await supabase
-        .from("messages")
-        .insert({
-          sender_id: user.id,
-          receiver_id: employeeId,
-          content: request 
-            ? `Suas férias foram aprovadas! Período: ${format(new Date(request.start_date), "dd/MM/yyyy")} a ${format(new Date(request.end_date), "dd/MM/yyyy")}`
-            : "Suas férias foram aprovadas!",
-          read: false,
-        });
+      // Create notification - messages table disabled
+      // const { error: notificationError } = await supabase
+      //   .from("messages")
+      //   .insert({
+      //     sender_id: user.id,
+      //     receiver_id: employeeId,
+      //     content: request
+      //       ? `Suas férias foram aprovadas! Período: ${format(new Date(request.start_date), "dd/MM/yyyy")} a ${format(new Date(request.end_date), "dd/MM/yyyy")}`
+      //       : "Suas férias foram aprovadas!",
+      //     read: false,
+      //   });
 
+      const notificationError = null;
       if (notificationError) {
         console.error("Erro ao criar notificação:", notificationError);
       }
@@ -139,16 +140,17 @@ export function EmployeeVacationTab({ employeeId, employeeName }: EmployeeVacati
 
       if (requestError) throw requestError;
 
-      // Create notification
-      const { error: notificationError } = await supabase
-        .from("messages")
-        .insert({
-          sender_id: user.id,
-          receiver_id: employeeId,
-          content: `Sua solicitação de férias foi recusada. ${reason ? `Motivo: ${reason}` : ""}`,
-          read: false,
-        });
+      // Create notification - messages table disabled
+      // const { error: notificationError } = await supabase
+      //   .from("messages")
+      //   .insert({
+      //     sender_id: user.id,
+      //     receiver_id: employeeId,
+      //     content: `Sua solicitação de férias foi recusada. ${reason ? `Motivo: ${reason}` : ""}`,
+      //     read: false,
+      //   });
 
+      const notificationError = null;
       if (notificationError) {
         console.error("Erro ao criar notificação:", notificationError);
       }

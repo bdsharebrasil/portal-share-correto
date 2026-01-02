@@ -1,50 +1,43 @@
-import { useEffect, useRef, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Receipt, Star, CalendarIcon } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as UICalendar } from "@/components/ui/calendar";
+import { Calendar } from "@/components/ui/calendar";
+import { FileText, Upload, Calendar as CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useReceiptForm } from "@/hooks/useReceiptForm";
-import { parseLocalDate, numberToCurrencyWords, formatCurrency } from "@/lib/receiptUtils";
 import { supabase } from "@/integrations/supabase/client";
 
-interface Cliente {
-  id: string;
-  company_name: string | null;
-  cnpj: string | null;
-  address: string | null;
-  city: string | null;
-  uf: string | null;
-}
-
-interface Aircraft {
-  id: string;
-  registration: string;
-  model: string | null;
-}
-
-interface FavoritePayer {
-  id: string;
-  name: string;
-  document: string;
-  address?: string;
-  city?: string;
-  uf?: string;
-}
+/* =========================
+   TIPOS
+========================= */
 
 interface ReceiptFormProps {
-  clientesAtivos: Cliente[];
-  favoritePayers: FavoritePayer[];
+  clientesAtivos: any[];
+  favoritePayers: any[];
   isGenerating: boolean;
-  onSubmit: (formData: any) => Promise<void>;
+  onSubmit: (data: any) => void;
 }
+
+interface Categoria {
+  id: string;
+  nome: string;
+  grupo_categoria: string;
+}
+
+/* =========================
+   COMPONENTE
+========================= */
 
 export function ReceiptForm({
   clientesAtivos,
@@ -52,418 +45,415 @@ export function ReceiptForm({
   isGenerating,
   onSubmit,
 }: ReceiptFormProps) {
-  const { form, errors, isValid, updateField, updatePayer, reset, getFormDataForSubmit } = useReceiptForm();
-  const [suggestions, setSuggestions] = useState<FavoritePayer[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [aircrafts, setAircrafts] = useState<Aircraft[]>([]);
-  const [isLoadingAircrafts, setIsLoadingAircrafts] = useState(false);
-  const [aircraftSuggestions, setAircraftSuggestions] = useState<Aircraft[]>([]);
-  const [showAircraftSuggestions, setShowAircraftSuggestions] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const aircraftContainerRef = useRef<HTMLDivElement | null>(null);
+  const [formData, setFormData] = useState({
+    receiptType: "pagamento",
 
-  // Event listener para fechar sugestões ao clicar fora
+    pagadorNome: "",
+    pagadorDocumento: "",
+    pagadorEndereco: "",
+    pagadorCidade: "",
+    pagadorUF: "",
+
+    valor: "",
+    servicoDescricao: "",
+    dataEmissao: new Date().toISOString().split("T")[0],
+    prazoMaximoQuitacao: "",
+    formaPagamento: "",
+
+    clienteId: "",
+    aircraftId: "",
+    addAsFavorite: false,
+
+    // REEMBOLSO
+    reembolsoValorTotal: "",
+    reembolsoPorcentagem: "",
+    reembolsoCategoriaId: "",
+    reembolsoBoletoFile: null as File | null,
+    reembolsoNotaFiscalFile: null as File | null,
+  });
+
+  const [aircrafts, setAircrafts] = useState<any[]>([]);
+  const [categoriasAgrupadas, setCategoriasAgrupadas] = useState<
+    Record<string, Categoria[]>
+  >({});
+
+  const isReembolso = formData.receiptType === "reembolso";
+
+  /* =========================
+     HELPERS DE DATA
+  ========================= */
+
+  const parseLocalDate = (dateString: string): Date => {
+    const [y, m, d] = dateString.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  };
+
+  const formatDateToString = (date: Date): string => {
+    return format(date, "yyyy-MM-dd");
+  };
+
+  /* =========================
+     LOAD CATEGORIAS
+  ========================= */
+
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (!containerRef.current?.contains(e.target as Node)) {
-        setShowSuggestions(false);
-      }
-      if (!aircraftContainerRef.current?.contains(e.target as Node)) {
-        setShowAircraftSuggestions(false);
-      }
+    const loadCategorias = async () => {
+      const { data } = await supabase
+        .from("categorias_movimentacao")
+        .select("id, nome, grupo_categoria")
+        .eq("tipo", "despesa")
+        .eq("reembolsavel", true)
+        .eq("ativo", true)
+        .order("grupo_categoria")
+        .order("nome");
+
+      if (!data) return;
+
+      const grouped = data.reduce((acc, cat) => {
+        const grupo = cat.grupo_categoria || "OUTROS";
+        if (!acc[grupo]) acc[grupo] = [];
+        acc[grupo].push(cat);
+        return acc;
+      }, {} as Record<string, Categoria[]>);
+
+      setCategoriasAgrupadas(grouped);
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+
+    loadCategorias();
   }, []);
 
-  const loadClientAircrafts = async (clienteId: string) => {
-    setIsLoadingAircrafts(true);
-    try {
-      const { data, error } = await supabase
-        .from("client_aircraft")
-        .select("aircraft_id, aircraft:aircraft_id(id, registration, model)")
-        .eq("client_id", clienteId);
+  /* =========================
+     RESET AO MUDAR TIPO
+  ========================= */
 
-      if (error) throw error;
-
-      const loadedAircrafts: Aircraft[] = (data || []).map((item: any) => ({
-        id: item.aircraft_id,
-        registration: item.aircraft?.registration || item.aircraft_id,
-        model: item.aircraft?.model || null,
+  useEffect(() => {
+    if (formData.receiptType === "pagamento") {
+      setFormData((prev) => ({
+        ...prev,
+        clienteId: "",
+        aircraftId: "",
+        reembolsoValorTotal: "",
+        reembolsoPorcentagem: "",
+        reembolsoCategoriaId: "",
+        reembolsoBoletoFile: null,
+        reembolsoNotaFiscalFile: null,
       }));
-
-      setAircrafts(loadedAircrafts);
-      // Limpar seleção anterior
-      updateField("selectedAircraftId", "");
-    } catch (err) {
-      console.error("Erro ao carregar aeronaves do cliente:", err);
       setAircrafts([]);
-    } finally {
-      setIsLoadingAircrafts(false);
+    }
+  }, [formData.receiptType]);
+
+  /* =========================
+     CLIENTE / AERONAVE
+  ========================= */
+
+  useEffect(() => {
+    if (!formData.clienteId) {
+      setAircrafts([]);
+      return;
+    }
+
+    loadAircrafts(formData.clienteId);
+
+    if (isReembolso) {
+      const client = clientesAtivos.find((c) => c.id === formData.clienteId);
+      if (client) {
+        setFormData((prev) => ({
+          ...prev,
+          pagadorNome: client.company_name || "",
+          pagadorDocumento: client.cnpj || "",
+          pagadorEndereco: client.address || "",
+          pagadorCidade: client.city || "",
+          pagadorUF: client.uf || "",
+        }));
+      }
+    }
+  }, [formData.clienteId, isReembolso]);
+
+  const loadAircrafts = async (clientId: string) => {
+    const { data } = await supabase
+      .from("client_aircraft")
+      .select(
+        `aircraft:aircraft_id ( id, registration, model )`
+      )
+      .eq("client_id", clientId);
+
+    if (data) {
+      setAircrafts(data.map((c) => c.aircraft).filter(Boolean));
     }
   };
 
-  const handleClienteSelect = (clienteId: string) => {
-    const cliente = clientesAtivos.find((c) => c.id === clienteId);
-    if (cliente) {
-      updatePayer({
-        selectedClienteId: clienteId,
-        pagadorNome: cliente.company_name || "",
-        pagadorDocumento: cliente.cnpj || "",
-        pagadorEndereco: cliente.address || "",
-        pagadorCidade: cliente.city || "",
-        pagadorUF: cliente.uf || "",
-      });
-      // Carregar as aeronaves do cliente
-      loadClientAircrafts(clienteId);
-    }
+  /* =========================
+     SUBMIT
+  ========================= */
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(formData);
   };
 
-  const handlePayerNameChange = (value: string) => {
-    updateField("pagadorNome", value);
-    if (value.length > 2) {
-      const filtered = favoritePayers.filter((p) =>
-        p.name.toLowerCase().includes(value.toLowerCase())
-      );
-      setSuggestions(filtered);
-      setShowSuggestions(filtered.length > 0);
-    } else {
-      setShowSuggestions(false);
-    }
+  const handleFileChange = (field: string, file: File | null) => {
+    setFormData((prev) => ({ ...prev, [field]: file }));
   };
 
-  const applySuggestion = (payer: FavoritePayer) => {
-    updatePayer({
-      pagadorNome: payer.name,
-      pagadorDocumento: payer.document,
-      pagadorEndereco: payer.address || "",
-      pagadorCidade: payer.city || "",
-      pagadorUF: payer.uf || "",
-    });
-    setShowSuggestions(false);
-  };
-
-  const handleAircraftChange = (value: string) => {
-    updateField("selectedAircraftId", value);
-    if (value.length > 0 && aircrafts.length > 0) {
-      const filtered = aircrafts.filter((a) =>
-        a.registration.toLowerCase().includes(value.toLowerCase()) ||
-        (a.model && a.model.toLowerCase().includes(value.toLowerCase()))
-      );
-      setAircraftSuggestions(filtered);
-      setShowAircraftSuggestions(filtered.length > 0);
-    } else {
-      setShowAircraftSuggestions(false);
-    }
-  };
-
-  const applyAircraftSuggestion = (aircraft: Aircraft) => {
-    updateField("selectedAircraftId", aircraft.registration);
-    setShowAircraftSuggestions(false);
-  };
-
-  const handleSubmit = async () => {
-    const formData = getFormDataForSubmit();
-    if (!formData) return;
-    await onSubmit(formData);
-    reset();
-  };
+  /* =========================
+     RENDER
+  ========================= */
 
   return (
-    <>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Card: Dados do Recibo */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Receipt className="h-5 w-5" />
-              Dados do Recibo
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+    <form onSubmit={handleSubmit}>
+      <Card>
+        <CardContent className="p-6 space-y-6">
+          {/* TIPO */}
+          <div>
+            <Label>Tipo de Recibo</Label>
+            <Select
+              value={formData.receiptType}
+              onValueChange={(v) =>
+                setFormData((p) => ({ ...p, receiptType: v }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pagamento">Pagamento</SelectItem>
+                <SelectItem value="reembolso">Reembolso</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-            <div className="space-y-2">
-              <Label>Data de Emissão *</Label>
+          {/* CLIENTE / AERONAVE */}
+          {isReembolso && (
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label>Cliente *</Label>
+                <Select
+                  value={formData.clienteId}
+                  onValueChange={(v) =>
+                    setFormData((p) => ({ ...p, clienteId: v }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clientesAtivos.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.company_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Aeronave *</Label>
+                <Select
+                  value={formData.aircraftId}
+                  disabled={!formData.clienteId}
+                  onValueChange={(v) =>
+                    setFormData((p) => ({ ...p, aircraftId: v }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a aeronave" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {aircrafts.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.registration} – {a.model}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+{/* DESCRIÇÃO DO SERVIÇO / RECIBO */}
+<div className="space-y-2">
+  <Label>
+    Descrição do Serviço / Referência do Recibo *
+  </Label>
+  <Textarea
+    value={formData.servicoDescricao}
+    onChange={(e) =>
+      setFormData((prev) => ({
+        ...prev,
+        servicoDescricao: e.target.value,
+      }))
+    }
+    placeholder="Ex: Reembolso de despesas de hangaragem referente ao mês de março"
+    rows={3}
+    required
+  />
+</div>
+<div className="space-y-2">
+  <Label>Valor do Recibo *</Label>
+  <Input
+    type="number"
+    step="0.01"
+    value={formData.valor}
+    onChange={(e) =>
+      setFormData((prev) => ({ ...prev, valor: e.target.value }))
+    }
+    placeholder="Valor que este cliente irá pagar"
+    required
+  />
+  {isReembolso && (
+    <p className="text-xs text-muted-foreground">
+      Valor correspondente a este cliente no rateio
+    </p>
+  )}
+</div>
+<div className="space-y-2">
+  <Label>Valor Total da Despesa</Label>
+  <Input
+    type="number"
+    step="0.01"
+    value={formData.reembolsoValorTotal}
+    onChange={(e) =>
+      setFormData((prev) => ({
+        ...prev,
+        reembolsoValorTotal: e.target.value,
+      }))
+    }
+    placeholder="100% da despesa (opcional)"
+  />
+</div>
+<div className="space-y-2">
+  <Label>Percentual deste Cliente (%)</Label>
+  <Input
+    type="number"
+    step="0.01"
+    min="0"
+    max="100"
+    value={formData.reembolsoPorcentagem}
+    onChange={(e) =>
+      setFormData((prev) => ({
+        ...prev,
+        reembolsoPorcentagem: e.target.value,
+      }))
+    }
+    placeholder="Ex: 40"
+  />
+</div>
+
+          {/* PRAZO DE QUITAÇÃO */}
+          {isReembolso && (
+            <div>
+              <Label>Prazo Máximo de Quitação</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal">
+                  <Button variant="outline" className="w-full justify-start">
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(parseLocalDate(form.dataEmissao), "dd/MM/yyyy", { locale: ptBR })}
+                    {formData.prazoMaximoQuitacao
+                      ? format(
+                        parseLocalDate(formData.prazoMaximoQuitacao),
+                        "dd 'de' MMMM 'de' yyyy",
+                        { locale: ptBR }
+                      )
+                      : "Selecione a data"}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <UICalendar
+                <PopoverContent className="p-0">
+                  <Calendar
                     mode="single"
-                    selected={(() => {
-                      // Converter string YYYY-MM-DD para data local sem conversão UTC
-                      const [year, month, day] = form.dataEmissao.split('-').map(Number);
-                      return new Date(year, month - 1, day);
-                    })()}
-                    onSelect={(date) => {
-                      if (date) {
-                        const year = date.getFullYear();
-                        const month = String(date.getMonth() + 1).padStart(2, "0");
-                        const day = String(date.getDate()).padStart(2, "0");
-                        updateField("dataEmissao", `${year}-${month}-${day}`);
-                      }
-                    }}
-                    disabled={(date) => {
-                      // Comparar apenas a data (não a hora) com hoje
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      const selectedDate = new Date(date);
-                      selectedDate.setHours(0, 0, 0, 0);
-                      return selectedDate > today;
-                    }}
-                    locale={ptBR}
+                    selected={
+                      formData.prazoMaximoQuitacao
+                        ? parseLocalDate(formData.prazoMaximoQuitacao)
+                        : undefined
+                    }
+                    onSelect={(d) =>
+                      d &&
+                      setFormData((p) => ({
+                        ...p,
+                        prazoMaximoQuitacao: formatDateToString(d),
+                      }))
+                    }
+                    disabled={(d) =>
+                      d < parseLocalDate(formData.dataEmissao)
+                    }
                   />
                 </PopoverContent>
               </Popover>
             </div>
+          )}
 
-            <div className="space-y-2">
-              <Label>Valor (R$) *</Label>
-              <Input
-                type="number"
-                placeholder="0,00"
-                step="0.01"
-                min="0"
-                value={form.valor}
-                onChange={(e) => updateField("valor", e.target.value)}
-              />
-              {form.valor && parseFloat(form.valor) > 0 && (
-                <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded-md">
-                  <span className="font-medium">Por extenso: </span>
-                  <span className="italic">{numberToCurrencyWords(parseFloat(form.valor.replace(",", ".")))}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Descrição do Serviço *</Label>
-              <Textarea
-                placeholder="Descreva os serviços prestados"
-                rows={3}
-                value={form.servico}
-                onChange={(e) => updateField("servico", e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Tipo de Recibo *</Label>
-              <Select value={form.receiptType} onValueChange={(v) => updateField("receiptType", v)}>
+          {/* CATEGORIA */}
+          {isReembolso && (
+            <div>
+              <Label>Categoria (Reembolso)</Label>
+              <Select
+                value={formData.reembolsoCategoriaId}
+                onValueChange={(v) =>
+                  setFormData((p) => ({ ...p, reembolsoCategoriaId: v }))
+                }
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione o tipo" />
+                  <SelectValue placeholder="Selecione a categoria" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="pagamento">Pagamento realizado</SelectItem>
-                  <SelectItem value="reembolso">Solicitação de reembolso</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {form.receiptType === "pagamento" && (
-              <div className="space-y-2">
-                <Label>Forma de Pagamento</Label>
-                <Input
-                  placeholder="PIX, Dinheiro, Transferência bancária..."
-                  value={form.formaPagamento}
-                  onChange={(e) => updateField("formaPagamento", e.target.value)}
-                />
-              </div>
-            )}
-
-            {form.receiptType !== "pagamento" && (
-              <div className="space-y-2">
-                <Label>Prazo de Quitação</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start text-left font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {form.prazoMaximoQuitacao
-                        ? format((() => {
-                          const [year, month, day] = form.prazoMaximoQuitacao.split('-').map(Number);
-                          return new Date(year, month - 1, day);
-                        })(), "dd/MM/yyyy", { locale: ptBR })
-                        : "Selecione a data"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <UICalendar
-                      mode="single"
-                      selected={form.prazoMaximoQuitacao ? (() => {
-                        const [year, month, day] = form.prazoMaximoQuitacao.split('-').map(Number);
-                        return new Date(year, month - 1, day);
-                      })() : undefined}
-                      onSelect={(date) => {
-                        if (date) {
-                          const year = date.getFullYear();
-                          const month = String(date.getMonth() + 1).padStart(2, "0");
-                          const day = String(date.getDate()).padStart(2, "0");
-                          updateField("prazoMaximoQuitacao", `${year}-${month}-${day}`);
-                        }
-                      }}
-                      locale={ptBR}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Card: Dados do Pagador */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Dados do Pagador</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Selecionar Cliente</Label>
-              <Select value={form.selectedClienteId} onValueChange={handleClienteSelect}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Escolha um cliente cadastrado..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientesAtivos.map((cliente) => (
-                    <SelectItem key={cliente.id} value={cliente.id}>
-                      {cliente.company_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {form.selectedClienteId && (
-              <div className="space-y-2 relative" ref={aircraftContainerRef}>
-                <Label>Aeronave {isLoadingAircrafts && "(carregando...)"}</Label>
-                <Input
-                  placeholder={isLoadingAircrafts ? "Carregando aeronaves..." : "Digite ou selecione uma aeronave..."}
-                  value={form.selectedAircraftId}
-                  onChange={(e) => handleAircraftChange(e.target.value)}
-                  onFocus={() => {
-                    if (aircrafts.length > 0 && form.selectedAircraftId.length > 0) {
-                      setShowAircraftSuggestions(true);
-                    }
-                  }}
-                  disabled={isLoadingAircrafts}
-                />
-                {showAircraftSuggestions && aircraftSuggestions.length > 0 && (
-                  <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover text-popover-foreground shadow-lg">
-                    <div className="max-h-64 overflow-auto p-2 space-y-1">
-                      {aircraftSuggestions.map((aircraft) => (
-                        <button
-                          key={aircraft.id}
-                          type="button"
-                          className="w-full text-left px-3 py-2 rounded hover:bg-accent hover:text-accent-foreground"
-                          onClick={() => applyAircraftSuggestion(aircraft)}
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="flex-1">
-                              <div className="font-medium text-sm">{aircraft.registration}</div>
-                              {aircraft.model && (
-                                <div className="text-xs text-muted-foreground">{aircraft.model}</div>
-                              )}
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            <div className="space-y-2 relative" ref={containerRef}>
-              <Label>Nome/Razão Social *</Label>
-              <Input
-                placeholder="Nome completo ou razão social"
-                value={form.pagadorNome}
-                onChange={(e) => handlePayerNameChange(e.target.value)}
-                onFocus={() => {
-                  if (suggestions.length > 0) setShowSuggestions(true);
-                }}
-              />
-              {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover text-popover-foreground shadow-lg">
-                  <div className="max-h-64 overflow-auto p-2 space-y-1">
-                    {suggestions.map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        className="w-full text-left px-3 py-2 rounded hover:bg-accent hover:text-accent-foreground"
-                        onClick={() => applySuggestion(s)}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Star className="h-4 w-4 text-yellow-500" />
-                          <div>
-                            <div className="font-medium text-sm">{s.name}</div>
-                            <div className="text-xs text-muted-foreground">{s.document}</div>
-                          </div>
+                  {Object.entries(categoriasAgrupadas).map(
+                    ([grupo, cats]) => (
+                      <div key={grupo}>
+                        <div className="px-2 py-1 text-xs font-bold uppercase opacity-70">
+                          {grupo}
                         </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+                        {cats.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id}>
+                            {cat.nome}
+                          </SelectItem>
+                        ))}
+                      </div>
+                    )
+                  )}
+                </SelectContent>
+              </Select>
             </div>
+          )}
 
-            <div className="space-y-2">
-              <Label>CPF/CNPJ *</Label>
-              <Input
-                placeholder="000.000.000-00"
-                value={form.pagadorDocumento}
-                onChange={(e) => updateField("pagadorDocumento", e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Endereço</Label>
-              <Input
-                placeholder="Endereço completo"
-                value={form.pagadorEndereco}
-                onChange={(e) => updateField("pagadorEndereco", e.target.value)}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Cidade</Label>
+          {/* UPLOADS */}
+          {isReembolso && (
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label>Boleto (PDF)</Label>
                 <Input
-                  placeholder="Cidade"
-                  value={form.pagadorCidade}
-                  onChange={(e) => updateField("pagadorCidade", e.target.value)}
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) =>
+                    handleFileChange(
+                      "reembolsoBoletoFile",
+                      e.target.files?.[0] || null
+                    )
+                  }
                 />
               </div>
-              <div className="space-y-2">
-                <Label>UF</Label>
+
+              <div>
+                <Label>Nota Fiscal (PDF)</Label>
                 <Input
-                  placeholder="SP"
-                  maxLength={2}
-                  value={form.pagadorUF}
-                  onChange={(e) => updateField("pagadorUF", e.target.value.toUpperCase())}
+                  type="file"
+                  accept=".pdf"
+                  onChange={(e) =>
+                    handleFileChange(
+                      "reembolsoNotaFiscalFile",
+                      e.target.files?.[0] || null
+                    )
+                  }
                 />
               </div>
             </div>
+          )}
 
-            <div className="flex items-center gap-2 pt-2">
-              <Checkbox
-                id="add-favorito"
-                checked={form.addAsFavorite}
-                onCheckedChange={(v) => updateField("addAsFavorite", Boolean(v))}
-              />
-              <Label htmlFor="add-favorito" className="cursor-pointer font-normal">
-                Adicionar como favorito
-              </Label>
-            </div>
-
-            <Button className="w-full mt-4" onClick={handleSubmit} disabled={isGenerating || !isValid}>
-              <Receipt className="h-4 w-4 mr-2" />
+          {/* SUBMIT */}
+          <div className="flex justify-end">
+            <Button type="submit" disabled={isGenerating}>
+              <FileText className="mr-2 h-4 w-4" />
               {isGenerating ? "Gerando..." : "Gerar Recibo"}
             </Button>
-          </CardContent>
-        </Card>
-      </div>
-    </>
+          </div>
+        </CardContent>
+      </Card>
+    </form>
   );
 }

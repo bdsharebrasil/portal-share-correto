@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Calendar, Save, Upload, Eye, FileText, Receipt, Loader2 } from "lucide-react";
+import { Calendar, Save, Upload, Eye, FileText, Receipt, Loader2, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,6 +30,7 @@ interface SalaryPaymentRow {
   extra: string;
   obs: string;
   banco: string;
+  data_pagamento: string | null;
   holerite_url: string | null;
   comprovante_url: string | null;
   isDirty?: boolean;
@@ -97,7 +98,7 @@ export function PagamentoSalarioTab() {
   const bancosFromContas = Array.from(new Set(contas.map(c => c.banco).filter(Boolean))) as string[];
   const bancosFromPayments = paymentRows.map(row => row.banco).filter(Boolean) as string[];
   const bancos = Array.from(new Set([...bancosFromContas, ...bancosFromPayments])) as string[];
-  const years = ["2025", "2026", "2027"];
+  const years = ["2024", "2025", "2026", "2027"];
   const isAuthorized = isAdmin || isGestorMaster || isFinanceiroMaster;
 
   // Load employees
@@ -157,6 +158,7 @@ export function PagamentoSalarioTab() {
           extra: existingPayment?.extra || "",
           obs: existingPayment?.obs || "",
           banco: existingPayment?.banco || "",
+          data_pagamento: existingPayment?.data_pagamento || null,
           holerite_url: existingPayment?.holerite_url || null,
           comprovante_url: existingPayment?.comprovante_url || null,
           isDirty: false,
@@ -188,6 +190,7 @@ export function PagamentoSalarioTab() {
     }
     try {
       const paymentDate = format(new Date(), "yyyy-MM-dd");
+      const referencia = `SAL-${paymentId.slice(0, 8)}`;
       const {
         error
       } = await supabase.from("controle_bancario").insert({
@@ -196,7 +199,7 @@ export function PagamentoSalarioTab() {
         categoria: "Salário",
         descricao: `Pagamento de salário - ${employeeName}`,
         valor: salaryAmount,
-        referencia: `SAL-${paymentId.slice(0, 8)}`,
+        referencia,
         status: "pago",
         criado_por: user.id,
         comprovante_url: comprovanteUrl,
@@ -210,6 +213,71 @@ export function PagamentoSalarioTab() {
       }
     } catch (error: any) {
       console.error("Erro ao criar entrada no fluxo de caixa:", error);
+    }
+  };
+
+  const updateCashFlowEntry = async (paymentId: string, employeeName: string, newAmount: number | null, comprovanteUrl: string | null) => {
+    if (!user || !newAmount || newAmount <= 0) return;
+    try {
+      const referencia = `SAL-${paymentId.slice(0, 8)}`;
+      const { error } = await supabase
+        .from("controle_bancario")
+        .update({
+          valor: newAmount,
+          comprovante_url: comprovanteUrl,
+          descricao: `Pagamento de salário - ${employeeName}`,
+          data_atualizacao: new Date().toISOString()
+        } as any)
+        .eq("referencia", referencia);
+
+      if (error) {
+        console.error("Erro ao atualizar fluxo de caixa:", error);
+      }
+    } catch (error: any) {
+      console.error("Erro ao atualizar fluxo de caixa:", error);
+    }
+  };
+
+  const deleteCashFlowEntry = async (paymentId: string) => {
+    try {
+      const referencia = `SAL-${paymentId.slice(0, 8)}`;
+      await supabase
+        .from("controle_bancario")
+        .delete()
+        .eq("referencia", referencia);
+    } catch (error: any) {
+      console.error("Erro ao deletar do fluxo de caixa:", error);
+    }
+  };
+
+  const deletePaymentRow = async (index: number) => {
+    const row = paymentRows[index];
+    if (!row.id) {
+      // Se não tem ID, apenas remove da lista local
+      setPaymentRows(prev => prev.filter((_, i) => i !== index));
+      return;
+    }
+
+    try {
+      // Deletar do fluxo de caixa primeiro
+      await deleteCashFlowEntry(row.id);
+
+      // Deletar o pagamento de salário
+      const { error } = await supabase
+        .from("pagamento_salario_funcionario")
+        .delete()
+        .eq("id", row.id);
+
+      if (error) throw error;
+
+      // Atualizar lista local
+      setPaymentRows(prev => prev.map((r, i) => 
+        i === index ? { ...r, id: undefined, base_salary_holerite: null, isDirty: false } : r
+      ));
+
+      toast.success(`Pagamento de ${row.employee_name} removido!`);
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao deletar pagamento");
     }
   };
   const updateThirteenthSalary = async (employeeId: string, employeeName: string, parcela1: number | null, parcela2: number | null, year: string) => {
@@ -283,16 +351,16 @@ export function PagamentoSalarioTab() {
 
       // Create cash flow entry for 13th salary
       if (parcela1 && parcela1 > 0) {
-        await createCashFlowEntryFor13th(employeeName, parcela1, "1ª Parcela");
+        await createCashFlowEntryFor13th(employeeId, employeeName, parcela1, "1ª Parcela");
       }
       if (parcela2 && parcela2 > 0) {
-        await createCashFlowEntryFor13th(employeeName, parcela2, "2ª Parcela");
+        await createCashFlowEntryFor13th(employeeId, employeeName, parcela2, "2ª Parcela");
       }
     } catch (error: any) {
       console.error("Erro ao processar 13º salário:", error);
     }
   };
-  const createCashFlowEntryFor13th = async (employeeName: string, amount: number, parcela: string) => {
+  const createCashFlowEntryFor13th = async (employeeId: string, employeeName: string, amount: number, parcela: string) => {
     if (!user || !amount || amount <= 0) return;
     try {
       const paymentDate = format(new Date(), "yyyy-MM-dd");
@@ -301,13 +369,15 @@ export function PagamentoSalarioTab() {
       } = await supabase.from("controle_bancario").insert({
         data: paymentDate,
         tipo_movimento: "saída",
-        categoria: "13º Salário",
+        categoria_id: null,
         descricao: `13º Salário ${parcela} - ${employeeName}`,
         valor: amount,
-        referencia: `13S-${Date.now().toString(36)}`,
+        numero_documento: `13S-${Date.now().toString(36)}`,
         status: "confirmado",
         criado_por: user.id,
-        observacoes: `Pagamento de 13º salário (${parcela}) para ${employeeName}`
+        colaborador_id: employeeId,
+        observacoes: `Pagamento de 13º salário (${parcela}) para ${employeeName}`,
+        grupo_categoria: "Pessoal"
       } as any);
       if (error) {
         console.error("Erro ao criar fluxo de caixa para 13º:", error);
@@ -316,7 +386,7 @@ export function PagamentoSalarioTab() {
       console.error("Erro ao criar entrada de 13º no fluxo de caixa:", error);
     }
   };
-  const createCashFlowEntryForVacation = async (employeeName: string, amount: number) => {
+  const createCashFlowEntryForVacation = async (employeeId: string, employeeName: string, amount: number) => {
     if (!user || !amount || amount <= 0) return;
     try {
       const paymentDate = format(new Date(), "yyyy-MM-dd");
@@ -325,13 +395,15 @@ export function PagamentoSalarioTab() {
       } = await supabase.from("controle_bancario").insert({
         data: paymentDate,
         tipo_movimento: "saída",
-        categoria: "Férias",
+        categoria_id: null,
         descricao: `Pagamento de Férias - ${employeeName}`,
         valor: amount,
-        referencia: `FER-${Date.now().toString(36)}`,
+        numero_documento: `FER-${Date.now().toString(36)}`,
         status: "confirmado",
         criado_por: user.id,
-        observacoes: `Pagamento de férias para ${employeeName}`
+        colaborador_id: employeeId,
+        observacoes: `Pagamento de férias para ${employeeName}`,
+        grupo_categoria: "Pessoal"
       } as any);
       if (error) {
         console.error("Erro ao criar fluxo de caixa para férias:", error);
@@ -412,6 +484,7 @@ export function PagamentoSalarioTab() {
         extra: row.extra || null,
         obs: row.obs || null,
         banco: row.banco || null,
+        data_pagamento: row.data_pagamento,
         holerite_url: row.holerite_url,
         comprovante_url: row.comprovante_url,
         updated_at: new Date().toISOString()
@@ -422,6 +495,11 @@ export function PagamentoSalarioTab() {
           error
         } = await supabase.from("pagamento_salario_funcionario").update(paymentData).eq("id", row.id);
         if (error) throw error;
+
+        // Atualizar entrada no fluxo de caixa se o valor mudou
+        if (row.base_salary_holerite && row.base_salary_holerite > 0) {
+          await updateCashFlowEntry(row.id, row.employee_name, row.base_salary_holerite, row.comprovante_url);
+        }
       } else {
         const {
           data,
@@ -453,7 +531,7 @@ export function PagamentoSalarioTab() {
 
       // Handle vacation payment
       if (row.ferias && row.ferias > 0 && isNewPayment) {
-        await createCashFlowEntryForVacation(row.employee_name, row.ferias);
+        await createCashFlowEntryForVacation(row.user_profile, row.employee_name, row.ferias);
       }
       setPaymentRows(prev => {
         const updated = [...prev];
@@ -585,7 +663,7 @@ export function PagamentoSalarioTab() {
               <div className="overflow-x-auto overflow-y-auto flex-1">
                 <div className="min-w-[1800px]">
                   {/* Table Header */}
-                  <div className="grid grid-cols-[160px_100px_90px_90px_90px_90px_90px_90px_120px_100px_90px_90px_60px] gap-2 p-4 bg-muted/50 border-b font-medium text-xs sticky top-0 z-10">
+                  <div className="grid grid-cols-[160px_100px_90px_90px_90px_90px_90px_90px_120px_100px_80px_90px_90px_60px_50px] gap-2 p-4 bg-muted/50 border-b font-medium text-xs sticky top-0 z-10">
                     <div>Funcionário</div>
                     <div>Salário (R$)</div>
                     <div>Benefício</div>
@@ -596,13 +674,15 @@ export function PagamentoSalarioTab() {
                     <div>Extra</div>
                     <div>Observações</div>
                     <div>Banco</div>
+                    <div>Dia Pgto</div>
                     <div className="text-center">Holerite</div>
                     <div className="text-center">Comprov.</div>
                     <div className="text-center">Salvar</div>
+                    <div className="text-center">Excluir</div>
                   </div>
 
                   {/* Table Body */}
-                  {paymentRows.map((row, index) => <div key={row.user_profile} className={`grid grid-cols-[160px_100px_90px_90px_90px_90px_90px_90px_120px_100px_90px_90px_60px] gap-2 p-3 border-b items-center hover:bg-muted/30 transition-colors ${row.isDirty ? "bg-yellow-500/10" : ""}`}>
+                  {paymentRows.map((row, index) => <div key={row.user_profile} className={`grid grid-cols-[160px_100px_90px_90px_90px_90px_90px_90px_120px_100px_80px_90px_90px_60px_50px] gap-2 p-3 border-b items-center hover:bg-muted/30 transition-colors ${row.isDirty ? "bg-yellow-500/10" : ""}`}>
                       {/* Employee Name */}
                       <div className="font-medium text-xs truncate" title={row.employee_name}>
                         {row.employee_name}
@@ -644,6 +724,42 @@ export function PagamentoSalarioTab() {
                         </SelectContent>
                       </Select>
 
+                      {/* Data Pagamento */}
+                      <div className="flex gap-1 items-center">
+                        <Input
+                          type="number"
+                          min="1"
+                          max="31"
+                          placeholder="Dia"
+                          value={row.data_pagamento ? parseInt(row.data_pagamento.split('-')[2]) : ""}
+                          onChange={e => {
+                            if (e.target.value) {
+                              const day = parseInt(e.target.value);
+                              if (day >= 1 && day <= 31) {
+                                const dataPagamento = `${selectedYear}-${selectedMonth}-${String(day).padStart(2, "0")}`;
+                                updateRow(index, "data_pagamento", dataPagamento);
+                              }
+                            } else {
+                              updateRow(index, "data_pagamento", null);
+                            }
+                          }}
+                          className="h-8 text-xs flex-1"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2 text-xs"
+                          onClick={() => {
+                            const hoje = new Date();
+                            const dataPagamento = `${selectedYear}-${selectedMonth}-${String(hoje.getDate()).padStart(2, "0")}`;
+                            updateRow(index, "data_pagamento", dataPagamento);
+                          }}
+                          title="Usar data de hoje"
+                        >
+                          Hoje
+                        </Button>
+                      </div>
+
                       {/* Holerite Upload */}
                       <div className="flex items-center justify-center gap-1">
                         <label className="cursor-pointer">
@@ -680,6 +796,13 @@ export function PagamentoSalarioTab() {
                       <div className="flex justify-center">
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => saveRow(index)} disabled={row.isLoading || !row.isDirty} title="Salvar">
                           {row.isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className={`h-4 w-4 ${row.isDirty ? "text-green-500" : "text-muted-foreground"}`} />}
+                        </Button>
+                      </div>
+
+                      {/* Delete Button */}
+                      <div className="flex justify-center">
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-destructive/10" onClick={() => deletePaymentRow(index)} disabled={row.isLoading} title="Excluir pagamento">
+                          <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </div>
                     </div>)}

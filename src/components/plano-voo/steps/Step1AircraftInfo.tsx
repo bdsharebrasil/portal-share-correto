@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plane, User, Building2 } from "lucide-react";
+import { Plane, User, Building2, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { FlightPlanData } from "../FlightPlanWizard";
 
@@ -182,6 +182,42 @@ export function Step1AircraftInfo({ formData, updateFormData }: Step1Props) {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Route Section */}
+      <Card className="bg-slate-800/50 border-slate-700/50 lg:col-span-2">
+        <CardHeader className="border-b border-slate-700/50">
+          <CardTitle className="flex items-center gap-2 text-white">
+            <div className="p-2 rounded-lg bg-green-500/20">
+              <MapPin className="h-5 w-5 text-green-400" />
+            </div>
+            Rota
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-slate-300">Aeroporto de Origem (ICAO) *</Label>
+              <Input
+                value={formData.departureAirport}
+                onChange={(e) => updateFormData({ departureAirport: e.target.value.toUpperCase() })}
+                placeholder="Ex: SBGR"
+                className="bg-slate-900/50 border-slate-600 text-white"
+                maxLength={4}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-300">Aeroporto de Destino (ICAO) *</Label>
+              <Input
+                value={formData.destinationAirport}
+                onChange={(e) => updateFormData({ destinationAirport: e.target.value.toUpperCase() })}
+                placeholder="Ex: SBRJ"
+                className="bg-slate-900/50 border-slate-600 text-white"
+                maxLength={4}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>

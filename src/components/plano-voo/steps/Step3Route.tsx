@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { AutocompleteInput, type AutocompleteOption } from "@/components/ui/autocomplete-input";
 import { MapPin, Navigation, Clock, Fuel, Calculator, ArrowRight } from "lucide-react";
 import { calculateDistance, calculateMagneticHeading } from "@/lib/aviation";
 import { supabase } from "@/integrations/supabase/client";
@@ -144,12 +145,14 @@ export function Step3Route({ formData, updateFormData }: Step3Props) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-slate-300">Aeródromo de Partida *</Label>
-                <Input
+                <AutocompleteInput
                   value={formData.departureAirport}
-                  onChange={(e) => updateFormData({ departureAirport: e.target.value.toUpperCase() })}
-                  placeholder="Ex: SBGR"
-                  maxLength={4}
-                  className="bg-slate-900/50 border-slate-600 text-white uppercase text-lg font-mono"
+                  onChange={(value) => updateFormData({ departureAirport: value.toUpperCase() })}
+                  options={aerodromes.map(a => ({
+                    id: a.id,
+                    label: `${a.designativo} - ${a.name}`
+                  }))}
+                  placeholder="Busque ou digite o aeródromo..."
                 />
               </div>
               <div className="space-y-2">
@@ -234,12 +237,14 @@ export function Step3Route({ formData, updateFormData }: Step3Props) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-slate-300">Aeródromo de Destino *</Label>
-                <Input
+                <AutocompleteInput
                   value={formData.destinationAirport}
-                  onChange={(e) => updateFormData({ destinationAirport: e.target.value.toUpperCase() })}
-                  placeholder="Ex: SBRJ"
-                  maxLength={4}
-                  className="bg-slate-900/50 border-slate-600 text-white uppercase text-lg font-mono"
+                  onChange={(value) => updateFormData({ destinationAirport: value.toUpperCase() })}
+                  options={aerodromes.map(a => ({
+                    id: a.id,
+                    label: `${a.designativo} - ${a.name}`
+                  }))}
+                  placeholder="Busque ou digite o aeródromo..."
                 />
               </div>
               <div className="space-y-2">

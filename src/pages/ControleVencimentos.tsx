@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,10 +41,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ManutencaoDialog } from "@/components/manutencao/ManutencaoDialog";
+import { NovoVencimentoDialog } from "@/components/vencimentos/NovoVencimentoDialog";
+import { NovoDocumentoDialog } from "@/components/vencimentos/NovoDocumentoDialog";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Vencimento {
@@ -69,6 +70,7 @@ interface Aeronave {
 
 export default function ControleVencimentos() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { aeronaves, isLoadingAeronaves } = useAeronaves();
 
   const [vencimentos, setVencimentos] = useState<Vencimento[]>([]);
@@ -77,31 +79,16 @@ export default function ControleVencimentos() {
   const [selectedAeronave, setSelectedAeronave] = useState<string>("todas");
   const [activeTab, setActiveTab] = useState<"manutencao" | "documento">("manutencao");
 
-  // Dialog states
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedVencimento, setSelectedVencimento] = useState<Vencimento | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  // Form state
-  const [formData, setFormData] = useState({
-    aeronaveId: "",
-    item: "",
-    dataVencimento: "",
-    periodoTipo: "dias",
-    periodoValor: "",
-    diasAlerta: "30",
-  });
-
-  // Aeronaves ativas para seleção - corrigindo o filtro
   const aeronavesAtivas = useMemo(() => {
     return aeronaves.filter((a) =>
       a.status?.toLowerCase() === "ativa" ||
       a.status?.toLowerCase() === "ativo"
     );
   }, [aeronaves]);
-
-  const selectedAeronaveData = aeronavesAtivas.find((a) => a.id === formData.aeronaveId);
 
   useEffect(() => {
     loadVencimentos();
@@ -136,7 +123,37 @@ export default function ControleVencimentos() {
         };
       });
 
-      setVencimentos(mapped);
+      // Load documents
+      const { data: documents, error: docError } = await supabase
+        .from("flight_documents")
+        .select("*")
+        .order("expiry_date", { ascending: true });
+
+      if (!docError && documents) {
+        const mappedDocs = documents.map((doc: any) => {
+          const dt = new Date(doc.expiry_date).getTime();
+          const diasRestantes = Math.ceil((dt - today) / (1000 * 60 * 60 * 24));
+
+          const aircraft = aeronaves.find((a) => a.id === doc.aircraft_id);
+
+          return {
+            id: doc.id,
+            item: doc.name,
+            aeronave: aircraft?.registration || "-",
+            aeronaveId: doc.aircraft_id || "",
+            dataVencimento: doc.expiry_date,
+            diasRestantes,
+            diasAlerta: 30,
+            status: diasRestantes < 0 ? "vencido" : "pendente",
+            tipo: "documento" as const,
+            comprovanteUrl: doc.file_path,
+          };
+        });
+
+        setVencimentos([...mapped, ...mappedDocs]);
+      } else {
+        setVencimentos(mapped);
+      }
     } catch (e) {
       console.error(e);
       toast({
@@ -157,118 +174,56 @@ export default function ControleVencimentos() {
         textColor: "text-emerald-400",
         borderColor: "border-emerald-500/30",
         icon: CheckCircle,
+        badgeClass: "bg-emerald-500/20 text-emerald-400 border-emerald-500",
+        iconName: "check_circle",
       };
     }
     if (status === "programado") {
       return {
         label: "Programado",
-        bgColor: "bg-primary/10",
-        textColor: "text-primary",
-        borderColor: "border-primary/30",
+        bgColor: "bg-blue-500/10",
+        textColor: "text-blue-400",
+        borderColor: "border-blue-500/30",
         icon: Clock,
+        badgeClass: "bg-blue-500/20 text-blue-400 border-blue-500",
+        iconName: "hourglass_top",
       };
     }
     if (diasRestantes < 0) {
       return {
         label: "Vencido",
-        bgColor: "bg-destructive/10",
-        textColor: "text-destructive",
-        borderColor: "border-destructive/30",
+        bgColor: "bg-red-500/10",
+        textColor: "text-red-400",
+        borderColor: "border-red-500/30",
         icon: AlertCircle,
+        badgeClass: "bg-red-500/20 text-red-400 border-red-500",
+        iconName: "priority_high",
       };
     }
     if (diasRestantes <= diasAlerta) {
       return {
         label: "Vencimento Próximo",
-        bgColor: "bg-warning/10",
-        textColor: "text-warning",
-        borderColor: "border-warning/30",
+        bgColor: "bg-yellow-500/10",
+        textColor: "text-yellow-400",
+        borderColor: "border-yellow-500/30",
         icon: AlertTriangle,
+        badgeClass: "bg-yellow-500/20 text-yellow-400 border-yellow-500",
+        iconName: "hourglass_top",
       };
     }
     return {
       label: "Dentro do Prazo",
-      bgColor: "bg-success/10",
-      textColor: "text-success",
-      borderColor: "border-success/30",
+      bgColor: "bg-green-500/10",
+      textColor: "text-green-400",
+      borderColor: "border-green-500/30",
       icon: CheckCheck,
+      badgeClass: "bg-green-500/20 text-green-400 border-green-500",
+      iconName: "check_circle",
     };
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!formData.aeronaveId || !formData.item || !formData.dataVencimento) {
-      toast({
-        title: "Erro",
-        description: "Preencha todos os campos obrigatórios",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const aeronave = aeronavesAtivas.find((a) => a.id === formData.aeronaveId);
-    const today = new Date().getTime();
-    const dt = new Date(formData.dataVencimento).getTime();
-    const diasRestantes = Math.ceil((dt - today) / (1000 * 60 * 60 * 24));
-
-    if (activeTab === "manutencao") {
-      // Criar manutenção usando o service
-      try {
-        const { createManutencao } = await import("@/services/manutencoes");
-        await createManutencao({
-          aeronave_id: formData.aeronaveId,
-          tipo: formData.item,
-          data_programada: formData.dataVencimento,
-          descricao: `Periodicidade: ${formData.periodoValor} ${formData.periodoTipo}`,
-          etapa: "pendente",
-        });
-
-        toast({
-          title: "Manutenção programada",
-          description: `Manutenção agendada para ${aeronave?.registration}`,
-        });
-
-        loadVencimentos();
-      } catch (error) {
-        toast({
-          title: "Erro",
-          description: "Falha ao criar manutenção",
-          variant: "destructive",
-        });
-        return;
-      }
-    } else {
-      // Para documentos, criar localmente por agora
-      const novoVencimento: Vencimento = {
-        id: Date.now().toString(),
-        aeronaveId: formData.aeronaveId,
-        aeronave: aeronave?.registration || "",
-        item: formData.item,
-        dataVencimento: formData.dataVencimento,
-        diasAlerta: parseInt(formData.diasAlerta),
-        status: "pendente",
-        diasRestantes,
-        tipo: "documento",
-      };
-
-      setVencimentos([...vencimentos, novoVencimento]);
-
-      toast({
-        title: "Documento cadastrado",
-        description: `Vencimento de documento adicionado para ${aeronave?.registration}`,
-      });
-    }
-
-    setFormData({
-      aeronaveId: "",
-      item: "",
-      dataVencimento: "",
-      periodoTipo: "dias",
-      periodoValor: "",
-      diasAlerta: "30",
-    });
-    setDialogOpen(false);
+  const handleSaveManutencao = () => {
+    loadVencimentos();
   };
 
   const handleStatusChange = async (id: string, newStatus: string) => {
@@ -387,337 +342,282 @@ export default function ControleVencimentos() {
 
   return (
     <Layout>
-      <div className="p-4 md:p-6 space-y-6">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-              Controle de Vencimentos
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              Gerencie manutenções e documentos das aeronaves
-            </p>
-          </div>
-
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">
-                  {activeTab === "manutencao" ? "Programar Manutenção" : "Agendar Documento"}
-                </span>
-                <span className="sm:hidden">Novo</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg w-[95vw] max-h-[90vh] p-0">
-              <DialogHeader className="p-4 md:p-6 pb-0">
-                <DialogTitle className="text-lg flex items-center gap-2">
-                  {activeTab === "manutencao" ? (
-                    <>
-                      <Wrench className="h-5 w-5 text-primary" />
-                      Programar Manutenção
-                    </>
-                  ) : (
-                    <>
-                      <FileText className="h-5 w-5 text-primary" />
-                      Agendar Pagamento de Documento
-                    </>
-                  )}
-                </DialogTitle>
-              </DialogHeader>
-
-              <ScrollArea className="max-h-[calc(90vh-100px)]">
-                <form onSubmit={handleSubmit} className="p-4 md:p-6 pt-4 space-y-4">
-                  {/* Seleção de Aeronave */}
-                  <div className="space-y-2">
-                    <Label>Selecionar Aeronave Ativa *</Label>
-                    <Select
-                      value={formData.aeronaveId}
-                      onValueChange={(value) => setFormData({ ...formData, aeronaveId: value })}
-                    >
-                      <SelectTrigger className="bg-card">
-                        <SelectValue placeholder="Escolha uma aeronave" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {aeronavesAtivas.length === 0 ? (
-                          <div className="p-4 text-center text-sm text-muted-foreground">
-                            Nenhuma aeronave ativa cadastrada
-                          </div>
-                        ) : (
-                          aeronavesAtivas.map((aero) => (
-                            <SelectItem key={aero.id} value={aero.id}>
-                              <div className="flex items-center gap-2">
-                                <Plane className="h-4 w-4 text-primary" />
-                                <span className="font-medium">{aero.registration}</span>
-                                <span className="text-muted-foreground">- {aero.model}</span>
-                              </div>
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    {selectedAeronaveData && (
-                      <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                        <Plane className="h-5 w-5 text-primary" />
-                        <div>
-                          <p className="font-medium text-foreground">{selectedAeronaveData.registration}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {selectedAeronaveData.manufacturer} {selectedAeronaveData.model}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Nome do Item */}
-                  <div className="space-y-2">
-                    <Label htmlFor="item">
-                      {activeTab === "manutencao" ? "Tipo de Manutenção *" : "Nome do Documento *"}
-                    </Label>
-                    <Input
-                      id="item"
-                      placeholder={activeTab === "manutencao"
-                        ? "Ex: Inspeção 100h, Revisão Geral..."
-                        : "Ex: CVA, Seguro, RETA..."
-                      }
-                      className="bg-card"
-                      value={formData.item}
-                      onChange={(e) => setFormData({ ...formData, item: e.target.value })}
-                    />
-                  </div>
-
-                  {/* Data de Vencimento */}
-                  <div className="space-y-2">
-                    <Label htmlFor="dataVencimento">
-                      {activeTab === "manutencao" ? "Data Programada *" : "Data de Vencimento *"}
-                    </Label>
-                    <Input
-                      id="dataVencimento"
-                      type="date"
-                      className="bg-card"
-                      value={formData.dataVencimento}
-                      onChange={(e) => setFormData({ ...formData, dataVencimento: e.target.value })}
-                    />
-                  </div>
-
-                  {/* Período e Valor - apenas para manutenção */}
-                  {activeTab === "manutencao" && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label>Tipo de Período</Label>
-                        <Select
-                          value={formData.periodoTipo}
-                          onValueChange={(value) => setFormData({ ...formData, periodoTipo: value })}
-                        >
-                          <SelectTrigger className="bg-card">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="horas">Horas de Voo</SelectItem>
-                            <SelectItem value="dias">Dias Corridos</SelectItem>
-                            <SelectItem value="meses">Meses</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="periodoValor">Periodicidade</Label>
-                        <Input
-                          id="periodoValor"
-                          type="number"
-                          placeholder="Ex: 50, 100"
-                          className="bg-card"
-                          value={formData.periodoValor}
-                          onChange={(e) => setFormData({ ...formData, periodoValor: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Dias de Alerta */}
-                  <div className="space-y-2">
-                    <Label>Alertar com antecedência de</Label>
-                    <Select
-                      value={formData.diasAlerta}
-                      onValueChange={(value) => setFormData({ ...formData, diasAlerta: value })}
-                    >
-                      <SelectTrigger className="bg-card">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="7">7 dias</SelectItem>
-                        <SelectItem value="15">15 dias</SelectItem>
-                        <SelectItem value="30">30 dias</SelectItem>
-                        <SelectItem value="60">60 dias</SelectItem>
-                        <SelectItem value="90">90 dias</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Botões */}
-                  <div className="flex flex-col-reverse sm:flex-row gap-2 pt-4">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="flex-1"
-                      onClick={() => setDialogOpen(false)}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button type="submit" className="flex-1">
-                      {activeTab === "manutencao" ? "Programar" : "Agendar"}
-                    </Button>
-                  </div>
-                </form>
-              </ScrollArea>
-            </DialogContent>
-          </Dialog>
+      <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
+        {/* Background gradient orbs */}
+        <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-blue-500/10 rounded-full blur-[120px] mix-blend-screen" />
+          <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-cyan-500/5 rounded-full blur-[120px] mix-blend-screen" />
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "manutencao" | "documento")}>
-          <TabsList className="grid w-full max-w-md grid-cols-2 bg-card/50">
-            <TabsTrigger value="manutencao" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <Wrench className="h-4 w-4" />
-              Manutenção
-            </TabsTrigger>
-            <TabsTrigger value="documento" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              <FileText className="h-4 w-4" />
-              Documentos
-            </TabsTrigger>
-          </TabsList>
+        <div className="relative z-10">
+          {/* Sticky Header */}
+          <header className="sticky top-0 z-40 w-full bg-slate-950/80 backdrop-blur-[12px] border-b border-white/5">
+            <div className="max-w-[1600px] mx-auto px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-blue-500/20 ring-1 ring-white/10 group cursor-pointer hover:scale-105 transition-transform">
+                  <Plane className="text-white text-xl" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold tracking-tight text-white leading-tight">Controle de Vencimentos</h1>
+                  <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_5px_rgba(16,185,129,0.5)]" />
+                    Sistema Operacional
+                  </div>
+                </div>
+              </div>
+              <ManutencaoDialog onSave={handleSaveManutencao} mode="create" />
+            </div>
+          </header>
 
-          <TabsContent value={activeTab} className="mt-6 space-y-6">
+          {/* Main Content */}
+          <main className="max-w-[1600px] mx-auto px-6 py-8 space-y-8">
             {/* Stats Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-              <div className="p-4 rounded-xl bg-destructive/5 border border-destructive/20 backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-destructive/10">
-                    <AlertCircle className="h-5 w-5 text-destructive" />
-                  </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <div className="bg-slate-800/30 backdrop-blur-[12px] border border-white/5 rounded-2xl p-6 relative overflow-hidden group transition-all duration-300 hover:bg-slate-800/50 hover:border-white/10">
+                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-15 transition-opacity pointer-events-none">
+                  <AlertCircle className="text-8xl text-red-400 transform rotate-12" />
+                </div>
+                <div className="relative z-10 flex flex-col h-full justify-between">
                   <div>
-                    <p className="text-2xl font-bold text-destructive">{stats.vencidos}</p>
-                    <p className="text-xs text-muted-foreground">Vencidos</p>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="flex h-2 w-2 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-400" />
+                      </span>
+                      <span className="text-xs font-bold uppercase tracking-wider text-red-400">Vencidos</span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-4xl font-bold text-white tracking-tight">{stats.vencidos}</span>
+                      <span className="text-sm text-gray-400 font-medium">itens</span>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-xs text-gray-400">
+                    <span>Ação imediata</span>
+                    <span>→</span>
                   </div>
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-warning/5 border border-warning/20 backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-warning/10">
-                    <AlertTriangle className="h-5 w-5 text-warning" />
-                  </div>
+              <div className="bg-slate-800/30 backdrop-blur-[12px] border border-white/5 rounded-2xl p-6 relative overflow-hidden group transition-all duration-300 hover:bg-slate-800/50 hover:border-white/10">
+                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-15 transition-opacity pointer-events-none">
+                  <Clock className="text-8xl text-yellow-400 transform -rotate-12" />
+                </div>
+                <div className="relative z-10 flex flex-col h-full justify-between">
                   <div>
-                    <p className="text-2xl font-bold text-warning">{stats.proximos}</p>
-                    <p className="text-xs text-muted-foreground">Próximos 30d</p>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="w-2 h-2 rounded-full bg-yellow-400" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-yellow-400">Próximos 30d</span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-4xl font-bold text-white tracking-tight">{stats.proximos}</span>
+                      <span className="text-sm text-gray-400 font-medium">itens</span>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-xs text-gray-400">
+                    <span>Requer atenção</span>
+                    <span>→</span>
                   </div>
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-success/5 border border-success/20 backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-success/10">
-                    <CheckCheck className="h-5 w-5 text-success" />
-                  </div>
+              <div className="bg-slate-800/30 backdrop-blur-[12px] border border-white/5 rounded-2xl p-6 relative overflow-hidden group transition-all duration-300 hover:bg-slate-800/50 hover:border-white/10">
+                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-15 transition-opacity pointer-events-none">
+                  <CheckCircle className="text-8xl text-green-400 transform rotate-6" />
+                </div>
+                <div className="relative z-10 flex flex-col h-full justify-between">
                   <div>
-                    <p className="text-2xl font-bold text-success">{stats.dentroPrazo}</p>
-                    <p className="text-xs text-muted-foreground">Em dia</p>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="w-2 h-2 rounded-full bg-green-400" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-green-400">Em dia</span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-4xl font-bold text-white tracking-tight">{stats.dentroPrazo}</span>
+                      <span className="text-sm text-gray-400 font-medium">itens</span>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-xs text-gray-400">
+                    <span>Regular</span>
+                    <span>→</span>
                   </div>
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 backdrop-blur-sm">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Plane className="h-5 w-5 text-primary" />
-                  </div>
+              <button
+                onClick={() => navigate("/aeronaves")}
+                className="bg-gradient-to-br from-blue-500/10 to-slate-800 rounded-2xl p-6 border border-blue-500/20 relative overflow-hidden shadow-lg shadow-blue-900/10 group hover:shadow-blue-500/10 transition-all duration-300 w-full text-left hover:border-blue-500/40 hover:from-blue-500/20"
+              >
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/20 rounded-full blur-2xl" />
+                <div className="relative z-10 flex flex-col h-full justify-between">
                   <div>
-                    <p className="text-2xl font-bold text-primary">{stats.total}</p>
-                    <p className="text-xs text-muted-foreground">Aeronaves</p>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Plane className="text-blue-400 text-sm" size={16} />
+                      <span className="text-xs font-bold uppercase tracking-wider text-blue-400">Aeronaves</span>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-4xl font-bold text-white tracking-tight">{aeronaves.length}</span>
+                      <span className="text-sm text-gray-400 font-medium">registradas</span>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-blue-500/10 flex items-center justify-between text-xs text-blue-400/80 font-medium">
+                    <span>Gerenciar frota</span>
+                    <span className="group-hover:translate-x-1 transition-transform">→</span>
                   </div>
                 </div>
+              </button>
+            </div>
+
+            {/* Navigation and Filters */}
+            <div className="flex flex-col xl:flex-row gap-6 xl:items-end justify-between">
+              <div className="flex-1 w-full space-y-2">
+                <div className="flex items-center justify-between gap-4">
+                  <nav className="flex gap-6 border-b border-white/5 flex-1">
+                    <button
+                      onClick={() => setActiveTab("manutencao")}
+                      className="relative pb-4 text-sm font-bold text-white flex items-center gap-2 group outline-none"
+                    >
+                      <span className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:bg-blue-500/20 transition-colors">
+                        <Wrench size={18} />
+                      </span>
+                      Vencimentos
+                      <span className="bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">{filteredVencimentos.filter(v => v.tipo === 'manutencao').length}</span>
+                      {activeTab === "manutencao" && (
+                        <span className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("documento")}
+                      className={`relative pb-4 text-sm font-medium flex items-center gap-2 group transition-colors outline-none ${
+                        activeTab === "documento" ? "text-white" : "text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      <span className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                        activeTab === "documento"
+                          ? "bg-blue-500/10 text-blue-400"
+                          : "bg-white/5 text-gray-400 group-hover:text-gray-200 group-hover:bg-white/10"
+                      }`}>
+                        <FileText size={18} />
+                      </span>
+                      Documentos
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                        activeTab === "documento"
+                          ? "bg-blue-500 text-white"
+                          : "bg-white/10 text-gray-400 border border-white/5"
+                      }`}>{filteredVencimentos.filter(v => v.tipo === 'documento').length}</span>
+                      {activeTab === "documento" && (
+                        <span className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
+                      )}
+                    </button>
+                  </nav>
+                  <div className="flex gap-2">
+                    {activeTab === "manutencao" && (
+                      <NovoVencimentoDialog onSave={loadVencimentos} />
+                    )}
+                    {activeTab === "documento" && (
+                      <NovoDocumentoDialog onSave={loadVencimentos} />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+                <div className="relative group min-w-[300px]">
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <Search className="text-gray-500 group-focus-within:text-blue-400 transition-colors" size={20} />
+                  </span>
+                  <input
+                    className="w-full pl-11 pr-4 py-2.5 bg-slate-800/60 border border-white/10 text-gray-200 placeholder-gray-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent focus:bg-slate-800 transition-all text-sm font-medium"
+                    placeholder="Buscar item, descrição ou código..."
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="relative min-w-[220px]">
+                  <select
+                    className="w-full pl-4 pr-10 py-2.5 bg-slate-800/60 border border-white/10 text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent focus:bg-slate-800 appearance-none cursor-pointer text-sm font-medium transition-all"
+                    value={selectedAeronave}
+                    onChange={(e) => setSelectedAeronave(e.target.value)}
+                  >
+                    <option value="todas">Todas as Aeronaves</option>
+                    {aeronavesAtivas.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.registration} ({a.model})
+                      </option>
+                    ))}
+                  </select>
+                  <span className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500">▼</span>
+                  </span>
+                </div>
+                <button aria-label="Filters" className="bg-slate-800/60 hover:bg-slate-700 text-gray-400 hover:text-white px-3 py-2.5 rounded-xl border border-white/10 transition-colors flex items-center justify-center">
+                  <span>⋮</span>
+                </button>
               </div>
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-col md:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar item ou aeronave..."
-                  className="pl-10 bg-card border-border"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <Select value={selectedAeronave} onValueChange={setSelectedAeronave}>
-                <SelectTrigger className="w-full md:w-[250px] bg-card border-border">
-                  <SelectValue placeholder="Aeronave" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas">Todas as aeronaves</SelectItem>
-                  {aeronavesAtivas.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.registration} - {a.model}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Lista de Vencimentos */}
+            {/* Empty State or List */}
             {vencimentosPorAeronave.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 rounded-xl bg-card/50 border border-border/50">
-                {activeTab === "manutencao" ? (
-                  <Wrench className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                ) : (
-                  <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                )}
-                <p className="text-muted-foreground text-center">
-                  {activeTab === "manutencao"
-                    ? "Nenhuma manutenção programada."
-                    : "Nenhum documento cadastrado."
-                  }
-                </p>
-                <Button
-                  variant="outline"
-                  className="mt-4"
-                  onClick={() => setDialogOpen(true)}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  {activeTab === "manutencao" ? "Programar Manutenção" : "Agendar Documento"}
-                </Button>
+              <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/40 min-h-[450px] flex flex-col items-center justify-center relative overflow-hidden">
+                <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "linear-gradient(rgb(148,163,184) 1px, transparent 1px), linear-gradient(to right, rgb(148,163,184) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
+                <div className="relative z-10 flex flex-col items-center max-w-md mx-auto text-center p-6">
+                  <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center mb-6 shadow-2xl ring-1 ring-white/5 group">
+                    <span className="text-gray-500 group-hover:text-blue-400 group-hover:scale-110 transition-all text-4xl">📦</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">Resultados filtrados</h3>
+                  <p className="text-gray-400 text-sm mb-8 leading-relaxed">
+                    Nenhum item crítico encontrado para os filtros atuais. <br />
+                    A segurança da sua frota está em conformidade.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                    <button
+                      onClick={() => {
+                        setSearchTerm("");
+                        setSelectedAeronave("todas");
+                      }}
+                      className="px-5 py-2.5 rounded-lg text-sm font-semibold text-gray-300 bg-white/5 hover:bg-white/10 border border-white/5 transition-colors w-full sm:w-auto"
+                    >
+                      Limpar filtros
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (activeTab === "manutencao") {
+                          // Trigger the NovoVencimentoDialog
+                        } else {
+                          // Trigger the NovoDocumentoDialog
+                        }
+                      }}
+                      className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-500/20 transition-all w-full sm:w-auto"
+                    >
+                      Adicionar Registro
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
                 {vencimentosPorAeronave.map((grupo) => (
-                  <div
-                    key={grupo.aeronaveId}
-                    className="rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden"
-                  >
-                    {/* Header da Aeronave */}
-                    <div className="px-4 py-3 md:px-6 md:py-4 border-b border-border/50 bg-gradient-to-r from-primary/5 to-transparent">
+                  <div key={grupo.aeronaveId} className="rounded-2xl border border-white/5 bg-slate-800/30 backdrop-blur-[12px] overflow-hidden hover:border-white/10 transition-all">
+                    <div className="px-4 py-3 md:px-6 md:py-4 border-b border-white/5 bg-gradient-to-r from-blue-500/5 to-transparent">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-primary/10">
-                            <Plane className="h-5 w-5 text-primary" />
+                          <div className="p-2 rounded-lg bg-blue-500/10">
+                            <Plane className="h-5 w-5 text-blue-400" />
                           </div>
                           <div>
-                            <h3 className="font-bold text-foreground text-lg">{grupo.aeronave}</h3>
-                            <p className="text-xs text-muted-foreground">
-                              {grupo.vencimentos.length} {activeTab === "manutencao" ? "manutenção" : "documento"}
-                              {grupo.vencimentos.length !== 1 ? (activeTab === "manutencao" ? "ões" : "s") : ""}
+                            <h3 className="font-bold text-white text-lg">{grupo.aeronave}</h3>
+                            <p className="text-xs text-gray-400">
+                              {grupo.vencimentos.length} {grupo.vencimentos.length !== 1 ? "itens" : "item"}
                             </p>
                           </div>
                         </div>
                         <div className="hidden sm:flex items-center gap-2">
                           {grupo.vencimentos.filter((v) => v.diasRestantes < 0).length > 0 && (
-                            <Badge className="bg-destructive/10 text-destructive border-destructive/30">
+                            <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
                               {grupo.vencimentos.filter((v) => v.diasRestantes < 0).length} vencido
                             </Badge>
                           )}
                           {grupo.vencimentos.filter((v) => v.diasRestantes > 0 && v.diasRestantes <= 30).length > 0 && (
-                            <Badge className="bg-warning/10 text-warning border-warning/30">
+                            <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
                               {grupo.vencimentos.filter((v) => v.diasRestantes > 0 && v.diasRestantes <= 30).length} próximo
                             </Badge>
                           )}
@@ -725,8 +625,7 @@ export default function ControleVencimentos() {
                       </div>
                     </div>
 
-                    {/* Lista de Vencimentos */}
-                    <div className="divide-y divide-border/30">
+                    <div className="divide-y divide-white/5">
                       {grupo.vencimentos
                         .sort((a, b) => new Date(a.dataVencimento).getTime() - new Date(b.dataVencimento).getTime())
                         .map((vencimento) => {
@@ -736,21 +635,21 @@ export default function ControleVencimentos() {
                           return (
                             <div
                               key={vencimento.id}
-                              className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3 hover:bg-accent/5 transition-colors`}
+                              className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3 hover:bg-white/5 transition-colors"
                             >
                               <div className="flex items-center gap-3 flex-1 min-w-0">
                                 <div className={`p-2 rounded-lg ${info.bgColor}`}>
                                   <StatusIcon className={`h-4 w-4 ${info.textColor}`} />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-foreground truncate">{vencimento.item}</p>
+                                  <p className="font-medium text-white truncate">{vencimento.item}</p>
                                   <div className="flex items-center gap-2 mt-1">
-                                    <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                                    <span className="text-xs text-muted-foreground">
+                                    <Calendar className="h-3.5 w-3.5 text-gray-500" />
+                                    <span className="text-xs text-gray-400">
                                       {new Date(vencimento.dataVencimento).toLocaleDateString("pt-BR")}
                                     </span>
                                     {vencimento.comprovanteUrl && (
-                                      <Badge variant="outline" className="text-xs">
+                                      <Badge variant="outline" className="text-xs bg-white/5 border-white/10 text-gray-300">
                                         <Upload className="h-3 w-3 mr-1" />
                                         Comprovante
                                       </Badge>
@@ -765,7 +664,7 @@ export default function ControleVencimentos() {
                                     {vencimento.diasRestantes < 0 ? "Vencido" : `${vencimento.diasRestantes}d`}
                                   </p>
                                   {vencimento.diasRestantes >= 0 && (
-                                    <p className="text-xs text-muted-foreground">restantes</p>
+                                    <p className="text-xs text-gray-400">restantes</p>
                                   )}
                                 </div>
 
@@ -774,6 +673,7 @@ export default function ControleVencimentos() {
                                     <Button
                                       variant="outline"
                                       size="sm"
+                                      className="bg-slate-800/50 border-white/10 text-gray-300 hover:bg-slate-700"
                                       onClick={() => {
                                         setSelectedVencimento(vencimento);
                                         setUploadDialogOpen(true);
@@ -787,6 +687,7 @@ export default function ControleVencimentos() {
                                     <Button
                                       variant="outline"
                                       size="sm"
+                                      className="bg-slate-800/50 border-white/10 text-gray-300 hover:bg-slate-700"
                                       onClick={() => window.open(vencimento.comprovanteUrl, "_blank")}
                                     >
                                       <Eye className="h-4 w-4" />
@@ -803,16 +704,16 @@ export default function ControleVencimentos() {
                                         {info.label}
                                       </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => handleStatusChange(vencimento.id, "pendente")}>
+                                    <DropdownMenuContent className="bg-slate-800 border-white/10">
+                                      <DropdownMenuItem className="text-gray-300 focus:bg-slate-700" onClick={() => handleStatusChange(vencimento.id, "pendente")}>
                                         <Clock className="h-4 w-4 mr-2" />
                                         Pendente
                                       </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => handleStatusChange(vencimento.id, "programado")}>
+                                      <DropdownMenuItem className="text-gray-300 focus:bg-slate-700" onClick={() => handleStatusChange(vencimento.id, "programado")}>
                                         <AlertTriangle className="h-4 w-4 mr-2" />
                                         Programado
                                       </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => handleStatusChange(vencimento.id, activeTab === "documento" ? "pago" : "concluido")}>
+                                      <DropdownMenuItem className="text-gray-300 focus:bg-slate-700" onClick={() => handleStatusChange(vencimento.id, activeTab === "documento" ? "pago" : "concluido")}>
                                         <CheckCircle className="h-4 w-4 mr-2" />
                                         {activeTab === "documento" ? "Pago" : "Concluído"}
                                       </DropdownMenuItem>
@@ -828,50 +729,50 @@ export default function ControleVencimentos() {
                 ))}
               </div>
             )}
-          </TabsContent>
-        </Tabs>
-
-        {/* Upload Dialog */}
-        <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5 text-primary" />
-                Anexar Comprovante de Pagamento
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                {selectedVencimento?.item} - {selectedVencimento?.aeronave}
-              </p>
-              <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
-                <input
-                  type="file"
-                  accept="image/*,.pdf"
-                  className="hidden"
-                  id="comprovante-upload"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleUploadComprovante(file);
-                  }}
-                />
-                <label
-                  htmlFor="comprovante-upload"
-                  className="cursor-pointer flex flex-col items-center gap-2"
-                >
-                  <Upload className="h-8 w-8 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    {uploading ? "Enviando..." : "Clique para selecionar arquivo"}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    PDF ou imagem (max 10MB)
-                  </span>
-                </label>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+          </main>
+        </div>
       </div>
+
+      {/* Upload Dialog */}
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent className="max-w-md bg-slate-900 border-white/10">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-white">
+              <Upload className="h-5 w-5 text-blue-400" />
+              Anexar Comprovante de Pagamento
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-400">
+              {selectedVencimento?.item} - {selectedVencimento?.aeronave}
+            </p>
+            <div className="border-2 border-dashed border-white/10 rounded-lg p-6 text-center">
+              <input
+                type="file"
+                accept="image/*,.pdf"
+                className="hidden"
+                id="comprovante-upload"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleUploadComprovante(file);
+                }}
+              />
+              <label
+                htmlFor="comprovante-upload"
+                className="cursor-pointer flex flex-col items-center gap-2"
+              >
+                <Upload className="h-8 w-8 text-gray-500" />
+                <span className="text-sm text-gray-400">
+                  {uploading ? "Enviando..." : "Clique para selecionar arquivo"}
+                </span>
+                <span className="text-xs text-gray-500">
+                  PDF ou imagem (max 10MB)
+                </span>
+              </label>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

@@ -1,884 +1,831 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Search, Filter, Trash2, Edit2, TrendingUp, TrendingDown, Wallet, ChevronDown, FileText, ExternalLink, Eye, Check, X as CloseIcon } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Search,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  Loader2,
+  ChevronUp,
+  ChevronDown,
+  Trash2,
+  BarChart3,
+  Plus,
+  Edit2,
+  X,
+  CreditCard,
+  FileText,
+  Receipt,
+  Paperclip,
+} from "lucide-react";
+import { FilterCombobox } from "./FilterCombobox";
+import { useControleBancario } from "@/hooks/useControleBancario";
+import { useCategorias } from "@/hooks/useCategorias";
+import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
+import { format, parse } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCategoriasFinanceiro, useCategoriasConta } from "@/hooks/useCategoriasFinanceiro";
 import { useAeronaves } from "@/hooks/useAeronaves";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { MonthYearPicker } from "@/components/ui/month-year-picker";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { FluxoCaixaInlineForm } from "./FluxoCaixaInlineForm";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
-const parseLocalDate = (dateString: string): Date => {
-  const [year, month, day] = dateString.split('-').map(Number);
-  return new Date(year, month - 1, day);
-};
+type SortField = "data" | "tipo_movimento" | "valor" | null;
+type SortDirection = "asc" | "desc";
 
-interface InlineEditRowProps {
-  movimentacao: any;
-  isNew: boolean;
-  onSuccess: () => void;
-  onCancel: () => void;
-  user: any;
-  allCategorias: any[];
-  contaNomes: string[];
-  aeronaves: any[];
-}
+export function FluxoCaixa() {
+  const { user } = useAuth();
+  const { data: transacoes, isLoading, error } = useControleBancario();
+  const { data: categoriasData } = useCategorias();
+  const { categorias: contasData } = useCategoriasFinanceiro();
+  const { aeronaves } = useAeronaves();
 
-function InlineEditRow({ 
-  movimentacao, 
-  isNew, 
-  onSuccess, 
-  onCancel, 
-  user, 
-  allCategorias, 
-  contaNomes, 
-  aeronaves 
-}: InlineEditRowProps) {
-  const [formData, setFormData] = useState({
-    data: movimentacao?.data || new Date().toISOString().split('T')[0],
-    tipo_movimento: movimentacao?.tipo_movimento || 'entrada',
-    categoria: movimentacao?.categoria || '',
-    descricao: movimentacao?.descricao || '',
-    valor: movimentacao?.valor?.toString() || '',
-    conta_banco: movimentacao?.conta_banco || '',
-    status: movimentacao?.status || 'recebido',
-    aeronave: movimentacao?.aeronave || ''
-  });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterTipos, setFilterTipos] = useState<Set<string>>(new Set());
+  const [filterCategorias, setFilterCategorias] = useState<Set<string>>(
+    new Set()
+  );
+  const [filterGrupos, setFilterGrupos] = useState<Set<string>>(new Set());
+  const [filterBancos, setFilterBancos] = useState<Set<string>>(new Set());
+  const [filterStatus, setFilterStatus] = useState<Set<string>>(new Set());
+  const [sortField, setSortField] = useState<SortField>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showReport, setShowReport] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [showInlineForm, setShowInlineForm] = useState(false);
+  const [editingMovimentacao, setEditingMovimentacao] = useState<any>(null);
+  const [contasBancarias, setContasBancarias] = useState<any[]>([]);
 
-  const [isSaving, setIsSaving] = useState(false);
-  const [openCategoriaPopover, setOpenCategoriaPopover] = useState(false);
-  const [selectedSubcategoria, setSelectedSubcategoria] = useState<string | null>(null);
+  // Fetch contas bancárias para obter os bancos
+  React.useEffect(() => {
+    const fetchContasBancarias = async () => {
+      const { data } = await supabase
+        .from("contas_bancarias")
+        .select("id, nome, banco")
+        .eq("ativo", true)
+        .order("banco");
+      setContasBancarias(data || []);
+    };
+    fetchContasBancarias();
+  }, []);
 
-  const categoriasPorSubcategoria = useMemo(() => {
-    const filteredByType = formData.tipo_movimento === "saída"
-      ? allCategorias.filter(c => c.tipo === "despesa")
-      : allCategorias.filter(c => c.tipo === "receita");
+  // Grupos de categorias únicos
+  const gruposCategorias = useMemo(() => {
+    if (!Array.isArray(contasData)) return [];
+    const grupos = [...new Set(contasData.map((c: any) => c.grupo_categoria).filter(Boolean))];
+    return grupos.sort();
+  }, [contasData]);
 
-    const grouped: Record<string, typeof allCategorias> = {};
+  // Categorias filtradas pelo grupo selecionado
+  const categoriasDoGrupo = useMemo(() => {
+    if (!Array.isArray(contasData)) return [];
+    if (filterGrupos.size === 0) {
+      return contasData.map((c: any) => c.nome);
+    }
+    return contasData
+      .filter((c: any) => filterGrupos.has(c.grupo_categoria))
+      .map((c: any) => c.nome);
+  }, [contasData, filterGrupos]);
 
-    filteredByType.forEach(cat => {
-      const subcategoria = cat.categoria || "Sem Grupo";
-      if (!grouped[subcategoria]) {
-        grouped[subcategoria] = [];
+  const tipos: string[] = ["entrada", "saída"];
+  // Bancos únicos da tabela contas_bancarias
+  const bancos: string[] = useMemo(() => {
+    const bancosUnicos = [...new Set(contasBancarias.map((c: any) => c.banco).filter(Boolean))];
+    return bancosUnicos.sort();
+  }, [contasBancarias]);
+  const statusOptions: string[] = ["recebido", "pago", "pendente", "aguardando_reembolso", "cancelado"];
+
+  const toggleFilter = (set: Set<string>, value: string) => {
+    const newSet = new Set(set);
+    if (newSet.has(value)) {
+      newSet.delete(value);
+    } else {
+      newSet.add(value);
+    }
+    return newSet;
+  };
+
+  const toggleSelectId = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const toggleSelectAll = () => {
+    if (
+      selectedIds.size === paginatedTransacoes.length &&
+      paginatedTransacoes.length > 0
+    ) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginatedTransacoes.map((t: any) => t.id)));
+    }
+  };
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+    setCurrentPage(1);
+  };
+
+  // Mapeamento de conta para banco
+  const contaToBanco = useMemo(() => {
+    const mapping: Record<string, string> = {};
+    contasBancarias.forEach((c: any) => {
+      if (c.nome && c.banco) {
+        mapping[c.nome] = c.banco;
       }
-      grouped[subcategoria].push(cat);
+    });
+    return mapping;
+  }, [contasBancarias]);
+
+  const filteredTransacoes = useMemo(() => {
+    return (
+      transacoes?.filter((transacao: any) => {
+        const matchesSearch =
+          transacao.descricao
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          (transacao.numero_documento &&
+            transacao.numero_documento
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase()));
+        const matchesTipo =
+          filterTipos.size === 0 || filterTipos.has(transacao.tipo_movimento);
+        const matchesGrupo =
+          filterGrupos.size === 0 ||
+          (transacao.grupo_categoria && filterGrupos.has(transacao.grupo_categoria));
+        const matchesCategoria =
+          filterCategorias.size === 0 ||
+          filterCategorias.has(transacao.categoria);
+        // Filtrar pelo banco usando o mapeamento conta -> banco
+        const transacaoBanco = transacao.conta_banco ? contaToBanco[transacao.conta_banco] : null;
+        const matchesBanco =
+          filterBancos.size === 0 ||
+          (transacaoBanco && filterBancos.has(transacaoBanco));
+        const matchesStatus =
+          filterStatus.size === 0 ||
+          (transacao.status && filterStatus.has(transacao.status));
+
+        return (
+          matchesSearch &&
+          matchesTipo &&
+          matchesGrupo &&
+          matchesCategoria &&
+          matchesBanco &&
+          matchesStatus
+        );
+      }) || []
+    );
+  }, [transacoes, searchTerm, filterTipos, filterGrupos, filterCategorias, filterBancos, filterStatus, contaToBanco]);
+
+  const sortedTransacoes = useMemo(() => {
+    const sorted = [...filteredTransacoes].sort((a: any, b: any) => {
+      if (!sortField) return 0;
+
+      let aValue: any = a[sortField];
+      let bValue: any = b[sortField];
+
+      if (sortField === "data") {
+        aValue = new Date(a.data).getTime();
+        bValue = new Date(b.data).getTime();
+      } else if (sortField === "valor") {
+        aValue = Number(a.valor);
+        bValue = Number(b.valor);
+      }
+
+      if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [filteredTransacoes, sortField, sortDirection]);
+
+  const itemsPerPage = 10;
+  const totalPages = Math.ceil(sortedTransacoes.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedTransacoes = sortedTransacoes.slice(
+    startIndex,
+    startIndex + itemsPerPage
+  );
+
+  const renderSortIcon = (field: SortField) => {
+    if (sortField !== field) return null;
+    return sortDirection === "asc" ? (
+      <ChevronUp className="w-4 h-4 inline ml-1" />
+    ) : (
+      <ChevronDown className="w-4 h-4 inline ml-1" />
+    );
+  };
+
+  const selectedTransacoes = sortedTransacoes.filter((t: any) =>
+    selectedIds.has(t.id)
+  );
+
+  const getGroupedReport = () => {
+    const grouped: {
+      [key: string]: { total: number; count: number; status?: string };
+    } = {};
+
+    selectedTransacoes.forEach((t: any) => {
+      const key = `${t.categoria} (${t.tipo_movimento})`;
+      if (!grouped[key]) {
+        grouped[key] = { total: 0, count: 0, status: t.status || "sem status" };
+      }
+      grouped[key].total += Number(t.valor);
+      grouped[key].count += 1;
     });
 
     return grouped;
-  }, [allCategorias, formData.tipo_movimento]);
+  };
 
-  const subcategorias = useMemo(() => {
-    return Object.keys(categoriasPorSubcategoria).sort();
-  }, [categoriasPorSubcategoria]);
-
-  useEffect(() => {
-    if (formData.categoria) {
-      const cat = allCategorias.find(c => c.nome === formData.categoria);
-      if (cat && cat.categoria) {
-        setSelectedSubcategoria(cat.categoria);
-      }
-    }
-  }, [formData.categoria, allCategorias]);
-
-  const handleSave = async () => {
-    if (!formData.categoria || formData.categoria.trim() === '') {
-      toast.error("Categoria é obrigatória");
-      return;
-    }
-
-    if (!formData.descricao || formData.descricao.trim() === '') {
-      toast.error("Descrição é obrigatória");
-      return;
-    }
-
-    const valor = parseFloat(formData.valor);
-    if (isNaN(valor) || valor <= 0) {
-      toast.error("Valor deve ser maior que zero");
-      return;
-    }
-
-    setIsSaving(true);
+  const handleDelete = async (id: string) => {
     try {
-      const data = {
-        data: formData.data,
-        tipo_movimento: formData.tipo_movimento,
-        categoria: formData.categoria,
-        descricao: formData.descricao,
-        valor,
-        conta_banco: formData.conta_banco || null,
-        status: formData.status,
-        aeronave: formData.aeronave || null,
-        atualizado_por: user?.id
-      };
+      const { error } = await supabase
+        .from("controle_bancario")
+        .delete()
+        .eq("id", id);
 
-      if (isNew) {
-        const { error } = await supabase
-          .from("controle_bancario")
-          .insert([{
-            ...data,
-            criado_por: user?.id
-          }]);
-
-        if (error) {
-          toast.error(`Erro ao criar: ${error.message}`);
-          return;
-        }
-        toast.success("Movimentação criada com sucesso!");
-      } else {
-        const { error } = await supabase
-          .from("controle_bancario")
-          .update(data)
-          .eq("id", movimentacao.id);
-
-        if (error) {
-          toast.error(`Erro ao atualizar: ${error.message}`);
-          return;
-        }
-        toast.success("Movimentação atualizada com sucesso!");
-      }
-
-      onSuccess();
-      onCancel();
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao processar movimentação");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleTipoChange = (novoTipo: string) => {
-    setFormData(prev => ({ ...prev, tipo_movimento: novoTipo, status: novoTipo === 'entrada' ? 'recebido' : 'pago' }));
-    setSelectedSubcategoria(null);
-  };
-
-  return (
-    <div className="px-4 sm:px-6 py-4 bg-slate-800/40 border-b border-slate-700/40 space-y-4 backdrop-blur-sm">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
-        <div>
-          <Label className="text-xs font-medium text-muted-foreground mb-1">Data</Label>
-          <Input
-            type="date"
-            value={formData.data}
-            onChange={(e) => setFormData(prev => ({ ...prev, data: e.target.value }))}
-            className="h-8 bg-background text-xs"
-          />
-        </div>
-
-        <div>
-          <Label className="text-xs font-medium text-muted-foreground mb-1">Tipo</Label>
-          <Select value={formData.tipo_movimento} onValueChange={handleTipoChange}>
-            <SelectTrigger className="h-8 bg-background text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="entrada">Entrada</SelectItem>
-              <SelectItem value="saída">Saída</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div>
-          <Label className="text-xs font-medium text-muted-foreground mb-1">Valor</Label>
-          <Input
-            type="number"
-            step="0.01"
-            min="0"
-            value={formData.valor}
-            onChange={(e) => setFormData(prev => ({ ...prev, valor: e.target.value }))}
-            className="h-8 bg-background text-xs"
-            placeholder="0.00"
-          />
-        </div>
-
-        <div>
-          <Label className="text-xs font-medium text-muted-foreground mb-1">Categoria</Label>
-          <Popover open={openCategoriaPopover} onOpenChange={setOpenCategoriaPopover}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="h-8 w-full justify-between bg-background text-xs text-left px-2"
-              >
-                <span className="truncate">{formData.categoria || 'Sel'}</span>
-                <ChevronDown className="h-3 w-3 shrink-0" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[220px] p-0 bg-card border-border" align="start">
-              <div className="p-2 border-b border-border/50">
-                <p className="text-xs font-medium text-foreground mb-1">
-                  {!selectedSubcategoria ? "Grupo" : selectedSubcategoria}
-                </p>
-                {selectedSubcategoria && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedSubcategoria(null)}
-                    className="text-xs h-6"
-                  >
-                    ← Voltar
-                  </Button>
-                )}
-              </div>
-              <div className="max-h-[180px] overflow-y-auto p-1">
-                {!selectedSubcategoria ? (
-                  <div className="space-y-1">
-                    {subcategorias.map((sub) => (
-                      <Button
-                        key={sub}
-                        variant="ghost"
-                        className="w-full justify-start h-6 text-xs"
-                        onClick={() => setSelectedSubcategoria(sub)}
-                      >
-                        {sub}
-                      </Button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {(categoriasPorSubcategoria[selectedSubcategoria] || []).map((cat: any) => (
-                      <Button
-                        key={cat.id}
-                        variant="ghost"
-                        className="w-full justify-start h-6 text-xs"
-                        onClick={() => {
-                          setFormData(prev => ({ ...prev, categoria: cat.nome }));
-                          setOpenCategoriaPopover(false);
-                        }}
-                      >
-                        {cat.nome}
-                      </Button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
-        <div className="sm:col-span-2 lg:col-span-2">
-          <Label className="text-xs font-medium text-muted-foreground mb-1">Descrição</Label>
-          <Input
-            value={formData.descricao}
-            onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
-            className="h-8 bg-background text-xs"
-            placeholder="Descreva a movimentação"
-          />
-        </div>
-
-        <div>
-          <Label className="text-xs font-medium text-muted-foreground mb-1">Banco</Label>
-          <Select value={formData.conta_banco} onValueChange={(value) => setFormData(prev => ({ ...prev, conta_banco: value }))}>
-            <SelectTrigger className="h-8 bg-background text-xs">
-              <SelectValue placeholder="Sel" />
-            </SelectTrigger>
-            <SelectContent>
-              {contaNomes.length > 0 ? (
-                contaNomes.map((conta) => (
-                  <SelectItem key={conta} value={conta} className="text-xs">{conta}</SelectItem>
-                ))
-              ) : (
-                <div className="text-center py-2 text-xs text-muted-foreground">
-                  Nenhum banco
-                </div>
-              )}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div>
-          <Label className="text-xs font-medium text-muted-foreground mb-1">Status</Label>
-          <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
-            <SelectTrigger className="h-8 bg-background text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {formData.tipo_movimento === "entrada" ? (
-                <SelectItem value="recebido" className="text-xs">Recebido</SelectItem>
-              ) : (
-                <SelectItem value="pago" className="text-xs">Pago</SelectItem>
-              )}
-              <SelectItem value="cancelado" className="text-xs">Cancelado</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="flex gap-2 justify-end pt-2 border-t border-slate-700/40">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onCancel}
-          disabled={isSaving}
-          className="h-7 px-3 text-xs"
-        >
-          <CloseIcon className="w-3 h-3 mr-1" />
-          Cancelar
-        </Button>
-        <Button
-          type="button"
-          onClick={handleSave}
-          disabled={isSaving}
-          className="bg-primary hover:bg-primary/90 h-7 px-3 text-xs"
-        >
-          <Check className="w-3 h-3 mr-1" />
-          {isSaving ? "Salvando..." : "Salvar"}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-export function FluxoCaixa() {
-  const {
-    user
-  } = useAuth();
-  const {
-    categorias: allCategorias
-  } = useCategoriasFinanceiro();
-  const { contas } = useCategoriasConta();
-  const { aeronaves } = useAeronaves();
-
-  const categoriaNomes = allCategorias.map(c => c.nome);
-  const contaNomes = contas.map(c => c.nome);
-
-  const [movimentacoes, setMovimentacoes] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [newRowId, setNewRowId] = useState<string | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-
-  const getCurrentMonth = () => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  };
-  const getCurrentYear = () => {
-    return new Date().getFullYear().toString();
-  };
-  const [filters, setFilters] = useState({
-    searchTerm: "",
-    tipo: "all",
-    categoria: "all",
-    status: "all",
-    periodo: "mes",
-    mes: getCurrentMonth(),
-    ano: getCurrentYear()
-  });
-
-  useEffect(() => {
-    loadMovimentacoes();
-  }, []);
-
-  const loadMovimentacoes = async () => {
-    setIsLoading(true);
-    try {
-      const {
-        data,
-        error
-      } = await supabase.from("controle_bancario").select("*").order("data", {
-        ascending: false
-      });
-      if (error) {
-        toast.error(`Erro ao carregar: ${error.message}`);
-        return;
-      }
-      setMovimentacoes(data || []);
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao carregar movimentações");
-    }
-    setIsLoading(false);
-  };
-
-  const filteredMovimentacoes = useMemo(() => {
-    return movimentacoes.filter(mov => {
-      const searchMatch = filters.searchTerm === "" || mov.descricao.toLowerCase().includes(filters.searchTerm.toLowerCase()) || mov.numero_documento && mov.numero_documento.toLowerCase().includes(filters.searchTerm.toLowerCase());
-      const tipoMatch = filters.tipo === "all" || mov.tipo_movimento === filters.tipo;
-      const categoriaMatch = filters.categoria === "all" || mov.categoria === filters.categoria;
-      const statusMatch = filters.status === "all" || mov.status === filters.status;
-
-      let periodoMatch = true;
-      if (filters.periodo === "mes") {
-        periodoMatch = mov.data.startsWith(filters.mes);
-      } else if (filters.periodo === "ano") {
-        periodoMatch = mov.data.startsWith(filters.ano);
-      }
-      return searchMatch && tipoMatch && categoriaMatch && statusMatch && periodoMatch;
-    });
-  }, [movimentacoes, filters]);
-
-  const totals = useMemo(() => {
-    const entradas = filteredMovimentacoes.filter(m => m.tipo_movimento === "entrada").reduce((sum, m) => sum + parseFloat(m.valor), 0);
-    const saidas = filteredMovimentacoes.filter(m => m.tipo_movimento === "saída").reduce((sum, m) => sum + parseFloat(m.valor), 0);
-    return {
-      entradas,
-      saidas,
-      saldo: entradas - saidas
-    };
-  }, [filteredMovimentacoes]);
-
-  const handleDelete = async () => {
-    if (!deleteConfirmId) return;
-    try {
-      const {
-        error
-      } = await supabase.from("controle_bancario").delete().eq("id", deleteConfirmId);
       if (error) {
         toast.error(`Erro ao deletar: ${error.message}`);
         return;
       }
+
       toast.success("Movimentação deletada com sucesso!");
       setDeleteConfirmId(null);
-      loadMovimentacoes();
+      // Refetch data
+      window.location.reload();
     } catch (error: any) {
       toast.error(error.message || "Erro ao deletar");
     }
   };
 
-  const handleEditRow = (id: string) => {
-    setEditingId(id);
-    setExpandedRows(new Set());
-  };
+  const handleDeleteMultiple = async () => {
+    if (selectedIds.size === 0) return;
 
-  const handleNewRow = () => {
-    const tempId = `new_${Date.now()}`;
-    setNewRowId(tempId);
-    setEditingId(tempId);
-    setExpandedRows(new Set());
-  };
+    try {
+      const idsArray = Array.from(selectedIds);
+      const { error } = await supabase
+        .from("controle_bancario")
+        .delete()
+        .in("id", idsArray);
 
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    setNewRowId(null);
-  };
+      if (error) {
+        toast.error(`Erro ao deletar: ${error.message}`);
+        return;
+      }
 
-  const toggleRowExpand = (id: string) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id);
-    } else {
-      newExpanded.add(id);
+      toast.success(
+        `${selectedIds.size} movimentação(ões) deletada(s) com sucesso!`
+      );
+      setSelectedIds(new Set());
+      setCurrentPage(1);
+      // Refetch data
+      window.location.reload();
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao deletar movimentações");
     }
-    setExpandedRows(newExpanded);
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "recebido":
-        return "bg-green-500/20 text-green-400 border-green-500/30";
+        return "bg-purple-900/20 text-purple-400 border-purple-600";
       case "pago":
-        return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+        return "bg-green-900/20 text-green-400 border-green-600";
       case "cancelado":
-        return "bg-red-500/20 text-red-400 border-red-500/30";
+        return "bg-red-900/20 text-red-400 border-red-600";
       default:
-        return "bg-muted text-muted-foreground";
+        return "bg-gray-700 text-gray-300 border-gray-600";
     }
   };
 
-  const getStatusLabel = (status: string, tipo: string) => {
-    if (status === "recebido") return "Recebido";
-    if (status === "pago") return "Pago";
-    if (status === "cancelado") return "Cancelado";
-    if (status === "confirmado") return tipo === "entrada" ? "Recebido" : "Pago";
-    if (status === "pendente") return tipo === "entrada" ? "Recebido" : "Pago";
-    return status;
-  };
-
-  return <div className="space-y-6 w-full">
-      {/* Cards de Totais */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 mx-0 my-0 py-4 px-4">
-        <Card className="bg-card/50 border-2 border-blue-600/60 hover:border-blue-500/80 hover:bg-card/80 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:scale-102">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-3 px-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground/90">Entradas</CardTitle>
-            <div className="p-1 rounded-lg bg-blue-500/15">
-              <TrendingUp className="h-4 w-4 text-blue-500" />
-            </div>
-          </CardHeader>
-          <CardContent className="px-3 pb-3 mx-0">
-            <div className="text-lg font-bold text-blue-500">
-              R$ {totals.entradas.toLocaleString('pt-BR', {
-              minimumFractionDigits: 2
-            })}
-            </div>
-            <p className="text-xs text-muted-foreground/80 mt-1">Receitas do período</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card/50 border-2 border-red-600/60 hover:border-red-500/80 hover:bg-card/80 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:scale-102">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-3 px-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground/90">Saídas</CardTitle>
-            <div className="p-1 rounded-lg bg-red-500/15">
-              <TrendingDown className="h-4 w-4 text-red-500" />
-            </div>
-          </CardHeader>
-          <CardContent className="px-3 pb-3 mx-0">
-            <div className="text-lg font-bold text-red-500">
-              R$ {totals.saidas.toLocaleString('pt-BR', {
-              minimumFractionDigits: 2
-            })}
-            </div>
-            <p className="text-xs text-muted-foreground/80 mt-1">Despesas do período</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card/50 border-2 border-cyan-600/60 hover:border-cyan-500/80 hover:bg-card/80 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:scale-102">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 pt-3 px-3">
-            <CardTitle className="text-xs font-medium text-muted-foreground/90">Saldo do Mês</CardTitle>
-            <div className="p-1 rounded-lg bg-cyan-500/15">
-              <Wallet className="h-4 w-4 text-cyan-500" />
-            </div>
-          </CardHeader>
-          <CardContent className="px-3 pb-3 my-0 mx-0">
-            <div className={`text-lg font-bold ${totals.saldo >= 0 ? "text-cyan-500" : "text-orange-500"}`}>
-              R$ {totals.saldo.toLocaleString('pt-BR', {
-              minimumFractionDigits: 2
-            })}
-            </div>
-            <p className="text-xs text-muted-foreground/80 mt-1">Diferença entre entradas e saídas</p>
-          </CardContent>
-        </Card>
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
+    );
+  }
 
-      {/* Filtros e Ações */}
-      <Card className="bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur-xl border-slate-700/50 w-full">
-        <CardHeader className="pb-4 pt-5 px-4 sm:px-6 border-b border-slate-700/40">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
-            <CardTitle className="text-base sm:text-lg font-semibold flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/15">
-                <Filter className="w-4 sm:w-5 h-4 sm:h-5 text-blue-400" />
-              </div>
-              <span>Filtros e Período</span>
+  if (error) {
+    return (
+      <div className="text-center text-red-400 p-8">
+        Erro ao carregar transações. Verifique suas permissões.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Nova Movimentação Form */}
+      {showInlineForm && (
+        <Card className="bg-card/50 border-border/50 backdrop-blur-xl">
+          <CardContent className="pt-6">
+            <FluxoCaixaInlineForm
+              onSuccess={() => {
+                setShowInlineForm(false);
+                setEditingMovimentacao(null);
+                window.location.reload();
+              }}
+              onCancel={() => {
+                setShowInlineForm(false);
+                setEditingMovimentacao(null);
+              }}
+              movimentacao={editingMovimentacao}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Filtros Card */}
+      <Card className="bg-card/50 border-border/50 backdrop-blur-xl">
+        <CardHeader className="pb-3">
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-lg font-semibold text-foreground">
+              Filtros
             </CardTitle>
-            <Button onClick={handleNewRow} className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white shadow-lg shadow-blue-400/20 transition-all duration-300 w-full sm:w-auto text-sm" disabled={editingId !== null}>
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Movimentação
-            </Button>
+            {!showInlineForm && (
+              <Button
+                onClick={() => setShowInlineForm(true)}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Nova Movimentação
+              </Button>
+            )}
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 pt-5 px-4 sm:px-6">
-          {/* Período - Destaque */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 sm:p-4 bg-slate-800/30 rounded-lg sm:rounded-xl border border-slate-700/40 backdrop-blur-sm">
-            <span className="text-xs sm:text-sm font-medium text-foreground/90 whitespace-nowrap">Período:</span>
-            <div className="flex gap-2">
-              <Button variant={filters.periodo === "mes" ? "default" : "outline"} size="sm" onClick={() => setFilters(prev => ({
-              ...prev,
-              periodo: "mes"
-            }))} className={`text-xs min-w-[70px] transition-all duration-300 ${filters.periodo === "mes" ? "bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-400/20" : "border-slate-700/60 hover:bg-slate-800/50 text-foreground/80"}`}>
-                Mês
-              </Button>
-              <Button variant={filters.periodo === "ano" ? "default" : "outline"} size="sm" onClick={() => setFilters(prev => ({
-              ...prev,
-              periodo: "ano"
-            }))} className={`text-xs min-w-[70px] transition-all duration-300 ${filters.periodo === "ano" ? "bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-400/20" : "border-slate-700/60 hover:bg-slate-800/50 text-foreground/80"}`}>
-                Ano
-              </Button>
-            </div>
-
-            {filters.periodo === "mes" ? <MonthYearPicker value={filters.mes} onChange={mes => setFilters(prev => ({ ...prev, mes }))} /> : <Select value={filters.ano} onValueChange={value => setFilters(prev => ({
-            ...prev,
-            ano: value
-          }))}>
-                <SelectTrigger className="bg-slate-800/50 border-slate-700/60 text-foreground w-full sm:w-[130px] h-9 text-xs sm:text-sm focus:border-blue-400/40">
-                  <SelectValue placeholder="Ano" />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-900/95 border-slate-700/50 backdrop-blur-xl">
-                  {Array.from({
-                length: 5
-              }, (_, i) => {
-                const year = new Date().getFullYear() - i;
-                return <SelectItem key={year} value={year.toString()}>
-                        {year}
-                      </SelectItem>;
-              })}
-                </SelectContent>
-              </Select>}
+        <CardContent className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Input
+              placeholder="Buscar descrição ou documento..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-background/50 border-border/60 text-foreground"
+            />
           </div>
 
-          {/* Outros Filtros */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
-              <Input placeholder="Buscar descrição..." value={filters.searchTerm} onChange={e => setFilters(prev => ({
-              ...prev,
-              searchTerm: e.target.value
-            }))} className="pl-10 bg-slate-800/50 border-slate-700/60 text-foreground placeholder:text-muted-foreground/50 focus:border-blue-400/40 h-11" />
-            </div>
-
-            <Select value={filters.tipo} onValueChange={value => setFilters(prev => ({
-            ...prev,
-            tipo: value
-          }))}>
-              <SelectTrigger className="bg-slate-800/50 border-slate-700/60 text-foreground h-11 focus:border-blue-400/40">
-                <SelectValue placeholder="Tipo" />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-900/95 border-slate-700/50 backdrop-blur-xl">
-                <SelectItem value="all">Todos os Tipos</SelectItem>
-                <SelectItem value="entrada">Entrada</SelectItem>
-                <SelectItem value="saída">Saída</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filters.categoria} onValueChange={value => setFilters(prev => ({
-            ...prev,
-            categoria: value
-          }))}>
-              <SelectTrigger className="bg-slate-800/50 border-slate-700/60 text-foreground h-11 focus:border-blue-400/40">
-                <SelectValue placeholder="Categoria" />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-900/95 border-slate-700/50 backdrop-blur-xl">
-                <SelectItem value="all">Todas as Categorias</SelectItem>
-                {categoriaNomes.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-              </SelectContent>
-            </Select>
-
-            <Select value={filters.status} onValueChange={value => setFilters(prev => ({
-            ...prev,
-            status: value
-          }))}>
-              <SelectTrigger className="bg-slate-800/50 border-slate-700/60 text-foreground h-11 focus:border-blue-400/40">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-900/95 border-slate-700/50 backdrop-blur-xl">
-                <SelectItem value="all">Todos os Status</SelectItem>
-                <SelectItem value="recebido">Recebido</SelectItem>
-                <SelectItem value="pago">Pago</SelectItem>
-                <SelectItem value="cancelado">Cancelado</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            <FilterCombobox
+              title="Tipo"
+              options={tipos}
+              selectedValues={filterTipos}
+              onSelectionChange={(value) =>
+                setFilterTipos(toggleFilter(filterTipos, value))
+              }
+              onClear={() => setFilterTipos(new Set())}
+            />
+            <FilterCombobox
+              title="Grupo"
+              options={gruposCategorias}
+              selectedValues={filterGrupos}
+              onSelectionChange={(value) =>
+                setFilterGrupos(toggleFilter(filterGrupos, value))
+              }
+              onClear={() => setFilterGrupos(new Set())}
+            />
+            <FilterCombobox
+              title="Categoria"
+              options={categoriasDoGrupo}
+              selectedValues={filterCategorias}
+              onSelectionChange={(value) =>
+                setFilterCategorias(toggleFilter(filterCategorias, value))
+              }
+              onClear={() => setFilterCategorias(new Set())}
+            />
+            <FilterCombobox
+              title="Banco"
+              options={bancos}
+              selectedValues={filterBancos}
+              onSelectionChange={(value) =>
+                setFilterBancos(toggleFilter(filterBancos, value))
+              }
+              onClear={() => setFilterBancos(new Set())}
+            />
+            <FilterCombobox
+              title="Status"
+              options={statusOptions}
+              selectedValues={filterStatus}
+              onSelectionChange={(value) =>
+                setFilterStatus(toggleFilter(filterStatus, value))
+              }
+              onClear={() => setFilterStatus(new Set())}
+            />
           </div>
         </CardContent>
       </Card>
 
-      {/* Tabela de Movimentações */}
-      <Card className="bg-gradient-to-br from-slate-900/50 to-slate-950/50 backdrop-blur-xl border-slate-700/50 w-full">
-        <CardHeader className="pb-4 pt-5 px-4 sm:px-6 border-b border-slate-700/40">
-          <CardTitle className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-cyan-500/15">
-              <Wallet className="w-5 h-5 text-cyan-400" />
-            </div>
-            Movimentações - {(() => {
-            if (filters.periodo === "ano") {
-              return `Ano ${filters.ano}`;
-            }
-            const [year, month] = filters.mes.split("-");
-            return format(new Date(parseInt(year), parseInt(month) - 1, 15), "MMMM 'de' yyyy", {
-              locale: ptBR
-            });
-          })()}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0 w-full overflow-x-auto">
-          {isLoading ? <div className="flex justify-center items-center h-32">
-              <p className="text-muted-foreground text-sm">Carregando...</p>
-            </div> : <div className="space-y-0 w-full">
-              {/* Cabeçalho Fixo - Desktop */}
-              <div className="hidden lg:flex items-center gap-2 xl:gap-3 px-3 xl:px-6 py-3 bg-slate-800/30 border-b border-slate-700/40 font-semibold text-xs xl:text-sm text-muted-foreground/80 sticky top-0 z-10 backdrop-blur-sm">
-                <div className="w-20 xl:w-24 flex-shrink-0">Data Pgto</div>
-                <div className="hidden xl:flex w-24 flex-shrink-0">Criação</div>
-                <div className="flex-1 min-w-[100px] xl:min-w-[180px]">Descrição</div>
-                <div className="w-20 xl:w-28 flex-shrink-0">Categoria</div>
-                <div className="w-24 xl:w-28 flex-shrink-0 text-center">Tipo</div>
-                <div className="w-24 xl:w-32 flex-shrink-0 text-right">Valor</div>
-                <div className="w-16 xl:w-24 flex-shrink-0">Banco</div>
-                <div className="hidden md:block w-16 xl:w-24 flex-shrink-0">Aeronave</div>
-                <div className="w-16 xl:w-20 flex-shrink-0 text-center">Status</div>
-                <div className="w-18 xl:w-24 flex-shrink-0 text-right">Ações</div>
-              </div>
-
-              {/* Nova linha em edição */}
-              {newRowId && editingId === newRowId && (
-                <InlineEditRow
-                  key={newRowId}
-                  movimentacao={null}
-                  isNew={true}
-                  onSuccess={loadMovimentacoes}
-                  onCancel={handleCancelEdit}
-                  user={user}
-                  allCategorias={allCategorias}
-                  contaNomes={contaNomes}
-                  aeronaves={aeronaves || []}
-                />
-              )}
-
-              {filteredMovimentacoes.length === 0 && !newRowId ? <div className="text-center py-12 sm:py-16 px-4 sm:px-6">
-                  <Wallet className="w-16 sm:w-20 h-16 sm:h-20 text-muted-foreground/20 mx-auto mb-4 sm:mb-6" />
-                  <p className="text-muted-foreground text-base sm:text-lg font-medium">Nenhuma movimentação encontrada</p>
-                  <p className="text-muted-foreground text-xs sm:text-sm mt-2">Clique em "Nova Movimentação" para adicionar</p>
-                </div> : (
-                <>
-                  {filteredMovimentacoes.map(mov => {
-                    const isEditing = editingId === mov.id;
-                    const isExpanded = expandedRows.has(mov.id);
-
-                    if (isEditing) {
-                      return <InlineEditRow
-                        key={mov.id}
-                        movimentacao={mov}
-                        isNew={false}
-                        onSuccess={loadMovimentacoes}
-                        onCancel={handleCancelEdit}
-                        user={user}
-                        allCategorias={allCategorias}
-                        contaNomes={contaNomes}
-                        aeronaves={aeronaves || []}
-                      />;
+      {/* Transações Table Card */}
+      <Card className="bg-card/50 border-border/50 backdrop-blur-xl">
+        <CardHeader className="pb-3">
+          <div className="flex justify-between items-center gap-4 flex-wrap">
+            <CardTitle className="text-lg font-semibold text-foreground">
+              Lista de Movimentações
+            </CardTitle>
+            {selectedIds.size > 0 && (
+              <div className="flex items-center gap-3">
+                <Badge variant="secondary" className="bg-blue-600 text-white">
+                  {selectedIds.size} selecionado{selectedIds.size !== 1 ? "s" : ""}
+                </Badge>
+                <Button
+                  onClick={() => setShowReport(!showReport)}
+                  variant="outline"
+                  className="bg-muted/50 border-border/60 text-foreground hover:bg-muted/80 gap-2"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  Agrupar
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (
+                      confirm(
+                        `Tem certeza que deseja excluir ${selectedIds.size} movimentação(ões)?`
+                      )
+                    ) {
+                      handleDeleteMultiple();
                     }
-
-                    return <div key={mov.id} className="border-b border-slate-700/40 hover:bg-slate-800/30 transition-colors last:border-b-0 backdrop-blur-sm">
-                      {/* Desktop Layout - Flex */}
-                      <div className="hidden lg:flex items-center gap-2 xl:gap-3 px-3 xl:px-6 py-3 text-xs xl:text-sm">
-                        <div className="w-20 xl:w-24 flex-shrink-0 text-foreground font-medium">
-                          {format(parseLocalDate(mov.data), "dd/MM/yyyy")}
-                        </div>
-                        <div className="hidden xl:flex w-24 flex-shrink-0 text-muted-foreground text-xs">
-                          {mov.criado_em ? format(new Date(mov.criado_em), "dd/MM/yyyy") : "-"}
-                        </div>
-                        <div className="flex-1 min-w-[100px] xl:min-w-[180px] font-medium text-foreground truncate" title={mov.descricao}>
-                          {mov.descricao}
-                        </div>
-                        <div className="w-20 xl:w-28 flex-shrink-0 text-muted-foreground/80 text-xs truncate" title={mov.categoria}>
-                          {mov.categoria}
-                        </div>
-                        <div className="w-24 xl:w-28 flex-shrink-0 flex justify-center">
-                          <Badge className={`text-xs whitespace-nowrap font-medium ${mov.tipo_movimento === "entrada" ? "bg-blue-950/40 text-blue-400 border-blue-700/40" : "bg-red-950/40 text-red-400 border-red-700/40"}`}>
-                            {mov.tipo_movimento === "entrada" ? "Entrada" : "Saída"}
-                          </Badge>
-                        </div>
-                        <div className={`w-24 xl:w-32 flex-shrink-0 text-right font-semibold whitespace-nowrap text-xs xl:text-sm ${mov.tipo_movimento === "entrada" ? "text-blue-500" : "text-red-500"}`}>
-                          {mov.tipo_movimento === "entrada" ? "+" : "-"}R$ {parseFloat(mov.valor).toLocaleString('pt-BR', {
-                    minimumFractionDigits: 2
-                  })}
-                        </div>
-                        <div className="w-16 xl:w-24 flex-shrink-0 text-muted-foreground/80 text-xs truncate" title={mov.conta_banco || "-"}>
-                          {mov.conta_banco || "-"}
-                        </div>
-                        <div className="hidden md:flex w-16 xl:w-24 flex-shrink-0 text-muted-foreground/80 text-xs">
-                          {mov.aeronave || "-"}
-                        </div>
-                        <div className="w-16 xl:w-20 flex-shrink-0 flex justify-center">
-                          <Badge className={`text-xs whitespace-nowrap font-medium border ${getStatusColor(mov.status)}`}>
-                            {getStatusLabel(mov.status, mov.tipo_movimento)}
-                          </Badge>
-                        </div>
-                        <div className="w-18 xl:w-24 flex-shrink-0 flex gap-1 justify-end items-center">
-                          {mov.referencia && (mov.referencia.startsWith('nf_entrada_') || mov.referencia.startsWith('nf_saida_')) && <Button variant="ghost" size="sm" onClick={() => {
-                    const isEntrada = mov.referencia.startsWith('nf_entrada_');
-                    toast.info(`Origem: ${isEntrada ? 'Nota Fiscal de Entrada' : 'Nota Fiscal de Saída'}`, {
-                      description: `Documento: ${mov.numero_documento || 'N/A'}`
-                    });
-                  }} className="h-8 w-8 p-0 text-blue-500 hover:bg-blue-500/15 hover:text-blue-400 transition-all duration-300" title={mov.referencia.startsWith('nf_entrada_') ? 'Ver NF Entrada' : 'Ver NF Saída'}>
-                              <Eye className="w-4 h-4" />
-                            </Button>}
-                          {mov.comprovante_url && <Button variant="ghost" size="sm" onClick={() => window.open(mov.comprovante_url, '_blank')} className="h-8 w-8 p-0 text-cyan-500 hover:bg-cyan-500/15 hover:text-cyan-400 transition-all duration-300" title="Ver comprovante">
-                              <FileText className="w-4 h-4" />
-                            </Button>}
-                          <Button variant="ghost" size="sm" onClick={() => handleEditRow(mov.id)} className="h-8 w-8 p-0 text-muted-foreground/80 hover:text-foreground hover:bg-slate-700/30 transition-all duration-300">
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:bg-red-500/15 hover:text-red-400 transition-all duration-300" onClick={() => setDeleteConfirmId(mov.id)}>
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Mobile/Tablet Layout - Card */}
-                      <div className="lg:hidden px-4 py-4">
-                        <button onClick={() => toggleRowExpand(mov.id)} className="w-full text-left">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-foreground text-sm mb-2 line-clamp-2">
-                                {mov.descricao}
-                              </p>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                                <span>Pgto: {format(parseLocalDate(mov.data), "dd/MM/yyyy")}</span>
-                                {mov.criado_em && <>
-                                    <span>•</span>
-                                    <span>Criação: {format(new Date(mov.criado_em), "dd/MM/yy")}</span>
-                                  </>}
-                              </div>
-                            </div>
-                            <div className="flex flex-col items-end gap-2 ml-2 flex-shrink-0">
-                              <span className={`font-semibold text-sm whitespace-nowrap ${mov.tipo_movimento === "entrada" ? "text-blue-500" : "text-red-500"}`}>
-                                {mov.tipo_movimento === "entrada" ? "+" : "-"}R$ {parseFloat(mov.valor).toLocaleString('pt-BR', {
-                          minimumFractionDigits: 2
+                  }}
+                  variant="outline"
+                  className="bg-red-900/20 border-red-700/40 text-red-400 hover:bg-red-900/30 gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Deletar
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {showReport && selectedIds.size > 0 && (
+            <div className="bg-blue-950/30 border border-blue-700/40 rounded-md p-4 mb-4">
+              <h3 className="text-white font-semibold mb-3">Relatório Agrupado</h3>
+              <div className="space-y-2">
+                {Object.entries(getGroupedReport()).map(([key, value]) => (
+                  <div
+                    key={key}
+                    className="flex justify-between items-center bg-muted/30 p-2 rounded text-sm"
+                  >
+                    <span className="text-foreground/80">{key}</span>
+                    <div className="flex gap-4 text-foreground">
+                      <span>
+                        {value.count} item{value.count !== 1 ? "ns" : ""}
+                      </span>
+                      <span className="font-semibold">
+                        R${" "}
+                        {value.total.toLocaleString("pt-BR", {
+                          minimumFractionDigits: 2,
                         })}
-                              </span>
-                              <Badge className={`${getStatusColor(mov.status)} text-xs`}>
-                                {getStatusLabel(mov.status, mov.tipo_movimento)}
-                              </Badge>
-                            </div>
-                            <ChevronDown className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform mt-1 ${isExpanded ? "rotate-180" : ""}`} />
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border/40 hover:bg-transparent">
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={
+                        paginatedTransacoes.length > 0 &&
+                        selectedIds.size === paginatedTransacoes.length
+                      }
+                      onCheckedChange={() => toggleSelectAll()}
+                      className="h-5 w-5"
+                    />
+                  </TableHead>
+                  <TableHead
+                    className="text-foreground/70 cursor-pointer hover:text-foreground transition-colors"
+                    onClick={() => handleSort("data")}
+                  >
+                    Data {renderSortIcon("data")}
+                  </TableHead>
+                  <TableHead
+                    className="text-foreground/70 cursor-pointer hover:text-foreground transition-colors"
+                    onClick={() => handleSort("tipo_movimento")}
+                  >
+                    Tipo {renderSortIcon("tipo_movimento")}
+                  </TableHead>
+                  <TableHead className="text-foreground/70">Descrição</TableHead>
+                  <TableHead className="text-foreground/70">Categoria</TableHead>
+                  <TableHead
+                    className="text-foreground/70 cursor-pointer hover:text-foreground transition-colors"
+                    onClick={() => handleSort("valor")}
+                  >
+                    Valor {renderSortIcon("valor")}
+                  </TableHead>
+                  <TableHead className="text-foreground/70">Conta</TableHead>
+                  <TableHead className="text-foreground/70">Aeronave</TableHead>
+                  <TableHead className="text-foreground/70">Nº Doc</TableHead>
+                  <TableHead className="text-foreground/70">Anexos</TableHead>
+                  <TableHead className="text-foreground/70">Status</TableHead>
+                  <TableHead className="text-right text-foreground/70">
+                    Ações
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedTransacoes.map((transacao: any) => {
+                  const isEntrada =
+                    transacao.tipo_movimento === "entrada";
+                  const isSelected = selectedIds.has(transacao.id);
+
+                  return (
+                    <TableRow
+                      key={transacao.id}
+                      className={`border-border/40 ${
+                        isSelected ? "bg-blue-900/20" : ""
+                      }`}
+                    >
+                      <TableCell className="text-center">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelectId(transacao.id)}
+                          className="h-5 w-5"
+                        />
+                      </TableCell>
+                      <TableCell className="text-foreground/80 whitespace-nowrap">
+                        {(() => {
+                          // Parse date string directly to avoid timezone issues
+                          const dateStr = transacao.data;
+                          if (dateStr && dateStr.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                            const [year, month, day] = dateStr.split('-').map(Number);
+                            const date = new Date(year, month - 1, day);
+                            return format(date, "dd/MM/yyyy", { locale: ptBR });
+                          }
+                          return format(new Date(transacao.data), "dd/MM/yyyy", { locale: ptBR });
+                        })()}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {isEntrada ? (
+                            <ArrowUpCircle className="w-4 h-4 text-green-400" />
+                          ) : (
+                            <ArrowDownCircle className="w-4 h-4 text-red-400" />
+                          )}
+                          <span
+                            className={
+                              isEntrada
+                                ? "text-green-400"
+                                : "text-red-400"
+                            }
+                          >
+                            {isEntrada ? "Entrada" : "Saída"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-white font-medium max-w-xs truncate">
+                        {transacao.descricao}
+                      </TableCell>
+                      <TableCell className="text-foreground/80">
+                        {transacao.categoria_nome || "-"}
+                      </TableCell>
+                      <TableCell
+                        className={`font-semibold ${
+                          isEntrada ? "text-green-400" : "text-red-400"
+                        }`}
+                      >
+                        R${" "}
+                        {Number(transacao.valor).toLocaleString("pt-BR", {
+                          minimumFractionDigits: 2,
+                        })}
+                      </TableCell>
+                      <TableCell className="text-foreground/80">
+                        {transacao.conta_banco ? (contaToBanco[transacao.conta_banco] || transacao.conta_banco) : "-"}
+                      </TableCell>
+                      <TableCell className="text-foreground/80">
+                        {transacao.aeronave_registro || "-"}
+                      </TableCell>
+                      <TableCell className="text-foreground/80">
+                        {transacao.numero_documento || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <TooltipProvider>
+                          <div className="flex items-center gap-1">
+                            {transacao.comprovante_url && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <a 
+                                    href={transacao.comprovante_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="p-1 rounded hover:bg-muted/50 transition-colors"
+                                  >
+                                    <CreditCard className="w-4 h-4 text-green-400" />
+                                  </a>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Comprovante</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                            {transacao.nf_url && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <a 
+                                    href={transacao.nf_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="p-1 rounded hover:bg-muted/50 transition-colors"
+                                  >
+                                    <FileText className="w-4 h-4 text-blue-400" />
+                                  </a>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Nota Fiscal</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                            {transacao.recibo_url && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <a 
+                                    href={transacao.recibo_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="p-1 rounded hover:bg-muted/50 transition-colors"
+                                  >
+                                    <Receipt className="w-4 h-4 text-purple-400" />
+                                  </a>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Recibo</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                            {transacao.boleto_url && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <a 
+                                    href={transacao.boleto_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="p-1 rounded hover:bg-muted/50 transition-colors"
+                                  >
+                                    <Paperclip className="w-4 h-4 text-orange-400" />
+                                  </a>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Boleto</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                            {!transacao.comprovante_url && !transacao.nf_url && !transacao.recibo_url && !transacao.boleto_url && (
+                              <span className="text-muted-foreground">-</span>
+                            )}
                           </div>
-                        </button>
+                        </TooltipProvider>
+                      </TableCell>
+                      <TableCell>
+                        {transacao.status ? (
+                          <Badge
+                            variant="outline"
+                            className={getStatusColor(transacao.status)}
+                          >
+                            {transacao.status}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              <ChevronDown className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="end"
+                            className="w-48"
+                          >
+                                            <DropdownMenuItem 
+                                              className="cursor-pointer"
+                                              onClick={() => {
+                                                setEditingMovimentacao(transacao);
+                                                setShowInlineForm(true);
+                                              }}
+                                            >
+                                              <Edit2 className="w-4 h-4 mr-2" />
+                                              <span>Editar</span>
+                                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => setDeleteConfirmId(transacao.id)}
+                              className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              <span>Deletar</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {sortedTransacoes.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={12}
+                      className="text-center text-foreground/40 py-8"
+                    >
+                      Nenhuma movimentação encontrada
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
-                        {/* Expanded Details - Mobile/Tablet */}
-                        {isExpanded && <div className="mt-3 pt-4 border-t border-slate-700/40 space-y-3">
-                            <div className="grid grid-cols-2 gap-3 text-xs">
-                              <div>
-                                <p className="text-muted-foreground/80 font-medium mb-1">Tipo</p>
-                                <Badge className={`text-xs font-medium border ${mov.tipo_movimento === "entrada" ? "bg-blue-950/40 text-blue-400 border-blue-700/40" : "bg-red-950/40 text-red-400 border-red-700/40"}`}>
-                                  {mov.tipo_movimento === "entrada" ? "Entrada" : "Saída"}
-                                </Badge>
-                              </div>
-                              <div>
-                                <p className="text-muted-foreground/80 font-medium mb-1">Banco</p>
-                                <p className="text-foreground text-xs">{mov.conta_banco || "-"}</p>
-                              </div>
-                            </div>
-
-                            {mov.numero_documento && <div>
-                                <p className="text-muted-foreground/80 text-xs font-medium mb-1">Nº Documento</p>
-                                <p className="text-foreground text-xs">{mov.numero_documento}</p>
-                              </div>}
-
-                            {mov.referencia && <div>
-                                <p className="text-muted-foreground/80 text-xs font-medium mb-1">Referência</p>
-                                <p className="text-foreground text-xs">{mov.referencia}</p>
-                              </div>}
-
-                            {mov.aeronave && <div>
-                                <p className="text-muted-foreground/80 text-xs font-medium mb-1">Aeronave</p>
-                                <p className="text-foreground text-xs">{mov.aeronave}</p>
-                              </div>}
-
-                            {mov.observacoes && <div>
-                                <p className="text-muted-foreground/80 text-xs font-medium mb-1">Observações</p>
-                                <p className="text-foreground text-xs">{mov.observacoes}</p>
-                              </div>}
-
-                            <div className="flex gap-2 pt-3 border-t border-slate-700/40">
-                              <Button variant="outline" size="sm" onClick={() => handleEditRow(mov.id)} className="flex-1 text-xs h-8 border-slate-700/60 hover:bg-slate-800/50">
-                                <Edit2 className="w-3 h-3 mr-1" />
-                                Editar
-                              </Button>
-                              <Button variant="outline" size="sm" className="h-8 w-10 p-0 border-red-700/40 text-red-500 hover:bg-red-500/15 hover:text-red-400" onClick={() => setDeleteConfirmId(mov.id)}>
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>}
-                      </div>
-                    </div>;
-                  })}
-                </>
-              )}
-            </div>}
+          {sortedTransacoes.length > 0 && (
+            <div className="flex items-center justify-between mt-6 pt-6 border-t border-border/40">
+              <div className="text-sm text-foreground/60">
+                Exibindo {startIndex + 1} a{" "}
+                {Math.min(startIndex + itemsPerPage, sortedTransacoes.length)} de{" "}
+                {sortedTransacoes.length}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  variant="outline"
+                  className="bg-muted/30 border-border/60 hover:bg-muted/50"
+                >
+                  Anterior
+                </Button>
+                <div className="flex items-center gap-2 px-4 py-2 text-foreground/80">
+                  Página {currentPage} de {totalPages}
+                </div>
+                <Button
+                  onClick={() =>
+                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                  }
+                  disabled={currentPage >= totalPages}
+                  variant="outline"
+                  className="bg-muted/30 border-border/60 hover:bg-muted/50"
+                >
+                  Próxima
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Dialog de confirmação de exclusão */}
-      <Dialog open={!!deleteConfirmId} onOpenChange={open => !open && setDeleteConfirmId(null)}>
-        <DialogContent className="w-[90%] sm:w-full bg-gradient-to-br from-slate-900/95 to-slate-950/95 border-slate-700/50 backdrop-blur-xl">
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <DialogContent className="bg-card border-border/50">
           <DialogHeader>
             <DialogTitle className="text-lg flex items-center gap-3">
               <div className="p-2 rounded-lg bg-red-500/20 border border-red-500/30">
@@ -887,16 +834,27 @@ export function FluxoCaixa() {
               <span>Confirmar Exclusão</span>
             </DialogTitle>
           </DialogHeader>
-          <p className="text-muted-foreground/80 text-sm">Deseja realmente deletar esta movimentação? Esta ação não pode ser desfeita.</p>
+          <p className="text-foreground/80 text-sm">
+            Deseja realmente deletar esta movimentação? Esta ação não pode ser
+            desfeita.
+          </p>
           <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDeleteConfirmId(null)} className="w-full sm:w-auto border-slate-700/60 hover:bg-slate-800/50 text-foreground/80">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmId(null)}
+              className="border-border/60 hover:bg-muted/50"
+            >
               Cancelar
             </Button>
-            <Button onClick={handleDelete} className="w-full sm:w-auto bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white shadow-lg shadow-red-500/30 transition-all duration-300">
+            <Button
+              onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
               Deletar
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>;
+    </div>
+  );
 }

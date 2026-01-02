@@ -32,8 +32,7 @@ export const useClientes = () => {
     queryKey: clientesQueryKey,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("clients") // Tabela 'clients' (Corrigido!)
-        // Selecionamos o 'company_name' que é o nome visível do cliente no formulário
+        .from("clients")
         .select("id, company_name, email, phone")
         .order("company_name", { ascending: true });
 
@@ -44,6 +43,8 @@ export const useClientes = () => {
 
       return (data as Cliente[]) || null;
     },
+    staleTime: 15 * 60 * 1000, // 15 minutos
+    gcTime: 30 * 60 * 1000, // 30 minutos
   });
 
   return {
@@ -69,7 +70,7 @@ export const useAeronaves = () => {
     queryKey: aeronavesQueryKey,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("aircraft") // Tabela 'aircraft' (Correto!)
+        .from("aircraft")
         .select("id, registration, model, manufacturer")
         .order("registration", { ascending: true });
 
@@ -80,6 +81,8 @@ export const useAeronaves = () => {
 
       return (data as Aeronave[]) || null;
     },
+    staleTime: 20 * 60 * 1000, // 20 minutos
+    gcTime: 30 * 60 * 1000, // 30 minutos
   });
 
   return {
@@ -105,9 +108,9 @@ export const useTripulantes = () => {
     queryKey: tripulantesQueryKey,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("crew_members") // Tabela 'crew_members' (Correto!)
+        .from("crew_members")
         .select("id, full_name, canac, email, status")
-        .eq("status", "active") // Filtra apenas membros ativos
+        .eq("status", "active")
         .order("full_name", { ascending: true });
 
       if (error) {
@@ -117,6 +120,8 @@ export const useTripulantes = () => {
 
       return (data as Tripulante[]) || null;
     },
+    staleTime: 10 * 60 * 1000, // 10 minutos
+    gcTime: 30 * 60 * 1000, // 30 minutos
   });
 
   // Retornamos 'uniqueTripulantesNames' para simplificar o Select do formulário

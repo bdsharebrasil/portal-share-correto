@@ -1,17 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Calendar, Clock, FileText, Fuel, MapPin, Plane, Users, Wrench, Key } from "lucide-react";
+import { Calendar, Clock, FileText, Wrench, Cpu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TimeClockWidget } from "@/components/time-tracking/TimeClockWidget";
-import { useUserRole } from "@/hooks/useUserRole";
-interface FlightOperation {
-  label: string;
-  icon: typeof Clock;
-  color: "primary" | "secondary" | "accent";
-  path?: string;
-}
 type MaintenanceStatus = "urgent" | "normal" | "completed";
 interface MaintenanceItem {
   label: string;
@@ -26,11 +18,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   isOpen
 }) => {
   const navigate = useNavigate();
-  const {
-    hasAnyRole
-  } = useUserRole();
   const [currentTime, setCurrentTime] = useState(new Date());
-  const showTimeClock = hasAnyRole(['admin', 'financeiro', 'financeiro_master', 'adm', 'operacoes']);
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -52,47 +40,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
       day: 'numeric'
     });
   };
-  const flightOperations: FlightOperation[] = [{
-    label: "Agendamentos de Voo",
-    icon: Calendar,
-    color: "primary",
-    path: "/agendamento"
-  }, {
-    label: "Plano de Voo",
-    icon: MapPin,
-    color: "secondary",
-    path: "/plano-voo"
-  }, {
-    label: "Diário de Bordo",
-    icon: Plane,
-    color: "accent",
-    path: "/diario-bordo"
-  }, {
-    label: "Gerenciar Aeronaves",
-    icon: Plane,
-    color: "secondary",
-    path: "/aeronaves"
-  }, {
-    label: "Controle de Abastecimento",
-    icon: Fuel,
-    color: "primary",
-    path: "/abastecimento"
-  }, {
-    label: "Gestão de Tripulação",
-    icon: Users,
-    color: "secondary",
-    path: "/tripulacao"
-  }, {
-    label: "Documentos",
-    icon: FileText,
-    color: "accent",
-    path: "/documentos"
-  }, {
-    label: "Senhas",
-    icon: Key,
-    color: "primary",
-    path: "/senhas"
-  }];
   const maintenanceItems: MaintenanceItem[] = [{
     label: "Controle de Vencimentos",
     icon: Clock,
@@ -103,6 +50,11 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
     icon: Calendar,
     status: "normal",
     path: "/manutencao/programacao"
+  }, {
+    label: "Mapa de Componentes",
+    icon: Cpu,
+    status: "normal",
+    path: "/manutencao/mapa-componentes"
   }, {
     label: "Relatórios Técnicos",
     icon: FileText,
@@ -128,25 +80,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                 </div>
                 <div className="text-sm text-slate-300 capitalize">{formatDate(currentTime)}</div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Controle de Ponto */}
-          {showTimeClock && <TimeClockWidget />}
-
-          {/* Operações de Voo */}
-          <Card className="bg-gradient-card border-border shadow-card static-card rounded-lg">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-foreground flex items-center">
-                <Plane className="mr-2 text-primary animate-plane-right px-[9px] my-[8px] py-[10px] mx-[4px] h-[3px] w-[20px] border-0 text-slate-100 border-slate-200" />
-                Operações de Voo
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0 space-y-2">
-              {flightOperations.map(operation => <Button key={operation.label} variant="outline" className="w-full justify-start border-border hover:bg-accent hover:border-primary transition-smooth rounded-md" onClick={() => operation.path && navigate(operation.path)}>
-                  <operation.icon className="mr-3 h-4 w-4 text-primary" />
-                  <span className="text-sm">{operation.label}</span>
-                </Button>)}
             </CardContent>
           </Card>
 

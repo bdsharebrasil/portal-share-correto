@@ -23,6 +23,14 @@ interface ReceiptFormState {
   prazoMaximoQuitacao: string;
   receiptType: ReceiptType;
   formaPagamento: string;
+  reembolsoCategoriaId: string;
+  reembolsoCategoriaGrupo: string;
+  // Dados de reembolso
+  reembolsoValorTotal: string;
+  reembolsoPorcentagem: string;
+  reembolsoValorCliente: string;
+  reembolsoBoletoFile: File | null;
+  reembolsoNotaFiscalFile: File | null;
   // Dados do pagador
   pagadorNome: string;
   pagadorDocumento: string;
@@ -41,6 +49,13 @@ const INITIAL_STATE: ReceiptFormState = {
   prazoMaximoQuitacao: "",
   receiptType: "pagamento",
   formaPagamento: "",
+  reembolsoCategoriaId: "",
+  reembolsoCategoriaGrupo: "",
+  reembolsoValorTotal: "",
+  reembolsoPorcentagem: "",
+  reembolsoValorCliente: "",
+  reembolsoBoletoFile: null,
+  reembolsoNotaFiscalFile: null,
   pagadorNome: "",
   pagadorDocumento: "",
   pagadorEndereco: "",
@@ -92,15 +107,18 @@ export function useReceiptForm() {
         formaPagamento: form.formaPagamento,
         clienteId: form.selectedClienteId,
         aircraftId: form.selectedAircraftId,
+        reembolsoCategoriaId: form.reembolsoCategoriaId,
+        reembolsoValorTotal: form.reembolsoValorTotal,
+        reembolsoPorcentagem: form.reembolsoPorcentagem,
       };
 
       const newErrors = validateReceiptForm(formData);
       setErrors(newErrors);
       setIsValidating(false);
-    }, 500); // Debounce de 500ms
+    }, 300); // Debounce de 300ms
 
     return () => clearTimeout(timer);
-  }, [form.valor, form.servico, form.pagadorNome, form.pagadorDocumento, form.pagadorUF, form.dataEmissao, form.prazoMaximoQuitacao, hasStartedEditing]);
+  }, [form.valor, form.servico, form.pagadorNome, form.pagadorDocumento, form.pagadorUF, form.dataEmissao, form.prazoMaximoQuitacao, form.receiptType, form.reembolsoValorTotal, form.reembolsoPorcentagem, form.reembolsoCategoriaId, hasStartedEditing]);
 
   const updateField = useCallback((field: keyof ReceiptFormState, value: any) => {
     setHasStartedEditing(true);
@@ -142,6 +160,9 @@ export function useReceiptForm() {
       formaPagamento: form.formaPagamento,
       clienteId: form.selectedClienteId,
       aircraftId: form.selectedAircraftId,
+      reembolsoCategoriaId: form.reembolsoCategoriaId,
+      reembolsoValorTotal: form.reembolsoValorTotal,
+      reembolsoPorcentagem: form.reembolsoPorcentagem,
     };
 
     const validationErrors = validateReceiptForm(formData);
@@ -153,7 +174,37 @@ export function useReceiptForm() {
     return formData;
   }, [form]);
 
-  const isValid = errors.length === 0 && form.pagadorNome && form.pagadorDocumento && form.servico && form.valor;
+  const getReembolsoData = useCallback(() => {
+    if (form.receiptType !== "reembolso") {
+      return null;
+    }
+
+    const valorTotal = form.reembolsoValorTotal ? parseFloat(form.reembolsoValorTotal.replace(",", ".")) : 0;
+    const porcentagem = form.reembolsoPorcentagem ? parseFloat(form.reembolsoPorcentagem) : 0;
+    const valorCliente = valorTotal * (porcentagem / 100);
+
+    return {
+      categoriaId: form.reembolsoCategoriaId,
+      valorTotal,
+      porcentagem,
+      valorCliente,
+      boletoFile: form.reembolsoBoletoFile,
+      notaFiscalFile: form.reembolsoNotaFiscalFile,
+    };
+  }, [form]);
+
+  // Validação básica: todos os campos obrigatórios preenchidos sem erros
+  // Se o usuário ainda não começou a editar, o formulário começa como válido (não bloqueia o envio)
+  // Erros são mostrados apenas depois que o usuário começar a editar
+  const isValid = (
+    errors.length === 0 &&
+    form.pagadorNome?.trim() &&
+    form.pagadorDocumento?.trim() &&
+    form.servico?.trim() &&
+    form.valor &&
+    parseFloat(form.valor) > 0
+    // Campos de reembolso são opcionais no recibo - podem ser preenchidos depois
+  );
 
   return {
     form,
@@ -165,5 +216,6 @@ export function useReceiptForm() {
     updatePayer,
     reset,
     getFormDataForSubmit,
+    getReembolsoData,
   };
 }

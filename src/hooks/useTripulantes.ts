@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -9,29 +10,51 @@ export type Tripulante = Tables<"crew_members">;
 const tripulantesQueryKey = ["tripulantes-crew-members"];
 
 /**
- * Hook para buscar todos os membros ativos da tripulação (crew_members).
+ * Hook para buscar todos os membros ativos da tripulação.
+ * Usa o backend Express para cache e proxy do Supabase.
+ * Se o backend não está disponível, faz fallback direto para Supabase.
  * Retorna uma lista ordenada pelo nome completo.
  */
 export const useTripulantes = () => {
-  const query = useQuery<Tripulante[] | null>({
+  const query = useQuery<Tripulante[]>({
     queryKey: tripulantesQueryKey,
     queryFn: async () => {
-      // 🎯 Busca na tabela 'crew_members'
-      const { data, error } = await supabase
-        .from("crew_members")
-        // Seleciona colunas essenciais, como full_name, para o seu formulário.
-        .select("id, full_name, canac, email, status")
-        .eq("status", "ativo") // Filtra apenas membros ativos
-        .order("full_name", { ascending: true });
+      try {
+        // Nota: O endpoint atual retorna usuários genéricos
+        // Para tripulantes específicos, pode ser necessário criar um endpoint separado
+        // Por enquanto, usamos getUsers e filtramos por role
+        const data = await apiClient.getUsers() as any[];
+        // Filtrar apenas tripulantes (crew)
+        return (data || []).filter((user: any) =>
+          user.role === 'crew' || user.role === 'pilot'
+        ) as Tripulante[];
+      } catch (error) {
+        console.warn("Backend não disponível, usando Supabase direto:", error);
 
-      if (error) {
-        console.error("Erro ao buscar tripulantes:", error);
-        throw error;
+        // Fallback: busca direto do Supabase se o backend falhar
+        try {
+          const { data, error: supabaseError } = await supabase
+            .from('crew_members')
+            .select('*')
+            .order('full_name', { ascending: true });
+
+          if (supabaseError) {
+            console.error("Erro ao buscar tripulantes do Supabase:", supabaseError);
+            throw supabaseError;
+          }
+
+          console.info("Tripulantes carregados do Supabase (fallback)");
+          return (data || []) as Tripulante[];
+        } catch (fallbackError) {
+          console.error("Erro ao buscar tripulantes (fallback):", fallbackError);
+          throw fallbackError;
+        }
       }
-
-      // Retorna a lista de dados.
-      return (data as Tripulante[]) || null;
     },
+    staleTime: 10 * 60 * 1000, // 10 minutos (compatível com cache do backend)
+    gcTime: 30 * 60 * 1000, // 30 minutos
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   return {

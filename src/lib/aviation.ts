@@ -79,42 +79,27 @@ export function divideRoute(
   return segments;
 }
 
-// Fetch METAR data
+// Fetch METAR data via backend API (which proxies to aviationweather.gov)
 export async function fetchMETAR(icao: string): Promise<any> {
   try {
     const response = await fetch(
-      `https://aviationweather.gov/api/data/metar?ids=${icao}&format=json`,
-      {
-        headers: {
-          "User-Agent": "ShareBrasil-App",
-        },
-      }
+      `/api/weather/metar?icao=${icao.toUpperCase()}`
     );
-    
-    if (!response.ok) throw new Error("Failed to fetch METAR");
-    return await response.json();
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: Failed to fetch METAR`);
+    }
+
+    const responseData = await response.json();
+
+    if (responseData.error) {
+      console.warn(`METAR not found for ${icao}: ${responseData.error}`);
+      return null;
+    }
+
+    return responseData.data;
   } catch (error) {
     console.error("Error fetching METAR:", error);
-    return null;
-  }
-}
-
-// Fetch TAF data
-export async function fetchTAF(icao: string): Promise<any> {
-  try {
-    const response = await fetch(
-      `https://aviationweather.gov/api/data/taf?ids=${icao}&format=json`,
-      {
-        headers: {
-          "User-Agent": "ShareBrasil-App",
-        },
-      }
-    );
-    
-    if (!response.ok) throw new Error("Failed to fetch TAF");
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching TAF:", error);
     return null;
   }
 }

@@ -7,15 +7,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { X, Search, ChevronRight, Folder } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { X, Search, ChevronRight, Folder, Users, Split, Upload, FileText, Receipt, CreditCard, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCategoriasFinanceiro, useCategoriasConta } from "@/hooks/useCategoriasFinanceiro";
 import { useAeronaves } from "@/hooks/useAeronaves";
+import { useClientes } from "@/hooks/useClientes";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { RateioDialog } from "./RateioDialog";
 
 interface FluxoCaixaInlineFormProps {
   onSuccess: () => void;
@@ -36,6 +40,14 @@ interface FornecedorFavorito {
   documento: string | null;
   cidade: string | null;
   telefone: string | null;
+}
+
+interface RateioSocio {
+  cliente_id: string;
+  cliente_nome: string;
+  percentual: number;
+  valor_rateado: number;
+  horas_voadas?: number;
 }
 
 // Cores para os grupos de subcategorias
@@ -109,14 +121,32 @@ export function FluxoCaixaInlineForm({
   const { categorias: allCategorias } = useCategoriasFinanceiro();
   const { contas } = useCategoriasConta();
   const { aeronaves } = useAeronaves();
+  const { clientes } = useClientes();
 
   const [referencias, setReferencias] = useState<Referencia[]>([]);
   const [referenciaSearch, setReferenciaSearch] = useState("");
   const [openReferenciaPopover, setOpenReferenciaPopover] = useState(false);
   const [selectedSubcategoria, setSelectedSubcategoria] = useState<string | null>(null);
   const [openCategoriaPopover, setOpenCategoriaPopover] = useState(false);
+  
+  // Novos estados para reembolso e rateio
+  const [isReembolsavel, setIsReembolsavel] = useState(false);
+  const [temRateio, setTemRateio] = useState(false);
+  const [rateioDialogOpen, setRateioDialogOpen] = useState(false);
+  
+  // Estados para upload de arquivos
+  const [comprovanteUrl, setComprovanteUrl] = useState<string | null>(null);
+  const [nfUrl, setNfUrl] = useState<string | null>(null);
+  const [reciboUrl, setReciboUrl] = useState<string | null>(null);
+  const [boletoUrl, setBoletoUrl] = useState<string | null>(null);
+  const [uploadingField, setUploadingField] = useState<string | null>(null);
+  const [rateioData, setRateioData] = useState<{ socios: RateioSocio[]; tipo: string } | null>(null);
 
-  const contaNomes = contas.map(c => c.nome);
+  // Mapeia conta para exibir o banco ao invés do nome
+  const contasComBanco = contas.map(c => ({
+    nome: c.nome,
+    banco: c.banco || c.nome
+  }));
 
   // Get today's date in local timezone without conversion issues
   const getTodayDateString = () => {
@@ -131,16 +161,19 @@ export function FluxoCaixaInlineForm({
     mode: "onBlur",
     defaultValues: {
       data: getTodayDateString(),
-      tipo_movimento: "entrada",
+      tipo_movimento: "saida",
       categoria: "",
       descricao: "",
       valor: "",
       conta_banco: "",
       numero_documento: "",
       referencia: "",
-      status: "recebido",
+      status: "pago",
       observacoes: "",
-      aeronave: ""
+      aeronave: "",
+      client_id: "",
+      client_name: "",
+      grupo_categoria: ""
     }
   });
 
@@ -149,14 +182,14 @@ export function FluxoCaixaInlineForm({
 
   // Agrupar categorias por subcategoria (campo 'categoria' na tabela)
   const categoriasPorSubcategoria = useMemo(() => {
-    const filteredByType = tipoMovimento === "saída" 
+    const filteredByType = tipoMovimento === "saida" 
       ? allCategorias.filter(c => c.tipo === "despesa")
       : allCategorias.filter(c => c.tipo === "receita");
     
     const grouped: Record<string, typeof allCategorias> = {};
     
     filteredByType.forEach(cat => {
-      const subcategoria = cat.categoria || "Sem Grupo";
+      const subcategoria = cat.grupo_categoria || "Sem Grupo";
       if (!grouped[subcategoria]) {
         grouped[subcategoria] = [];
       }
@@ -234,6 +267,56 @@ export function FluxoCaixaInlineForm({
     }
   };
 
+  // File upload handler
+  const handleFileUpload = async (file: File, field: 'comprovante' | 'nf' | 'recibo' | 'boleto') => {
+    if (!user) {
+      toast.error("Usuário não autenticado");
+      return;
+    }
+    
+    setUploadingField(field);
+    
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${field}_${Date.now()}.${fileExt}`;
+      const filePath = `fiscal/${user.id}/${fileName}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, file);
+        
+      if (uploadError) {
+        toast.error(`Erro ao fazer upload: ${uploadError.message}`);
+        return;
+      }
+      
+      const { data: { publicUrl } } = supabase.storage
+        .from('documents')
+        .getPublicUrl(filePath);
+      
+      switch (field) {
+        case 'comprovante':
+          setComprovanteUrl(publicUrl);
+          break;
+        case 'nf':
+          setNfUrl(publicUrl);
+          break;
+        case 'recibo':
+          setReciboUrl(publicUrl);
+          break;
+        case 'boleto':
+          setBoletoUrl(publicUrl);
+          break;
+      }
+      
+      toast.success("Arquivo enviado com sucesso!");
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao fazer upload");
+    } finally {
+      setUploadingField(null);
+    }
+  };
+
   useEffect(() => {
     if (movimentacao) {
       setValue("data", movimentacao.data);
@@ -246,18 +329,35 @@ export function FluxoCaixaInlineForm({
       setValue("referencia", movimentacao.referencia || "");
       setValue("status", movimentacao.status);
       setValue("observacoes", movimentacao.observacoes || "");
-      setValue("aeronave", movimentacao.aeronave || "");
+      setValue("aeronave", movimentacao.aeronave_registro || "");
+      setValue("client_id", movimentacao.client_id || "");
+      setValue("client_name", movimentacao.client_name || "");
+      setIsReembolsavel(movimentacao.reembolsavel || false);
+      setTemRateio(movimentacao.tem_rateio || false);
+      
+      // Carregar URLs dos arquivos
+      setComprovanteUrl(movimentacao.comprovante_url || null);
+      setNfUrl(movimentacao.nf_url || null);
+      setReciboUrl(movimentacao.recibo_url || null);
+      setBoletoUrl(movimentacao.boleto_url || null);
       
       // Encontrar a subcategoria correspondente
       const cat = allCategorias.find(c => c.nome === movimentacao.categoria);
-      if (cat && cat.categoria) {
-        setSelectedSubcategoria(cat.categoria);
+      if (cat && cat.grupo_categoria) {
+        setSelectedSubcategoria(cat.grupo_categoria);
       }
     } else {
       reset();
       setValue("data", getTodayDateString());
-      setValue("status", "recebido");
+      setValue("status", "pago");
       setSelectedSubcategoria(null);
+      setIsReembolsavel(false);
+      setTemRateio(false);
+      setRateioData(null);
+      setComprovanteUrl(null);
+      setNfUrl(null);
+      setReciboUrl(null);
+      setBoletoUrl(null);
     }
   }, [movimentacao, setValue, reset, allCategorias]);
 
@@ -267,8 +367,40 @@ export function FluxoCaixaInlineForm({
       setValue("status", tipoMovimento === "entrada" ? "recebido" : "pago");
       setSelectedSubcategoria(null);
       setValue("categoria", "");
+      // Resetar reembolso quando trocar para entrada
+      if (tipoMovimento === "entrada") {
+        setIsReembolsavel(false);
+        setTemRateio(false);
+      }
     }
   }, [tipoMovimento, movimentacao, setValue]);
+
+  // Atualiza o status para 'aguardando_reembolso' quando seleciona categoria de despesas reembolsáveis
+  useEffect(() => {
+    if (!movimentacao && tipoMovimento === "saida" && selectedSubcategoria) {
+      const isReembolsavelGroup = selectedSubcategoria.toLowerCase().includes("reembolsáve") || 
+                                   selectedSubcategoria.toLowerCase().includes("reembolsave");
+      if (isReembolsavelGroup) {
+        const currentStatus = watch("status");
+        if (currentStatus === "pago" || currentStatus === "pendente") {
+          setValue("status", "aguardando_reembolso");
+        }
+        setIsReembolsavel(true);
+      }
+    }
+  }, [selectedSubcategoria, tipoMovimento, movimentacao, setValue, watch]);
+
+  // Selecionar cliente
+  const handleClienteSelect = (cliente: any) => {
+    setValue("client_id", cliente.id);
+    setValue("client_name", cliente.company_name || "");
+  };
+
+  // Salvar rateio
+  const handleRateioSave = (socios: RateioSocio[], tipo: string) => {
+    setRateioData({ socios, tipo });
+    setTemRateio(true);
+  };
 
   const onSubmit = async (formData: any) => {
     if (!user) {
@@ -281,6 +413,12 @@ export function FluxoCaixaInlineForm({
       return;
     }
 
+    // Validação: se é reembolsável, precisa ter cliente selecionado
+    if (isReembolsavel && !formData.client_id) {
+      toast.error("Selecione um cliente para despesa reembolsável");
+      return;
+    }
+
     try {
       const valor = parseFloat(formData.valor);
       if (isNaN(valor) || valor <= 0) {
@@ -288,20 +426,47 @@ export function FluxoCaixaInlineForm({
         return;
       }
 
+      // Encontrar a categoria para pegar o grupo
+      const categoriaObj = allCategorias.find(c => c.nome === formData.categoria);
+      const grupoCategoria = categoriaObj?.grupo_categoria || selectedSubcategoria || null;
+
+      // Encontrar o ID da categoria
+      const categoriaId = categoriaObj?.id;
+      
+      if (!categoriaId) {
+        toast.error("Categoria não encontrada");
+        return;
+      }
+
+      // Encontrar aeronave_id pelo registro
+      const aeronaveObj = aeronaves?.find(a => a.registration === formData.aeronave);
+
       const data = {
         data: formData.data,
         tipo_movimento: formData.tipo_movimento,
-        categoria: formData.categoria,
+        categoria_id: categoriaId,
         descricao: formData.descricao,
         valor,
         conta_banco: formData.conta_banco || null,
         numero_documento: formData.numero_documento || null,
-        referencia: formData.referencia || null,
         status: formData.status,
         observacoes: formData.observacoes || null,
-        aeronave: formData.aeronave || null,
+        aeronave_id: aeronaveObj?.id || null,
+        aeronave_registro: formData.aeronave || null,
+        client_id: isReembolsavel ? formData.client_id : null,
+        client_name: isReembolsavel ? formData.client_name : null,
+        reembolsavel: isReembolsavel,
+        tem_rateio: temRateio,
+        rateio_tipo: rateioData?.tipo || null,
+        grupo_categoria: grupoCategoria,
         atualizado_por: user.id,
+        comprovante_url: comprovanteUrl,
+        nf_url: nfUrl,
+        recibo_url: reciboUrl,
+        boleto_url: boletoUrl,
       };
+
+      let lancamentoId: string | null = null;
 
       if (movimentacao?.id) {
         const { error } = await supabase
@@ -313,23 +478,114 @@ export function FluxoCaixaInlineForm({
           toast.error(`Erro ao atualizar: ${error.message}`);
           return;
         }
+        lancamentoId = movimentacao.id;
         toast.success("Movimentação atualizada com sucesso!");
       } else {
-        const { error } = await supabase
+        const { data: inserted, error } = await supabase
           .from("controle_bancario")
           .insert([{
             ...data,
             criado_por: user.id
-          }]);
+          }])
+          .select()
+          .single();
 
         if (error) {
           toast.error(`Erro ao criar: ${error.message}`);
           return;
         }
+        lancamentoId = inserted?.id;
         toast.success("Movimentação criada com sucesso!");
       }
 
+      // Se tem rateio, salvar os dados de rateio
+      if (temRateio && rateioData && lancamentoId && formData.aeronave) {
+        // Primeiro deletar rateios existentes
+        await supabase
+          .from("lancamentos_rateio")
+          .delete()
+          .eq("lancamento_id", lancamentoId);
+
+        // Inserir novos rateios
+        const rateiosToInsert = rateioData.socios.map(socio => ({
+          lancamento_id: lancamentoId,
+          cliente_id: socio.cliente_id || null,
+          cliente_nome: socio.cliente_nome,
+          aeronave_registro: formData.aeronave,
+          percentual: socio.percentual,
+          valor_rateado: socio.valor_rateado,
+          valor_recebido: 0,
+          valor_pendente: socio.valor_rateado,
+          status: "pendente",
+        }));
+
+        const { error: rateioError } = await supabase
+          .from("lancamentos_rateio")
+          .insert(rateiosToInsert);
+
+        if (rateioError) {
+          console.error("Erro ao salvar rateio:", rateioError);
+          toast.error("Movimentação salva, mas houve erro ao salvar o rateio");
+        }
+      }
+
+      // Se é reembolsável e tem cliente, criar conta a receber e entrada no portal
+      if (isReembolsavel && formData.client_id && lancamentoId && !movimentacao?.id) {
+        try {
+          // Buscar dados completos do cliente
+          const clienteData = clientes.find(c => c.id === formData.client_id);
+          const numeroDocumento = `REIMB-${Date.now().toString().slice(-6)}`;
+          
+          // 1. Criar conta a receber para aparecer na gestão fiscal
+          const { error: contaReceberError } = await supabase
+            .from("contas_areceber")
+            .insert({
+              numero: numeroDocumento,
+              cliente_nome: clienteData?.company_name || formData.client_name || "Cliente",
+              cliente_cnpj: clienteData?.cnpj || "",
+              data_criacao: formData.data,
+              data_vencimento: formData.data,
+              valor: valor,
+              categoria: "Reembolso de Despesa",
+              descricao: formData.descricao,
+              status: "pendente",
+              aeronave: formData.aeronave || "",
+              criado_por: user.id,
+            });
+
+          if (contaReceberError) {
+            console.error("Erro ao criar conta a receber:", contaReceberError);
+          }
+
+          // 2. Criar entrada em bank_reconciliations para o portal do cliente ver
+          const { error: reconciliationError } = await supabase
+            .from("bank_reconciliations")
+            .insert({
+              client_id: formData.client_id,
+              aircraft_id: aeronaveObj?.id || null,
+              type: "cliente",
+              category: "Reembolso de Despesa",
+              description: `${formData.descricao} - Aguardando reembolso`,
+              amount: valor,
+              date: formData.data,
+              status: "pendente",
+              reference_type: "controle_bancario",
+              reference_id: lancamentoId,
+              created_by: user.id,
+            });
+
+          if (reconciliationError) {
+            console.error("Erro ao criar entrada no portal do cliente:", reconciliationError);
+          }
+        } catch (err) {
+          console.error("Erro ao criar despesa pendente:", err);
+        }
+      }
+
       reset();
+      setIsReembolsavel(false);
+      setTemRateio(false);
+      setRateioData(null);
       onSuccess();
     } catch (error: any) {
       toast.error(error.message || "Erro ao processar movimentação");
@@ -353,7 +609,7 @@ export function FluxoCaixaInlineForm({
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Row 1: Data e Tipo */}
+        {/* Row 1: Data, Tipo e Valor */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div>
             <Label htmlFor="data" className="text-sm font-semibold text-foreground mb-2">
@@ -377,8 +633,8 @@ export function FluxoCaixaInlineForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent align="start">
-                <SelectItem value="entrada">Entrada</SelectItem>
-                <SelectItem value="saída">Saída</SelectItem>
+                <SelectItem value="saida">Despesa</SelectItem>
+                <SelectItem value="entrada">Receita</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -399,6 +655,90 @@ export function FluxoCaixaInlineForm({
             {errors.valor && <span className="text-xs text-red-500 mt-1 block">{errors.valor.message}</span>}
           </div>
         </div>
+
+        {/* Reembolso e Rateio - Apenas para despesas */}
+        {tipoMovimento === "saida" && (
+          <Card className="p-4 bg-muted/20 border-border/50 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={isReembolsavel}
+                  onCheckedChange={setIsReembolsavel}
+                  id="reembolsavel"
+                />
+                <Label htmlFor="reembolsavel" className="text-sm font-medium cursor-pointer">
+                  É reembolsável?
+                </Label>
+              </div>
+              {isReembolsavel && (
+                <Badge variant="outline" className="bg-purple-500/20 text-purple-300 border-purple-500/40">
+                  Despesa do Cliente
+                </Badge>
+              )}
+            </div>
+
+            {isReembolsavel && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1">Cliente *</Label>
+                  <Select 
+                    value={watch("client_id")} 
+                    onValueChange={(value) => {
+                      const cliente = clientes.find(c => c.id === value);
+                      if (cliente) handleClienteSelect(cliente);
+                    }}
+                  >
+                    <SelectTrigger className="h-9 bg-background">
+                      <SelectValue placeholder="Selecione o cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clientes.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.company_name || c.proprietario}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1">Aeronave (para rateio)</Label>
+                  <Select value={watch("aeronave") || ""} onValueChange={(value) => setValue("aeronave", value)}>
+                    <SelectTrigger className="h-9 bg-background">
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {aeronaves?.map((aero) => (
+                        <SelectItem key={aero.id} value={aero.registration || ""}>
+                          {aero.registration}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {isReembolsavel && watch("aeronave") && (
+              <div className="flex items-center gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant={temRateio ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setRateioDialogOpen(true)}
+                  className="gap-2"
+                >
+                  <Split className="h-4 w-4" />
+                  {temRateio ? "Editar Rateio" : "Configurar Rateio"}
+                </Button>
+                {temRateio && rateioData && (
+                  <Badge variant="secondary" className="text-xs">
+                    {rateioData.socios.length} sócios
+                  </Badge>
+                )}
+              </div>
+            )}
+          </Card>
+        )}
 
         {/* Row 2: Categoria Hierárquica e Descrição */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -483,7 +823,7 @@ export function FluxoCaixaInlineForm({
                       })}
                       {subcategorias.length === 0 && (
                         <p className="text-center py-4 text-muted-foreground text-sm">
-                          Nenhum grupo disponível para {tipoMovimento === "saída" ? "despesas" : "receitas"}
+                          Nenhum grupo disponível para {tipoMovimento === "saida" ? "despesas" : "receitas"}
                         </p>
                       )}
                     </div>
@@ -551,12 +891,12 @@ export function FluxoCaixaInlineForm({
                 <SelectValue placeholder="Selecione" />
               </SelectTrigger>
               <SelectContent align="start">
-                {contaNomes.map((conta) => (
-                  <SelectItem key={conta} value={conta}>
-                    {conta}
+                {contasComBanco.map((conta) => (
+                  <SelectItem key={conta.nome} value={conta.nome}>
+                    {conta.banco}
                   </SelectItem>
                 ))}
-                {contaNomes.length === 0 && (
+                {contasComBanco.length === 0 && (
                   <div className="text-center py-3 text-muted-foreground text-sm">
                     Nenhuma conta disponível
                   </div>
@@ -583,7 +923,10 @@ export function FluxoCaixaInlineForm({
             </Label>
             <Popover open={openReferenciaPopover} onOpenChange={setOpenReferenciaPopover}>
               <PopoverTrigger asChild>
-                <div className="relative">
+                <div 
+                  className="relative cursor-pointer"
+                  onClick={() => setOpenReferenciaPopover(true)}
+                >
                   <Input
                     id="referencia"
                     placeholder="Buscar cliente ou colaborador..."
@@ -595,10 +938,10 @@ export function FluxoCaixaInlineForm({
                         setOpenReferenciaPopover(true);
                       }
                     }}
-                    onFocus={() => setOpenReferenciaPopover(true)}
-                    className="h-10 bg-background pr-10"
+                    className="h-10 bg-background pr-10 cursor-pointer"
+                    readOnly={false}
                   />
-                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                 </div>
               </PopoverTrigger>
               <PopoverContent className="w-[300px] p-0 bg-card border-border" align="start">
@@ -718,7 +1061,7 @@ export function FluxoCaixaInlineForm({
                 <SelectValue placeholder="Selecione uma aeronave" />
               </SelectTrigger>
               <SelectContent align="start">
-                {aeronaves && aeronaves.length > 0 ? (
+                {Array.isArray(aeronaves) && aeronaves.length > 0 ? (
                   aeronaves.map((aero) => (
                     <SelectItem key={aero.id} value={aero.registration || ""}>
                       {aero.registration} - {aero.model || ""}
@@ -771,6 +1114,206 @@ export function FluxoCaixaInlineForm({
           </div>
         </div>
 
+        {/* Row 5: Anexos (Opcional) */}
+        <Card className="p-4 bg-muted/10 border-border/30">
+          <Label className="text-sm font-semibold text-foreground mb-3 block">
+            Anexos (Opcional)
+          </Label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Comprovante de Pagamento */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Comprovante</Label>
+              <div className="flex items-center gap-2">
+                {comprovanteUrl ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <a 
+                      href={comprovanteUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm text-green-400 hover:underline truncate"
+                    >
+                      <CreditCard className="h-4 w-4 shrink-0" />
+                      <span className="truncate">Anexado</span>
+                    </a>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-red-400 hover:text-red-300"
+                      onClick={() => setComprovanteUrl(null)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    {uploadingField === 'comprovante' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    <span>Anexar</span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      disabled={uploadingField !== null}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file, 'comprovante');
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Nota Fiscal */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Nota Fiscal</Label>
+              <div className="flex items-center gap-2">
+                {nfUrl ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <a 
+                      href={nfUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm text-blue-400 hover:underline truncate"
+                    >
+                      <FileText className="h-4 w-4 shrink-0" />
+                      <span className="truncate">Anexado</span>
+                    </a>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-red-400 hover:text-red-300"
+                      onClick={() => setNfUrl(null)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    {uploadingField === 'nf' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    <span>Anexar</span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.jpg,.jpeg,.png,.xml"
+                      disabled={uploadingField !== null}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file, 'nf');
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Recibo */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Recibo</Label>
+              <div className="flex items-center gap-2">
+                {reciboUrl ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <a 
+                      href={reciboUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm text-purple-400 hover:underline truncate"
+                    >
+                      <Receipt className="h-4 w-4 shrink-0" />
+                      <span className="truncate">Anexado</span>
+                    </a>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-red-400 hover:text-red-300"
+                      onClick={() => setReciboUrl(null)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    {uploadingField === 'recibo' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    <span>Anexar</span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      disabled={uploadingField !== null}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file, 'recibo');
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Boleto */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Boleto</Label>
+              <div className="flex items-center gap-2">
+                {boletoUrl ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <a 
+                      href={boletoUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm text-orange-400 hover:underline truncate"
+                    >
+                      <FileText className="h-4 w-4 shrink-0" />
+                      <span className="truncate">Anexado</span>
+                    </a>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-red-400 hover:text-red-300"
+                      onClick={() => setBoletoUrl(null)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
+                    {uploadingField === 'boleto' ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    <span>Anexar</span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      disabled={uploadingField !== null}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileUpload(file, 'boleto');
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+          </div>
+        </Card>
+
         {/* Action Buttons */}
         <div className="flex gap-3 justify-end pt-6 border-t border-border/50">
           <Button
@@ -791,6 +1334,16 @@ export function FluxoCaixaInlineForm({
           </Button>
         </div>
       </form>
+
+      {/* Rateio Dialog */}
+      <RateioDialog
+        open={rateioDialogOpen}
+        onOpenChange={setRateioDialogOpen}
+        valorTotal={parseFloat(watch("valor") || "0")}
+        aeronaveRegistro={watch("aeronave") || ""}
+        aeronaveId={aeronaves?.find(a => a.registration === watch("aeronave"))?.id}
+        onSave={handleRateioSave}
+      />
     </div>
   );
 }

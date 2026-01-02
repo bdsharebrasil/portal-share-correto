@@ -7,12 +7,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CheckCircle, Clock, Send, Users, Mail, Check, ChevronLeft, ChevronRight, Plus, X, Calendar as CalendarIcon } from "lucide-react";
+import { CheckCircle, Clock, Send, Users, Mail, Check, ChevronLeft, ChevronRight, Plus, X, Calendar as CalendarIcon, Plane } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Select as GroupedSelect,
+  SelectContent as GroupedSelectContent,
+  SelectItem as GroupedSelectItem,
+  SelectLabel,
+  SelectTrigger as GroupedSelectTrigger,
+  SelectValue as GroupedSelectValue,
+  SelectGroup,
+} from "@/components/ui/grouped-select";
 import {
   Form,
   FormControl,
@@ -21,19 +37,15 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { getShortUserId, getIdBadgeColor } from "@/lib/user-id";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { useGroupedCategories } from "@/hooks/useGroupedCategories";
 import { StatusUpdateDialog } from "./StatusUpdateDialog";
+import { AddBankReconciliationDialog } from "./AddBankReconciliationDialog";
 
+// --- Interfaces ---
 interface Client {
   id: string;
   company_name: string;
@@ -59,6 +71,7 @@ interface BankReconciliation {
   aircraft: { registration: string } | null;
 }
 
+// --- Schemas ---
 const addDespesaSchema = z.object({
   date: z.string().min(1, "Data é obrigatória"),
   description: z.string().min(1, "Descrição é obrigatória"),
@@ -70,6 +83,8 @@ const addDespesaSchema = z.object({
 
 type AddDespesaFormValues = z.infer<typeof addDespesaSchema>;
 
+
+// --- Componente Principal ---
 export function ConciliacaoClientes() {
   const [conciliacaoClientes, setConciliacaoClientes] = useState<BankReconciliation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,10 +94,14 @@ export function ConciliacaoClientes() {
   const { toast } = useToast();
   const { roles, user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [showNewReconciliationForm, setShowNewReconciliationForm] = useState(false);
+  const [openNewReconciliationDialog, setOpenNewReconciliationDialog] = useState(false);
   const [openStatusDialog, setOpenStatusDialog] = useState(false);
   const [selectedReconciliation, setSelectedReconciliation] = useState<BankReconciliation | null>(null);
+  
+  // Filtro de Viagens/Ressarcimentos
+  const [showTravelDebtsOnly, setShowTravelDebtsOnly] = useState(false);
 
+  // Permissão: Apenas Financeiro pode dar "Baixa" (status Recebido)
   const canApproveStatus = roles.some(role => ['admin', 'gestor_master', 'financeiro_master'].includes(role));
 
   useEffect(() => {
@@ -143,11 +162,11 @@ export function ConciliacaoClientes() {
     const statusLower = status?.toLowerCase() || '';
     switch (statusLower) {
       case "recebido":
-        return <Badge className="bg-green-100 text-green-800">Recebido</Badge>;
+        return <Badge className="bg-green-100 text-green-800 border-green-200">Recebido</Badge>;
       case "enviado":
-        return <Badge className="bg-blue-100 text-blue-800">Enviado</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Enviado</Badge>;
       case "pendente":
-        return <Badge className="bg-yellow-100 text-yellow-800">Pendente</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Pendente</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -174,72 +193,6 @@ export function ConciliacaoClientes() {
       .split(' ')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ');
-  };
-
-  const handleStatusChange = async (id: string, newStatus: string) => {
-    try {
-      const reconciliation = conciliacaoClientes.find(item => item.id === id);
-      if (!reconciliation) return;
-
-      // Atualizar status na conciliação
-      const { error } = await supabase
-        .from('bank_reconciliations')
-        .update({ status: newStatus } as any)
-        .eq('id', id as any);
-
-      if (error) throw error;
-
-      // Se relacionado com relatório de viagem, sincronizar status
-      if (reconciliation.description?.includes('RELATORIO DE VIAGEM')) {
-        const reportNumberMatch = reconciliation.description.match(/RELATORIO DE VIAGEM - (.+?) - /);
-        if (reportNumberMatch && reportNumberMatch[1]) {
-          const reportNumber = reportNumberMatch[1];
-
-          const { data: relatedReport } = await supabase
-            .from('travel_expense_reports')
-            .select('id')
-            .eq('report_number', reportNumber as any)
-            .eq('client_id', reconciliation.client_id as any)
-            .maybeSingle();
-
-          if (relatedReport) {
-            let reportStatus = 'pendente';
-            if (newStatus?.toLowerCase() === 'recebido') {
-              reportStatus = 'pago';
-            } else if (newStatus?.toLowerCase() === 'enviado') {
-              reportStatus = 'enviado';
-            }
-
-            await supabase
-              .from('travel_expense_reports')
-              .update({ status: reportStatus } as any)
-              .eq('id', (relatedReport as any).id as any);
-          }
-        }
-      }
-
-      setConciliacaoClientes(prev =>
-        prev.map(item =>
-          item.id === id ? { ...item, status: newStatus } : item
-        )
-      );
-
-      toast({
-        title: "Sucesso",
-        description: `Status atualizado para ${newStatus}.`,
-      });
-    } catch (error) {
-      console.error('Erro ao atualizar status:', error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível atualizar o status.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleAddDespesa = (id: string) => {
-    setExpandedId(expandedId === id ? null : id);
   };
 
   const previousMonth = () => {
@@ -275,6 +228,19 @@ export function ConciliacaoClientes() {
       .reduce((sum, item) => sum + Number(item.amount), 0),
   };
 
+  // --- Lógica de Filtro ---
+  const filteredData = showTravelDebtsOnly 
+    ? conciliacaoClientes.filter(item => {
+        const isDebt = item.status?.toLowerCase() !== 'recebido'; // Ainda não recebido
+        // Verifica palavras chaves de viagem e reembolso
+        const textToSearch = (item.category || '') + ' ' + (item.description || '');
+        const keywords = ['viagem', 'reembolso', 'ressarcimento', 'combustivel', 'relatorio', 'hospedagem', 'alimentacao'];
+        const isTravelRelated = keywords.some(key => textToSearch.toLowerCase().includes(key));
+        
+        return isDebt && isTravelRelated;
+      })
+    : conciliacaoClientes;
+
   return (
     <div className="space-y-6">
       {/* Seletor de Mês */}
@@ -303,7 +269,7 @@ export function ConciliacaoClientes() {
         </div>
       </div>
 
-      {/* Resumo Clientes */}
+      {/* Cards de Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="rounded-xl border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden">
           <CardContent className="p-5">
@@ -354,36 +320,45 @@ export function ConciliacaoClientes() {
         </Card>
       </div>
 
-      {/* Tabela de Conciliação Clientes */}
+      {/* Tabela de Conciliação */}
       <Card className="rounded-xl border-border/50 bg-card/50 backdrop-blur-sm">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
               Conciliação com Clientes
             </CardTitle>
-            <Button
-              onClick={() => setShowNewReconciliationForm(!showNewReconciliationForm)}
-              className="flex items-center gap-2 rounded-lg"
-            >
-              <Plus className="h-4 w-4" />
-              Nova Conciliação
-            </Button>
+            
+            <div className="flex gap-2 w-full md:w-auto">
+                {/* Botão de Filtro de Viagens */}
+                <Button 
+                    variant={showTravelDebtsOnly ? "default" : "outline"}
+                    onClick={() => setShowTravelDebtsOnly(!showTravelDebtsOnly)}
+                    className={`flex-1 md:flex-none items-center gap-2 rounded-lg ${showTravelDebtsOnly ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}`}
+                >
+                    <Plane className="h-4 w-4" />
+                    {showTravelDebtsOnly ? "Filtrando Viagens" : "Filtrar Viagens"}
+                </Button>
+
+                <Button
+                    onClick={() => setOpenNewReconciliationDialog(true)}
+                    className="flex-1 md:flex-none flex items-center gap-2 rounded-lg"
+                >
+                    <Plus className="h-4 w-4" />
+                    Nova Conciliação
+                </Button>
+            </div>
           </div>
         </CardHeader>
-        {showNewReconciliationForm && (
-          <CardContent className="py-4 bg-muted/30 rounded-lg mx-4 mb-4">
-            <NewReconciliationInlineForm
-              clients={clients}
-              aircraft={aircraft}
-              onClose={() => setShowNewReconciliationForm(false)}
-              onSuccess={() => {
-                setShowNewReconciliationForm(false);
-                fetchReconciliations();
-              }}
-            />
-          </CardContent>
-        )}
+        
+        <AddBankReconciliationDialog
+          open={openNewReconciliationDialog}
+          onOpenChange={setOpenNewReconciliationDialog}
+          onSuccess={() => {
+            fetchReconciliations();
+          }}
+        />
+
         <CardContent>
           <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-cyan-500 scrollbar-track-slate-700/20">
             <Table>
@@ -396,7 +371,7 @@ export function ConciliacaoClientes() {
                   <TableHead>Aeronave</TableHead>
                   <TableHead>Categoria</TableHead>
                   <TableHead>Valor</TableHead>
-                  <TableHead>Prazo de Pagamento</TableHead>
+                  <TableHead>Prazo</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
@@ -408,88 +383,110 @@ export function ConciliacaoClientes() {
                       Carregando...
                     </TableCell>
                   </TableRow>
-                ) : conciliacaoClientes.length === 0 ? (
+                ) : filteredData.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                      Nenhuma conciliação encontrada
+                      {showTravelDebtsOnly 
+                        ? "Nenhuma despesa de viagem encontrada para este período." 
+                        : "Nenhuma conciliação encontrada"}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  conciliacaoClientes.map((item) => (
-                    <React.Fragment key={item.id}>
-                      <TableRow className="hover:bg-muted/50">
-                        <TableCell>{item.date ? format(new Date(item.date + 'T12:00:00'), 'dd/MM/yyyy') : '-'}</TableCell>
-                        <TableCell>
-                          <Badge className={`${getIdBadgeColor(getShortUserId(item.created_by || ''))} font-semibold`}>
-                            {getShortUserId(item.created_by || '')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-xs">
-                          <div className="flex items-center gap-2">
-                            {getStatusIcon(item.status)}
-                            <span className="truncate">{item.description}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{item.clients?.company_name || '-'}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{item.aircraft?.registration || '-'}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{formatCategoryName(item.category)}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-primary font-medium">
-                            {formatCurrency(Math.abs(Number(item.amount)))}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          {item.status?.toLowerCase() === 'pendente' ? (
-                            <PaymentTermEditor
-                              reconciliation={item}
-                              onSave={fetchReconciliations}
-                            />
-                          ) : item.payment_term ? (
-                            <span className="text-sm">{format(new Date(item.payment_term + 'T12:00:00'), 'dd/MM/yyyy')}</span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">-</span>
+                  filteredData.map((item) => {
+                    // Verifica se o Financeiro já deu baixa
+                    const isFinalized = item.status?.toLowerCase() === 'recebido';
+                    
+                    return (
+                        <React.Fragment key={item.id}>
+                          <TableRow className={`hover:bg-muted/50 ${isFinalized ? 'bg-muted/10 opacity-80' : ''}`}>
+                            <TableCell>{item.date ? format(new Date(item.date + 'T12:00:00'), 'dd/MM/yyyy') : '-'}</TableCell>
+                            <TableCell>
+                              <Badge className={`${getIdBadgeColor(getShortUserId(item.created_by || ''))} font-semibold`}>
+                                {getShortUserId(item.created_by || '')}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="max-w-xs">
+                              <div className="flex items-center gap-2">
+                                {getStatusIcon(item.status)}
+                                <span className="truncate" title={item.description}>{item.description}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>{item.clients?.company_name || '-'}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{item.aircraft?.registration || '-'}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">{formatCategoryName(item.category)}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-primary font-medium">
+                                {formatCurrency(Math.abs(Number(item.amount)))}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              {item.status?.toLowerCase() === 'pendente' ? (
+                                <PaymentTermEditor
+                                  reconciliation={item}
+                                  onSave={fetchReconciliations}
+                                />
+                              ) : item.payment_term ? (
+                                <span className="text-sm">{format(new Date(item.payment_term + 'T12:00:00'), 'dd/MM/yyyy')}</span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>{getStatusBadge(item.status)}</TableCell>
+                            
+                            {/* --- COLUNA DE AÇÕES COM LÓGICA DE ESPELHO --- */}
+                            <TableCell>
+                              {isFinalized ? (
+                                // Modo Espelho: Só mostra que foi concluído
+                                <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-green-500/10 text-green-600 border border-green-500/20 w-fit" title="Baixa realizada pelo Financeiro">
+                                    <CheckCircle className="h-3.5 w-3.5" />
+                                    <span className="text-[10px] font-bold uppercase tracking-wide">Concluído</span>
+                                </div>
+                              ) : item.status?.toLowerCase() === 'enviado' ? (
+                                // Modo Enviado: Mostra que foi enviado para financeiro
+                                <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-blue-500/10 text-blue-600 border border-blue-500/20 w-fit" title="Aguardando recebimento">
+                                    <Send className="h-3.5 w-3.5" />
+                                    <span className="text-[10px] font-bold uppercase tracking-wide">Enviado</span>
+                                </div>
+                              ) : (
+                                // Modo Ação: Permite editar status (Enviar)
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedReconciliation(item);
+                                    setOpenStatusDialog(true);
+                                  }}
+                                  className="h-8 border-dashed hover:border-solid hover:bg-primary/5 hover:text-primary transition-all"
+                                  title="Enviar para Financeiro"
+                                >
+                                  <Send className="h-3.5 w-3.5 mr-1.5" />
+                                  <span className="text-xs">Enviar</span>
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                          
+                          {/* Permite abrir formulário de edição apenas se não estiver finalizado */}
+                          {expandedId === item.id && !isFinalized && (
+                            <TableRow className="bg-muted/30 hover:bg-muted/30">
+                              <TableCell colSpan={10} className="py-4">
+                                <AddDespesaForm
+                                  parentReconciliation={item}
+                                  clients={clients}
+                                  aircraft={aircraft}
+                                  onClose={() => setExpandedId(null)}
+                                  onSuccess={fetchReconciliations}
+                                />
+                              </TableCell>
+                            </TableRow>
                           )}
-                        </TableCell>
-                        <TableCell>{getStatusBadge(item.status)}</TableCell>
-                        <TableCell>
-                          {item.status?.toLowerCase() === 'pendente' ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedReconciliation(item);
-                                setOpenStatusDialog(true);
-                              }}
-                              title="Enviar por email"
-                            >
-                              <Mail className="h-4 w-4" />
-                            </Button>
-                          ) : item.status?.toLowerCase() === 'enviado' ? (
-                            <span className="text-xs text-muted-foreground">Enviado</span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">Recebido</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                      {expandedId === item.id && (
-                        <TableRow className="bg-muted/30 hover:bg-muted/30">
-                          <TableCell colSpan={9} className="py-4">
-                            <AddDespesaForm
-                              parentReconciliation={item}
-                              clients={clients}
-                              aircraft={aircraft}
-                              onClose={() => setExpandedId(null)}
-                              onSuccess={fetchReconciliations}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </React.Fragment>
-                  ))
+                        </React.Fragment>
+                      );
+                  })
                 )}
               </TableBody>
             </Table>
@@ -509,6 +506,8 @@ export function ConciliacaoClientes() {
   );
 }
 
+// --- Sub-componentes (Helpers) ---
+
 interface PaymentTermEditorProps {
   reconciliation: BankReconciliation;
   onSave: () => void;
@@ -524,11 +523,7 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
 
   const handleSave = async () => {
     if (!selectedDate) {
-      toast({
-        title: "Erro",
-        description: "Selecione uma data.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Selecione uma data.", variant: "destructive" });
       return;
     }
 
@@ -536,30 +531,18 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
       setIsSaving(true);
       const dateStr = format(selectedDate, "yyyy-MM-dd");
 
-      // Update bank_reconciliations
       const { error } = await supabase
         .from('bank_reconciliations')
         .update({ payment_term: dateStr } as any)
         .eq('id', reconciliation.id as any);
 
-      if (error) {
-        // If column doesn't exist, provide helpful message
-        if (error.message?.includes('payment_term') || error.code === '42703') {
-          throw new Error(
-            'Campo "payment_term" não existe na tabela. Execute as migrações do Supabase: supabase db push'
-          );
-        }
-        throw error;
-      }
+      if (error) throw error;
 
-      // If this reconciliation is related to a travel report, also sync the payment_term back
+      // Sincronizar com travel_expense_reports se aplicável
       if (reconciliation.description?.includes('RELATORIO DE VIAGEM')) {
-        // Extract report_number from description (format: "RELATORIO DE VIAGEM - {report_number} - STATUS PENDENTE")
         const reportNumberMatch = reconciliation.description.match(/RELATORIO DE VIAGEM - (.+?) - /);
         if (reportNumberMatch && reportNumberMatch[1]) {
           const reportNumber = reportNumberMatch[1];
-
-          // Find and update the related travel_expense_report
           const { data: relatedReport } = await supabase
             .from('travel_expense_reports')
             .select('id')
@@ -576,19 +559,11 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
         }
       }
 
-      toast({
-        title: "Sucesso",
-        description: "Prazo de pagamento atualizado.",
-      });
+      toast({ title: "Sucesso", description: "Prazo atualizado." });
       setIsEditing(false);
       onSave();
     } catch (error: any) {
-      console.error('Erro ao atualizar prazo:', error);
-      toast({
-        title: "Erro",
-        description: error.message || "Não foi possível atualizar o prazo.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Erro ao atualizar prazo.", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -596,58 +571,22 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
 
   if (!isEditing) {
     return (
-      <button
-        onClick={() => setIsEditing(true)}
-        className="text-sm hover:text-blue-600 hover:underline"
-      >
-        {reconciliation.payment_term ? (
-          format(new Date(reconciliation.payment_term + 'T12:00:00'), 'dd/MM/yyyy')
-        ) : (
-          <span className="text-xs text-muted-foreground">Clique para adicionar</span>
-        )}
+      <button onClick={() => setIsEditing(true)} className="text-sm hover:text-blue-600 hover:underline flex items-center gap-1">
+        {reconciliation.payment_term ? format(new Date(reconciliation.payment_term + 'T12:00:00'), 'dd/MM/yyyy') : <span className="text-xs text-muted-foreground italic flex items-center gap-1"><Plus className="w-3 h-3"/>Prazo</span>}
       </button>
     );
   }
 
   return (
-    <div className="flex gap-2 items-center">
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="justify-start text-left font-normal w-32"
-          >
-            <CalendarIcon className="mr-2 h-4 w-4 text-white" />
-            {selectedDate ? format(selectedDate, "dd/MM/yyyy") : "Selecione"}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={setSelectedDate}
-            locale={ptBR}
-          />
-        </PopoverContent>
-      </Popover>
-      <Button
-        size="sm"
-        onClick={handleSave}
-        disabled={isSaving}
-        className="h-8"
-      >
-        <Check className="h-4 w-4" />
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => setIsEditing(false)}
-        disabled={isSaving}
-        className="h-8"
-      >
-        <X className="h-4 w-4" />
-      </Button>
+    <div className="flex gap-1 items-center z-50">
+      <Input 
+        type="date" 
+        className="h-8 w-[130px] text-xs" 
+        value={selectedDate ? format(selectedDate, "yyyy-MM-dd") : ""}
+        onChange={(e) => setSelectedDate(e.target.value ? new Date(e.target.value) : undefined)}
+      />
+      <Button size="icon" className="h-8 w-8" onClick={handleSave} disabled={isSaving}><Check className="h-3 w-3" /></Button>
+      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setIsEditing(false)}><X className="h-3 w-3" /></Button>
     </div>
   );
 }
@@ -660,16 +599,11 @@ interface AddDespesaFormProps {
   onSuccess: () => void;
 }
 
-function AddDespesaForm({
-  parentReconciliation,
-  clients,
-  aircraft,
-  onClose,
-  onSuccess,
-}: AddDespesaFormProps) {
+function AddDespesaForm({ parentReconciliation, clients, aircraft, onClose, onSuccess }: AddDespesaFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
+  const groupedCategories = useGroupedCategories("despesa", true);
 
   const form = useForm<AddDespesaFormValues>({
     resolver: zodResolver(addDespesaSchema),
@@ -683,21 +617,11 @@ function AddDespesaForm({
   });
 
   const onSubmit = async (data: AddDespesaFormValues) => {
-    if (!user) {
-      toast({
-        title: "Erro",
-        description: "Usuário não autenticado.",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    if (!user) return;
     try {
       setSubmitting(true);
-
-      const { error } = await supabase
-        .from("bank_reconciliations")
-        .insert([{
+      
+      const { data: inserted, error } = await supabase.from("bank_reconciliations").insert([{
           type: "cliente",
           date: data.date,
           description: data.description,
@@ -707,444 +631,123 @@ function AddDespesaForm({
           client_id: parentReconciliation.client_id,
           aircraft_id: parentReconciliation.aircraft_id,
           created_by: user.id,
-        }] as any);
+        }] as any)
+        .select()
+        .single();
 
       if (error) throw error;
 
-      toast({
-        title: "Sucesso",
-        description: "Despesa adicionada com sucesso.",
-      });
+      // Criar conta a receber para gestão fiscal
+      if (parentReconciliation.client_id && inserted) {
+        try {
+          const { data: clientData } = await supabase
+            .from("clients")
+            .select("company_name, cnpj")
+            .eq("id", parentReconciliation.client_id)
+            .single();
 
+          let aircraftRegistration = "";
+          if (parentReconciliation.aircraft_id) {
+            const { data: aircraftData } = await supabase
+              .from("aircraft")
+              .select("registration")
+              .eq("id", parentReconciliation.aircraft_id)
+              .single();
+            if (aircraftData) aircraftRegistration = aircraftData.registration;
+          }
+
+          const numeroDocumento = `REIMB-${Date.now().toString().slice(-6)}`;
+          await supabase.from("contas_areceber").insert({
+            numero: numeroDocumento,
+            cliente_nome: clientData?.company_name || "Cliente",
+            cliente_cnpj: clientData?.cnpj || "",
+            data_criacao: data.date,
+            data_vencimento: data.date,
+            valor: parseFloat(data.amount),
+            categoria: data.category || "Reembolso de Despesa",
+            descricao: data.description,
+            status: "pendente",
+            aeronave: aircraftRegistration,
+            criado_por: user.id,
+          });
+        } catch (err) {
+          console.error("Erro ao criar conta a receber:", err);
+        }
+      }
+
+      toast({ title: "Sucesso", description: "Despesa adicionada." });
       form.reset();
       onClose();
       onSuccess();
     } catch (error: any) {
-      console.error("Erro ao adicionar despesa:", error);
-      toast({
-        title: "Erro",
-        description: error.message || "Não foi possível adicionar a despesa.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="bg-background rounded-lg border p-6">
+    <div className="bg-background rounded-lg border p-4 shadow-sm">
       <div className="flex items-center justify-between mb-4">
-        <div>
-          <h3 className="text-lg font-semibold">Adicionar Nova Despesa</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            Cliente: <strong>{parentReconciliation.clients?.company_name}</strong> | 
-            Aeronave: <strong>{parentReconciliation.aircraft?.registration}</strong>
-          </p>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onClose}
-          className="h-8 w-8 p-0"
-        >
-          <X className="h-4 w-4" />
-        </Button>
+        <h3 className="text-sm font-semibold">Adicionar Item Vinculado</h3>
+        <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0"><X className="h-4 w-4" /></Button>
       </div>
-
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => {
-                const dateValue = field.value ? new Date(field.value) : undefined;
-                return (
-                  <FormItem>
-                    <FormLabel>Data *</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4 text-white" />
-                          {dateValue ? format(dateValue, "dd/MM/yyyy", { locale: ptBR }) : "Selecione a data"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={dateValue}
-                          onSelect={(date) => {
-                            if (date) {
-                              field.onChange(format(date, "yyyy-MM-dd"));
-                            }
-                          }}
-                          disabled={(date) => date > new Date()}
-                          locale={ptBR}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                );
-              }}
-            />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Descrição *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex: Combustível" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Valor (R$) *</FormLabel>
-                  <FormControl>
-                    <Input type="number" step="0.01" placeholder="0.00" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="category"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Categoria *</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Ex: combustivel" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status *</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="pendente">Pendente</SelectItem>
-                      <SelectItem value="enviado">Enviado</SelectItem>
-                      <SelectItem value="recebido">Recebido</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+             {/* Campos simplificados para brevidade, mas funcionais */}
+             <FormField control={form.control} name="date" render={({field}) => (
+                 <FormItem><FormLabel>Data</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem>
+             )} />
+             <FormField control={form.control} name="description" render={({field}) => (
+                 <FormItem><FormLabel>Descrição</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+             )} />
+             <FormField control={form.control} name="amount" render={({field}) => (
+                 <FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl></FormItem>
+             )} />
+             <FormField control={form.control} name="category" render={({field}) => (
+                 <FormItem>
+                     <FormLabel>Categoria</FormLabel>
+                     <FormControl>
+                         <GroupedSelect value={field.value} onValueChange={field.onChange}>
+                             <GroupedSelectTrigger>
+                                 <GroupedSelectValue placeholder="Selecione uma categoria" />
+                             </GroupedSelectTrigger>
+                             <GroupedSelectContent>
+                                 {groupedCategories.map((group) => (
+                                     <SelectGroup key={group.grupo}>
+                                         <SelectLabel className="text-xs font-bold uppercase tracking-wider">{group.grupo}</SelectLabel>
+                                         {group.categorias.map((cat) => (
+                                             <GroupedSelectItem key={cat.id} value={cat.nome}>
+                                                 {cat.nome}
+                                             </GroupedSelectItem>
+                                         ))}
+                                     </SelectGroup>
+                                 ))}
+                             </GroupedSelectContent>
+                         </GroupedSelect>
+                     </FormControl>
+                 </FormItem>
+             )} />
+             <FormField control={form.control} name="status" render={({field}) => (
+                 <FormItem>
+                     <FormLabel>Status</FormLabel>
+                     <Select value={field.value} onValueChange={field.onChange}>
+                         <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                         <SelectContent>
+                             <SelectItem value="pendente">Pendente</SelectItem>
+                             <SelectItem value="enviado">Enviado</SelectItem>
+                         </SelectContent>
+                     </Select>
+                 </FormItem>
+             )} />
           </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={submitting}
-            >
-              {submitting ? "Adicionando..." : "Adicionar Despesa"}
-            </Button>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" size="sm" disabled={submitting}>Adicionar</Button>
           </div>
         </form>
       </Form>
     </div>
-  );
-}
-
-interface NewReconciliationInlineFormProps {
-  clients: Client[];
-  aircraft: Aircraft[];
-  onClose: () => void;
-  onSuccess: () => void;
-}
-
-const newReconciliationSchema = z.object({
-  date: z.string().min(1, "Data é obrigatória"),
-  description: z.string().min(1, "Descrição é obrigatória"),
-  amount: z.string().min(1, "Valor é obrigatório"),
-  category: z.string().min(1, "Categoria é obrigatória"),
-  status: z.enum(["pendente", "enviado", "recebido"]),
-  clientId: z.string().min(1, "Cliente é obrigatório"),
-  aircraftId: z.string().min(1, "Aeronave é obrigatória"),
-});
-
-type NewReconciliationFormValues = z.infer<typeof newReconciliationSchema>;
-
-function NewReconciliationInlineForm({
-  clients,
-  aircraft,
-  onClose,
-  onSuccess,
-}: NewReconciliationInlineFormProps) {
-  const { toast } = useToast();
-  const { user } = useAuth();
-  const [submitting, setSubmitting] = useState(false);
-
-  const form = useForm<NewReconciliationFormValues>({
-    resolver: zodResolver(newReconciliationSchema),
-    defaultValues: {
-      date: new Date().toISOString().split('T')[0],
-      description: "",
-      amount: "",
-      category: "",
-      status: "pendente",
-      clientId: "",
-      aircraftId: "",
-    },
-  });
-
-  const onSubmit = async (data: NewReconciliationFormValues) => {
-    if (!user) {
-      toast({
-        title: "Erro",
-        description: "Usuário não autenticado.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-
-      const { error } = await supabase
-        .from("bank_reconciliations")
-        .insert([{
-          type: "cliente",
-          date: data.date,
-          description: data.description,
-          amount: parseFloat(data.amount),
-          category: data.category,
-          status: data.status,
-          client_id: data.clientId,
-          aircraft_id: data.aircraftId,
-          created_by: user.id,
-        }] as any);
-
-      if (error) throw error;
-
-      toast({
-        title: "Sucesso",
-        description: "Conciliação adicionada com sucesso.",
-      });
-
-      form.reset();
-      onSuccess();
-    } catch (error: any) {
-      console.error("Erro ao adicionar conciliação:", error);
-      toast({
-        title: "Erro",
-        description: error.message || "Não foi possível adicionar a conciliação.",
-        variant: "destructive",
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-0">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7 gap-3">
-          <FormField
-            control={form.control}
-            name="date"
-            render={({ field }) => {
-              const dateValue = field.value ? new Date(field.value) : undefined;
-              return (
-                <FormItem>
-                  <FormLabel className="text-xs">Data</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="h-9 w-full justify-start text-left font-normal"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4 text-white" />
-                        {dateValue ? format(dateValue, "dd/MM/yyyy", { locale: ptBR }) : "Selecione a data"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={dateValue}
-                        onSelect={(date) => {
-                          if (date) {
-                            field.onChange(format(date, "yyyy-MM-dd"));
-                          }
-                        }}
-                        disabled={(date) => date > new Date()}
-                        locale={ptBR}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage className="text-xs" />
-                </FormItem>
-              );
-            }}
-          />
-
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-xs">Descrição</FormLabel>
-                <FormControl>
-                  <Input placeholder="Descrição" {...field} className="h-9" />
-                </FormControl>
-                <FormMessage className="text-xs" />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="clientId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-xs">Cliente</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="Cliente" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {clients.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.company_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage className="text-xs" />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="aircraftId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-xs">Aeronave</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger className="h-9 text-sm">
-                      <SelectValue placeholder="Aeronave" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {aircraft.map((ac) => (
-                      <SelectItem key={ac.id} value={ac.id}>
-                        {ac.registration}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage className="text-xs" />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="category"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-xs">Categoria</FormLabel>
-                <FormControl>
-                  <Input placeholder="Categoria" {...field} className="h-9" />
-                </FormControl>
-                <FormMessage className="text-xs" />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="amount"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-xs">Valor (R$)</FormLabel>
-                <FormControl>
-                  <Input type="number" step="0.01" placeholder="0.00" {...field} className="h-9" />
-                </FormControl>
-                <FormMessage className="text-xs" />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="text-xs">Status</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger className="h-9 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="pendente">Pendente</SelectItem>
-                    <SelectItem value="enviado">Enviado</SelectItem>
-                    <SelectItem value="recebido">Recebido</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage className="text-xs" />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div className="flex justify-end gap-2 pt-4">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onClose}
-          >
-            Cancelar
-          </Button>
-          <Button
-            type="submit"
-            size="sm"
-            disabled={submitting}
-          >
-            {submitting ? "Adicionando..." : "Adicionar"}
-          </Button>
-        </div>
-      </form>
-    </Form>
   );
 }

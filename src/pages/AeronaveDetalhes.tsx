@@ -60,7 +60,6 @@ export default function AeronaveDetalhes() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedDocType, setSelectedDocType] = useState<string | null>(null);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [expiryDate, setExpiryDate] = useState("");
   const [notes, setNotes] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -139,7 +138,6 @@ export default function AeronaveDetalhes() {
           file_path: fileName,
           file_size: uploadFile.size,
           file_type: uploadFile.type,
-          expiry_date: expiryDate || null,
           description: notes || null,
         });
 
@@ -148,7 +146,6 @@ export default function AeronaveDetalhes() {
       toast.success("Documento enviado com sucesso!");
       setUploadDialogOpen(false);
       setUploadFile(null);
-      setExpiryDate("");
       setNotes("");
       setSelectedDocType(null);
       refetchDocuments();
@@ -300,44 +297,44 @@ export default function AeronaveDetalhes() {
         </div>
 
         {/* Info Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
-                  <Calendar className="h-5 w-5 text-blue-400" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-blue-900/30 to-blue-800/20 hover:from-blue-900/40 hover:to-blue-800/30 transition-colors">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                  <Calendar className="h-7 w-7 text-blue-400" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-slate-400 uppercase tracking-wide">Ano de Fabricação</p>
-                  <p className="text-lg font-bold text-white">{aircraft.year || "N/A"}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-lg bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                  <MapPin className="h-5 w-5 text-green-400" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-slate-400 uppercase tracking-wide">Base</p>
-                  <p className="text-lg font-bold text-white uppercase">{aircraft.base || "N/A"}</p>
+                <div className="flex-1">
+                  <p className="text-xs text-blue-300/80 uppercase tracking-widest font-semibold mb-1">Ano de Fabricação</p>
+                  <p className="text-2xl font-bold text-blue-100">{aircraft.year || "—"}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-lg bg-orange-500/20 flex items-center justify-center flex-shrink-0">
-                  <Fuel className="h-5 w-5 text-orange-400" />
+          <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-emerald-900/30 to-emerald-800/20 hover:from-emerald-900/40 hover:to-emerald-800/30 transition-colors">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 rounded-xl bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                  <MapPin className="h-7 w-7 text-emerald-400" />
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-slate-400 uppercase tracking-wide">Consumo</p>
-                  <p className="text-lg font-bold text-white">{aircraft.fuel_consumption ? `${aircraft.fuel_consumption} L/H` : "N/A"}</p>
+                <div className="flex-1">
+                  <p className="text-xs text-emerald-300/80 uppercase tracking-widest font-semibold mb-1">Base Aérea</p>
+                  <p className="text-2xl font-bold text-emerald-100">{(aircraft.base || "—").toUpperCase()}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-orange-900/30 to-orange-800/20 hover:from-orange-900/40 hover:to-orange-800/30 transition-colors">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="h-14 w-14 rounded-xl bg-orange-500/20 flex items-center justify-center flex-shrink-0">
+                  <Fuel className="h-7 w-7 text-orange-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-orange-300/80 uppercase tracking-widest font-semibold mb-1">Consumo Combustível</p>
+                  <p className="text-2xl font-bold text-orange-100">{aircraft.fuel_consumption ? `${aircraft.fuel_consumption} L/H` : "—"}</p>
                 </div>
               </div>
             </CardContent>
@@ -347,56 +344,72 @@ export default function AeronaveDetalhes() {
 
         {/* Clients Line */}
         {clients && clients.length > 0 && (
-          <div className="flex items-center gap-3">
-            <Users className="h-5 w-5 text-cyan-400" />
-            <p className="text-sm font-medium text-slate-300">Clientes Vinculados:</p>
-            <div className="flex flex-wrap gap-2">
-              {clients.map((c, i) => (
-                <Badge key={i} variant="secondary" className="rounded-lg bg-slate-600 text-white text-xs">
-                  {c.clients?.company_name || "Sem nome"} ({c.share_percentage}%)
-                </Badge>
-              ))}
-            </div>
-          </div>
+          <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
+            <CardContent className="p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="h-12 w-12 rounded-xl bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                  <Users className="h-6 w-6 text-cyan-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold mb-3">Clientes Vinculados</p>
+                  <div className="flex flex-wrap gap-2">
+                    {clients.map((c, i) => (
+                      <Badge
+                        key={i}
+                        className="rounded-xl bg-gradient-to-r from-cyan-600/30 to-blue-600/30 text-cyan-200 border-cyan-500/50 text-xs font-medium px-3 py-1.5 hover:from-cyan-600/40 hover:to-blue-600/40 transition-colors"
+                      >
+                        {c.clients?.company_name || "Sem nome"}
+                        <span className="ml-1.5 font-bold text-cyan-300">({c.share_percentage}%)</span>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Informações Técnicas */}
         <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg text-white">
-              <FileText className="h-5 w-5 text-cyan-400" />
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-xl text-white">
+              <Wrench className="h-5 w-5 text-purple-400" />
               Informações Técnicas
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              <div className="p-3 bg-slate-700/40 rounded-lg">
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Nº Série</p>
-                <p className="font-semibold text-white">{aircraft.serial_number || "N/A"}</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="p-4 bg-gradient-to-br from-slate-800/60 to-slate-700/40 rounded-xl border border-slate-700/50 hover:border-slate-600/70 transition-colors">
+                <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-2">Nº Série</p>
+                <p className="text-base font-bold text-slate-100">{aircraft.serial_number || "N/A"}</p>
               </div>
-              <div className="p-3 bg-slate-700/40 rounded-lg">
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Fabricante</p>
-                <p className="font-semibold text-white">{aircraft.manufacturer || "N/A"}</p>
+              <div className="p-4 bg-gradient-to-br from-slate-800/60 to-slate-700/40 rounded-xl border border-slate-700/50 hover:border-slate-600/70 transition-colors">
+                <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-2">Fabricante</p>
+                <p className="text-base font-bold text-slate-100">{aircraft.manufacturer || "N/A"}</p>
               </div>
-              <div className="p-3 bg-slate-700/40 rounded-lg">
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Modelo</p>
-                <p className="font-semibold text-white">{aircraft.model || "N/A"}</p>
+              <div className="p-4 bg-gradient-to-br from-slate-800/60 to-slate-700/40 rounded-xl border border-slate-700/50 hover:border-slate-600/70 transition-colors">
+                <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-2">Modelo</p>
+                <p className="text-base font-bold text-slate-100">{aircraft.model || "N/A"}</p>
               </div>
-              <div className="p-3 bg-slate-700/40 rounded-lg">
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Célula Atual</p>
-                <p className="font-semibold text-white">{aircraft.cell_hours_current ? `${aircraft.cell_hours_current}h` : "N/A"}</p>
+              <div className="p-4 bg-gradient-to-br from-purple-900/30 to-purple-800/20 rounded-xl border border-purple-700/50 hover:border-purple-600/70 transition-colors">
+                <p className="text-xs text-purple-300 uppercase tracking-wider font-medium mb-2">Célula Atual</p>
+                <p className="text-base font-bold text-purple-100">{aircraft.cell_hours_current ? `${aircraft.cell_hours_current}h` : "N/A"}</p>
               </div>
-              <div className="p-3 bg-slate-700/40 rounded-lg">
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Horímetro</p>
-                <p className="font-semibold text-white">{aircraft.horimeter_active ? `${aircraft.horimeter_active}h` : "N/A"}</p>
+              <div className="p-4 bg-gradient-to-br from-cyan-900/30 to-cyan-800/20 rounded-xl border border-cyan-700/50 hover:border-cyan-600/70 transition-colors">
+                <p className="text-xs text-cyan-300 uppercase tracking-wider font-medium mb-2">Horímetro</p>
+                <p className="text-base font-bold text-cyan-100">{aircraft.horimeter_active ? `${aircraft.horimeter_active}h` : "N/A"}</p>
               </div>
-              <div className="p-3 bg-slate-700/40 rounded-lg">
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Proprietário</p>
-                <p className="font-semibold text-white">{aircraft.owner_name || "N/A"}</p>
+              <div className="p-4 bg-gradient-to-br from-slate-800/60 to-slate-700/40 rounded-xl border border-slate-700/50 hover:border-slate-600/70 transition-colors">
+                <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-2">Proprietário</p>
+                <p className="text-base font-bold text-slate-100 truncate">{aircraft.owner_name || "N/A"}</p>
               </div>
-              <div className="p-3 bg-slate-700/40 rounded-lg">
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Valor Hora</p>
-                <p className="font-semibold text-white">{aircraft.hourly_price ? `R$ ${aircraft.hourly_price}` : "N/A"}</p>
+              <div className="p-4 bg-gradient-to-br from-amber-900/30 to-amber-800/20 rounded-xl border border-amber-700/50 hover:border-amber-600/70 transition-colors">
+                <p className="text-xs text-amber-300 uppercase tracking-wider font-medium mb-2">Valor Hora</p>
+                <p className="text-base font-bold text-amber-100">{aircraft.hourly_price ? `R$ ${aircraft.hourly_price}` : "N/A"}</p>
+              </div>
+              <div className="p-4 bg-gradient-to-br from-slate-800/60 to-slate-700/40 rounded-xl border border-slate-700/50 hover:border-slate-600/70 transition-colors">
+                <p className="text-xs text-slate-400 uppercase tracking-wider font-medium mb-2">Ano Fabricação</p>
+                <p className="text-base font-bold text-slate-100">{aircraft.year || "N/A"}</p>
               </div>
             </div>
           </CardContent>
@@ -404,21 +417,21 @@ export default function AeronaveDetalhes() {
 
         {/* Documents Section */}
         <Card className="rounded-2xl border-0 shadow-lg bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-950 dark:to-slate-900">
-          <CardHeader className="pb-4">
+          <CardHeader className="pb-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <CardTitle className="flex items-center gap-2 text-xl text-white">
-                  <FileText className="h-5 w-5 text-cyan-400" />
+                <CardTitle className="flex items-center gap-2 text-2xl text-white">
+                  <FileText className="h-6 w-6 text-cyan-400" />
                   Documentos da Aeronave
                 </CardTitle>
-                <CardDescription className="mt-1 text-slate-400">
+                <CardDescription className="mt-2 text-slate-400">
                   Gerencie os documentos obrigatórios e certificados
                 </CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {DOCUMENT_TYPES.map((docType) => {
                 const doc = getDocumentByType(docType.key);
                 const Icon = docType.icon;
@@ -428,91 +441,116 @@ export default function AeronaveDetalhes() {
                 return (
                   <div
                     key={docType.key}
-                    className={`p-4 rounded-2xl border-2 transition-all ${doc
+                    className={`p-6 rounded-2xl border-2 transition-all flex flex-col h-full ${doc
                         ? expired
-                          ? "border-red-200 bg-red-50/50 dark:border-red-900 dark:bg-red-950/20"
+                          ? "border-red-500/40 bg-gradient-to-br from-red-950/40 to-red-900/20 hover:border-red-500/60"
                           : expiringSoon
-                            ? "border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20"
-                            : "border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20"
-                        : "border-dashed border-muted-foreground/30 bg-muted/10 hover:border-primary/50"
+                            ? "border-amber-500/40 bg-gradient-to-br from-amber-950/40 to-amber-900/20 hover:border-amber-500/60"
+                            : "border-emerald-500/40 bg-gradient-to-br from-emerald-950/40 to-emerald-900/20 hover:border-emerald-500/60"
+                        : "border-dashed border-slate-600/50 bg-slate-800/30 hover:border-cyan-500/50 hover:bg-slate-800/50"
                       }`}
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3 flex-1 min-w-0">
-                        <div className={`h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 ${doc ? "bg-white dark:bg-background" : "bg-muted"
-                          }`}>
-                          <Icon className={`h-5 w-5 ${doc ? docType.color : "text-muted-foreground"}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">{docType.label}</p>
-                          {doc ? (
-                            <div className="mt-1 space-y-1">
-                              <p className="text-xs text-muted-foreground truncate">{doc.name}</p>
-                              {doc.expiry_date && (
-                                <div className="flex items-center gap-1">
-                                  {expired ? (
-                                    <Badge variant="destructive" className="text-xs rounded-lg">
-                                      Vencido em {format(new Date(doc.expiry_date), "dd/MM/yyyy")}
-                                    </Badge>
-                                  ) : expiringSoon ? (
-                                    <Badge className="text-xs rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-                                      Vence em {format(new Date(doc.expiry_date), "dd/MM/yyyy")}
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="secondary" className="text-xs rounded-lg">
-                                      Válido até {format(new Date(doc.expiry_date), "dd/MM/yyyy")}
-                                    </Badge>
-                                  )}
-                                </div>
+                    {/* Icon and Title */}
+                    <div className="mb-4">
+                      <div className={`h-12 w-12 rounded-xl flex items-center justify-center flex-shrink-0 mb-3 ${doc
+                          ? expired
+                            ? "bg-red-500/20"
+                            : expiringSoon
+                              ? "bg-amber-500/20"
+                              : "bg-emerald-500/20"
+                          : "bg-slate-700/50"
+                        }`}>
+                        <Icon className={`h-6 w-6 ${doc
+                          ? expired
+                            ? "text-red-400"
+                            : expiringSoon
+                              ? "text-amber-400"
+                              : "text-emerald-400"
+                          : docType.color
+                        }`} />
+                      </div>
+                      <p className="font-semibold text-sm text-white">{docType.label}</p>
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1">
+                      {doc ? (
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <p className="text-xs text-slate-400 uppercase tracking-wide">Arquivo</p>
+                            <p className="text-xs text-slate-300 font-medium truncate">{doc.name}</p>
+                          </div>
+                          {doc.expiry_date && (
+                            <div className="pt-2 border-t border-slate-700/50">
+                              {expired ? (
+                                <Badge variant="destructive" className="text-xs rounded-lg w-full text-center justify-center">
+                                  Vencido em {format(new Date(doc.expiry_date), "dd/MM/yyyy")}
+                                </Badge>
+                              ) : expiringSoon ? (
+                                <Badge className="text-xs rounded-lg w-full text-center justify-center bg-amber-500/20 text-amber-300 border-amber-500/30">
+                                  Vence em {format(new Date(doc.expiry_date), "dd/MM/yyyy")}
+                                </Badge>
+                              ) : (
+                                <Badge className="text-xs rounded-lg w-full text-center justify-center bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
+                                  Válido até {format(new Date(doc.expiry_date), "dd/MM/yyyy")}
+                                </Badge>
                               )}
                             </div>
-                          ) : (
-                            <p className="text-xs text-muted-foreground mt-1">Nenhum documento anexado</p>
                           )}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {doc ? (
-                          <>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 rounded-lg"
-                              onClick={() => handleViewDocument(doc)}
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 rounded-lg"
-                              onClick={() => handleDownloadDocument(doc)}
-                            >
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-8 w-8 rounded-lg text-destructive hover:text-destructive"
-                              onClick={() => setDeleteConfirmId(doc.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : null}
-                        <Button
-                          size="sm"
-                          variant={doc ? "outline" : "default"}
-                          className="rounded-xl"
-                          onClick={() => {
-                            setSelectedDocType(docType.key);
-                            setUploadDialogOpen(true);
-                          }}
-                        >
-                          <Upload className="h-4 w-4 mr-1" />
-                          {doc ? "Atualizar" : "Anexar"}
-                        </Button>
-                      </div>
+                      ) : (
+                        <div className="text-center py-2">
+                          <p className="text-xs text-slate-500">Nenhum documento anexado</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="mt-4 pt-4 border-t border-slate-700/50 space-y-2">
+                      {doc && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 px-2 rounded-lg text-xs flex-1"
+                            onClick={() => handleViewDocument(doc)}
+                          >
+                            <Eye className="h-3.5 w-3.5 mr-1" />
+                            Ver
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 px-2 rounded-lg text-xs flex-1"
+                            onClick={() => handleDownloadDocument(doc)}
+                          >
+                            <Download className="h-3.5 w-3.5 mr-1" />
+                            Download
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 px-2 rounded-lg text-xs text-red-400 hover:text-red-300 hover:bg-red-950/30"
+                            onClick={() => setDeleteConfirmId(doc.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      )}
+                      <Button
+                        size="sm"
+                        className={`w-full rounded-xl font-medium transition-all ${doc
+                          ? "bg-slate-700/50 hover:bg-slate-600/70 text-slate-200"
+                          : "bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/20"
+                        }`}
+                        onClick={() => {
+                          setSelectedDocType(docType.key);
+                          setUploadDialogOpen(true);
+                        }}
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        {doc ? "Atualizar" : "Anexar"}
+                      </Button>
                     </div>
                   </div>
                 );
@@ -550,16 +588,6 @@ export default function AeronaveDetalhes() {
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                   onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="expiry">Data de Validade (opcional)</Label>
-                <Input
-                  id="expiry"
-                  type="date"
-                  value={expiryDate}
-                  onChange={(e) => setExpiryDate(e.target.value)}
                   className="mt-1"
                 />
               </div>

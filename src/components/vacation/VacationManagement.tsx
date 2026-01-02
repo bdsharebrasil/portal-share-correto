@@ -140,16 +140,17 @@ export function VacationManagement() {
         console.error("Erro ao atualizar status do funcionário:", profileError);
       }
 
-      // Create notification
-      const { error: notificationError } = await supabase
-        .from("messages")
-        .insert({
-          sender_id: user.id,
-          receiver_id: request.user_id,
-          content: `Suas férias foram aprovadas! Período: ${format(new Date(request.start_date), "dd/MM/yyyy")} a ${format(new Date(request.end_date), "dd/MM/yyyy")}`,
-          read: false,
-        });
+      // Create notification - messages table disabled
+      // const { error: notificationError } = await supabase
+      //   .from("messages")
+      //   .insert({
+      //     sender_id: user.id,
+      //     receiver_id: request.user_id,
+      //     content: `Suas férias foram aprovadas! Período: ${format(new Date(request.start_date), "dd/MM/yyyy")} a ${format(new Date(request.end_date), "dd/MM/yyyy")}`,
+      //     read: false,
+      //   });
 
+      const notificationError = null;
       if (notificationError) {
         console.error("Erro ao criar notificação:", notificationError);
       }
@@ -189,16 +190,17 @@ export function VacationManagement() {
 
       if (requestError) throw requestError;
 
-      // Create notification
-      const { error: notificationError } = await supabase
-        .from("messages")
-        .insert({
-          sender_id: user.id,
-          receiver_id: request.user_id,
-          content: `Sua solicitação de férias foi recusada. ${reason ? `Motivo: ${reason}` : ""}`,
-          read: false,
-        });
+      // Create notification - messages table disabled
+      // const { error: notificationError } = await supabase
+      //   .from("messages")
+      //   .insert({
+      //     sender_id: user.id,
+      //     receiver_id: request.user_id,
+      //     content: `Sua solicitação de férias foi recusada. ${reason ? `Motivo: ${reason}` : ""}`,
+      //     read: false,
+      //   });
 
+      const notificationError = null;
       if (notificationError) {
         console.error("Erro ao criar notificação:", notificationError);
       }

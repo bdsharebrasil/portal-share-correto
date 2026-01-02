@@ -32,7 +32,7 @@ const DEPARTMENT_TO_ROLE_MAP: Record<string, AppRole> = {
 const colaboradorSchema = z.object({
   login: z.string().optional(),
   password: z.string().optional(),
-  full_name: z.string().min(2, "Nome é obrigatório"),
+  full_name: z.string().optional(),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   phone: z.string().optional(),
   birth_date: z.string().optional(),
@@ -49,9 +49,9 @@ const colaboradorSchema = z.object({
 });
 
 const clienteSchema = z.object({
-  login: z.string().min(3, "Login deve ter no mínimo 3 caracteres"),
-  password: z.string().min(6, "Senha deve ter no mínimo 6 caracteres"),
-  client_id: z.string().min(1, "Selecione um cliente"),
+  login: z.string().optional(),
+  password: z.string().optional(),
+  client_id: z.string().optional(),
 });
 
 type ColaboradorFormData = z.infer<typeof colaboradorSchema>;
@@ -148,20 +148,11 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
   };
 
   const onSubmitColaborador = async (data: ColaboradorFormData) => {
-    // Validação adicional quando tem acesso ao sistema
     if (hasSystemAccess) {
-      if (!data.login || data.login.length < 3) {
+      if (!data.login || !data.password) {
         toast({
           title: "Erro",
-          description: "Login deve ter no mínimo 3 caracteres.",
-          variant: "destructive",
-        });
-        return;
-      }
-      if (!data.password || data.password.length < 6) {
-        toast({
-          title: "Erro",
-          description: "Senha deve ter no mínimo 6 caracteres.",
+          description: "Login e senha são obrigatórios para acesso ao sistema.",
           variant: "destructive",
         });
         return;
@@ -201,7 +192,19 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
           },
         });
 
-        if (error) throw error;
+        if (error) {
+          let errorMessage = "Erro desconhecido ao criar colaborador.";
+          if (typeof error === 'object' && error !== null) {
+            if ('message' in error) {
+              errorMessage = (error as any).message;
+            } else if ('error' in error) {
+              errorMessage = (error as any).error;
+            }
+          } else if (typeof error === 'string') {
+            errorMessage = error;
+          }
+          throw new Error(errorMessage);
+        }
 
         // Upload avatar se houver
         if (avatarFile && result?.user?.id) {
@@ -279,21 +282,92 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
   };
 
   const onSubmitCliente = async (data: ClienteFormData) => {
+    if (!data.login || !data.login.trim()) {
+      toast({
+        title: "Erro",
+        description: "Login é obrigatório.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!data.password || !data.password.trim()) {
+      toast({
+        title: "Erro",
+        description: "Senha é obrigatória.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!data.client_id || !data.client_id.trim()) {
+      toast({
+        title: "Erro",
+        description: "Selecione um cliente.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (data.password.length < 6) {
+      toast({
+        title: "Erro",
+        description: "Senha deve ter no mínimo 6 caracteres.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const email = `${data.login}@share.com`;
+      const email = `${data.login.trim()}@share.com`;
 
-      const { data: result, error } = await supabase.functions.invoke("create-user", {
+      console.log("Sending create-user request with:", {
+        email,
+        password: "***",
+        role: "cliente",
+        userType: "cliente",
+        clientId: data.client_id,
+      });
+
+      const response = await supabase.functions.invoke("create-user", {
         body: {
-          email,
-          password: data.password,
+          email: email,
+          password: data.password.trim(),
           role: "cliente",
           userType: "cliente",
-          clientId: data.client_id,
+          clientId: data.client_id.trim(),
         },
       });
 
-      if (error) throw error;
+      console.log("Response from create-user:", response);
+
+      if (response.error) {
+        console.error("Full error object:", response.error);
+        let errorMessage = "Erro ao criar cliente.";
+
+        // Try multiple ways to extract the error message
+        const errorObj = response.error as any;
+
+        if (errorObj?.context?.response?.body) {
+          try {
+            const bodyText = errorObj.context.response.body;
+            const parsed = typeof bodyText === 'string' ? JSON.parse(bodyText) : bodyText;
+            errorMessage = parsed.error || parsed.message || JSON.stringify(parsed);
+          } catch (e) {
+            console.error("Failed to parse error response:", e);
+            errorMessage = String(errorObj.context.response.body);
+          }
+        } else if (errorObj?.message) {
+          errorMessage = errorObj.message;
+        } else if (typeof errorObj === 'string') {
+          errorMessage = errorObj;
+        } else {
+          errorMessage = JSON.stringify(errorObj);
+        }
+
+        throw new Error(errorMessage);
+      }
 
       toast({
         title: "Sucesso!",
@@ -370,14 +444,14 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
                   {/* Dados de Acesso - Apenas quando tem acesso */}
                   {hasSystemAccess && (
                     <div className="md:col-span-2 space-y-4">
-                      <h3 className="text-lg font-semibold text-foreground">Dados de Acesso *</h3>
+                      <h3 className="text-lg font-semibold text-foreground">Dados de Acesso</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                           control={colaboradorForm.control}
                           name="login"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Login *</FormLabel>
+                              <FormLabel>Login</FormLabel>
                               <FormControl>
                                 <div className="flex items-center border border-input rounded-md bg-background overflow-hidden">
                                   <input
@@ -401,7 +475,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
                           name="password"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Senha *</FormLabel>
+                              <FormLabel>Senha</FormLabel>
                               <FormControl>
                                 <Input type="password" placeholder="******" {...field} />
                               </FormControl>
@@ -440,7 +514,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
                   {/* Dados Pessoais */}
                   <div className="md:col-span-2 space-y-4">
                     <h3 className="text-lg font-semibold text-foreground">
-                      Dados Pessoais {!hasSystemAccess && "*"}
+                      Dados Pessoais
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
@@ -448,7 +522,7 @@ export function CreateUserForm({ defaultUserType }: { defaultUserType?: "colabor
                         name="full_name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Nome Completo *</FormLabel>
+                            <FormLabel>Nome Completo</FormLabel>
                             <FormControl>
                               <Input placeholder="João Silva" {...field} />
                             </FormControl>
@@ -707,14 +781,14 @@ function ClientForm({
     <Form {...form}>
       <form onSubmit={onSubmit} className="space-y-6">
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-foreground">Dados de Acesso *</h3>
+          <h3 className="text-lg font-semibold text-foreground">Dados de Acesso</h3>
 
           <FormField
             control={form.control}
             name="client_id"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Cliente *</FormLabel>
+                <FormLabel>Cliente</FormLabel>
                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
@@ -739,7 +813,7 @@ function ClientForm({
             name="login"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Login *</FormLabel>
+                <FormLabel>Login</FormLabel>
                 <FormControl>
                   <Input placeholder="usuario" {...field} />
                 </FormControl>
@@ -753,7 +827,7 @@ function ClientForm({
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Senha *</FormLabel>
+                <FormLabel>Senha</FormLabel>
                 <FormControl>
                   <Input type="password" placeholder="******" {...field} />
                 </FormControl>

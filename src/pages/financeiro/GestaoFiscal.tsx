@@ -2,7 +2,7 @@ import React from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, ArrowUp, ArrowDown, Wallet, Calendar, Users, DollarSign, Receipt, Settings, Repeat } from "lucide-react";
+import { FileText, ArrowUp, ArrowDown, Wallet, Calendar, Users, DollarSign, Receipt, Settings, Repeat, ArrowLeft } from "lucide-react";
 import { NotasFiscaisSaida } from "@/components/fiscal/NotasFiscaisSaida";
 import { FluxoCaixa } from "@/components/fiscal/FluxoCaixa";
 import { ContasRecorrentesTab } from "@/components/fiscal/ContasRecorrentesTab";
@@ -11,7 +11,10 @@ import { ConfiguracoesFiscais } from "@/components/fiscal/ConfiguracoesFiscais";
 import { ContasPagar } from "@/components/fiscal/ContasPagar";
 import { ContasReceber } from "@/components/fiscal/ContasReceber";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useNavigate } from "react-router-dom";
+
 export default function GestaoFiscal() {
+  const navigate = useNavigate();
   const {
     isAdmin,
     isGestorMaster,
@@ -31,17 +34,26 @@ export default function GestaoFiscal() {
       </Layout>;
   }
   return <Layout>
-      <div className="flex-col bg-background flex items-start justify-start px-4 sm:px-6 lg:px-8 py-6">
+      <div className="flex flex-col bg-background w-full min-h-full px-3 sm:px-4 lg:px-6 py-4 lg:py-6 space-y-4">
+        {/* Back Button */}
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-foreground hover:text-primary transition-colors group w-fit"
+        >
+          <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
+          <span className="text-sm">Voltar</span>
+        </button>
+
         {/* Header */}
         <div className="space-y-4 pb-4 w-full">
           <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-gradient-to-br from-primary/30 via-primary/15 to-primary/5 border-primary/30 shadow-primary/10 border-0 rounded-xl shadow">
-                <DollarSign className="w-8 h-8 text-primary" />
+            <div className="flex items-center gap-3 lg:gap-4">
+              <div className="p-2.5 lg:p-3 bg-gradient-to-br from-primary/30 via-primary/15 to-primary/5 border-primary/30 shadow-primary/10 border-0 rounded-xl shadow">
+                <DollarSign className="w-6 h-6 lg:w-8 lg:h-8 text-primary" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-foreground tracking-tight">Gestão Fiscal e Financeira</h1>
-                <p className="text-sm text-muted-foreground mt-1">Controle completo de caixa, notas fiscais e pagamentos</p>
+                <h1 className="text-2xl lg:text-3xl font-bold text-foreground tracking-tight">Gestão Fiscal e Financeira</h1>
+                <p className="text-xs lg:text-sm text-muted-foreground mt-1">Controle completo de caixa, notas fiscais e pagamentos</p>
               </div>
             </div>
           </div>
@@ -104,7 +116,7 @@ export default function GestaoFiscal() {
 
             {/* Tab Content */}
             <div className="w-full pt-4">
-              <TabsContent value="fluxo" className="mt-0">
+              <TabsContent value="fluxo" className="mt-0 w-full">
                 <FluxoCaixa />
               </TabsContent>
 

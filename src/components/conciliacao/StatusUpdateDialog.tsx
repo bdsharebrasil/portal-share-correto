@@ -103,6 +103,12 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
     const statusFinal = isStatusFinal(status, reconciliation.type || '');
     const statusEnviado = isStatusEnviado(status);
 
+    // Validar prazo de vencimento quando status é "enviado"
+    if (statusEnviado && !reconciliation.payment_term) {
+      toast.error("Defina o prazo de vencimento antes de enviar");
+      return;
+    }
+
     // Validar banco obrigatório quando status é final
     if (statusFinal && !selectedBanco) {
       toast.error("Selecione o banco para registrar a movimentação");

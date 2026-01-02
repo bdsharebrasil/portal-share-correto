@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useState, lazy, Suspense } from 'react';
-import { Menu, LogOut, User, UserPlus, Users, Briefcase } from 'lucide-react';
+import React, { useCallback, useMemo, useState, lazy, Suspense, useEffect } from 'react';
+import { Menu, LogOut, User, Users, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -10,12 +10,11 @@ import { useToast } from '@/hooks/use-toast';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useUserProfile } from '@/hooks/useUserProfile';
 import { WeatherDisplay } from '@/components/weather/WeatherDisplay';
-const NotificationBell = lazy(() => import("@/components/notifications/NotificationBell").then(m => ({
-  default: m.NotificationBell
-})));
+import { ViewModeToggle } from '@/components/dashboard/ViewModeToggle';
+import { BirthdayAlert } from '@/components/notifications/BirthdayAlert';
+const NotificationBell = lazy(() => import("@/components/notifications/NotificationBell"));
 interface HeaderProps {
   onMenuClick: () => void;
-  onRightMenuClick: () => void;
 }
 const getInitials = (input: string | null | undefined) => {
   if (!input) {
@@ -31,8 +30,7 @@ const getInitials = (input: string | null | undefined) => {
   return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
 };
 export const Header: React.FC<HeaderProps> = ({
-  onMenuClick,
-  onRightMenuClick
+  onMenuClick
 }) => {
   const navigate = useNavigate();
   const {
@@ -53,10 +51,25 @@ export const Header: React.FC<HeaderProps> = ({
     skipCreation: Boolean(isAdmin || isGestorMaster)
   });
   const [searchQuery, setSearchQuery] = React.useState("");
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+  };
 
   // Regras de acesso refinadas
   const canManageUsersGlobal = useMemo(() => roles.includes("admin") || roles.includes("gestor_master"), [roles]);
-  const canAccessEmployeePayroll = useMemo(() => roles.includes("admin") || roles.includes("gestor_master") || roles.includes("financeiro_master"), [roles]);
   const displayName = useMemo(() => profile?.display_name ?? profile?.full_name ?? user?.email ?? "Usuário", [profile?.display_name, profile?.full_name, user?.email]);
   const email = profile?.email ?? user?.email ?? "";
   const avatarInitials = useMemo(() => getInitials(displayName), [displayName]);
@@ -82,31 +95,31 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="flex items-center justify-between h-full px-4 lg:px-6">
         {/* Seção Esquerda */}
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={onMenuClick} className="text-foreground hover:bg-accent">
-            <Menu className="h-5 w-5" />
-          </Button>
-
-          <div className="flex items-center gap-2">
-            <img src="https://cdn.builder.io/api/v1/image/assets%2Fc800a4ee1bbb404a92b07d7f3888df82%2Fbfc4d2f155334c849630cbcdfa5ac038?format=webp&width=800" alt="Share Brasil" className="h-8 w-8 shadow-md border-slate-200 border-0" />
-            <div className="hidden sm:block">
-              <span className="text-lg lg:text-xl font-bold text-foreground">Gestão Share Brasil</span>
-              <p className="text-xs text-muted-foreground">Portal do Colaborador</p>
-            </div>
-          </div>
         </div>
 
-        {/* Barra de Pesquisa Central */}
-        <div className="hidden md:flex flex-1 max-w-xl mx-8">
-          <div className="relative w-full">
+        {/* View Mode Toggle - Center */}
+        <div className="hidden md:flex items-center gap-4">
+          <ViewModeToggle />
+          <div className="relative w-64">
             <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <Input placeholder="Pesquisar no portal..." className="pl-10 bg-background/50 border-border" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+            <Input placeholder="Buscar aeronave, tripulante..." className="pl-10 bg-background/50 border-border" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
           </div>
+        </div>
+
+        {/* Clock */}
+        <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-lg bg-background/40 border border-border/50 backdrop-blur-sm">
+          <Clock className="h-4 w-4 text-primary" />
+          <p className="text-sm font-semibold text-foreground font-mono">
+            {formatTime(currentTime)}
+          </p>
         </div>
 
         {/* Seção Direita */}
         <div className="flex items-center gap-2 lg:gap-4">
+          <BirthdayAlert />
+
           <WeatherDisplay />
 
           <Suspense fallback={null}>
@@ -147,22 +160,6 @@ export const Header: React.FC<HeaderProps> = ({
                   Gestão de Usuário
                 </DropdownMenuItem>}
 
-              {canAccessEmployeePayroll && <DropdownMenuItem className="text-foreground hover:bg-accent cursor-pointer" onSelect={event => {
-              event.preventDefault();
-              navigate("/gestao-funcionarios");
-            }}>
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Gestão de Funcionários
-                </DropdownMenuItem>}
-
-              {canAccessEmployeePayroll && <DropdownMenuItem className="text-foreground hover:bg-accent cursor-pointer" onSelect={event => {
-              event.preventDefault();
-              navigate("/gestao-salarios");
-            }}>
-                  <Briefcase className="mr-2 h-4 w-4" />
-                  Holerites e Salário
-                </DropdownMenuItem>}
-
               <DropdownMenuSeparator className="bg-border" />
 
               <DropdownMenuItem className="text-destructive hover:bg-destructive/10 cursor-pointer" onSelect={event => {
@@ -175,9 +172,6 @@ export const Header: React.FC<HeaderProps> = ({
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button variant="ghost" size="icon" onClick={onRightMenuClick} className="text-foreground hover:bg-accent">
-            <Menu className="h-5 w-5" />
-          </Button>
         </div>
       </div>
     </header>;

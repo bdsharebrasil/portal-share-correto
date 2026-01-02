@@ -59,10 +59,12 @@ export function AircraftSalariesMonthly() {
 
   const years = useMemo(() => {
     const years = [];
-    for (let i = currentDate.getFullYear() - 2; i <= currentDate.getFullYear() + 1; i++) {
+    const startYear = Math.min(currentDate.getFullYear() - 2, 2024);
+    const endYear = Math.max(currentDate.getFullYear() + 1, 2024);
+    for (let i = startYear; i <= endYear; i++) {
       years.push(i);
     }
-    return years;
+    return years.sort((a, b) => b - a);
   }, []);
 
   const { data: activeAircraft = [], isLoading: aircraftLoading } = useQuery({

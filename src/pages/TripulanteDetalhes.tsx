@@ -4,17 +4,19 @@ import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, ArrowLeft, UploadCloud, Trash2, Clock, Plane, AlertTriangle } from "lucide-react";
+import { Calendar, ArrowLeft, UploadCloud, AlertTriangle, Clock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import FlightHoursCard from "@/components/tripulacao/FlightHoursCard";
 import CrewFlightHoursTable from "@/components/tripulacao/CrewFlightHoursTable";
 import { formatBirthDateWithAge, formatDateToBR, formatMonthShort } from "@/lib/date-utils";
-import CrewCalendar from "@/components/tripulacao/CrewCalendar";
+import { CrewMemberNav } from "@/components/tripulacao/CrewMemberNav";
+import { StackedCardsUpload, type UploadFile } from "@/components/ui/stacked-cards-upload";
+import { LicenseExpiryDialog } from "@/components/tripulacao/LicenseExpiryDialog";
 
 export default function TripulanteDetalhes() {
   const { id } = useParams();
@@ -22,12 +24,17 @@ export default function TripulanteDetalhes() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = (
     searchParams.get("tab") === "anexos" ? "anexos" :
-    searchParams.get("tab") === "calendario" ? "calendario" :
+    searchParams.get("tab") === "horas-voo" ? "horas-voo" :
     searchParams.get("tab") === "escala" ? "escala" :
     searchParams.get("tab") === "habilitacoes" ? "habilitacoes" :
     "dados"
-  ) as "dados" | "anexos" | "calendario" | "escala" | "habilitacoes";
-  const [activeTab, setActiveTab] = useState<"dados" | "anexos" | "calendario" | "escala" | "habilitacoes">(initialTab);
+  ) as "dados" | "anexos" | "horas-voo" | "escala" | "habilitacoes";
+  const [activeTab, setActiveTab] = useState<"dados" | "anexos" | "horas-voo" | "escala" | "habilitacoes">(initialTab);
+
+  // State for license edit dialog
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedLicense, setSelectedLicense] = useState<any>(null);
+  const [isCMAEdit, setIsCMAEdit] = useState(false);
 
   const { data: member, isLoading, refetch } = useQuery({
     queryKey: ["crew_member", id],
@@ -35,40 +42,30 @@ export default function TripulanteDetalhes() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("crew_members")
-        .select("id, full_name, canac, birth_date, email, phone, photo_url, status")
+        .select("id, full_name, canac, birth_date, phone, avatar_url, status")
         .eq("id", id)
         .single();
-      if (error) throw error;
 
-      // Se photo_url é um caminho no storage, gera URL pública
-      if (data?.photo_url && !data.photo_url.startsWith('http')) {
-        try {
-          const { data: publicUrl } = await supabase.storage
-            .from('crew-photos')
-            .getPublicUrl(data.photo_url);
-          if (publicUrl?.publicUrl) {
-            data.photo_url = publicUrl.publicUrl;
-          }
-        } catch {
-          // Ignora erro e mantém photo_url vazio
-          data.photo_url = null;
-        }
-      }
+      if (error) throw error;
 
       return data;
     },
   });
 
-  const { data: licenses = [], isLoading: isLicensesLoading } = useQuery({
+  const { data: licenses = [], isLoading: isLicensesLoading, refetch: refetchLicenses } = useQuery({
     queryKey: ["crew_licenses", id],
     enabled: !!id,
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("crew_licenses")
-        .select("id, license_type, license_number, issue_date, expiry_date, issuing_authority, status, observations, CMA, FS_RH, validade_cma")
+        .select("*")
         .eq("crew_member_id", id)
-        .order("expiry_date");
-      if (error) throw error;
+        .order("expiry_date", { ascending: true, nullsFirst: false });
+
+      if (error) {
+        console.error("Error fetching licenses:", error);
+        throw error;
+      }
       return data ?? [];
     },
   });
@@ -90,22 +87,77 @@ export default function TripulanteDetalhes() {
     },
   });
 
-  const getLicenseStatusBadge = (lic: any) => {
-    const expiryDate = lic.license_type === 'CMA' && lic.validade_cma
+  const handleEditLicense = (lic: any, isCMA: boolean = false) => {
+    setSelectedLicense(lic);
+    setIsCMAEdit(isCMA);
+    setEditDialogOpen(true);
+  };
+
+  const getLicenseStatusBadge = (lic: any, isCMA: boolean = false, onClick?: () => void) => {
+    const expiryDate = isCMA && lic.validade_cma
       ? new Date(lic.validade_cma)
       : lic.expiry_date
         ? new Date(lic.expiry_date)
         : null;
 
-    if (!expiryDate) return <Badge variant="secondary">Indefinido</Badge>;
+    if (!expiryDate) {
+      return (
+        <Badge
+          variant="secondary"
+          className="cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={onClick}
+        >
+          Indefinido
+        </Badge>
+      );
+    }
 
     const today = new Date();
     const daysUntil = Math.floor((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-    if (isNaN(daysUntil)) return <Badge variant="secondary">Indefinido</Badge>;
-    if (daysUntil < 0) return <Badge variant="destructive" className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Vencida</Badge>;
-    if (daysUntil <= 60) return <Badge className="bg-yellow-500/20 text-yellow-700 border-yellow-500/30 flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Vence em {daysUntil} dias</Badge>;
-    return <Badge className="bg-green-500 text-white">Válida</Badge>;
+    if (isNaN(daysUntil)) {
+      return (
+        <Badge
+          variant="secondary"
+          className="cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={onClick}
+        >
+          Indefinido
+        </Badge>
+      );
+    }
+
+    if (daysUntil < 0) {
+      return (
+        <Badge
+          variant="destructive"
+          className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={onClick}
+        >
+          <AlertTriangle className="h-2 w-2" /> Vencida
+        </Badge>
+      );
+    }
+
+    if (daysUntil <= 60) {
+      return (
+        <Badge
+          className="bg-yellow-500/20 text-yellow-700 border-yellow-500/30 flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={onClick}
+        >
+          <AlertTriangle className="h-3 w-3" /> Vence em {daysUntil} dias
+        </Badge>
+      );
+    }
+
+    return (
+      <Badge
+        className="bg-green-500 text-white cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={onClick}
+      >
+        Válida
+      </Badge>
+    );
   };
 
   const ageText = useMemo(() => {
@@ -113,7 +165,7 @@ export default function TripulanteDetalhes() {
     return formatBirthDateWithAge(member.birth_date);
   }, [member?.birth_date]);
 
-  const [uploading, setUploading] = useState(false);
+  const [uploadingFiles, setUploadingFiles] = useState<UploadFile[]>([]);
   const [docs, setDocs] = useState<{ name: string; url: string }[]>([]);
 
   const loadDocs = async () => {
@@ -139,24 +191,116 @@ export default function TripulanteDetalhes() {
     setSearchParams(params);
   }, [activeTab]);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleUpload = async (file: File) => {
     if (!id) return;
-    setUploading(true);
+
+    const fileId = crypto.randomUUID();
+    const uploadFile: UploadFile = {
+      id: fileId,
+      file,
+      progress: 0,
+      status: "uploading"
+    };
+
+    setUploadingFiles(prev => [...prev, uploadFile]);
+
     try {
       const path = `${id}/${Date.now()}-${file.name}`;
-      const { error } = await supabase.storage.from("crew-docs").upload(path, file, { upsert: false });
+
+      const { error } = await supabase.storage.from("crew-docs").upload(path, file, {
+        upsert: false,
+        onUploadProgress: (progress: { loaded: number; total: number }) => {
+          const percent = (progress.loaded / progress.total) * 100;
+          setUploadingFiles(prev =>
+            prev.map(f =>
+              f.id === fileId ? { ...f, progress: Math.round(percent) } : f
+            )
+          );
+        }
+      });
+
       if (error) throw error;
-      await loadDocs();
-    } finally {
-      setUploading(false);
+
+      setUploadingFiles(prev =>
+        prev.map(f =>
+          f.id === fileId ? { ...f, progress: 100, status: "done" as const } : f
+        )
+      );
+
+      setTimeout(() => {
+        setUploadingFiles(prev => prev.filter(f => f.id !== fileId));
+        loadDocs();
+      }, 1000);
+    } catch (error) {
+      console.error("Upload error:", error);
+      setUploadingFiles(prev => prev.filter(f => f.id !== fileId));
     }
+  };
+
+  const handleRemoveUpload = (fileId: string) => {
+    setUploadingFiles(prev => prev.filter(f => f.id !== fileId));
   };
 
   const handleDelete = async (name: string) => {
     if (!id) return;
     const { error } = await supabase.storage.from("crew-docs").remove([`${id}/${name}`]);
     if (!error) await loadDocs();
+  };
+
+  const getLicenseStatusColorClass = (lic: any, isCMA: boolean = false) => {
+    const expiryDate = isCMA && lic.validade_cma
+      ? new Date(lic.validade_cma)
+      : lic.expiry_date
+        ? new Date(lic.expiry_date)
+        : null;
+
+    if (!expiryDate || isNaN(expiryDate.getTime())) {
+      return { bg: "bg-gradient-to-r from-slate-500/10 to-slate-600/5", border: "border-slate-500/30 hover:border-slate-500/50" };
+    }
+
+    const today = new Date();
+    const daysUntil = Math.floor((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Vencida
+    if (daysUntil < 0) {
+      return { bg: "bg-gradient-to-r from-red-500/10 to-red-600/5", border: "border-red-500/30 hover:border-red-500/50" };
+    }
+
+    // A vencer em breve (até 60 dias)
+    if (daysUntil <= 60) {
+      return { bg: "bg-gradient-to-r from-yellow-500/10 to-yellow-600/5", border: "border-yellow-500/30 hover:border-yellow-500/50" };
+    }
+
+    // Válida
+    return { bg: "bg-gradient-to-r from-green-500/10 to-green-600/5", border: "border-green-500/30 hover:border-green-500/50" };
+  };
+
+  const getLicenseColorClass = (licenseType: string) => {
+    const type = licenseType?.toLowerCase().trim() || "";
+
+    // Map license types to color schemes
+    const colorMap: { [key: string]: { bg: string; border: string; text: string; labelText: string } } = {
+      "ppl": { bg: "bg-gradient-to-r from-blue-500/10 to-blue-600/5", border: "border-blue-500/30", text: "text-blue-300", labelText: "text-blue-200" },
+      "comercial": { bg: "bg-gradient-to-r from-purple-500/10 to-purple-600/5", border: "border-purple-500/30", text: "text-purple-300", labelText: "text-purple-200" },
+      "ifr": { bg: "bg-gradient-to-r from-emerald-500/10 to-emerald-600/5", border: "border-emerald-500/30", text: "text-emerald-300", labelText: "text-emerald-200" },
+      "mpl": { bg: "bg-gradient-to-r from-orange-500/10 to-orange-600/5", border: "border-orange-500/30", text: "text-orange-300", labelText: "text-orange-200" },
+      "atpl": { bg: "bg-gradient-to-r from-red-500/10 to-red-600/5", border: "border-red-500/30", text: "text-red-300", labelText: "text-red-200" },
+      "cpl": { bg: "bg-gradient-to-r from-violet-500/10 to-violet-600/5", border: "border-violet-500/30", text: "text-violet-300", labelText: "text-violet-200" },
+      "asel": { bg: "bg-gradient-to-r from-cyan-500/10 to-cyan-600/5", border: "border-cyan-500/30", text: "text-cyan-300", labelText: "text-cyan-200" },
+      "ases": { bg: "bg-gradient-to-r from-teal-500/10 to-teal-600/5", border: "border-teal-500/30", text: "text-teal-300", labelText: "text-teal-200" },
+      "mel": { bg: "bg-gradient-to-r from-amber-500/10 to-amber-600/5", border: "border-amber-500/30", text: "text-amber-300", labelText: "text-amber-200" },
+      "mes": { bg: "bg-gradient-to-r from-yellow-500/10 to-yellow-600/5", border: "border-yellow-500/30", text: "text-yellow-300", labelText: "text-yellow-200" },
+    };
+
+    // Check for matches
+    for (const [key, colors] of Object.entries(colorMap)) {
+      if (type.includes(key) || key.includes(type)) {
+        return colors;
+      }
+    }
+
+    // Default color for unknown license types
+    return { bg: "bg-gradient-to-r from-slate-500/10 to-slate-600/5", border: "border-slate-500/30", text: "text-slate-300", labelText: "text-slate-200" };
   };
 
   if (isLoading || !member) {
@@ -172,13 +316,27 @@ export default function TripulanteDetalhes() {
   return (
     <Layout>
       <div className="p-6 space-y-6">
-        <Card className="border-0 shadow-none">
+        <Card className="border-0 shadow-none bg-transparent">
           <CardContent className="p-0">
-            <div className="relative flex items-start justify-between rounded-xl bg-[rgba(1,24,53,0.69)] text-white p-6">
-              <div className="flex items-center gap-4 ml-[9px]">
-                <Avatar className="h-20 w-20 border-4 border-white/10">
-                  <AvatarImage src={member.photo_url || undefined} />
-                  <AvatarFallback className="bg-white text-primary">
+            <div className="relative rounded-xl bg-gradient-to-br from-slate-900/80 to-slate-950/80 border border-cyan-500/20 hover:border-cyan-500/40 text-white p-6">
+              <Button
+                variant="ghost"
+                onClick={() => navigate("/tripulacao")}
+                className="absolute right-4 top-4 h-10 w-10 p-0 bg-slate-700/50 hover:bg-slate-600 text-slate-200 rounded-full"
+                aria-label="Voltar"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
+                {/* Avatar */}
+                <Avatar className="h-24 w-24 ring-4 ring-cyan-500/30 flex-shrink-0">
+                  <AvatarImage
+                    src={member.avatar_url || undefined}
+                    alt={member.full_name}
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="bg-slate-800 text-slate-300 font-bold text-2xl">
                     {(member.full_name || "?")
                       .split(" ")
                       .map((n) => n[0])
@@ -186,25 +344,25 @@ export default function TripulanteDetalhes() {
                       .join("")}
                   </AvatarFallback>
                 </Avatar>
-                <div>
-                  <h1 className="text-[19px] leading-[30px] font-bold">{member.full_name}</h1>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
-                    <Badge className="bg-[#059936]">Código ANAC: {member.canac || "N/A"}</Badge>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      <span>Nascimento: {ageText || "N/A"}</span>
+
+                {/* Info */}
+                <div className="flex-1">
+                  <h1 className="text-2xl md:text-3xl font-bold text-white mb-3">{member.full_name}</h1>
+
+                  <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-start sm:items-center">
+                    <Badge className="bg-cyan-500/30 border-cyan-400 text-cyan-300 text-xs md:text-sm font-mono px-3 py-1 font-bold border">
+                      ⚜ ANAC: {member.canac || "N/A"}
+                    </Badge>
+
+                    <div className="flex items-center gap-2 text-sm text-slate-300">
+                      <Calendar className="h-4 w-4 flex-shrink-0" />
+                      <span>
+                        {member.birth_date ? formatBirthDateWithAge(member.birth_date) : "Data não informada"}
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
-              <Button
-                variant="secondary"
-                onClick={() => navigate("/tripulacao")}
-                className="absolute right-2 top-2 h-[22px] w-[26px] px-1 bg-sky-300/40 text-slate-200 border-transparent rounded-[10px]"
-                aria-label="Voltar"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
             </div>
           </CardContent>
         </Card>
@@ -212,29 +370,22 @@ export default function TripulanteDetalhes() {
         <Card>
           <CardContent className="p-6">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-              <TabsList className="grid w-full max-w-4xl grid-cols-5">
-                <TabsTrigger value="dados">Dados Principais</TabsTrigger>
-                <TabsTrigger value="habilitacoes">Habilitações</TabsTrigger>
-                <TabsTrigger value="escala">Escala</TabsTrigger>
-                <TabsTrigger value="calendario">Horas de Voo</TabsTrigger>
-                <TabsTrigger value="anexos">Anexos</TabsTrigger>
-              </TabsList>
+              <CrewMemberNav
+                activeTab={activeTab}
+                onTabChange={(tab) => setActiveTab(tab)}
+              />
 
               <TabsContent value="dados" className="mt-6 space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold mb-4">Informações Pessoais</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <Label>Nome Completo</Label>
                       <Input value={member.full_name || "—"} readOnly className="bg-muted/50" />
                     </div>
                     <div className="space-y-2">
                       <Label>Data de Nascimento</Label>
                       <Input value={member.birth_date ? formatDateToBR(member.birth_date) : "—"} readOnly className="bg-muted/50" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Email</Label>
-                      <Input value={member.email || "—"} readOnly className="bg-muted/50" />
                     </div>
                     <div className="space-y-2">
                       <Label>Telefone</Label>
@@ -244,7 +395,7 @@ export default function TripulanteDetalhes() {
                 </div>
               </TabsContent>
 
-              <TabsContent value="habilitacoes" className="mt-6 space-y-4">
+              <TabsContent value="habilitacoes" className="mt-6 space-y-6">
                 {isLicensesLoading ? (
                   <div className="text-center py-8">
                     <div className="text-sm text-muted-foreground">Carregando habilitações...</div>
@@ -254,73 +405,125 @@ export default function TripulanteDetalhes() {
                     <div className="text-sm text-muted-foreground">Nenhuma habilitação cadastrada</div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {licenses.map((lic: any) => (
-                      <div key={lic.id} className="border rounded-xl p-5 space-y-3 bg-card hover:shadow-md transition-shadow">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="font-semibold text-lg text-foreground">{lic.license_type}</div>
-                          {getLicenseStatusBadge(lic)}
-                        </div>
+                  <div className="space-y-6">
+                    {/* Habilitações Técnicas */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">Habilitações Técnicas</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {licenses
+                          .filter((lic: any) => !lic.CMA)
+                          .map((lic: any) => {
+                            const statusColorClass = getLicenseStatusColorClass(lic, false);
+                            const typeColorClass = getLicenseColorClass(lic.license_type);
+                            return (
+                          <div
+                            key={lic.id}
+                            className={`${statusColorClass.bg} border ${statusColorClass.border} rounded-lg p-4 transition-colors space-y-3`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className={`font-semibold ${typeColorClass.labelText}`}>{lic.license_type}</div>
+                              {getLicenseStatusBadge(lic, false, () => handleEditLicense(lic, false))}
+                            </div>
 
-                        <div className="space-y-2 text-sm">
-                          {lic.license_type === 'CMA' ? (
-                            <>
-                              {lic.CMA && (
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Classe:</span>
-                                  <span className="font-medium">{lic.CMA}</span>
-                                </div>
-                              )}
-                              {lic.FS_RH && (
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">FS/RH:</span>
-                                  <span className="font-medium">{lic.FS_RH}</span>
-                                </div>
-                              )}
-                              {lic.validade_cma && (
-                                <div className="flex justify-between border-t pt-2 mt-2">
-                                  <span className="text-muted-foreground">Validade:</span>
-                                  <span className="font-medium">{formatDateToBR(lic.validade_cma)}</span>
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              {lic.license_number && (
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Número:</span>
-                                  <span className="font-medium">{lic.license_number}</span>
-                                </div>
-                              )}
+                            <div className="space-y-2 text-sm">
+
                               {lic.issuing_authority && (
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Emissor:</span>
-                                  <span className="font-medium">{lic.issuing_authority}</span>
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-slate-500">Emissor:</span>
+                                  <span className="text-slate-300 font-medium">{lic.issuing_authority}</span>
                                 </div>
                               )}
                               {lic.issue_date && (
-                                <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Emissão:</span>
-                                  <span className="font-medium">{formatDateToBR(lic.issue_date)}</span>
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-slate-500">Emissão:</span>
+                                  <span className="text-slate-300 font-medium">{formatDateToBR(lic.issue_date)}</span>
                                 </div>
                               )}
                               {lic.expiry_date && (
-                                <div className="flex justify-between border-t pt-2 mt-2">
-                                  <span className="text-muted-foreground">Validade:</span>
-                                  <span className="font-medium">{formatDateToBR(lic.expiry_date)}</span>
+                                <div className="flex justify-between text-xs border-t border-slate-700/50 pt-2 mt-2">
+                                  <span className="text-slate-500">Validade:</span>
+                                  <span className="text-slate-300 font-medium">{formatDateToBR(lic.expiry_date)}</span>
                                 </div>
                               )}
-                            </>
-                          )}
-                        </div>
+                            </div>
 
-                        {lic.observations && (
-                          <div className="text-xs text-muted-foreground italic bg-muted/30 p-2 rounded border-l-2 border-primary">
-                            {lic.observations}
+                            {lic.observations && (
+                              <div className="text-xs text-slate-400 italic bg-slate-900/50 p-2 rounded border-l-2 border-cyan-500/50 mt-3">
+                                {lic.observations}
+                              </div>
+                            )}
                           </div>
-                        )}
+                        );
+                          })}
                       </div>
-                    ))}
+                      {licenses.filter((lic: any) => !lic.CMA).length === 0 && (
+                        <div className="text-center py-8 text-slate-400">
+                          <p className="text-sm">Nenhuma habilitação técnica cadastrada</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* CMA */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">Certificado Médico Aeronáutico</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {licenses
+                          .filter((lic: any) => !!lic.CMA)
+                          .map((lic: any) => {
+                            const statusColorClass = getLicenseStatusColorClass(lic, true);
+                            return (
+                          <div
+                            key={`${lic.id}-cma`}
+                            className={`${statusColorClass.bg} border ${statusColorClass.border} rounded-lg p-4 transition-colors space-y-3`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <div className="font-semibold text-cyan-300">CMA</div>
+                                <p className="text-xs text-cyan-200 mt-1">
+                                  Certificado Médico Aeronáutico
+                                </p>
+                              </div>
+                              {getLicenseStatusBadge(lic, true, () => handleEditLicense(lic, true))}
+                            </div>
+
+                            <div className="space-y-2 text-sm">
+                              {lic.CMA && (
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-slate-400">Classe:</span>
+                                  <span className="text-cyan-300 font-semibold">
+                                    {lic.CMA === 'primeira' ? '1° Classe' : lic.CMA === 'segunda' ? '2° Classe' : lic.CMA}
+                                  </span>
+                                </div>
+                              )}
+                              {lic.validade_cma && (
+                                <div className="flex justify-between text-xs border-t border-cyan-500/20 pt-2 mt-2">
+                                  <span className="text-slate-400">Validade:</span>
+                                  <span className="text-slate-300 font-medium">{formatDateToBR(lic.validade_cma)}</span>
+                                </div>
+                              )}
+                              {lic.FS_RH && (
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-slate-400">FS/RH:</span>
+                                  <span className="text-slate-300 font-medium">{lic.FS_RH}</span>
+                                </div>
+                              )}
+                            </div>
+
+                            {lic.observations && (
+                              <div className="text-xs text-slate-400 italic bg-slate-900/50 p-2 rounded border-l-2 border-cyan-500/50 mt-3">
+                                {lic.observations}
+                              </div>
+                            )}
+                          </div>
+                        );
+                          })}
+                      </div>
+                      {licenses.filter((lic: any) => !!lic.CMA).length === 0 && (
+                        <div className="text-center py-8 text-slate-400">
+                          <p className="text-sm">Nenhum CMA cadastrado</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </TabsContent>
@@ -351,49 +554,92 @@ export default function TripulanteDetalhes() {
                 )}
               </TabsContent>
 
-              <TabsContent value="calendario" className="mt-6 space-y-6">
-                <CrewCalendar crewMemberId={member.id} />
+              <TabsContent value="horas-voo" className="mt-6 space-y-6">
+                <FlightHoursCard crewMemberId={member.id} />
                 <CrewFlightHoursTable crewMemberId={member.id} />
-                <FlightHoursCard canac={member.canac || ''} />
               </TabsContent>
 
-              <TabsContent value="anexos" className="mt-6 space-y-4">
-                <div className="flex items-center gap-3">
+              <TabsContent value="anexos" className="mt-6 space-y-6">
+                <div>
                   <input
                     id="doc-file"
                     type="file"
                     accept="application/pdf,image/*"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
-                      if (f) void handleUpload(f);
+                      if (f) {
+                        void handleUpload(f);
+                        e.target.value = '';
+                      }
                     }}
+                    className="hidden"
                   />
-                  <Button disabled={uploading} onClick={() => document.getElementById("doc-file")?.click()}>
-                    <UploadCloud className="h-4 w-4 mr-2" /> {uploading ? "Enviando..." : "Enviar Documento"}
+                  <Button
+                    disabled={uploadingFiles.length > 0}
+                    onClick={() => document.getElementById("doc-file")?.click()}
+                    className="gap-2"
+                  >
+                    <UploadCloud className="h-4 w-4" />
+                    {uploadingFiles.length > 0 ? "Enviando..." : "Anexar arquivos"}
                   </Button>
                 </div>
-                <div className="space-y-2">
+
+                {uploadingFiles.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold mb-3">Enviando arquivos</h4>
+                    <StackedCardsUpload
+                      files={uploadingFiles}
+                      onRemove={handleRemoveUpload}
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-3">
                   {docs.length === 0 ? (
-                    <div className="text-sm text-muted-foreground">Nenhum documento enviado.</div>
+                    <div className="text-center py-8 text-muted-foreground">
+                      <p className="text-sm">Nenhum documento enviado ainda.</p>
+                    </div>
                   ) : (
-                    <ul className="divide-y rounded-md border">
-                      {docs.map((d) => (
-                        <li key={d.name} className="flex items-center justify-between p-3">
-                          <a href={d.url} target="_blank" rel="noreferrer" className="text-primary hover:underline">
-                            {d.name}
-                          </a>
-                          <Button variant="destructive" size="icon" onClick={() => void handleDelete(d.name)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
+                    <div>
+                      <h4 className="text-sm font-semibold mb-3">Documentos enviados</h4>
+                      <div className="space-y-2">
+                        {docs.map((d) => (
+                          <div key={d.name} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                            <a
+                              href={d.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-primary hover:underline flex-1 truncate"
+                            >
+                              {d.name}
+                            </a>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 ml-2"
+                              onClick={() => void handleDelete(d.name)}
+                            >
+                              <UploadCloud className="h-4 w-4 rotate-180" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               </TabsContent>
             </Tabs>
           </CardContent>
         </Card>
+
+        {/* License Edit Dialog */}
+        <LicenseExpiryDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          license={selectedLicense}
+          isCMA={isCMAEdit}
+          onSuccess={() => refetchLicenses()}
+        />
       </div>
     </Layout>
   );

@@ -15,6 +15,7 @@ interface Cliente {
   id: string;
   company_name: string;
   cnpj: string;
+  proprietario?: string;
   inscricao_estadual?: string;
   address?: string;
   city?: string;
@@ -23,7 +24,6 @@ interface Cliente {
   email?: string;
   financial_contact?: string;
   observations?: string;
-  cnpj_card_url?: string;
   logo_url?: string;
   aircraft_ownerships?: AircraftOwnership[];
 }
@@ -58,31 +58,31 @@ export function ClienteCard({
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-primary/80 to-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
       
       <CardContent className="p-5 my-0 py-0">
-        <div className="mb-4 shadow-sm bg-transparent mx-[22px] gap-[9px] px-0 flex-col flex items-center justify-center my-[23px] py-[5px]">
-          <Avatar className="h-16 w-16 ring-2 ring-border shadow-sm flex-shrink-0">
-            {cliente.logo_url ? <AvatarImage src={cliente.logo_url} alt={cliente.company_name} className="object-contain" /> : null}
-            <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary font-bold text-sm">
+        <div className="mb-4 shadow-sm bg-transparent px-0 flex-col flex items-center justify-center pt-2 pb-3">
+          <Avatar className="h-20 w-20 ring-2 ring-cyan-400/50 shadow-lg flex-shrink-0 bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center">
+            {cliente.logo_url ? <AvatarImage src={cliente.logo_url} alt={cliente.company_name} className="object-contain p-1" /> : null}
+            <AvatarFallback className="bg-gradient-to-br from-cyan-500 to-blue-500 text-white font-bold text-lg">
               {getInitials(cliente.company_name)}
             </AvatarFallback>
           </Avatar>
-          
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-foreground text-base leading-tight line-clamp-2 group-hover:text-primary transition-colors text-center my-[14px] py-[6px]">
+
+          <div className="flex-1 min-w-0 w-full px-2 mt-3">
+            <h3 className="font-bold text-foreground text-sm leading-snug text-center group-hover:text-cyan-400 transition-colors line-clamp-3">
               {cliente.company_name}
             </h3>
-            <p className="text-xs text-muted-foreground font-mono mt-1 text-center">
+            <p className="text-xs text-muted-foreground font-mono mt-1.5 text-center break-all">
               {cliente.cnpj}
             </p>
           </div>
         </div>
 
         <div className="space-y-2.5">
-          {cliente.phone && <div className="flex items-center gap-2.5 text-sm">
+          {cliente.phone && <div className="flex items-center gap-2.5 text-sm justify-center">
               <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <span className="text-foreground truncate">{cliente.phone}</span>
             </div>}
 
-          {cliente.email && <div className="flex items-center gap-2.5 text-sm">
+          {cliente.email && <div className="flex items-center gap-2.5 text-sm justify-center">
               <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0 text-orange-400" />
               <span className="text-foreground truncate">{cliente.email}</span>
             </div>}
@@ -113,14 +113,10 @@ export function ClienteCard({
             </div>
           </div>}
 
-        {(cliente.inscricao_estadual || cliente.cnpj_card_url) && <div className="gap-2 mt-4 pt-3 border-t border-border/50 flex items-center justify-center py-[22px]">
-            {cliente.inscricao_estadual && <Badge variant="outline" className="text-xs font-normal rounded-md mx-[50px] px-[18px]">
+        {cliente.inscricao_estadual && <div className="gap-2 mt-4 pt-3 border-t border-border/50 flex items-center justify-center py-[22px]">
+            <Badge variant="outline" className="text-xs font-normal rounded-md mx-[50px] px-[18px]">
                 I/E: {cliente.inscricao_estadual}
-              </Badge>}
-            {cliente.cnpj_card_url && <Badge variant="outline" className="text-xs gap-1 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800">
-                <FileCheck className="h-3 w-3" />
-                Doc
-              </Badge>}
+              </Badge>
           </div>}
 
         {!cliente.phone && !cliente.email && !location && !cliente.financial_contact && !cliente.aircraft_ownerships?.length && <p className="text-sm text-muted-foreground text-center py-4">

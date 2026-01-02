@@ -1,228 +1,249 @@
-import { useState } from "react";
-import { Layout } from "@/components/layout/Layout";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Plane, Plus, Calendar, Clock, MapPin, BookOpen, Folder } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { AddAircraftDialog } from "@/components/diario/AddAircraftDialog";
-import { AddAerodromeDialog } from "@/components/diario/AddAerodromeDialog";
-import { CreateLogbookDialog } from "@/components/diario/CreateLogbookDialog";
-import { useNavigate } from "react-router-dom";
-export default function DiarioBordo() {
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [addAerodromeOpen, setAddAerodromeOpen] = useState(false);
-  const [createLogbookOpen, setCreateLogbookOpen] = useState(false);
-  const [showInactive, setShowInactive] = useState(false);
+import React, { useState, useEffect } from 'react';
+import { Loader2, BookOpen, Banknote, ArrowLeft, Zap, AlertCircle, CheckCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../integrations/supabase/client';
+import { Aircraft } from '@/types';
+import DiarioBordoDetalhes from '../components/diario/DiarioBordoDetalhes';
+import BancodeHoras from './BancodeHoras';
+
+interface DiarioBordoProps {
+  aircraftId: string | null;
+  onBack: () => void;
+}
+
+interface LogbookMonthData {
+  celula_anterior: number | null;
+  celula_atual: number | null;
+  celula_prox_revisao: number | null;
+  celula_disponivel: number | null;
+}
+
+type ViewType = 'list' | 'diario' | 'banco';
+
+const decimalToHM = (decimal?: number | null): string => {
+  if (decimal === null || decimal === undefined || isNaN(decimal)) return '--:--';
+
+  // Determinar se é negativo
+  const isNegative = decimal < 0;
+  const absDecimal = Math.abs(decimal);
+
+  // Calcular horas e minutos do valor absoluto
+  const totalMinutes = Math.round(absDecimal * 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+
+  // Aplicar sinal se necessário
+  const sign = isNegative ? '-' : '';
+  return `${sign}${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+};
+
+const DiarioBordo: React.FC<DiarioBordoProps> = ({ aircraftId, onBack }) => {
+  const [loading, setLoading] = useState(true);
+  const [aircraft, setAircraft] = useState<Aircraft[]>([]);
+  const [selectedAircraftId, setSelectedAircraftId] = useState<string | null>(null);
+  const [currentView, setCurrentView] = useState<ViewType>('list');
+  const [logbookMonthData, setLogbookMonthData] = useState<Record<string, LogbookMonthData | null>>({});
   const navigate = useNavigate();
-  const {
-    data: aircraft,
-    isLoading
-  } = useQuery({
-    queryKey: ['aircraft'],
-    queryFn: async () => {
-      const {
-        data,
-        error
-      } = await supabase.from('aircraft').select('*').order('registration');
-      if (error) throw error;
-      return data;
-    }
-  });
 
-  // Buscar todos os diários de bordo para mostrar quais aeronaves têm diários
-  const { data: logbookMonths } = useQuery({
-    queryKey: ['logbook-months-all'],
-    queryFn: async () => {
+  useEffect(() => {
+    fetchAircraft();
+  }, []);
+
+  const fetchAircraft = async () => {
+    setLoading(true);
+    try {
       const { data, error } = await supabase
-        .from('logbook_months')
-        .select('aircraft_id, year, month, is_closed')
-        .order('year', { ascending: false })
-        .order('month', { ascending: false });
+        .from('aircraft')
+        .select('*')
+        .order('registration', { ascending: true });
+
       if (error) throw error;
-      return data;
+      if (data) {
+        setAircraft(data);
+        // Buscar dados de logbook_months para cada aeronave (mais recente)
+        const monthDataMap: Record<string, LogbookMonthData | null> = {};
+
+        for (const ac of data) {
+          try {
+            const { data: monthsData } = await supabase
+              .from('logbook_months')
+              .select('celula_anterior, celula_atual, celula_prox_revisao, celula_disponivel, year, month')
+              .eq('aircraft_id', ac.id)
+              .order('year', { ascending: false })
+              .order('month', { ascending: false })
+              .limit(1);
+
+            if (monthsData && monthsData.length > 0) {
+              monthDataMap[ac.id] = monthsData[0];
+            } else {
+              monthDataMap[ac.id] = null;
+            }
+          } catch (err) {
+            console.error(`Erro ao carregar logbook_months para ${ac.registration}:`, err);
+            monthDataMap[ac.id] = null;
+          }
+        }
+
+        setLogbookMonthData(monthDataMap);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar aeronaves:', error);
+    } finally {
+      setLoading(false);
     }
-  });
-  const isActiveAircraft = (status?: string | null) => {
-    const s = String(status ?? '').toLowerCase();
-    return s === 'ativa' || s === 'active' || s === '';
   };
 
-  // Função para verificar se uma aeronave tem diários
-  const hasLogbooks = (aircraftId: string) => {
-    return (logbookMonths || []).some(log => log.aircraft_id === aircraftId);
-  };
+  if (selectedAircraftId && currentView === 'diario') {
+    return (
+      <DiarioBordoDetalhes
+        aircraftId={selectedAircraftId}
+        onBack={() => setCurrentView('list')}
+      />
+    );
+  }
 
-  // Função para obter o último diário de uma aeronave
-  const getLatestLogbook = (aircraftId: string) => {
-    return (logbookMonths || [])
-      .filter(log => log.aircraft_id === aircraftId)
-      .sort((a, b) => {
-        if (a.year !== b.year) return b.year - a.year;
-        return b.month - a.month;
-      })[0];
-  };
+  if (selectedAircraftId && currentView === 'banco') {
+    return (
+      <BancodeHoras
+        aircraftId={selectedAircraftId}
+        onBack={() => setCurrentView('diario')}
+      />
+    );
+  }
 
-  const activeAircraft = (aircraft ?? []).filter((ac: any) => isActiveAircraft(ac.status));
-  const inactiveAircraft = (aircraft ?? []).filter((ac: any) => !isActiveAircraft(ac.status));
-  return <Layout>
-      <div className="container mx-auto p-6 space-y-6 w-full">
-        <div className="flex justify-between items-center pb-[30px]">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground pb-[2px] mt-2 mr-[85px]">Diários de Bordo</h1>
-            <p className="text-muted-foreground mt-1 pb-[21px]">
-              Gerencie os diários de bordo digitais das aeronaves.
-            </p>
-          </div>
-          <div className="flex gap-2"></div>
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-950">
+        <Loader2 className="w-12 h-12 text-sky-500 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 pb-20 max-w-[1600px] mx-auto p-4">
+      <header className="mb-6">
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2 mb-3 px-3 py-2 text-sm rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors duration-200"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Voltar ao Dashboard
+        </button>
+        <h1 className="text-3xl font-black text-white uppercase mb-1">Diário de Bordo</h1>
+        <p className="text-slate-500 text-xs">Selecione uma aeronave para visualizar o histórico de voos</p>
+      </header>
+
+      {aircraft.length === 0 ? (
+        <div className="flex items-center justify-center h-96 bg-slate-900 rounded-[2rem] border border-slate-800">
+          <p className="text-slate-500">Nenhuma aeronave encontrada</p>
         </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {aircraft.map(ac => (
+            <div
+              key={ac.id}
+              className="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-2xl p-4 cursor-pointer hover:border-slate-700 hover:shadow-lg transition-all duration-300 hover:scale-102"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-2 bg-sky-500/20 rounded-lg">
+                  <BookOpen className="w-5 h-5 text-sky-500" />
+                </div>
+                {ac.status === 'Ativo' && (
+                  <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-semibold rounded-lg uppercase">
+                    Ativa
+                  </span>
+                )}
+              </div>
 
-        <div className="flex flex-row gap-2">
-          <Button onClick={() => navigate('/aerodromos')} variant="outline" className="gap-2 bg-background border-border">
-            <MapPin className="h-4 w-4 text-foreground" />
-            <span className="capitalize">gerenciar aerodromos</span>
-          </Button>
-          <Button onClick={() => setCreateLogbookOpen(true)} className="gap-2 bg-custom-cyan shadow-[0_4px_15px_-4px_rgba(26,228,255,0.2)] text-slate-300 rounded-sm">
-            <BookOpen className="h-4 w-4" />
-            Criar Diário de Bordo
-          </Button>
-        </div>
-        <Button onClick={() => navigate('/aeronaves')} variant="outline" className="gap-2 mt-2 bg-background border-border">
-          <Plus className="h-4 w-4 text-foreground" />
-          <span className="capitalize">gerenciar aeronaves</span>
-        </Button>
+              <div className="mb-4">
+                <h3 className="text-xl font-black text-white mb-0.5">{ac.registration}</h3>
+                <p className="text-slate-500 text-xs uppercase">{ac.model}</p>
+              </div>
 
-        {isLoading ? <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map(i => <Card key={i} className="animate-pulse">
-                <CardHeader className="space-y-3">
-                  <div className="h-6 bg-muted rounded w-24" />
-                  <div className="h-4 bg-muted rounded w-16" />
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="h-4 bg-muted rounded w-32" />
-                    <div className="h-4 bg-muted rounded w-40" />
-                  </div>
-                </CardContent>
-              </Card>)}
-          </div> : activeAircraft.length > 0 ? <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {activeAircraft.map(ac => {
-              const latestLog = getLatestLogbook(ac.id);
-              const hasDiaries = hasLogbooks(ac.id);
-              
-              return <Card key={ac.id} className="hover:shadow-lg transition-all cursor-pointer border-border bg-card" onClick={() => {
-                if (latestLog) {
-                  navigate(`/diario-bordo/${ac.id}?month=${latestLog.month}&year=${latestLog.year}`);
-                } else {
-                  navigate(`/diario-bordo/${ac.id}`);
-                }
-              }}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-primary/10">
-                        <Plane className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-xl text-foreground">
-                          {ac.registration}
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {ac.model}
+              <div className="space-y-2 mb-4">
+                {logbookMonthData[ac.id] ? (
+                  <>
+                    <div className="flex items-center gap-2 p-2 bg-emerald-500/10 border border-emerald-500/20 rounded">
+                      <Zap className="w-3 h-3 text-emerald-400" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-emerald-600 text-xs uppercase">Célula Atual</p>
+                        <p className="text-emerald-400 font-semibold text-base">
+                          {decimalToHM(logbookMonthData[ac.id]?.celula_atual)}
                         </p>
                       </div>
                     </div>
-                    <Badge variant={ac.status === 'Ativa' ? 'default' : 'secondary'} className={ac.status === 'Ativa' ? 'bg-green-500 text-white' : ''}>
-                      {ac.status}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
-                    <span>{hasDiaries ? `${(logbookMonths || []).filter(l => l.aircraft_id === ac.id).length} diário(s)` : 'Nenhum diário criado'}</span>
-                  </div>
-                  {latestLog && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <BookOpen className="h-4 w-4" />
-                      <span>Último: {latestLog.month}/{latestLog.year}</span>
+
+                    <div className="flex items-center gap-2 p-2 bg-orange-500/10 border border-orange-500/20 rounded">
+                      <AlertCircle className="w-3 h-3 text-orange-400" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-orange-600 text-xs uppercase">Próx. Revisão</p>
+                        <p className="text-orange-400 font-semibold text-sm">
+                          {decimalToHM(logbookMonthData[ac.id]?.celula_prox_revisao)}
+                        </p>
+                      </div>
                     </div>
-                  )}
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span>{((ac as any).total_hours || 0).toFixed(1)} horas totais</span>
+
+                    <div className={`flex items-center gap-2 p-2 rounded border ${
+                      (logbookMonthData[ac.id]?.celula_disponivel || 0) < 0
+                        ? 'bg-red-500/15 border-2 border-red-500 shadow-md shadow-red-500/30'
+                        : 'bg-blue-500/10 border border-blue-500/20'
+                    }`}>
+                      <CheckCircle className={`w-3 h-3 ${
+                        (logbookMonthData[ac.id]?.celula_disponivel || 0) < 0
+                          ? 'text-red-400'
+                          : 'text-blue-400'
+                      }`} />
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs uppercase ${
+                          (logbookMonthData[ac.id]?.celula_disponivel || 0) < 0
+                            ? 'text-red-600'
+                            : 'text-blue-600'
+                        }`}>Disponível</p>
+                        <p className={`font-semibold text-sm ${
+                          (logbookMonthData[ac.id]?.celula_disponivel || 0) < 0
+                            ? 'text-red-400'
+                            : 'text-blue-400'
+                        }`}>
+                          {decimalToHM(logbookMonthData[ac.id]?.celula_disponivel)}
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2 p-2 bg-slate-800/50 rounded">
+                    <BookOpen className="w-3 h-3 text-slate-500" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-slate-500 text-xs uppercase">Célula Atual</p>
+                      <p className="text-emerald-400 font-semibold text-base">
+                        {decimalToHM(ac.cell_hours_current)}
+                      </p>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            })}
-          </div> : <Card className="border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-              <Plane className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium text-foreground mb-2">
-                Nenhuma aeronave cadastrada
-              </h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Comece adicionando sua primeira aeronave ao sistema.
-              </p>
+                )}
+              </div>
+
               <div className="flex gap-2">
-                <Button onClick={() => setCreateLogbookOpen(true)}>
-                  <BookOpen className="h-4 w-4 mr-2" />
-                  Criar Diário de Bordo
-                </Button>
+                <button
+                  onClick={() => { setSelectedAircraftId(ac.id); setCurrentView('diario'); }}
+                  className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm bg-sky-500 text-white font-semibold rounded-lg hover:bg-sky-600 transition-colors"
+                >
+                  <BookOpen className="w-3 h-3" />
+                  Diário
+                </button>
+                <button
+                  onClick={() => { setSelectedAircraftId(ac.id); setCurrentView('banco'); }}
+                  className="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm bg-slate-800 text-slate-400 font-semibold rounded-lg hover:bg-slate-700 transition-colors border border-slate-700"
+                >
+                  <Banknote className="w-3 h-3" />
+                  Banco
+                </button>
               </div>
-            </CardContent>
-          </Card>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
-        {inactiveAircraft.length > 0 && <div className="space-y-3 mt-8">
-            <button type="button" className="w-full flex items-center justify-between rounded-md border border-border bg-card px-4 py-3 text-left" onClick={() => setShowInactive(v => !v)} aria-expanded={showInactive}>
-              <div className="flex items-center gap-2">
-                <Folder className="h-5 w-5 text-muted-foreground" />
-                <h2 className="text-xl font-semibold text-foreground">Aeronaves e Diários Inativos</h2>
-                <Badge variant="secondary">
-                  {inactiveAircraft.length}
-                </Badge>
-              </div>
-              <span className="text-sm text-muted-foreground">{showInactive ? 'Ocultar' : 'Abrir pasta'}</span>
-            </button>
-
-            {showInactive && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {inactiveAircraft.map((ac: any) => <Card key={ac.id} className="hover:shadow-lg transition-all cursor-pointer border-border bg-card/60" onClick={() => navigate(`/diario-bordo/${ac.id}`)}>
-                      <CardHeader>
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-muted">
-                              <Plane className="h-6 w-6 text-foreground" />
-                            </div>
-                            <div>
-                              <CardTitle className="text-xl text-foreground">
-                                {ac.registration}
-                              </CardTitle>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {ac.model}
-                              </p>
-                            </div>
-                          </div>
-                          <Badge variant="secondary">{ac.status || 'Inativa'}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Calendar className="h-4 w-4" />
-                          <span>Diário {new Date().getFullYear()}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          <span>{ac.total_hours?.toFixed(1) || '0.0'} horas totais</span>
-                        </div>
-                      </CardContent>
-                    </Card>)}
-              </div>}
-          </div>}
-
-        <AddAircraftDialog open={addDialogOpen} onOpenChange={setAddDialogOpen} />
-        <AddAerodromeDialog open={addAerodromeOpen} onOpenChange={setAddAerodromeOpen} />
-        <CreateLogbookDialog open={createLogbookOpen} onOpenChange={setCreateLogbookOpen} aircraft={aircraft || []} />
-      </div>
-    </Layout>;
-}
+export default DiarioBordo;

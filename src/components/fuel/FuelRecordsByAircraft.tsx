@@ -6,10 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Download, Edit, Trash2, ChevronLeft, Plane, TrendingUp, FileUp, X } from "lucide-react";
+import { Plus, Download, Edit, Trash2, ChevronLeft, Plane, TrendingUp, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign } from "lucide-react";
 import { format } from "date-fns";
+import { Combobox } from "@/components/ui/combobox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ModernFileUpload } from "@/components/ui/modern-file-upload";
 
 interface Client {
   id: string;
@@ -36,6 +39,15 @@ interface FuelRecord {
   comanda_url: string | null;
   nota_url: string | null;
   boleto_url: string | null;
+  abastecedor?: string | null;
+  status_pagamento?: string | null;
+}
+
+interface FuelSupplier {
+  id: string;
+  supplier_name: string;
+  city_name: string;
+  icao_code: string;
 }
 
 interface Props {
@@ -44,8 +56,65 @@ interface Props {
   onBack: () => void;
 }
 
+/**
+ * Converte um objeto de erro do Supabase para uma mensagem de string legível
+ */
+const getErrorMessage = (error: any): string => {
+  if (!error) return "Erro desconhecido";
+
+  // Se é uma string, retorna diretamente
+  if (typeof error === "string") return error;
+
+  // Tenta extrair mensagem dos campos conhecidos do erro do Supabase
+  if (error.message && typeof error.message === "string") return error.message;
+  if (error.hint && typeof error.hint === "string") return error.hint;
+  if (error.details && typeof error.details === "string") return error.details;
+
+  // Se details é um objeto, tenta converter
+  if (error.details && typeof error.details === "object") {
+    try {
+      return JSON.stringify(error.details);
+    } catch {
+      return "Erro nos detalhes da resposta";
+    }
+  }
+
+  // Último recurso: converte para string
+  try {
+    return String(error);
+  } catch {
+    return "Erro ao processar";
+  }
+};
+
+/**
+ * Format date avoiding timezone shifts for Brazil (UTC-3)
+ * Handles both ISO timestamps and date-only strings
+ */
+const formatDateBrazil = (dateValue: string | Date, formatStr: string = "dd/MM/yyyy"): string => {
+  let dateObj: Date;
+
+  if (typeof dateValue === 'string') {
+    // If it's a date-only string (YYYY-MM-DD), parse it directly without timezone conversion
+    if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = dateValue.split('-').map(Number);
+      dateObj = new Date(year, month - 1, day);
+    } else {
+      // If it's an ISO timestamp, extract the date part
+      const datePart = dateValue.split('T')[0];
+      const [year, month, day] = datePart.split('-').map(Number);
+      dateObj = new Date(year, month - 1, day);
+    }
+  } else {
+    dateObj = dateValue;
+  }
+
+  return format(dateObj, formatStr);
+};
+
 export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
   const [records, setRecords] = useState<FuelRecord[]>([]);
+  const [suppliers, setSuppliers] = useState<FuelSupplier[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<FuelRecord | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -59,6 +128,8 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
     valor_unitario: "",
     abastecimento_galoes: "",
     ano: new Date().getFullYear().toString(),
+    abastecedor_id: "",
+    status_pagamento: "em aberto",
     comanda_file: null as File | null,
     nota_file: null as File | null,
     boleto_file: null as File | null,
@@ -71,12 +142,41 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
     nota_url: "",
     boleto_url: "",
   });
+  const [viewingAttachment, setViewingAttachment] = useState<{
+    url: string;
+    type: string;
+    name: string;
+  } | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadRecords();
+    loadSuppliers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aircraft.id]);
+
+  const loadSuppliers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("fuel_suppliers")
+        .select("id, supplier_name, city_name, icao_code")
+        .order("supplier_name", { ascending: true });
+
+      if (error) {
+        const errorMessage = getErrorMessage(error);
+        toast.error(`Erro ao carregar fornecedores: ${errorMessage}`);
+        console.error("Error loading suppliers:", error);
+        return;
+      }
+
+      const uniqueSuppliers = Array.from(new Map((data || []).map((s: any) => [s.id, s])).values()) as FuelSupplier[];
+      setSuppliers(uniqueSuppliers);
+    } catch (err) {
+      const errorMessage = getErrorMessage(err);
+      toast.error(`Erro ao carregar fornecedores: ${errorMessage}`);
+      console.error("Exception loading suppliers:", err);
+    }
+  };
 
   const loadRecords = async () => {
     const { data, error } = await supabase
@@ -87,7 +187,9 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
       .order("data", { ascending: false });
 
     if (error) {
-      toast.error("Erro ao carregar registros");
+      const errorMessage = getErrorMessage(error);
+      toast.error(`Erro ao carregar: ${errorMessage}`);
+      console.error("Load error:", error);
       return;
     }
 
@@ -106,7 +208,9 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
         .upload(fileName, file);
 
       if (error) {
-        toast.error(`Erro ao fazer upload do ${fieldName}`);
+        const errorMessage = getErrorMessage(error);
+        toast.error(`Upload falhou - ${fieldName}: ${errorMessage}`);
+        console.error(`Upload error for ${fieldName}:`, error);
         return null;
       }
 
@@ -115,8 +219,10 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
         .getPublicUrl(fileName);
 
       return data.publicUrl;
-    } catch (err) {
-      toast.error(`Erro ao processar upload do ${fieldName}`);
+    } catch (err: any) {
+      const errorMessage = getErrorMessage(err);
+      toast.error(`Erro de upload - ${fieldName}: ${errorMessage}`);
+      console.error(`Upload exception for ${fieldName}:`, err);
       return null;
     }
   };
@@ -138,8 +244,40 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
     setShowConfirmation(false);
 
     try {
+      // Validar campos obrigatórios
+      if (!formData.data || !formData.data.trim()) {
+        toast.error("Campo obrigatório: Data não pode estar vazia");
+        setIsUploading(false);
+        return;
+      }
+
+      if (!formData.litros || formData.litros.trim() === "") {
+        toast.error("Campo obrigatório: Litros deve ser preenchido");
+        setIsUploading(false);
+        return;
+      }
+
+      if (!formData.valor_unitario || formData.valor_unitario.trim() === "") {
+        toast.error("Campo obrigatório: Valor unitário deve ser preenchido");
+        setIsUploading(false);
+        return;
+      }
+
       const litros = parseFloat(formData.litros);
       const valorUnitario = parseFloat(formData.valor_unitario);
+
+      if (isNaN(litros) || litros <= 0) {
+        toast.error("Valor inválido: Litros deve ser um número maior que zero");
+        setIsUploading(false);
+        return;
+      }
+
+      if (isNaN(valorUnitario) || valorUnitario < 0) {
+        toast.error("Valor inválido: Valor unitário deve ser um número não negativo");
+        setIsUploading(false);
+        return;
+      }
+
       const valorTotal = litros * valorUnitario;
 
       // Fazer upload dos arquivos
@@ -157,19 +295,38 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
         boletoUrl = await uploadFile(formData.boleto_file, "boleto") || "";
       }
 
+      // Convert date string to proper ISO format for Brazil timezone (UTC-3)
+      // The date input gives us YYYY-MM-DD format
+      // We need to convert this to the start of that day in Brazil time (UTC-3)
+      // which is 03:00:00 UTC (so it doesn't shift backward by timezone conversion)
+      const dateStr = formData.data; // e.g., "2024-12-19"
+      const dateParts = dateStr.split('-');
+      const year = parseInt(dateParts[0], 10);
+      const month = parseInt(dateParts[1], 10);
+      const day = parseInt(dateParts[2], 10);
+
+      // Create a date at midnight Brazil time
+      // Brazil is UTC-3, so midnight in Brazil = 03:00 UTC
+      const brazilDate = new Date(year, month - 1, day, 3, 0, 0, 0);
+      const isoDateString = brazilDate.toISOString(); // This will be in UTC
+
+      const supplierName = formData.abastecedor_id
+        ? suppliers.find(s => s.id === formData.abastecedor_id)?.supplier_name || null
+        : null;
+
       const recordData = {
         client_id: client.id,
         aeronave_id: aircraft.id,
-        data: formData.data,
+        data: isoDateString, // Store as ISO string to preserve the correct date
         trecho: formData.trecho || null,
         local: formData.local || null,
         comanda: formData.comanda || null,
         litros: litros,
         valor_unitario: valorUnitario,
-        valor_total: valorTotal,
         abastecimento_galoes: formData.abastecimento_galoes ? parseFloat(formData.abastecimento_galoes) : null,
-        ano: formData.ano,
-        abastecedor: "Sistema",
+        ano: null,
+        abastecedor: supplierName,
+        status_pagamento: formData.status_pagamento || "em aberto",
         comanda_url: comandaUrl || null,
         nota_url: notaUrl || null,
         boleto_url: boletoUrl || null,
@@ -179,7 +336,9 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
         const { error } = await supabase.from("abastecimentos").update(recordData).eq("id", editingRecord.id);
 
         if (error) {
-          toast.error("Erro ao atualizar registro");
+          const errorMessage = getErrorMessage(error);
+          toast.error(`Erro ao atualizar: ${errorMessage}`);
+          console.error("Update error:", error);
           return;
         }
         toast.success("Registro atualizado com sucesso");
@@ -187,7 +346,9 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
         const { error } = await supabase.from("abastecimentos").insert(recordData);
 
         if (error) {
-          toast.error("Erro ao criar registro");
+          const errorMessage = getErrorMessage(error);
+          toast.error(`Erro ao salvar: ${errorMessage}`);
+          console.error("Insert error:", error);
           return;
         }
         toast.success("Registro criado com sucesso");
@@ -196,12 +357,17 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
       resetForm();
       setIsDialogOpen(false);
       loadRecords();
+    } catch (err: any) {
+      const errorMessage = getErrorMessage(err);
+      toast.error(`Erro: ${errorMessage}`);
+      console.error("Save error:", err);
     } finally {
       setIsUploading(false);
     }
   };
 
   const handleEdit = (record: FuelRecord) => {
+    const supplierRecord = suppliers.find(s => s.supplier_name === record.abastecedor);
     setEditingRecord(record);
     setFormData({
       data: record.data,
@@ -211,7 +377,9 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
       litros: record.litros.toString(),
       valor_unitario: record.valor_unitario.toString(),
       abastecimento_galoes: record.abastecimento_galoes?.toString() || "",
-      ano: record.ano || new Date().getFullYear().toString(),
+      ano: new Date().getFullYear().toString(),
+      abastecedor_id: supplierRecord?.id || "",
+      status_pagamento: record.status_pagamento || "em aberto",
       comanda_file: null,
       nota_file: null,
       boleto_file: null,
@@ -233,7 +401,9 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
     const { error } = await supabase.from("abastecimentos").delete().eq("id", id);
 
     if (error) {
-      toast.error("Erro ao excluir registro");
+      const errorMessage = getErrorMessage(error);
+      toast.error(`Erro ao excluir: ${errorMessage}`);
+      console.error("Delete error:", error);
       return;
     }
 
@@ -251,6 +421,8 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
       valor_unitario: "",
       abastecimento_galoes: "",
       ano: new Date().getFullYear().toString(),
+      abastecedor_id: "",
+      status_pagamento: "em aberto",
       comanda_file: null,
       nota_file: null,
       boleto_file: null,
@@ -385,44 +557,30 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
           }}
         >
           <DialogTrigger asChild>
-            <Button className="gap-2 bg-gradient-to-r from-primary to-primary-dark hover:from-primary hover:to-primary-dark">
-              <Plus className="h-4 w-4" />
+            <Button className="gap-2 bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 hover:from-blue-700 hover:via-blue-600 hover:to-cyan-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200">
+              <Plus className="h-5 w-5" />
               Novo Registro
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
+          <DialogContent className="flex flex-col">
             <DialogHeader>
               <DialogTitle>{editingRecord ? "Editar Registro" : "Novo Registro"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto flex-1 pr-4">
+            <form onSubmit={handleSubmit} className="space-y-4 flex-1 overflow-y-auto pr-2 sm:pr-4 -mx-2 sm:-mx-4 px-2 sm:px-4">
               <div>
                 <Label className="text-sm font-semibold mb-2 block">Data</Label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Data</Label>
-                    <Input
-                      type="date"
-                      value={formData.data}
-                      onChange={(e) => setFormData({ ...formData, data: e.target.value })}
-                      required
-                      className="mt-1 h-9 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Ano</Label>
-                    <Input
-                      value={formData.ano}
-                      onChange={(e) => setFormData({ ...formData, ano: e.target.value })}
-                      required
-                      className="mt-1 h-9 text-sm"
-                    />
-                  </div>
-                </div>
+                <Input
+                  type="date"
+                  value={formData.data}
+                  onChange={(e) => setFormData({ ...formData, data: e.target.value })}
+                  required
+                  className="mt-1 h-9 text-sm"
+                />
               </div>
 
               <div>
                 <Label className="text-sm font-semibold mb-2 block">Rota</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <Label className="text-xs text-muted-foreground">Trecho</Label>
                     <Input
@@ -454,9 +612,43 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
                 />
               </div>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Fornecedor</Label>
+                  <Combobox
+                    options={suppliers.map(s => ({
+                      value: s.id,
+                      label: `${s.supplier_name} (${s.city_name})`
+                    }))}
+                    value={formData.abastecedor_id}
+                    onValueChange={(value) => setFormData({ ...formData, abastecedor_id: value })}
+                    placeholder="Selecione um fornecedor"
+                    searchPlaceholder="Buscar fornecedor..."
+                    emptyText="Nenhum fornecedor encontrado"
+                    className="mt-1 h-9 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs text-muted-foreground">Status de Pagamento</Label>
+                  <Select
+                    value={formData.status_pagamento}
+                    onValueChange={(value) => setFormData({ ...formData, status_pagamento: value })}
+                  >
+                    <SelectTrigger className="mt-1 h-9 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="em aberto">Em Aberto</SelectItem>
+                      <SelectItem value="pago">Pago</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               <div>
                 <Label className="text-sm font-semibold mb-2 block">Combustível</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>
                     <Label className="text-xs text-muted-foreground">Litros</Label>
                     <Input
@@ -503,118 +695,68 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
               )}
 
               <div>
-                <Label className="text-sm font-semibold mb-2 block">Anexos</Label>
-                <div className="space-y-2">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Comanda (PDF)</Label>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <Input
-                        type="file"
-                        accept=".pdf"
-                        onChange={(e) => setFormData({ ...formData, comanda_file: e.target.files?.[0] || null })}
-                        className="flex-1 h-8 text-xs"
-                      />
-                      {(formData.comanda_file || formData.comanda_url) && (
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            setFormData({ ...formData, comanda_file: null });
-                            setUploadedFiles({ ...uploadedFiles, comanda_url: "" });
-                          }}
-                          className="h-8 w-8"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                    {formData.comanda_file && (
-                      <p className="text-xs text-success mt-0.5 truncate">✓ {formData.comanda_file.name}</p>
-                    )}
-                    {formData.comanda_url && !formData.comanda_file && (
-                      <p className="text-xs text-muted-foreground mt-0.5">Arquivo já enviado</p>
-                    )}
-                  </div>
+                <Label className="text-sm font-semibold mb-4 block">Anexos</Label>
+                <div className="space-y-3">
+                  <ModernFileUpload
+                    label="Comanda"
+                    accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
+                    onChange={(file) => {
+                      setFormData({ ...formData, comanda_file: file });
+                      if (!file) {
+                        setUploadedFiles({ ...uploadedFiles, comanda_url: "" });
+                      }
+                    }}
+                    currentFile={formData.comanda_file}
+                    uploadedUrl={formData.comanda_url}
+                    disabled={isUploading}
+                    allowedFormats={["PDF", "PNG", "JPG", "JPEG", "GIF", "WEBP"]}
+                  />
 
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Nota Fiscal (PDF)</Label>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <Input
-                        type="file"
-                        accept=".pdf"
-                        onChange={(e) => setFormData({ ...formData, nota_file: e.target.files?.[0] || null })}
-                        className="flex-1 h-8 text-xs"
-                      />
-                      {(formData.nota_file || formData.nota_url) && (
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            setFormData({ ...formData, nota_file: null });
-                            setUploadedFiles({ ...uploadedFiles, nota_url: "" });
-                          }}
-                          className="h-8 w-8"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                    {formData.nota_file && (
-                      <p className="text-xs text-success mt-0.5 truncate">✓ {formData.nota_file.name}</p>
-                    )}
-                    {formData.nota_url && !formData.nota_file && (
-                      <p className="text-xs text-muted-foreground mt-0.5">Arquivo já enviado</p>
-                    )}
-                  </div>
+                  <ModernFileUpload
+                    label="Nota Fiscal"
+                    accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
+                    onChange={(file) => {
+                      setFormData({ ...formData, nota_file: file });
+                      if (!file) {
+                        setUploadedFiles({ ...uploadedFiles, nota_url: "" });
+                      }
+                    }}
+                    currentFile={formData.nota_file}
+                    uploadedUrl={formData.nota_url}
+                    disabled={isUploading}
+                    allowedFormats={["PDF", "PNG", "JPG", "JPEG", "GIF", "WEBP"]}
+                  />
 
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Boleto (PDF)</Label>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <Input
-                        type="file"
-                        accept=".pdf"
-                        onChange={(e) => setFormData({ ...formData, boleto_file: e.target.files?.[0] || null })}
-                        className="flex-1 h-8 text-xs"
-                      />
-                      {(formData.boleto_file || formData.boleto_url) && (
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            setFormData({ ...formData, boleto_file: null });
-                            setUploadedFiles({ ...uploadedFiles, boleto_url: "" });
-                          }}
-                          className="h-8 w-8"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      )}
-                    </div>
-                    {formData.boleto_file && (
-                      <p className="text-xs text-success mt-0.5 truncate">✓ {formData.boleto_file.name}</p>
-                    )}
-                    {formData.boleto_url && !formData.boleto_file && (
-                      <p className="text-xs text-muted-foreground mt-0.5">Arquivo já enviado</p>
-                    )}
-                  </div>
+                  <ModernFileUpload
+                    label="Boleto"
+                    accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
+                    onChange={(file) => {
+                      setFormData({ ...formData, boleto_file: file });
+                      if (!file) {
+                        setUploadedFiles({ ...uploadedFiles, boleto_url: "" });
+                      }
+                    }}
+                    currentFile={formData.boleto_file}
+                    uploadedUrl={formData.boleto_url}
+                    disabled={isUploading}
+                    allowedFormats={["PDF", "PNG", "JPG", "JPEG", "GIF", "WEBP"]}
+                  />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t sticky bottom-0 bg-background">
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t sticky bottom-0 bg-background -mx-4 sm:-mx-0 px-4 sm:px-0 py-4 sm:py-0">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setIsDialogOpen(false)}
                   disabled={isUploading}
+                  className="w-full sm:w-auto hover:bg-muted transition-colors"
                 >
                   Cancelar
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-primary hover:bg-primary-dark"
+                  className="bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200 w-full sm:w-auto"
                   disabled={isUploading}
                 >
                   {isUploading ? "Salvando..." : (editingRecord ? "Atualizar" : "Criar")}
@@ -641,11 +783,10 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
           </AlertDialogContent>
         </AlertDialog>
         <Button
-          variant="outline"
           onClick={handleExportPDF}
-          className="gap-2"
+          className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
         >
-          <Download className="h-4 w-4" />
+          <Download className="h-5 w-5" />
           Exportar PDF
         </Button>
       </div>
@@ -677,7 +818,7 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
             <tbody>
               {records.map((record) => (
                 <tr key={record.id}>
-                  <td>{format(new Date(record.data), "dd/MM/yyyy")}</td>
+                  <td>{formatDateBrazil(record.data, "dd/MM/yyyy")}</td>
                   <td>{record.trecho || "-"}</td>
                   <td>{record.local || "-"}</td>
                   <td>{record.comanda}</td>
@@ -702,10 +843,13 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
                   <TableHead className="font-semibold text-foreground">Trecho</TableHead>
                   <TableHead className="font-semibold text-foreground">Local</TableHead>
                   <TableHead className="font-semibold text-foreground">Comanda</TableHead>
+                  <TableHead className="font-semibold text-foreground">Fornecedor</TableHead>
+                  <TableHead className="font-semibold text-foreground">Status</TableHead>
                   <TableHead className="text-right font-semibold text-foreground">Litros</TableHead>
                   <TableHead className="text-right font-semibold text-foreground">Valor Unit.</TableHead>
                   <TableHead className="text-right font-semibold text-foreground">Valor Total</TableHead>
                   <TableHead className="text-right font-semibold text-foreground">Galões</TableHead>
+                  <TableHead className="text-right font-semibold text-foreground">Anexos</TableHead>
                   <TableHead className="text-right font-semibold text-foreground">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -716,11 +860,25 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
                     className="border-b border-border/50 hover:bg-muted/30 transition-colors"
                   >
                     <TableCell className="font-medium text-foreground">
-                      {format(new Date(record.data), "dd/MM/yyyy")}
+                      {formatDateBrazil(record.data, "dd/MM/yyyy")}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{record.trecho || "-"}</TableCell>
                     <TableCell className="text-muted-foreground">{record.local || "-"}</TableCell>
                     <TableCell className="font-mono text-foreground">{record.comanda}</TableCell>
+                    <TableCell className="text-muted-foreground">{record.abastecedor || "-"}</TableCell>
+                    <TableCell>
+                      {record.status_pagamento === "pago" ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold">
+                          <FileCheck className="h-4 w-4" />
+                          Pago
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 text-xs font-semibold">
+                          <DollarSign className="h-4 w-4" />
+                          Em Aberto
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right font-medium text-foreground">
                       {record.litros.toFixed(2)}
                     </TableCell>
@@ -732,6 +890,61 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">
                       {record.abastecimento_galoes?.toFixed(2) || "-"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        {record.comanda_url && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setViewingAttachment({
+                              url: record.comanda_url!,
+                              type: record.comanda_url?.endsWith('.pdf') ? 'pdf' : 'image',
+                              name: 'Comanda'
+                            })}
+                            className="h-7 px-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 font-semibold text-xs gap-1"
+                            title="Visualizar Comanda"
+                          >
+                            <FileText className="h-4 w-4" />
+                            Comanda
+                          </Button>
+                        )}
+                        {record.nota_url && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setViewingAttachment({
+                              url: record.nota_url!,
+                              type: record.nota_url?.endsWith('.pdf') ? 'pdf' : 'image',
+                              name: 'Nota Fiscal'
+                            })}
+                            className="h-7 px-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 font-semibold text-xs gap-1"
+                            title="Visualizar Nota Fiscal"
+                          >
+                            <FileCheck className="h-4 w-4" />
+                            NF
+                          </Button>
+                        )}
+                        {record.boleto_url && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setViewingAttachment({
+                              url: record.boleto_url!,
+                              type: record.boleto_url?.endsWith('.pdf') ? 'pdf' : 'image',
+                              name: 'Boleto'
+                            })}
+                            className="h-7 px-2 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/30 font-semibold text-xs gap-1"
+                            title="Visualizar Boleto"
+                          >
+                            <DollarSign className="h-4 w-4" />
+                            Boleto
+                          </Button>
+                        )}
+                        {!record.comanda_url && !record.nota_url && !record.boleto_url && (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
@@ -767,6 +980,48 @@ export function FuelRecordsByAircraft({ client, aircraft, onBack }: Props) {
           </div>
         </CardContent>
       </Card>
+
+      {viewingAttachment && (
+        <Dialog open={!!viewingAttachment} onOpenChange={(open) => !open && setViewingAttachment(null)}>
+          <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] flex flex-col">
+            <DialogHeader className="border-b pb-4">
+              <DialogTitle className="flex items-center gap-2">
+                {viewingAttachment.name === 'Comanda' && <FileText className="h-5 w-5 text-blue-600" />}
+                {viewingAttachment.name === 'Nota Fiscal' && <FileCheck className="h-5 w-5 text-green-600" />}
+                {viewingAttachment.name === 'Boleto' && <DollarSign className="h-5 w-5 text-orange-600" />}
+                Visualizando: {viewingAttachment.name}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-auto flex items-center justify-center bg-gradient-to-br from-muted/50 to-muted/30 rounded-lg p-6">
+              {viewingAttachment.type === 'pdf' ? (
+                <div className="flex flex-col items-center justify-center gap-6 w-full">
+                  <div className="flex flex-col items-center gap-3">
+                    <FileText className="h-20 w-20 text-primary/40" />
+                    <p className="text-lg font-semibold text-foreground">Arquivo PDF</p>
+                    <p className="text-sm text-muted-foreground">Para visualizar o PDF completo, abra em uma nova aba</p>
+                  </div>
+                  <Button
+                    onClick={() => window.open(viewingAttachment.url, '_blank')}
+                    className="gap-2 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold"
+                  >
+                    <Download className="h-4 w-4" />
+                    Abrir em Nova Aba
+                  </Button>
+                </div>
+              ) : (
+                <div className="w-full flex flex-col items-center gap-4">
+                  <img
+                    src={viewingAttachment.url}
+                    alt={viewingAttachment.name}
+                    className="max-w-full max-h-[600px] object-contain rounded-lg shadow-lg"
+                  />
+                  <p className="text-xs text-muted-foreground">Clique para fechar</p>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

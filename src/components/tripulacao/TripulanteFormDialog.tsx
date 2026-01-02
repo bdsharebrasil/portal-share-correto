@@ -54,12 +54,12 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
         canac: crewMember.canac,
         full_name: crewMember.full_name,
         birth_date: crewMember.birth_date,
-        email: crewMember.email || '',
+        email: (crewMember as any).email || '',
         phone: crewMember.phone || '',
-        photo_url: crewMember.photo_url || '',
+        photo_url: crewMember.avatar_url || '',
       });
       setLicenses(crewMember.licenses || []);
-      setPhotoPreview(crewMember.photo_url || '');
+      setPhotoPreview(crewMember.avatar_url || '');
       setPhotoFile(null);
     } else {
       resetForm();
@@ -192,7 +192,6 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
     setLicenses([...licenses, {
       license_type: 'CMA',
       license_number: '',
-      issue_date: '',
       expiry_date: '',
     }]);
   };
@@ -250,7 +249,7 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
 
   const clearPhoto = () => {
     setPhotoFile(null);
-    setPhotoPreview(crewMember?.photo_url || '');
+    setPhotoPreview(crewMember?.avatar_url || '');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -425,14 +424,6 @@ export function TripulanteFormDialog({ open, onOpenChange, crewMember }: Props) 
                               onChange={(e) => updateLicense(index, 'license_number', e.target.value)}
                               placeholder="Número"
                               size={1}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Emissão</Label>
-                            <Input
-                              type="date"
-                              value={license.issue_date || ''}
-                              onChange={(e) => updateLicense(index, 'issue_date', e.target.value)}
                             />
                           </div>
                           <div className="space-y-1">

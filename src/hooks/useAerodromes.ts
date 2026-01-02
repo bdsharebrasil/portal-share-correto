@@ -26,6 +26,8 @@ export const useAerodromes = () => {
 
       return (data as Aerodromo[]) || [];
     },
+    staleTime: 24 * 60 * 60 * 1000, // 24 horas
+    gcTime: 30 * 60 * 1000, // 30 minutos
   });
 
   return {

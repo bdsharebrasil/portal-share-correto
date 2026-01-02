@@ -157,72 +157,93 @@ export function TimeClockWidget() {
   const canStartLunch = todayEntry && todayEntry.clock_in && !todayEntry.lunch_start;
   const canEndLunch = todayEntry && todayEntry.lunch_start && !todayEntry.lunch_end;
   const canClockOut = todayEntry && todayEntry.clock_in && !todayEntry.clock_out && (!todayEntry.lunch_start || todayEntry.lunch_end);
-  return <Card className="border border-border/50">
-      <CardHeader className="pb-0 py-0 shadow rounded bg-transparent">
-        <CardTitle className="flex items-center gap-2 py-[6px] text-xs text-center bg-transparent">
-          <Clock className="h-4 w-4" />
-          Ponto
+  
+  return (
+    <Card className="w-full">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Clock className="h-5 w-5" />
+          Ponto do Dia
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-1 py-0 rounded-xl shadow-xl border-gray-900 px-0 mx-[21px]">
-        <div className="text-center py-0">
-          <p className="text-3xl font-bold text-foreground tabular-nums">
-            {format(currentTime, 'HH:mm:ss', {
-            locale: ptBR
-          })}
+      <CardContent className="space-y-4">
+        <div className="text-center">
+          <p className="text-3xl font-bold font-mono">
+            {format(currentTime, "HH:mm:ss")}
           </p>
-          <p className="text-xs text-muted-foreground mt-0 py-[2px]">
-            {format(currentTime, "EEEE, dd 'de' MMMM", {
-            locale: ptBR
-          })}
+          <p className="text-sm text-muted-foreground">
+            {format(currentTime, "EEEE, dd 'de' MMMM", { locale: ptBR })}
           </p>
         </div>
 
-        {todayEntry && todayEntry.status === 'concluido' ? <div className="text-center py-1">
-            <p className="text-xs text-muted-foreground">Ponto encerrado para hoje</p>
-            {todayEntry.total_hours && <p className="text-sm font-bold text-foreground mt-1">
-                {todayEntry.total_hours}h trabalhadas
-              </p>}
-          </div> : <div className="space-y-1">
-            {!todayEntry && <div className="flex justify-center py-1">
-              <Button onClick={handleClockIn} disabled={loading} variant="secondary" size="sm" className="py-0 bg-[#060c1c]/80">
-                <Play className="h-4 w-4 mr-1.5" />
-                Iniciar Dia
+        {todayEntry?.status === 'concluido' ? (
+          <div className="text-center p-4 bg-green-500/10 rounded-lg border border-green-500/20">
+            <p className="text-green-600 font-medium">Ponto encerrado</p>
+            <p className="text-sm text-muted-foreground">
+              Total: {todayEntry.total_hours?.toFixed(2)}h
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {!todayEntry ? (
+              <Button 
+                onClick={handleClockIn} 
+                disabled={loading}
+                className="col-span-2"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Iniciar Ponto
               </Button>
-            </div>}
+            ) : (
+              <>
+                {canStartLunch && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handleLunchStart} 
+                    disabled={loading}
+                  >
+                    <Coffee className="h-4 w-4 mr-2" />
+                    Almoço
+                  </Button>
+                )}
+                {canEndLunch && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handleLunchEnd} 
+                    disabled={loading}
+                  >
+                    <Pause className="h-4 w-4 mr-2" />
+                    Retornar
+                  </Button>
+                )}
+                {canClockOut && (
+                  <Button 
+                    variant="destructive" 
+                    onClick={handleClockOut} 
+                    disabled={loading}
+                    className={canStartLunch || canEndLunch ? "" : "col-span-2"}
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Encerrar
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
-            <div className="grid grid-cols-2 gap-1">
-              {canStartLunch && <Button onClick={handleLunchStart} disabled={loading} variant="outline" size="sm">
-                  <Coffee className="h-4 w-4 mr-1.5" />
-                  Almoço
-                </Button>}
-
-              {canEndLunch && <Button onClick={handleLunchEnd} disabled={loading} variant="outline" size="sm">
-                  <Pause className="h-4 w-4 mr-1.5" />
-                  Retornar
-                </Button>}
-
-              {canClockOut && <Button onClick={handleClockOut} disabled={loading} variant="destructive" size="sm" className={canStartLunch || canEndLunch ? "" : "col-span-2"}>
-                  <LogOut className="h-4 w-4 mr-1.5" />
-                  Encerrar Dia
-                </Button>}
-            </div>
-          </div>}
-
-        {todayEntry && todayEntry.clock_in && <div className="text-xs text-muted-foreground space-y-0 border-t border-border/50 pt-1 mt-1">
-            <div className="flex justify-between">
-              <span>Entrada:</span>
-              <span className="font-medium text-xs">{format(new Date(todayEntry.clock_in), 'HH:mm')}</span>
-            </div>
-            {todayEntry.lunch_start && <div className="flex justify-between">
-                <span>Almoço:</span>
-                <span className="font-medium">{format(new Date(todayEntry.lunch_start), 'HH:mm')}</span>
-              </div>}
-            {todayEntry.lunch_end && <div className="flex justify-between">
-                <span>Retorno:</span>
-                <span className="font-medium">{format(new Date(todayEntry.lunch_end), 'HH:mm')}</span>
-              </div>}
-          </div>}
+        {todayEntry && todayEntry.clock_in && (
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p>Entrada: {format(new Date(todayEntry.clock_in), "HH:mm")}</p>
+            {todayEntry.lunch_start && (
+              <p>Almoço: {format(new Date(todayEntry.lunch_start), "HH:mm")}</p>
+            )}
+            {todayEntry.lunch_end && (
+              <p>Retorno: {format(new Date(todayEntry.lunch_end), "HH:mm")}</p>
+            )}
+          </div>
+        )}
       </CardContent>
-    </Card>;
+    </Card>
+  );
 }

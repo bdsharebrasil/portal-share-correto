@@ -1,18 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Upload, Loader2, FolderPlus } from "lucide-react";
+import { Upload, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-
-interface DocumentFolder {
-  id: string;
-  name: string;
-}
 
 interface FlightDocumentUploadDialogProps {
   open: boolean;
@@ -37,39 +31,9 @@ export function FlightDocumentUploadDialog({
   const [file, setFile] = useState<File | null>(null);
   const [documentName, setDocumentName] = useState("");
   const [documentDescription, setDocumentDescription] = useState("");
-  const [selectedFolderId, setSelectedFolderId] = useState<string>("");
-  const [folders, setFolders] = useState<DocumentFolder[]>([]);
+  const [documentType, setDocumentType] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [loadingFolders, setLoadingFolders] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      loadFolders();
-    }
-  }, [open, aircraftId, clientId]);
-
-  const loadFolders = async () => {
-    try {
-      setLoadingFolders(true);
-      const { data, error } = await supabase
-        .from("flight_document_folders")
-        .select("id, name")
-        .eq("aircraft_id", aircraftId)
-        .eq("client_id", clientId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setFolders(data || []);
-
-      if (data && data.length > 0) {
-        setSelectedFolderId(data[0].id);
-      }
-    } catch (error) {
-      console.error("Error loading folders:", error);
-    } finally {
-      setLoadingFolders(false);
-    }
-  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -103,17 +67,12 @@ export function FlightDocumentUploadDialog({
       return;
     }
 
-    if (!selectedFolderId) {
-      toast.error("Selecione uma pasta ou crie uma nova");
-      return;
-    }
-
     try {
       setUploading(true);
 
       const fileExt = file.name.split(".").pop();
       const timestamp = Date.now();
-      const fileName = `${aircraftId}/${selectedFolderId}/${timestamp}.${fileExt}`;
+      const fileName = `${aircraftId}/${timestamp}.${fileExt}`;
 
       // Upload to storage
       const { error: uploadError } = await supabase.storage
@@ -137,10 +96,9 @@ export function FlightDocumentUploadDialog({
           file_type: file.type,
           file_size: file.size,
           uploaded_by: user?.id,
-          created_at: new Date().toISOString(),
-          folder_id: selectedFolderId,
           aircraft_id: aircraftId,
-          client_id: clientId
+          document_type: documentType.trim() || null,
+          expiry_date: expiryDate || null
         });
 
       if (dbError) throw dbError;
@@ -152,6 +110,8 @@ export function FlightDocumentUploadDialog({
       setFile(null);
       setDocumentName("");
       setDocumentDescription("");
+      setDocumentType("");
+      setExpiryDate("");
     } catch (error) {
       console.error("Error uploading document:", error);
       toast.error("Erro ao enviar documento");
@@ -171,46 +131,19 @@ export function FlightDocumentUploadDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Folder Selection */}
+          {/* Document Type */}
           <div>
-            <Label htmlFor="folder-select" className="text-sm font-medium">
-              Pasta de Destino *
+            <Label htmlFor="doc-type" className="text-sm font-medium">
+              Tipo de Documento (Opcional)
             </Label>
-            <div className="flex gap-2 mt-2">
-              <Select
-                value={selectedFolderId}
-                onValueChange={setSelectedFolderId}
-                disabled={uploading || loadingFolders || folders.length === 0}
-              >
-                <SelectTrigger id="folder-select" className="flex-1">
-                  <SelectValue
-                    placeholder={
-                      loadingFolders
-                        ? "Carregando pastas..."
-                        : folders.length === 0
-                          ? "Nenhuma pasta disponível"
-                          : "Selecione uma pasta"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {folders.map((folder) => (
-                    <SelectItem key={folder.id} value={folder.id}>
-                      {folder.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={onManageFolders}
-                className="gap-2"
-              >
-                <FolderPlus className="h-4 w-4" />
-                Gerenciar
-              </Button>
-            </div>
+            <Input
+              id="doc-type"
+              value={documentType}
+              onChange={(e) => setDocumentType(e.target.value)}
+              placeholder="Ex: Certificado, Inspeção, Registro"
+              disabled={uploading}
+              className="mt-2"
+            />
           </div>
 
           {/* Document Name */}
@@ -260,10 +193,28 @@ export function FlightDocumentUploadDialog({
               id="flight-document-description"
               value={documentDescription}
               onChange={(e) => setDocumentDescription(e.target.value)}
-              placeholder="Ex: Válido até 2025-12-31"
+              placeholder="Ex: Informações adicionais sobre o documento"
               disabled={uploading}
               className="mt-2 min-h-12 resize-none"
             />
+          </div>
+
+          {/* Expiry Date */}
+          <div>
+            <Label htmlFor="flight-document-expiry" className="text-sm font-medium">
+              Data de Vencimento (Opcional)
+            </Label>
+            <Input
+              id="flight-document-expiry"
+              type="date"
+              value={expiryDate}
+              onChange={(e) => setExpiryDate(e.target.value)}
+              disabled={uploading}
+              className="mt-2"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Deixe em branco se o documento não tem data de vencimento
+            </p>
           </div>
         </div>
 
@@ -277,7 +228,7 @@ export function FlightDocumentUploadDialog({
           </Button>
           <Button
             onClick={handleUpload}
-            disabled={uploading || !file || !documentName.trim() || !selectedFolderId}
+            disabled={uploading || !file || !documentName.trim()}
             className="gap-2"
           >
             {uploading ? (

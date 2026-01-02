@@ -9,25 +9,23 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-
 const GerenciarUsuarios = () => {
-  const { isAdmin, isGestorMaster, isLoading } = useUserRole();
+  const {
+    isAdmin,
+    isGestorMaster,
+    isLoading
+  } = useUserRole();
   const [activeTab, setActiveTab] = useState("list");
   const [createUserType, setCreateUserType] = useState<"colaborador" | "cliente">("colaborador");
-
   if (isLoading) {
-    return (
-      <Layout>
+    return <Layout>
         <div className="flex items-center justify-center h-full">
           <div className="text-muted-foreground">Carregando...</div>
         </div>
-      </Layout>
-    );
+      </Layout>;
   }
-
   if (!isAdmin && !isGestorMaster) {
-    return (
-      <Layout>
+    return <Layout>
         <div className="p-6">
           <Alert variant="destructive">
             <AlertDescription>
@@ -35,12 +33,9 @@ const GerenciarUsuarios = () => {
             </AlertDescription>
           </Alert>
         </div>
-      </Layout>
-    );
+      </Layout>;
   }
-
-  return (
-    <Layout>
+  return <Layout>
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -56,10 +51,18 @@ const GerenciarUsuarios = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setCreateUserType("colaborador"); setActiveTab("create"); }}>
+                <DropdownMenuItem onSelect={e => {
+                e.preventDefault();
+                setCreateUserType("colaborador");
+                setActiveTab("create");
+              }}>
                   Colaborador
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={(e) => { e.preventDefault(); setCreateUserType("cliente"); setActiveTab("create"); }}>
+                <DropdownMenuItem onSelect={e => {
+                e.preventDefault();
+                setCreateUserType("cliente");
+                setActiveTab("create");
+              }}>
                   Cliente
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -70,7 +73,7 @@ const GerenciarUsuarios = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid w-full max-w-md grid-cols-2">
             <TabsTrigger value="create" className="flex items-center gap-2">
-              <UserPlus className="h-4 w-4" />
+              
               Criar Usuário
             </TabsTrigger>
             <TabsTrigger value="list" className="flex items-center gap-2">
@@ -88,8 +91,6 @@ const GerenciarUsuarios = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </Layout>
-  );
+    </Layout>;
 };
-
 export default GerenciarUsuarios;

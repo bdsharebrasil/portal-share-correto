@@ -71,74 +71,48 @@ export const useUserProfile = (user: User | null | undefined, options?: { skipCr
                 return null;
             }
 
-            // A. Tenta ler o perfil existente
+            // Tenta ler o perfil direto do Supabase
             const { data, error } = await supabase
                 .from("user_profiles")
                 .select("*")
                 .eq("id", user.id)
                 .maybeSingle();
 
-            // Lida com erros diferentes de "registro não encontrado" (que é esperado)
-            if (error && error.code !== 'PGRST116') {
-                console.error("Erro ao tentar ler o perfil:", error);
-                throw error;
-            }
-
-            // B. Se o perfil existir, retorna
+            // Se encontrou, retorna (nunca cria perfil se já existe)
             if (data) {
                 return data as UserProfile;
             }
 
-            // C. Se o perfil NÃO existe: Verifica a permissão para PULAR o INSERT
+            // Se erro e não é "não encontrado", lança
+            if (error && error.code !== 'PGRST116') {
+                console.error("Erro ao ler perfil:", error);
+                throw error;
+            }
+
+            // Se não encontrou e não é para criar, retorna simulado
             if (shouldSkipCreation) {
-                // Usuário especial sem perfil: Retorna um objeto simulado
-                // para satisfazer o sistema sem fazer o POST.
                 return {
                     id: user.id,
-                    email: user.email ?? 'admin-sem-perfil',
-                    full_name: 'Admin Sem Perfil (Simulado)',
+                    email: user.email ?? 'user-sem-perfil',
+                    full_name: user.user_metadata?.full_name ?? 'Usuário',
                     created_at: new Date().toISOString(),
                 } as UserProfile;
             }
 
-            // D. Se o perfil NÃO existe e o usuário não é privilegiado: CRIA o perfil
+            // Só cria perfil se não foi encontrado e não é skip
             const defaultProfile = buildDefaultProfile(user);
-            // Tenta inserir e, se a mensagem indicar coluna desconhecida no schema cache,
-            // remove essa chave e tenta novamente (útil quando tipos locais e DB estão desalinhados).
-            let insertAttempt = 0;
-            let payload: any = { ...defaultProfile };
-            while (insertAttempt < 2) {
-                const { data: inserted, error: insertError } = await supabase
-                    .from("user_profiles")
-                    .insert(payload)
-                    .select()
-                    .single();
+            const { data: inserted, error: insertError } = await supabase
+                .from("user_profiles")
+                .insert(defaultProfile)
+                .select()
+                .single();
 
-                if (!insertError) {
-                    return inserted as UserProfile;
-                }
-
-                const errMsg = (insertError.message ?? JSON.stringify(insertError)) as string;
-                console.error("Erro no INSERT (Criação de Perfil):", errMsg, insertError);
-
-                // Detecta mensagem do tipo: Could not find the 'tipo' column of 'user_profiles' in the schema cache
-                const match = errMsg.match(/Could not find the '(.+?)' column of 'user_profiles'/i);
-                if (match && match[1]) {
-                    const missingCol = match[1];
-                    // Remove a coluna do payload e tenta novamente
-                    if (payload.hasOwnProperty(missingCol)) {
-                        delete payload[missingCol];
-                        insertAttempt += 1;
-                        console.warn(`Retrying insert after removing unknown column: ${missingCol}`);
-                        continue;
-                    }
-                }
-
-                // Se não for esse caso, lança o erro
-                throw new Error(errMsg);
+            if (insertError) {
+                console.error("Erro ao criar perfil:", insertError);
+                throw insertError;
             }
 
-            throw new Error("Falha ao inserir perfil após tentativas");
+            return inserted as UserProfile;
         },
     });
 
