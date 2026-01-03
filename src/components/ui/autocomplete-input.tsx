@@ -1,7 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, forwardRef } from 'react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { ChevronDown, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface AutocompleteOption {
@@ -22,7 +21,7 @@ interface AutocompleteInputProps {
   onSelect?: (option: AutocompleteOption) => void;
 }
 
-export function AutocompleteInput({
+export const AutocompleteInput = forwardRef<HTMLInputElement, AutocompleteInputProps>(({
   value,
   onChange,
   options,
@@ -32,7 +31,7 @@ export function AutocompleteInput({
   className,
   disabled = false,
   onSelect,
-}: AutocompleteInputProps) {
+}, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [filteredOptions, setFilteredOptions] = useState<AutocompleteOption[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -106,7 +105,7 @@ export function AutocompleteInput({
 
       <div className="relative">
         <Input
-          ref={inputRef}
+          ref={ref || inputRef}
           type="text"
           value={value}
           onChange={(e) => handleInputChange(e.target.value)}
@@ -166,4 +165,6 @@ export function AutocompleteInput({
       )}
     </div>
   );
-}
+});
+
+AutocompleteInput.displayName = 'AutocompleteInput';
