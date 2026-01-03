@@ -280,36 +280,58 @@ export function Step1AircraftInfo({ formData, updateFormData }: Step1Props) {
               <Label className="text-slate-300">Origem (ICAO) *</Label>
               <AutocompleteInput
                 value={formData.departureAirport}
-                onChange={(value) => updateFormData({ departureAirport: value.toUpperCase() })}
+                onChange={(value) => {
+                  // Extract ICAO code from "SBGR - Nome do Aeroporto" format
+                  const icao = value.split(' - ')[0].toUpperCase().trim();
+                  updateFormData({ departureAirport: icao });
+                }}
                 options={aerodromes.map(a => ({
-                  id: a.id,
+                  id: a.designativo,
                   label: `${a.designativo} - ${a.name}`
                 }))}
                 placeholder="Ex: SBGR"
+                onSelect={(option) => {
+                  const icao = option.id.toUpperCase();
+                  updateFormData({ departureAirport: icao });
+                }}
               />
             </div>
             <div className="space-y-2">
               <Label className="text-slate-300">Destino (ICAO) *</Label>
               <AutocompleteInput
                 value={formData.destinationAirport}
-                onChange={(value) => updateFormData({ destinationAirport: value.toUpperCase() })}
+                onChange={(value) => {
+                  const icao = value.split(' - ')[0].toUpperCase().trim();
+                  updateFormData({ destinationAirport: icao });
+                }}
                 options={aerodromes.map(a => ({
-                  id: a.id,
+                  id: a.designativo,
                   label: `${a.designativo} - ${a.name}`
                 }))}
                 placeholder="Ex: SBRJ"
+                onSelect={(option) => {
+                  const icao = option.id.toUpperCase();
+                  updateFormData({ destinationAirport: icao });
+                }}
               />
             </div>
             <div className="space-y-2">
               <Label className="text-slate-300">Alternativa (ICAO)</Label>
               <AutocompleteInput
                 value={formData.alternateAirport}
-                onChange={(value) => updateFormData({ alternateAirport: value.toUpperCase() })}
+                onChange={(value) => {
+                  const icao = value.split(' - ')[0].toUpperCase().trim();
+                  updateFormData({ alternateAirport: icao });
+                }}
                 options={aerodromes.map(a => ({
-                  id: a.id,
+                  id: a.designativo,
                   label: `${a.designativo} - ${a.name}`
                 }))}
                 placeholder="Ex: SBSP"
+                onSelect={(option) => {
+                  const icao = option.id.toUpperCase();
+                  updateFormData({ alternateAirport: icao });
+                }}
               />
             </div>
           </div>

@@ -1,3 +1,5 @@
+import { supabase } from '@/integrations/supabase/client';
+
 // Database of Brazilian airports with coordinates
 // Extended with major international airports
 const AIRPORT_DATABASE: Record<string, { name: string; lat: number; lng: number }> = {
@@ -35,10 +37,21 @@ const AIRPORT_DATABASE: Record<string, { name: string; lat: number; lng: number 
   'SBCE': { name: 'Congonhas (São Paulo)', lat: -23.6256, lng: -46.4657 },
   'SBRG': { name: 'Rio Grande do Sul/Salgado Filho', lat: -29.1944, lng: -51.1797 },
   'SBPJ': { name: 'Pelotas/Bartolomeu de Gusmão', lat: -28.3238, lng: -52.3803 },
-  'SBPA': { name: 'Porto Alegre/Salgado Filho', lat: -29.1944, lng: -51.1797 },
+  'SBPA': { name: 'Porto Alegre/Salgado Filho', lat: -29.9944, lng: -51.1711 },
   'SBSC': { name: 'Santa Catarina/Hercílio Luz', lat: -27.5848, lng: -48.5579 },
   'SBPK': { name: 'Pampulha', lat: -19.8537, lng: -43.9507 },
   'SBRD': { name: 'Rondonópolis', lat: -16.5860, lng: -54.7250 },
+  'SBFL': { name: 'Florianópolis', lat: -27.6703, lng: -48.5525 },
+  'SBJV': { name: 'Joinville', lat: -26.2242, lng: -48.7972 },
+  'SBNF': { name: 'Navegantes', lat: -26.8794, lng: -48.6514 },
+  'SBCF': { name: 'Confins', lat: -19.6339, lng: -43.9689 },
+  'SBGL': { name: 'Galeão', lat: -22.8089, lng: -43.2436 },
+  'SBSV': { name: 'Salvador', lat: -12.9086, lng: -38.3225 },
+  'SBCG': { name: 'Campo Grande', lat: -20.4686, lng: -54.6725 },
+  'SBTE': { name: 'Teresina', lat: -5.0597, lng: -42.8236 },
+  'SBSL': { name: 'São Luís', lat: -2.5853, lng: -44.2342 },
+  'SBBE': { name: 'Belém', lat: -1.3792, lng: -48.4764 },
+  'SBMQ': { name: 'Macapá', lat: 0.0508, lng: -51.0722 },
   
   // Regional Airports
   'SBMD': { name: 'Maringá/Silvio Name Jr.', lat: -23.2252, lng: -51.4161 },
@@ -69,8 +82,30 @@ export interface AirportInfo {
   lng: number;
 }
 
+// Helper function to parse coordinates from string format
+function parseCoordinates(coordStr: string | null): { lat: number; lng: number } | null {
+  if (!coordStr) return null;
+  
+  // Format: S23°32'00" W046°38'00" or similar
+  const match = coordStr.match(/([NS])(\d+)°(\d+)'(\d+)"?\s*([EW])(\d+)°(\d+)'(\d+)"?/i);
+  if (match) {
+    const lat = (parseInt(match[2]) + parseInt(match[3]) / 60 + parseInt(match[4]) / 3600) * (match[1].toUpperCase() === 'S' ? -1 : 1);
+    const lng = (parseInt(match[6]) + parseInt(match[7]) / 60 + parseInt(match[8]) / 3600) * (match[5].toUpperCase() === 'W' ? -1 : 1);
+    return { lat, lng };
+  }
+  
+  // Format: -23.5333, -46.6333
+  const decimalMatch = coordStr.match(/([-\d.]+),?\s*([-\d.]+)/);
+  if (decimalMatch) {
+    return { lat: parseFloat(decimalMatch[1]), lng: parseFloat(decimalMatch[2]) };
+  }
+  
+  return null;
+}
+
 /**
  * Fetch airport coordinates by ICAO code
+ * First tries local database, then falls back to Supabase aerodromes table
  */
 export async function getAirportCoordinates(icao: string): Promise<AirportInfo | null> {
   const upperIcao = icao.toUpperCase().trim();
@@ -86,9 +121,28 @@ export async function getAirportCoordinates(icao: string): Promise<AirportInfo |
     };
   }
   
-  // Note: External API calls (openAIP) may have CORS restrictions in browsers
-  // For now, we rely on the local AIRPORT_DATABASE above
-  // If needed in production, use a backend proxy endpoint instead
+  // Try to fetch from Supabase aerodromes table
+  try {
+    const { data, error } = await supabase
+      .from('aerodromes')
+      .select('designativo, name, coordenadas')
+      .eq('designativo', upperIcao)
+      .single();
+    
+    if (!error && data && data.coordenadas) {
+      const coords = parseCoordinates(data.coordenadas);
+      if (coords) {
+        return {
+          icao: data.designativo,
+          name: data.name,
+          lat: coords.lat,
+          lng: coords.lng,
+        };
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching airport from database:', err);
+  }
   
   // Return null if not found
   return null;
