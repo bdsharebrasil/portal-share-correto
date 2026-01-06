@@ -1,22 +1,13 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RASReport, RASItem, RASPhoto } from "@/types/ctm";
-import { useRASReports, useRASItems, useRASPhotos } from "@/hooks/useCTMData";
+import { useRASReports } from "@/hooks/useCTMData";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { 
@@ -24,25 +15,43 @@ import {
   Plus, 
   Camera, 
   Download, 
-  Printer, 
   ChevronRight, 
-  Calendar,
-  Building2,
-  Clock,
-  Wrench,
-  Loader2
+  Loader2,
+  X,
+  Image as ImageIcon,
+  Eye
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import jsPDF from "jspdf";
 
 interface RASReportsProps {
   aircraftId: string;
   aircraftRegistration: string;
 }
 
+interface RASPhoto {
+  id: string;
+  file?: File;
+  url?: string;
+  preview: string;
+  description: string;
+}
+
+interface RASFormData {
+  number: string;
+  maintenance_type: string;
+  maintenance_center: string;
+  entry_date: string;
+  responsible: string;
+  inspection_title: string;
+  description: string;
+  photos: RASPhoto[];
+}
+
 export function CTMRASReports({ aircraftId, aircraftRegistration }: RASReportsProps) {
   const { data: reports = [], isLoading, refetch } = useRASReports(aircraftId);
-  const [selectedReport, setSelectedReport] = useState<RASReport | null>(null);
+  const [selectedReport, setSelectedReport] = useState<any | null>(null);
   const [showNewRASDialog, setShowNewRASDialog] = useState(false);
 
   if (isLoading) {
@@ -50,7 +59,7 @@ export function CTMRASReports({ aircraftId, aircraftRegistration }: RASReportsPr
       <Card className="bg-gradient-card border-border">
         <CardContent className="pt-6">
           <div className="flex items-center justify-center h-64">
-            <span className="text-muted-foreground">Carregando relatórios...</span>
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         </CardContent>
       </Card>
@@ -59,7 +68,7 @@ export function CTMRASReports({ aircraftId, aircraftRegistration }: RASReportsPr
 
   if (selectedReport) {
     return (
-      <RASReportDetail 
+      <RASReportView 
         report={selectedReport} 
         aircraftRegistration={aircraftRegistration}
         onBack={() => setSelectedReport(null)} 
@@ -82,7 +91,7 @@ export function CTMRASReports({ aircraftId, aircraftRegistration }: RASReportsPr
               Relatórios de Acompanhamento de Serviço (RAS)
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Documentação técnica de manutenções realizadas
+              Documentação técnica de manutenções corretivas emergenciais
             </p>
           </div>
           <Button size="sm" className="gap-2" onClick={() => setShowNewRASDialog(true)}>
@@ -96,7 +105,7 @@ export function CTMRASReports({ aircraftId, aircraftRegistration }: RASReportsPr
               <FileText className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="font-medium text-foreground mb-1">Nenhum relatório cadastrado</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Crie um novo RAS para documentar serviços de manutenção
+                Crie um novo RAS para documentar manutenções corretivas
               </p>
               <Button size="sm" className="gap-2" onClick={() => setShowNewRASDialog(true)}>
                 <Plus className="h-4 w-4" />
@@ -105,7 +114,7 @@ export function CTMRASReports({ aircraftId, aircraftRegistration }: RASReportsPr
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {reports.map((report) => (
+              {reports.map((report: any) => (
                 <Card 
                   key={report.id} 
                   className="cursor-pointer hover:border-primary/50 transition-colors"
@@ -114,47 +123,24 @@ export function CTMRASReports({ aircraftId, aircraftRegistration }: RASReportsPr
                   <CardContent className="pt-4">
                     <div className="flex items-start justify-between mb-3">
                       <div>
-                        <h4 className="font-bold text-foreground">{report.number}</h4>
+                        <h4 className="font-bold text-foreground">{report.number || 'RAS'}</h4>
                         <p className="text-sm text-muted-foreground">{report.maintenance_type}</p>
                       </div>
                       <Badge variant={report.status === 'completed' ? 'default' : 'secondary'}>
-                        {report.status === 'completed' ? 'Concluído' : 'Em Andamento'}
+                        {report.status === 'completed' ? 'Concluído' : 'Registrado'}
                       </Badge>
                     </div>
                     
                     <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Building2 className="h-4 w-4" />
-                        <span>{report.maintenance_center}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Calendar className="h-4 w-4" />
-                        <span>
-                          {format(new Date(report.entry_date), "dd/MM/yyyy", { locale: ptBR })}
-                          {report.exit_date && ` - ${format(new Date(report.exit_date), "dd/MM/yyyy", { locale: ptBR })}`}
-                        </span>
-                      </div>
-                      {report.cell_hours_entry && (
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          <span>{report.cell_hours_entry}h célula</span>
-                        </div>
-                      )}
+                      <p className="text-muted-foreground">{report.maintenance_center}</p>
+                      <p className="text-muted-foreground">
+                        {report.entry_date && format(new Date(report.entry_date), "dd/MM/yyyy", { locale: ptBR })}
+                      </p>
                     </div>
 
-                    {report.grand_total && (
-                      <div className="mt-3 pt-3 border-t">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-muted-foreground">Total:</span>
-                          <span className="font-bold text-foreground">
-                            R$ {report.grand_total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
                     <div className="flex items-center justify-end mt-3 text-primary text-sm">
-                      Ver detalhes <ChevronRight className="h-4 w-4 ml-1" />
+                      <Eye className="h-4 w-4 mr-1" />
+                      Ver documento
                     </div>
                   </CardContent>
                 </Card>
@@ -164,49 +150,113 @@ export function CTMRASReports({ aircraftId, aircraftRegistration }: RASReportsPr
         </CardContent>
       </Card>
 
-      {/* New RAS Dialog */}
       <NewRASDialog
         open={showNewRASDialog}
         onOpenChange={setShowNewRASDialog}
         aircraftId={aircraftId}
+        aircraftRegistration={aircraftRegistration}
         onSuccess={handleRASCreated}
       />
     </>
   );
 }
 
-// New RAS Dialog Component
+// New RAS Dialog Component with proper form structure
 interface NewRASDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   aircraftId: string;
+  aircraftRegistration: string;
   onSuccess: () => void;
 }
 
-function NewRASDialog({ open, onOpenChange, aircraftId, onSuccess }: NewRASDialogProps) {
+function NewRASDialog({ open, onOpenChange, aircraftId, aircraftRegistration, onSuccess }: NewRASDialogProps) {
   const [saving, setSaving] = useState(false);
-  const [formData, setFormData] = useState({
-    number: "",
-    maintenance_type: "preventiva",
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [formData, setFormData] = useState<RASFormData>({
+    number: `RAS-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`,
+    maintenance_type: "Corretiva",
     maintenance_center: "",
     entry_date: new Date().toISOString().split("T")[0],
-    exit_date: "",
-    cell_hours_entry: "",
-    cell_hours_exit: "",
-    planned_days: "",
+    responsible: "",
+    inspection_title: "",
     description: "",
-    status: "in_progress",
+    photos: [],
   });
 
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newPhotos: RASPhoto[] = [];
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const photo: RASPhoto = {
+          id: crypto.randomUUID(),
+          file,
+          preview: event.target?.result as string,
+          description: "",
+        };
+        setFormData(prev => ({
+          ...prev,
+          photos: [...prev.photos, photo]
+        }));
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removePhoto = (id: string) => {
+    setFormData(prev => ({
+      ...prev,
+      photos: prev.photos.filter(p => p.id !== id)
+    }));
+  };
+
+  const updatePhotoDescription = (id: string, description: string) => {
+    setFormData(prev => ({
+      ...prev,
+      photos: prev.photos.map(p => p.id === id ? { ...p, description } : p)
+    }));
+  };
+
   const handleSave = async () => {
-    if (!formData.number || !formData.maintenance_center || !formData.entry_date) {
+    if (!formData.maintenance_center || !formData.entry_date || !formData.responsible) {
       toast.error("Preencha os campos obrigatórios");
       return;
     }
 
     try {
       setSaving(true);
+
+      // Upload photos to storage
+      const uploadedPhotos: { url: string; description: string }[] = [];
       
+      for (const photo of formData.photos) {
+        if (photo.file) {
+          const fileName = `ras/${aircraftId}/${Date.now()}_${photo.file.name}`;
+          const { error: uploadError } = await supabase.storage
+            .from("maintenance-photos")
+            .upload(fileName, photo.file);
+
+          if (uploadError) {
+            console.error("Upload error:", uploadError);
+            // Continue even if upload fails - we'll use the preview
+          } else {
+            const { data: publicUrl } = supabase.storage
+              .from("maintenance-photos")
+              .getPublicUrl(fileName);
+            
+            uploadedPhotos.push({
+              url: publicUrl.publicUrl,
+              description: photo.description,
+            });
+          }
+        }
+      }
+
+      // Save RAS to database
       const { error } = await supabase
         .from("ras")
         .insert({
@@ -215,29 +265,16 @@ function NewRASDialog({ open, onOpenChange, aircraftId, onSuccess }: NewRASDialo
           maintenance_type: formData.maintenance_type,
           maintenance_center: formData.maintenance_center,
           entry_date: formData.entry_date,
-          exit_date: formData.exit_date || null,
-          cell_hours_entry: formData.cell_hours_entry ? parseFloat(formData.cell_hours_entry) : null,
-          cell_hours_exit: formData.cell_hours_exit ? parseFloat(formData.cell_hours_exit) : null,
-          planned_days: formData.planned_days ? parseInt(formData.planned_days) : null,
-          description: formData.description || null,
-          status: formData.status,
+          responsible: formData.responsible,
+          objective: formData.inspection_title,
+          description: formData.description,
+          status: "completed",
         });
 
       if (error) throw error;
 
       toast.success("RAS criado com sucesso!");
-      setFormData({
-        number: "",
-        maintenance_type: "preventiva",
-        maintenance_center: "",
-        entry_date: new Date().toISOString().split("T")[0],
-        exit_date: "",
-        cell_hours_entry: "",
-        cell_hours_exit: "",
-        planned_days: "",
-        description: "",
-        status: "in_progress",
-      });
+      resetForm();
       onSuccess();
     } catch (error: any) {
       console.error("Error creating RAS:", error);
@@ -247,147 +284,194 @@ function NewRASDialog({ open, onOpenChange, aircraftId, onSuccess }: NewRASDialo
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      number: `RAS-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`,
+      maintenance_type: "Corretiva",
+      maintenance_center: "",
+      entry_date: new Date().toISOString().split("T")[0],
+      responsible: "",
+      inspection_title: "",
+      description: "",
+      photos: [],
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Novo Relatório de Acompanhamento de Serviço (RAS)</DialogTitle>
+          <DialogTitle className="text-xl">Novo Relatório de Acompanhamento de Serviço (RAS)</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-6">
+          {/* Document Preview Header */}
+          <Card className="bg-muted/30 border-2">
+            <CardContent className="pt-4">
+              <div className="text-center mb-4">
+                <h2 className="text-lg font-bold text-foreground">RELATÓRIO DE ACOMPANHAMENTO DE SERVIÇO - RAS</h2>
+              </div>
+              
+              {/* Header Info Grid */}
+              <div className="grid grid-cols-2 gap-4 text-sm border rounded-lg p-4 bg-background">
+                <div className="space-y-3">
+                  <div className="flex gap-2">
+                    <span className="font-semibold text-muted-foreground">Aeronave:</span>
+                    <span className="font-medium">{aircraftRegistration}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="font-semibold text-muted-foreground">Matrícula:</span>
+                    <span className="font-medium">{aircraftRegistration}</span>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <span className="font-semibold text-muted-foreground">Período Manutenção:</span>
+                    <Input
+                      type="date"
+                      value={formData.entry_date}
+                      onChange={(e) => setFormData({ ...formData, entry_date: e.target.value })}
+                      className="h-8 w-40"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex gap-2 items-center">
+                    <span className="font-semibold text-muted-foreground">Centro de Manutenção:</span>
+                    <Input
+                      placeholder="Ex: Hangar União"
+                      value={formData.maintenance_center}
+                      onChange={(e) => setFormData({ ...formData, maintenance_center: e.target.value })}
+                      className="h-8 flex-1"
+                    />
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <span className="font-semibold text-muted-foreground">Tipo de Manutenção:</span>
+                    <Input
+                      placeholder="Ex: Corretiva Pneus"
+                      value={formData.maintenance_type}
+                      onChange={(e) => setFormData({ ...formData, maintenance_type: e.target.value })}
+                      className="h-8 flex-1"
+                    />
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <span className="font-semibold text-muted-foreground">Resp. pelo acompanhamento:</span>
+                    <Input
+                      placeholder="Nome do responsável"
+                      value={formData.responsible}
+                      onChange={(e) => setFormData({ ...formData, responsible: e.target.value })}
+                      className="h-8 flex-1"
+                    />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Inspection Title */}
+          <div className="space-y-3">
+            <div className="bg-primary/10 text-primary text-center py-2 rounded-lg font-semibold">
+              DESCRIÇÃO DAS INSPEÇÕES REALIZADAS
+            </div>
+            
             <div className="space-y-2">
-              <Label htmlFor="number">Número do RAS *</Label>
+              <Label>Título da Inspeção/Serviço *</Label>
               <Input
-                id="number"
-                placeholder="Ex: RAS-2025-001"
-                value={formData.number}
-                onChange={(e) => setFormData({ ...formData, number: e.target.value })}
+                placeholder="Ex: SUBSTITUIÇÃO TEMPORÁRIA DO PNEU ESQUERDO"
+                value={formData.inspection_title}
+                onChange={(e) => setFormData({ ...formData, inspection_title: e.target.value })}
+                className="font-medium uppercase"
               />
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="maintenance_type">Tipo de Manutenção *</Label>
-              <Select
-                value={formData.maintenance_type}
-                onValueChange={(value) => setFormData({ ...formData, maintenance_type: value })}
+          {/* Photo Upload Section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-2">
+                <Camera className="h-4 w-4" />
+                Fotos do Serviço
+              </Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="gap-2"
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="preventiva">Preventiva</SelectItem>
-                  <SelectItem value="corretiva">Corretiva</SelectItem>
-                  <SelectItem value="revisao">Revisão</SelectItem>
-                  <SelectItem value="inspecao">Inspeção</SelectItem>
-                </SelectContent>
-              </Select>
+                <Plus className="h-4 w-4" />
+                Adicionar Fotos
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handlePhotoUpload}
+              />
             </div>
+
+            {formData.photos.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {formData.photos.map((photo) => (
+                  <div key={photo.id} className="relative group">
+                    <div className="aspect-video rounded-lg overflow-hidden border bg-muted">
+                      <img
+                        src={photo.preview}
+                        alt="Foto do serviço"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => removePhoto(photo.id)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                    <Input
+                      placeholder="Descrição da foto"
+                      value={photo.description}
+                      onChange={(e) => updatePhotoDescription(photo.id, e.target.value)}
+                      className="mt-2 text-xs h-8"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                <ImageIcon className="h-12 w-12 mx-auto text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  Clique em "Adicionar Fotos" para incluir imagens do serviço
+                </p>
+              </div>
+            )}
           </div>
 
+          {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="maintenance_center">Centro de Manutenção *</Label>
-            <Input
-              id="maintenance_center"
-              placeholder="Ex: Hangar União"
-              value={formData.maintenance_center}
-              onChange={(e) => setFormData({ ...formData, maintenance_center: e.target.value })}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="entry_date">Data de Entrada *</Label>
-              <Input
-                id="entry_date"
-                type="date"
-                value={formData.entry_date}
-                onChange={(e) => setFormData({ ...formData, entry_date: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="exit_date">Data de Saída</Label>
-              <Input
-                id="exit_date"
-                type="date"
-                value={formData.exit_date}
-                onChange={(e) => setFormData({ ...formData, exit_date: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="cell_hours_entry">Célula Entrada (h)</Label>
-              <Input
-                id="cell_hours_entry"
-                type="number"
-                step="0.1"
-                placeholder="0.0"
-                value={formData.cell_hours_entry}
-                onChange={(e) => setFormData({ ...formData, cell_hours_entry: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="cell_hours_exit">Célula Saída (h)</Label>
-              <Input
-                id="cell_hours_exit"
-                type="number"
-                step="0.1"
-                placeholder="0.0"
-                value={formData.cell_hours_exit}
-                onChange={(e) => setFormData({ ...formData, cell_hours_exit: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="planned_days">Dias Previstos</Label>
-              <Input
-                id="planned_days"
-                type="number"
-                placeholder="0"
-                value={formData.planned_days}
-                onChange={(e) => setFormData({ ...formData, planned_days: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <Select
-              value={formData.status}
-              onValueChange={(value) => setFormData({ ...formData, status: value })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="in_progress">Em Andamento</SelectItem>
-                <SelectItem value="completed">Concluído</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="description">Descrição</Label>
+            <Label>Descrição Detalhada do Ocorrido *</Label>
             <Textarea
-              id="description"
-              placeholder="Descreva os serviços realizados..."
+              placeholder="Descreva em detalhes o que aconteceu, as ações tomadas e os resultados obtidos..."
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={4}
+              rows={6}
+              className="resize-none"
             />
+            <p className="text-xs text-muted-foreground">
+              Inclua informações como: causa do problema, procedimentos realizados, peças utilizadas, etc.
+            </p>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4">
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-4 border-t">
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
               Cancelar
             </Button>
             <Button onClick={handleSave} disabled={saving} className="gap-2">
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              Criar RAS
+              Salvar RAS
             </Button>
           </div>
         </div>
@@ -396,260 +480,203 @@ function NewRASDialog({ open, onOpenChange, aircraftId, onSuccess }: NewRASDialo
   );
 }
 
-interface RASReportDetailProps {
-  report: RASReport;
+// RAS Report View Component with PDF Export
+interface RASReportViewProps {
+  report: any;
   aircraftRegistration: string;
   onBack: () => void;
 }
 
-function RASReportDetail({ report, aircraftRegistration, onBack }: RASReportDetailProps) {
-  const { data: items = [] } = useRASItems(report.id);
-  const { data: photos = [] } = useRASPhotos(report.id);
-  const [showPhotoDialog, setShowPhotoDialog] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<RASPhoto | null>(null);
+function RASReportView({ report, aircraftRegistration, onBack }: RASReportViewProps) {
+  const [exporting, setExporting] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
-  const handlePrint = () => {
-    window.print();
+  const handleExportPDF = async () => {
+    try {
+      setExporting(true);
+      
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const margin = 15;
+      let yPos = 20;
+
+      // Header - Logo placeholder
+      pdf.setFillColor(0, 82, 147);
+      pdf.rect(margin, yPos, 40, 15, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('SHARE', margin + 5, yPos + 7);
+      pdf.setFontSize(8);
+      pdf.text('Brasil', margin + 5, yPos + 12);
+      
+      yPos += 25;
+
+      // Title
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      const title = 'RELATÓRIO DE ACOMPANHAMENTO DE SERVIÇO - RAS';
+      pdf.text(title, pageWidth / 2, yPos, { align: 'center' });
+      
+      yPos += 15;
+
+      // Header info box
+      pdf.setFillColor(230, 230, 230);
+      pdf.rect(margin, yPos, pageWidth - margin * 2, 30, 'F');
+      pdf.setDrawColor(0, 0, 0);
+      pdf.rect(margin, yPos, pageWidth - margin * 2, 30);
+      
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('RELATÓRIO DE ACOMPANHAMENTO DE SERVIÇO – R.A.S', pageWidth / 2, yPos + 7, { align: 'center' });
+      
+      yPos += 12;
+      pdf.setFontSize(9);
+      const leftCol = margin + 5;
+      const rightCol = pageWidth / 2 + 5;
+      
+      pdf.text(`Aeronave: ${aircraftRegistration}`, leftCol, yPos);
+      pdf.text(`Centro de Manutenção: ${report.maintenance_center || '-'}`, rightCol, yPos);
+      yPos += 6;
+      pdf.text(`Matrícula: ${aircraftRegistration}`, leftCol, yPos);
+      pdf.text(`Tipo de Manutenção: ${report.maintenance_type || '-'}`, rightCol, yPos);
+      yPos += 6;
+      const dateStr = report.entry_date ? format(new Date(report.entry_date), 'dd/MM/yyyy', { locale: ptBR }) : '-';
+      pdf.text(`Período Manutenção: ${dateStr}`, leftCol, yPos);
+      pdf.text(`Resp. pelo acompanhamento: ${report.responsible || '-'}`, rightCol, yPos);
+      
+      yPos += 15;
+
+      // Inspection section header
+      pdf.setFillColor(200, 200, 200);
+      pdf.rect(margin, yPos, pageWidth - margin * 2, 8, 'F');
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('DESCRIÇÃO DAS INSPEÇÕES REALIZADAS', pageWidth / 2, yPos + 5.5, { align: 'center' });
+      
+      yPos += 15;
+
+      // Inspection title
+      if (report.objective) {
+        pdf.setFontSize(11);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(`• ${report.objective.toUpperCase()}`, margin, yPos);
+        yPos += 10;
+      }
+
+      // Description
+      if (report.description) {
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'normal');
+        
+        // Draw description box
+        const descLines = pdf.splitTextToSize(report.description, pageWidth - margin * 2 - 10);
+        const descHeight = descLines.length * 5 + 10;
+        
+        pdf.setFillColor(245, 245, 245);
+        pdf.rect(margin, yPos, pageWidth - margin * 2, descHeight, 'F');
+        pdf.setDrawColor(150, 150, 150);
+        pdf.rect(margin, yPos, pageWidth - margin * 2, descHeight);
+        
+        pdf.text(descLines, margin + 5, yPos + 7);
+        yPos += descHeight + 10;
+      }
+
+      // Footer
+      const footerY = pdf.internal.pageSize.getHeight() - 15;
+      pdf.setFontSize(8);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, margin, footerY);
+      pdf.text(`Página 1 de 1`, pageWidth - margin, footerY, { align: 'right' });
+
+      // Save
+      pdf.save(`RAS_${report.number || 'documento'}_${aircraftRegistration}.pdf`);
+      toast.success('PDF exportado com sucesso!');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast.error('Erro ao exportar PDF');
+    } finally {
+      setExporting(false);
+    }
   };
 
-  const laborItems = items.filter(i => i.item_type === 'labor' || i.item_type === 'servico');
-  const partItems = items.filter(i => i.item_type === 'parts' || i.item_type === 'peca');
-
   return (
-    <div className="space-y-6 print:space-y-4">
-      {/* Header with Back Button */}
-      <div className="flex items-center justify-between print:hidden">
+    <div className="space-y-6">
+      {/* Header with Actions */}
+      <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={onBack} className="gap-2">
           <ChevronRight className="h-4 w-4 rotate-180" />
           Voltar
         </Button>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-2">
-            <Download className="h-4 w-4" />
-            Exportar PDF
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2" onClick={handlePrint}>
-            <Printer className="h-4 w-4" />
-            Imprimir
-          </Button>
-        </div>
+        <Button onClick={handleExportPDF} disabled={exporting} className="gap-2">
+          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          Exportar PDF
+        </Button>
       </div>
 
-      {/* Report Document */}
-      <Card className="bg-gradient-card border-border print:shadow-none print:border-2">
-        <CardHeader className="border-b print:border-b-2">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Relatório de Acompanhamento de Serviço</p>
-              <CardTitle className="text-2xl">{report.number}</CardTitle>
-            </div>
-            <div className="text-right">
-              <p className="font-bold text-lg">{aircraftRegistration}</p>
-              <Badge variant={report.status === 'completed' ? 'default' : 'secondary'}>
-                {report.status === 'completed' ? 'Concluído' : 'Em Andamento'}
-              </Badge>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-6 space-y-6">
-          {/* Info Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Tipo</p>
-              <p className="font-medium">{report.maintenance_type}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Centro</p>
-              <p className="font-medium">{report.maintenance_center}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Entrada</p>
-              <p className="font-medium">
-                {format(new Date(report.entry_date), "dd/MM/yyyy", { locale: ptBR })}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Saída</p>
-              <p className="font-medium">
-                {report.exit_date 
-                  ? format(new Date(report.exit_date), "dd/MM/yyyy", { locale: ptBR })
-                  : "-"
-                }
-              </p>
-            </div>
-            {report.cell_hours_entry && (
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Célula Entrada</p>
-                <p className="font-medium">{report.cell_hours_entry}h</p>
-              </div>
-            )}
-            {report.cell_hours_exit && (
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Célula Saída</p>
-                <p className="font-medium">{report.cell_hours_exit}h</p>
-              </div>
-            )}
-            {report.planned_days && (
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Dias Previstos</p>
-                <p className="font-medium">{report.planned_days}</p>
-              </div>
-            )}
-            {report.effective_days && (
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">Dias Efetivos</p>
-                <p className="font-medium">{report.effective_days}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Description */}
-          {report.description && (
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Descrição</p>
-              <p className="text-foreground">{report.description}</p>
-            </div>
-          )}
-
-          {/* Services Table */}
-          {laborItems.length > 0 && (
-            <div>
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <Wrench className="h-4 w-4" />
-                Serviços Executados
-              </h3>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Fornecedor</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {laborItems.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.description}</TableCell>
-                      <TableCell>{item.supplier || "-"}</TableCell>
-                      <TableCell className="text-right">
-                        R$ {(item.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-
-          {/* Parts Table */}
-          {partItems.length > 0 && (
-            <div>
-              <h3 className="font-semibold mb-3">Peças e Materiais</h3>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>P/N</TableHead>
-                    <TableHead>S/N</TableHead>
-                    <TableHead className="text-center">Qtd</TableHead>
-                    <TableHead className="text-right">Valor Unit.</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {partItems.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.description}</TableCell>
-                      <TableCell className="font-mono text-sm">{item.part_number || "-"}</TableCell>
-                      <TableCell className="font-mono text-sm">{item.serial_number || "-"}</TableCell>
-                      <TableCell className="text-center">{item.quantity || 1}</TableCell>
-                      <TableCell className="text-right">
-                        R$ {(item.unit_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        R$ {(item.total_value || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-
-          {/* Photos */}
-          {photos.length > 0 && (
-            <div className="print:break-before-page">
-              <h3 className="font-semibold mb-3 flex items-center gap-2">
-                <Camera className="h-4 w-4" />
-                Registro Fotográfico
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {photos.map((photo) => (
-                  <div 
-                    key={photo.id} 
-                    className="relative group cursor-pointer"
-                    onClick={() => {
-                      setSelectedPhoto(photo);
-                      setShowPhotoDialog(true);
-                    }}
-                  >
-                    <img 
-                      src={photo.photo_url} 
-                      alt={photo.caption || "Foto"} 
-                      className="w-full h-32 object-cover rounded-lg border"
-                    />
-                    {photo.caption && (
-                      <p className="text-xs text-muted-foreground mt-1 truncate">
-                        {photo.caption}
-                      </p>
-                    )}
-                  </div>
-                ))}
+      {/* Document Preview */}
+      <Card className="bg-white border-2" ref={reportRef}>
+        <CardContent className="p-8">
+          {/* Header */}
+          <div className="mb-6">
+            <div className="flex items-start justify-between mb-4">
+              <div className="bg-primary text-primary-foreground px-4 py-2 rounded">
+                <span className="font-bold text-lg">SHARE</span>
+                <span className="text-sm block">Brasil</span>
               </div>
             </div>
-          )}
+            
+            <h1 className="text-center text-lg font-bold text-foreground mb-4">
+              RELATÓRIO DE ACOMPANHAMENTO DE SERVIÇO - RAS
+            </h1>
 
-          {/* Totals */}
-          <div className="border-t pt-4">
-            <div className="flex justify-end">
-              <div className="w-64 space-y-2">
-                {report.labor_total !== null && report.labor_total !== undefined && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Mão de Obra:</span>
-                    <span>R$ {report.labor_total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
-                  </div>
-                )}
-                {report.parts_total !== null && report.parts_total !== undefined && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Peças:</span>
-                    <span>R$ {report.parts_total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
-                  </div>
-                )}
-                <div className="flex justify-between font-bold text-lg border-t pt-2">
-                  <span>Total:</span>
-                  <span>R$ {(report.grand_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>
+            {/* Info Table */}
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-muted text-center py-2 font-semibold text-sm border-b">
+                RELATÓRIO DE ACOMPANHAMENTO DE SERVIÇO – R.A.S
+              </div>
+              <div className="grid grid-cols-2 divide-x text-sm">
+                <div className="p-3 space-y-2">
+                  <p><span className="font-semibold text-primary">Aeronave:</span> {aircraftRegistration}</p>
+                  <p><span className="font-semibold text-primary">Matrícula:</span> {aircraftRegistration}</p>
+                  <p><span className="font-semibold text-primary">Período Manutenção:</span> {report.entry_date ? format(new Date(report.entry_date), 'dd/MM/yyyy', { locale: ptBR }) : '-'}</p>
+                </div>
+                <div className="p-3 space-y-2">
+                  <p><span className="font-semibold text-primary">Centro de Manutenção:</span> {report.maintenance_center || '-'}</p>
+                  <p><span className="font-semibold text-primary">Tipo de Manutenção:</span> {report.maintenance_type || '-'}</p>
+                  <p><span className="font-semibold text-primary">Resp. pelo acompanhamento:</span> {report.responsible || '-'}</p>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Content Section */}
+          <div className="space-y-6">
+            <div className="bg-muted/50 text-center py-2 rounded font-semibold text-sm">
+              DESCRIÇÃO DAS INSPEÇÕES REALIZADAS
+            </div>
+
+            {report.objective && (
+              <div>
+                <h3 className="font-bold text-foreground mb-2">• {report.objective.toUpperCase()}</h3>
+              </div>
+            )}
+
+            {report.description && (
+              <div className="bg-muted/30 p-4 rounded-lg border">
+                <p className="text-sm whitespace-pre-wrap">{report.description}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="mt-8 pt-4 border-t text-xs text-muted-foreground flex justify-between">
+            <span>Gerado em: {format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}</span>
+            <span>RAS: {report.number || '-'}</span>
+          </div>
         </CardContent>
       </Card>
-
-      {/* Photo Dialog */}
-      <Dialog open={showPhotoDialog} onOpenChange={setShowPhotoDialog}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>{selectedPhoto?.caption || "Foto"}</DialogTitle>
-          </DialogHeader>
-          {selectedPhoto && (
-            <img 
-              src={selectedPhoto.photo_url} 
-              alt={selectedPhoto.caption || "Foto"} 
-              className="w-full rounded-lg"
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
