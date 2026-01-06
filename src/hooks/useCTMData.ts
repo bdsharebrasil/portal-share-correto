@@ -452,10 +452,10 @@ export function useRASReports(aircraftId: string) {
     queryKey: ["ras-reports", aircraftId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("ras_reports")
+        .from("ras")
         .select("*")
         .eq("aircraft_id", aircraftId)
-        .order("data_relatorio", { ascending: false });
+        .order("entry_date", { ascending: false });
 
       if (error) throw error;
       return (data || []) as any[];

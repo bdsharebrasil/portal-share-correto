@@ -208,7 +208,7 @@ function NewRASDialog({ open, onOpenChange, aircraftId, onSuccess }: NewRASDialo
       setSaving(true);
       
       const { error } = await supabase
-        .from("ras_reports")
+        .from("ras")
         .insert({
           aircraft_id: aircraftId,
           number: formData.number,
