@@ -247,7 +247,7 @@ function RateioCustoConsolidadoContent() {
                         <SelectValue placeholder="Todos os clientes" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Todos os clientes</SelectItem>
+                        <SelectItem value="__all__">Todos os clientes</SelectItem>
                         {clientes.map((cliente: any) => (
                           <SelectItem key={cliente.id} value={cliente.id}>
                             {cliente.company_name}
@@ -262,7 +262,7 @@ function RateioCustoConsolidadoContent() {
             </Card>
 
             {aeronaveId && (
-              <HorasMensaisConsolidadas aeronaveId={aeronaveId} clienteId={clienteId || undefined} />
+              <HorasMensaisConsolidadas aeronaveId={aeronaveId} clienteId={clienteId === '__all__' ? undefined : clienteId || undefined} />
             )}
           </TabsContent>
 
