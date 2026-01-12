@@ -132,11 +132,11 @@ router.get('/consolidacao/extrato-cliente/:cliente_id', async (req: Request, res
       return res.status(400).json({ error: 'Missing cliente_id' });
     }
 
+    // First try the consolidated history table
     let query = supabase
       .from('historico_rateio_consolidado')
       .select('*')
       .eq('cliente_id', cliente_id)
-      .eq('status', 'consolidado')
       .order('data_competencia', { ascending: false });
 
     if (data_inicio) {
@@ -147,18 +147,75 @@ router.get('/consolidacao/extrato-cliente/:cliente_id', async (req: Request, res
       query = query.lte('data_competencia', data_fim as string);
     }
 
-    const { data, error } = await query;
+    const { data: consolidatedData, error: consolidatedError } = await query;
 
-    if (error) {
-      return res.status(500).json({
-        error: 'Failed to fetch extrato',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    // If we have consolidated data, return it
+    if (!consolidatedError && consolidatedData && consolidatedData.length > 0) {
+      return res.json({
+        data: consolidatedData,
+        count: consolidatedData.length,
+        timestamp: new Date().toISOString()
       });
     }
 
+    // Fallback: Query bank_reconciliations directly
+    let fallbackQuery = supabase
+      .from('bank_reconciliations')
+      .select(`
+        id,
+        date,
+        description,
+        amount,
+        status,
+        category,
+        type,
+        percentual,
+        aircraft:aircraft_id(id, registration),
+        categorias_movimentacao:categoria_movimentacao_id(id, nome, grupo_categoria)
+      `)
+      .eq('client_id', cliente_id)
+      .order('date', { ascending: false });
+
+    if (data_inicio) {
+      fallbackQuery = fallbackQuery.gte('date', data_inicio as string);
+    }
+
+    if (data_fim) {
+      fallbackQuery = fallbackQuery.lte('date', data_fim as string);
+    }
+
+    const { data: fallbackData, error: fallbackError } = await fallbackQuery;
+
+    if (fallbackError) {
+      console.error('[Extrato API] Fallback error:', fallbackError.message);
+      return res.json({
+        data: [],
+        count: 0,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Transform fallback data to match expected format
+    const transformedData = (fallbackData || []).map((item: any) => ({
+      id: item.id,
+      data_competencia: item.date,
+      descricao: item.description,
+      valor_total_lancamento: item.amount,
+      valor_rateado: item.amount * (parseFloat(item.percentual || '100') / 100),
+      valor_pago: item.status === 'conciliado' || item.status === 'pago' ? item.amount : 0,
+      saldo_devedor: item.status === 'pendente' ? item.amount : 0,
+      status_pagamento: item.status === 'conciliado' || item.status === 'pago' ? 'Pago' : 'Pendente',
+      aeronave_registro: item.aircraft?.registration || '-',
+      categoria_nome: item.categorias_movimentacao?.nome || item.category || '-',
+      categoria_grupo: item.categorias_movimentacao?.grupo_categoria || item.category || '-',
+      tipo_rateio: 'percentual',
+      percentual_uso: parseFloat(item.percentual || '100'),
+      horas_voadas: 0
+    }));
+
     res.json({
-      data,
-      count: data?.length || 0,
+      data: transformedData,
+      count: transformedData.length,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -250,38 +307,93 @@ router.get('/consolidacao/comparativo-uso/:aeronave_id', async (req: Request, re
       });
     }
 
-    const { data, error } = await supabase
-      .from('v_comparativo_uso_clientes')
-      .select('*')
-      .eq('aeronave_id', aeronave_id)
-      .eq('ano', parseInt(ano as string))
-      .eq('mes', parseInt(mes as string))
-      .order('ranking', { ascending: true });
+    const anoNum = parseInt(ano as string);
+    const mesNum = parseInt(mes as string);
+    
+    // Build date range for the month
+    const startDate = `${anoNum}-${String(mesNum).padStart(2, '0')}-01`;
+    const endDate = mesNum === 12 
+      ? `${anoNum + 1}-01-01` 
+      : `${anoNum}-${String(mesNum + 1).padStart(2, '0')}-01`;
 
-    if (error) {
-      console.warn('[Comparativo Uso API] Warning:', error.message);
-      // Return empty data if view doesn't exist
+    // Query logbook_entries directly with aggregation
+    const { data: entries, error: entriesError } = await supabase
+      .from('logbook_entries')
+      .select(`
+        client_id,
+        total_time,
+        clients:client_id(id, company_name, proprietario)
+      `)
+      .eq('aircraft_id', aeronave_id)
+      .gte('entry_date', startDate)
+      .lt('entry_date', endDate)
+      .not('client_id', 'is', null);
+
+    if (entriesError) {
+      console.error('[Comparativo Uso API] Query error:', entriesError.message);
       return res.json({
         data: [],
-        summary: {
-          total_clientes: 0,
-          total_horas: 0
-        },
+        summary: { total_clientes: 0, total_horas: 0 },
         timestamp: new Date().toISOString()
       });
     }
 
+    // Group by client and calculate totals
+    const clientMap = new Map<string, { 
+      cliente_id: string; 
+      cliente_nome: string; 
+      horas_voadas: number 
+    }>();
+    
+    let totalHoras = 0;
+    
+    (entries || []).forEach((entry: any) => {
+      const clientId = entry.client_id;
+      const horas = parseFloat(entry.total_time) || 0;
+      totalHoras += horas;
+      
+      if (clientMap.has(clientId)) {
+        clientMap.get(clientId)!.horas_voadas += horas;
+      } else {
+        const clienteNome = entry.clients?.company_name || entry.clients?.proprietario || 'Cliente não identificado';
+        clientMap.set(clientId, {
+          cliente_id: clientId,
+          cliente_nome: clienteNome,
+          horas_voadas: horas
+        });
+      }
+    });
+
+    // Convert to array with percentages and ranking
+    const data = Array.from(clientMap.values())
+      .map(item => ({
+        ...item,
+        aeronave_id,
+        ano: anoNum,
+        mes: mesNum,
+        horas_totais_aeronave: totalHoras,
+        percentual_uso: totalHoras > 0 ? (item.horas_voadas / totalHoras) * 100 : 0,
+        validado: true,
+        fonte_diario_bordo: true,
+        fonte_portal_cliente: false
+      }))
+      .sort((a, b) => b.horas_voadas - a.horas_voadas)
+      .map((item, index) => ({
+        ...item,
+        ranking: index + 1,
+        total_clientes: clientMap.size
+      }));
+
     res.json({
       data,
       summary: {
-        total_clientes: data?.[0]?.total_clientes || 0,
-        total_horas: data?.[0]?.horas_totais_aeronave || 0
+        total_clientes: clientMap.size,
+        total_horas: totalHoras
       },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error('[Comparativo Uso API] Exception:', error);
-    // Return empty data even on exception
     res.json({
       data: [],
       summary: {
