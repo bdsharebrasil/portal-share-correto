@@ -9,12 +9,25 @@ export function useControleBancario() {
         .from("controle_bancario")
         .select(`
           *,
-          categorias_movimentacao:categoria_id(id, nome, tipo, grupo_categoria)
+          categorias_movimentacao:categoria_id(id, nome, tipo, grupo_categoria),
+          clients:client_id(id, company_name, proprietario),
+          fornecedores_favoritos:fornecedores_favoritos_id(id, nome)
         `)
         .order("data", { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      
+      // Map the data to include categoria_nome and referencia
+      return (data || []).map((item: any) => ({
+        ...item,
+        categoria_nome: item.categorias_movimentacao?.nome || item.grupo_categoria || '-',
+        grupo_categoria_nome: item.categorias_movimentacao?.grupo_categoria || item.grupo_categoria || '-',
+        referencia: item.client_name || 
+                    item.clients?.company_name || 
+                    item.clients?.proprietario ||
+                    item.fornecedores_favoritos?.nome ||
+                    '-'
+      }));
     },
   });
 

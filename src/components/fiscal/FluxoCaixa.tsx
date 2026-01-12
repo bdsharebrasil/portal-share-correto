@@ -555,6 +555,7 @@ export function FluxoCaixa() {
                   </TableHead>
                   <TableHead className="text-foreground/70">Descrição</TableHead>
                   <TableHead className="text-foreground/70">Categoria</TableHead>
+                  <TableHead className="text-foreground/70">Referência</TableHead>
                   <TableHead
                     className="text-foreground/70 cursor-pointer hover:text-foreground transition-colors"
                     onClick={() => handleSort("valor")}
@@ -626,6 +627,9 @@ export function FluxoCaixa() {
                       </TableCell>
                       <TableCell className="text-foreground/80">
                         {transacao.categoria_nome || "-"}
+                      </TableCell>
+                      <TableCell className="text-foreground/80 max-w-[150px] truncate">
+                        {transacao.referencia || "-"}
                       </TableCell>
                       <TableCell
                         className={`font-semibold ${
