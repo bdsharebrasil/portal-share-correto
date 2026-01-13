@@ -131,7 +131,9 @@ const PortalClienteDashboard = () => {
           {/* Client Data Tabs */}
           <ClientDataTabs
             clientId={session.clientId}
+            clientName={session.clientName}
             aircraftId={session.aircraftId}
+            aircraftRegistration={session.registration}
             isAdmin={false}
           />
         </div>
