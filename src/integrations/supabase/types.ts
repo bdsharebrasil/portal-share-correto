@@ -7260,10 +7260,13 @@ export type Database = {
           aeronave_registro: string | null
           atualizado_em: string | null
           boleto: string | null
+          categoria_id: string | null
           client_id: string | null
           client_name: string
+          comprovante_url: string | null
           criado_em: string | null
           data_envio: string | null
+          data_pagamento: string | null
           data_vencimento: string | null
           despesa_id: string
           id: string
@@ -7280,10 +7283,13 @@ export type Database = {
           aeronave_registro?: string | null
           atualizado_em?: string | null
           boleto?: string | null
+          categoria_id?: string | null
           client_id?: string | null
           client_name: string
+          comprovante_url?: string | null
           criado_em?: string | null
           data_envio?: string | null
+          data_pagamento?: string | null
           data_vencimento?: string | null
           despesa_id: string
           id?: string
@@ -7300,10 +7306,13 @@ export type Database = {
           aeronave_registro?: string | null
           atualizado_em?: string | null
           boleto?: string | null
+          categoria_id?: string | null
           client_id?: string | null
           client_name?: string
+          comprovante_url?: string | null
           criado_em?: string | null
           data_envio?: string | null
+          data_pagamento?: string | null
           data_vencimento?: string | null
           despesa_id?: string
           id?: string
@@ -7357,6 +7366,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "rateio_despesas_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "expense_config"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "rateio_despesas_client_id_fkey"
