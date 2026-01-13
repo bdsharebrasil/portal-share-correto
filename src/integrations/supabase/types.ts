@@ -3982,25 +3982,16 @@ export type Database = {
           },
         ]
       }
-      expense_deadline_config: {
+      expense_config: {
         Row: {
-          alert_days_before: number
-          created_at: string
-          default_deadline_days: number
           expense_type: string
           id: string
         }
         Insert: {
-          alert_days_before?: number
-          created_at?: string
-          default_deadline_days?: number
           expense_type: string
           id?: string
         }
         Update: {
-          alert_days_before?: number
-          created_at?: string
-          default_deadline_days?: number
           expense_type?: string
           id?: string
         }
@@ -7272,7 +7263,8 @@ export type Database = {
           client_id: string | null
           client_name: string
           criado_em: string | null
-          data_pagamento: string | null
+          data_envio: string | null
+          data_vencimento: string | null
           despesa_id: string
           id: string
           nota_fiscal: string | null
@@ -7291,7 +7283,8 @@ export type Database = {
           client_id?: string | null
           client_name: string
           criado_em?: string | null
-          data_pagamento?: string | null
+          data_envio?: string | null
+          data_vencimento?: string | null
           despesa_id: string
           id?: string
           nota_fiscal?: string | null
@@ -7310,7 +7303,8 @@ export type Database = {
           client_id?: string | null
           client_name?: string
           criado_em?: string | null
-          data_pagamento?: string | null
+          data_envio?: string | null
+          data_vencimento?: string | null
           despesa_id?: string
           id?: string
           nota_fiscal?: string | null
