@@ -459,7 +459,7 @@ export default function PortalCliente() {
 
               {/* Tabs with Financial History, Flight History, and Documents */}
               <div className="mb-6">
-                <ClientDataTabs clientId={selectedClient.id} aircraftId={selectedAircraft?.aircraft_id || ""} isAdmin={false} />
+                <ClientDataTabs clientId={selectedClient.id} clientName={selectedClient.company_name} aircraftId={selectedAircraft?.aircraft_id || ""} aircraftRegistration={selectedAircraft?.aircraft?.registration || ""} isAdmin={false} />
               </div>
             </AircraftSelector>
           </>}

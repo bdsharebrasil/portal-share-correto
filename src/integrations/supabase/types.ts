@@ -902,13 +902,6 @@ export type Database = {
             referencedColumns: ["lancamento_caixa_id"]
           },
           {
-            foreignKeyName: "bank_reconciliations_controle_bancario_id_fkey"
-            columns: ["controle_bancario_id"]
-            isOneToOne: false
-            referencedRelation: "vw_historico_rateio"
-            referencedColumns: ["lancamento_id"]
-          },
-          {
             foreignKeyName: "bank_reconciliations_receiver_id_fkey"
             columns: ["receiver_id"]
             isOneToOne: false
@@ -2127,13 +2120,16 @@ export type Database = {
           aeronave: string
           arquivo_pdf_url: string | null
           atualizado_em: string | null
+          banco_recebimento: string | null
           boleto_url: string | null
           categoria: string
           cliente_cnpj: string
           cliente_nome: string
+          comprovante_recebimento_url: string | null
           criado_em: string | null
           criado_por: string | null
           data_criacao: string
+          data_recebimento: string | null
           data_vencimento: string
           descricao: string | null
           fornecedor_id: string | null
@@ -2148,13 +2144,16 @@ export type Database = {
           aeronave: string
           arquivo_pdf_url?: string | null
           atualizado_em?: string | null
+          banco_recebimento?: string | null
           boleto_url?: string | null
           categoria: string
           cliente_cnpj: string
           cliente_nome: string
+          comprovante_recebimento_url?: string | null
           criado_em?: string | null
           criado_por?: string | null
           data_criacao: string
+          data_recebimento?: string | null
           data_vencimento: string
           descricao?: string | null
           fornecedor_id?: string | null
@@ -2169,13 +2168,16 @@ export type Database = {
           aeronave?: string
           arquivo_pdf_url?: string | null
           atualizado_em?: string | null
+          banco_recebimento?: string | null
           boleto_url?: string | null
           categoria?: string
           cliente_cnpj?: string
           cliente_nome?: string
+          comprovante_recebimento_url?: string | null
           criado_em?: string | null
           criado_por?: string | null
           data_criacao?: string
+          data_recebimento?: string | null
           data_vencimento?: string
           descricao?: string | null
           fornecedor_id?: string | null
@@ -2303,9 +2305,7 @@ export type Database = {
           criado_por: string
           empresa_id: string
           id: string
-          nome: string
           numero_conta: string | null
-          saldo: number | null
           tipo_conta: string | null
         }
         Insert: {
@@ -2316,9 +2316,7 @@ export type Database = {
           criado_por: string
           empresa_id: string
           id?: string
-          nome: string
           numero_conta?: string | null
-          saldo?: number | null
           tipo_conta?: string | null
         }
         Update: {
@@ -2329,9 +2327,7 @@ export type Database = {
           criado_por?: string
           empresa_id?: string
           id?: string
-          nome?: string
           numero_conta?: string | null
-          saldo?: number | null
           tipo_conta?: string | null
         }
         Relationships: []
@@ -2629,13 +2625,6 @@ export type Database = {
             referencedColumns: ["lancamento_caixa_id"]
           },
           {
-            foreignKeyName: "controle_bancario_despesa_original_id_fkey"
-            columns: ["despesa_original_id"]
-            isOneToOne: false
-            referencedRelation: "vw_historico_rateio"
-            referencedColumns: ["lancamento_id"]
-          },
-          {
             foreignKeyName: "controle_bancario_fornecedor_id_fkey"
             columns: ["fornecedores_favoritos_id"]
             isOneToOne: false
@@ -2662,13 +2651,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_financeiro_caixa"
             referencedColumns: ["lancamento_caixa_id"]
-          },
-          {
-            foreignKeyName: "controle_bancario_lancamento_reembolso_id_fkey"
-            columns: ["lancamento_reembolso_id"]
-            isOneToOne: false
-            referencedRelation: "vw_historico_rateio"
-            referencedColumns: ["lancamento_id"]
           },
           {
             foreignKeyName: "controle_bancario_travel_report_id_fkey"
@@ -4555,6 +4537,7 @@ export type Database = {
       flight_documents: {
         Row: {
           aircraft_id: string | null
+          alert_days: number | null
           created_at: string | null
           description: string | null
           document_type: string | null
@@ -4569,6 +4552,7 @@ export type Database = {
         }
         Insert: {
           aircraft_id?: string | null
+          alert_days?: number | null
           created_at?: string | null
           description?: string | null
           document_type?: string | null
@@ -4583,6 +4567,7 @@ export type Database = {
         }
         Update: {
           aircraft_id?: string | null
+          alert_days?: number | null
           created_at?: string | null
           description?: string | null
           document_type?: string | null
@@ -5570,100 +5555,6 @@ export type Database = {
           value?: number
         }
         Relationships: []
-      }
-      lancamentos_rateio: {
-        Row: {
-          aeronave_registro: string
-          atualizado_em: string | null
-          cliente_id: string | null
-          cliente_nome: string
-          criado_em: string | null
-          id: string
-          lancamento_id: string
-          observacao: string | null
-          percentual: number | null
-          reembolsos_ids: string[] | null
-          status: string | null
-          valor_pendente: number | null
-          valor_rateado: number
-          valor_recebido: number | null
-        }
-        Insert: {
-          aeronave_registro: string
-          atualizado_em?: string | null
-          cliente_id?: string | null
-          cliente_nome: string
-          criado_em?: string | null
-          id?: string
-          lancamento_id: string
-          observacao?: string | null
-          percentual?: number | null
-          reembolsos_ids?: string[] | null
-          status?: string | null
-          valor_pendente?: number | null
-          valor_rateado: number
-          valor_recebido?: number | null
-        }
-        Update: {
-          aeronave_registro?: string
-          atualizado_em?: string | null
-          cliente_id?: string | null
-          cliente_nome?: string
-          criado_em?: string | null
-          id?: string
-          lancamento_id?: string
-          observacao?: string | null
-          percentual?: number | null
-          reembolsos_ids?: string[] | null
-          status?: string | null
-          valor_pendente?: number | null
-          valor_rateado?: number
-          valor_recebido?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "lancamentos_rateio_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "lancamentos_rateio_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "lancamentos_rateio_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_simples"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "lancamentos_rateio_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "lancamentos_rateio_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "lancamentos_rateio_cliente_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-        ]
       }
       logbook_crew_members: {
         Row: {
@@ -6889,13 +6780,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_financeiro_caixa"
             referencedColumns: ["lancamento_caixa_id"]
-          },
-          {
-            foreignKeyName: "prestador_notas_fiscais_controle_bancario_id_fkey"
-            columns: ["controle_bancario_id"]
-            isOneToOne: false
-            referencedRelation: "vw_historico_rateio"
-            referencedColumns: ["lancamento_id"]
           },
           {
             foreignKeyName: "prestador_notas_fiscais_prestador_id_fkey"
@@ -9646,25 +9530,6 @@ export type Database = {
           saldo_pendente: number | null
           status: string | null
           valor_pago: number | null
-        }
-        Relationships: []
-      }
-      vw_historico_rateio: {
-        Row: {
-          aeronave_registro: string | null
-          cliente_nome: string | null
-          data_despesa: string | null
-          descricao: string | null
-          historico_reembolsos: Json | null
-          lancamento_id: string | null
-          percentual: number | null
-          rateio_completo: boolean | null
-          rateio_tipo: string | null
-          status: string | null
-          valor_pendente: number | null
-          valor_rateado: number | null
-          valor_recebido: number | null
-          valor_total: number | null
         }
         Relationships: []
       }

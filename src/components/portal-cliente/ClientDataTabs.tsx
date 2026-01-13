@@ -4,16 +4,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Fuel, Wrench, Plane, Download, Upload, FileCheck, Eye } from "lucide-react";
+import { FileText, Fuel, Wrench, Plane, Download, Upload, FileCheck, Eye, Send } from "lucide-react";
 import { previewPDFForPrint, TravelReport as TravelReportPDF, TravelExpense } from "@/lib/travelReportPDF";
 import { FileUploadDialog } from "./FileUploadDialog";
 import { ContractUploadDialog } from "./ContractUploadDialog";
 import { FinancialHistoryTab } from "./FinancialHistoryTab";
+import { EnvioDespesaTab } from "./EnvioDespesaTab";
 import { toast } from "sonner";
 
 interface ClientDataTabsProps {
   clientId: string;
+  clientName: string;
   aircraftId: string;
+  aircraftRegistration: string;
   isAdmin?: boolean;
 }
 
@@ -46,7 +49,7 @@ interface TravelReport {
 }
 
 
-export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: ClientDataTabsProps) {
+export function ClientDataTabs({ clientId, clientName = "", aircraftId, aircraftRegistration = "", isAdmin = false }: ClientDataTabsProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [contractUploadDialogOpen, setContractUploadDialogOpen] = useState(false);
   const [files, setFiles] = useState<any[]>([]);
@@ -188,6 +191,7 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
       <Tabs defaultValue="financial-history" className="w-full">
         <TabsList className="flex w-full gap-2 bg-gradient-card border-b border-border overflow-x-auto px-4 py-3 h-auto rounded-none flex-wrap md:flex-nowrap">
           <TabsTrigger value="financial-history">Histórico Financeiro</TabsTrigger>
+          <TabsTrigger value="envio-despesa">Envio de Despesa</TabsTrigger>
           <TabsTrigger value="contracts">Contrato Share</TabsTrigger>
           <TabsTrigger value="logbook">Diário de Bordo</TabsTrigger>
           <TabsTrigger value="fuel">Abastecimento</TabsTrigger>
@@ -197,6 +201,15 @@ export function ClientDataTabs({ clientId, aircraftId, isAdmin = false }: Client
 
         <TabsContent value="financial-history" className="space-y-4">
           <FinancialHistoryTab clientId={clientId} aircraftId={aircraftId} />
+        </TabsContent>
+
+        <TabsContent value="envio-despesa" className="space-y-4">
+          <EnvioDespesaTab 
+            clientId={clientId} 
+            clientName={clientName}
+            aircraftId={aircraftId}
+            aircraftRegistration={aircraftRegistration}
+          />
         </TabsContent>
 
         <TabsContent value="contracts" className="space-y-4">
