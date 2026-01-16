@@ -1313,6 +1313,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   const handleCreateMonthWithData = async (monthData: any) => {
     try {
       setCreatingMonth(true);
+      
+      // Usa mês/ano do dialog (monthData pode ter mês/ano selecionado pelo usuário)
+      const targetMonth = monthData.month || selectedMonth;
+      const targetYear = monthData.year || selectedYear;
 
       const { data: newMonth, error } = await supabase
         .from('logbook_months')
@@ -1323,6 +1327,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       if (error) throw error;
 
       if (newMonth) {
+        // Atualiza o mês selecionado para o mês criado
+        setSelectedMonth(targetMonth);
+        setSelectedYear(targetYear);
         setLogbookMonth(newMonth);
 
         // Criar/atualizar manutenção de revisão automaticamente se houver próxima revisão
@@ -1330,8 +1337,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
           try {
             await ensureRevisionMaintenance(
               aircraftId,
-              selectedMonth,
-              selectedYear,
+              targetMonth,
+              targetYear,
               monthData.celula_prox_revisao,
               MONTHS
             );
@@ -1341,10 +1348,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
           }
         }
 
-        toast.success(`Diário de ${MONTHS[selectedMonth - 1]}/${selectedYear} criado com sucesso!`);
+        toast.success(`Diário de ${MONTHS[targetMonth - 1]}/${targetYear} criado com sucesso!`);
         
         // Atualizar lista de meses disponíveis
-        setAvailableMonths(prev => [...prev, { month: selectedMonth, year: selectedYear }]);
+        setAvailableMonths(prev => [...prev, { month: targetMonth, year: targetYear }]);
       }
     } catch (error: any) {
       console.error("Erro ao criar mês:", error);
