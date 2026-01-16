@@ -56,29 +56,9 @@ export function LottieAirplaneSpinner({
     lg: "text-lg",
   };
 
-  // Fallback simples com ícone Lucide enquanto carrega ou se falhar
+  // Não mostra nada enquanto carrega a animação Lottie
   if (!animationData) {
-    return (
-      <div className={cn("flex flex-col items-center justify-center gap-4", className)}>
-        <div 
-          className="flex items-center justify-center"
-          style={{ width: lottieSize[size], height: lottieSize[size] }}
-        >
-          <Plane 
-            className="text-cyan-500 animate-bounce" 
-            style={{ 
-              width: lottieSize[size] * 0.5, 
-              height: lottieSize[size] * 0.5 
-            }} 
-          />
-        </div>
-        {text && (
-          <p className={cn("text-muted-foreground font-medium animate-pulse", textClasses[size])}>
-            {text}
-          </p>
-        )}
-      </div>
-    );
+    return null;
   }
 
   return (
