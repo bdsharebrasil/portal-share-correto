@@ -2,17 +2,17 @@ import React from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, ArrowUp, ArrowDown, Wallet, Calendar, Users, DollarSign, Receipt, Settings, Repeat, ArrowLeft } from "lucide-react";
+import { FileText, ArrowUp, ArrowDown, Wallet, Calendar, Users, DollarSign, Receipt, Settings, Repeat, ArrowLeft, Building2 } from "lucide-react";
 import { NotasFiscaisSaida } from "@/components/fiscal/NotasFiscaisSaida";
 import { FluxoCaixa } from "@/components/fiscal/FluxoCaixa";
 import { ContasRecorrentesTab } from "@/components/fiscal/ContasRecorrentesTab";
 import { PagamentoSalarioTab } from "@/components/fiscal/PagamentoSalarioTab";
+import { PrestadoresServicoTab } from "@/components/fiscal/PrestadoresServicoTab";
 import { ConfiguracoesFiscais } from "@/components/fiscal/ConfiguracoesFiscais";
 import { ContasPagar } from "@/components/fiscal/ContasPagar";
 import { ContasReceber } from "@/components/fiscal/ContasReceber";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useNavigate } from "react-router-dom";
-
 export default function GestaoFiscal() {
   const navigate = useNavigate();
   const {
@@ -81,7 +81,14 @@ export default function GestaoFiscal() {
                     data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/40
                     data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-600/95 data-[state=active]:to-emerald-500/85 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-emerald-500/30">
                   <Users className="w-4 h-4 mr-2" />
-                  Salários
+                  Salários CLT
+                </TabsTrigger>
+
+                <TabsTrigger value="prestadores-pj" className="rounded-lg py-2.5 px-4 text-sm font-medium transition-all duration-300
+                    data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/40
+                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-600/95 data-[state=active]:to-orange-500/85 data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-orange-500/30">
+                  <Building2 className="w-4 h-4 mr-2" />
+                  Prestadores PJ
                 </TabsTrigger>
 
                 <TabsTrigger value="saida" className="rounded-lg py-2.5 px-4 text-sm font-medium transition-all duration-300
@@ -126,6 +133,10 @@ export default function GestaoFiscal() {
 
               <TabsContent value="pagamento-salario" className="mt-0">
                 <PagamentoSalarioTab />
+              </TabsContent>
+
+              <TabsContent value="prestadores-pj" className="mt-0">
+                <PrestadoresServicoTab />
               </TabsContent>
 
               <TabsContent value="saida" className="mt-0">

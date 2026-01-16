@@ -21,6 +21,7 @@ export type ProcessedBirthday = BirthdayRow & {
   parsedDate: Date | null;
   currentYearDate: Date | null;
   nextOccurrence: Date | null;
+  source?: "birthdays" | "user_profiles";
 };
 
 const parseBirthdayDate = (value: string): Date | null => {
@@ -47,7 +48,8 @@ const parseBirthdayDate = (value: string): Date | null => {
 export const useBirthdays = (daysAhead: number = 7) => {
   const today = useMemo(() => startOfDay(new Date()), []);
 
-  const query = useQuery({
+  // Query for birthdays table
+  const birthdaysQuery = useQuery({
     queryKey: ["birthdays-list"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -60,27 +62,78 @@ export const useBirthdays = (daysAhead: number = 7) => {
     },
   });
 
+  // Query for user_profiles with birth_date
+  const userProfilesQuery = useQuery({
+    queryKey: ["user-profiles-birthdays"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("id, full_name, display_name, birth_date, departamento")
+        .not("birth_date", "is", null)
+        .order("birth_date", { ascending: true });
+
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const processedBirthdays = useMemo<ProcessedBirthday[]>(() => {
-    if (!query.data) return [];
+    const birthdaysList: ProcessedBirthday[] = [];
 
-    return query.data.map((birthday) => {
-      const parsedDate = parseBirthdayDate(birthday.data_aniversario);
-      const currentYearDate = parsedDate ? setYear(parsedDate, today.getFullYear()) : null;
-      let nextOccurrence = currentYearDate;
+    // Process birthdays table data
+    if (birthdaysQuery.data) {
+      birthdaysQuery.data.forEach((birthday) => {
+        const parsedDate = parseBirthdayDate(birthday.data_aniversario);
+        const currentYearDate = parsedDate ? setYear(parsedDate, today.getFullYear()) : null;
+        let nextOccurrence = currentYearDate;
 
-      if (nextOccurrence && differenceInCalendarDays(nextOccurrence, today) < 0) {
-        nextOccurrence = addYears(nextOccurrence, 1);
-      }
+        if (nextOccurrence && differenceInCalendarDays(nextOccurrence, today) < 0) {
+          nextOccurrence = addYears(nextOccurrence, 1);
+        }
 
-      return {
-        ...birthday,
-        parsedDate,
-        currentYearDate,
-        nextOccurrence,
-        displayDate: parsedDate ? format(parsedDate, "dd/MM") : birthday.data_aniversario,
-      };
-    });
-  }, [query.data, today]);
+        birthdaysList.push({
+          ...birthday,
+          parsedDate,
+          currentYearDate,
+          nextOccurrence,
+          displayDate: parsedDate ? format(parsedDate, "dd/MM") : birthday.data_aniversario,
+          source: "birthdays",
+        });
+      });
+    }
+
+    // Process user_profiles birth_date data
+    if (userProfilesQuery.data) {
+      userProfilesQuery.data.forEach((profile) => {
+        if (!profile.birth_date) return;
+
+        const parsedDate = parseBirthdayDate(profile.birth_date);
+        const currentYearDate = parsedDate ? setYear(parsedDate, today.getFullYear()) : null;
+        let nextOccurrence = currentYearDate;
+
+        if (nextOccurrence && differenceInCalendarDays(nextOccurrence, today) < 0) {
+          nextOccurrence = addYears(nextOccurrence, 1);
+        }
+
+        birthdaysList.push({
+          id: `profile-${profile.id}`,
+          nome: profile.full_name || profile.display_name || "Colaborador",
+          data_aniversario: profile.birth_date,
+          empresa: profile.departamento || null,
+          category: "colaboradores" as any,
+          created_at: null,
+          updated_at: null,
+          parsedDate,
+          currentYearDate,
+          nextOccurrence,
+          displayDate: parsedDate ? format(parsedDate, "dd/MM") : profile.birth_date,
+          source: "user_profiles",
+        });
+      });
+    }
+
+    return birthdaysList;
+  }, [birthdaysQuery.data, userProfilesQuery.data, today]);
 
   const listThisMonth = useMemo(() => {
     return processedBirthdays.filter((birthday) => {
@@ -129,9 +182,12 @@ export const useBirthdays = (daysAhead: number = 7) => {
     listNextSevenDays,
     sortedBirthdays,
     getFilteredBirthdays,
-    isLoading: query.isLoading,
-    error: query.error,
-    refetch: query.refetch,
+    isLoading: birthdaysQuery.isLoading || userProfilesQuery.isLoading,
+    error: birthdaysQuery.error || userProfilesQuery.error,
+    refetch: () => {
+      birthdaysQuery.refetch();
+      userProfilesQuery.refetch();
+    },
     birthdaysThisMonth: listThisMonth.length,
     birthdaysNextSevenDays: listNextSevenDays.length,
     totalBirthdays: processedBirthdays.length,

@@ -40,7 +40,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { useDashboardGestorData } from "@/hooks/useDashboardGestorData";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 // Função para mapear status e cores
@@ -53,14 +53,31 @@ const getStatusBadgeConfig = (status: string) => {
     'pendente': { label: '⏳ Pendente', variant: 'outline' },
     'aguardando_reembolso': { label: '⏳ Aguardando Reembolso', variant: 'outline' },
     'cancelado': { label: '✗ Cancelado', variant: 'destructive' },
+    'inadimplente': { label: '⚠ Inadimplente', variant: 'destructive' },
   };
   return statusMap[status?.toLowerCase()] || { label: status || 'N/A', variant: 'outline' };
 };
 
 export default function DashboardGestor() {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [dataInicio, setDataInicio] = useState(new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]);
-  const [dataFim, setDataFim] = useState(new Date().toISOString().split('T')[0]);
+  const [currentDate, setCurrentDate] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const [dataInicio, setDataInicio] = useState(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1);
+    const year = start.getFullYear();
+    const month = String(start.getMonth() + 1).padStart(2, '0');
+    const day = String(start.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
+  const [dataFim, setDataFim] = useState(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
   const [categoriasPermitidas, setCategoriasPermitidas] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -148,7 +165,7 @@ export default function DashboardGestor() {
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* Total Receitas */}
           <Card className="bg-card/80 border-success/30 overflow-hidden">
             <CardContent className="p-4 flex flex-col h-full">
@@ -202,46 +219,6 @@ export default function DashboardGestor() {
                 </div>
                 <div className={`p-2 rounded-lg flex-shrink-0 ${stats.saldoGeral >= 0 ? "bg-primary/20" : "bg-warning/20"}`}>
                   <DollarSign className={`w-5 h-5 ${stats.saldoGeral >= 0 ? "text-primary" : "text-warning"}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Pendente */}
-          <Card
-            className="bg-card/80 border-warning/30 overflow-hidden cursor-pointer hover:border-warning/60 hover:shadow-lg transition-all"
-            onClick={() => setActiveTab("alertas")}
-          >
-            <CardContent className="p-4 flex flex-col h-full">
-              <div className="flex items-start justify-between gap-3 flex-1">
-                <div className="flex-1 min-w-0">
-                  <p className="text-warning text-xs font-medium uppercase tracking-wide">Pendente</p>
-                  <p className="text-lg sm:text-xl font-bold text-warning mt-2 truncate">{formatCurrency(stats.receitasPendentes + stats.despesasPendentes)}</p>
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                    A conferir
-                  </p>
-                </div>
-                <div className="p-2 rounded-lg bg-warning/20 flex-shrink-0">
-                  <Clock className="w-5 h-5 text-warning" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Contas Vencidas */}
-          <Card
-            className="bg-card/80 border-warning/30 overflow-hidden cursor-pointer hover:border-warning/60 hover:shadow-lg transition-all"
-            onClick={() => setActiveTab("alertas")}
-          >
-            <CardContent className="p-4 flex flex-col h-full">
-              <div className="flex items-start justify-between gap-3 flex-1">
-                <div className="flex-1 min-w-0">
-                  <p className="text-warning text-xs font-medium uppercase tracking-wide">Vencidas</p>
-                  <p className="text-lg sm:text-xl font-bold text-warning mt-2">{stats.contasVencidas + stats.recebimentosVencidos}</p>
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-1">Atenção</p>
-                </div>
-                <div className="p-2 rounded-lg bg-warning/20 flex-shrink-0">
-                  <AlertTriangle className="w-5 h-5 text-warning" />
                 </div>
               </div>
             </CardContent>
@@ -432,14 +409,18 @@ export default function DashboardGestor() {
                     <TableBody>
                       {contasReceber.length > 0 ? (
                         contasReceber
-                          .sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime())
+                          .sort((a: any, b: any) => {
+                            const dateA = typeof a.data === 'string' ? parseISO(a.data) : new Date(a.data);
+                            const dateB = typeof b.data === 'string' ? parseISO(b.data) : new Date(b.data);
+                            return dateB.getTime() - dateA.getTime();
+                          })
                           .slice(0, 50)
                           .map((conta: any) => {
                             const statusConfig = getStatusBadgeConfig(conta.status);
                             return (
                               <TableRow key={conta.id} className="border-border hover:bg-muted/50">
                                 <TableCell className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">
-                                  {conta.data ? new Date(conta.data).toLocaleDateString("pt-BR") : "-"}
+                                  {conta.data ? format(typeof conta.data === 'string' ? parseISO(conta.data) : new Date(conta.data), "dd/MM/yyyy") : "-"}
                                 </TableCell>
                                 <TableCell className="text-foreground font-medium text-xs sm:text-sm px-3 sm:px-4">{conta.descricao || "Sem descrição"}</TableCell>
                                 <TableCell className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">{conta.categorias_movimentacao?.nome || conta.grupo_categoria || "-"}</TableCell>
@@ -510,14 +491,18 @@ export default function DashboardGestor() {
                     <TableBody>
                       {contasPagar.length > 0 ? (
                         contasPagar
-                          .sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime())
+                          .sort((a: any, b: any) => {
+                            const dateA = typeof a.data === 'string' ? parseISO(a.data) : new Date(a.data);
+                            const dateB = typeof b.data === 'string' ? parseISO(b.data) : new Date(b.data);
+                            return dateB.getTime() - dateA.getTime();
+                          })
                           .slice(0, 50)
                           .map((conta: any) => {
                             const statusConfig = getStatusBadgeConfig(conta.status);
                             return (
                               <TableRow key={conta.id} className="border-border hover:bg-muted/50">
                                 <TableCell className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">
-                                  {conta.data ? new Date(conta.data).toLocaleDateString("pt-BR") : "-"}
+                                  {conta.data ? format(typeof conta.data === 'string' ? parseISO(conta.data) : new Date(conta.data), "dd/MM/yyyy") : "-"}
                                 </TableCell>
                                 <TableCell className="text-foreground font-medium text-xs sm:text-sm px-3 sm:px-4">{conta.descricao || "Sem descrição"}</TableCell>
                                 <TableCell className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">{conta.categorias_movimentacao?.nome || conta.grupo_categoria || "-"}</TableCell>
@@ -550,27 +535,11 @@ export default function DashboardGestor() {
           <TabsContent value="alertas" className="space-y-6">
             {/* Resumo de Alertas */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Card className="bg-warning/10 border-warning/30 overflow-hidden">
-                <CardContent className="p-4 sm:p-5">
-                  <p className="text-warning text-xs sm:text-sm font-medium uppercase tracking-wide">Recebimentos Vencidos</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-warning mt-2">{stats.recebimentosVencidos}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Contas não recebidas</p>
-                </CardContent>
-              </Card>
-
               <Card className="bg-destructive/10 border-destructive/30 overflow-hidden">
                 <CardContent className="p-4 sm:p-5">
                   <p className="text-destructive text-xs sm:text-sm font-medium uppercase tracking-wide">Pagamentos Vencidos</p>
                   <p className="text-2xl sm:text-3xl font-bold text-destructive mt-2">{stats.contasVencidas}</p>
                   <p className="text-xs text-muted-foreground mt-1">Contas não pagas</p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-warning/10 border-warning/30 overflow-hidden">
-                <CardContent className="p-4 sm:p-5">
-                  <p className="text-warning text-xs sm:text-sm font-medium uppercase tracking-wide">Receitas Pendentes</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-warning mt-2">{formatCurrency(stats.receitasPendentes)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">A conferir</p>
                 </CardContent>
               </Card>
 
@@ -583,12 +552,12 @@ export default function DashboardGestor() {
               </Card>
             </div>
 
-            {/* Contas Vencidas */}
+            {/* Pagamentos Vencidos */}
             <Card className="bg-card/80 border-border overflow-hidden">
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center gap-2">
                   <AlertTriangle className="w-5 h-5 text-destructive" />
-                  Contas Vencidas
+                  Pagamentos Vencidos
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0 sm:p-4">
@@ -598,46 +567,52 @@ export default function DashboardGestor() {
                       <TableRow className="border-border">
                         <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Data</TableHead>
                         <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Descrição</TableHead>
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Tipo</TableHead>
                         <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Valor</TableHead>
                         <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {[...contasReceber, ...contasPagar]
-                        .filter((conta: any) => conta.data && new Date(conta.data) < new Date())
-                        .sort((a: any, b: any) => new Date(a.data).getTime() - new Date(b.data).getTime())
-                        .slice(0, 20)
-                        .map((conta: any, idx: number) => {
+                      {contasPagar
+                        .filter((conta: any) => {
+                          const dataVenc = conta.data_vencimento
+                            ? (typeof conta.data_vencimento === 'string' ? parseISO(conta.data_vencimento) : new Date(conta.data_vencimento))
+                            : (conta.data ? (typeof conta.data === 'string' ? parseISO(conta.data) : new Date(conta.data)) : null);
+                          return dataVenc && dataVenc < new Date() && conta.status !== "confirmado" && conta.status !== "pago";
+                        })
+                        .sort((a: any, b: any) => {
+                          const dateA = typeof a.data === 'string' ? parseISO(a.data) : new Date(a.data);
+                          const dateB = typeof b.data === 'string' ? parseISO(b.data) : new Date(b.data);
+                          return dateA.getTime() - dateB.getTime();
+                        })
+                        .slice(0, 50)
+                        .map((conta: any) => {
                           const statusConfig = getStatusBadgeConfig(conta.status);
-                          const tipo = contasReceber.some((cr: any) => cr.id === conta.id) ? "Receita" : "Despesa";
-                          const isReceita = tipo === "Receita";
                           return (
-                            <TableRow key={conta.id || idx} className="border-border hover:bg-muted/50">
+                            <TableRow key={conta.id} className="border-border hover:bg-muted/50">
                               <TableCell className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">
-                                {conta.data ? new Date(conta.data).toLocaleDateString("pt-BR") : "-"}
+                                {conta.data ? format(typeof conta.data === 'string' ? parseISO(conta.data) : new Date(conta.data), "dd/MM/yyyy") : "-"}
                               </TableCell>
                               <TableCell className="text-foreground font-medium text-xs sm:text-sm px-3 sm:px-4">{conta.descricao || "Sem descrição"}</TableCell>
-                              <TableCell className="text-xs sm:text-sm px-3 sm:px-4">
-                                <Badge variant={isReceita ? "secondary" : "outline"} className="text-xs">
-                                  {tipo}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className={`font-semibold text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap ${isReceita ? "text-success" : "text-destructive"}`}>
+                              <TableCell className="text-destructive font-semibold text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
                                 {formatCurrency(Math.abs(Number(conta.valor || 0)))}
                               </TableCell>
                               <TableCell className="text-xs sm:text-sm px-3 sm:px-4">
-                                <Badge variant={statusConfig.variant} className="text-xs">
+                                <Badge variant={statusConfig.variant} className="text-xs sm:text-sm">
                                   {statusConfig.label}
                                 </Badge>
                               </TableCell>
                             </TableRow>
                           );
                         })}
-                      {[...contasReceber, ...contasPagar].filter((conta: any) => conta.data && new Date(conta.data) < new Date()).length === 0 && (
+                      {contasPagar.filter((conta: any) => {
+                        const dataVenc = conta.data_vencimento
+                          ? (typeof conta.data_vencimento === 'string' ? parseISO(conta.data_vencimento) : new Date(conta.data_vencimento))
+                          : (conta.data ? (typeof conta.data === 'string' ? parseISO(conta.data) : new Date(conta.data)) : null);
+                        return dataVenc && dataVenc < new Date() && conta.status !== "confirmado" && conta.status !== "pago";
+                      }).length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8 text-sm">
-                            Nenhuma conta vencida 🎉
+                          <TableCell colSpan={4} className="text-center text-muted-foreground py-8 text-sm">
+                            Nenhum pagamento vencido 🎉
                           </TableCell>
                         </TableRow>
                       )}
@@ -647,12 +622,12 @@ export default function DashboardGestor() {
               </CardContent>
             </Card>
 
-            {/* Contas Pendentes */}
+            {/* Despesas Pendentes */}
             <Card className="bg-card/80 border-border overflow-hidden">
               <CardHeader>
                 <CardTitle className="text-foreground flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-warning" />
-                  Contas Pendentes (Não Conferidas)
+                  <Clock className="w-5 h-5 text-destructive" />
+                  Despesas Pendentes
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0 sm:p-4">
@@ -662,46 +637,42 @@ export default function DashboardGestor() {
                       <TableRow className="border-border">
                         <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Data</TableHead>
                         <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Descrição</TableHead>
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Tipo</TableHead>
                         <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Valor</TableHead>
                         <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Status</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {[...contasReceber, ...contasPagar]
+                      {contasPagar
                         .filter((conta: any) => conta.status === "pendente")
-                        .sort((a: any, b: any) => new Date(b.data).getTime() - new Date(a.data).getTime())
-                        .slice(0, 20)
-                        .map((conta: any, idx: number) => {
+                        .sort((a: any, b: any) => {
+                          const dateA = typeof a.data === 'string' ? parseISO(a.data) : new Date(a.data);
+                          const dateB = typeof b.data === 'string' ? parseISO(b.data) : new Date(b.data);
+                          return dateB.getTime() - dateA.getTime();
+                        })
+                        .slice(0, 50)
+                        .map((conta: any) => {
                           const statusConfig = getStatusBadgeConfig(conta.status);
-                          const tipo = contasReceber.some((cr: any) => cr.id === conta.id) ? "Receita" : "Despesa";
-                          const isReceita = tipo === "Receita";
                           return (
-                            <TableRow key={conta.id || idx} className="border-border hover:bg-muted/50">
+                            <TableRow key={conta.id} className="border-border hover:bg-muted/50">
                               <TableCell className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">
-                                {conta.data ? new Date(conta.data).toLocaleDateString("pt-BR") : "-"}
+                                {conta.data ? format(typeof conta.data === 'string' ? parseISO(conta.data) : new Date(conta.data), "dd/MM/yyyy") : "-"}
                               </TableCell>
                               <TableCell className="text-foreground font-medium text-xs sm:text-sm px-3 sm:px-4">{conta.descricao || "Sem descrição"}</TableCell>
-                              <TableCell className="text-xs sm:text-sm px-3 sm:px-4">
-                                <Badge variant={isReceita ? "secondary" : "outline"} className="text-xs">
-                                  {tipo}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className={`font-semibold text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap ${isReceita ? "text-success" : "text-destructive"}`}>
+                              <TableCell className="text-destructive font-semibold text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
                                 {formatCurrency(Math.abs(Number(conta.valor || 0)))}
                               </TableCell>
                               <TableCell className="text-xs sm:text-sm px-3 sm:px-4">
-                                <Badge variant={statusConfig.variant} className="text-xs">
+                                <Badge variant={statusConfig.variant} className="text-xs sm:text-sm">
                                   {statusConfig.label}
                                 </Badge>
                               </TableCell>
                             </TableRow>
                           );
                         })}
-                      {[...contasReceber, ...contasPagar].filter((conta: any) => conta.status === "pendente").length === 0 && (
+                      {contasPagar.filter((conta: any) => conta.status === "pendente").length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8 text-sm">
-                            Nenhuma conta pendente 🎉
+                          <TableCell colSpan={4} className="text-center text-muted-foreground py-8 text-sm">
+                            Nenhuma despesa pendente 🎉
                           </TableCell>
                         </TableRow>
                       )}
@@ -874,7 +845,7 @@ export default function DashboardGestor() {
                           return (
                             <TableRow key={transacao.id} className="border-border hover:bg-muted/50">
                               <TableCell className="text-muted-foreground">
-                                {new Date(transacao.data).toLocaleDateString("pt-BR")}
+                                {format(typeof transacao.data === 'string' ? parseISO(transacao.data) : new Date(transacao.data), "dd/MM/yyyy")}
                               </TableCell>
                               <TableCell>
                                 <Badge variant={transacao.tipo_movimento === "entrada" ? "secondary" : "destructive"}>

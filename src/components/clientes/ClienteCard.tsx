@@ -15,6 +15,12 @@ interface Cliente {
   id: string;
   company_name: string;
   cnpj: string;
+  partner_name?: string;
+  partner_cpf?: string;
+  partner_name2?: string;
+  partner_cpf2?: string;
+  partner_name3?: string;
+  partner_cpf3?: string;
   proprietario?: string;
   inscricao_estadual?: string;
   address?: string;
@@ -77,6 +83,29 @@ export function ClienteCard({
         </div>
 
         <div className="space-y-2.5">
+          {(cliente.partner_name || cliente.partner_name2 || cliente.partner_name3) && (
+            <div className="mt-2 pt-2 border-t border-border">
+              <p className="text-xs text-muted-foreground mb-1">Sócios:</p>
+              <div className="flex flex-wrap gap-1">
+                {cliente.partner_name && (
+                  <Badge variant="outline" className="text-xs">
+                    {cliente.partner_name.split(' ')[0]}
+                  </Badge>
+                )}
+                {cliente.partner_name2 && (
+                  <Badge variant="outline" className="text-xs">
+                    {cliente.partner_name2.split(' ')[0]}
+                  </Badge>
+                )}
+                {cliente.partner_name3 && (
+                  <Badge variant="outline" className="text-xs">
+                    {cliente.partner_name3.split(' ')[0]}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          )}
+
           {cliente.phone && <div className="flex items-center gap-2.5 text-sm justify-center">
               <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <span className="text-foreground truncate">{cliente.phone}</span>
@@ -119,7 +148,7 @@ export function ClienteCard({
               </Badge>
           </div>}
 
-        {!cliente.phone && !cliente.email && !location && !cliente.financial_contact && !cliente.aircraft_ownerships?.length && <p className="text-sm text-muted-foreground text-center py-4">
+        {!cliente.partner_name && !cliente.partner_name2 && !cliente.partner_name3 && !cliente.phone && !cliente.email && !location && !cliente.financial_contact && !cliente.aircraft_ownerships?.length && <p className="text-sm text-muted-foreground text-center py-4">
             Clique para ver detalhes
           </p>}
       </CardContent>

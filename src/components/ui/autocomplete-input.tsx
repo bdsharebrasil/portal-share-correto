@@ -141,9 +141,9 @@ export const AutocompleteInput = forwardRef<HTMLInputElement, AutocompleteInputP
             </div>
           ) : filteredOptions.length > 0 ? (
             <div className="py-1">
-              {filteredOptions.map((option) => (
+              {filteredOptions.map((option, index) => (
                 <button
-                  key={option.id}
+                  key={`${option.id}-${index}`}
                   type="button"
                   onClick={() => handleSelectOption(option)}
                   className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-sky-500/20 hover:text-sky-400 transition-colors font-mono uppercase"

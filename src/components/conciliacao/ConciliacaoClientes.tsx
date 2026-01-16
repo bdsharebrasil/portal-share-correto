@@ -43,7 +43,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGroupedCategories } from "@/hooks/useGroupedCategories";
 import { StatusUpdateDialog } from "./StatusUpdateDialog";
-import { AddBankReconciliationDialog } from "./AddBankReconciliationDialog";
+import { AddBankReconciliationForm } from "./AddBankReconciliationForm";
+import { syncBankReconciliationToFinancial } from "@/services/financialSyncClient";
 
 // --- Interfaces ---
 interface Client {
@@ -94,7 +95,7 @@ export function ConciliacaoClientes() {
   const { toast } = useToast();
   const { roles, user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [openNewReconciliationDialog, setOpenNewReconciliationDialog] = useState(false);
+  // Removed dialog state - now using inline form
   const [openStatusDialog, setOpenStatusDialog] = useState(false);
   const [selectedReconciliation, setSelectedReconciliation] = useState<BankReconciliation | null>(null);
   
@@ -339,27 +340,19 @@ export function ConciliacaoClientes() {
                     <Plane className="h-4 w-4" />
                     {showTravelDebtsOnly ? "Filtrando Viagens" : "Filtrar Viagens"}
                 </Button>
-
-                <Button
-                    onClick={() => setOpenNewReconciliationDialog(true)}
-                    className="flex-1 md:flex-none flex items-center gap-2 rounded-lg"
-                >
-                    <Plus className="h-4 w-4" />
-                    Nova Conciliação
-                </Button>
             </div>
           </div>
         </CardHeader>
         
-        <AddBankReconciliationDialog
-          open={openNewReconciliationDialog}
-          onOpenChange={setOpenNewReconciliationDialog}
-          onSuccess={() => {
-            fetchReconciliations();
-          }}
-        />
-
         <CardContent>
+          {/* Formulário Inline para Nova Conciliação */}
+          <div className="mb-6">
+            <AddBankReconciliationForm
+              onSuccess={() => {
+                fetchReconciliations();
+              }}
+            />
+          </div>
           <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-cyan-500 scrollbar-track-slate-700/20">
             <Table>
               <TableHeader>
@@ -515,8 +508,17 @@ interface PaymentTermEditorProps {
 
 function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
+  
+  // Parse date correctly to avoid timezone issues
+  const parseLocalDate = (dateStr: string | null | undefined): Date | undefined => {
+    if (!dateStr) return undefined;
+    // Add T12:00:00 to avoid timezone shift issues
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  };
+  
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    reconciliation.payment_term ? new Date(reconciliation.payment_term) : undefined
+    parseLocalDate(reconciliation.payment_term)
   );
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
@@ -529,7 +531,11 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
 
     try {
       setIsSaving(true);
-      const dateStr = format(selectedDate, "yyyy-MM-dd");
+      // Format date correctly using local date components
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
 
       const { error } = await supabase
         .from('bank_reconciliations')
@@ -568,11 +574,38 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
       setIsSaving(false);
     }
   };
+  
+  // Format date for display
+  const formatDateForDisplay = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+  };
+  
+  // Format date for input value
+  const formatDateForInput = (date: Date | undefined): string => {
+    if (!date) return '';
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  
+  // Handle input change - parse without timezone issues
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value) {
+      const [year, month, day] = value.split('-').map(Number);
+      setSelectedDate(new Date(year, month - 1, day));
+    } else {
+      setSelectedDate(undefined);
+    }
+  };
 
   if (!isEditing) {
     return (
       <button onClick={() => setIsEditing(true)} className="text-sm hover:text-blue-600 hover:underline flex items-center gap-1">
-        {reconciliation.payment_term ? format(new Date(reconciliation.payment_term + 'T12:00:00'), 'dd/MM/yyyy') : <span className="text-xs text-muted-foreground italic flex items-center gap-1"><Plus className="w-3 h-3"/>Prazo</span>}
+        {reconciliation.payment_term ? formatDateForDisplay(reconciliation.payment_term) : <span className="text-xs text-muted-foreground italic flex items-center gap-1"><Plus className="w-3 h-3"/>Prazo</span>}
       </button>
     );
   }
@@ -582,8 +615,8 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
       <Input 
         type="date" 
         className="h-8 w-[130px] text-xs" 
-        value={selectedDate ? format(selectedDate, "yyyy-MM-dd") : ""}
-        onChange={(e) => setSelectedDate(e.target.value ? new Date(e.target.value) : undefined)}
+        value={formatDateForInput(selectedDate)}
+        onChange={handleDateChange}
       />
       <Button size="icon" className="h-8 w-8" onClick={handleSave} disabled={isSaving}><Check className="h-3 w-3" /></Button>
       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setIsEditing(false)}><X className="h-3 w-3" /></Button>
@@ -657,22 +690,30 @@ function AddDespesaForm({ parentReconciliation, clients, aircraft, onClose, onSu
           }
 
           const numeroDocumento = `REIMB-${Date.now().toString().slice(-6)}`;
+          const clienteNome = clientData?.company_name || "Cliente";
           await supabase.from("contas_areceber").insert({
             numero: numeroDocumento,
-            cliente_nome: clientData?.company_name || "Cliente",
+            referencia: clienteNome,
+            cliente_nome: clienteNome,
             cliente_cnpj: clientData?.cnpj || "",
             data_criacao: data.date,
-            data_vencimento: data.date,
+            data_vencimento: data.payment_term || data.date,
             valor: parseFloat(data.amount),
             categoria: data.category || "Reembolso de Despesa",
-            descricao: data.description,
+            descricao: data.description || "Conta a receber",
             status: "pendente",
+            arquivo_pdf_url: null,
             aeronave: aircraftRegistration,
-            criado_por: user.id,
+            criado_por: user.id
           });
         } catch (err) {
           console.error("Erro ao criar conta a receber:", err);
         }
+      }
+
+      // Sincronizar com controle_bancario
+      if (inserted?.id) {
+        await syncBankReconciliationToFinancial(inserted.id, user.id);
       }
 
       toast({ title: "Sucesso", description: "Despesa adicionada." });

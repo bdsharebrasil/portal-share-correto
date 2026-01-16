@@ -19,6 +19,9 @@ interface SalaryPayment {
   obs: string | null;
   comprovante_url: string | null;
   holerite_url: string | null;
+  ferias: number | null;
+  decimo_terceiro_parcela1: number | null;
+  decimo_terceiro_parcela2: number | null;
 }
 
 interface EmployeeBankStatementProps {
@@ -35,7 +38,7 @@ const EmployeeBankStatement: React.FC<EmployeeBankStatementProps> = ({ employeeI
     queryFn: async () => {
       const { data, error } = await supabase
         .from('pagamento_salario_funcionario')
-        .select('id, created_at, base_salary_holerite, benefit, horas_voo, extra, obs, comprovante_url, holerite_url')
+        .select('id, created_at, base_salary_holerite, benefit, horas_voo, extra, obs, comprovante_url, holerite_url, ferias, decimo_terceiro_parcela1, decimo_terceiro_parcela2')
         .eq('user_profile', employeeId)
         .order('created_at', { ascending: false });
 
@@ -49,28 +52,87 @@ const EmployeeBankStatement: React.FC<EmployeeBankStatementProps> = ({ employeeI
     enabled: !!employeeId,
   });
 
+  // Consolidate payments by month to avoid duplicates
+  const consolidatePaymentsByMonth = (allPayments: SalaryPayment[]) => {
+    const consolidated: { [key: string]: SalaryPayment } = {};
+
+    allPayments.forEach((payment) => {
+      const paymentDate = new Date(payment.created_at);
+      const monthYear = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, '0')}`;
+
+      if (!consolidated[monthYear]) {
+        consolidated[monthYear] = { ...payment };
+      } else {
+        // Merge values for the same month, taking non-zero values and avoiding duplicates
+        const existing = consolidated[monthYear];
+
+        // For each field, keep the non-zero value or sum if both exist
+        if (payment.base_salary_holerite && !existing.base_salary_holerite) {
+          existing.base_salary_holerite = payment.base_salary_holerite;
+        }
+        if (payment.decimo_terceiro_parcela1 && !existing.decimo_terceiro_parcela1) {
+          existing.decimo_terceiro_parcela1 = payment.decimo_terceiro_parcela1;
+        }
+        if (payment.decimo_terceiro_parcela2 && !existing.decimo_terceiro_parcela2) {
+          existing.decimo_terceiro_parcela2 = payment.decimo_terceiro_parcela2;
+        }
+        if (payment.ferias && !existing.ferias) {
+          existing.ferias = payment.ferias;
+        }
+        if (payment.horas_voo && !existing.horas_voo) {
+          existing.horas_voo = payment.horas_voo;
+        }
+        if (payment.benefit && !existing.benefit) {
+          existing.benefit = payment.benefit;
+        }
+        if (payment.extra && !existing.extra) {
+          existing.extra = payment.extra;
+        }
+        // Keep the most recent comprovante and holerite URLs
+        if (payment.comprovante_url && !existing.comprovante_url) {
+          existing.comprovante_url = payment.comprovante_url;
+        }
+        if (payment.holerite_url && !existing.holerite_url) {
+          existing.holerite_url = payment.holerite_url;
+        }
+      }
+    });
+
+    return Object.values(consolidated);
+  };
+
   // Filter payments
-  const filteredPayments = payments.filter((payment) => {
+  const consolidatedPayments = consolidatePaymentsByMonth(payments);
+
+  const filteredPayments = consolidatedPayments.filter((payment) => {
     const paymentDate = new Date(payment.created_at);
     const monthYear = `${paymentDate.getFullYear()}-${String(paymentDate.getMonth() + 1).padStart(2, '0')}`;
-    
+
     const descriptions = [
       payment.benefit,
       payment.horas_voo,
       payment.extra,
       payment.obs
     ].filter(Boolean).join(' ').toLowerCase();
-    
+
     const matchesSearch = !searchTerm || descriptions.includes(searchTerm.toLowerCase());
     const matchesMonth = !filterMonth || monthYear === filterMonth;
 
     return matchesSearch && matchesMonth;
   });
 
-  // Calculate totals
-  const totalAmount = filteredPayments.reduce((sum, payment) => sum + (payment.base_salary_holerite || 0), 0);
+  // Calculate totals (including all payment types)
+  const totalAmount = filteredPayments.reduce((sum, payment) => {
+    const salary = payment.base_salary_holerite || 0;
+    const horasVoo = parseFloat(payment.horas_voo || "0") || 0;
+    const benefit = parseFloat(payment.benefit || "0") || 0;
+    const extra = parseFloat(payment.extra || "0") || 0;
+    const ferias = payment.ferias || 0;
+    const decimo1 = payment.decimo_terceiro_parcela1 || 0;
+    const decimo2 = payment.decimo_terceiro_parcela2 || 0;
+    return sum + salary + horasVoo + benefit + extra + ferias + decimo1 + decimo2;
+  }, 0);
   const totalCount = filteredPayments.length;
-  const averageAmount = totalCount > 0 ? totalAmount / totalCount : 0;
 
   const formatCurrency = (value: number) => {
     return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -87,7 +149,7 @@ const EmployeeBankStatement: React.FC<EmployeeBankStatementProps> = ({ employeeI
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="border-border/50 bg-card/50">
           <CardContent className="pt-6">
             <div className="space-y-2">
@@ -107,17 +169,6 @@ const EmployeeBankStatement: React.FC<EmployeeBankStatementProps> = ({ employeeI
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground font-medium">Quantidade de Pagamentos</p>
               <p className="text-2xl font-bold text-foreground">{totalCount}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 bg-card/50">
-          <CardContent className="pt-6">
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground font-medium">Valor Médio</p>
-              <p className="text-2xl font-bold text-foreground">
-                R$ {formatCurrency(averageAmount)}
-              </p>
             </div>
           </CardContent>
         </Card>
@@ -180,11 +231,43 @@ const EmployeeBankStatement: React.FC<EmployeeBankStatementProps> = ({ employeeI
                 </thead>
                 <tbody className="divide-y divide-border/50">
                   {filteredPayments.map((payment) => {
-                    const descriptions: string[] = [];
-                    if (payment.base_salary_holerite) descriptions.push(`Salário`);
-                    if (payment.benefit) descriptions.push(`Benefício: ${payment.benefit}`);
-                    if (payment.horas_voo) descriptions.push(`Horas de Voo: ${payment.horas_voo}`);
-                    if (payment.extra) descriptions.push(`Extra: ${payment.extra}`);
+                    const descriptions: Array<{label: string; value: string | number}> = [];
+                    if (payment.base_salary_holerite) {
+                      descriptions.push({label: 'Salário', value: `R$ ${formatCurrency(payment.base_salary_holerite)}`});
+                    }
+                    const horasVooValue = parseFloat(payment.horas_voo || "0");
+                    if (horasVooValue > 0) {
+                      descriptions.push({label: 'Horas de Voo', value: `R$ ${formatCurrency(horasVooValue)}`});
+                    }
+                    const benefitValue = parseFloat(payment.benefit || "0");
+                    if (benefitValue > 0) {
+                      descriptions.push({label: 'Benefício', value: `R$ ${formatCurrency(benefitValue)}`});
+                    } else if (payment.benefit) {
+                      descriptions.push({label: 'Benefício', value: payment.benefit});
+                    }
+                    const extraValue = parseFloat(payment.extra || "0");
+                    if (extraValue > 0) {
+                      descriptions.push({label: 'Extra', value: `R$ ${formatCurrency(extraValue)}`});
+                    }
+                    if (payment.ferias && payment.ferias > 0) {
+                      descriptions.push({label: 'Férias', value: `R$ ${formatCurrency(payment.ferias)}`});
+                    }
+                    if (payment.decimo_terceiro_parcela1 && payment.decimo_terceiro_parcela1 > 0) {
+                      descriptions.push({label: '13º (1ª Parc.)', value: `R$ ${formatCurrency(payment.decimo_terceiro_parcela1)}`});
+                    }
+                    if (payment.decimo_terceiro_parcela2 && payment.decimo_terceiro_parcela2 > 0) {
+                      descriptions.push({label: '13º (2ª Parc.)', value: `R$ ${formatCurrency(payment.decimo_terceiro_parcela2)}`});
+                    }
+
+                    // Calculate total for this payment
+                    const paymentTotal = 
+                      (payment.base_salary_holerite || 0) + 
+                      horasVooValue + 
+                      benefitValue + 
+                      extraValue + 
+                      (payment.ferias || 0) + 
+                      (payment.decimo_terceiro_parcela1 || 0) + 
+                      (payment.decimo_terceiro_parcela2 || 0);
                     
                     return (
                       <tr key={payment.id} className="hover:bg-muted/30 transition-colors">
@@ -197,15 +280,18 @@ const EmployeeBankStatement: React.FC<EmployeeBankStatementProps> = ({ employeeI
                         <td className="px-6 py-4">
                           <div className="flex flex-col gap-1">
                             {descriptions.map((desc, i) => (
-                              <p key={i} className="text-foreground">{desc}</p>
+                              <div key={i} className="flex justify-between gap-4">
+                                <span className="text-muted-foreground text-sm">{desc.label}:</span>
+                                <span className="text-foreground font-medium">{desc.value}</span>
+                              </div>
                             ))}
                             {payment.obs && (
-                              <p className="text-xs text-muted-foreground italic">Obs: {payment.obs}</p>
+                              <p className="text-xs text-muted-foreground italic mt-1">Obs: {payment.obs}</p>
                             )}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right font-semibold text-green-600">
-                          +R$ {formatCurrency(payment.base_salary_holerite || 0)}
+                          +R$ {formatCurrency(paymentTotal)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center justify-center gap-2">

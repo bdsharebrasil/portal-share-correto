@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -46,6 +47,7 @@ export function CreateLogbookDialog({
   const [fuelConsumption, setFuelConsumption] = useState<string>("");
   const [cellularHours, setCellularHours] = useState<string>("0");
   const [dailyRate, setDailyRate] = useState<string>("");
+  const [hasDailyRate, setHasDailyRate] = useState<boolean>(true);
   const [baseAerodrome, setBaseAerodrome] = useState<string>("");
   const [horimetroInicio, setHorimetroInicio] = useState<string>("");
   const [celulaProxRevisao, setCelulaProxRevisao] = useState<string>("");
@@ -80,7 +82,8 @@ export function CreateLogbookDialog({
         celula_anterior: celulaValue,
         celula_atual: celulaValue,  // Será atualizada dinamicamente conforme voos são adicionados
         fuel_consumption: fuelConsumption,
-        daily_rate: dailyRate ? parseFloat(dailyRate) : 0,
+        daily_rate: hasDailyRate && dailyRate ? parseFloat(dailyRate) : 0,
+        has_daily_rate: hasDailyRate,
         base_aerodrome: baseAerodrome || null,
         horimetro_inicio: horimetroInicio ? parseFloat(horimetroInicio) : null,
         celula_prox_revisao: celulaProxRevisao ? parseFloat(celulaProxRevisao) : null,
@@ -135,6 +138,7 @@ export function CreateLogbookDialog({
       setFuelConsumption("");
       setCellularHours("0");
       setDailyRate("");
+      setHasDailyRate(true);
       setBaseAerodrome("");
       setHorimetroInicio("");
       setCelulaProxRevisao("");
@@ -273,21 +277,42 @@ export function CreateLogbookDialog({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="dailyRate" className="text-sm font-semibold">Valor da Diária (R$)</Label>
-            <Input
-              id="dailyRate"
-              type="number"
-              step="0.01"
-              placeholder="445.00"
-              value={dailyRate}
-              onChange={(e) => setDailyRate(e.target.value)}
-              disabled={loading}
-              className="h-10 text-base"
-            />
-            <p className="text-xs text-muted-foreground">
-              Deixe em branco se a aeronave não tem valor de diária definido
-            </p>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-3">
+              <Checkbox
+                id="hasDailyRate"
+                checked={!hasDailyRate}
+                onCheckedChange={(checked) => {
+                  setHasDailyRate(!checked);
+                  if (checked) {
+                    setDailyRate("");
+                  }
+                }}
+                disabled={loading}
+              />
+              <Label 
+                htmlFor="hasDailyRate" 
+                className="text-sm font-medium cursor-pointer text-muted-foreground"
+              >
+                Aeronave não possui diária
+              </Label>
+            </div>
+
+            {hasDailyRate && (
+              <div className="space-y-2">
+                <Label htmlFor="dailyRate" className="text-sm font-semibold">Valor da Diária (R$)</Label>
+                <Input
+                  id="dailyRate"
+                  type="number"
+                  step="0.01"
+                  placeholder="445.00"
+                  value={dailyRate}
+                  onChange={(e) => setDailyRate(e.target.value)}
+                  disabled={loading}
+                  className="h-10 text-base"
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6 pt-4 border-t sticky bottom-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 -mx-6 px-6 py-4 sm:py-0 sm:-mx-0 sm:px-0 sm:bg-transparent sm:border-0">

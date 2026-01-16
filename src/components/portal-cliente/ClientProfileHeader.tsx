@@ -6,6 +6,7 @@ interface ClientProfileHeaderProps {
   clientStatus: string;
   clientSince?: string;
   logoUrl?: string;
+  proprietario?: string;
   onBack: () => void;
   onEditProfile?: () => void;
   onGenerateReport?: () => void;
@@ -15,6 +16,7 @@ export function ClientProfileHeader({
   clientStatus,
   clientSince,
   logoUrl,
+  proprietario,
   onBack,
   onEditProfile,
   onGenerateReport
@@ -47,6 +49,11 @@ export function ClientProfileHeader({
               <h1 className="text-xl font-bold text-white">
                 {clientName}
               </h1>
+              {proprietario && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Proprietário: <span className="text-white">{proprietario}</span>
+                </p>
+              )}
               <div className="flex items-center gap-3 mt-2">
                 {clientStatus === 'ativo' && (
                   <Badge className="bg-emerald-500 text-white">

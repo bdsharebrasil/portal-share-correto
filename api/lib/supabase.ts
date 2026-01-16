@@ -1,3 +1,8 @@
+import dotenv from 'dotenv';
+
+// Carrega .env aqui para garantir que variáveis existam quando o módulo é importado
+dotenv.config();
+
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;

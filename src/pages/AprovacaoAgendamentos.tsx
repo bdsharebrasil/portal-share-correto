@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/layout/Layout";
+import { useRealtimeBookings } from "@/hooks/useRealtimeBookings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ import {
   Check,
   X
 } from "lucide-react";
+import { InlineLottieSpinner } from "@/components/ui/inline-lottie-spinner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/components/ui/use-toast";
@@ -67,6 +69,9 @@ export default function AprovacaoAgendamentos() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [bookingToReject, setBookingToReject] = useState<BookingRequest | null>(null);
+
+  // Ativar atualizações em tempo real
+  useRealtimeBookings();
 
   // Fetch booking requests
   const { data: bookings, isLoading, error, refetch } = useQuery({
@@ -225,7 +230,7 @@ export default function AprovacaoAgendamentos() {
             </p>
           </div>
           <Button onClick={() => refetch()} disabled={isLoading} className="gap-2">
-            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            {isLoading ? <InlineLottieSpinner size="sm" /> : <RefreshCw className="h-4 w-4" />}
             Atualizar
           </Button>
         </div>
@@ -292,7 +297,7 @@ export default function AprovacaoAgendamentos() {
         ) : isLoading ? (
           <Card className="bg-card border-border">
             <CardContent className="pt-6 flex items-center justify-center gap-3 py-12">
-              <RefreshCw className="h-6 w-6 text-primary animate-spin" />
+              <InlineLottieSpinner size="md" />
               <p className="text-muted-foreground">Carregando agendamentos...</p>
             </CardContent>
           </Card>

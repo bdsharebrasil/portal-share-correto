@@ -1,3 +1,8 @@
+import dotenv from 'dotenv';
+
+// Carrega variáveis de ambiente de .env em desenvolvimento
+dotenv.config();
+
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import apiRouter from './routes';
@@ -60,11 +65,22 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // Health check
 app.get('/health', (req: Request, res: Response) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     cacheSize: globalCache.size(),
     uptime: process.uptime()
+  });
+});
+
+// Debug endpoint
+app.get('/debug/cors', (req: Request, res: Response) => {
+  const origin = req.get('origin');
+  res.json({
+    requestOrigin: origin,
+    corsAllowed: true,
+    serverTime: new Date().toISOString(),
+    message: 'CORS debugging endpoint'
   });
 });
 

@@ -12,24 +12,9 @@ const getApiBaseUrl = () => {
     return import.meta.env.VITE_API_URL;
   }
 
-  // Em desenvolvimento local (localhost), usa localhost:3001
-  if (typeof window !== 'undefined') {
-    const hostname = window.location.hostname;
-
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      // Desenvolvimento local
-      return 'http://localhost:3001';
-    }
-
-    // Em desenvolvimento remoto (ex: Fly.io) ou produção, tenta usar mesmo domínio
-    // Se o backend está servindo em /api, usa relative path
-    if (hostname.includes('fly.dev') || !import.meta.env.DEV) {
-      // Produção ou staging em Fly.io - usa relative path (mesmo origem)
-      return '';
-    }
-  }
-
-  // Fallback: relative path
+  // Em qualquer ambiente (desenvolvimento, staging, produção),
+  // usa relative path ('') para aproveitar o Vite proxy em dev
+  // e a mesma origem em produção
   return '';
 };
 
@@ -49,10 +34,11 @@ export class ApiClient {
     // Debug logging para diagnosticar problemas de conexão
     if (typeof window !== 'undefined' && import.meta.env.DEV) {
       console.log('[API Client] Configuration:', {
-        baseUrl: this.baseUrl,
+        baseUrl: this.baseUrl || '(relative paths)',
         hostname: window.location.hostname,
         isDev: import.meta.env.DEV,
-        defaultUrl: API_BASE_URL
+        usingViteProxy: !this.baseUrl,
+        note: 'Using Vite proxy for /api routes in development'
       });
     }
   }
@@ -93,8 +79,8 @@ export class ApiClient {
       const isBackendError = errorMsg.includes('Failed to fetch') || errorMsg.includes('fetch');
 
       if (isBackendError) {
-        console.error(`[API Error] Backend não está respondendo em ${this.baseUrl}${endpoint}:`, errorMsg);
-        console.warn(`[API Debug] BASE_URL=${this.baseUrl}, DEV=${import.meta.env.DEV}`);
+        console.error(`[API Error] Failed to fetch ${endpoint}:`, errorMsg);
+        console.warn(`[API Debug] URL=${url}, Using Vite Proxy: ${!this.baseUrl}, ENV=${import.meta.env.DEV ? 'dev' : 'prod'}`);
       } else {
         console.error(`[API Error] ${endpoint}: ${errorMsg}`, { url, error });
       }
@@ -135,7 +121,48 @@ export class ApiClient {
       const isBackendError = errorMsg.includes('Failed to fetch') || errorMsg.includes('fetch');
 
       if (isBackendError) {
-        console.error(`[API Error] Backend não está respondendo em ${this.baseUrl}${endpoint}:`, errorMsg);
+        console.error(`[API Error] Failed to POST ${endpoint}:`, errorMsg);
+        console.warn(`[API Debug] URL=${url}, Using Vite Proxy: ${!this.baseUrl}`);
+      } else {
+        console.error(`[API Error] ${endpoint}:`, error);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * DELETE request
+   */
+  async delete<T>(endpoint: string): Promise<T> {
+    const url = `${this.baseUrl}${endpoint}`;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundo timeout
+
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      return data.data || data;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      const isBackendError = errorMsg.includes('Failed to fetch') || errorMsg.includes('fetch');
+
+      if (isBackendError) {
+        console.error(`[API Error] Failed to DELETE ${endpoint}:`, errorMsg);
+        console.warn(`[API Debug] URL=${url}, Using Vite Proxy: ${!this.baseUrl}`);
       } else {
         console.error(`[API Error] ${endpoint}:`, error);
       }

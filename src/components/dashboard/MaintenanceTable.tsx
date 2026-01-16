@@ -14,7 +14,7 @@ export function MaintenanceTable() {
   const { data: vencimentos = [] } = useQuery({
     queryKey: ["dashboard-vencimentos"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("vencimentos")
         .select(`
           *,

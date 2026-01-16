@@ -1,6 +1,5 @@
-export { CTMServiceOrderList } from './CTMServiceOrderList';
+export { CTMServiceOrderList } from './CTMServiceOrderDetails';
 export { CTMServiceOrderForm } from './CTMServiceOrderForm';
-export { CTMServiceOrderDetails } from './CTMServiceOrderDetails';
 export { CTMDashboard } from './CTMDashboard';
 export { RASList } from './RASList';
 export { RASForm } from './RASForm';

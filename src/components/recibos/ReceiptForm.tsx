@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -11,16 +12,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { FileText, Upload, Calendar as CalendarIcon } from "lucide-react";
+import { FileText, Star } from "lucide-react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
-
-/* =========================
-   TIPOS
-========================= */
 
 interface ReceiptFormProps {
   clientesAtivos: any[];
@@ -35,9 +29,10 @@ interface Categoria {
   grupo_categoria: string;
 }
 
-/* =========================
-   COMPONENTE
-========================= */
+interface FavoriteDescription {
+  id: string;
+  description: string;
+}
 
 export function ReceiptForm({
   clientesAtivos,
@@ -68,6 +63,8 @@ export function ReceiptForm({
     reembolsoValorTotal: "",
     reembolsoPorcentagem: "",
     reembolsoCategoriaId: "",
+    reembolsoNumeroDocumento: "",
+    reembolsoRateado: false,
     reembolsoBoletoFile: null as File | null,
     reembolsoNotaFiscalFile: null as File | null,
   });
@@ -76,26 +73,27 @@ export function ReceiptForm({
   const [categoriasAgrupadas, setCategoriasAgrupadas] = useState<
     Record<string, Categoria[]>
   >({});
+  const [favoriteDescriptions, setFavoriteDescriptions] = useState<FavoriteDescription[]>([]);
+  const [showFavorites, setShowFavorites] = useState(false);
 
   const isReembolso = formData.receiptType === "reembolso";
 
-  /* =========================
-     HELPERS DE DATA
-  ========================= */
+  // Cálculo automático do valor quando rateado
+  useEffect(() => {
+    if (formData.reembolsoRateado && formData.reembolsoValorTotal && formData.reembolsoPorcentagem) {
+      const valorTotal = parseFloat(formData.reembolsoValorTotal) || 0;
+      const porcentagem = parseFloat(formData.reembolsoPorcentagem) || 0;
+      const valorCalculado = (valorTotal * porcentagem / 100).toFixed(2);
+      setFormData(prev => ({ ...prev, valor: valorCalculado }));
+    }
+  }, [formData.reembolsoValorTotal, formData.reembolsoPorcentagem, formData.reembolsoRateado]);
 
   const parseLocalDate = (dateString: string): Date => {
     const [y, m, d] = dateString.split("-").map(Number);
     return new Date(y, m - 1, d);
   };
 
-  const formatDateToString = (date: Date): string => {
-    return format(date, "yyyy-MM-dd");
-  };
-
-  /* =========================
-     LOAD CATEGORIAS
-  ========================= */
-
+  // Load categorias
   useEffect(() => {
     const loadCategorias = async () => {
       const { data } = await supabase
@@ -122,10 +120,21 @@ export function ReceiptForm({
     loadCategorias();
   }, []);
 
-  /* =========================
-     RESET AO MUDAR TIPO
-  ========================= */
+  // Load favorite descriptions
+  useEffect(() => {
+    const loadFavoriteDescriptions = async () => {
+      const { data } = await supabase
+        .from("receipt_descriptions")
+        .select("*")
+        .order("created_at", { ascending: false });
 
+      setFavoriteDescriptions(data || []);
+    };
+
+    loadFavoriteDescriptions();
+  }, []);
+
+  // Reset ao mudar tipo
   useEffect(() => {
     if (formData.receiptType === "pagamento") {
       setFormData((prev) => ({
@@ -135,6 +144,8 @@ export function ReceiptForm({
         reembolsoValorTotal: "",
         reembolsoPorcentagem: "",
         reembolsoCategoriaId: "",
+        reembolsoNumeroDocumento: "",
+        reembolsoRateado: false,
         reembolsoBoletoFile: null,
         reembolsoNotaFiscalFile: null,
       }));
@@ -142,10 +153,7 @@ export function ReceiptForm({
     }
   }, [formData.receiptType]);
 
-  /* =========================
-     CLIENTE / AERONAVE
-  ========================= */
-
+  // Cliente / Aeronave
   useEffect(() => {
     if (!formData.clienteId) {
       setAircrafts([]);
@@ -172,9 +180,7 @@ export function ReceiptForm({
   const loadAircrafts = async (clientId: string) => {
     const { data } = await supabase
       .from("client_aircraft")
-      .select(
-        `aircraft:aircraft_id ( id, registration, model )`
-      )
+      .select(`aircraft:aircraft_id ( id, registration, model )`)
       .eq("client_id", clientId);
 
     if (data) {
@@ -182,22 +188,79 @@ export function ReceiptForm({
     }
   };
 
-  /* =========================
-     SUBMIT
-  ========================= */
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+
+    // Prepara os dados conforme a estrutura da tabela bank_reconciliations
+    const submissionData = {
+      // Dados básicos
+      type: "cliente",
+      date: formData.dataEmissao,
+      description: formData.servicoDescricao,
+      amount: parseFloat(formData.valor),
+      status: "pendente",
+
+      // IDs relacionados
+      client_id: formData.clienteId,
+      aircraft_id: formData.aircraftId,
+      categoria_movimentacao_id: formData.reembolsoCategoriaId,
+
+      // Dados específicos de reembolso
+      tipo_documento: formData.reembolsoRateado ? "rateio" : "recibo",
+      doc: formData.reembolsoNumeroDocumento || null,
+      payment_term: formData.prazoMaximoQuitacao || null,
+
+      // Dados de rateio
+      percentual: formData.reembolsoRateado ? formData.reembolsoPorcentagem : null,
+
+      // Forma de pagamento
+      forma_pagamento: formData.reembolsoRateado ? "rateio_direto" : "empresa_paga",
+      afeta_caixa_empresa: true,
+
+      // Dados do fornecedor (para recibos de reembolso)
+      fornecedor_nome: formData.pagadorNome || null,
+      fornecedor_dados: formData.pagadorNome ? {
+        nome: formData.pagadorNome,
+        documento: formData.pagadorDocumento,
+        endereco: formData.pagadorEndereco,
+        cidade: formData.pagadorCidade,
+        uf: formData.pagadorUF
+      } : null,
+
+      // Arquivos (URLs serão preenchidas após upload)
+      boleto_url: null, // Será preenchido após upload
+      nf_url: null, // Será preenchido após upload
+
+      // Dados adicionais de rateio
+      ...(formData.reembolsoRateado && {
+        rateio_data: {
+          valor_total: parseFloat(formData.reembolsoValorTotal),
+          percentual: parseFloat(formData.reembolsoPorcentagem),
+          valor_cliente: parseFloat(formData.valor)
+        }
+      }),
+
+      // Arquivos para upload
+      files: {
+        boleto: formData.reembolsoBoletoFile,
+        notaFiscal: formData.reembolsoNotaFiscalFile
+      },
+
+      // Dados originais do formulário (para compatibilidade)
+      originalFormData: formData
+    };
+
+    onSubmit(submissionData);
   };
 
   const handleFileChange = (field: string, file: File | null) => {
     setFormData((prev) => ({ ...prev, [field]: file }));
   };
 
-  /* =========================
-     RENDER
-  ========================= */
+  const selectFavoriteDescription = (description: string) => {
+    setFormData(prev => ({ ...prev, servicoDescricao: description }));
+    setShowFavorites(false);
+  };
 
   return (
     <form onSubmit={handleSubmit}>
@@ -269,132 +332,23 @@ export function ReceiptForm({
               </div>
             </div>
           )}
-{/* DESCRIÇÃO DO SERVIÇO / RECIBO */}
-<div className="space-y-2">
-  <Label>
-    Descrição do Serviço / Referência do Recibo *
-  </Label>
-  <Textarea
-    value={formData.servicoDescricao}
-    onChange={(e) =>
-      setFormData((prev) => ({
-        ...prev,
-        servicoDescricao: e.target.value,
-      }))
-    }
-    placeholder="Ex: Reembolso de despesas de hangaragem referente ao mês de março"
-    rows={3}
-    required
-  />
-</div>
-<div className="space-y-2">
-  <Label>Valor do Recibo *</Label>
-  <Input
-    type="number"
-    step="0.01"
-    value={formData.valor}
-    onChange={(e) =>
-      setFormData((prev) => ({ ...prev, valor: e.target.value }))
-    }
-    placeholder="Valor que este cliente irá pagar"
-    required
-  />
-  {isReembolso && (
-    <p className="text-xs text-muted-foreground">
-      Valor correspondente a este cliente no rateio
-    </p>
-  )}
-</div>
-<div className="space-y-2">
-  <Label>Valor Total da Despesa</Label>
-  <Input
-    type="number"
-    step="0.01"
-    value={formData.reembolsoValorTotal}
-    onChange={(e) =>
-      setFormData((prev) => ({
-        ...prev,
-        reembolsoValorTotal: e.target.value,
-      }))
-    }
-    placeholder="100% da despesa (opcional)"
-  />
-</div>
-<div className="space-y-2">
-  <Label>Percentual deste Cliente (%)</Label>
-  <Input
-    type="number"
-    step="0.01"
-    min="0"
-    max="100"
-    value={formData.reembolsoPorcentagem}
-    onChange={(e) =>
-      setFormData((prev) => ({
-        ...prev,
-        reembolsoPorcentagem: e.target.value,
-      }))
-    }
-    placeholder="Ex: 40"
-  />
-</div>
 
-          {/* PRAZO DE QUITAÇÃO */}
+          {/* CATEGORIA E NÚMERO DO DOCUMENTO */}
           {isReembolso && (
-            <div>
-              <Label>Prazo Máximo de Quitação</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {formData.prazoMaximoQuitacao
-                      ? format(
-                        parseLocalDate(formData.prazoMaximoQuitacao),
-                        "dd 'de' MMMM 'de' yyyy",
-                        { locale: ptBR }
-                      )
-                      : "Selecione a data"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="p-0">
-                  <Calendar
-                    mode="single"
-                    selected={
-                      formData.prazoMaximoQuitacao
-                        ? parseLocalDate(formData.prazoMaximoQuitacao)
-                        : undefined
-                    }
-                    onSelect={(d) =>
-                      d &&
-                      setFormData((p) => ({
-                        ...p,
-                        prazoMaximoQuitacao: formatDateToString(d),
-                      }))
-                    }
-                    disabled={(d) =>
-                      d < parseLocalDate(formData.dataEmissao)
-                    }
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          )}
-
-          {/* CATEGORIA */}
-          {isReembolso && (
-            <div>
-              <Label>Categoria (Reembolso)</Label>
-              <Select
-                value={formData.reembolsoCategoriaId}
-                onValueChange={(v) =>
-                  setFormData((p) => ({ ...p, reembolsoCategoriaId: v }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(categoriasAgrupadas).map(
-                    ([grupo, cats]) => (
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label>Categoria (Reembolso) *</Label>
+                <Select
+                  value={formData.reembolsoCategoriaId}
+                  onValueChange={(v) =>
+                    setFormData((p) => ({ ...p, reembolsoCategoriaId: v }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(categoriasAgrupadas).map(([grupo, cats]) => (
                       <div key={grupo}>
                         <div className="px-2 py-1 text-xs font-bold uppercase opacity-70">
                           {grupo}
@@ -405,18 +359,219 @@ export function ReceiptForm({
                           </SelectItem>
                         ))}
                       </div>
-                    )
-                  )}
-                </SelectContent>
-              </Select>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Número do Documento</Label>
+                <Input
+                  value={formData.reembolsoNumeroDocumento}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, reembolsoNumeroDocumento: e.target.value }))
+                  }
+                  placeholder="Ex: NF 12345"
+                />
+              </div>
             </div>
           )}
+
+          {/* CHECKBOX RATEIO */}
+          {isReembolso && (
+            <div className="flex items-center space-x-2 p-4 border border-border rounded-lg bg-muted/30">
+              <Checkbox
+                id="rateio"
+                checked={formData.reembolsoRateado}
+                onCheckedChange={(checked) =>
+                  setFormData((p) => ({
+                    ...p,
+                    reembolsoRateado: checked === true,
+                    // Reset valores se desmarcar
+                    ...(checked === false && {
+                      reembolsoValorTotal: "",
+                      reembolsoPorcentagem: "",
+                    }),
+                  }))
+                }
+              />
+              <Label htmlFor="rateio" className="cursor-pointer">
+                Despesa será rateada entre os sócios
+              </Label>
+            </div>
+          )}
+
+          {/* CAMPOS DE RATEIO - só aparecem se marcado */}
+          {isReembolso && formData.reembolsoRateado && (
+            <div className="grid md:grid-cols-3 gap-4 p-4 border border-primary/20 rounded-lg bg-primary/5">
+              <div>
+                <Label>Valor Total da Despesa *</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.reembolsoValorTotal}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      reembolsoValorTotal: e.target.value,
+                    }))
+                  }
+                  placeholder="100% da despesa"
+                  required={formData.reembolsoRateado}
+                />
+              </div>
+              <div>
+                <Label>Percentual deste Cliente (%) *</Label>
+                <Input
+                  type="number"
+                  step="0.001"
+                  min="0"
+                  max="100"
+                  value={formData.reembolsoPorcentagem}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      reembolsoPorcentagem: e.target.value,
+                    }))
+                  }
+                  placeholder="Ex: 40.625"
+                  required={formData.reembolsoRateado}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Aceita até 3 casas decimais (ex: 33.333)
+                </p>
+              </div>
+              <div>
+                <Label>Valor do Recibo (Calculado)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.valor}
+                  readOnly
+                  className="bg-muted cursor-not-allowed font-semibold"
+                  placeholder="Calculado automaticamente"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Valor que este cliente irá pagar
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* VALOR DO RECIBO - só aparece se NÃO rateado */}
+          {isReembolso && !formData.reembolsoRateado && (
+            <div>
+              <Label>Valor do Recibo (100% para este cliente) *</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={formData.valor}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, valor: e.target.value }))
+                }
+                placeholder="Valor total da despesa"
+                required
+              />
+            </div>
+          )}
+
+          {/* VALOR DO RECIBO - para pagamento normal */}
+          {!isReembolso && (
+            <div>
+              <Label>Valor do Recibo *</Label>
+              <Input
+                type="number"
+                step="0.01"
+                value={formData.valor}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, valor: e.target.value }))
+                }
+                placeholder="Valor do recibo"
+                required
+              />
+            </div>
+          )}
+
+          {/* PRAZO DE QUITAÇÃO */}
+          {isReembolso && (
+            <div className="space-y-3">
+              <Label>Prazo Máximo de Quitação</Label>
+              <div className="grid md:grid-cols-2 gap-4">
+                {/* Input manual de data */}
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1 block">Digite a data</Label>
+                  <Input
+                    type="date"
+                    value={formData.prazoMaximoQuitacao}
+                    onChange={(e) =>
+                      setFormData((p) => ({
+                        ...p,
+                        prazoMaximoQuitacao: e.target.value,
+                      }))
+                    }
+                    min={formData.dataEmissao}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+              {formData.prazoMaximoQuitacao && (
+                <p className="text-xs text-muted-foreground">
+                  Data selecionada: {format(parseLocalDate(formData.prazoMaximoQuitacao), "dd/MM/yyyy")}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* DESCRIÇÃO DO SERVIÇO / RECIBO */}
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <Label>Descrição do Serviço*</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowFavorites(!showFavorites)}
+                className="text-xs"
+              >
+                <Star className="h-3 w-3 mr-1" />
+                Favoritas
+              </Button>
+            </div>
+
+            {showFavorites && favoriteDescriptions.length > 0 && (
+              <div className="border border-border rounded-lg p-2 space-y-1 bg-muted/30 max-h-40 overflow-y-auto">
+                {favoriteDescriptions.map((desc) => (
+                  <button
+                    key={desc.id}
+                    type="button"
+                    onClick={() => selectFavoriteDescription(desc.description)}
+                    className="w-full text-left p-2 text-sm hover:bg-accent rounded transition-colors"
+                  >
+                    {desc.description}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <Textarea
+              value={formData.servicoDescricao}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  servicoDescricao: e.target.value,
+                }))
+              }
+              placeholder="Ex: Reembolso de despesas de hangaragem referente ao mês de março"
+              rows={3}
+              required
+            />
+          </div>
 
           {/* UPLOADS */}
           {isReembolso && (
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <Label>Boleto (PDF)</Label>
+                <Label>Boleto</Label>
                 <Input
                   type="file"
                   accept=".pdf"
@@ -430,7 +585,7 @@ export function ReceiptForm({
               </div>
 
               <div>
-                <Label>Nota Fiscal (PDF)</Label>
+                <Label>N.F / DEMONSTRATIVO</Label>
                 <Input
                   type="file"
                   accept=".pdf"

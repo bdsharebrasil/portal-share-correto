@@ -40,11 +40,11 @@ export function CTMDashboard({ aircraftId }: CTMDashboardProps) {
           id: aircraftData.id,
           registration: aircraftData.registration,
           model: aircraftData.model,
-          manufacturer: aircraftData.fabricante,
+          manufacturer: (aircraftData as any).fabricante || aircraftData.manufacturer,
           serialNumber: aircraftData.serial_number,
           totalHours: aircraftData.cell_hours_current || 0,
-          totalCycles: aircraftData.pousos_atuais || 0,
-          lastRevisionDate: aircraftData.ultima_revisao,
+          totalCycles: (aircraftData as any).pousos_atuais || 0,
+          lastRevisionDate: (aircraftData as any).ultima_revisao,
           nextRevisionHours: aircraftData.celula_prox_revisao,
           status: aircraftData.status,
         });
@@ -69,7 +69,7 @@ export function CTMDashboard({ aircraftId }: CTMDashboardProps) {
             dueCycles: item.next_due_cycles,
             dueDate: item.next_due_date,
             currentHours: aircraftData?.cell_hours_current || 0,
-            currentCycles: aircraftData?.pousos_atuais || 0,
+            currentCycles: (aircraftData as any)?.pousos_atuais || 0,
             status: item.status || 'ok',
             interval: `${item.interval_value} ${item.interval_type}`,
             lastDone: item.last_done_date,
@@ -83,7 +83,7 @@ export function CTMDashboard({ aircraftId }: CTMDashboardProps) {
       }
 
       // Load components (aircraft parts/components)
-      const { data: componentsData, error: componentsError } = await supabase
+      const { data: componentsData, error: componentsError } = await (supabase as any)
         .from('aircraft_components')
         .select('*')
         .eq('aircraft_id', aircraftId);

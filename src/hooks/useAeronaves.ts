@@ -38,6 +38,7 @@ export const useAeronaves = () => {
           const { data, error: supabaseError } = await supabase
             .from('aircraft')
             .select('*')
+            .eq('status', 'Ativa')
             .order('registration', { ascending: true });
 
           if (supabaseError) {

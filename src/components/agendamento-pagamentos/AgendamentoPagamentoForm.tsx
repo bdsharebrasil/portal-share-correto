@@ -13,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
 import { format } from "date-fns";
 import { X, Save } from "lucide-react";
+import { syncAgendamentoPagamentoToControle, removeAgendamentoPagamentoFromControle } from "@/services/syncSalariesToBankingControl";
 
 interface AgendamentoPagamentoFormProps {
   agendamento?: any;
@@ -109,6 +110,16 @@ export function AgendamentoPagamentoForm({
       };
 
       if (agendamento?.id) {
+        // Se o status está sendo alterado para 'pago', sincroniza com controle bancário
+        if (formData.status === 'pago' && agendamento.status !== 'pago') {
+          const agendamentoAtualizado = { ...agendamento, ...data };
+          await syncAgendamentoPagamentoToControle(agendamentoAtualizado, user?.id);
+        }
+        // Se o status está sendo alterado de 'pago' para 'cancelado', remove do controle
+        else if (formData.status === 'cancelado' && agendamento.status === 'pago') {
+          await removeAgendamentoPagamentoFromControle(agendamento.id);
+        }
+
         const { error } = await supabase
           .from("agendamento_pagamentos")
           .update(data as any)
@@ -120,17 +131,27 @@ export function AgendamentoPagamentoForm({
         }
         toast.success("Agendamento atualizado com sucesso!");
       } else {
-        const { error } = await supabase
+        const { data: insertedData, error } = await supabase
           .from("agendamento_pagamentos")
           .insert({
             ...data,
             criado_por: user.id
-          } as any);
+          } as any)
+          .select();
 
         if (error) {
           toast.error(`Erro ao criar: ${error.message}`);
           return;
         }
+
+        // Se o novo agendamento é criado já como 'pago', sincroniza imediatamente
+        if (formData.status === 'pago' && insertedData && insertedData.length > 0) {
+          await syncAgendamentoPagamentoToControle({
+            ...insertedData[0],
+            valor: parseFloat(String(insertedData[0].valor))
+          }, user?.id);
+        }
+
         toast.success("Agendamento criado com sucesso!");
       }
 

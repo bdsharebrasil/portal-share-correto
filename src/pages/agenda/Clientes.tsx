@@ -31,6 +31,12 @@ interface Cliente {
   id: string;
   company_name: string;
   cnpj: string;
+  partner_name?: string;
+  partner_cpf?: string;
+  partner_name2?: string;
+  partner_cpf2?: string;
+  partner_name3?: string;
+  partner_cpf3?: string;
   proprietario?: string;
   inscricao_estadual?: string;
   address?: string;
@@ -51,6 +57,15 @@ interface AircraftOption {
   model: string;
 }
 const toFolder = (s: string) => (s || 'sem_cliente').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9-_]/g, '_');
+
+const formatCPF = (value: string): string => {
+  const digitsOnly = value.replace(/\D/g, '');
+  if (digitsOnly.length === 0) return '';
+  if (digitsOnly.length <= 3) return digitsOnly;
+  if (digitsOnly.length <= 6) return `${digitsOnly.slice(0, 3)}.${digitsOnly.slice(3)}`;
+  if (digitsOnly.length <= 9) return `${digitsOnly.slice(0, 3)}.${digitsOnly.slice(3, 6)}.${digitsOnly.slice(6)}`;
+  return `${digitsOnly.slice(0, 3)}.${digitsOnly.slice(3, 6)}.${digitsOnly.slice(6, 9)}-${digitsOnly.slice(9, 11)}`;
+};
 const ensureTravelReportsFolder = async (name: string) => {
   const folder = toFolder(name);
   const emptyBlob = new Blob([''], {
@@ -98,6 +113,15 @@ export default function Clientes() {
   const [formData, setFormData] = useState({
     company_name: "",
     cnpj: "",
+    partner_name: "",
+    partner_cpf: "",
+    partner_percentage1: "33.33",
+    partner_name2: "",
+    partner_cpf2: "",
+    partner_percentage2: "33.33",
+    partner_name3: "",
+    partner_cpf3: "",
+    partner_percentage3: "33.34",
     proprietario: "",
     inscricao_estadual: "",
     address: "",
@@ -226,6 +250,15 @@ export default function Clientes() {
       setFormData({
         company_name: cliente.company_name || "",
         cnpj: cliente.cnpj || "",
+        partner_name: cliente.partner_name || "",
+        partner_cpf: cliente.partner_cpf || "",
+        partner_percentage1: String((cliente as any).partner_percentage1 || "33.33"),
+        partner_name2: cliente.partner_name2 || "",
+        partner_cpf2: cliente.partner_cpf2 || "",
+        partner_percentage2: String((cliente as any).partner_percentage2 || "33.33"),
+        partner_name3: cliente.partner_name3 || "",
+        partner_cpf3: cliente.partner_cpf3 || "",
+        partner_percentage3: String((cliente as any).partner_percentage3 || "33.34"),
         proprietario: cliente.proprietario || "",
         inscricao_estadual: cliente.inscricao_estadual || "",
         address: cliente.address || "",
@@ -244,6 +277,15 @@ export default function Clientes() {
       setFormData({
         company_name: "",
         cnpj: "",
+        partner_name: "",
+        partner_cpf: "",
+        partner_percentage1: "33.33",
+        partner_name2: "",
+        partner_cpf2: "",
+        partner_percentage2: "33.33",
+        partner_name3: "",
+        partner_cpf3: "",
+        partner_percentage3: "33.34",
         proprietario: "",
         inscricao_estadual: "",
         address: "",
@@ -440,6 +482,12 @@ export default function Clientes() {
       const updatedData = {
         company_name: formData.company_name,
         cnpj: formData.cnpj,
+        partner_name: formData.partner_name || null,
+        partner_cpf: formData.partner_cpf || null,
+        partner_name2: formData.partner_name2 || null,
+        partner_cpf2: formData.partner_cpf2 || null,
+        partner_name3: formData.partner_name3 || null,
+        partner_cpf3: formData.partner_cpf3 || null,
         proprietario: formData.proprietario,
         inscricao_estadual: formData.inscricao_estadual,
         address: formData.address,
@@ -607,7 +655,18 @@ export default function Clientes() {
       setDeleteId(null);
     }
   };
-  const filteredClientes = clientes.filter(cliente => cliente.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) || cliente.cnpj?.toLowerCase().includes(searchTerm.toLowerCase()) || cliente.email?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredClientes = clientes.filter(
+    cliente =>
+      cliente.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cliente.cnpj?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cliente.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cliente.partner_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cliente.partner_cpf?.replace(/\D/g, '').includes(searchTerm.replace(/\D/g, '')) ||
+      cliente.partner_name2?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cliente.partner_cpf2?.replace(/\D/g, '').includes(searchTerm.replace(/\D/g, '')) ||
+      cliente.partner_name3?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cliente.partner_cpf3?.replace(/\D/g, '').includes(searchTerm.replace(/\D/g, ''))
+  );
   const isActive = (status?: string | null) => {
     const s = String(status ?? '').toLowerCase();
     return s === 'active' || s === 'ativo' || s === '';
@@ -905,6 +964,47 @@ export default function Clientes() {
                   </div>
                 </div>}
 
+              {(viewingCliente.partner_name || viewingCliente.partner_name2 || viewingCliente.partner_name3) && (
+                <div className="col-span-3">
+                  <p className="text-xs text-muted-foreground mb-3">Sócios / Cotistas</p>
+                  <div className="space-y-2">
+                    {viewingCliente.partner_name && (
+                      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{viewingCliente.partner_name}</p>
+                          {viewingCliente.partner_cpf && (
+                            <p className="text-xs text-muted-foreground font-mono">CPF: {viewingCliente.partner_cpf}</p>
+                          )}
+                        </div>
+                        <Badge variant="secondary">Sócio 1</Badge>
+                      </div>
+                    )}
+                    {viewingCliente.partner_name2 && (
+                      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{viewingCliente.partner_name2}</p>
+                          {viewingCliente.partner_cpf2 && (
+                            <p className="text-xs text-muted-foreground font-mono">CPF: {viewingCliente.partner_cpf2}</p>
+                          )}
+                        </div>
+                        <Badge variant="secondary">Sócio 2</Badge>
+                      </div>
+                    )}
+                    {viewingCliente.partner_name3 && (
+                      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{viewingCliente.partner_name3}</p>
+                          {viewingCliente.partner_cpf3 && (
+                            <p className="text-xs text-muted-foreground font-mono">CPF: {viewingCliente.partner_cpf3}</p>
+                          )}
+                        </div>
+                        <Badge variant="secondary">Sócio 3</Badge>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {viewingCliente.observations && <div>
                   <p className="text-xs text-muted-foreground mb-2">Observações</p>
                   <p className="text-sm text-foreground whitespace-pre-wrap bg-muted/50 p-3 rounded-lg">
@@ -1051,6 +1151,150 @@ export default function Clientes() {
                       ...formData,
                       uf: e.target.value.toUpperCase().slice(0, 2)
                     })} placeholder="SP" maxLength={2} className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500 uppercase" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Seção de Sócios / Cotistas */}
+              <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
+                  <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">
+                    👥 Sócios / Cotistas
+                  </h3>
+                  <Badge variant="secondary" className="text-xs">
+                    Até 3 sócios
+                  </Badge>
+                </div>
+
+                <p className="text-sm text-slate-400 mb-4">
+                  Use quando múltiplos sócios compartilham o mesmo CNPJ
+                </p>
+
+                {/* Sócio 1 */}
+                <div className="space-y-3 p-4 border border-slate-600 rounded-lg bg-slate-900/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="outline" className="text-xs">Sócio 1</Badge>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="partner_name" className="text-slate-300 mb-2 block">
+                        Nome Completo
+                      </Label>
+                      <Input
+                        id="partner_name"
+                        value={formData.partner_name}
+                        onChange={(e) => setFormData({ ...formData, partner_name: e.target.value })}
+                        placeholder="Ex: João Silva"
+                        className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="partner_cpf" className="text-slate-300 mb-2 block">
+                        CPF
+                      </Label>
+                      <Input
+                        id="partner_cpf"
+                        value={formData.partner_cpf}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          partner_cpf: formatCPF(e.target.value)
+                        })}
+                        placeholder="000.000.000-00"
+                        maxLength={14}
+                        className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="partner_percentage1" className="text-slate-300 mb-2 block">
+                        % Rateio
+                      </Label>
+                      <Input
+                        id="partner_percentage1"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        value={formData.partner_percentage1}
+                        onChange={(e) => setFormData({ ...formData, partner_percentage1: e.target.value })}
+                        placeholder="33.33"
+                        className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sócio 2 */}
+                <div className="space-y-3 p-4 border border-slate-600 rounded-lg bg-slate-900/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="outline" className="text-xs">Sócio 2</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="partner_name2" className="text-slate-300 mb-2 block">
+                        Nome Completo
+                      </Label>
+                      <Input
+                        id="partner_name2"
+                        value={formData.partner_name2}
+                        onChange={(e) => setFormData({ ...formData, partner_name2: e.target.value })}
+                        placeholder="Ex: Maria Santos"
+                        className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="partner_cpf2" className="text-slate-300 mb-2 block">
+                        CPF
+                      </Label>
+                      <Input
+                        id="partner_cpf2"
+                        value={formData.partner_cpf2}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          partner_cpf2: formatCPF(e.target.value)
+                        })}
+                        placeholder="000.000.000-00"
+                        maxLength={14}
+                        className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sócio 3 */}
+                <div className="space-y-3 p-4 border border-slate-600 rounded-lg bg-slate-900/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="outline" className="text-xs">Sócio 3</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="partner_name3" className="text-slate-300 mb-2 block">
+                        Nome Completo
+                      </Label>
+                      <Input
+                        id="partner_name3"
+                        value={formData.partner_name3}
+                        onChange={(e) => setFormData({ ...formData, partner_name3: e.target.value })}
+                        placeholder="Ex: Pedro Costa"
+                        className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="partner_cpf3" className="text-slate-300 mb-2 block">
+                        CPF
+                      </Label>
+                      <Input
+                        id="partner_cpf3"
+                        value={formData.partner_cpf3}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          partner_cpf3: formatCPF(e.target.value)
+                        })}
+                        placeholder="000.000.000-00"
+                        maxLength={14}
+                        className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>

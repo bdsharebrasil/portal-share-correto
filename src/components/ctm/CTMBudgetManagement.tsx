@@ -53,14 +53,14 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
   const loadBudgets = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("ctm_budgets")
         .select("*")
         .eq("aircraft_id", aircraftId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setBudgets(data || []);
+      setBudgets(data as CTMBudget[] || []);
     } catch (error: any) {
       console.error("Error loading budgets:", error);
       toast.error("Erro ao carregar orçamentos");

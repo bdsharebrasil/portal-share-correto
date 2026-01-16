@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,9 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   ArrowLeft, Plus, Wrench, FileText, Calendar, DollarSign,
-  Trash2, Edit, Download, Printer, AlertCircle
+  Trash2, Edit, Download, Printer, AlertCircle, Users, PieChart
 } from "lucide-react";
-import { format } from "date-fns";
+import { format, eachMonthOfInterval, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface OASData {
@@ -37,29 +37,36 @@ interface OASData {
 
 interface ServicoOAS {
   id: string;
-  oas_id: string;
+  service_order_id: string;
   descricao: string;
   fornecedor: string;
   periodo: string;
   valor: number;
-  nf: string;
+  nota_fiscal: string;
 }
 
 interface PecaOAS {
   id: string;
-  oas_id: string;
+  service_order_id: string;
   descricao: string;
   fornecedor: string;
-  periodo: string;
-  valor: number;
-  nf: string;
+  valor_total: number;
+  nota_fiscal: string;
 }
 
-interface HorasVoo {
-  mes: string;
-  carvalima: number;
-  watt: number;
-  oficina_testes: number;
+interface LogbookEntry {
+  entry_date: string;
+  total_time: number;
+  client_id: string;
+  client_name: string;
+}
+
+interface HorasVooPorSocio {
+  client_id: string;
+  client_name: string;
+  horas_por_mes: { mes: string; horas: number }[];
+  total_horas: number;
+  percentual: number;
 }
 
 interface CTMServiceOrderDetailProps {
@@ -76,7 +83,7 @@ export function CTMServiceOrderDetail({
   const [oas, setOas] = useState<OASData | null>(null);
   const [servicos, setServicos] = useState<ServicoOAS[]>([]);
   const [pecas, setPecas] = useState<PecaOAS[]>([]);
-  const [horasVoo, setHorasVoo] = useState<HorasVoo[]>([]);
+  const [logbookEntries, setLogbookEntries] = useState<LogbookEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingServico, setEditingServico] = useState<ServicoOAS | null>(null);
   const [editingPeca, setEditingPeca] = useState<PecaOAS | null>(null);
@@ -103,30 +110,49 @@ export function CTMServiceOrderDetail({
 
       // Load servicos
       const { data: servicosData, error: servicosError } = await supabase
-        .from("ctm_oas_servicos")
+        .from("ctm_services")
         .select("*")
-        .eq("oas_id", serviceOrderId)
+        .eq("service_order_id", serviceOrderId)
         .order("created_at");
 
       if (!servicosError) setServicos(servicosData || []);
 
       // Load pecas
       const { data: pecasData, error: pecasError } = await supabase
-        .from("ctm_oas_pecas")
+        .from("ctm_parts")
         .select("*")
-        .eq("oas_id", serviceOrderId)
+        .eq("service_order_id", serviceOrderId)
         .order("created_at");
 
       if (!pecasError) setPecas(pecasData || []);
 
-      // Load horas de voo
-      const { data: horasData, error: horasError } = await supabase
-        .from("ctm_oas_horas_voo")
-        .select("*")
-        .eq("oas_id", serviceOrderId)
-        .order("mes");
+      // Load logbook entries for the period - only if we have dates
+      if (oasData?.data_entrada && oasData?.aircraft_id) {
+        const dataFim = oasData.data_saida || new Date().toISOString().split('T')[0];
+        
+        const { data: logbookData, error: logbookError } = await supabase
+          .from("logbook_entries")
+          .select(`
+            entry_date,
+            total_time,
+            client_id,
+            clients!inner(company_name)
+          `)
+          .eq("aircraft_id", oasData.aircraft_id)
+          .gte("entry_date", oasData.data_entrada)
+          .lte("entry_date", dataFim)
+          .order("entry_date");
 
-      if (!horasError) setHorasVoo(horasData || []);
+        if (!logbookError && logbookData) {
+          const entries = logbookData.map((entry: any) => ({
+            entry_date: entry.entry_date,
+            total_time: entry.total_time || 0,
+            client_id: entry.client_id,
+            client_name: entry.clients?.company_name || 'Desconhecido'
+          }));
+          setLogbookEntries(entries);
+        }
+      }
     } catch (error: any) {
       console.error("Erro ao carregar OAS:", error);
       toast.error("Erro ao carregar OAS");
@@ -134,6 +160,80 @@ export function CTMServiceOrderDetail({
       setLoading(false);
     }
   };
+
+  // Calculate hours per partner dynamically from logbook entries
+  const horasVooPorSocio = useMemo<HorasVooPorSocio[]>(() => {
+    if (!oas?.data_entrada || logbookEntries.length === 0) return [];
+
+    const dataInicio = parseISO(oas.data_entrada);
+    const dataFim = oas.data_saida ? parseISO(oas.data_saida) : new Date();
+
+    // Get all months in the period
+    const meses = eachMonthOfInterval({ start: dataInicio, end: dataFim });
+
+    // Group entries by client
+    const clientsMap = new Map<string, { name: string; entries: LogbookEntry[] }>();
+    
+    logbookEntries.forEach(entry => {
+      if (!clientsMap.has(entry.client_id)) {
+        clientsMap.set(entry.client_id, { name: entry.client_name, entries: [] });
+      }
+      clientsMap.get(entry.client_id)?.entries.push(entry);
+    });
+
+    // Calculate hours per month per client
+    const result: HorasVooPorSocio[] = [];
+    let totalGeralHoras = 0;
+
+    clientsMap.forEach((clientData, clientId) => {
+      const horasPorMes: { mes: string; horas: number }[] = [];
+      let totalClienteHoras = 0;
+
+      meses.forEach((mes, index) => {
+        const inicioMes = index === 0 ? dataInicio : startOfMonth(mes);
+        const fimMes = index === meses.length - 1 ? dataFim : endOfMonth(mes);
+
+        const horasMes = clientData.entries
+          .filter(entry => {
+            const entryDate = parseISO(entry.entry_date);
+            return isWithinInterval(entryDate, { start: inicioMes, end: fimMes });
+          })
+          .reduce((sum, entry) => sum + (entry.total_time || 0), 0);
+
+        // Format month label
+        let mesLabel: string;
+        if (index === 0 && meses.length > 1) {
+          mesLabel = `${format(inicioMes, "dd/MM/yyyy")} até ${format(endOfMonth(mes), "dd/MM/yyyy")}`;
+        } else if (index === meses.length - 1 && meses.length > 1) {
+          mesLabel = `${format(startOfMonth(mes), "dd/MM/yyyy")} até ${format(fimMes, "dd/MM/yyyy")}`;
+        } else if (meses.length === 1) {
+          mesLabel = `${format(inicioMes, "dd/MM/yyyy")} até ${format(fimMes, "dd/MM/yyyy")}`;
+        } else {
+          mesLabel = format(mes, "MMMM/yyyy", { locale: ptBR });
+        }
+
+        horasPorMes.push({ mes: mesLabel, horas: horasMes });
+        totalClienteHoras += horasMes;
+      });
+
+      totalGeralHoras += totalClienteHoras;
+      
+      result.push({
+        client_id: clientId,
+        client_name: clientData.name,
+        horas_por_mes: horasPorMes,
+        total_horas: totalClienteHoras,
+        percentual: 0 // Will be calculated after
+      });
+    });
+
+    // Calculate percentages
+    result.forEach(item => {
+      item.percentual = totalGeralHoras > 0 ? (item.total_horas / totalGeralHoras) * 100 : 0;
+    });
+
+    return result;
+  }, [oas, logbookEntries]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -154,7 +254,7 @@ export function CTMServiceOrderDetail({
   const handleDeleteServico = async (id: string) => {
     if (!confirm("Deseja remover este serviço?")) return;
     try {
-      await supabase.from("ctm_oas_servicos").delete().eq("id", id);
+      await supabase.from("ctm_services").delete().eq("id", id);
       setServicos(servicos.filter(s => s.id !== id));
       toast.success("Serviço removido");
     } catch (error) {
@@ -165,7 +265,7 @@ export function CTMServiceOrderDetail({
   const handleDeletePeca = async (id: string) => {
     if (!confirm("Deseja remover esta peça?")) return;
     try {
-      await supabase.from("ctm_oas_pecas").delete().eq("id", id);
+      await supabase.from("ctm_parts").delete().eq("id", id);
       setPecas(pecas.filter(p => p.id !== id));
       toast.success("Peça removida");
     } catch (error) {
@@ -190,7 +290,7 @@ export function CTMServiceOrderDetail({
   }
 
   const totalServicos = servicos.reduce((sum, s) => sum + s.valor, 0);
-  const totalPecas = pecas.reduce((sum, p) => sum + p.valor, 0);
+  const totalPecas = pecas.reduce((sum, p) => sum + (p.valor_total || 0), 0);
   const totalGeral = totalServicos + totalPecas;
 
   return (
@@ -280,38 +380,126 @@ export function CTMServiceOrderDetail({
         </CardContent>
       </Card>
 
-      {/* Horas de Voo */}
-      {horasVoo.length > 0 && (
+      {/* Horas de Voo por Sócio - Calculadas Dinamicamente do Diário de Bordo */}
+      {horasVooPorSocio.length > 0 && (
         <Card className="border-border">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary" />
-              Horas de Voo durante Manutenção
+              <Users className="h-5 w-5 text-primary" />
+              Horas Voadas por Sócio no Período
             </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Período: {oas?.data_entrada ? format(parseISO(oas.data_entrada), "dd/MM/yyyy") : '-'} até {oas?.data_saida ? format(parseISO(oas.data_saida), "dd/MM/yyyy") : 'Hoje'}
+            </p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
+            {/* Table with hours per month per partner */}
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">MÊS</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">CARVALIMA</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">WATT</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">OFICINA/TESTES</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">PERÍODO</th>
+                    {horasVooPorSocio.map(socio => (
+                      <th key={socio.client_id} className="px-4 py-3 text-right text-sm font-semibold text-foreground">
+                        {socio.client_name.split(' ')[0].toUpperCase()}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {horasVoo.map((hora, idx) => (
-                    <tr key={idx} className="border-b border-border/50 hover:bg-background/50">
-                      <td className="px-4 py-3 text-sm text-foreground font-medium">{hora.mes}</td>
-                      <td className="px-4 py-3 text-sm text-right text-foreground">{hora.carvalima}h</td>
-                      <td className="px-4 py-3 text-sm text-right text-foreground">{hora.watt}h</td>
-                      <td className="px-4 py-3 text-sm text-right text-foreground">{hora.oficina_testes}h</td>
+                  {horasVooPorSocio[0]?.horas_por_mes.map((_, mesIndex) => (
+                    <tr key={mesIndex} className="border-b border-border/50 hover:bg-background/50">
+                      <td className="px-4 py-3 text-sm text-foreground font-medium">
+                        {horasVooPorSocio[0].horas_por_mes[mesIndex].mes}
+                      </td>
+                      {horasVooPorSocio.map(socio => (
+                        <td key={socio.client_id} className="px-4 py-3 text-sm text-right text-foreground">
+                          {socio.horas_por_mes[mesIndex].horas.toFixed(2)}h
+                        </td>
+                      ))}
                     </tr>
                   ))}
+                  {/* Totals Row */}
+                  <tr className="border-t-2 border-border bg-background/50 font-semibold">
+                    <td className="px-4 py-3 text-sm text-foreground">TOTAIS</td>
+                    {horasVooPorSocio.map(socio => (
+                      <td key={socio.client_id} className="px-4 py-3 text-sm text-right text-foreground">
+                        {socio.total_horas.toFixed(2)}h
+                      </td>
+                    ))}
+                  </tr>
+                  {/* Percentage Row */}
+                  <tr className="bg-primary/5 font-bold">
+                    <td className="px-4 py-3 text-sm text-foreground">PERCENTUAL PARA RATEIO</td>
+                    {horasVooPorSocio.map(socio => (
+                      <td key={socio.client_id} className="px-4 py-3 text-sm text-right text-primary">
+                        {socio.percentual.toFixed(2)}%
+                      </td>
+                    ))}
+                  </tr>
                 </tbody>
               </table>
             </div>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-4 rounded-lg bg-muted/50">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total Horas Voadas</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {horasVooPorSocio.reduce((sum, s) => sum + s.total_horas, 0).toFixed(2)}h
+                </p>
+              </div>
+              {horasVooPorSocio.map(socio => (
+                <div key={socio.client_id} className="p-4 rounded-lg bg-muted/50">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                    {socio.client_name.split(' ')[0]}
+                  </p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {socio.percentual.toFixed(2)}%
+                  </p>
+                  <p className="text-xs text-muted-foreground">{socio.total_horas.toFixed(2)}h</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Rateio Preview if there's a total cost */}
+            {(totalServicos + totalPecas) > 0 && (
+              <div className="mt-4 p-4 rounded-lg border border-primary/30 bg-primary/5">
+                <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <PieChart className="h-4 w-4" />
+                  Prévia do Rateio de Custos
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {horasVooPorSocio.map(socio => {
+                    const valorRateio = ((totalServicos + totalPecas) * socio.percentual) / 100;
+                    return (
+                      <div key={socio.client_id} className="text-center p-3 rounded bg-background/50">
+                        <p className="text-xs text-muted-foreground mb-1">{socio.client_name.split(' ')[0]}</p>
+                        <p className="text-lg font-bold text-primary">
+                          R$ {valorRateio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-xs text-muted-foreground">({socio.percentual.toFixed(2)}%)</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Message when no flight hours in period */}
+      {horasVooPorSocio.length === 0 && oas?.data_entrada && (
+        <Card className="border-border border-dashed">
+          <CardContent className="py-8 text-center">
+            <Users className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+            <p className="text-muted-foreground">Nenhuma hora de voo registrada no período</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {oas?.data_entrada ? format(parseISO(oas.data_entrada), "dd/MM/yyyy") : ''} 
+              {' - '} 
+              {oas?.data_saida ? format(parseISO(oas.data_saida), "dd/MM/yyyy") : 'Hoje'}
+            </p>
           </CardContent>
         </Card>
       )}
@@ -354,7 +542,7 @@ export function CTMServiceOrderDetail({
                       <td className="px-4 py-3 text-sm text-right text-foreground font-medium">
                         R$ {servico.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="px-4 py-3 text-sm text-foreground text-muted-foreground">{servico.nf}</td>
+                      <td className="px-4 py-3 text-sm text-foreground text-muted-foreground">{servico.nota_fiscal || '-'}</td>
                       <td className="px-4 py-3 text-sm text-center">
                         <Button variant="ghost" size="sm" onClick={() => handleDeleteServico(servico.id)}>
                           <Trash2 className="h-4 w-4" />
@@ -415,11 +603,11 @@ export function CTMServiceOrderDetail({
                     <tr key={peca.id} className="border-b border-border/50 hover:bg-background/50">
                       <td className="px-4 py-3 text-sm text-foreground">{peca.descricao}</td>
                       <td className="px-4 py-3 text-sm text-foreground">{peca.fornecedor}</td>
-                      <td className="px-4 py-3 text-sm text-center text-foreground">{peca.periodo}</td>
+                      <td className="px-4 py-3 text-sm text-center text-foreground">-</td>
                       <td className="px-4 py-3 text-sm text-right text-foreground font-medium">
-                        R$ {peca.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R$ {(peca.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
-                      <td className="px-4 py-3 text-sm text-foreground text-muted-foreground">{peca.nf}</td>
+                      <td className="px-4 py-3 text-sm text-foreground text-muted-foreground">{peca.nota_fiscal || '-'}</td>
                       <td className="px-4 py-3 text-sm text-center">
                         <Button variant="ghost" size="sm" onClick={() => handleDeletePeca(peca.id)}>
                           <Trash2 className="h-4 w-4" />

@@ -173,7 +173,10 @@ export function FluxoCaixaInlineForm({
       aeronave: "",
       client_id: "",
       client_name: "",
-      grupo_categoria: ""
+      colaborador_id: "",
+      fornecedores_favoritos_id: "",
+      grupo_categoria: "",
+      data_vencimento: ""
     }
   });
 
@@ -326,12 +329,13 @@ export function FluxoCaixaInlineForm({
       setValue("valor", movimentacao.valor.toString());
       setValue("conta_banco", movimentacao.conta_banco || "");
       setValue("numero_documento", movimentacao.numero_documento || "");
-      setValue("referencia", movimentacao.referencia || "");
       setValue("status", movimentacao.status);
       setValue("observacoes", movimentacao.observacoes || "");
       setValue("aeronave", movimentacao.aeronave_registro || "");
       setValue("client_id", movimentacao.client_id || "");
       setValue("client_name", movimentacao.client_name || "");
+      setValue("colaborador_id", movimentacao.colaborador_id || "");
+      setValue("fornecedores_favoritos_id", movimentacao.fornecedores_favoritos_id || "");
       setIsReembolsavel(movimentacao.reembolsavel || false);
       setTemRateio(movimentacao.tem_rateio || false);
       
@@ -340,6 +344,9 @@ export function FluxoCaixaInlineForm({
       setNfUrl(movimentacao.nf_url || null);
       setReciboUrl(movimentacao.recibo_url || null);
       setBoletoUrl(movimentacao.boleto_url || null);
+
+      // Carregar data de vencimento (se houver)
+      setValue("data_vencimento", movimentacao.data_vencimento || movimentacao.data || "");
       
       // Encontrar a subcategoria correspondente
       const cat = allCategorias.find(c => c.nome === movimentacao.categoria);
@@ -371,6 +378,7 @@ export function FluxoCaixaInlineForm({
       if (tipoMovimento === "entrada") {
         setIsReembolsavel(false);
         setTemRateio(false);
+        setValue("data_vencimento", getTodayDateString());
       }
     }
   }, [tipoMovimento, movimentacao, setValue]);
@@ -390,10 +398,11 @@ export function FluxoCaixaInlineForm({
     }
   }, [selectedSubcategoria, tipoMovimento, movimentacao, setValue, watch]);
 
-  // Selecionar cliente
+  // Selecionar cliente (para reembolso)
   const handleClienteSelect = (cliente: any) => {
     setValue("client_id", cliente.id);
-    setValue("client_name", cliente.company_name || "");
+    setValue("client_name", cliente.company_name || cliente.proprietario || "");
+    // NÃO limpar referência ou outros IDs aqui - são campos separados
   };
 
   // Salvar rateio
@@ -443,6 +452,7 @@ export function FluxoCaixaInlineForm({
 
       const data = {
         data: formData.data,
+        data_vencimento: formData.data_vencimento || null,
         tipo_movimento: formData.tipo_movimento,
         categoria_id: categoriaId,
         descricao: formData.descricao,
@@ -453,8 +463,10 @@ export function FluxoCaixaInlineForm({
         observacoes: formData.observacoes || null,
         aeronave_id: aeronaveObj?.id || null,
         aeronave_registro: formData.aeronave || null,
-        client_id: isReembolsavel ? formData.client_id : null,
+        client_id: formData.client_id || null,
         client_name: isReembolsavel ? formData.client_name : null,
+        colaborador_id: formData.colaborador_id || null,
+        fornecedores_favoritos_id: formData.fornecedores_favoritos_id || null,
         reembolsavel: isReembolsavel,
         tem_rateio: temRateio,
         rateio_tipo: rateioData?.tipo || null,
@@ -530,55 +542,88 @@ export function FluxoCaixaInlineForm({
       }
 
       // Se é reembolsável e tem cliente, criar conta a receber e entrada no portal
-      if (isReembolsavel && formData.client_id && lancamentoId && !movimentacao?.id) {
+      if (isReembolsavel && formData.client_id && lancamentoId) {
         try {
           // Buscar dados completos do cliente
           const clienteData = clientes.find(c => c.id === formData.client_id);
           const numeroDocumento = `REIMB-${Date.now().toString().slice(-6)}`;
-          
-          // 1. Criar conta a receber para aparecer na gestão fiscal
-          const { error: contaReceberError } = await supabase
-            .from("contas_areceber")
-            .insert({
-              numero: numeroDocumento,
-              cliente_nome: clienteData?.company_name || formData.client_name || "Cliente",
-              cliente_cnpj: clienteData?.cnpj || "",
-              data_criacao: formData.data,
-              data_vencimento: formData.data,
-              valor: valor,
-              categoria: "Reembolso de Despesa",
-              descricao: formData.descricao,
-              status: "pendente",
-              aeronave: formData.aeronave || "",
-              criado_por: user.id,
-            });
 
-          if (contaReceberError) {
-            console.error("Erro ao criar conta a receber:", contaReceberError);
+          // Verificar se já existe uma conciliação vinculada a este lançamento (evita duplicatas)
+          const { data: existingRecon } = await supabase
+            .from('bank_reconciliations')
+            .select('id')
+            .eq('reference_type', 'controle_bancario')
+            .eq('reference_id', lancamentoId)
+            .maybeSingle();
+
+          let reconciliationId: string | null = existingRecon?.id || null;
+
+          // Se não existe conciliação, criar (para exibição no portal do cliente)
+          if (!reconciliationId) {
+            const { data: recon, error: reconciliationError } = await supabase
+              .from('bank_reconciliations')
+              .insert({
+                client_id: formData.client_id,
+                aircraft_id: aeronaveObj?.id || null,
+                type: 'cliente',
+                category: 'Reembolso de Despesa',
+                description: `${formData.descricao} - Aguardando reembolso`,
+                amount: valor,
+                date: formData.data,
+                status: 'pendente',
+                reference_type: 'controle_bancario',
+                reference_id: lancamentoId,
+                created_by: user.id,
+              })
+              .select('id')
+              .maybeSingle();
+
+            if (reconciliationError) {
+              console.error('Erro ao criar entrada no portal do cliente:', reconciliationError);
+            }
+
+            reconciliationId = recon?.id || reconciliationId;
           }
 
-          // 2. Criar entrada em bank_reconciliations para o portal do cliente ver
-          const { error: reconciliationError } = await supabase
-            .from("bank_reconciliations")
-            .insert({
-              client_id: formData.client_id,
-              aircraft_id: aeronaveObj?.id || null,
-              type: "cliente",
-              category: "Reembolso de Despesa",
-              description: `${formData.descricao} - Aguardando reembolso`,
-              amount: valor,
-              date: formData.data,
-              status: "pendente",
-              reference_type: "controle_bancario",
-              reference_id: lancamentoId,
-              created_by: user.id,
-            });
+          // Verificar se já existe conta a receber vinculada a essa conciliação
+          let alreadyHasConta = false;
+          if (reconciliationId) {
+            const { data: existingConta } = await supabase
+              .from('contas_areceber')
+              .select('id')
+              .eq('banco_conciliacao_id', reconciliationId)
+              .maybeSingle();
 
-          if (reconciliationError) {
-            console.error("Erro ao criar entrada no portal do cliente:", reconciliationError);
+            alreadyHasConta = !!existingConta;
+          }
+
+          // Se não existe, criar conta a receber vinculada (assim aparece na gestão fiscal)
+          if (!alreadyHasConta) {
+            // A referência é o client_name do controle_bancario (nome do cliente/fornecedor/colaborador)
+            const { error: contaReceberError } = await supabase
+              .from('contas_areceber')
+              .insert({
+                numero: numeroDocumento,
+                referencia: formData.client_name || clienteData?.company_name || 'Cliente',
+                cliente_nome: clienteData?.company_name || formData.client_name || 'Cliente',
+                cliente_cnpj: clienteData?.cnpj || '',
+                data_criacao: formData.data,
+                data_vencimento: formData.data_vencimento || formData.data,
+                valor: valor,
+                categoria: 'Reembolso de Despesa',
+                descricao: formData.descricao,
+                status: 'pendente',
+                aeronave: formData.aeronave || '',
+                criado_por: user.id,
+                banco_conciliacao_id: reconciliationId || null
+              });
+
+            if (contaReceberError) {
+              console.error('Erro ao criar conta a receber:', contaReceberError);
+            }
           }
         } catch (err) {
-          console.error("Erro ao criar despesa pendente:", err);
+          console.error('Erro ao criar despesa pendente:', err);
         }
       }
 
@@ -678,7 +723,7 @@ export function FluxoCaixaInlineForm({
             </div>
 
             {isReembolsavel && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
                 <div>
                   <Label className="text-xs text-muted-foreground mb-1">Cliente *</Label>
                   <Select 
@@ -714,6 +759,15 @@ export function FluxoCaixaInlineForm({
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1">Data de Vencimento (Reembolso)</Label>
+                  <Input
+                    id="data_vencimento"
+                    type="date"
+                    {...register("data_vencimento")}
+                    className={`h-9 bg-background`}
+                  />
                 </div>
               </div>
             )}
@@ -881,7 +935,7 @@ export function FluxoCaixaInlineForm({
         </div>
 
         {/* Row 3: Conta, Documento, Referência e Aeronave */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-5 w-full">
           <div>
             <Label htmlFor="conta_banco" className="text-sm font-semibold text-foreground mb-2">
               Conta
@@ -892,7 +946,7 @@ export function FluxoCaixaInlineForm({
               </SelectTrigger>
               <SelectContent align="start">
                 {contasComBanco.map((conta) => (
-                  <SelectItem key={conta.nome} value={conta.nome}>
+                  <SelectItem key={conta.nome} value={conta.banco}>
                     {conta.banco}
                   </SelectItem>
                 ))}
@@ -919,17 +973,17 @@ export function FluxoCaixaInlineForm({
 
           <div>
             <Label htmlFor="referencia" className="text-sm font-semibold text-foreground mb-2">
-              Referência
+              Referência {tipoMovimento === "entrada" ? "(Cliente/Fornecedor)" : ""}
             </Label>
             <Popover open={openReferenciaPopover} onOpenChange={setOpenReferenciaPopover}>
               <PopoverTrigger asChild>
-                <div 
+                <div
                   className="relative cursor-pointer"
                   onClick={() => setOpenReferenciaPopover(true)}
                 >
                   <Input
                     id="referencia"
-                    placeholder="Buscar cliente ou colaborador..."
+                    placeholder={tipoMovimento === "entrada" ? "Ex: Cliente, Fornecedor..." : "Ex: Cliente, Fornecedor, Colaborador..."}
                     value={watch("referencia")}
                     onChange={(e) => {
                       setValue("referencia", e.target.value);
@@ -973,6 +1027,9 @@ export function FluxoCaixaInlineForm({
                               key={r.id}
                               onSelect={() => {
                                 setValue("referencia", r.nome);
+                                setValue("client_id", r.id);
+                                setValue("colaborador_id", "");
+                                setValue("fornecedores_favoritos_id", "");
                                 setOpenReferenciaPopover(false);
                                 setReferenciaSearch("");
                               }}
@@ -1003,6 +1060,9 @@ export function FluxoCaixaInlineForm({
                               key={r.id}
                               onSelect={() => {
                                 setValue("referencia", r.nome);
+                                setValue("fornecedores_favoritos_id", r.id);
+                                setValue("client_id", "");
+                                setValue("colaborador_id", "");
                                 setOpenReferenciaPopover(false);
                                 setReferenciaSearch("");
                               }}
@@ -1033,6 +1093,9 @@ export function FluxoCaixaInlineForm({
                               key={r.id}
                               onSelect={() => {
                                 setValue("referencia", r.nome);
+                                setValue("colaborador_id", r.id);
+                                setValue("client_id", "");
+                                setValue("fornecedores_favoritos_id", "");
                                 setOpenReferenciaPopover(false);
                                 setReferenciaSearch("");
                               }}

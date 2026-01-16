@@ -9,8 +9,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useViewMode } from "@/contexts/ViewModeContext";
 import { getDashboardRouteFromRoles } from "@/lib/dashboard-routing";
-import { Loader2, Lock, Mail, Plane, Eye, EyeOff, Receipt, Trash2, ShoppingCart } from "lucide-react";
+import { Lock, Mail, Plane, Eye, EyeOff, Receipt, Trash2, ShoppingCart } from "lucide-react";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { InlineLottieSpinner } from "@/components/ui/inline-lottie-spinner";
 const Login = () => {
   const navigate = useNavigate();
   const {
@@ -228,7 +229,7 @@ const Login = () => {
 
           <Button type="submit" disabled={isSubmitting || !isEmailValid() || !password} className="h-12 w-full rounded-2xl bg-[#2ad1ff] text-base font-semibold text-[#02111f] shadow-[0_22px_45px_-18px_rgba(42,209,255,0.75)] transition-transform duration-200 hover:-translate-y-0.5 hover:bg-[#33d9ff] focus-visible:ring-2 focus-visible:ring-[#33d9ff] focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none">
             {isSubmitting ? <span className="flex items-center justify-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <InlineLottieSpinner size="md" />
                 Entrando...
               </span> : !isEmailValid() || !password ? "Preencha os campos corretamente" : "Entrar"}
           </Button>

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -84,6 +84,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [expandedMenu, setExpandedMenu] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+
+  // Fechar menu ao rolar a página
+  useEffect(() => {
+    const handleScroll = () => {
+      setExpandedMenu(false);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Filtrar menu baseado em permissões
   const filteredMenuGroups = useMemo(() => {

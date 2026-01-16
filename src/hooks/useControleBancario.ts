@@ -11,26 +11,30 @@ export function useControleBancario() {
           *,
           categorias_movimentacao:categoria_id(id, nome, tipo, grupo_categoria),
           clients:client_id(id, company_name, proprietario),
-          fornecedores_favoritos:fornecedores_favoritos_id(id, nome),
-          user_profiles:receiver_id(id, full_name, display_name)
+          fornecedores_favoritos:fornecedores_favoritos_id(id, nome_completo),
+          user_profiles:colaborador_id(id, full_name, display_name)
         `)
         .order("data", { ascending: false });
 
       if (error) throw error;
-      
-      // Map the data to include categoria_nome and referencia
-      // Referência pode ser: cliente, fornecedor ou colaborador (user_profile)
+
+      // Map the data to include categoria_nome, referencia e cliente_nome
+      // Referência pode ser: fornecedor ou colaborador (user_profile)
+      // Cliente é separado para ter sua própria coluna
       return (data || []).map((item: any) => ({
         ...item,
         categoria_nome: item.categorias_movimentacao?.nome || item.grupo_categoria || '-',
         grupo_categoria_nome: item.categorias_movimentacao?.grupo_categoria || item.grupo_categoria || '-',
-        referencia: item.client_name || 
-                    item.clients?.company_name || 
-                    item.clients?.proprietario ||
-                    item.fornecedores_favoritos?.nome ||
-                    item.user_profiles?.full_name ||
-                    item.user_profiles?.display_name ||
-                    '-'
+        // Referência: fornecedor favorito ou colaborador
+        referencia: item.fornecedores_favoritos?.nome_completo ||
+          item.user_profiles?.full_name ||
+          item.user_profiles?.display_name ||
+          '-',
+        // Cliente: nome da empresa ou proprietário
+        cliente_nome: item.clients?.company_name ||
+          item.clients?.proprietario ||
+          item.client_name ||
+          '-'
       }));
     },
   });

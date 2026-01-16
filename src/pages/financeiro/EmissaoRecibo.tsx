@@ -5,9 +5,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/layout/Layout";
 import { DocumentViewer } from "@/components/DocumentViewer";
 import { ReceiptForm } from "@/components/recibos/ReceiptForm";
+import { DescriptionManager } from "@/components/recibos/DescriptionManager";
 import { generateReceiptNumber, GeneratedReceipt, ReceiptType } from "@/lib/receiptUtils";
+import { handleReceiptSubmit } from "@/services/receiptSubmitHandler";
 import { toast } from "@/hooks/use-toast";
-import { FileText, Clock } from "lucide-react";
+import { FileText, Clock, Star } from "lucide-react";
 
 interface Cliente {
   id: string;
@@ -124,6 +126,12 @@ export default function EmissaoRecibo() {
       if (formData.reembolsoNotaFiscalFile instanceof File) notaFiscalUrl = await uploadFile(formData.reembolsoNotaFiscalFile, "nf", "n.f-boletos-clients");
 
       // ===================== INSERIR RECIBO =====================
+      // Para reembolso, adiciona número do documento na descrição
+      let finalDescription = formData.servicoDescricao.trim();
+      if (formData.receiptType === "reembolso" && formData.reembolsoNumeroDocumento?.trim()) {
+        finalDescription = `${finalDescription} - Documento: ${formData.reembolsoNumeroDocumento.trim()}`;
+      }
+
       const receiptPayload = {
         user_id: userId,
         payer_name: formData.pagadorNome.trim(),
@@ -132,7 +140,7 @@ export default function EmissaoRecibo() {
         payer_city: formData.pagadorCidade?.trim() || null,
         payer_uf: formData.pagadorUF?.trim() || null,
         amount: Number(formData.valor),
-        service_description: formData.servicoDescricao.trim(),
+        service_description: finalDescription,
         receipt_type: formData.receiptType || "pagamento",
         issue_date: formData.dataEmissao || new Date().toISOString().split("T")[0],
         receipt_number: receiptNumber,
@@ -141,6 +149,7 @@ export default function EmissaoRecibo() {
         client_id: formData.clienteId?.trim() ? formData.clienteId : null,
         boleto_url: boletoUrl,
         nf_url: notaFiscalUrl,
+        doc_number: formData.reembolsoNumeroDocumento?.trim() || null,
       };
 
       // Evita duplicidade: verifica se já existe o receipt_number
@@ -151,6 +160,77 @@ export default function EmissaoRecibo() {
       if (dbError) throw dbError;
 
       console.log("Recibo inserido:", receiptData);
+
+      // ===================== PROCESSAR REEMBOLSO (bank_reconciliations + rateio) =====================
+      if (formData.receiptType === "reembolso" && formData.clienteId) {
+        try {
+          console.log("📨 Processando reembolso com submissão de recibo...");
+
+          // Determina o valor total e percentual corretamente
+          const isRateado = formData.reembolsoRateado === true;
+          const valorRecibo = Number(formData.valor); // valor que o cliente vai pagar
+          const valorTotalDespesa = isRateado ? Number(formData.reembolsoValorTotal) : valorRecibo;
+          const percentual = isRateado ? formData.reembolsoPorcentagem : "100";
+
+          // Preparar payload para o novo serviço
+          const submissionPayload = {
+            type: "cliente" as const,
+            date: formData.prazoMaximoQuitacao || formData.dataEmissao,
+            description: `Reembolso - ${formData.servicoDescricao.trim()}${
+              formData.reembolsoNumeroDocumento ? ` (Doc: ${formData.reembolsoNumeroDocumento})` : ""
+            }`,
+            amount: valorRecibo,
+            status: "pendente",
+            client_id: formData.clienteId,
+            aircraft_id: formData.aircraftId || null,
+            categoria_movimentacao_id: formData.reembolsoCategoriaId || null,
+            tipo_documento: isRateado ? "rateio" as const : "recibo" as const,
+            doc: formData.reembolsoNumeroDocumento || null,
+            payment_term: formData.prazoMaximoQuitacao || null,
+            percentual: percentual,
+            forma_pagamento: isRateado ? "rateio_direto" : "empresa_paga",
+            afeta_caixa_empresa: true,
+            fornecedor_nome: null,
+            fornecedor_dados: null,
+            boleto_url: boletoUrl,
+            nf_url: notaFiscalUrl,
+            reference_id: receiptData.id,
+            reference_type: "receipt",
+            ...(isRateado && {
+              rateio_data: {
+                valor_total: valorTotalDespesa,
+                percentual: parseFloat(percentual),
+                valor_cliente: valorRecibo,
+              },
+            }),
+          };
+
+          // Chamar o novo serviço de submissão de recibos
+          const result = await handleReceiptSubmit(submissionPayload, userId);
+
+          if (result.success) {
+            console.log("✅ Reembolso processado com sucesso via novo serviço");
+            console.log("   - bank_reconciliationId:", result.bankReconciliationId);
+            if (result.rateioIds?.length) {
+              console.log("   - rateioIds:", result.rateioIds);
+            }
+          } else {
+            console.error("❌ Erro ao processar reembolso:", result.error);
+            toast({
+              title: "⚠️ Reembolso parcial",
+              description: `Recibo criado, mas erro ao processar reembolso: ${result.error}`,
+              variant: "default",
+            });
+          }
+        } catch (reembolsoErr) {
+          console.error("❌ Erro ao processar reembolso:", reembolsoErr);
+          toast({
+            title: "⚠️ Reembolso não processado",
+            description: `Recibo criado, mas falhou ao processar reembolso. Verifique os logs.`,
+            variant: "default",
+          });
+        }
+      }
 
       // ===================== GERAR PDF =====================
       try {
@@ -263,6 +343,10 @@ export default function EmissaoRecibo() {
             <TabsList className="flex gap-3 bg-transparent p-0 border-0 max-w-lg">
               <TabsTrigger value="emitir">Emitir</TabsTrigger>
               <TabsTrigger value="historico">Histórico</TabsTrigger>
+              <TabsTrigger value="descricoes">
+                <Star className="h-4 w-4 mr-1" />
+                Descrições Favoritas
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="emitir">
@@ -288,6 +372,10 @@ export default function EmissaoRecibo() {
                 ))}
                 <button onClick={handleClearHistory}>Limpar Histórico</button>
               </div>
+            </TabsContent>
+
+            <TabsContent value="descricoes">
+              <DescriptionManager />
             </TabsContent>
           </Tabs>
         </div>

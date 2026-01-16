@@ -1,225 +1,214 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.47.10";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+type AppRole = 
+  | "admin"
+  | "cliente"
+  | "tripulante"
+  | "financeiro"
+  | "financeiro_master"
+  | "piloto_chefe"
+  | "operacoes"
+  | "rh"
+  | "adm"
+  | "coordenador_de_voo";
+
+type CreateUserRequest = {
+  email: string;
+  password: string;
+  role: AppRole;
+  userType: "cliente" | "colaborador";
+  clientId?: string;
+  profileData?: Record<string, any>;
+};
+
+type PasswordStrength = {
+  lengthOk: boolean;
+  upper: boolean;
+  lower: boolean;
+  digit: boolean;
+  special: boolean;
+  valid: boolean;
+};
+
+const supabaseUrl = Deno.env.get("SUPABASE_URL");
+const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+console.log("Environment check - SUPABASE_URL:", supabaseUrl ? "set" : "not set");
+console.log("Environment check - SUPABASE_SERVICE_ROLE_KEY:", serviceRoleKey ? "set" : "not set");
+
+if (!supabaseUrl || !serviceRoleKey) {
+  console.error("Missing Supabase configuration");
+  console.error("Available env vars:", Object.keys(Deno.env.toObject()));
+  throw new Error("Missing Supabase configuration for create-user function");
+}
+
+const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+const passwordStrength = (password: string): PasswordStrength => {
+  const lengthOk = password.length >= 6;
+  const upper = /[A-Z]/.test(password);
+  const lower = /[a-z]/.test(password);
+  const digit = /[0-9]/.test(password);
+  const special = /[^A-Za-z0-9]/.test(password);
+
+  return {
+    lengthOk,
+    upper,
+    lower,
+    digit,
+    special,
+    valid: lengthOk,
+  };
 };
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
+    if (req.method !== "POST") {
+      return new Response("Method not allowed", { status: 405 });
+    }
+
+    let body: CreateUserRequest;
+    try {
+      body = (await req.json()) as CreateUserRequest;
+    } catch (parseError) {
+      console.error("JSON parse error:", parseError);
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Create user request received:", { email: body.email, role: body.role, userType: body.userType });
+
+    if (!body.email || !body.password) {
+      console.error("Missing email or password");
+      return new Response(
+        JSON.stringify({ error: "email and password required" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!body.role) {
+      console.error("Missing role");
+      return new Response(
+        JSON.stringify({ error: "role required" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    const strength = passwordStrength(body.password);
+
+    if (!strength.valid) {
+      console.error("Password validation failed:", strength);
+      return new Response(
+        JSON.stringify({
+          error: "weak_password",
+          details: strength,
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
         }
-      }
-    );
-
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('Não autorizado');
+      );
     }
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
-
-    if (userError || !user) {
-      throw new Error('Não autorizado');
-    }
-
-    // Check if user is admin or gestor_master
-    const { data: userRoles, error: rolesError } = await supabaseClient
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id);
-
-    if (rolesError) {
-      throw new Error('Erro ao verificar permissões');
-    }
-
-    const roles = userRoles?.map(r => r.role) || [];
-    const canManage = roles.includes('admin') || roles.includes('gestor_master');
-
-    if (!canManage) {
-      throw new Error('Acesso negado. Apenas admin e gestor_master podem criar usuários.');
-    }
-
-    const body = await req.json();
-    const { 
-      email, 
-      password, 
-      role, 
-      userType, 
-      profileData, 
-      clientId,
-      needsSystemAccess = true, // Por padrão, usuários precisam de acesso ao sistema
-      fullName, 
-      roles: newUserRoles, 
-      tipo 
-    } = body;
-
-    console.log('Creating user:', { email, role, userType, needsSystemAccess });
-
-    let userId: string;
-
-    // Se precisa de acesso ao sistema, cria no auth.users
-    if (needsSystemAccess && email && password) {
-      const { data: newUser, error: createError } = await supabaseClient.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: profileData?.full_name || fullName || email.split('@')[0],
-        },
-      });
-
-      if (createError) {
-        console.error('Error creating auth user:', createError);
-        throw createError;
-      }
-
-      if (!newUser.user) {
-        throw new Error('Usuário não foi criado');
-      }
-
-      userId = newUser.user.id;
-      console.log('Auth user created:', userId);
-    } else {
-      // Se não precisa de acesso, gera um UUID para user_profiles
-      userId = crypto.randomUUID();
-      console.log('Creating profile-only user with ID:', userId);
-    }
-
-    // Determinar roles a inserir
-    const rolesToInsert = newUserRoles || (role ? [role] : []);
-    
-    // Inserir roles
-    if (rolesToInsert.length > 0) {
-      const roleInserts = rolesToInsert.map((r: string) => ({
-        user_id: userId,
-        role: r,
-      }));
-
-      const { error: rolesInsertError } = await supabaseClient
-        .from('user_roles')
-        .insert(roleInserts);
-
-      if (rolesInsertError) {
-        console.error('Error inserting roles:', rolesInsertError);
-        // Se criou usuário auth, deletar
-        if (needsSystemAccess) {
-          await supabaseClient.auth.admin.deleteUser(userId);
-        }
-        throw new Error(`Erro ao atribuir funções: ${rolesInsertError.message}`);
-      }
-
-      console.log('Roles inserted:', roleInserts);
-    }
-
-    // Criar perfil
-    const profilePayload: any = {
-      id: userId,
-      email: profileData?.email || email,
-      full_name: profileData?.full_name || fullName || email?.split('@')[0],
-      display_name: profileData?.full_name || fullName || email?.split('@')[0],
-      tipo: tipo || userType || 'colaborador',
-      phone: profileData?.phone || null,
-      birth_date: profileData?.birth_date || null,
-      address: profileData?.address || null,
-      company_start_date: profileData?.company_start_date || null,
-      cpf: profileData?.cpf || null,
-      rg: profileData?.rg || null,
-      canac: profileData?.canac || null,
-      department: profileData?.department || null,
-    };
-
-    // Remover campos undefined/null vazios
-    Object.keys(profilePayload).forEach(key => {
-      if (profilePayload[key] === undefined || profilePayload[key] === '') {
-        delete profilePayload[key];
-      }
+    // Create auth user
+    console.log("Creating auth user for email:", body.email);
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: body.email,
+      password: body.password,
+      email_confirm: false,
+      user_metadata: {
+        role: body.role,
+        userType: body.userType,
+      },
     });
 
-    // Garantir que campos obrigatórios existam
-    if (!profilePayload.id) profilePayload.id = userId;
-    if (!profilePayload.tipo) profilePayload.tipo = 'colaborador';
+    if (authError) {
+      console.error("Auth user creation error:", authError);
+      return new Response(
+        JSON.stringify({ error: `Failed to create auth user: ${authError.message}` }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
-    const { error: profileError } = await supabaseClient
-      .from('user_profiles')
-      .insert(profilePayload);
+    console.log("Auth user created successfully with ID:", authData.user?.id);
+
+    const userId = authData.user?.id;
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: "user_creation_failed" }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Assign role in user_roles table
+    console.log("Assigning role to user:", { userId, role: body.role });
+    const { error: roleError } = await supabase
+      .from("user_roles")
+      .insert({ user_id: userId, role: body.role });
+
+    if (roleError) {
+      console.error("Role assignment error:", roleError);
+      return new Response(
+        JSON.stringify({
+          error: `Role assignment failed: ${roleError.message}`,
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Role assigned successfully");
+
+    // Create or update profile
+    const profilePayload: Record<string, any> = {
+      id: userId,
+      email: body.email,
+      display_name: body.profileData?.full_name || body.email,
+      full_name: body.profileData?.full_name || body.email,
+      tipo: body.userType === "cliente" ? "cliente" : "colaborador",
+      updated_at: new Date().toISOString(),
+    };
+
+    // Add additional profile data for colaborador
+    if (body.userType === "colaborador" && body.profileData) {
+      Object.assign(profilePayload, body.profileData);
+    }
+
+    // Add client_id for cliente
+    if (body.userType === "cliente" && body.clientId) {
+      profilePayload.client_id = body.clientId;
+    }
+
+    console.log("Creating profile with payload:", { id: userId, tipo: profilePayload.tipo, has_client_id: !!profilePayload.client_id });
+    const { error: profileError } = await supabase
+      .from("user_profiles")
+      .upsert(profilePayload, { onConflict: "id" });
 
     if (profileError) {
-      console.error('Error creating profile:', profileError);
-      // Continue anyway, but log the error
-    } else {
-      console.log('Profile created for user:', userId);
+      console.error("Profile upsert error:", profileError);
+      return new Response(
+        JSON.stringify({
+          error: `Profile creation failed: ${profileError.message}`,
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
     }
 
-    // Se for cliente, atualizar a tabela clients ou client_aircraft
-    if (userType === 'cliente' && clientId) {
-      // Aqui você pode adicionar lógica para associar o usuário ao cliente
-      console.log('Client association would be handled for clientId:', clientId);
-    }
-
-    // Se for tripulante (piloto_chefe, tripulante, coordenador_de_voo), criar também em crew_members
-    const crewRoles = ['tripulante', 'piloto_chefe', 'coordenador_de_voo'];
-    const isCrewMember = rolesToInsert.some((r: string) => crewRoles.includes(r));
-
-    if (isCrewMember) {
-      // Verificar se CANAC foi fornecido
-      const canac = profileData?.canac || 'PENDENTE';
-      
-      const { error: crewError } = await supabaseClient
-        .from('crew_members')
-        .insert({
-          id: crypto.randomUUID(),
-          user_id: needsSystemAccess ? userId : null, // Só vincula user_id se tiver auth
-          full_name: profileData?.full_name || fullName || 'Nome não informado',
-          canac: canac,
-          email: profileData?.email || email,
-          phone: profileData?.phone || null,
-          birth_date: profileData?.birth_date || null,
-          address: profileData?.address || null,
-          cpf: profileData?.cpf || null,
-          rg: profileData?.rg || null,
-          status: 'active',
-        });
-
-      if (crewError) {
-        console.error('Error creating crew member:', crewError);
-        // Não falha a criação do usuário por isso
-      } else {
-        console.log('Crew member created for user:', userId);
-      }
-    }
+    console.log("Profile created successfully");
 
     return new Response(
-      JSON.stringify({ 
-        user: { id: userId },
-        needsSystemAccess,
-        isCrewMember,
+      JSON.stringify({
+        user: authData.user,
+        success: true,
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
+      { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error('Error in create-user function:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+    console.error("Unexpected error:", error);
     return new Response(
-      JSON.stringify({ error: errorMessage }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      }
+      JSON.stringify({ error: "internal_error" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 });

@@ -9,16 +9,17 @@ import {
   HistoricoRateioConsolidado,
   HorasMensaisConsolidadas,
   RelatorioCustosCliente,
+  BalancoClienteAeronave,
 } from '@/components/consolidation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, FileText, Clock, BarChart3, ArrowLeft } from 'lucide-react';
+import { AlertCircle, FileText, Clock, BarChart3, ArrowLeft, PieChart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 
 function RateioCustoConsolidadoContent() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('historico');
+  const [activeTab, setActiveTab] = useState('balanco');
   const [clienteId, setClienteId] = useState('');
   const [aeronaveId, setAeronaveId] = useState('');
 
@@ -170,7 +171,11 @@ function RateioCustoConsolidadoContent() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 lg:w-auto bg-slate-800/60 border border-slate-700/50">
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto bg-slate-800/60 border border-slate-700/50">
+            <TabsTrigger value="balanco" className="gap-2">
+              <PieChart className="h-4 w-4" />
+              <span className="hidden sm:inline">Balanço</span>
+            </TabsTrigger>
             <TabsTrigger value="historico" className="gap-2">
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">Histórico</span>
@@ -184,6 +189,61 @@ function RateioCustoConsolidadoContent() {
               <span className="hidden sm:inline">Relatórios</span>
             </TabsTrigger>
           </TabsList>
+
+        {/* Aba 0: Balanço Completo Cliente/Aeronave */}
+        <TabsContent value="balanco" className="space-y-6">
+          <Card className="border-slate-700/50 bg-slate-800/60 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-foreground">Selecione Cliente e Aeronave</CardTitle>
+              <CardDescription>Visualize o balanço financeiro e operacional completo</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="cliente-balanco" className="text-foreground">Cliente</Label>
+                  <Select value={clienteId} onValueChange={(val) => { setClienteId(val); setAeronaveId(''); }}>
+                    <SelectTrigger id="cliente-balanco" className="border-slate-700/50 bg-slate-700/60">
+                      <SelectValue placeholder="Selecione um cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clientes.map((cliente: any) => (
+                        <SelectItem key={cliente.id} value={cliente.id}>
+                          {cliente.company_name || cliente.proprietario}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {clienteId && (
+                  <div className="space-y-2">
+                    <Label htmlFor="aeronave-balanco" className="text-foreground">Aeronave</Label>
+                    <Select value={aeronaveId || "__all__"} onValueChange={(val) => setAeronaveId(val === "__all__" ? "" : val)}>
+                      <SelectTrigger id="aeronave-balanco" className="border-slate-700/50 bg-slate-700/60">
+                        <SelectValue placeholder="Todas as aeronaves" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">Todas as aeronaves</SelectItem>
+                        {aeronaves.map((aeronave: any) => (
+                          <SelectItem key={aeronave.id} value={aeronave.id}>
+                            {aeronave.registration} - {aeronave.model}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {clienteId && (
+            <BalancoClienteAeronave 
+              clienteId={clienteId} 
+              aeronaveId={aeronaveId || undefined} 
+            />
+          )}
+        </TabsContent>
 
         {/* Aba 1: Histórico Consolidado */}
         <TabsContent value="historico" className="space-y-6">
@@ -242,7 +302,7 @@ function RateioCustoConsolidadoContent() {
                 {aeronaveId && (
                   <div className="space-y-2">
                     <Label htmlFor="cliente-horas" className="text-foreground">Cliente (Opcional)</Label>
-                    <Select value={clienteId} onValueChange={setClienteId}>
+                    <Select value={clienteId || "__all__"} onValueChange={(val) => setClienteId(val === "__all__" ? "" : val)}>
                       <SelectTrigger id="cliente-horas" className="border-slate-700/50 bg-slate-700/60">
                         <SelectValue placeholder="Todos os clientes" />
                       </SelectTrigger>
@@ -262,7 +322,7 @@ function RateioCustoConsolidadoContent() {
             </Card>
 
             {aeronaveId && (
-              <HorasMensaisConsolidadas aeronaveId={aeronaveId} clienteId={clienteId === '__all__' ? undefined : clienteId || undefined} />
+              <HorasMensaisConsolidadas aeronaveId={aeronaveId} clienteId={clienteId || undefined} />
             )}
           </TabsContent>
 

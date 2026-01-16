@@ -6,9 +6,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plane, ArrowLeft, Settings, History, FileText, PieChart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { CTMServiceOrderList } from '@/components/ctm/CTMServiceOrderList';
+import { CTMServiceOrderList } from '@/components/ctm';
 import { CTMServiceOrderForm } from '@/components/ctm/CTMServiceOrderForm';
-import { CTMServiceOrderDetails } from '@/components/ctm/CTMServiceOrderDetails';
+import { CTMServiceOrderDetail as CTMServiceOrderDetails } from '@/components/manutencao/CTMServiceOrderDetail';
 import { useCTMServiceOrders, CTMServiceOrder, CTMMaintenanceCategory } from '@/hooks/useCTMServiceOrders';
 import AircraftSelection from '@/components/manutencao/AircraftSelection';
 
@@ -221,18 +221,14 @@ export default function CTMPage() {
           />
         )}
 
-        {view === 'detail' && orderDetails && (
+        {view === 'detail' && orderDetails && selectedOrder && (
           <CTMServiceOrderDetails
-            order={orderDetails.order}
-            services={orderDetails.services}
-            parts={orderDetails.parts}
-            flightReports={orderDetails.flightReports}
-            costSharing={orderDetails.costSharing}
+            serviceOrderId={selectedOrder.id}
+            aircraftRegistration={selectedAircraft?.registration || ''}
             onBack={() => {
               setView('list');
               loadOrders();
             }}
-            onRefresh={handleRefreshDetails}
           />
         )}
       </div>

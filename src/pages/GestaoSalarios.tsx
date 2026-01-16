@@ -13,7 +13,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { toast } from "sonner";
-import { Pencil, Plus, Loader2, X, Save, DollarSign, FileText, Plane, Zap } from "lucide-react";
+import { Pencil, Plus, X, Save, DollarSign, FileText, Plane, Zap } from "lucide-react";
+import { LottieAirplaneSpinner } from "@/components/ui/lottie-airplane-spinner";
 import { fetchCrewMembers } from "@/services/crew";
 import { PayslipsManagement } from "@/components/payslips/PayslipsManagement";
 import { AircraftSalariesMonthly } from "@/components/vencimentos/AircraftSalariesMonthly";
@@ -144,7 +145,7 @@ export const GestaoSalariosContent = () => {
   if (isRolesLoading) {
     return (
       <div className="p-6 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <LottieAirplaneSpinner size="md" />
       </div>
     );
   }

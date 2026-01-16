@@ -3,14 +3,14 @@ import type { FinancialSummary, MonthlyExpense } from '@/types/maintenance';
 
 export async function generateFinancialReport(aircraftId: string): Promise<FinancialSummary> {
   try {
-    // Get all RAS for the aircraft
-    const { data: rasList } = await supabase
+  // Get all RAS for the aircraft
+    const { data: rasList } = await (supabase as any)
       .from('ras')
       .select('*')
       .eq('aircraft_id', aircraftId);
 
     // Get all motor expenses
-    const { data: motorExpenses } = await supabase
+    const { data: motorExpenses } = await (supabase as any)
       .from('motor_expenses')
       .select('*')
       .eq('aircraft_id', aircraftId);
@@ -99,13 +99,13 @@ export async function generateMaintenanceReport(aircraftId: string) {
 
 export async function generateADSBReport(aircraftId: string) {
   try {
-    const { data: ads } = await supabase
+    const { data: ads } = await (supabase as any)
       .from('airworthiness_directives')
       .select('*')
       .eq('aircraft_id', aircraftId)
       .order('issue_date', { ascending: false });
 
-    const { data: sbs } = await supabase
+    const { data: sbs } = await (supabase as any)
       .from('service_bulletins')
       .select('*')
       .eq('aircraft_id', aircraftId)
@@ -131,7 +131,7 @@ export async function generateADSBReport(aircraftId: string) {
 
 export async function generateComponentReport(aircraftId: string) {
   try {
-    const { data: components } = await supabase
+    const { data: components } = await (supabase as any)
       .from('aircraft_components')
       .select('*')
       .eq('aircraft_id', aircraftId)
@@ -167,12 +167,12 @@ export async function generateComplianceReport(aircraftId: string) {
       .eq('id', aircraftId)
       .single();
 
-    const { data: certifications } = await supabase
+    const { data: certifications } = await (supabase as any)
       .from('certifications')
       .select('*')
       .eq('aircraft_id', aircraftId);
 
-    const { data: insurances } = await supabase
+    const { data: insurances } = await (supabase as any)
       .from('insurance_policies')
       .select('*')
       .eq('aircraft_id', aircraftId);

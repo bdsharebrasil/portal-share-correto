@@ -77,7 +77,7 @@ export function MotorExpenseForm({ aircraftId, onSuccess, onCancel }: MotorExpen
         observations: data.observations || null,
       };
 
-      const { data: newExpense, error } = await supabase
+      const { data: newExpense, error } = await (supabase as any)
         .from('motor_expenses')
         .insert([motorExpenseData])
         .select()

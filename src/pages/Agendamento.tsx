@@ -134,7 +134,8 @@ export default function Agendamentos() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("aircraft")
-        .select("id, registration, model");
+        .select("id, registration, model")
+        .eq("status", "Ativa");
       if (error) throw error;
       return data;
     },

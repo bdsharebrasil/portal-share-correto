@@ -244,7 +244,7 @@ export function CTMWeightBalanceComplete({
 
   const handleCreateWeightBalance = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("weight_balance")
         .insert({
           aircraft_id: aircraftId,

@@ -3,50 +3,19 @@ import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Search,
-  Plane,
-  AlertCircle,
-  CheckCheck,
-  AlertTriangle,
-  Clock,
-  CheckCircle,
-  Plus,
-  Calendar,
-  Wrench,
-  FileText,
-  Upload,
-  Eye,
-} from "lucide-react";
+import { Search, Plane, AlertCircle, CheckCheck, AlertTriangle, Clock, CheckCircle, Plus, Calendar, Wrench, FileText, Upload, Eye } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect } from "react";
 import { useAeronaves } from "@/hooks/useAeronaves";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ManutencaoDialog } from "@/components/manutencao/ManutencaoDialog";
 import { NovoVencimentoDialog } from "@/components/vencimentos/NovoVencimentoDialog";
 import { NovoDocumentoDialog } from "@/components/vencimentos/NovoDocumentoDialog";
 import { supabase } from "@/integrations/supabase/client";
-
 interface Vencimento {
   id: string;
   item: string;
@@ -60,51 +29,46 @@ interface Vencimento {
   comprovanteUrl?: string;
   valorPago?: number;
 }
-
 interface Aeronave {
   id: string;
   registration: string;
   model: string;
   manufacturer: string;
 }
-
 export default function ControleVencimentos() {
-  const { toast } = useToast();
+  const {
+    toast
+  } = useToast();
   const navigate = useNavigate();
-  const { aeronaves, isLoadingAeronaves } = useAeronaves();
-
+  const {
+    aeronaves,
+    isLoadingAeronaves
+  } = useAeronaves();
   const [vencimentos, setVencimentos] = useState<Vencimento[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedAeronave, setSelectedAeronave] = useState<string>("todas");
   const [activeTab, setActiveTab] = useState<"manutencao" | "documento">("manutencao");
-
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedVencimento, setSelectedVencimento] = useState<Vencimento | null>(null);
   const [uploading, setUploading] = useState(false);
-
   const aeronavesAtivas = useMemo(() => {
-    return aeronaves.filter((a) =>
-      a.status?.toLowerCase() === "ativa" ||
-      a.status?.toLowerCase() === "ativo"
-    );
+    return aeronaves.filter(a => a.status?.toLowerCase() === "ativa" || a.status?.toLowerCase() === "ativo");
   }, [aeronaves]);
-
   useEffect(() => {
     loadVencimentos();
   }, [toast]);
-
   const loadVencimentos = async () => {
     setLoading(true);
     try {
-      const { fetchManutencoesWithAircraft } = await import("@/services/manutencoes");
+      const {
+        fetchManutencoesWithAircraft
+      } = await import("@/services/manutencoes");
       const rows = await fetchManutencoesWithAircraft();
       const today = new Date().getTime();
-
-      const mapped = rows.map((m) => {
+      const mapped = rows.map(m => {
         const dt = new Date(m.data_programada).getTime();
         const diasRestantes = Math.ceil((dt - today) / (1000 * 60 * 60 * 24));
-
         return {
           id: m.id,
           item: m.tipo,
@@ -113,29 +77,23 @@ export default function ControleVencimentos() {
           dataVencimento: m.data_programada,
           diasRestantes,
           diasAlerta: 30,
-          status:
-            m.etapa === "concluida"
-              ? "concluido"
-              : m.etapa === "em_andamento"
-                ? "programado"
-                : "pendente",
-          tipo: "manutencao" as const,
+          status: m.etapa === "concluida" ? "concluido" : m.etapa === "em_andamento" ? "programado" : "pendente",
+          tipo: "manutencao" as const
         };
       });
 
-      // Load documents
-      const { data: documents, error: docError } = await supabase
-        .from("flight_documents")
-        .select("*")
-        .order("expiry_date", { ascending: true });
-
+      // Load documents - only those with expiry_date
+      const {
+        data: documents,
+        error: docError
+      } = await supabase.from("flight_documents").select("*").not("expiry_date", "is", null).order("expiry_date", {
+        ascending: true
+      });
       if (!docError && documents) {
         const mappedDocs = documents.map((doc: any) => {
           const dt = new Date(doc.expiry_date).getTime();
           const diasRestantes = Math.ceil((dt - today) / (1000 * 60 * 60 * 24));
-
-          const aircraft = aeronaves.find((a) => a.id === doc.aircraft_id);
-
+          const aircraft = aeronaves.find(a => a.id === doc.aircraft_id);
           return {
             id: doc.id,
             item: doc.name,
@@ -143,13 +101,12 @@ export default function ControleVencimentos() {
             aeronaveId: doc.aircraft_id || "",
             dataVencimento: doc.expiry_date,
             diasRestantes,
-            diasAlerta: 30,
+            diasAlerta: doc.alert_days || 30,
             status: diasRestantes < 0 ? "vencido" : "pendente",
             tipo: "documento" as const,
-            comprovanteUrl: doc.file_path,
+            comprovanteUrl: doc.file_path
           };
         });
-
         setVencimentos([...mapped, ...mappedDocs]);
       } else {
         setVencimentos(mapped);
@@ -159,13 +116,12 @@ export default function ControleVencimentos() {
       toast({
         title: "Erro ao carregar",
         description: "Falha ao buscar vencimentos.",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
-
   const getStatusInfo = (diasRestantes: number, diasAlerta: number, status: string) => {
     if (status === "concluido" || status === "pago") {
       return {
@@ -175,7 +131,7 @@ export default function ControleVencimentos() {
         borderColor: "border-emerald-500/30",
         icon: CheckCircle,
         badgeClass: "bg-emerald-500/20 text-emerald-400 border-emerald-500",
-        iconName: "check_circle",
+        iconName: "check_circle"
       };
     }
     if (status === "programado") {
@@ -186,7 +142,7 @@ export default function ControleVencimentos() {
         borderColor: "border-blue-500/30",
         icon: Clock,
         badgeClass: "bg-blue-500/20 text-blue-400 border-blue-500",
-        iconName: "hourglass_top",
+        iconName: "hourglass_top"
       };
     }
     if (diasRestantes < 0) {
@@ -197,7 +153,7 @@ export default function ControleVencimentos() {
         borderColor: "border-red-500/30",
         icon: AlertCircle,
         badgeClass: "bg-red-500/20 text-red-400 border-red-500",
-        iconName: "priority_high",
+        iconName: "priority_high"
       };
     }
     if (diasRestantes <= diasAlerta) {
@@ -208,7 +164,7 @@ export default function ControleVencimentos() {
         borderColor: "border-yellow-500/30",
         icon: AlertTriangle,
         badgeClass: "bg-yellow-500/20 text-yellow-400 border-yellow-500",
-        iconName: "hourglass_top",
+        iconName: "hourglass_top"
       };
     }
     return {
@@ -218,62 +174,49 @@ export default function ControleVencimentos() {
       borderColor: "border-green-500/30",
       icon: CheckCheck,
       badgeClass: "bg-green-500/20 text-green-400 border-green-500",
-      iconName: "check_circle",
+      iconName: "check_circle"
     };
   };
-
   const handleSaveManutencao = () => {
     loadVencimentos();
   };
-
   const handleStatusChange = async (id: string, newStatus: string) => {
-    setVencimentos(
-      vencimentos.map((v) => (v.id === id ? { ...v, status: newStatus } : v))
-    );
-
+    setVencimentos(vencimentos.map(v => v.id === id ? {
+      ...v,
+      status: newStatus
+    } : v));
     const statusLabels: Record<string, string> = {
       pendente: "Pendente",
       programado: "Programado",
       concluido: "Concluído",
-      pago: "Pago",
+      pago: "Pago"
     };
-
     toast({
       title: "Status atualizado",
-      description: `Item marcado como ${statusLabels[newStatus]}`,
+      description: `Item marcado como ${statusLabels[newStatus]}`
     });
   };
-
   const handleUploadComprovante = async (file: File) => {
     if (!selectedVencimento) return;
-
     setUploading(true);
     try {
       const fileName = `${selectedVencimento.aeronaveId}/${Date.now()}_${file.name}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("flight-documents")
-        .upload(fileName, file);
-
+      const {
+        error: uploadError
+      } = await supabase.storage.from("flight-documents").upload(fileName, file);
       if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from("flight-documents")
-        .getPublicUrl(fileName);
-
-      setVencimentos(
-        vencimentos.map((v) =>
-          v.id === selectedVencimento.id
-            ? { ...v, comprovanteUrl: urlData.publicUrl, status: "pago" }
-            : v
-        )
-      );
-
+      const {
+        data: urlData
+      } = supabase.storage.from("flight-documents").getPublicUrl(fileName);
+      setVencimentos(vencimentos.map(v => v.id === selectedVencimento.id ? {
+        ...v,
+        comprovanteUrl: urlData.publicUrl,
+        status: "pago"
+      } : v));
       toast({
         title: "Comprovante anexado",
-        description: "Arquivo salvo com sucesso",
+        description: "Arquivo salvo com sucesso"
       });
-
       setUploadDialogOpen(false);
       setSelectedVencimento(null);
     } catch (error) {
@@ -281,67 +224,55 @@ export default function ControleVencimentos() {
       toast({
         title: "Erro no upload",
         description: "Falha ao enviar arquivo",
-        variant: "destructive",
+        variant: "destructive"
       });
     } finally {
       setUploading(false);
     }
   };
-
   const filteredVencimentos = useMemo(() => {
-    return vencimentos.filter((v) => {
-      const matchesSearch =
-        v.item.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        v.aeronave.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesAeronave =
-        selectedAeronave === "todas" || v.aeronaveId === selectedAeronave;
-
+    return vencimentos.filter(v => {
+      const matchesSearch = v.item.toLowerCase().includes(searchTerm.toLowerCase()) || v.aeronave.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesAeronave = selectedAeronave === "todas" || v.aeronaveId === selectedAeronave;
       const matchesTipo = v.tipo === activeTab;
-
       return matchesSearch && matchesAeronave && matchesTipo;
     });
   }, [vencimentos, searchTerm, selectedAeronave, activeTab]);
-
   const vencimentosPorAeronave = useMemo(() => {
-    const grouped: Record<string, { aeronave: string; aeronaveId: string; vencimentos: Vencimento[] }> = {};
-
-    filteredVencimentos.forEach((v) => {
+    const grouped: Record<string, {
+      aeronave: string;
+      aeronaveId: string;
+      vencimentos: Vencimento[];
+    }> = {};
+    filteredVencimentos.forEach(v => {
       if (!grouped[v.aeronaveId]) {
         grouped[v.aeronaveId] = {
           aeronaveId: v.aeronaveId,
           aeronave: v.aeronave,
-          vencimentos: [],
+          vencimentos: []
         };
       }
       grouped[v.aeronaveId].vencimentos.push(v);
     });
-
     return Object.values(grouped).sort((a, b) => a.aeronave.localeCompare(b.aeronave));
   }, [filteredVencimentos]);
-
   const stats = useMemo(() => ({
-    vencidos: filteredVencimentos.filter((v) => v.diasRestantes < 0).length,
-    proximos: filteredVencimentos.filter((v) => v.diasRestantes > 0 && v.diasRestantes <= 30).length,
-    dentroPrazo: filteredVencimentos.filter((v) => v.diasRestantes > 30).length,
-    total: new Set(filteredVencimentos.map((v) => v.aeronaveId)).size,
+    vencidos: filteredVencimentos.filter(v => v.diasRestantes < 0).length,
+    proximos: filteredVencimentos.filter(v => v.diasRestantes > 0 && v.diasRestantes <= 30).length,
+    dentroPrazo: filteredVencimentos.filter(v => v.diasRestantes > 30).length,
+    total: new Set(filteredVencimentos.map(v => v.aeronaveId)).size
   }), [filteredVencimentos]);
-
   if (loading || isLoadingAeronaves) {
-    return (
-      <Layout>
+    return <Layout>
         <div className="p-6 flex items-center justify-center min-h-[400px]">
           <div className="flex items-center gap-3 text-muted-foreground">
             <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             <span>Carregando...</span>
           </div>
         </div>
-      </Layout>
-    );
+      </Layout>;
   }
-
-  return (
-    <Layout>
+  return <Layout>
       <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 relative overflow-hidden">
         {/* Background gradient orbs */}
         <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
@@ -442,10 +373,7 @@ export default function ControleVencimentos() {
                 </div>
               </div>
 
-              <button
-                onClick={() => navigate("/aeronaves")}
-                className="bg-gradient-to-br from-blue-500/10 to-slate-800 rounded-2xl p-6 border border-blue-500/20 relative overflow-hidden shadow-lg shadow-blue-900/10 group hover:shadow-blue-500/10 transition-all duration-300 w-full text-left hover:border-blue-500/40 hover:from-blue-500/20"
-              >
+              <button onClick={() => navigate("/aeronaves")} className="bg-gradient-to-br from-blue-500/10 to-slate-800 rounded-2xl p-6 border border-blue-500/20 relative overflow-hidden shadow-lg shadow-blue-900/10 group hover:shadow-blue-500/10 transition-all duration-300 w-full text-left hover:border-blue-500/40 hover:from-blue-500/20">
                 <div className="absolute -top-10 -right-10 w-32 h-32 bg-blue-500/20 rounded-full blur-2xl" />
                 <div className="relative z-10 flex flex-col h-full justify-between">
                   <div>
@@ -471,50 +399,26 @@ export default function ControleVencimentos() {
               <div className="flex-1 w-full space-y-2">
                 <div className="flex items-center justify-between gap-4">
                   <nav className="flex gap-6 border-b border-white/5 flex-1">
-                    <button
-                      onClick={() => setActiveTab("manutencao")}
-                      className="relative pb-4 text-sm font-bold text-white flex items-center gap-2 group outline-none"
-                    >
+                    <button onClick={() => setActiveTab("manutencao")} className="relative pb-4 text-sm font-bold text-white flex items-center gap-2 group outline-none">
                       <span className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 group-hover:bg-blue-500/20 transition-colors">
                         <Wrench size={18} />
                       </span>
                       Vencimentos
                       <span className="bg-blue-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm">{filteredVencimentos.filter(v => v.tipo === 'manutencao').length}</span>
-                      {activeTab === "manutencao" && (
-                        <span className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
-                      )}
+                      {activeTab === "manutencao" && <span className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />}
                     </button>
-                    <button
-                      onClick={() => setActiveTab("documento")}
-                      className={`relative pb-4 text-sm font-medium flex items-center gap-2 group transition-colors outline-none ${
-                        activeTab === "documento" ? "text-white" : "text-gray-400 hover:text-white"
-                      }`}
-                    >
-                      <span className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                        activeTab === "documento"
-                          ? "bg-blue-500/10 text-blue-400"
-                          : "bg-white/5 text-gray-400 group-hover:text-gray-200 group-hover:bg-white/10"
-                      }`}>
+                    <button onClick={() => setActiveTab("documento")} className={`relative pb-4 text-sm font-medium flex items-center gap-2 group transition-colors outline-none ${activeTab === "documento" ? "text-white" : "text-gray-400 hover:text-white"}`}>
+                      <span className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${activeTab === "documento" ? "bg-blue-500/10 text-blue-400" : "bg-white/5 text-gray-400 group-hover:text-gray-200 group-hover:bg-white/10"}`}>
                         <FileText size={18} />
                       </span>
                       Documentos
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                        activeTab === "documento"
-                          ? "bg-blue-500 text-white"
-                          : "bg-white/10 text-gray-400 border border-white/5"
-                      }`}>{filteredVencimentos.filter(v => v.tipo === 'documento').length}</span>
-                      {activeTab === "documento" && (
-                        <span className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />
-                      )}
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${activeTab === "documento" ? "bg-blue-500 text-white" : "bg-white/10 text-gray-400 border border-white/5"}`}>{filteredVencimentos.filter(v => v.tipo === 'documento').length}</span>
+                      {activeTab === "documento" && <span className="absolute bottom-[-1px] left-0 w-full h-[2px] bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)]" />}
                     </button>
                   </nav>
                   <div className="flex gap-2">
-                    {activeTab === "manutencao" && (
-                      <NovoVencimentoDialog onSave={loadVencimentos} />
-                    )}
-                    {activeTab === "documento" && (
-                      <NovoDocumentoDialog onSave={loadVencimentos} />
-                    )}
+                    {activeTab === "manutencao" && <NovoVencimentoDialog onSave={loadVencimentos} />}
+                    {activeTab === "documento" && <NovoDocumentoDialog onSave={loadVencimentos} />}
                   </div>
                 </div>
               </div>
@@ -524,26 +428,14 @@ export default function ControleVencimentos() {
                   <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                     <Search className="text-gray-500 group-focus-within:text-blue-400 transition-colors" size={20} />
                   </span>
-                  <input
-                    className="w-full pl-11 pr-4 py-2.5 bg-slate-800/60 border border-white/10 text-gray-200 placeholder-gray-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent focus:bg-slate-800 transition-all text-sm font-medium"
-                    placeholder="Buscar item, descrição ou código..."
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
+                  <input className="w-full pl-11 pr-4 py-2.5 bg-slate-800/60 border border-white/10 text-gray-200 placeholder-gray-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent focus:bg-slate-800 transition-all text-sm font-medium" placeholder="Buscar item, descrição ou código..." type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                 </div>
                 <div className="relative min-w-[220px]">
-                  <select
-                    className="w-full pl-4 pr-10 py-2.5 bg-slate-800/60 border border-white/10 text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent focus:bg-slate-800 appearance-none cursor-pointer text-sm font-medium transition-all"
-                    value={selectedAeronave}
-                    onChange={(e) => setSelectedAeronave(e.target.value)}
-                  >
+                  <select className="w-full pl-4 pr-10 py-2.5 bg-slate-800/60 border border-white/10 text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent focus:bg-slate-800 appearance-none cursor-pointer text-sm font-medium transition-all" value={selectedAeronave} onChange={e => setSelectedAeronave(e.target.value)}>
                     <option value="todas">Todas as Aeronaves</option>
-                    {aeronavesAtivas.map((a) => (
-                      <option key={a.id} value={a.id}>
+                    {aeronavesAtivas.map(a => <option key={a.id} value={a.id}>
                         {a.registration} ({a.model})
-                      </option>
-                    ))}
+                      </option>)}
                   </select>
                   <span className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                     <span className="text-gray-500">▼</span>
@@ -556,47 +448,38 @@ export default function ControleVencimentos() {
             </div>
 
             {/* Empty State or List */}
-            {vencimentosPorAeronave.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/40 min-h-[450px] flex flex-col items-center justify-center relative overflow-hidden">
-                <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: "linear-gradient(rgb(148,163,184) 1px, transparent 1px), linear-gradient(to right, rgb(148,163,184) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
+            {vencimentosPorAeronave.length === 0 ? <div className="rounded-2xl border border-dashed border-white/10 bg-slate-900/40 min-h-[450px] flex flex-col items-center justify-center relative overflow-hidden">
+                <div className="absolute inset-0 opacity-[0.03]" style={{
+              backgroundImage: "linear-gradient(rgb(148,163,184) 1px, transparent 1px), linear-gradient(to right, rgb(148,163,184) 1px, transparent 1px)",
+              backgroundSize: "32px 32px"
+            }} />
                 <div className="relative z-10 flex flex-col items-center max-w-md mx-auto text-center p-6">
-                  <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center mb-6 shadow-2xl ring-1 ring-white/5 group">
-                    <span className="text-gray-500 group-hover:text-blue-400 group-hover:scale-110 transition-all text-4xl">📦</span>
-                  </div>
+                  
                   <h3 className="text-xl font-bold text-white mb-2">Resultados filtrados</h3>
                   <p className="text-gray-400 text-sm mb-8 leading-relaxed">
                     Nenhum item crítico encontrado para os filtros atuais. <br />
                     A segurança da sua frota está em conformidade.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                    <button
-                      onClick={() => {
-                        setSearchTerm("");
-                        setSelectedAeronave("todas");
-                      }}
-                      className="px-5 py-2.5 rounded-lg text-sm font-semibold text-gray-300 bg-white/5 hover:bg-white/10 border border-white/5 transition-colors w-full sm:w-auto"
-                    >
+                    <button onClick={() => {
+                  setSearchTerm("");
+                  setSelectedAeronave("todas");
+                }} className="px-5 py-2.5 rounded-lg text-sm font-semibold text-gray-300 bg-white/5 hover:bg-white/10 border border-white/5 transition-colors w-full sm:w-auto">
                       Limpar filtros
                     </button>
-                    <button
-                      onClick={() => {
-                        if (activeTab === "manutencao") {
-                          // Trigger the NovoVencimentoDialog
-                        } else {
-                          // Trigger the NovoDocumentoDialog
-                        }
-                      }}
-                      className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-500/20 transition-all w-full sm:w-auto"
-                    >
+                    <button onClick={() => {
+                  if (activeTab === "manutencao") {
+                    // Trigger the NovoVencimentoDialog
+                  } else {
+                    // Trigger the NovoDocumentoDialog
+                  }
+                }} className="px-5 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-500/20 transition-all w-full sm:w-auto">
                       Adicionar Registro
                     </button>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {vencimentosPorAeronave.map((grupo) => (
-                  <div key={grupo.aeronaveId} className="rounded-2xl border border-white/5 bg-slate-800/30 backdrop-blur-[12px] overflow-hidden hover:border-white/10 transition-all">
+              </div> : <div className="space-y-4">
+                {vencimentosPorAeronave.map(grupo => <div key={grupo.aeronaveId} className="rounded-2xl border border-white/5 bg-slate-800/30 backdrop-blur-[12px] overflow-hidden hover:border-white/10 transition-all">
                     <div className="px-4 py-3 md:px-6 md:py-4 border-b border-white/5 bg-gradient-to-r from-blue-500/5 to-transparent">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -611,32 +494,21 @@ export default function ControleVencimentos() {
                           </div>
                         </div>
                         <div className="hidden sm:flex items-center gap-2">
-                          {grupo.vencimentos.filter((v) => v.diasRestantes < 0).length > 0 && (
-                            <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
-                              {grupo.vencimentos.filter((v) => v.diasRestantes < 0).length} vencido
-                            </Badge>
-                          )}
-                          {grupo.vencimentos.filter((v) => v.diasRestantes > 0 && v.diasRestantes <= 30).length > 0 && (
-                            <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
-                              {grupo.vencimentos.filter((v) => v.diasRestantes > 0 && v.diasRestantes <= 30).length} próximo
-                            </Badge>
-                          )}
+                          {grupo.vencimentos.filter(v => v.diasRestantes < 0).length > 0 && <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
+                              {grupo.vencimentos.filter(v => v.diasRestantes < 0).length} vencido
+                            </Badge>}
+                          {grupo.vencimentos.filter(v => v.diasRestantes > 0 && v.diasRestantes <= 30).length > 0 && <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+                              {grupo.vencimentos.filter(v => v.diasRestantes > 0 && v.diasRestantes <= 30).length} próximo
+                            </Badge>}
                         </div>
                       </div>
                     </div>
 
                     <div className="divide-y divide-white/5">
-                      {grupo.vencimentos
-                        .sort((a, b) => new Date(a.dataVencimento).getTime() - new Date(b.dataVencimento).getTime())
-                        .map((vencimento) => {
-                          const info = getStatusInfo(vencimento.diasRestantes, vencimento.diasAlerta, vencimento.status);
-                          const StatusIcon = info.icon;
-
-                          return (
-                            <div
-                              key={vencimento.id}
-                              className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3 hover:bg-white/5 transition-colors"
-                            >
+                      {grupo.vencimentos.sort((a, b) => new Date(a.dataVencimento).getTime() - new Date(b.dataVencimento).getTime()).map(vencimento => {
+                  const info = getStatusInfo(vencimento.diasRestantes, vencimento.diasAlerta, vencimento.status);
+                  const StatusIcon = info.icon;
+                  return <div key={vencimento.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-3 hover:bg-white/5 transition-colors">
                               <div className="flex items-center gap-3 flex-1 min-w-0">
                                 <div className={`p-2 rounded-lg ${info.bgColor}`}>
                                   <StatusIcon className={`h-4 w-4 ${info.textColor}`} />
@@ -648,12 +520,10 @@ export default function ControleVencimentos() {
                                     <span className="text-xs text-gray-400">
                                       {new Date(vencimento.dataVencimento).toLocaleDateString("pt-BR")}
                                     </span>
-                                    {vencimento.comprovanteUrl && (
-                                      <Badge variant="outline" className="text-xs bg-white/5 border-white/10 text-gray-300">
+                                    {vencimento.comprovanteUrl && <Badge variant="outline" className="text-xs bg-white/5 border-white/10 text-gray-300">
                                         <Upload className="h-3 w-3 mr-1" />
                                         Comprovante
-                                      </Badge>
-                                    )}
+                                      </Badge>}
                                   </div>
                                 </div>
                               </div>
@@ -663,44 +533,24 @@ export default function ControleVencimentos() {
                                   <p className={`font-bold ${info.textColor}`}>
                                     {vencimento.diasRestantes < 0 ? "Vencido" : `${vencimento.diasRestantes}d`}
                                   </p>
-                                  {vencimento.diasRestantes >= 0 && (
-                                    <p className="text-xs text-gray-400">restantes</p>
-                                  )}
+                                  {vencimento.diasRestantes >= 0 && <p className="text-xs text-gray-400">restantes</p>}
                                 </div>
 
                                 <div className="flex items-center gap-2">
-                                  {activeTab === "documento" && vencimento.status !== "pago" && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="bg-slate-800/50 border-white/10 text-gray-300 hover:bg-slate-700"
-                                      onClick={() => {
-                                        setSelectedVencimento(vencimento);
-                                        setUploadDialogOpen(true);
-                                      }}
-                                    >
+                                  {activeTab === "documento" && vencimento.status !== "pago" && <Button variant="outline" size="sm" className="bg-slate-800/50 border-white/10 text-gray-300 hover:bg-slate-700" onClick={() => {
+                          setSelectedVencimento(vencimento);
+                          setUploadDialogOpen(true);
+                        }}>
                                       <Upload className="h-4 w-4" />
-                                    </Button>
-                                  )}
+                                    </Button>}
 
-                                  {vencimento.comprovanteUrl && (
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="bg-slate-800/50 border-white/10 text-gray-300 hover:bg-slate-700"
-                                      onClick={() => window.open(vencimento.comprovanteUrl, "_blank")}
-                                    >
+                                  {vencimento.comprovanteUrl && <Button variant="outline" size="sm" className="bg-slate-800/50 border-white/10 text-gray-300 hover:bg-slate-700" onClick={() => window.open(vencimento.comprovanteUrl, "_blank")}>
                                       <Eye className="h-4 w-4" />
-                                    </Button>
-                                  )}
+                                    </Button>}
 
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className={`${info.bgColor} ${info.textColor} ${info.borderColor} border hover:opacity-80`}
-                                      >
+                                      <Button variant="outline" size="sm" className={`${info.bgColor} ${info.textColor} ${info.borderColor} border hover:opacity-80`}>
                                         {info.label}
                                       </Button>
                                     </DropdownMenuTrigger>
@@ -721,14 +571,11 @@ export default function ControleVencimentos() {
                                   </DropdownMenu>
                                 </div>
                               </div>
-                            </div>
-                          );
-                        })}
+                            </div>;
+                })}
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  </div>)}
+              </div>}
           </main>
         </div>
       </div>
@@ -747,20 +594,11 @@ export default function ControleVencimentos() {
               {selectedVencimento?.item} - {selectedVencimento?.aeronave}
             </p>
             <div className="border-2 border-dashed border-white/10 rounded-lg p-6 text-center">
-              <input
-                type="file"
-                accept="image/*,.pdf"
-                className="hidden"
-                id="comprovante-upload"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleUploadComprovante(file);
-                }}
-              />
-              <label
-                htmlFor="comprovante-upload"
-                className="cursor-pointer flex flex-col items-center gap-2"
-              >
+              <input type="file" accept="image/*,.pdf" className="hidden" id="comprovante-upload" onChange={e => {
+              const file = e.target.files?.[0];
+              if (file) handleUploadComprovante(file);
+            }} />
+              <label htmlFor="comprovante-upload" className="cursor-pointer flex flex-col items-center gap-2">
                 <Upload className="h-8 w-8 text-gray-500" />
                 <span className="text-sm text-gray-400">
                   {uploading ? "Enviando..." : "Clique para selecionar arquivo"}
@@ -773,6 +611,5 @@ export default function ControleVencimentos() {
           </div>
         </DialogContent>
       </Dialog>
-    </Layout>
-  );
+    </Layout>;
 }

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { startOfMonth, endOfMonth, subMonths, format } from "date-fns";
+import { startOfMonth, endOfMonth, subMonths, format, parseISO } from "date-fns";
 
 interface MonthlyData {
   month: string;
@@ -67,7 +67,7 @@ export function useDashboardGestorData(currentDate: Date) {
   // Calcular dados mensais para gráficos (últimos 6 meses)
   const monthlyData: MonthlyData[] = (() => {
     const result: MonthlyData[] = [];
-    
+
     for (let i = 5; i >= 0; i--) {
       const monthDate = subMonths(new Date(), i);
       const monthStart = startOfMonth(monthDate);
@@ -77,7 +77,7 @@ export function useDashboardGestorData(currentDate: Date) {
 
       const monthTransacoes = transacoes.filter((t: any) => {
         if (!t.data) return false;
-        const tDate = new Date(t.data);
+        const tDate = typeof t.data === 'string' ? parseISO(t.data) : new Date(t.data);
         return tDate >= monthStart && tDate <= monthEnd;
       });
 
@@ -135,7 +135,7 @@ export function useDashboardGestorData(currentDate: Date) {
 
     const transacoesDoMesAtual = transacoes.filter((t: any) => {
       if (!t.data) return false;
-      const tDate = new Date(t.data);
+      const tDate = typeof t.data === 'string' ? parseISO(t.data) : new Date(t.data);
       return tDate >= monthStart && tDate <= monthEnd;
     });
 
@@ -173,13 +173,17 @@ export function useDashboardGestorData(currentDate: Date) {
 
     // Contas vencidas (despesas com data passada e não pagas)
     const contasVencidas = despesas.filter((d: any) => {
-      const dataVenc = d.data_vencimento ? new Date(d.data_vencimento) : (d.data ? new Date(d.data) : null);
+      const dataVenc = d.data_vencimento
+        ? (typeof d.data_vencimento === 'string' ? parseISO(d.data_vencimento) : new Date(d.data_vencimento))
+        : (d.data ? (typeof d.data === 'string' ? parseISO(d.data) : new Date(d.data)) : null);
       return dataVenc && dataVenc < today && d.status !== "confirmado" && d.status !== "pago";
     }).length;
 
     // Recebimentos vencidos
     const recebimentosVencidos = receitas.filter((r: any) => {
-      const dataVenc = r.data_vencimento ? new Date(r.data_vencimento) : (r.data ? new Date(r.data) : null);
+      const dataVenc = r.data_vencimento
+        ? (typeof r.data_vencimento === 'string' ? parseISO(r.data_vencimento) : new Date(r.data_vencimento))
+        : (r.data ? (typeof r.data === 'string' ? parseISO(r.data) : new Date(r.data)) : null);
       return dataVenc && dataVenc < today && r.status !== "confirmado" && r.status !== "pago";
     }).length;
 

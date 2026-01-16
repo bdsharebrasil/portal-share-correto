@@ -40,7 +40,7 @@ export function TasksQuickAccess() {
         .order("due_date", { ascending: true });
 
       if (!error && data) {
-        setPendingTasks((data as Task[]).slice(0, 3));
+        setPendingTasks((data as unknown as Task[]).slice(0, 3));
       }
       setLoading(false);
     };

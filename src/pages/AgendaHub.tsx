@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from "react";
+import { useState, lazy, Suspense, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Users, Building, Cake, Calendar, LucideIcon } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
@@ -39,6 +39,34 @@ const DEFAULT_TABS: TabItem[] = [{
 }];
 export default function AgendaHub() {
   const [activeTab, setActiveTab] = useState<TabId>("contatos");
+  const [isMenuVisible, setIsMenuVisible] = useState(true);
+  const [isHovering, setIsHovering] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = (e: Event) => {
+      const target = e.target as HTMLDivElement;
+      const currentScrollY = target.scrollTop;
+
+      // Se está descendo (scroll para baixo), esconde o menu
+      if (currentScrollY > lastScrollY.current && currentScrollY > 50) {
+        setIsMenuVisible(false);
+      } else {
+        // Se está subindo ou no topo, mostra o menu
+        setIsMenuVisible(true);
+      }
+
+      lastScrollY.current = currentScrollY;
+    };
+
+    const container = scrollContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      return () => container.removeEventListener('scroll', handleScroll);
+    }
+  }, []);
+
   const getTabColor = (tabId: TabId): "blue" | "purple" | "green" | "amber" => {
     switch (tabId) {
       case "contatos":
@@ -53,18 +81,30 @@ export default function AgendaHub() {
   };
   return <Layout>
       {/* ⬇️ ESTE é o container que SCROLLA */}
-      <div className="h-[calc(100vh-4rem)] overflow-y-auto bg-gray-950 text-gray-100">
+      <div
+        ref={scrollContainerRef}
+        className="h-[calc(100vh-4rem)] overflow-y-auto bg-gray-950 text-gray-100 relative"
+      >
 
-        {/* 🔒 MENU TRAVADO NO TOPO DO CONTEÚDO */}
-        <div className="
-            sticky top-0 z-30
+        {/* 🔒 MENU RETRAÍVEL */}
+        <div
+          className="sticky top-0 z-30 transition-all duration-300"
+          onMouseEnter={() => setIsHovering(true)}
+          onMouseLeave={() => setIsHovering(false)}
+          style={{
+            transform: isMenuVisible || isHovering ? 'translateY(0)' : 'translateY(-100%)',
+            opacity: isMenuVisible || isHovering ? 1 : 0.7,
+          }}
+        >
+          <div className="
             bg-gray-950/70
             backdrop-blur-xl
             border-b border-white/10
           ">
-          <div className="max-w-7xl mx-auto px-4 py-0">
-            <div className="flex justify-center gap-8 md:gap-12 overflow-x-auto no-scrollbar">
-              {DEFAULT_TABS.map(tab => <CircularNavButton key={tab.id} onClick={() => setActiveTab(tab.id)} icon={tab.icon} label={tab.title} color={getTabColor(tab.id)} isActive={activeTab === tab.id} />)}
+            <div className="max-w-7xl mx-auto px-4 py-0">
+              <div className="flex justify-center gap-8 md:gap-12 overflow-x-auto no-scrollbar">
+                {DEFAULT_TABS.map(tab => <CircularNavButton key={tab.id} onClick={() => setActiveTab(tab.id)} icon={tab.icon} label={tab.title} color={getTabColor(tab.id)} isActive={activeTab === tab.id} />)}
+              </div>
             </div>
           </div>
         </div>

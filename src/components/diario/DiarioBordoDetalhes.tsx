@@ -11,6 +11,8 @@ import { toast } from 'sonner';
 import { updateCrewFlightHours } from '@/services/crewFlightHours';
 import { fetchManutencaoRevisao, fetchManutencaoRevisaoAtiva, updateManutencaoHoras, ensureRevisionMaintenance } from '@/services/manutencoes';
 import { MaintenanceStatusAlert } from './MaintenanceStatusAlert';
+import { CreateMonthDialog } from './CreateMonthDialog';
+import { CloseMonthDialog } from './CloseMonthDialog';
 
 // ===================== CONSTANTES =====================
 const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -236,7 +238,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showHoursBank, setShowHoursBank] = useState(false);
   const [showTechnicalStatus, setShowTechnicalStatus] = useState(false);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [availableMonths, setAvailableMonths] = useState<Array<{ month: number; year: number }>>([]);
 
   // Estados de edição
@@ -246,6 +248,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editFieldValue, setEditFieldValue] = useState<string>('');
   const [creatingMonth, setCreatingMonth] = useState(false);
+  const [showCreateMonthDialog, setShowCreateMonthDialog] = useState(false);
+  const [showCloseMonthDialog, setShowCloseMonthDialog] = useState(false);
+  const [previousMonthData, setPreviousMonthData] = useState<any>(null);
 
   // Estado para Situação Técnica da Aeronave
   const [technicalStatus, setTechnicalStatus] = useState({
@@ -277,6 +282,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     departure_aerodrome: '',
     arrival_aerodrome: '',
     client_id: '',
+    partner_name: '',
     is_equal_split: false,
     ac_time: '',
     dep_time: '',
@@ -306,7 +312,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
 
   // ===================== CÁLCULO DE DIÁRIAS =====================
   const calculatePerDiemInfo = useMemo(() => {
-    if (!logbookMonth?.base_aerodrome || !logbookMonth?.daily_rate) {
+    // Se a aeronave não possui diária configurada, retorna vazio
+    if (!logbookMonth?.has_daily_rate || !logbookMonth?.base_aerodrome || !logbookMonth?.daily_rate) {
       return { count: 0, total: 0, details: [], byEntry: {} };
     }
 
@@ -409,7 +416,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         supabase.from('aircraft').select('*').eq('id', aircraftId).single(),
         supabase.from('crew_members').select('*'),
         supabase.from('aerodromes').select('*').order('designativo'),
-        supabase.from('clients').select('id, company_name, client_aircraft(aircraft_id)').order('company_name'),
+        supabase.from('clients').select('id, company_name, cnpj, partner_name, partner_name2, partner_name3, client_aircraft(aircraft_id)').order('company_name'),
         supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('entry_date', { ascending: false }),
         supabase.from('logbook_months').select('month, year').eq('aircraft_id', aircraftId).eq('is_closed', false).order('year', { ascending: false }).order('month', { ascending: false }),
         supabase.from('aircraft_partners').select('*, clients(id, company_name)').eq('aircraft_id', aircraftId)
@@ -945,6 +952,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         sic_canac: newEntry.sic_canac || null,
         sic_name: newEntry.sic_name || null,
         client_id: newEntry.is_equal_split ? null : newEntry.client_id,
+        partner_name: newEntry.is_equal_split ? null : (newEntry.partner_name || null),
         is_equal_split: newEntry.is_equal_split,
         total_time: newEntry.total_time,
         time: newEntry.time,
@@ -1012,6 +1020,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         departure_aerodrome: '',
         arrival_aerodrome: '',
         client_id: '',
+        partner_name: '',
         is_equal_split: false,
         ac_time: '',
         dep_time: '',
@@ -1260,12 +1269,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     }
   };
 
-  // CRIAR MÊS MANUALMENTE
-  const handleCreateMonth = async () => {
+  // ABRIR DIALOG PARA CRIAR MÊS
+  const handleOpenCreateMonthDialog = async () => {
     try {
-      setCreatingMonth(true);
-
-      // Buscar o último mês para obter a célula anterior e próxima revisão
+      // Buscar o último mês para obter dados anteriores
       const { data: lastMonthData } = await supabase
         .from('logbook_months')
         .select('*')
@@ -1275,26 +1282,41 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         .limit(1)
         .single();
 
-      let celulaAnterior = aircraft?.cell_hours_current || 0;
-      let celulaProxRevisao = null;
-
-      if (lastMonthData && lastMonthData.celula_atual) {
-        celulaAnterior = lastMonthData.celula_atual;
-        // Propagar a próxima revisão do mês anterior se existir
-        if (lastMonthData.celula_prox_revisao) {
-          celulaProxRevisao = lastMonthData.celula_prox_revisao;
-        }
+      if (lastMonthData) {
+        setPreviousMonthData(lastMonthData);
+      } else {
+        // Se não há mês anterior, usar dados da aeronave
+        setPreviousMonthData({
+          celula_atual: aircraft?.cell_hours_current || 0,
+          celula_prox_revisao: aircraft?.celula_prox_revisao || 0,
+          horimetro_final: null,
+          base_aerodrome: aircraft?.base || null,
+          fuel_consumption: aircraft?.fuel_consumption?.toString() || null,
+          has_daily_rate: false,
+          daily_rate: null,
+        });
       }
+      
+      setShowCreateMonthDialog(true);
+    } catch (error) {
+      console.error("Erro ao buscar dados do mês anterior:", error);
+      // Abrir dialog mesmo com erro
+      setPreviousMonthData({
+        celula_atual: aircraft?.cell_hours_current || 0,
+        celula_prox_revisao: 0,
+      });
+      setShowCreateMonthDialog(true);
+    }
+  };
+
+  // CRIAR MÊS COM DADOS DO FORMULÁRIO
+  const handleCreateMonthWithData = async (monthData: any) => {
+    try {
+      setCreatingMonth(true);
 
       const { data: newMonth, error } = await supabase
         .from('logbook_months')
-        .insert([{
-          aircraft_id: aircraftId,
-          month: selectedMonth,
-          year: selectedYear,
-          celula_anterior: celulaAnterior,
-          celula_prox_revisao: celulaProxRevisao
-        }])
+        .insert([monthData])
         .select()
         .single();
 
@@ -1304,27 +1326,30 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         setLogbookMonth(newMonth);
 
         // Criar/atualizar manutenção de revisão automaticamente se houver próxima revisão
-        if (celulaProxRevisao && celulaProxRevisao > 0) {
+        if (monthData.celula_prox_revisao && monthData.celula_prox_revisao > 0) {
           try {
             await ensureRevisionMaintenance(
               aircraftId,
               selectedMonth,
               selectedYear,
-              celulaProxRevisao,
+              monthData.celula_prox_revisao,
               MONTHS
             );
             console.log("✅ Manutenção de revisão criada/atualizada automaticamente");
           } catch (maintenanceError) {
             console.error("Erro ao criar manutenção automática:", maintenanceError);
-            // Não falha o fluxo se a manutenção não for criada
           }
         }
 
         toast.success(`Diário de ${MONTHS[selectedMonth - 1]}/${selectedYear} criado com sucesso!`);
+        
+        // Atualizar lista de meses disponíveis
+        setAvailableMonths(prev => [...prev, { month: selectedMonth, year: selectedYear }]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao criar mês:", error);
       toast.error("Erro ao criar diário do mês: " + error.message);
+      throw error;
     } finally {
       setCreatingMonth(false);
     }
@@ -1393,6 +1418,16 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
               {showTechnicalStatus ? <X className="mr-2" size={16} /> : <Plus className="mr-2" size={16} />}
               {showTechnicalStatus ? "Cancelar" : "Situação Técnica"}
             </button>
+
+            {logbookMonth && (
+              <button
+                onClick={() => setShowCloseMonthDialog(true)}
+                className="px-6 h-12 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-2xl text-red-400 font-black uppercase text-xs transition-all"
+              >
+                <X className="inline mr-2" size={16} />
+                Fechar Diário
+              </button>
+            )}
           </div>
         </div>
 
@@ -1401,9 +1436,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center shadow-2xl">
             <Calendar size={48} className="mx-auto mb-6 text-slate-500" />
             <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">Diário de {MONTHS[selectedMonth - 1]} não existe</h2>
-            <p className="text-slate-400 text-sm mb-8">Crie um novo diário para começar a registrar voos neste período.</p>
+            <p className="text-slate-400 text-sm mb-8">Configure e crie um novo diário para começar a registrar voos neste período.</p>
             <button
-              onClick={handleCreateMonth}
+              onClick={handleOpenCreateMonthDialog}
               disabled={creatingMonth}
               className="px-8 py-3 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-700 text-white font-black uppercase text-sm rounded-xl transition-all shadow-lg"
             >
@@ -1415,12 +1450,37 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
               ) : (
                 <>
                   <Plus className="inline mr-2" size={16} />
-                  Criar Diário de {MONTHS[selectedMonth - 1]}
+                  Configurar Diário de {MONTHS[selectedMonth - 1]}
                 </>
               )}
             </button>
           </div>
         )}
+
+        {/* Dialog para criar mês */}
+        <CreateMonthDialog
+          open={showCreateMonthDialog}
+          onOpenChange={setShowCreateMonthDialog}
+          aircraftId={aircraftId}
+          aircraftRegistration={aircraft?.registration || ''}
+          month={selectedMonth}
+          year={selectedYear}
+          previousMonthData={previousMonthData}
+          onCreate={handleCreateMonthWithData}
+        />
+
+        {/* Dialog para fechar mês */}
+        <CloseMonthDialog
+          open={showCloseMonthDialog}
+          onOpenChange={setShowCloseMonthDialog}
+          aircraftId={aircraftId}
+          month={selectedMonth - 1}
+          year={selectedYear}
+          totalHours={entries.reduce((sum, e) => sum + (Number(e.total_time) || 0), 0)}
+          totalLandings={entries.reduce((sum, e) => sum + (Number(e.pousos) || 0), 0)}
+          totalFuelAdded={entries.reduce((sum, e) => sum + (Number(e.combustivel_adicionado) || 0), 0)}
+          onSuccess={() => { setShowCloseMonthDialog(false); onBack(); }}
+        />
 
         {/* INFORMAÇÕES TÉCNICAS DO PERÍODO */}
         {logbookMonth && <div className="space-y-6">
@@ -1735,25 +1795,69 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Cliente / Cotista *</Label>
-                    <Select value={newEntry.client_id} onValueChange={v => setNewEntry({
-                      ...newEntry,
-                      client_id: v
-                    })}>
-                      <SelectTrigger className="bg-slate-950 border-slate-800 text-white">
-                        <SelectValue placeholder="Selecione o Cliente" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {sortedClients.map(cl => {
-                          const isLinked = cl.client_aircraft?.some(ca => ca.aircraft_id === aircraftId);
-                          return <SelectItem key={cl.id} value={cl.id}>
-                            {cl.company_name}
-                            {isLinked && <span className="text-emerald-400"> ✓</span>}
-                          </SelectItem>;
-                        })}
-                      </SelectContent>
-                    </Select>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Cliente / Cotista *</Label>
+                      <Select value={newEntry.client_id} onValueChange={v => {
+                        const selectedClient = clients.find(c => c.id === v);
+                        setNewEntry({
+                          ...newEntry,
+                          client_id: v,
+                          partner_name: '' // Reset partner when client changes
+                        });
+                      }}>
+                        <SelectTrigger className="bg-slate-950 border-slate-800 text-white">
+                          <SelectValue placeholder="Selecione o Cliente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sortedClients.map(cl => {
+                            const isLinked = cl.client_aircraft?.some(ca => ca.aircraft_id === aircraftId);
+                            return <SelectItem key={cl.id} value={cl.id}>
+                              {cl.company_name}
+                              {isLinked && <span className="text-emerald-400"> ✓</span>}
+                            </SelectItem>;
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Seleção de Sócio/Partner */}
+                    {(() => {
+                      const selectedClient = clients.find(c => c.id === newEntry.client_id);
+                      const partnerOptions = [];
+                      if (selectedClient?.partner_name) partnerOptions.push(selectedClient.partner_name);
+                      if (selectedClient?.partner_name2) partnerOptions.push(selectedClient.partner_name2);
+                      if (selectedClient?.partner_name3) partnerOptions.push(selectedClient.partner_name3);
+                      
+                      if (partnerOptions.length > 0) {
+                        return (
+                          <div className="space-y-1 mt-2">
+                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Sócio Responsável pelo Voo</Label>
+                            <Select value={newEntry.partner_name} onValueChange={v => setNewEntry({
+                              ...newEntry,
+                              partner_name: v
+                            })}>
+                              <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
+                                <SelectValue placeholder="Selecione o Sócio" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {partnerOptions.map((partner, idx) => (
+                                  <SelectItem key={idx} value={partner}>
+                                    {partner}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {selectedClient?.cnpj && (
+                              <p className="text-[8px] text-slate-500 mt-1">
+                                CNPJ: {selectedClient.cnpj}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 )}
               </div>
@@ -1964,12 +2068,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
               </div>
             </div>
           </div>
-          <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
-            <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Diárias do Período</p>
-            <p className="text-lg font-black text-yellow-400">{calculatePerDiemInfo.count} diárias</p>
-            <p className="text-xs text-emerald-400 mt-1">R$ {(calculatePerDiemInfo.total || 0).toFixed(2)}</p>
-          </div>
-          {calculatePerDiemInfo.count > 0 && (
+          {logbookMonth?.has_daily_rate && (
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
+              <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Diárias do Período</p>
+              <p className="text-lg font-black text-yellow-400">{calculatePerDiemInfo.count} diárias</p>
+              <p className="text-xs text-emerald-400 mt-1">R$ {(calculatePerDiemInfo.total || 0).toFixed(2)}</p>
+            </div>
+          )}
+          {logbookMonth?.has_daily_rate && calculatePerDiemInfo.count > 0 && (
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl">
               <div className="flex items-center gap-2 mb-4">
                 <MapPin className="text-yellow-500" size={18} />
@@ -2287,7 +2393,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                 // Salvar os dados da situação técnica para cada entrada de log do mês atual
                 const {
                   error
-                } = await supabase.from('logbook_entries').update({
+                } = await (supabase as any).from('logbook_entries').update({
                   last_maintenance_type: technicalStatus.last_maintenance_type || null,
                   airframe_hours_next_maintenance: technicalStatus.airframe_hours_next_maintenance ? parseFloat(technicalStatus.airframe_hours_next_maintenance) : null,
                   next_maintenance_type: technicalStatus.next_maintenance_type || null,
@@ -2382,7 +2488,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                   <th className="p-2 text-center">Canac</th>
                   <th className="p-2 text-center">Sic</th>
                   <th className="p-2 text-center">Canac Sic</th>
-                  <th className="p-2 text-center">Diárias</th>
+                  {logbookMonth?.has_daily_rate && <th className="p-2 text-center">Diárias</th>}
                   <th className="p-2 text-center">Voo Para</th>
                   <th className="p-2 text-center">✓</th>
                   <th className="p-2 text-center">Ações</th>
@@ -2461,15 +2567,17 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                     <td className="p-2 whitespace-nowrap text-center">
                       <span className="text-slate-400 text-xs font-bold">{sicCrew?.canac || '-'}</span>
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
-                      {e.daily_rate > 0 ? (
-                        <span className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-lg font-bold text-sm">
-                          {e.daily_rate}
-                        </span>
-                      ) : (
-                        <span className="text-slate-600">-</span>
-                      )}
-                    </td>
+                    {logbookMonth?.has_daily_rate && (
+                      <td className="p-2 whitespace-nowrap text-center">
+                        {e.daily_rate > 0 ? (
+                          <span className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-lg font-bold text-sm">
+                            {e.daily_rate}
+                          </span>
+                        ) : (
+                          <span className="text-slate-600">-</span>
+                        )}
+                      </td>
+                    )}
                     <td className="p-2 whitespace-nowrap text-center">
                       {e.is_equal_split ? (
                         <span className="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded text-xs font-bold uppercase">
@@ -2501,65 +2609,104 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
           </div>
 
           {/* Totalizador */}
-          {filteredEntries.length > 0 && (
-            <div className="border-t border-slate-800 bg-slate-950/50 p-4">
-              <div className="grid grid-cols-10 gap-3 text-center text-xs">
-                <div>
-                  <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Voos</div>
-                  <div className="text-lg font-black text-white">{filteredEntries.length}</div>
-                </div>
-                <div>
-                  <div className="text-[8px] uppercase text-slate-500 font-black mb-1">T.Voo</div>
-                  <div className="text-lg font-black text-orange-400">
-                    {decimalToHHMM(filteredEntries.reduce((sum, e) => sum + (e.time || 0), 0))}
+          {filteredEntries.length > 0 && (() => {
+            // Calcular totais por cliente
+            const clientTotals: Record<string, { hours: number; dailyRates: number; name: string }> = {};
+            let splitHours = 0;
+            
+            filteredEntries.forEach(e => {
+              if (e.is_equal_split) {
+                splitHours += (e.time || 0);
+              } else if (e.client_id) {
+                const clientName = clients.find(c => c.id === e.client_id)?.company_name || 'Outros';
+                if (!clientTotals[e.client_id]) {
+                  clientTotals[e.client_id] = { hours: 0, dailyRates: 0, name: clientName };
+                }
+                clientTotals[e.client_id].hours += (e.time || 0);
+                clientTotals[e.client_id].dailyRates += (e.daily_rate || 0);
+              }
+            });
+            
+            const totalDistance = filteredEntries.reduce((sum, e) => sum + (parseFloat(e.distance_nm) || 0), 0);
+            const dailyRateValue = logbookMonth?.daily_rate || 0;
+
+            return (
+              <div className="border-t border-slate-800 bg-slate-950/50 p-4 space-y-3">
+                <div className="grid grid-cols-8 gap-3 text-center text-xs">
+                  <div>
+                    <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Voos</div>
+                    <div className="text-lg font-black text-white">{filteredEntries.length}</div>
                   </div>
-                </div>
-                <div>
-                  <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Dia</div>
-                  <div className="text-lg font-black text-emerald-400">
-                    {decimalToHHMM(filteredEntries.reduce((sum, e) => sum + (e.day_time || 0), 0))}
+                  <div>
+                    <div className="text-[8px] uppercase text-slate-500 font-black mb-1">T.Voo</div>
+                    <div className="text-lg font-black text-orange-400">
+                      {decimalToHHMM(filteredEntries.reduce((sum, e) => sum + (e.time || 0), 0))}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Noite</div>
-                  <div className="text-lg font-black text-sky-400">
-                    {decimalToHHMM(filteredEntries.reduce((sum, e) => sum + (e.night_hours || 0), 0))}
+                  <div>
+                    <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Dia</div>
+                    <div className="text-lg font-black text-emerald-400">
+                      {decimalToHHMM(filteredEntries.reduce((sum, e) => sum + (e.day_time || 0), 0))}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div className="text-[8px] uppercase text-slate-500 font-black mb-1">T.Total</div>
-                  <div className="text-lg font-black text-pink-400">
-                    {decimalToHHMM(filteredEntries.reduce((sum, e) => sum + (e.total_time || 0), 0))}
+                  <div>
+                    <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Noite</div>
+                    <div className="text-lg font-black text-sky-400">
+                      {decimalToHHMM(filteredEntries.reduce((sum, e) => sum + (e.night_hours || 0), 0))}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Comb.Add</div>
-                  <div className="text-lg font-black text-red-400">
-                    {filteredEntries.reduce((sum, e) => sum + (e.fuel_added || 0), 0).toFixed(1)}
+                  <div>
+                    <div className="text-[8px] uppercase text-slate-500 font-black mb-1">T.Total</div>
+                    <div className="text-lg font-black text-pink-400">
+                      {decimalToHHMM(filteredEntries.reduce((sum, e) => sum + (e.total_time || 0), 0))}
+                    </div>
                   </div>
-                </div>
-                                
-                <div>
-                  <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Dist.</div>
-                  <div className="text-lg font-black text-cyan-400">
-                    {filteredEntries.reduce((sum, e) => sum + (e.distance_nm || 0), 0).toFixed(0)}NM
+                  <div>
+                    <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Comb.Add</div>
+                    <div className="text-lg font-black text-red-400">
+                      {filteredEntries.reduce((sum, e) => sum + (e.fuel_added || 0), 0).toFixed(1)}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Diárias</div>
-                  <div className="text-lg font-black text-yellow-400">
-                    {filteredEntries.reduce((sum, e) => sum + (e.daily_rate || 0), 0)}
+                                  
+                  <div>
+                    <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Dist.</div>
+                    <div className="text-lg font-black text-cyan-400">
+                      {totalDistance.toFixed(0)}NM
+                    </div>
                   </div>
+                  {logbookMonth?.has_daily_rate && (
+                    <div>
+                      <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Diárias</div>
+                      <div className="text-lg font-black text-yellow-400">
+                        {filteredEntries.reduce((sum, e) => sum + (e.daily_rate || 0), 0)}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Valor Diárias</div>
-                  <div className="text-lg font-black text-green-400">
-                    R$ {(filteredEntries.reduce((sum, e) => sum + (e.daily_rate || 0), 0) * (logbookMonth?.daily_rate || 0)).toFixed(2)}
+
+                {/* Horas por cliente */}
+                <div className="pt-2 border-t border-slate-800/50">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-400">
+                    {Object.values(clientTotals).map((ct, idx) => (
+                      <span key={idx}>
+                        <span className="text-cyan-400 font-semibold">{ct.name.split(' ')[0]}</span>
+                        {' '}{decimalToHHMM(ct.hours)}h
+                        {logbookMonth?.has_daily_rate && ct.dailyRates > 0 && (
+                          <span className="text-yellow-400"> • {ct.dailyRates} diária{ct.dailyRates > 1 ? 's' : ''}</span>
+                        )}
+                      </span>
+                    ))}
+                    {splitHours > 0 && (
+                      <span>
+                        <span className="text-emerald-400 font-semibold">Traslado/Rateio</span>
+                        {' '}{decimalToHHMM(splitHours)}h
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>}
 
         {/* MODAL DE EDIÇÃO DE LANÇAMENTO */}

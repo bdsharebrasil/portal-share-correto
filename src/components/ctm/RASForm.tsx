@@ -147,7 +147,7 @@ export function RASForm({ aircraftId, onSuccess, onCancel, existingRAS }: RASFor
 
         if (error) throw error;
       } else {
-        const { data: newRAS, error } = await supabase
+        const { data: newRAS, error } = await (supabase as any)
           .from('ras')
           .insert([rasData])
           .select()
@@ -163,7 +163,7 @@ export function RASForm({ aircraftId, onSuccess, onCancel, existingRAS }: RASFor
       setCostItems([{ description: '', quantity: 1, unitValue: 0 }]);
 
       // Fetch the created/updated RAS
-      const { data: savedRAS } = await supabase
+      const { data: savedRAS } = await (supabase as any)
         .from('ras')
         .select('*')
         .eq('id', rasId)

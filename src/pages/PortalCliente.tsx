@@ -26,6 +26,13 @@ interface Client {
   id: string;
   company_name: string;
   status: string;
+  cnpj?: string;
+  inscricao_estadual?: string;
+  email?: string;
+  phone?: string;
+  proprietario?: string;
+  financial_contact?: string;
+  logo_url?: string;
   client_aircraft?: ClientAircraft[];
 }
 interface Aircraft {
@@ -115,6 +122,10 @@ export default function PortalCliente() {
   const loadClients = async () => {
     try {
       setLoading(true);
+
+      // First, try to load basic data to test connection
+      console.log('📍 Iniciando carregamento de clientes...');
+
       const {
         data,
         error
@@ -122,6 +133,13 @@ export default function PortalCliente() {
           id,
           company_name,
           status,
+          cnpj,
+          inscricao_estadual,
+          email,
+          phone,
+          proprietario,
+          financial_contact,
+          logo_url,
           client_aircraft (
             aircraft_id,
             share_percentage,
@@ -133,14 +151,29 @@ export default function PortalCliente() {
               year
             )
           )
-        `).eq('status', 'ativo').order('company_name', {
+        `, { count: 'exact' }).eq('status', 'ativo').order('company_name', {
         ascending: true
       });
-      if (error) throw error;
+
+      if (error) {
+        console.error('❌ Erro Supabase ao carregar clientes:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+          status: (error as any).status
+        });
+        throw new Error(`${error.code}: ${error.message}`);
+      }
+
+      console.log('✅ Clientes carregados com sucesso:', data?.length || 0, 'registros');
       setClients(data || []);
-    } catch (error) {
-      console.error('Error loading clients:', error);
-      toast.error('Erro ao carregar clientes');
+    } catch (error: any) {
+      console.error('❌ Exceção ao carregar clientes:', {
+        message: error?.message,
+        stack: error?.stack
+      });
+      toast.error(`Erro ao carregar clientes: ${error?.message || 'Erro desconhecido'}`);
     } finally {
       setLoading(false);
     }
@@ -186,12 +219,18 @@ export default function PortalCliente() {
         });
       }
 
-      // Load pending payments
+      // Load pending payments - filtra por client_id E aircraft_id
+      // Inclui status 'pendente' E 'enviado' (ambos são saldos a receber do cliente)
       const {
         data: paymentsData
-      } = (await supabase.from('bank_reconciliations').select('amount').eq('client_id', selectedClient.id).eq('status', 'pendente')) as any;
+      } = (await supabase.from('bank_reconciliations')
+        .select('amount')
+        .eq('client_id', selectedClient!.id)
+        .eq('aircraft_id', selectedAircraft.aircraft_id)
+        .eq('type', 'cliente')
+        .in('status', ['pendente', 'enviado'])) as any;
       if (paymentsData) {
-        const totalAmount = paymentsData.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+        const totalAmount = paymentsData.reduce((sum: number, p: any) => sum + Math.abs(Number(p.amount || 0)), 0);
         setPendingPayments({
           count: paymentsData.length,
           total_amount: totalAmount
@@ -305,7 +344,7 @@ export default function PortalCliente() {
           </> :
           // Client Profile View
           <>
-            <ClientProfileHeader clientName={selectedClient.company_name} clientStatus={selectedClient.status} onBack={handleBack} onEditProfile={() => toast.info("Função de edição em desenvolvimento")} onGenerateReport={() => toast.info("Função de relatório em desenvolvimento")} />
+            <ClientProfileHeader clientName={selectedClient.company_name} clientStatus={selectedClient.status} logoUrl={selectedClient.logo_url} proprietario={selectedClient.proprietario} onBack={handleBack} onEditProfile={() => toast.info("Função de edição em desenvolvimento")} onGenerateReport={() => toast.info("Função de relatório em desenvolvimento")} />
 
             <AircraftSelector aircrafts={selectedClient.client_aircraft || []} selectedAircraftId={selectedAircraft?.aircraft_id || ""} onSelect={handleAircraftChange}>
               {/* Dados da Empresa Table */}
@@ -326,21 +365,15 @@ export default function PortalCliente() {
                           <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Inscrição Estadual</th>
                           <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email</th>
                           <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Telefone</th>
-                          <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr className="border-b border-white/5 hover:bg-white/5 transition-colors">
                           <td className="py-4 px-4 text-foreground font-medium">{selectedClient.company_name}</td>
-                          <td className="py-4 px-4 text-foreground">—</td>
-                          <td className="py-4 px-4 text-foreground">—</td>
-                          <td className="py-4 px-4 text-foreground">—</td>
-                          <td className="py-4 px-4 text-foreground">—</td>
-                          <td className="py-4 px-4">
-                            <Badge className={selectedClient.status === 'ativo' ? 'bg-emerald-500' : 'bg-slate-500'}>
-                              {selectedClient.status === 'ativo' ? 'Ativo' : 'Inativo'}
-                            </Badge>
-                          </td>
+                          <td className="py-4 px-4 text-foreground">{selectedClient.cnpj || '—'}</td>
+                          <td className="py-4 px-4 text-foreground">{selectedClient.inscricao_estadual || '—'}</td>
+                          <td className="py-4 px-4 text-foreground">{selectedClient.email || '—'}</td>
+                          <td className="py-4 px-4 text-foreground">{selectedClient.phone || '—'}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -359,11 +392,11 @@ export default function PortalCliente() {
                     <CardContent className="space-y-4 pt-6">
                       <div className="pb-4 border-b border-white/10">
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Contato Financeiro</p>
-                        <p className="text-foreground font-medium">—</p>
+                        <p className="text-foreground font-medium">{selectedClient.financial_contact || '—'}</p>
                       </div>
                       <div>
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Proprietário</p>
-                        <p className="text-foreground font-medium">—</p>
+                        <p className="text-foreground font-medium">{selectedClient.proprietario || '—'}</p>
                       </div>
                     </CardContent>
                   </Card>

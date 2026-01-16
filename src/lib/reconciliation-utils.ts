@@ -11,6 +11,9 @@ interface ReconciliationData {
   receiver_id?: string | null;
   aircraft_id?: string | null;
   payment_term?: string | null;
+  forma_pagamento?: string | null;
+  afeta_caixa_empresa?: boolean;
+  saldo_pendente?: number | null;
 }
 
 interface ContaBancariaData {
@@ -20,16 +23,44 @@ interface ContaBancariaData {
 }
 
 /**
+ * Status do fluxo financeiro
+ * 
+ * CLIENTE (Empresa Paga - Aguarda Reembolso):
+ *   pendente → enviado → aguardando_reembolso → reembolsado
+ * 
+ * CLIENTE (Cliente Paga Direto):
+ *   pendente → aguardando_comprovante → comprovante_enviado → comprovante_validado → lancado_aeronave
+ * 
+ * COLABORADOR:
+ *   pendente → aprovado → pago
+ */
+
+/**
  * Cria conta a receber para conciliação de cliente
- * Retorna o ID da conta criada ou null se já existir
+ * Chamado quando status muda para "enviado"
  */
 export async function createContaAReceber(
   reconciliation: ReconciliationData,
   userId: string
 ): Promise<string | null> {
-  if (!reconciliation.client_id) return null;
+  if (!reconciliation.client_id) {
+    console.warn('createContaAReceber: client_id ausente');
+    return null;
+  }
 
   try {
+    // Verificar se já existe conta para esta conciliação
+    const { data: existing } = await supabase
+      .from('contas_areceber')
+      .select('id')
+      .eq('banco_conciliacao_id', reconciliation.id)
+      .maybeSingle();
+
+    if (existing) {
+      console.log('Conta a receber já existe para esta conciliação:', existing.id);
+      return existing.id;
+    }
+
     // Buscar dados do cliente
     const { data: clientData } = await supabase
       .from('clients')
@@ -37,8 +68,8 @@ export async function createContaAReceber(
       .eq('id', reconciliation.client_id)
       .single();
 
-    if (!clientData || !clientData.cnpj) {
-      console.warn('Cliente não encontrado ou sem CNPJ');
+    if (!clientData) {
+      console.warn('Cliente não encontrado');
       return null;
     }
 
@@ -55,13 +86,14 @@ export async function createContaAReceber(
       }
     }
 
-    // Gerar número sequencial
+    // Gerar número sequencial CR-XXXX/YY
     const year = new Date().getFullYear();
     const yearShort = year.toString().slice(-2);
 
     const { data: lastRecord } = await supabase
       .from('contas_areceber')
       .select('numero')
+      .like('numero', 'CR-%')
       .order('criado_em', { ascending: false })
       .limit(1);
 
@@ -75,31 +107,26 @@ export async function createContaAReceber(
     }
 
     const numero = `CR-${String(nextNumber).padStart(4, '0')}/${yearShort}`;
+    
+    // Data de vencimento: usar payment_term ou data + 30 dias
     const dataVencimento = reconciliation.payment_term || reconciliation.date;
+    
+    // Valor: usar saldo_pendente se disponível, senão amount
+    const valor = Math.abs(reconciliation.saldo_pendente ?? reconciliation.amount ?? 0);
 
-    // Verificar se já existe
-    const { data: existing } = await supabase
-      .from('contas_areceber')
-      .select('id')
-      .eq('banco_conciliacao_id', reconciliation.id)
-      .maybeSingle();
-
-    if (existing) {
-      return existing.id;
-    }
-
-    // Criar conta
+    // Criar conta a receber
     const { data: newConta, error } = await supabase
       .from('contas_areceber')
       .insert({
         numero,
-        cliente_nome: clientData.company_name,
-        cliente_cnpj: clientData.cnpj,
+        referencia: reconciliation.description,
+        cliente_nome: clientData.company_name || 'Cliente',
+        cliente_cnpj: clientData.cnpj || '',
         data_criacao: new Date().toISOString().split('T')[0],
         data_vencimento: dataVencimento,
-        valor: reconciliation.amount || 0,
-        categoria: reconciliation.category || 'Faturamento',
-        descricao: reconciliation.description || 'Conta a receber',
+        valor: valor,
+        categoria: reconciliation.category || 'Reembolso de Despesa',
+        descricao: reconciliation.description || 'Conta a receber - Reembolso',
         status: 'pendente',
         aeronave: aircraftRegistration || '',
         criado_por: userId,
@@ -113,6 +140,7 @@ export async function createContaAReceber(
       return null;
     }
 
+    console.log('Conta a receber criada:', newConta?.id);
     return newConta?.id || null;
   } catch (error) {
     console.error('Erro ao criar conta a receber:', error);
@@ -122,15 +150,30 @@ export async function createContaAReceber(
 
 /**
  * Cria conta a pagar para conciliação de colaborador
- * Retorna o ID da conta criada ou null se já existir
+ * Chamado quando status muda para "aprovado" ou "enviado"
  */
 export async function createContaAPagar(
   reconciliation: ReconciliationData,
   userId: string
 ): Promise<string | null> {
-  if (!reconciliation.receiver_id) return null;
+  if (!reconciliation.receiver_id) {
+    console.warn('createContaAPagar: receiver_id ausente');
+    return null;
+  }
 
   try {
+    // Verificar se já existe
+    const { data: existing } = await supabase
+      .from('contas_apagar')
+      .select('id')
+      .eq('banco_conciliacao_id', reconciliation.id)
+      .maybeSingle();
+
+    if (existing) {
+      console.log('Conta a pagar já existe para esta conciliação:', existing.id);
+      return existing.id;
+    }
+
     // Buscar dados do colaborador
     const { data: userProfileData } = await supabase
       .from('user_profiles')
@@ -138,8 +181,8 @@ export async function createContaAPagar(
       .eq('id', reconciliation.receiver_id)
       .single();
 
-    if (!userProfileData || !userProfileData.cpf) {
-      console.warn('Colaborador não encontrado ou sem CPF');
+    if (!userProfileData) {
+      console.warn('Colaborador não encontrado');
       return null;
     }
 
@@ -156,13 +199,14 @@ export async function createContaAPagar(
       }
     }
 
-    // Gerar número sequencial
+    // Gerar número sequencial CP-XXXX/YY
     const year = new Date().getFullYear();
     const yearShort = year.toString().slice(-2);
 
     const { data: lastRecord } = await supabase
       .from('contas_apagar')
       .select('numero')
+      .like('numero', 'CP-%')
       .order('criado_em', { ascending: false })
       .limit(1);
 
@@ -178,31 +222,20 @@ export async function createContaAPagar(
     const numero = `CP-${String(nextNumber).padStart(4, '0')}/${yearShort}`;
     const dataVencimento = reconciliation.payment_term || reconciliation.date;
 
-    // Verificar se já existe
-    const { data: existing } = await supabase
-      .from('contas_apagar')
-      .select('id')
-      .eq('banco_conciliacao_id', reconciliation.id)
-      .maybeSingle();
-
-    if (existing) {
-      return existing.id;
-    }
-
-    // Criar conta
+    // Criar conta a pagar
     const { data: newConta, error } = await supabase
       .from('contas_apagar')
       .insert({
         numero,
-        fornecedor_nome: userProfileData.full_name,
-        fornecedor_cnpj: userProfileData.cpf,
+        fornecedor_nome: userProfileData.full_name || 'Colaborador',
+        fornecedor_cnpj: userProfileData.cpf || '',
         data_recebimento: new Date().toISOString().split('T')[0],
         data_vencimento: dataVencimento,
-        valor: reconciliation.amount || 0,
-        categoria: reconciliation.category || 'Despesas',
-        descricao: reconciliation.description || 'Conta a pagar',
+        valor: Math.abs(reconciliation.amount || 0),
+        categoria: reconciliation.category || 'Reembolso de Viagem',
+        descricao: reconciliation.description || 'Conta a pagar - Reembolso',
         status: 'recebida',
-        aeronave: aircraftRegistration || '',
+        aeronave_id: reconciliation.aircraft_id || null,
         criado_por: userId,
         banco_conciliacao_id: reconciliation.id
       } as any)
@@ -214,6 +247,7 @@ export async function createContaAPagar(
       return null;
     }
 
+    console.log('Conta a pagar criada:', newConta?.id);
     return newConta?.id || null;
   } catch (error) {
     console.error('Erro ao criar conta a pagar:', error);
@@ -222,8 +256,11 @@ export async function createContaAPagar(
 }
 
 /**
- * Cria entrada/saída no fluxo de caixa baseado no tipo de conciliação
- * Retorna true se foi criado ou já existe
+ * Cria entrada no fluxo de caixa (controle_bancario)
+ * Chamado quando:
+ * - Cliente: status = 'reembolsado' (entrada de dinheiro)
+ * - Colaborador: status = 'pago' (saída de dinheiro)
+ * - Financeiro Master paga fornecedor: status = 'aguardando_reembolso' (saída de dinheiro)
  */
 export async function createFluxoCaixaEntry(
   reconciliation: ReconciliationData,
@@ -233,35 +270,37 @@ export async function createFluxoCaixaEntry(
   userId: string
 ): Promise<boolean> {
   try {
+    const statusLower = status?.toLowerCase() || '';
     const isClientReconciliation = reconciliation.type === 'cliente';
     const isColaboradorReconciliation = reconciliation.type === 'colaborador';
 
-    // Determinar se deve criar entrada/saída baseado no status final
-    const isStatusFinal = (isClientReconciliation && status?.toLowerCase() === 'recebido') ||
-                          (isColaboradorReconciliation && status?.toLowerCase() === 'pago');
-
-    if (!isStatusFinal) {
-      return true; // Status não é final, não cria entrada ainda
-    }
-
-    // Montar referência e tipo de movimento
-    let referencia = '';
+    // Determinar tipo de movimento e referência
     let tipoMovimento = '';
-    let nomeBanco = '';
+    let referencia = '';
+    let statusFluxo = 'confirmado';
 
-    if (contaBancaria) {
-      nomeBanco = `${contaBancaria.nome}${contaBancaria.banco ? ` - ${contaBancaria.banco}` : ''}`;
-    }
-
-    if (isClientReconciliation && status?.toLowerCase() === 'recebido') {
-      referencia = `REC-${reconciliation.id}`;
+    // CLIENTE - Reembolsado: entrada de dinheiro (cliente pagou)
+    if (isClientReconciliation && statusLower === 'reembolsado') {
       tipoMovimento = 'entrada';
-    } else if (isColaboradorReconciliation && status?.toLowerCase() === 'pago') {
-      referencia = `PAG-${reconciliation.id}`;
+      referencia = `REIMB-${reconciliation.id.slice(0, 8)}`;
+    }
+    // CLIENTE - Aguardando Reembolso: saída de dinheiro (empresa pagou fornecedor)
+    else if (isClientReconciliation && statusLower === 'aguardando_reembolso') {
       tipoMovimento = 'saída';
+      referencia = `PAG-FORN-${reconciliation.id.slice(0, 8)}`;
+      statusFluxo = 'aguardando_reembolso';
+    }
+    // COLABORADOR - Pago: saída de dinheiro (empresa pagou colaborador)
+    else if (isColaboradorReconciliation && statusLower === 'pago') {
+      tipoMovimento = 'saída';
+      referencia = `PAG-COL-${reconciliation.id.slice(0, 8)}`;
+    }
+    // Se não é um status que gera movimento, retornar sucesso
+    else {
+      return true;
     }
 
-    // Verificar se já existe
+    // Verificar se já existe entrada com esta referência
     const { data: existingEntry } = await supabase
       .from('controle_bancario')
       .select('id')
@@ -269,23 +308,66 @@ export async function createFluxoCaixaEntry(
       .maybeSingle();
 
     if (existingEntry) {
-      return true; // Já existe
+      console.log('Entrada no fluxo de caixa já existe:', referencia);
+      return true;
+    }
+
+    // Montar nome do banco
+    let nomeBanco = '';
+    if (contaBancaria) {
+      nomeBanco = contaBancaria.banco || contaBancaria.nome || '';
+    }
+
+    // Buscar dados adicionais para cliente
+    let clientIdToInsert: string | null = null;
+    let clientNameToInsert: string | null = null;
+    let aeronaveRegistro: string | null = null;
+
+    if (isClientReconciliation && reconciliation.client_id) {
+      clientIdToInsert = reconciliation.client_id;
+      const { data: clientData } = await supabase
+        .from('clients')
+        .select('company_name')
+        .eq('id', reconciliation.client_id)
+        .single();
+      if (clientData?.company_name) {
+        clientNameToInsert = clientData.company_name;
+      }
+    }
+
+    if (reconciliation.aircraft_id) {
+      const { data: aircraftData } = await supabase
+        .from('aircraft')
+        .select('registration')
+        .eq('id', reconciliation.aircraft_id)
+        .single();
+      if (aircraftData?.registration) {
+        aeronaveRegistro = aircraftData.registration;
+      }
     }
 
     // Criar entrada no fluxo de caixa
+    const valor = Math.abs(reconciliation.saldo_pendente ?? reconciliation.amount ?? 0);
+    
     const { error } = await supabase
       .from('controle_bancario')
       .insert({
-        data: reconciliation.date || new Date().toISOString().split('T')[0],
+        data: new Date().toISOString().split('T')[0],
+        data_vencimento: reconciliation.payment_term || null,
         tipo_movimento: tipoMovimento,
-        categoria: reconciliation.category || (tipoMovimento === 'entrada' ? 'Receita' : 'Despesa'),
-        descricao: reconciliation.description || (tipoMovimento === 'entrada' ? 'Recebimento' : 'Pagamento'),
-        valor: reconciliation.amount || 0,
+        categoria: reconciliation.category || (tipoMovimento === 'entrada' ? 'Receita de Reembolso' : 'Despesa'),
+        grupo_categoria: tipoMovimento === 'entrada' ? 'RECEITAS' : 'DESPESAS',
+        descricao: reconciliation.description || (tipoMovimento === 'entrada' ? 'Recebimento de Reembolso' : 'Pagamento'),
+        valor: valor,
         referencia,
-        status: 'confirmado',
+        status: statusFluxo,
         criado_por: userId,
         conta_banco: nomeBanco,
-        comprovante_url: comprovanteUrl
+        comprovante_url: comprovanteUrl,
+        client_id: clientIdToInsert,
+        client_name: clientNameToInsert,
+        aeronave_registro: aeronaveRegistro,
+        bank_reconciliation_id: reconciliation.id
       } as any);
 
     if (error) {
@@ -293,6 +375,7 @@ export async function createFluxoCaixaEntry(
       return false;
     }
 
+    console.log('Entrada no fluxo de caixa criada:', referencia, tipoMovimento);
     return true;
   } catch (error) {
     console.error('Erro ao criar fluxo de caixa:', error);
@@ -301,37 +384,108 @@ export async function createFluxoCaixaEntry(
 }
 
 /**
- * Determina o próximo status baseado no tipo de conciliação
+ * Atualiza saldo pendente na conciliação quando há pagamento parcial
+ */
+export async function updateSaldoPendente(
+  reconciliationId: string,
+  valorPago: number
+): Promise<boolean> {
+  try {
+    const { data: current } = await supabase
+      .from('bank_reconciliations')
+      .select('amount, saldo_pendente, valor_reembolsado')
+      .eq('id', reconciliationId)
+      .single();
+
+    if (!current) return false;
+
+    const saldoAtual = current.saldo_pendente ?? Math.abs(current.amount);
+    const novoSaldo = saldoAtual - valorPago;
+    const valorReembolsadoTotal = (current.valor_reembolsado || 0) + valorPago;
+
+    const { error } = await supabase
+      .from('bank_reconciliations')
+      .update({
+        saldo_pendente: Math.max(0, novoSaldo),
+        valor_reembolsado: valorReembolsadoTotal,
+        data_reembolso: new Date().toISOString().split('T')[0],
+        status: novoSaldo <= 0 ? 'reembolsado' : 'parcialmente_reembolsado'
+      })
+      .eq('id', reconciliationId);
+
+    if (error) {
+      console.error('Erro ao atualizar saldo pendente:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Erro ao atualizar saldo pendente:', error);
+    return false;
+  }
+}
+
+/**
+ * Determina os próximos status possíveis baseado no tipo e forma de pagamento
  */
 export function getNextStatus(
   currentStatus: string,
-  reconciliationType: string
+  reconciliationType: string,
+  formaPagamento?: string
 ): string[] {
   const statusLower = currentStatus?.toLowerCase() || 'pendente';
+  const isEmpresaPaga = formaPagamento === 'empresa_paga' || !formaPagamento;
+  const isClientePagaDireto = formaPagamento === 'cliente_paga_direto';
 
+  // Tipo CLIENTE
   if (reconciliationType === 'cliente') {
-    switch (statusLower) {
-      case 'pendente':
-        return ['enviado'];
-      case 'enviado':
-        return ['recebido'];
-      case 'recebido':
-        return [];
-      default:
-        return ['pendente', 'enviado', 'recebido'];
+    // Fluxo: Empresa Paga (Aguarda Reembolso)
+    if (isEmpresaPaga) {
+      switch (statusLower) {
+        case 'pendente':
+          return ['enviado'];
+        case 'enviado':
+          return ['aguardando_reembolso'];
+        case 'aguardando_reembolso':
+          return ['reembolsado'];
+        case 'parcialmente_reembolsado':
+          return ['reembolsado'];
+        case 'reembolsado':
+          return []; // Final
+        default:
+          return ['pendente', 'enviado', 'aguardando_reembolso', 'reembolsado'];
+      }
+    }
+    // Fluxo: Cliente Paga Direto
+    if (isClientePagaDireto) {
+      switch (statusLower) {
+        case 'pendente':
+          return ['aguardando_comprovante'];
+        case 'aguardando_comprovante':
+          return ['comprovante_enviado'];
+        case 'comprovante_enviado':
+          return ['comprovante_validado'];
+        case 'comprovante_validado':
+          return ['lancado_aeronave'];
+        case 'lancado_aeronave':
+          return []; // Final
+        default:
+          return ['pendente', 'aguardando_comprovante', 'comprovante_enviado', 'comprovante_validado', 'lancado_aeronave'];
+      }
     }
   }
 
+  // Tipo COLABORADOR
   if (reconciliationType === 'colaborador') {
     switch (statusLower) {
       case 'pendente':
-        return ['enviado'];
-      case 'enviado':
+        return ['aprovado'];
+      case 'aprovado':
         return ['pago'];
       case 'pago':
-        return [];
+        return []; // Final
       default:
-        return ['pendente', 'enviado', 'pago'];
+        return ['pendente', 'aprovado', 'pago'];
     }
   }
 
@@ -340,14 +494,19 @@ export function getNextStatus(
 }
 
 /**
- * Verifica se o status é final (finalizado)
+ * Verifica se o status é final (não há mais transições)
  */
-export function isStatusFinal(status: string, reconciliationType: string): boolean {
+export function isStatusFinal(status: string, reconciliationType: string, formaPagamento?: string): boolean {
   const statusLower = status?.toLowerCase() || '';
+  const isClientePagaDireto = formaPagamento === 'cliente_paga_direto';
 
   if (reconciliationType === 'cliente') {
-    return statusLower === 'recebido';
+    if (isClientePagaDireto) {
+      return statusLower === 'lancado_aeronave';
+    }
+    return statusLower === 'reembolsado';
   }
+  
   if (reconciliationType === 'colaborador') {
     return statusLower === 'pago';
   }
@@ -356,8 +515,69 @@ export function isStatusFinal(status: string, reconciliationType: string): boole
 }
 
 /**
- * Verifica se o status é "enviado"
+ * Verifica se o status é "enviado" (momento de criar conta a receber/pagar)
  */
 export function isStatusEnviado(status: string): boolean {
-  return status?.toLowerCase() === 'enviado';
+  return status?.toLowerCase() === 'enviado' || status?.toLowerCase() === 'aprovado';
+}
+
+/**
+ * Verifica se status requer seleção de banco
+ */
+export function requiresBankSelection(status: string, reconciliationType: string): boolean {
+  const statusLower = status?.toLowerCase() || '';
+  
+  if (reconciliationType === 'cliente') {
+    return statusLower === 'aguardando_reembolso' || statusLower === 'reembolsado';
+  }
+  
+  if (reconciliationType === 'colaborador') {
+    return statusLower === 'pago';
+  }
+
+  return false;
+}
+
+/**
+ * Retorna label legível para status
+ */
+export function getStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    'pendente': 'Pendente',
+    'enviado': 'Enviado ao Cliente',
+    'aprovado': 'Aprovado para Pagamento',
+    'aguardando_reembolso': 'Aguardando Reembolso',
+    'parcialmente_reembolsado': 'Parcialmente Reembolsado',
+    'reembolsado': 'Reembolsado',
+    'pago': 'Pago',
+    'aguardando_comprovante': 'Aguardando Comprovante',
+    'comprovante_enviado': 'Comprovante Enviado',
+    'comprovante_validado': 'Comprovante Validado',
+    'lancado_aeronave': 'Lançado na Aeronave',
+    'cancelado': 'Cancelado',
+    'inadimplente': 'Inadimplente'
+  };
+  return labels[status?.toLowerCase()] || status;
+}
+
+/**
+ * Retorna cor do badge para status
+ */
+export function getStatusColor(status: string): string {
+  const colors: Record<string, string> = {
+    'pendente': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+    'enviado': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    'aprovado': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    'aguardando_reembolso': 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    'parcialmente_reembolsado': 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+    'reembolsado': 'bg-green-500/20 text-green-400 border-green-500/30',
+    'pago': 'bg-green-500/20 text-green-400 border-green-500/30',
+    'aguardando_comprovante': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+    'comprovante_enviado': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    'comprovante_validado': 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    'lancado_aeronave': 'bg-green-500/20 text-green-400 border-green-500/30',
+    'cancelado': 'bg-red-500/20 text-red-400 border-red-500/30',
+    'inadimplente': 'bg-red-500/20 text-red-400 border-red-500/30'
+  };
+  return colors[status?.toLowerCase()] || 'bg-muted text-muted-foreground';
 }

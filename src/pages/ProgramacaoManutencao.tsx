@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, Wrench, Search, Building2, DollarSign, Trash2, Loader2 } from "lucide-react";
+import { LottieAirplaneSpinner } from "@/components/ui/lottie-airplane-spinner";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useEffect } from "react";
@@ -143,7 +144,7 @@ export default function ProgramacaoManutencao() {
     return (
       <Layout>
         <div className="p-6 flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <LottieAirplaneSpinner size="md" />
         </div>
       </Layout>
     );

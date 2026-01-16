@@ -200,7 +200,7 @@ export function useCategoriasConta() {
         .from("contas_bancarias")
         .select("*")
         .eq("ativo", true)
-        .order("nome");
+        .order("banco");
 
       if (error) {
         console.error("Erro ao carregar contas:", error);
@@ -209,7 +209,7 @@ export function useCategoriasConta() {
 
       const mapped = (data || []).map(conta => ({
         id: conta.id,
-        nome: conta.nome,
+        nome: conta.banco || conta.numero_conta || 'Conta sem nome',
         numero_conta: conta.numero_conta || undefined,
         banco: conta.banco || undefined,
         tipo_conta: conta.tipo_conta || "corrente",
@@ -241,13 +241,12 @@ export function useCategoriasConta() {
         .from("contas_bancarias")
         .insert([{
           id: conta.id || generateUUID(),
-          nome: conta.nome,
           numero_conta: conta.numero_conta || null,
           banco: conta.banco || null,
           tipo_conta: conta.tipo_conta || "corrente",
           ativo: true,
-          saldo: conta.saldo || 0,
-          criado_por: user.id
+          criado_por: user.id,
+          empresa_id: (user as any).empresa_id || 'default'
         }]);
 
       if (error) {
@@ -268,12 +267,10 @@ export function useCategoriasConta() {
     try {
       const updateData: any = {};
 
-      if (updates.nome !== undefined) updateData.nome = updates.nome;
       if (updates.numero_conta !== undefined) updateData.numero_conta = updates.numero_conta || null;
       if (updates.banco !== undefined) updateData.banco = updates.banco || null;
       if (updates.tipo_conta !== undefined) updateData.tipo_conta = updates.tipo_conta;
       if (updates.ativo !== undefined) updateData.ativo = updates.ativo;
-      if (updates.saldo !== undefined) updateData.saldo = updates.saldo;
 
       updateData.atualizado_em = new Date().toISOString();
 

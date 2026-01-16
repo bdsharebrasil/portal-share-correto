@@ -328,7 +328,7 @@ export function SupplierDirectory() {
                       {supplier.fuel_price_avgas ? (
                         <div className="flex items-center justify-end gap-1 text-success">
                           <DollarSign className="h-3.5 w-3.5" />
-                          {supplier.fuel_price_avgas.toFixed(4)}
+                          {supplier.fuel_price_avgas.toFixed(2)}
                         </div>
                       ) : "-"}
                     </TableCell>
@@ -336,7 +336,7 @@ export function SupplierDirectory() {
                       {supplier.fuel_price_jet ? (
                         <div className="flex items-center justify-end gap-1 text-success">
                           <DollarSign className="h-3.5 w-3.5" />
-                          {supplier.fuel_price_jet.toFixed(4)}
+                          {supplier.fuel_price_jet.toFixed(2)}
                         </div>
                       ) : "-"}
                     </TableCell>

@@ -1,131 +1,233 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { fetchMETAR, fetchTAF } from '@/lib/aviation';
 
-export interface METARData {
-  temp: number; // Temperature in Celsius
-  dewp: number; // Dew point in Celsius
-  wdir: number; // Wind direction in degrees
-  wspd: number; // Wind speed in knots
-  wgst?: number; // Wind gust in knots
-  visib: number; // Visibility in statute miles
-  altim: number; // Altimeter setting in inHg
-  rawOb: string; // Raw METAR observation
-  flightCategory?: 'VFR' | 'MVFR' | 'IFR' | 'LIFR'; // Flight category
-  updatedTime?: string; // Time of last update
+// Exported as both MetarData and METARData for compatibility
+export interface MetarData {
+  icaoId?: string;
+  rawOb: string;
+  temp: number | null;
+  dewp: number | null;
+  wdir: number | string | null;
+  wspd: number | null;
+  wgst: number | null;
+  visib: string | number | null;
+  altim: number | null;
+  fltcat?: string;
+  flightCategory?: string;
+  reportTime?: string;
+  updatedTime?: string;
+  source?: string;
+  clouds?: Array<{
+    cover: string;
+    base: number;
+  }>;
 }
 
-// METAR cache to avoid repeated requests
-const metarCache = new Map<string, { data: METARData | null; timestamp: number }>();
-const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+// Alias for backwards compatibility
+export type METARData = MetarData;
 
-export function useAviationWeather(icao: string | null, pollInterval: number = 600000) {
-  const [metar, setMetar] = useState<METARData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export interface TafData {
+  icaoId: string;
+  rawTAF: string;
+  validTimeFrom: string;
+  validTimeTo: string;
+}
 
-  useEffect(() => {
-    if (!icao) {
-      setMetar(null);
-      return;
+export interface AirportWeather {
+  icao: string;
+  metar: MetarData | null;
+  taf: TafData | null;
+  loading: boolean;
+  error: string | null;
+}
+
+/**
+ * Hook para buscar dados meteorológicos de aviação (METAR e TAF)
+ * Usa a API oficial da aviationweather.gov
+ * 
+ * Can be used in two ways:
+ * 1. With icao parameter: returns { metar, loading, error } for that specific airport
+ * 2. Without parameter: returns { getWeather, getMultipleWeather, weatherCache, clearCache }
+ */
+export function useAviationWeather(icao?: string) {
+  const [weatherCache, setWeatherCache] = useState<Record<string, AirportWeather>>({});
+  const [singleAirportState, setSingleAirportState] = useState<{
+    metar: MetarData | null;
+    loading: boolean;
+    error: string | null;
+  }>({
+    metar: null,
+    loading: false,
+    error: null,
+  });
+
+  const getWeather = useCallback(async (icaoCode: string): Promise<AirportWeather> => {
+    if (!icaoCode || icaoCode.length < 4) {
+      return { icao: icaoCode, metar: null, taf: null, loading: false, error: 'ICAO inválido' };
     }
 
-    const fetchMetar = async () => {
-      const upperIcao = icao.toUpperCase();
-      
-      // Check cache first
-      const cached = metarCache.get(upperIcao);
-      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-        setMetar(cached.data);
-        setLoading(false);
-        return;
-      }
+    const icaoUpper = icaoCode.toUpperCase();
 
-      setLoading(true);
-      setError(null);
+    // Check cache
+    if (weatherCache[icaoUpper] && !weatherCache[icaoUpper].loading) {
+      return weatherCache[icaoUpper];
+    }
 
-      try {
-        // Use aviationweather.gov API directly (CORS-friendly for METAR)
-        const response = await fetch(
-          `https://aviationweather.gov/api/data/metar?ids=${upperIcao}&format=json&taf=false`,
-          {
-            headers: {
-              'Accept': 'application/json',
-            }
-          }
-        );
+    // Set loading state
+    setWeatherCache(prev => ({
+      ...prev,
+      [icaoUpper]: { icao: icaoUpper, metar: null, taf: null, loading: true, error: null }
+    }));
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
+    try {
+      // Fetch METAR and TAF in parallel
+      const [metarResult, tafResult] = await Promise.all([
+        fetchMETAR(icaoUpper),
+        fetchTAF(icaoUpper)
+      ]);
 
-        const data = await response.json();
+      const metar = metarResult && metarResult.length > 0 ? metarResult[0] : null;
+      const taf = tafResult && tafResult.length > 0 ? tafResult[0] : null;
 
-        // aviationweather.gov returns an array
-        if (!data || !Array.isArray(data) || data.length === 0) {
-          // No METAR found - generate placeholder
-          const placeholder: METARData = {
-            temp: 25,
-            dewp: 18,
-            wdir: 0,
-            wspd: 5,
-            visib: 10,
-            altim: 30.00,
-            rawOb: `${upperIcao} - METAR não disponível`,
-            flightCategory: 'VFR',
-            updatedTime: new Date().toISOString(),
-          };
-          setMetar(placeholder);
-          metarCache.set(upperIcao, { data: placeholder, timestamp: Date.now() });
-          return;
-        }
+      const weatherData: AirportWeather = {
+        icao: icaoUpper,
+        metar,
+        taf,
+        loading: false,
+        error: !metar ? 'METAR não disponível' : null
+      };
 
-        const metarResponse = data[0];
+      setWeatherCache(prev => ({
+        ...prev,
+        [icaoUpper]: weatherData
+      }));
 
-        // Parse METAR data from aviationweather.gov API response
-        const metarData: METARData = {
-          temp: metarResponse.temp ?? 25,
-          dewp: metarResponse.dewp ?? 18,
-          wdir: metarResponse.wdir ?? 0,
-          wspd: metarResponse.wspd ?? 0,
-          wgst: metarResponse.wgst,
-          visib: metarResponse.visib ?? 10,
-          altim: metarResponse.altim ?? 29.92,
-          rawOb: metarResponse.rawOb || `${upperIcao} - METAR disponível`,
-          updatedTime: metarResponse.reportTime || metarResponse.obsTime,
-          flightCategory: (metarResponse.fltCat as 'VFR' | 'MVFR' | 'IFR' | 'LIFR') || 'VFR',
-        };
+      return weatherData;
+    } catch (error) {
+      console.error(`Error fetching weather for ${icaoUpper}:`, error);
+      const errorData: AirportWeather = {
+        icao: icaoUpper,
+        metar: null,
+        taf: null,
+        loading: false,
+        error: 'Erro ao buscar dados meteorológicos'
+      };
 
-        setMetar(metarData);
-        metarCache.set(upperIcao, { data: metarData, timestamp: Date.now() });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Erro ao carregar METAR';
-        console.warn('METAR fetch error (will use fallback):', message);
-        
-        // On error, provide fallback data instead of showing error
-        const fallback: METARData = {
-          temp: 25,
-          dewp: 18,
-          wdir: 0,
-          wspd: 5,
-          visib: 10,
-          altim: 30.00,
-          rawOb: `${icao.toUpperCase()} - Dados meteorológicos temporariamente indisponíveis`,
-          flightCategory: 'VFR',
-          updatedTime: new Date().toISOString(),
-        };
-        setMetar(fallback);
-        metarCache.set(icao.toUpperCase(), { data: fallback, timestamp: Date.now() });
-        setError(null); // Don't show error since we have fallback
-      } finally {
-        setLoading(false);
-      }
+      setWeatherCache(prev => ({
+        ...prev,
+        [icaoUpper]: errorData
+      }));
+
+      return errorData;
+    }
+  }, [weatherCache]);
+
+  const getMultipleWeather = useCallback(async (icaos: string[]): Promise<Record<string, AirportWeather>> => {
+    const results: Record<string, AirportWeather> = {};
+
+    await Promise.all(
+      icaos.map(async (icaoCode) => {
+        const weather = await getWeather(icaoCode);
+        results[icaoCode.toUpperCase()] = weather;
+      })
+    );
+
+    return results;
+  }, [getWeather]);
+
+  const clearCache = useCallback(() => {
+    setWeatherCache({});
+  }, []);
+
+  // Effect for single airport mode
+  useEffect(() => {
+    if (!icao) return;
+
+    const icaoUpper = icao.toUpperCase();
+    
+    setSingleAirportState(prev => ({ ...prev, loading: true, error: null }));
+
+    getWeather(icaoUpper).then(result => {
+      setSingleAirportState({
+        metar: result.metar,
+        loading: false,
+        error: result.error,
+      });
+    });
+  }, [icao, getWeather]);
+
+  // If icao is provided, return single airport interface
+  if (icao) {
+    return {
+      metar: singleAirportState.metar,
+      loading: singleAirportState.loading,
+      error: singleAirportState.error,
+      getWeather,
+      getMultipleWeather,
+      weatherCache,
+      clearCache
     };
+  }
 
-    fetchMetar();
+  // Otherwise return multi-airport interface
+  return {
+    getWeather,
+    getMultipleWeather,
+    weatherCache,
+    clearCache
+  };
+}
 
-    // Poll for updates
-    const interval = setInterval(fetchMetar, pollInterval);
-    return () => clearInterval(interval);
-  }, [icao, pollInterval]);
+/**
+ * Parse METAR flight category for display
+ */
+export function getFlightCategoryColor(category: string): string {
+  switch (category?.toUpperCase()) {
+    case 'VFR':
+      return 'text-green-400';
+    case 'MVFR':
+      return 'text-blue-400';
+    case 'IFR':
+      return 'text-red-400';
+    case 'LIFR':
+      return 'text-purple-400';
+    default:
+      return 'text-gray-400';
+  }
+}
 
-  return { metar, loading, error };
+export function getFlightCategoryBg(category: string): string {
+  switch (category?.toUpperCase()) {
+    case 'VFR':
+      return 'bg-green-500/20 border-green-500/50';
+    case 'MVFR':
+      return 'bg-blue-500/20 border-blue-500/50';
+    case 'IFR':
+      return 'bg-red-500/20 border-red-500/50';
+    case 'LIFR':
+      return 'bg-purple-500/20 border-purple-500/50';
+    default:
+      return 'bg-gray-500/20 border-gray-500/50';
+  }
+}
+
+/**
+ * Format wind string from METAR data
+ */
+export function formatWind(wdir: number | string | null, wspd: number | null, wgst: number | null): string {
+  if (wdir === null || wspd === null) return '--';
+  const dir = typeof wdir === 'number' ? String(wdir).padStart(3, '0') : wdir;
+  const gust = wgst ? `G${wgst}` : '';
+  return `${dir}/${wspd}${gust}KT`;
+}
+
+/**
+ * Format visibility from METAR data
+ */
+export function formatVisibility(visib: string | number | null): string {
+  if (visib === null || visib === undefined) return '--';
+  if (typeof visib === 'number') {
+    return visib >= 9999 ? 'CAVOK' : `${visib}m`;
+  }
+  return String(visib);
 }

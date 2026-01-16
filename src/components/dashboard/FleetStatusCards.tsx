@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plane, MapPin, Wrench, Clock, ArrowRight } from "lucide-react";
+import { Plane, MapPin, Wrench, Clock, ArrowRight, AlertCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
@@ -14,14 +14,16 @@ interface AircraftStatus {
   current_status?: string;
 }
 
-const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
-  ativo: { bg: "bg-success/20", text: "text-success", label: "Em Voo" },
-  em_voo: { bg: "bg-success/20", text: "text-success", label: "Em Voo" },
-  disponivel: { bg: "bg-success/20", text: "text-success", label: "Disponível" },
-  solo: { bg: "bg-primary/20", text: "text-primary", label: "Solo" },
-  manutencao: { bg: "bg-warning/20", text: "text-warning", label: "Manutenção" },
-  indisponivel: { bg: "bg-destructive/20", text: "text-destructive", label: "Indisponível" },
-  inativo: { bg: "bg-muted", text: "text-muted-foreground", label: "Inativo" },
+const statusConfig: Record<string, { bg: string; text: string; label: string; borderColor: string; icon: string; textColor: string }> = {
+  ativa: { bg: "bg-success/20", text: "text-success", label: "Disponível", borderColor: "border-l-success", icon: "plane", textColor: "text-success" },
+  ativo: { bg: "bg-primary/20", text: "text-primary", label: "Em Voo", borderColor: "border-l-primary", icon: "plane", textColor: "text-primary" },
+  em_voo: { bg: "bg-primary/20", text: "text-primary", label: "Em Voo", borderColor: "border-l-primary", icon: "plane", textColor: "text-primary" },
+  disponivel: { bg: "bg-success/20", text: "text-success", label: "Disponível", borderColor: "border-l-success", icon: "plane", textColor: "text-success" },
+  atrasado: { bg: "bg-destructive/20", text: "text-destructive", label: "Atrasado", borderColor: "border-l-destructive", icon: "alert", textColor: "text-destructive" },
+  solo: { bg: "bg-primary/20", text: "text-primary", label: "Solo", borderColor: "border-l-primary", icon: "zap", textColor: "text-primary" },
+  manutencao: { bg: "bg-warning/20", text: "text-warning", label: "Em Manutenção", borderColor: "border-l-warning", icon: "wrench", textColor: "text-warning" },
+  indisponivel: { bg: "bg-destructive/20", text: "text-destructive", label: "Indisponível", borderColor: "border-l-destructive", icon: "alert", textColor: "text-destructive" },
+  inativo: { bg: "bg-muted", text: "text-muted-foreground", label: "Inativo", borderColor: "border-l-muted-foreground", icon: "plane", textColor: "text-muted-foreground" },
 };
 
 export function FleetStatusCards() {
@@ -55,9 +57,10 @@ export function FleetStatusCards() {
         },
         (payload) => {
           if (payload.new) {
+            const newData = payload.new as any;
             setLiveStatuses((prev) => ({
               ...prev,
-              [payload.new.aircraft_id]: payload.new.current_status,
+              [newData.aircraft_id]: newData.current_status,
             }));
           }
         }
@@ -88,8 +91,10 @@ export function FleetStatusCards() {
     };
   }, []);
 
-  const getStatusInfo = (status: string) => {
-    return statusConfig[status?.toLowerCase()] || statusConfig.inativo;
+  const getStatusInfo = (status: string | null | undefined) => {
+    if (!status) return statusConfig.inativo;
+    const normalizedStatus = status.toLowerCase().trim();
+    return statusConfig[normalizedStatus] || statusConfig.inativo;
   };
 
   return (
@@ -119,41 +124,41 @@ export function FleetStatusCards() {
           return (
             <div
               key={ac.id}
-              className="bg-card rounded-lg border border-border p-4 hover:border-primary/50 transition-colors cursor-pointer"
-              onClick={() => navigate(`/aeronaves/${ac.id}`)}
+              className={`bg-card/80 rounded-lg border-l-4 ${statusInfo.borderColor} border border-border p-4 hover:bg-card transition-all cursor-pointer`}
+              onClick={() => navigate("/painel-agendamentos")}
             >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  {isInFlight ? (
-                    <Plane className="h-5 w-5 text-success rotate-45 animate-pulse" />
-                  ) : currentStatus === 'manutencao' ? (
-                    <Wrench className="h-5 w-5 text-warning" />
-                  ) : currentStatus === 'indisponivel' ? (
-                    <Plane className="h-5 w-5 text-destructive" />
-                  ) : (
-                    <Plane className="h-5 w-5 text-primary -rotate-45" />
-                  )}
-                  <span className="font-bold text-foreground">{ac.registration}</span>
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <div className={`uppercase text-xs font-bold mb-3 ${statusInfo.textColor}`}>
+                    {statusInfo.label}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-white font-bold text-lg">{ac.registration}</div>
+                      <div className="text-muted-foreground text-xs">{ac.model}</div>
+                    </div>
+                  </div>
                 </div>
-                <span className={`px-2 py-0.5 text-xs font-medium rounded ${statusInfo.bg} ${statusInfo.text}`}>
-                  {statusInfo.label}
-                </span>
+                <div className={`text-3xl opacity-80 ${statusInfo.text}`}>
+                  {statusInfo.icon === 'wrench' && <Wrench className="h-8 w-8" />}
+                  {statusInfo.icon === 'alert' && <AlertCircle className="h-8 w-8" />}
+                  {statusInfo.icon === 'zap' && <Zap className="h-8 w-8" />}
+                  {statusInfo.icon === 'plane' && <Plane className="h-8 w-8 rotate-45" />}
+                </div>
               </div>
-
-              <p className="text-sm text-muted-foreground mb-3">{ac.model}</p>
 
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <p className="text-muted-foreground">
+                  <p className="text-muted-foreground text-[10px] uppercase">
                     {isInFlight ? "Destino" : "Localização"}
                   </p>
-                  <p className="text-foreground font-medium flex items-center gap-1">
+                  <p className="text-foreground flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
                     {ac.base || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">
+                  <p className="text-muted-foreground text-[10px] uppercase">
                     {isInFlight ? "ETA" : "Próx. Voo"}
                   </p>
                   <p className="text-foreground font-medium flex items-center gap-1">

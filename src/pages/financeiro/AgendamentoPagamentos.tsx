@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { format, isBefore, isWithinInterval, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AgendamentoPagamentoForm } from "@/components/agendamento-pagamentos/AgendamentoPagamentoForm";
+import { syncAgendamentoPagamentoToControle, removeAgendamentoPagamentoFromControle } from "@/services/syncSalariesToBankingControl";
 
 export default function AgendamentoPagamentos() {
   const { user } = useAuth();
@@ -90,6 +91,10 @@ export default function AgendamentoPagamentos() {
     if (!deleteConfirmId) return;
 
     try {
+      // Remove do controle bancário se existir
+      await removeAgendamentoPagamentoFromControle(deleteConfirmId);
+
+      // Remove o agendamento
       const { error } = await supabase
         .from("agendamento_pagamentos")
         .delete()
@@ -110,6 +115,10 @@ export default function AgendamentoPagamentos() {
 
   const handleMarkAsPaid = async (agendamento: any) => {
     try {
+      // Primeiro, sincroniza o pagamento com o controle bancário
+      await syncAgendamentoPagamentoToControle(agendamento, user?.id);
+
+      // Depois, atualiza o status no agendamento
       const { error } = await supabase
         .from("agendamento_pagamentos")
         .update({ status: 'pago' })
@@ -120,7 +129,7 @@ export default function AgendamentoPagamentos() {
         return;
       }
 
-      toast.success("Agendamento marcado como pago!");
+      toast.success("Pagamento sincronizado com o controle bancário!");
       loadAgendamentos();
     } catch (error: any) {
       toast.error(error.message || "Erro ao atualizar");

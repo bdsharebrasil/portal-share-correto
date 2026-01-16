@@ -1,5 +1,4 @@
 import type { Config } from "tailwindcss";
-
 export default {
 	darkMode: ["class"],
 	content: [
@@ -25,11 +24,16 @@ export default {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				primary: {
-					DEFAULT: 'hsl(var(--primary))',
+					DEFAULT: '#135bec',
 					foreground: 'hsl(var(--primary-foreground))',
 					glow: 'hsl(var(--primary-glow))',
 					dark: 'hsl(var(--primary-dark))'
 				},
+				'background-light': '#f6f6f8',
+				'background-dark': '#111722',
+				'surface-dark': '#192233',
+				'border-dark': '#232f48',
+				'text-secondary': '#92a4c9',
 				'custom-cyan': 'hsl(var(--custom-cyan))',
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
@@ -66,8 +70,15 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
+				'folder-back': 'hsl(var(--folder-back))',
+				'folder-tab': 'hsl(var(--folder-tab))',
+				'folder-front': 'hsl(var(--folder-front))',
 				success: 'hsl(var(--success))',
 				warning: 'hsl(var(--warning))'
+			},
+			fontFamily: {
+				display: ['Space Grotesk', 'sans-serif'],
+				body: ['Noto Sans', 'sans-serif']
 			},
 			backgroundImage: {
 				'gradient-primary': 'var(--gradient-primary)',
@@ -86,7 +97,8 @@ export default {
 			borderRadius: {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
-				sm: 'calc(var(--radius) - 4px)'
+				sm: 'calc(var(--radius) - 4px)',
+				DEFAULT: '0.5rem'
 			},
 			keyframes: {
 				'accordion-down': {
@@ -104,11 +116,44 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'scroll-left': {
+					from: {
+						transform: 'translateX(100%)'
+					},
+					to: {
+						transform: 'translateX(-100%)'
+					}
+				},
+				'scroll-right': {
+					from: {
+						transform: 'translateX(-100%)'
+					},
+					to: {
+						transform: 'translateX(100%)'
+					}
+				},
+				'plane-float': {
+					'0%, 100%': {
+						transform: 'translateY(0px)'
+					},
+					'50%': {
+						transform: 'translateY(-8px)'
+					}
+				},
+				'dash': {
+					to: {
+						strokeDashoffset: '-1000'
+					}
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'scroll-left': 'scroll-left 8s linear infinite',
+				'scroll-right': 'scroll-right 10s linear infinite',
+				'plane-float': 'plane-float 3s ease-in-out infinite',
+				'route-dash': 'dash 60s linear infinite'
 			},
 			scale: {
 				'102': '1.02'

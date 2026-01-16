@@ -1,81 +1,89 @@
-# Share Brasil - Portal Colaborador
+# Welcome to your Lovable project
 
-Plataforma de gestão integrada para colaboradores e operações da Share Brasil.
+## Project info
 
-## 🚀 Tecnologias
+**URL**: https://lovable.dev/projects/76986235-4485-4f2d-a5f6-189fe9095b35
 
-- **React 18** - Interface de usuário
-- **TypeScript** - Tipagem estática
-- **Vite** - Build rápido
-- **Tailwind CSS** - Estilização
-- **shadcn/ui** - Componentes prontos
-- **Supabase** - Backend e autenticação
+## Deployment
 
-## 📋 Pré-requisitos
+### Cloudflare Pages
 
-- Node.js 18+ (instale com [nvm](https://github.com/nvm-sh/nvm#installing-and-updating))
-- npm ou yarn
+Este projeto é deployado no **Cloudflare Pages**. Para instruções detalhadas de deployment, veja [CLOUDFLARE_DEPLOYMENT.md](./CLOUDFLARE_DEPLOYMENT.md).
 
-## ⚙️ Instalação
-
+**Deploy rápido:**
 ```bash
-# 1. Clone o repositório
-git clone <URL_DO_REPOSITORIO>
+npm run build      # Build local
+npm run deploy     # Deploy para Cloudflare Pages
+```
 
-# 2. Entre na pasta do projeto
-cd <NOME_DO_PROJETO>
+**Deploy automático:**
+- Conecte seu repositório GitHub no Cloudflare Dashboard
+- Cada push para a branch principal fará deploy automático
 
-# 3. Instale as dependências
-npm install
+## How can I edit this code?
 
-# 4. Inicie o servidor de desenvolvimento
+There are several ways of editing your application.
+
+**Use Lovable**
+
+Simply visit the [Lovable Project](https://lovable.dev/projects/76986235-4485-4f2d-a5f6-189fe9095b35) and start prompting.
+
+Changes made via Lovable will be committed automatically to this repo.
+
+**Use your preferred IDE**
+
+If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+
+The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+
+Follow these steps:
+
+```sh
+# Step 1: Clone the repository using the project's Git URL.
+git clone <YOUR_GIT_URL>
+
+# Step 2: Navigate to the project directory.
+cd <YOUR_PROJECT_NAME>
+
+# Step 3: Install the necessary dependencies.
+npm i
+
+# Step 4: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
 
-O aplicativo estará disponível em `http://localhost:8080`
+**Edit a file directly in GitHub**
 
-## 📦 Comandos Disponíveis
+- Navigate to the desired file(s).
+- Click the "Edit" button (pencil icon) at the top right of the file view.
+- Make your changes and commit the changes.
 
-```bash
-npm run dev        # Inicia servidor de desenvolvimento
-npm run build      # Cria build para produção
-npm run build:dev  # Cria build em modo desenvolvimento
-npm run lint       # Verifica erros de código
-npm run preview    # Visualiza build em produção localmente
-```
+**Use GitHub Codespaces**
 
-## 🔐 Variáveis de Ambiente
+- Navigate to the main page of your repository.
+- Click on the "Code" button (green button) near the top right.
+- Select the "Codespaces" tab.
+- Click on "New codespace" to launch a new Codespace environment.
+- Edit files directly within the Codespace and commit and push your changes once you're done.
 
-Configure as seguintes variáveis no arquivo `.env`:
+## What technologies are used for this project?
 
-```
-VITE_SUPABASE_URL=sua_url
-VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY=sua_chave
-```
+This project is built with:
 
-## 📚 Estrutura do Projeto
+- Vite
+- TypeScript
+- React
+- shadcn-ui
+- Tailwind CSS
 
-```
-src/
-├── components/     # Componentes reutilizáveis
-├── pages/         # Páginas da aplicação
-├── hooks/         # Hooks personalizados
-├── services/      # Serviços e APIs
-├── contexts/      # Contextos React
-├── lib/           # Utilitários e helpers
-└── types/         # Definições TypeScript
-```
+## How can I deploy this project?
 
-## 🚀 Deploy
+Simply open [Lovable](https://lovable.dev/projects/76986235-4485-4f2d-a5f6-189fe9095b35) and click on Share -> Publish.
 
-Para fazer deploy, use sua plataforma preferida:
-- Netlify
-- Vercel
-- Firebase Hosting
-- Qualquer servidor com Node.js
+## Can I connect a custom domain to my Lovable project?
 
-Faça o build com `npm run build` e deploy da pasta `dist/`.
+Yes, you can!
 
-## 📝 Licença
+To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
-Propriedade da Share Brasil
+Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)

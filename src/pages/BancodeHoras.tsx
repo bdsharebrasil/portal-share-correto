@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   ArrowLeft, History, Users, ArrowUpRight, ArrowDownLeft,
-  Calculator, ShieldCheck, PieChart, UserPlus, Search, Filter, Loader2
+  Calculator, ShieldCheck, PieChart, UserPlus, Search, Filter
 } from 'lucide-react';
+import { LottieAirplaneSpinner } from '@/components/ui/lottie-airplane-spinner';
 import { Layout } from '../components/layout/Layout';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
@@ -127,8 +128,7 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
   if (loading) return (
     <Layout>
       <div className="h-screen flex flex-col items-center justify-center">
-        <Loader2 className="w-12 h-12 text-sky-500 animate-spin" />
-        <p className="mt-4 text-slate-500 font-black uppercase tracking-widest text-[10px]">Auditoria em Progresso...</p>
+        <LottieAirplaneSpinner size="lg" text="Auditoria em Progresso..." />
       </div>
     </Layout>
   );

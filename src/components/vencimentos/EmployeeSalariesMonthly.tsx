@@ -81,6 +81,7 @@ export function EmployeeSalariesMonthly() {
       const { data: profiles, error: profilesError } = await supabase
         .from("user_profiles")
         .select("*")
+        .eq("status", "ativo")
         .order("full_name", { ascending: true });
 
       if (profilesError) throw profilesError;
@@ -132,7 +133,7 @@ export function EmployeeSalariesMonthly() {
   };
 
   const employeesWithSalaries = useMemo(() => {
-    return employees.map((emp) => {
+    const mapped = employees.map((emp) => {
       const currentMonthSalary = allSalaries.find((s) => {
         if (s.user_profile !== emp.id) return false;
         const { month, year } = getMonthYearFromDate(s.effective_date);
@@ -158,7 +159,15 @@ export function EmployeeSalariesMonthly() {
         ...emp,
         salary: displaySalary,
         is_new_month: !currentMonthSalary && displaySalary !== null,
+        has_salary_this_month: !!currentMonthSalary,
       };
+    });
+
+    // Ordenar: primeiro quem tem salário registrado neste mês
+    return mapped.sort((a, b) => {
+      if (a.has_salary_this_month && !b.has_salary_this_month) return -1;
+      if (!a.has_salary_this_month && b.has_salary_this_month) return 1;
+      return a.full_name.localeCompare(b.full_name);
     });
   }, [employees, allSalaries, selectedMonth, selectedYear]);
 
@@ -439,11 +448,24 @@ export function EmployeeSalariesMonthly() {
                   {filteredEmployees.map((employee, index) => (
                     <TableRow 
                       key={employee.id} 
-                      className={`transition-colors hover:bg-muted/50 ${
-                        index % 2 === 0 ? "bg-transparent" : "bg-muted/20"
-                      } ${employee.is_new_month ? "border-l-4 border-l-blue-500" : ""}`}
+                      className={`transition-all hover:bg-muted/50 ${
+                        employee.has_salary_this_month 
+                          ? "bg-emerald-500/5 border-l-4 border-l-emerald-500" 
+                          : employee.is_new_month 
+                            ? "border-l-4 border-l-amber-500 bg-amber-500/5" 
+                            : ""
+                      }`}
                     >
-                      <TableCell className="font-semibold text-foreground py-4">{employee.full_name}</TableCell>
+                      <TableCell className="font-semibold text-foreground py-4">
+                        <div className="flex items-center gap-2">
+                          {employee.full_name}
+                          {employee.has_salary_this_month && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-600">
+                              ✓ Registrado
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="py-4">
                         <div className="flex gap-2 flex-wrap">
                           {employee.roles.map((role) => (
@@ -481,13 +503,14 @@ export function EmployeeSalariesMonthly() {
                       </TableCell>
                       <TableCell className="text-right py-4">
                         <Button
-                          variant="ghost"
+                          variant={employee.has_salary_this_month ? "ghost" : "outline"}
                           size="sm"
                           onClick={() => handleEditClick(employee)}
-                          className="h-9 w-9 p-0 hover:bg-primary/10 text-primary"
-                          title="Editar salário"
+                          className={`h-9 ${employee.has_salary_this_month ? 'w-9 p-0 hover:bg-primary/10 text-primary' : 'gap-2 text-primary'}`}
+                          title={employee.has_salary_this_month ? "Editar salário" : "Adicionar salário"}
                         >
                           <Pencil className="h-4 w-4" />
+                          {!employee.has_salary_this_month && <span className="hidden sm:inline">Adicionar</span>}
                         </Button>
                       </TableCell>
                     </TableRow>

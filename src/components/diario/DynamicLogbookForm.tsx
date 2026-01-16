@@ -114,14 +114,14 @@ export function DynamicLogbookForm({
     enabled: !!aircraftId,
   });
 
-  // Buscar dados do logbook_month para obter base_aerodrome e daily_rate
+  // Buscar dados do logbook_month para obter base_aerodrome, daily_rate e has_daily_rate
   const { data: logbookMonth } = useQuery({
     queryKey: ['logbook-month', logbookMonthId],
     queryFn: async () => {
       if (!logbookMonthId) return null;
       const { data, error } = await supabase
         .from('logbook_months')
-        .select('base_aerodrome, daily_rate')
+        .select('base_aerodrome, daily_rate, has_daily_rate')
         .eq('id', logbookMonthId)
         .single();
       if (error) {
@@ -132,6 +132,9 @@ export function DynamicLogbookForm({
     },
     enabled: !!logbookMonthId,
   });
+
+  // Verificar se a aeronave possui diária configurada
+  const hasDailyRate = logbookMonth?.has_daily_rate ?? true;
 
   // Atualizar base_aerodrome e daily_rate quando logbookMonth muda
   useEffect(() => {
@@ -170,8 +173,14 @@ export function DynamicLogbookForm({
     }
   }, [date, updateField]);
 
-  // Detectar automaticamente se é voo fora da base e auto-preencher diárias
+  // Detectar automaticamente se é voo fora da base e auto-preencher diárias (apenas se aeronave tem diária)
   useEffect(() => {
+    // Se aeronave não possui diária, não preencher automaticamente
+    if (!hasDailyRate) {
+      setDailyCount('');
+      return;
+    }
+
     if (!baseAerodrome || !formData.departure_airport || !formData.arrival_airport) {
       setDailyCount('');
       return;
@@ -185,7 +194,7 @@ export function DynamicLogbookForm({
     if (isOutOfBase && !dailyCount) {
       setDailyCount('1');
     }
-  }, [baseAerodrome, formData.departure_airport, formData.arrival_airport, aircraftDailyRate, dailyCount, updateField]);
+  }, [baseAerodrome, formData.departure_airport, formData.arrival_airport, aircraftDailyRate, dailyCount, updateField, hasDailyRate]);
 
   // Validações por passo
   const validateStep1 = (): boolean => {
@@ -1021,36 +1030,48 @@ export function DynamicLogbookForm({
             </div>
           </div>
 
-          {/* Diárias */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                Qtd. Diárias
-                {baseAerodrome && dailyCount && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-warning/20 text-warning">
-                    fora da base
-                  </span>
-                )}
-              </Label>
-              <Input
-                type="number"
-                min="0"
-                value={dailyCount}
-                onChange={e => setDailyCount(e.target.value)}
-                placeholder="0"
-                className="h-11"
-              />
-            </div>
+          {/* Diárias - Apenas se aeronave possui diária configurada */}
+          {hasDailyRate ? (
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  Qtd. Diárias
+                  {baseAerodrome && dailyCount && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-warning/20 text-warning">
+                      fora da base
+                    </span>
+                  )}
+                </Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={dailyCount}
+                  onChange={e => setDailyCount(e.target.value)}
+                  placeholder="0"
+                  className="h-11"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label>Valor Unitário</Label>
-              <div className="flex items-center h-11 px-3 bg-muted/50 rounded-md border border-border/50">
-                <span className="text-sm">
-                  {aircraftDailyRate ? formatBRL(aircraftDailyRate) : 'N/A'}
-                </span>
+              <div className="space-y-2">
+                <Label>Valor Unitário</Label>
+                <div className="flex items-center h-11 px-3 bg-muted/50 rounded-md border border-border/50">
+                  <span className="text-sm">
+                    {aircraftDailyRate ? formatBRL(aircraftDailyRate) : 'N/A'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Extras</Label>
+                <Input
+                  value={formData.extras}
+                  onChange={e => updateField('extras', e.target.value)}
+                  placeholder="Valores adicionais"
+                  className="h-11"
+                />
               </div>
             </div>
-
+          ) : (
             <div className="space-y-2">
               <Label>Extras</Label>
               <Input
@@ -1060,7 +1081,7 @@ export function DynamicLogbookForm({
                 className="h-11"
               />
             </div>
-          </div>
+          )}
 
           {/* Observações */}
           <div className="space-y-2">

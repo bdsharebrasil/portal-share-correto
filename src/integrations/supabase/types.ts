@@ -31,6 +31,7 @@ export type Database = {
           local: string
           nota_url: string | null
           observacao: string | null
+          partner_index: number | null
           status_pagamento: string | null
           trecho: string
           updated_at: string | null
@@ -53,6 +54,7 @@ export type Database = {
           local: string
           nota_url?: string | null
           observacao?: string | null
+          partner_index?: number | null
           status_pagamento?: string | null
           trecho: string
           updated_at?: string | null
@@ -75,6 +77,7 @@ export type Database = {
           local?: string
           nota_url?: string | null
           observacao?: string | null
+          partner_index?: number | null
           status_pagamento?: string | null
           trecho?: string
           updated_at?: string | null
@@ -704,6 +707,7 @@ export type Database = {
           data_reembolso: string | null
           date: string
           description: string
+          doc: string | null
           forma_pagamento: string | null
           fornecedor_dados: Json | null
           fornecedor_nome: string | null
@@ -716,7 +720,6 @@ export type Database = {
           reference_type: string | null
           saldo_pendente: number | null
           status: string
-          subcategory: string | null
           tipo_documento: string | null
           type: string
           updated_at: string | null
@@ -737,6 +740,7 @@ export type Database = {
           data_reembolso?: string | null
           date: string
           description: string
+          doc?: string | null
           forma_pagamento?: string | null
           fornecedor_dados?: Json | null
           fornecedor_nome?: string | null
@@ -749,7 +753,6 @@ export type Database = {
           reference_type?: string | null
           saldo_pendente?: number | null
           status: string
-          subcategory?: string | null
           tipo_documento?: string | null
           type: string
           updated_at?: string | null
@@ -770,6 +773,7 @@ export type Database = {
           data_reembolso?: string | null
           date?: string
           description?: string
+          doc?: string | null
           forma_pagamento?: string | null
           fornecedor_dados?: Json | null
           fornecedor_nome?: string | null
@@ -782,7 +786,6 @@ export type Database = {
           reference_type?: string | null
           saldo_pendente?: number | null
           status?: string
-          subcategory?: string | null
           tipo_documento?: string | null
           type?: string
           updated_at?: string | null
@@ -1621,6 +1624,15 @@ export type Database = {
           inscricao_estadual: string | null
           logo_url: string | null
           observations: string | null
+          partner_cpf: string | null
+          partner_cpf2: string | null
+          partner_cpf3: string | null
+          partner_name: string | null
+          partner_name2: string | null
+          partner_name3: string | null
+          partner_percentage1: number | null
+          partner_percentage2: number | null
+          partner_percentage3: number | null
           phone: string | null
           proprietario: string | null
           share_percentage: number | null
@@ -1642,6 +1654,15 @@ export type Database = {
           inscricao_estadual?: string | null
           logo_url?: string | null
           observations?: string | null
+          partner_cpf?: string | null
+          partner_cpf2?: string | null
+          partner_cpf3?: string | null
+          partner_name?: string | null
+          partner_name2?: string | null
+          partner_name3?: string | null
+          partner_percentage1?: number | null
+          partner_percentage2?: number | null
+          partner_percentage3?: number | null
           phone?: string | null
           proprietario?: string | null
           share_percentage?: number | null
@@ -1663,6 +1684,15 @@ export type Database = {
           inscricao_estadual?: string | null
           logo_url?: string | null
           observations?: string | null
+          partner_cpf?: string | null
+          partner_cpf2?: string | null
+          partner_cpf3?: string | null
+          partner_name?: string | null
+          partner_name2?: string | null
+          partner_name3?: string | null
+          partner_percentage1?: number | null
+          partner_percentage2?: number | null
+          partner_percentage3?: number | null
           phone?: string | null
           proprietario?: string | null
           share_percentage?: number | null
@@ -5623,6 +5653,7 @@ export type Database = {
           next_maintenance_type: string | null
           night_hours: number | null
           occurrences: string | null
+          partner_name: string | null
           passengers: number | null
           pic_canac: string
           pilot_signature_date: string | null
@@ -5678,6 +5709,7 @@ export type Database = {
           next_maintenance_type?: string | null
           night_hours?: number | null
           occurrences?: string | null
+          partner_name?: string | null
           passengers?: number | null
           pic_canac: string
           pilot_signature_date?: string | null
@@ -5733,6 +5765,7 @@ export type Database = {
           next_maintenance_type?: string | null
           night_hours?: number | null
           occurrences?: string | null
+          partner_name?: string | null
           passengers?: number | null
           pic_canac?: string
           pilot_signature_date?: string | null
@@ -5867,6 +5900,7 @@ export type Database = {
           created_at: string | null
           daily_rate: number | null
           fuel_consumption: string | null
+          has_daily_rate: boolean | null
           horimetro_ativo: number | null
           horimetro_final: number | null
           horimetro_inicio: number | null
@@ -5888,6 +5922,7 @@ export type Database = {
           created_at?: string | null
           daily_rate?: number | null
           fuel_consumption?: string | null
+          has_daily_rate?: boolean | null
           horimetro_ativo?: number | null
           horimetro_final?: number | null
           horimetro_inicio?: number | null
@@ -5909,6 +5944,7 @@ export type Database = {
           created_at?: string | null
           daily_rate?: number | null
           fuel_consumption?: string | null
+          has_daily_rate?: boolean | null
           horimetro_ativo?: number | null
           horimetro_final?: number | null
           horimetro_inicio?: number | null
@@ -7583,12 +7619,15 @@ export type Database = {
       }
       receipts: {
         Row: {
+          aircraft_id: string | null
           amount: number
           boleto_url: string | null
+          category_name: string | null
           client_id: string | null
           created_at: string | null
           doc_number: string | null
           id: string
+          is_shared: boolean | null
           issue_date: string
           max_payment_date: string | null
           nf_url: string | null
@@ -7599,19 +7638,25 @@ export type Database = {
           payer_uf: string | null
           payment_method: string | null
           pdf_url: string | null
+          percentage: number | null
           receipt_number: string
           receipt_type: string | null
           service_description: string
+          status: string | null
+          total_amount: number | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          aircraft_id?: string | null
           amount: number
           boleto_url?: string | null
+          category_name?: string | null
           client_id?: string | null
           created_at?: string | null
           doc_number?: string | null
           id?: string
+          is_shared?: boolean | null
           issue_date: string
           max_payment_date?: string | null
           nf_url?: string | null
@@ -7622,19 +7667,25 @@ export type Database = {
           payer_uf?: string | null
           payment_method?: string | null
           pdf_url?: string | null
+          percentage?: number | null
           receipt_number: string
           receipt_type?: string | null
           service_description: string
+          status?: string | null
+          total_amount?: number | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          aircraft_id?: string | null
           amount?: number
           boleto_url?: string | null
+          category_name?: string | null
           client_id?: string | null
           created_at?: string | null
           doc_number?: string | null
           id?: string
+          is_shared?: boolean | null
           issue_date?: string
           max_payment_date?: string | null
           nf_url?: string | null
@@ -7645,13 +7696,58 @@ export type Database = {
           payer_uf?: string | null
           payment_method?: string | null
           pdf_url?: string | null
+          percentage?: number | null
           receipt_number?: string
           receipt_type?: string | null
           service_description?: string
+          status?: string | null
+          total_amount?: number | null
           updated_at?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "receipts_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "aircraft"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "aircraft_availability"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "receipts_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave_simples"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "receipts_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "receipts_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
           {
             foreignKeyName: "receipts_client_id_fkey"
             columns: ["client_id"]
@@ -9169,6 +9265,17 @@ export type Database = {
         }
         Relationships: []
       }
+      v_partners: {
+        Row: {
+          client_id: string | null
+          cnpj: string | null
+          company_name: string | null
+          cpf: string | null
+          name: string | null
+          partner_position: number | null
+        }
+        Relationships: []
+      }
       v_salary_comparison: {
         Row: {
           colaborador: string | null
@@ -9714,6 +9821,16 @@ export type Database = {
       gerar_numero_os: {
         Args: { p_aeronave_id: string; p_data: string }
         Returns: string
+      }
+      get_partner_by_cpf: {
+        Args: { p_cpf: string }
+        Returns: {
+          client_id: string
+          cnpj: string
+          company_name: string
+          partner_name: string
+          partner_position: number
+        }[]
       }
       get_salary_category_ids: {
         Args: never

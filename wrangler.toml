@@ -1,0 +1,14 @@
+name = "share-brasil-portal"
+type = "javascript"
+main = "dist/index.js"
+
+[env.production]
+name = "share-brasil-production"
+
+[build]
+command = "npm run build"
+cwd = "."
+watch_paths = ["src/**/*.tsx", "src/**/*.ts"]
+
+[build.upload]
+format = "service-worker"

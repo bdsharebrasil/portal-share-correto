@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,8 @@ import {
   FileText,
   Receipt,
   Paperclip,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { FilterCombobox } from "./FilterCombobox";
 import { useControleBancario } from "@/hooks/useControleBancario";
@@ -60,6 +62,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useColumnWidths } from "@/hooks/useColumnWidths";
 
 type SortField = "data" | "tipo_movimento" | "valor" | null;
 type SortDirection = "asc" | "desc";
@@ -70,6 +73,23 @@ export function FluxoCaixa() {
   const { data: categoriasData } = useCategorias();
   const { categorias: contasData } = useCategoriasFinanceiro();
   const { aeronaves } = useAeronaves();
+
+  const defaultColumnWidths = {
+    data: 100,
+    tipo: 100,
+    descricao: 180,
+    categoria: 130,
+    referencia: 130,
+    cliente: 130,
+    valor: 110,
+    conta: 120,
+    aeronave: 110,
+    nDoc: 100,
+    anexos: 80,
+    status: 100,
+  };
+
+  const { columnWidths, setColumnWidth } = useColumnWidths('fluxo-caixa', defaultColumnWidths);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterTipos, setFilterTipos] = useState<Set<string>>(new Set());
@@ -89,13 +109,33 @@ export function FluxoCaixa() {
   const [showInlineForm, setShowInlineForm] = useState(false);
   const [editingMovimentacao, setEditingMovimentacao] = useState<any>(null);
   const [contasBancarias, setContasBancarias] = useState<any[]>([]);
+  const [expandedColumns, setExpandedColumns] = useState<Set<string>>(
+    new Set([
+      "data",
+      "tipo",
+      "descricao",
+      "categoria",
+      "referencia",
+      "cliente",
+      "valor",
+      "conta",
+      "aeronave",
+      "nDoc",
+      "anexos",
+      "status",
+    ])
+  );
+  const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set());
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(0);
 
   // Fetch contas bancárias para obter os bancos
   React.useEffect(() => {
     const fetchContasBancarias = async () => {
       const { data } = await supabase
         .from("contas_bancarias")
-        .select("id, nome, banco")
+        .select("id, banco")
         .eq("ativo", true)
         .order("banco");
       setContasBancarias(data || []);
@@ -149,6 +189,44 @@ export function FluxoCaixa() {
     setSelectedIds(newSet);
   };
 
+  const toggleColumnVisibility = (columnId: string) => {
+    if (expandedColumns.has(columnId)) {
+      // Recolher coluna
+      const newExpanded = new Set(expandedColumns);
+      newExpanded.delete(columnId);
+      setExpandedColumns(newExpanded);
+      setCollapsedColumns(new Set([...collapsedColumns, columnId]));
+    } else if (collapsedColumns.has(columnId)) {
+      // Expandir coluna novamente
+      const newCollapsed = new Set(collapsedColumns);
+      newCollapsed.delete(columnId);
+      setCollapsedColumns(newCollapsed);
+      setExpandedColumns(new Set([...expandedColumns, columnId]));
+    }
+  };
+
+  const calculateColSpan = () => {
+    return expandedColumns.size + collapsedColumns.size + 2; // +2 para checkbox e ações
+  };
+
+  const getColumnLabel = (columnId: string): string => {
+    const labels: Record<string, string> = {
+      data: "D",
+      tipo: "T",
+      descricao: "Desc",
+      categoria: "Cat",
+      referencia: "Ref",
+      cliente: "Cl",
+      valor: "V",
+      conta: "C",
+      aeronave: "A",
+      nDoc: "Doc",
+      anexos: "Anx",
+      status: "St",
+    };
+    return labels[columnId] || columnId.charAt(0).toUpperCase();
+  };
+
   const toggleSelectAll = () => {
     if (
       selectedIds.size === paginatedTransacoes.length &&
@@ -158,6 +236,28 @@ export function FluxoCaixa() {
     } else {
       setSelectedIds(new Set(paginatedTransacoes.map((t: any) => t.id)));
     }
+  };
+
+  const handleColumnResizeStart = (e: React.MouseEvent, columnId: string) => {
+    e.preventDefault();
+    setResizingColumn(columnId);
+    startXRef.current = e.clientX;
+    startWidthRef.current = columnWidths[columnId] || defaultColumnWidths[columnId as keyof typeof defaultColumnWidths];
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const diff = moveEvent.clientX - startXRef.current;
+      const newWidth = Math.max(60, startWidthRef.current + diff);
+      setColumnWidth(columnId, newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setResizingColumn(null);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   };
 
   const handleSort = (field: SortField) => {
@@ -200,11 +300,10 @@ export function FluxoCaixa() {
         const matchesCategoria =
           filterCategorias.size === 0 ||
           filterCategorias.has(transacao.categoria);
-        // Filtrar pelo banco usando o mapeamento conta -> banco
-        const transacaoBanco = transacao.conta_banco ? contaToBanco[transacao.conta_banco] : null;
+        // Filtrar pelo banco - conta_banco agora contém diretamente o nome do banco
         const matchesBanco =
           filterBancos.size === 0 ||
-          (transacaoBanco && filterBancos.has(transacaoBanco));
+          (transacao.conta_banco && filterBancos.has(transacao.conta_banco));
         const matchesStatus =
           filterStatus.size === 0 ||
           (transacao.status && filterStatus.has(transacao.status));
@@ -219,7 +318,7 @@ export function FluxoCaixa() {
         );
       }) || []
     );
-  }, [transacoes, searchTerm, filterTipos, filterGrupos, filterCategorias, filterBancos, filterStatus, contaToBanco]);
+  }, [transacoes, searchTerm, filterTipos, filterGrupos, filterCategorias, filterBancos, filterStatus]);
 
   const sortedTransacoes = useMemo(() => {
     const sorted = [...filteredTransacoes].sort((a: any, b: any) => {
@@ -541,32 +640,367 @@ export function FluxoCaixa() {
                       className="h-5 w-5"
                     />
                   </TableHead>
-                  <TableHead
-                    className="text-foreground/70 cursor-pointer hover:text-foreground transition-colors"
-                    onClick={() => handleSort("data")}
-                  >
-                    Data {renderSortIcon("data")}
-                  </TableHead>
-                  <TableHead
-                    className="text-foreground/70 cursor-pointer hover:text-foreground transition-colors"
-                    onClick={() => handleSort("tipo_movimento")}
-                  >
-                    Tipo {renderSortIcon("tipo_movimento")}
-                  </TableHead>
-                  <TableHead className="text-foreground/70">Descrição</TableHead>
-                  <TableHead className="text-foreground/70">Categoria</TableHead>
-                  <TableHead className="text-foreground/70">Referência</TableHead>
-                  <TableHead
-                    className="text-foreground/70 cursor-pointer hover:text-foreground transition-colors"
-                    onClick={() => handleSort("valor")}
-                  >
-                    Valor {renderSortIcon("valor")}
-                  </TableHead>
-                  <TableHead className="text-foreground/70">Conta</TableHead>
-                  <TableHead className="text-foreground/70">Aeronave</TableHead>
-                  <TableHead className="text-foreground/70">Nº Doc</TableHead>
-                  <TableHead className="text-foreground/70">Anexos</TableHead>
-                  <TableHead className="text-foreground/70">Status</TableHead>
+                  {expandedColumns.has("data") && (
+                    <TableHead
+                      className="text-foreground/70 cursor-pointer hover:text-foreground transition-colors group relative select-none"
+                      onClick={() => handleSort("data")}
+                      style={{
+                        width: `${columnWidths.data}px`,
+                        minWidth: `${columnWidths.data}px`,
+                        maxWidth: `${columnWidths.data}px`,
+                      }}
+                    >
+                      <div className="flex items-center justify-between h-full pr-0">
+                        <div className="flex items-center gap-1 flex-1 truncate">
+                          <span>Data {renderSortIcon("data")}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleColumnVisibility("data");
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                            title="Ocultar coluna"
+                          >
+                            <EyeOff className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div
+                          onMouseDown={(e) => handleColumnResizeStart(e, "data")}
+                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                            resizingColumn === "data" ? "bg-primary" : ""
+                          }`}
+                          title="Arraste para redimensionar"
+                        />
+                      </div>
+                    </TableHead>
+                  )}
+                  {expandedColumns.has("tipo") && (
+                    <TableHead
+                      className="text-foreground/70 cursor-pointer hover:text-foreground transition-colors group relative select-none"
+                      onClick={() => handleSort("tipo_movimento")}
+                      style={{
+                        width: `${columnWidths.tipo}px`,
+                        minWidth: `${columnWidths.tipo}px`,
+                        maxWidth: `${columnWidths.tipo}px`,
+                      }}
+                    >
+                      <div className="flex items-center justify-between h-full pr-0">
+                        <div className="flex items-center gap-1 flex-1 truncate">
+                          <span>Tipo {renderSortIcon("tipo_movimento")}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleColumnVisibility("tipo");
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                            title="Ocultar coluna"
+                          >
+                            <EyeOff className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div
+                          onMouseDown={(e) => handleColumnResizeStart(e, "tipo")}
+                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                            resizingColumn === "tipo" ? "bg-primary" : ""
+                          }`}
+                          title="Arraste para redimensionar"
+                        />
+                      </div>
+                    </TableHead>
+                  )}
+                  {expandedColumns.has("descricao") && (
+                    <TableHead className="text-foreground/70 group relative select-none" style={{
+                        width: `${columnWidths.descricao}px`,
+                        minWidth: `${columnWidths.descricao}px`,
+                        maxWidth: `${columnWidths.descricao}px`,
+                      }}>
+                      <div className="flex items-center justify-between h-full pr-0">
+                        <div className="flex items-center gap-1 flex-1 truncate">
+                          <span>Descrição</span>
+                          <button
+                            onClick={() => toggleColumnVisibility("descricao")}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
+                            title="Ocultar coluna"
+                          >
+                            <EyeOff className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div
+                          onMouseDown={(e) => handleColumnResizeStart(e, "descricao")}
+                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                            resizingColumn === "descricao" ? "bg-primary" : ""
+                          }`}
+                          title="Arraste para redimensionar"
+                        />
+                      </div>
+                    </TableHead>
+                  )}
+                  {expandedColumns.has("categoria") && (
+                    <TableHead className="text-foreground/70 group relative select-none" style={{
+                        width: `${columnWidths.categoria}px`,
+                        minWidth: `${columnWidths.categoria}px`,
+                        maxWidth: `${columnWidths.categoria}px`,
+                      }}>
+                      <div className="flex items-center justify-between h-full pr-0">
+                        <div className="flex items-center gap-1 flex-1 truncate">
+                          <span>Categoria</span>
+                          <button
+                            onClick={() => toggleColumnVisibility("categoria")}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
+                            title="Ocultar coluna"
+                          >
+                            <EyeOff className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div
+                          onMouseDown={(e) => handleColumnResizeStart(e, "categoria")}
+                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                            resizingColumn === "categoria" ? "bg-primary" : ""
+                          }`}
+                          title="Arraste para redimensionar"
+                        />
+                      </div>
+                    </TableHead>
+                  )}
+                  {expandedColumns.has("referencia") && (
+                    <TableHead className="text-foreground/70 group relative select-none" style={{
+                        width: `${columnWidths.referencia}px`,
+                        minWidth: `${columnWidths.referencia}px`,
+                        maxWidth: `${columnWidths.referencia}px`,
+                      }}>
+                      <div className="flex items-center justify-between h-full pr-0">
+                        <div className="flex items-center gap-1 flex-1 truncate">
+                          <span>Referência</span>
+                          <button
+                            onClick={() => toggleColumnVisibility("referencia")}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
+                            title="Ocultar coluna"
+                          >
+                            <EyeOff className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div
+                          onMouseDown={(e) => handleColumnResizeStart(e, "referencia")}
+                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                            resizingColumn === "referencia" ? "bg-primary" : ""
+                          }`}
+                          title="Arraste para redimensionar"
+                        />
+                      </div>
+                    </TableHead>
+                  )}
+                  {expandedColumns.has("cliente") && (
+                    <TableHead className="text-foreground/70 group relative select-none" style={{
+                        width: `${columnWidths.cliente}px`,
+                        minWidth: `${columnWidths.cliente}px`,
+                        maxWidth: `${columnWidths.cliente}px`,
+                      }}>
+                      <div className="flex items-center justify-between h-full pr-0">
+                        <div className="flex items-center gap-1 flex-1 truncate">
+                          <span>Cliente</span>
+                          <button
+                            onClick={() => toggleColumnVisibility("cliente")}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
+                            title="Ocultar coluna"
+                          >
+                            <EyeOff className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div
+                          onMouseDown={(e) => handleColumnResizeStart(e, "cliente")}
+                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                            resizingColumn === "cliente" ? "bg-primary" : ""
+                          }`}
+                          title="Arraste para redimensionar"
+                        />
+                      </div>
+                    </TableHead>
+                  )}
+                  {expandedColumns.has("valor") && (
+                    <TableHead
+                      className="text-foreground/70 cursor-pointer hover:text-foreground transition-colors group relative select-none"
+                      onClick={() => handleSort("valor")}
+                      style={{
+                        width: `${columnWidths.valor}px`,
+                        minWidth: `${columnWidths.valor}px`,
+                        maxWidth: `${columnWidths.valor}px`,
+                      }}
+                    >
+                      <div className="flex items-center justify-between h-full pr-0">
+                        <div className="flex items-center gap-1 flex-1 truncate">
+                          <span>Valor {renderSortIcon("valor")}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleColumnVisibility("valor");
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                            title="Ocultar coluna"
+                          >
+                            <EyeOff className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div
+                          onMouseDown={(e) => handleColumnResizeStart(e, "valor")}
+                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                            resizingColumn === "valor" ? "bg-primary" : ""
+                          }`}
+                          title="Arraste para redimensionar"
+                        />
+                      </div>
+                    </TableHead>
+                  )}
+                  {expandedColumns.has("conta") && (
+                    <TableHead className="text-foreground/70 group relative select-none" style={{
+                        width: `${columnWidths.conta}px`,
+                        minWidth: `${columnWidths.conta}px`,
+                        maxWidth: `${columnWidths.conta}px`,
+                      }}>
+                      <div className="flex items-center justify-between h-full pr-0">
+                        <div className="flex items-center gap-1 flex-1 truncate">
+                          <span>Conta</span>
+                          <button
+                            onClick={() => toggleColumnVisibility("conta")}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
+                            title="Ocultar coluna"
+                          >
+                            <EyeOff className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div
+                          onMouseDown={(e) => handleColumnResizeStart(e, "conta")}
+                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                            resizingColumn === "conta" ? "bg-primary" : ""
+                          }`}
+                          title="Arraste para redimensionar"
+                        />
+                      </div>
+                    </TableHead>
+                  )}
+                  {expandedColumns.has("aeronave") && (
+                    <TableHead className="text-foreground/70 group relative select-none" style={{
+                        width: `${columnWidths.aeronave}px`,
+                        minWidth: `${columnWidths.aeronave}px`,
+                        maxWidth: `${columnWidths.aeronave}px`,
+                      }}>
+                      <div className="flex items-center justify-between h-full pr-0">
+                        <div className="flex items-center gap-1 flex-1 truncate">
+                          <span>Aeronave</span>
+                          <button
+                            onClick={() => toggleColumnVisibility("aeronave")}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
+                            title="Ocultar coluna"
+                          >
+                            <EyeOff className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div
+                          onMouseDown={(e) => handleColumnResizeStart(e, "aeronave")}
+                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                            resizingColumn === "aeronave" ? "bg-primary" : ""
+                          }`}
+                          title="Arraste para redimensionar"
+                        />
+                      </div>
+                    </TableHead>
+                  )}
+                  {expandedColumns.has("nDoc") && (
+                    <TableHead className="text-foreground/70 group relative select-none" style={{
+                        width: `${columnWidths.nDoc}px`,
+                        minWidth: `${columnWidths.nDoc}px`,
+                        maxWidth: `${columnWidths.nDoc}px`,
+                      }}>
+                      <div className="flex items-center justify-between h-full pr-0">
+                        <div className="flex items-center gap-1 flex-1 truncate">
+                          <span>Nº Doc</span>
+                          <button
+                            onClick={() => toggleColumnVisibility("nDoc")}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
+                            title="Ocultar coluna"
+                          >
+                            <EyeOff className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div
+                          onMouseDown={(e) => handleColumnResizeStart(e, "nDoc")}
+                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                            resizingColumn === "nDoc" ? "bg-primary" : ""
+                          }`}
+                          title="Arraste para redimensionar"
+                        />
+                      </div>
+                    </TableHead>
+                  )}
+                  {expandedColumns.has("anexos") && (
+                    <TableHead className="text-foreground/70 group relative select-none" style={{
+                        width: `${columnWidths.anexos}px`,
+                        minWidth: `${columnWidths.anexos}px`,
+                        maxWidth: `${columnWidths.anexos}px`,
+                      }}>
+                      <div className="flex items-center justify-between h-full pr-0">
+                        <div className="flex items-center gap-1 flex-1 truncate">
+                          <span>Anexos</span>
+                          <button
+                            onClick={() => toggleColumnVisibility("anexos")}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
+                            title="Ocultar coluna"
+                          >
+                            <EyeOff className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div
+                          onMouseDown={(e) => handleColumnResizeStart(e, "anexos")}
+                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                            resizingColumn === "anexos" ? "bg-primary" : ""
+                          }`}
+                          title="Arraste para redimensionar"
+                        />
+                      </div>
+                    </TableHead>
+                  )}
+                  {expandedColumns.has("status") && (
+                    <TableHead className="text-foreground/70 group relative select-none" style={{
+                        width: `${columnWidths.status}px`,
+                        minWidth: `${columnWidths.status}px`,
+                        maxWidth: `${columnWidths.status}px`,
+                      }}>
+                      <div className="flex items-center justify-between h-full pr-0">
+                        <div className="flex items-center gap-1 flex-1 truncate">
+                          <span>Status</span>
+                          <button
+                            onClick={() => toggleColumnVisibility("status")}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
+                            title="Ocultar coluna"
+                          >
+                            <EyeOff className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div
+                          onMouseDown={(e) => handleColumnResizeStart(e, "status")}
+                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                            resizingColumn === "status" ? "bg-primary" : ""
+                          }`}
+                          title="Arraste para redimensionar"
+                        />
+                      </div>
+                    </TableHead>
+                  )}
+                  {collapsedColumns.size > 0 && (
+                    <TableHead className="text-foreground/70 group relative max-w-[120px]">
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {Array.from(collapsedColumns).map((colId) => (
+                          <button
+                            key={colId}
+                            onClick={() => toggleColumnVisibility(colId)}
+                            className="inline-flex items-center justify-center w-6 h-6 rounded bg-muted/50 hover:bg-muted text-xs font-semibold text-foreground/70 hover:text-foreground transition-colors border border-border/50 hover:border-border"
+                            title={`Expandir coluna - ${colId}`}
+                          >
+                            {getColumnLabel(colId)}
+                          </button>
+                        ))}
+                      </div>
+                    </TableHead>
+                  )}
                   <TableHead className="text-right text-foreground/70">
                     Ações
                   </TableHead>
@@ -581,9 +1015,8 @@ export function FluxoCaixa() {
                   return (
                     <TableRow
                       key={transacao.id}
-                      className={`border-border/40 ${
-                        isSelected ? "bg-blue-900/20" : ""
-                      }`}
+                      className={`border-border/40 ${isSelected ? "bg-blue-900/20" : ""
+                        }`}
                     >
                       <TableCell className="text-center">
                         <Checkbox
@@ -592,153 +1025,227 @@ export function FluxoCaixa() {
                           className="h-5 w-5"
                         />
                       </TableCell>
-                      <TableCell className="text-foreground/80 whitespace-nowrap">
-                        {(() => {
-                          // Parse date string directly to avoid timezone issues
-                          const dateStr = transacao.data;
-                          if (dateStr && dateStr.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-                            const [year, month, day] = dateStr.split('-').map(Number);
-                            const date = new Date(year, month - 1, day);
-                            return format(date, "dd/MM/yyyy", { locale: ptBR });
-                          }
-                          return format(new Date(transacao.data), "dd/MM/yyyy", { locale: ptBR });
-                        })()}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {isEntrada ? (
-                            <ArrowUpCircle className="w-4 h-4 text-green-400" />
-                          ) : (
-                            <ArrowDownCircle className="w-4 h-4 text-red-400" />
-                          )}
-                          <span
-                            className={
-                              isEntrada
-                                ? "text-green-400"
-                                : "text-red-400"
+                      {expandedColumns.has("data") && (
+                        <TableCell className="text-foreground/80 whitespace-nowrap" style={{
+                          width: `${columnWidths.data}px`,
+                          minWidth: `${columnWidths.data}px`,
+                          maxWidth: `${columnWidths.data}px`,
+                        }}>
+                          {(() => {
+                            const dateStr = transacao.data;
+                            if (dateStr && dateStr.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                              const [year, month, day] = dateStr.split('-').map(Number);
+                              const date = new Date(year, month - 1, day);
+                              return format(date, "dd/MM/yyyy", { locale: ptBR });
                             }
-                          >
-                            {isEntrada ? "Entrada" : "Saída"}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-white font-medium max-w-xs truncate">
-                        {transacao.descricao}
-                      </TableCell>
-                      <TableCell className="text-foreground/80">
-                        {transacao.categoria_nome || "-"}
-                      </TableCell>
-                      <TableCell className="text-foreground/80 max-w-[150px] truncate">
-                        {transacao.referencia || "-"}
-                      </TableCell>
-                      <TableCell
-                        className={`font-semibold ${
-                          isEntrada ? "text-green-400" : "text-red-400"
-                        }`}
-                      >
-                        R${" "}
-                        {Number(transacao.valor).toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </TableCell>
-                      <TableCell className="text-foreground/80">
-                        {transacao.conta_banco ? (contaToBanco[transacao.conta_banco] || transacao.conta_banco) : "-"}
-                      </TableCell>
-                      <TableCell className="text-foreground/80">
-                        {transacao.aeronave_registro || "-"}
-                      </TableCell>
-                      <TableCell className="text-foreground/80">
-                        {transacao.numero_documento || "-"}
-                      </TableCell>
-                      <TableCell>
-                        <TooltipProvider>
-                          <div className="flex items-center gap-1">
-                            {transacao.comprovante_url && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <a 
-                                    href={transacao.comprovante_url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="p-1 rounded hover:bg-muted/50 transition-colors"
-                                  >
-                                    <CreditCard className="w-4 h-4 text-green-400" />
-                                  </a>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Comprovante</p>
-                                </TooltipContent>
-                              </Tooltip>
+                            return format(new Date(transacao.data), "dd/MM/yyyy", { locale: ptBR });
+                          })()}
+                        </TableCell>
+                      )}
+                      {expandedColumns.has("tipo") && (
+                        <TableCell style={{
+                          width: `${columnWidths.tipo}px`,
+                          minWidth: `${columnWidths.tipo}px`,
+                          maxWidth: `${columnWidths.tipo}px`,
+                        }}>
+                          <div className="flex items-center gap-2">
+                            {isEntrada ? (
+                              <ArrowUpCircle className="w-4 h-4 text-green-400" />
+                            ) : (
+                              <ArrowDownCircle className="w-4 h-4 text-red-400" />
                             )}
-                            {transacao.nf_url && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <a 
-                                    href={transacao.nf_url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="p-1 rounded hover:bg-muted/50 transition-colors"
-                                  >
-                                    <FileText className="w-4 h-4 text-blue-400" />
-                                  </a>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Nota Fiscal</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                            {transacao.recibo_url && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <a 
-                                    href={transacao.recibo_url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="p-1 rounded hover:bg-muted/50 transition-colors"
-                                  >
-                                    <Receipt className="w-4 h-4 text-purple-400" />
-                                  </a>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Recibo</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                            {transacao.boleto_url && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <a 
-                                    href={transacao.boleto_url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="p-1 rounded hover:bg-muted/50 transition-colors"
-                                  >
-                                    <Paperclip className="w-4 h-4 text-orange-400" />
-                                  </a>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Boleto</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                            {!transacao.comprovante_url && !transacao.nf_url && !transacao.recibo_url && !transacao.boleto_url && (
-                              <span className="text-muted-foreground">-</span>
-                            )}
+                            <span
+                              className={
+                                isEntrada
+                                  ? "text-green-400"
+                                  : "text-red-400"
+                              }
+                            >
+                              {isEntrada ? "Entrada" : "Saída"}
+                            </span>
                           </div>
-                        </TooltipProvider>
-                      </TableCell>
-                      <TableCell>
-                        {transacao.status ? (
-                          <Badge
-                            variant="outline"
-                            className={getStatusColor(transacao.status)}
-                          >
-                            {transacao.status}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
+                        </TableCell>
+                      )}
+                      {expandedColumns.has("descricao") && (
+                        <TableCell className="text-white font-medium truncate" style={{
+                          width: `${columnWidths.descricao}px`,
+                          minWidth: `${columnWidths.descricao}px`,
+                          maxWidth: `${columnWidths.descricao}px`,
+                        }}>
+                          {transacao.descricao}
+                        </TableCell>
+                      )}
+                      {expandedColumns.has("categoria") && (
+                        <TableCell className="text-foreground/80" style={{
+                          width: `${columnWidths.categoria}px`,
+                          minWidth: `${columnWidths.categoria}px`,
+                          maxWidth: `${columnWidths.categoria}px`,
+                        }}>
+                          {transacao.categoria_nome || "-"}
+                        </TableCell>
+                      )}
+                      {expandedColumns.has("referencia") && (
+                        <TableCell className="text-foreground/80 truncate" title={transacao.referencia || ""}style={{
+                          width: `${columnWidths.referencia}px`,
+                          minWidth: `${columnWidths.referencia}px`,
+                          maxWidth: `${columnWidths.referencia}px`,
+                        }}>
+                          {transacao.referencia || "-"}
+                        </TableCell>
+                      )}
+                      {expandedColumns.has("cliente") && (
+                        <TableCell className="text-foreground/80 truncate" title={transacao.cliente_nome || ""} style={{
+                          width: `${columnWidths.cliente}px`,
+                          minWidth: `${columnWidths.cliente}px`,
+                          maxWidth: `${columnWidths.cliente}px`,
+                        }}>
+                          {transacao.cliente_nome || "-"}
+                        </TableCell>
+                      )}
+                      {expandedColumns.has("valor") && (
+                        <TableCell
+                          className={`font-semibold ${isEntrada ? "text-green-400" : "text-red-400"
+                            }`}
+                          style={{
+                            width: `${columnWidths.valor}px`,
+                            minWidth: `${columnWidths.valor}px`,
+                            maxWidth: `${columnWidths.valor}px`,
+                          }}
+                        >
+                          R${" "}
+                          {Number(transacao.valor).toLocaleString("pt-BR", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </TableCell>
+                      )}
+                      {expandedColumns.has("conta") && (
+                        <TableCell className="text-foreground/80" style={{
+                          width: `${columnWidths.conta}px`,
+                          minWidth: `${columnWidths.conta}px`,
+                          maxWidth: `${columnWidths.conta}px`,
+                        }}>
+                          {transacao.conta_banco || "-"}
+                        </TableCell>
+                      )}
+                      {expandedColumns.has("aeronave") && (
+                        <TableCell className="text-foreground/80" style={{
+                          width: `${columnWidths.aeronave}px`,
+                          minWidth: `${columnWidths.aeronave}px`,
+                          maxWidth: `${columnWidths.aeronave}px`,
+                        }}>
+                          {transacao.aeronave_registro || "-"}
+                        </TableCell>
+                      )}
+                      {expandedColumns.has("nDoc") && (
+                        <TableCell className="text-foreground/80" style={{
+                          width: `${columnWidths.nDoc}px`,
+                          minWidth: `${columnWidths.nDoc}px`,
+                          maxWidth: `${columnWidths.nDoc}px`,
+                        }}>
+                          {transacao.numero_documento || "-"}
+                        </TableCell>
+                      )}
+                      {expandedColumns.has("anexos") && (
+                        <TableCell style={{
+                          width: `${columnWidths.anexos}px`,
+                          minWidth: `${columnWidths.anexos}px`,
+                          maxWidth: `${columnWidths.anexos}px`,
+                        }}>
+                          <TooltipProvider>
+                            <div className="flex items-center gap-1">
+                              {transacao.comprovante_url && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <a
+                                      href={transacao.comprovante_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-1 rounded hover:bg-muted/50 transition-colors"
+                                    >
+                                      <CreditCard className="w-4 h-4 text-green-400" />
+                                    </a>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Comprovante</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                              {transacao.nf_url && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <a
+                                      href={transacao.nf_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-1 rounded hover:bg-muted/50 transition-colors"
+                                    >
+                                      <FileText className="w-4 h-4 text-blue-400" />
+                                    </a>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Nota Fiscal</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                              {transacao.recibo_url && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <a
+                                      href={transacao.recibo_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-1 rounded hover:bg-muted/50 transition-colors"
+                                    >
+                                      <Receipt className="w-4 h-4 text-purple-400" />
+                                    </a>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Recibo</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                              {transacao.boleto_url && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <a
+                                      href={transacao.boleto_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="p-1 rounded hover:bg-muted/50 transition-colors"
+                                    >
+                                      <Paperclip className="w-4 h-4 text-orange-400" />
+                                    </a>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Boleto</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+                              {!transacao.comprovante_url && !transacao.nf_url && !transacao.recibo_url && !transacao.boleto_url && (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </div>
+                          </TooltipProvider>
+                        </TableCell>
+                      )}
+                      {expandedColumns.has("status") && (
+                        <TableCell style={{
+                          width: `${columnWidths.status}px`,
+                          minWidth: `${columnWidths.status}px`,
+                          maxWidth: `${columnWidths.status}px`,
+                        }}>
+                          {transacao.status ? (
+                            <Badge
+                              variant="outline"
+                              className={getStatusColor(transacao.status)}
+                            >
+                              {transacao.status}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -754,16 +1261,16 @@ export function FluxoCaixa() {
                             align="end"
                             className="w-48"
                           >
-                                            <DropdownMenuItem 
-                                              className="cursor-pointer"
-                                              onClick={() => {
-                                                setEditingMovimentacao(transacao);
-                                                setShowInlineForm(true);
-                                              }}
-                                            >
-                                              <Edit2 className="w-4 h-4 mr-2" />
-                                              <span>Editar</span>
-                                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={() => {
+                                setEditingMovimentacao(transacao);
+                                setShowInlineForm(true);
+                              }}
+                            >
+                              <Edit2 className="w-4 h-4 mr-2" />
+                              <span>Editar</span>
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={() => setDeleteConfirmId(transacao.id)}
@@ -781,7 +1288,7 @@ export function FluxoCaixa() {
                 {sortedTransacoes.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={12}
+                      colSpan={calculateColSpan()}
                       className="text-center text-foreground/40 py-8"
                     >
                       Nenhuma movimentação encontrada

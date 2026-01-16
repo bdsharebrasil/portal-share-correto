@@ -33,6 +33,7 @@ import { getShortUserId, getIdBadgeColor } from "@/lib/user-id";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { StatusUpdateDialog } from "./StatusUpdateDialog";
+import { syncBankReconciliationToFinancial } from "@/services/financialSyncClient";
 
 // --- Interfaces ---
 interface ColaboradorReconciliation {
@@ -540,7 +541,7 @@ function NewReconciliationInlineForm({ users, onClose, onSuccess }: NewReconcili
         throw new Error("Colaborador inválido ou inativo.");
       }
 
-      const { error } = await supabase.from("bank_reconciliations").insert([{
+      const { data: inserted, error } = await supabase.from("bank_reconciliations").insert([{
           type: "colaborador",
           date: data.date,
           description: data.description,
@@ -548,9 +549,16 @@ function NewReconciliationInlineForm({ users, onClose, onSuccess }: NewReconcili
           status: data.status,
           receiver_id: data.receiverId,
           created_by: user.id,
-        }] as any);
+        }] as any)
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Sincronizar com controle_bancario
+      if (inserted?.id) {
+        await syncBankReconciliationToFinancial(inserted.id, user.id);
+      }
 
       toast({ title: "Sucesso", description: "Conciliação criada." });
       form.reset();

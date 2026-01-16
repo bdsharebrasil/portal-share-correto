@@ -187,49 +187,51 @@ export default function Aniversarios() {
                       )}
                     </div>
 
-                    <div className="absolute right-4 top-1/4 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => {
-                          setEditingBirthday(birthday);
-                          setFormData({
-                            nome: birthday.nome,
-                            data_aniversario: (birthday.data_aniversario || "").slice(0, 10),
-                            empresa: birthday.empresa || "",
-                            category: birthday.category || "cliente",
-                          });
-                          setIsDialogOpen(true);
-                        }}
-                        aria-label="Editar aniversário"
-                        title="Editar aniversário"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={async () => {
-                          const confirmed = window.confirm(`Excluir aniversário de ${birthday.nome}?`);
-                          if (!confirmed) return;
-                          try {
-                            const { error } = await supabase.from("birthdays").delete().eq("id", birthday.id);
-                            if (error) throw error;
-                            toast({ title: "Excluído", description: "Aniversário excluído com sucesso" });
-                            refetch();
-                          } catch (err) {
-                            console.error("Erro ao excluir aniversário:", err);
-                            toast({ title: "Erro", description: "Não foi possível excluir", variant: "destructive" });
-                          }
-                        }}
-                        aria-label="Excluir aniversário"
-                        title="Excluir aniversário"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    {birthday.source !== "user_profiles" && (
+                      <div className="absolute right-4 top-1/4 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => {
+                            setEditingBirthday(birthday);
+                            setFormData({
+                              nome: birthday.nome,
+                              data_aniversario: (birthday.data_aniversario || "").slice(0, 10),
+                              empresa: birthday.empresa || "",
+                              category: birthday.category || "cliente",
+                            });
+                            setIsDialogOpen(true);
+                          }}
+                          aria-label="Editar aniversário"
+                          title="Editar aniversário"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={async () => {
+                            const confirmed = window.confirm(`Excluir aniversário de ${birthday.nome}?`);
+                            if (!confirmed) return;
+                            try {
+                              const { error } = await supabase.from("birthdays").delete().eq("id", birthday.id);
+                              if (error) throw error;
+                              toast({ title: "Excluído", description: "Aniversário excluído com sucesso" });
+                              refetch();
+                            } catch (err) {
+                              console.error("Erro ao excluir aniversário:", err);
+                              toast({ title: "Erro", description: "Não foi possível excluir", variant: "destructive" });
+                            }
+                          }}
+                          aria-label="Excluir aniversário"
+                          title="Excluir aniversário"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

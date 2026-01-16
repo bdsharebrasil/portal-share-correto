@@ -271,7 +271,7 @@ export default function GestaoFuncionarios() {
             error: crewError
           } = await supabase.from("crew_members").select("id, status, photo_url, canac").eq("user_id", profile.id).single();
           if (crewError && crewError.code !== 'PGRST116') {
-            console.error("Erro ao buscar crew member:", crewError);
+            console.error("Erro ao buscar crew member para", profile.full_name, "-", crewError.message || crewError);
           }
           if (crewMember) {
             crewData = {

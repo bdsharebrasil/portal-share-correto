@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Layout } from "@/components/layout/Layout";
+import { useRealtimeBookings } from "@/hooks/useRealtimeBookings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,8 @@ import {
   Settings
 } from "lucide-react";
 import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, addMonths } from "date-fns";
+import { CrewScheduleGrid } from "@/components/scheduling/CrewScheduleGrid";
+import { BlockDateRangeSelector } from "@/components/scheduling/BlockDateRangeSelector";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/components/ui/use-toast";
 
@@ -112,6 +115,9 @@ export default function PainelAgendamentos() {
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [selectedPilotId, setSelectedPilotId] = useState("");
   const [selectedCopilotId, setSelectedCopilotId] = useState("");
+
+  // Ativar atualizações em tempo real
+  useRealtimeBookings();
 
   // Fetch aircraft
   const { data: aircraft } = useQuery({
@@ -284,6 +290,30 @@ export default function PainelAgendamentos() {
     }
   });
 
+  // Start flight mutation - muda status para "em_voo"
+  const startFlightMutation = useMutation({
+    mutationFn: async (bookingId: string) => {
+      const { error } = await supabase
+        .from("flight_booking_requests")
+        .update({ status: "em_voo" })
+        .eq("id", bookingId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["flight-booking-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["flight-cycles"] });
+      queryClient.invalidateQueries({ queryKey: ["active-flight-cycles"] });
+      queryClient.invalidateQueries({ queryKey: ["aircraft-live-status"] });
+      toast({ 
+        title: "🛫 Voo Iniciado", 
+        description: "Ciclo de voo criado automaticamente" 
+      });
+    },
+    onError: (error: any) => {
+      toast({ title: "Erro ao iniciar voo", description: error.message, variant: "destructive" });
+    }
+  });
+
   // Block date mutation
   const blockDateMutation = useMutation({
     mutationFn: async () => {
@@ -325,6 +355,7 @@ export default function PainelAgendamentos() {
       });
       setShowBlockDialog(false);
       setBlockReason("");
+      setIsFleetWide(false);
       clearSelectedDates();
     },
     onError: (error: any) => {
@@ -472,9 +503,9 @@ export default function PainelAgendamentos() {
   const calendarDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
   const getBookingsForDay = (date: Date) => {
-    return bookings?.filter(b => 
-      isSameDay(new Date(b.scheduled_date), date) && 
-      b.status !== "rejeitado" && 
+    return bookings?.filter(b =>
+      isSameDay(new Date(b.scheduled_date), date) &&
+      b.status !== "rejeitado" &&
       b.status !== "cancelado"
     ) || [];
   };
@@ -630,7 +661,7 @@ export default function PainelAgendamentos() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-5 w-full max-w-3xl">
+          <TabsList className="grid grid-cols-6 w-full max-w-4xl">
             <TabsTrigger value="solicitacoes" className="gap-2">
               <AlertCircle className="h-4 w-4" /> Solicitações
             </TabsTrigger>
@@ -657,79 +688,146 @@ export default function PainelAgendamentos() {
                   Carregando...
                 </CardContent>
               </Card>
-            ) : bookings?.filter(b => b.status === "pendente").length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <CheckCircle2 className="h-12 w-12 mx-auto text-green-500 mb-3" />
-                  <p className="text-muted-foreground">Nenhuma solicitação pendente</p>
-                </CardContent>
-              </Card>
             ) : (
-              <div className="space-y-3">
-                {bookings?.filter(b => b.status === "pendente").map((booking) => (
-                  <Card key={booking.id} className="border-yellow-500/30">
-                    <CardContent className="pt-4">
-                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                        <div className="space-y-2 flex-1">
-                          <div className="flex items-center gap-3">
-                            <Badge className="bg-primary/20 text-primary">
-                              {booking.aircraft?.registration}
-                            </Badge>
-                            <span className="font-semibold">{booking.client?.company_name}</span>
-                            <Badge variant="outline" className={getStatusColor(booking.status)}>
-                              {booking.status}
-                            </Badge>
+              <div className="space-y-6">
+                {/* Pendentes */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5 text-yellow-500" />
+                    Pendentes ({bookings?.filter(b => b.status === "pendente").length || 0})
+                  </h3>
+                  {bookings?.filter(b => b.status === "pendente").length === 0 ? (
+                    <Card>
+                      <CardContent className="py-6 text-center">
+                        <p className="text-muted-foreground">Nenhuma solicitação pendente</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    bookings?.filter(b => b.status === "pendente").map((booking) => (
+                      <Card key={booking.id} className="border-yellow-500/30">
+                        <CardContent className="pt-4">
+                          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                            <div className="space-y-2 flex-1">
+                              <div className="flex items-center gap-3">
+                                <Badge className="bg-primary/20 text-primary">
+                                  {booking.aircraft?.registration}
+                                </Badge>
+                                <span className="font-semibold">{booking.client?.company_name}</span>
+                                <Badge variant="outline" className={getStatusColor(booking.status)}>
+                                  {booking.status}
+                                </Badge>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <MapPin className="h-4 w-4" />
+                                  {booking.origin} → {booking.destination}
+                                </div>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <CalendarIcon className="h-4 w-4" />
+                                  {format(new Date(booking.scheduled_date), "dd/MM/yyyy")}
+                                </div>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Clock className="h-4 w-4" />
+                                  {booking.departure_time || "Horário não definido"}
+                                </div>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Users className="h-4 w-4" />
+                                  {booking.passenger_count} pax - {booking.duration_days} dia(s)
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                className="border-green-500/50 text-green-600 hover:bg-green-500/10"
+                                onClick={() => {
+                                  setSelectedBooking(booking);
+                                  setShowAssignDialog(true);
+                                }}
+                              >
+                                <CheckCircle2 className="h-4 w-4 mr-1" /> Aprovar
+                              </Button>
+                              <Button
+                                variant="outline"
+                                className="border-red-500/50 text-red-600 hover:bg-red-500/10"
+                                onClick={() => {
+                                  setSelectedBooking(booking);
+                                  setShowRejectDialog(true);
+                                }}
+                              >
+                                <XCircle className="h-4 w-4 mr-1" /> Rejeitar
+                              </Button>
+                            </div>
                           </div>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <MapPin className="h-4 w-4" />
-                              {booking.origin} → {booking.destination}
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+
+                {/* Confirmados - prontos para iniciar */}
+                <div className="space-y-3">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                    Confirmados - Prontos para Iniciar ({bookings?.filter(b => b.status === "confirmado").length || 0})
+                  </h3>
+                  {bookings?.filter(b => b.status === "confirmado").length === 0 ? (
+                    <Card>
+                      <CardContent className="py-6 text-center">
+                        <p className="text-muted-foreground">Nenhum voo confirmado aguardando início</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    bookings?.filter(b => b.status === "confirmado").map((booking) => (
+                      <Card key={booking.id} className="border-green-500/30">
+                        <CardContent className="pt-4">
+                          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                            <div className="space-y-2 flex-1">
+                              <div className="flex items-center gap-3">
+                                <Badge className="bg-primary/20 text-primary">
+                                  {booking.aircraft?.registration}
+                                </Badge>
+                                <span className="font-semibold">{booking.client?.company_name}</span>
+                                <Badge variant="outline" className={getStatusColor(booking.status)}>
+                                  ✅ {booking.status}
+                                </Badge>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <MapPin className="h-4 w-4" />
+                                  {booking.origin} → {booking.destination}
+                                </div>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <CalendarIcon className="h-4 w-4" />
+                                  {format(new Date(booking.scheduled_date), "dd/MM/yyyy")}
+                                </div>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Clock className="h-4 w-4" />
+                                  {booking.departure_time || "Horário não definido"}
+                                </div>
+                                <div className="flex items-center gap-2 text-muted-foreground">
+                                  <Users className="h-4 w-4" />
+                                  {booking.passenger_count} pax - {booking.duration_days} dia(s)
+                                </div>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <CalendarIcon className="h-4 w-4" />
-                              {format(new Date(booking.scheduled_date), "dd/MM/yyyy")}
-                            </div>
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <Clock className="h-4 w-4" />
-                              {booking.departure_time || "Horário não definido"}
-                            </div>
-                            <div className="flex items-center gap-2 text-muted-foreground">
-                              <Users className="h-4 w-4" />
-                              {booking.passenger_count} pax - {booking.duration_days} dia(s)
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                className="border-blue-500/50 text-blue-600 hover:bg-blue-500/10"
+                                onClick={() => startFlightMutation.mutate(booking.id)}
+                                disabled={startFlightMutation.isPending}
+                              >
+                                <PlayCircle className="h-4 w-4 mr-1" /> 
+                                {startFlightMutation.isPending ? "Iniciando..." : "Iniciar Voo"}
+                              </Button>
                             </div>
                           </div>
-                          {booking.notes && (
-                            <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-                              {booking.notes}
-                            </p>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            className="border-green-500/50 text-green-600 hover:bg-green-500/10"
-                            onClick={() => {
-                              setSelectedBooking(booking);
-                              setShowAssignDialog(true);
-                            }}
-                          >
-                            <CheckCircle2 className="h-4 w-4 mr-1" /> Aprovar
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="border-red-500/50 text-red-600 hover:bg-red-500/10"
-                            onClick={() => {
-                              setSelectedBooking(booking);
-                              setShowRejectDialog(true);
-                            }}
-                          >
-                            <XCircle className="h-4 w-4 mr-1" /> Rejeitar
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
               </div>
             )}
           </TabsContent>
@@ -815,11 +913,10 @@ export default function PainelAgendamentos() {
                             setSelectedDatesRange(dateRange);
                           }
                         }}
-                        className={`min-h-24 p-2 border rounded-lg cursor-pointer transition-all ${
-                          isSelected ? "bg-blue-500/20 border-blue-500/50" :
-                          blocked ? "bg-red-500/10 border-red-500/30" :
-                          isToday ? "bg-primary/10 border-primary" : "border-border hover:bg-muted/50"
-                        }`}
+                        className={`min-h-24 p-2 border rounded-lg cursor-pointer transition-all ${isSelected ? "bg-blue-500/20 border-blue-500/50" :
+                            blocked ? "bg-red-500/10 border-red-500/30" :
+                              isToday ? "bg-primary/10 border-primary" : "border-border hover:bg-muted/50"
+                          }`}
                         title={`${isSelected ? "Clique para desselecionar" : "Clique para selecionar (Shift+Click para intervalo, Ctrl/Cmd+Click para múltiplos)"}`}
                       >
                         <div className="flex items-center justify-between mb-1">
@@ -964,14 +1061,21 @@ export default function PainelAgendamentos() {
 
           {/* Escala Tab */}
           <TabsContent value="escala" className="space-y-4">
+            {/* Grade de Escala em Tempo Real */}
+            <CrewScheduleGrid daysToShow={14} />
+
+            {/* Voos Confirmados */}
             <Card>
               <CardHeader>
-                <CardTitle>Escala de Voos - {format(selectedMonth, "MMMM yyyy", { locale: ptBR })}</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  Voos Confirmados - {format(selectedMonth, "MMMM yyyy", { locale: ptBR })}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {bookings?.filter(b => b.status === "confirmado").length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <CalendarIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <div className="text-center py-8 text-muted-foreground">
+                    <CalendarIcon className="h-10 w-10 mx-auto mb-2 opacity-50" />
                     <p>Nenhum voo confirmado neste período</p>
                   </div>
                 ) : (
@@ -981,7 +1085,7 @@ export default function PainelAgendamentos() {
                       const copilot = crewMembers?.find(c => c.id === booking.assigned_copilot_id);
 
                       return (
-                        <div key={booking.id} className="p-4 border rounded-lg bg-green-500/5 border-green-500/20">
+                        <div key={booking.id} className="p-4 border rounded-lg bg-success/5 border-success/20">
                           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                             <div className="space-y-1">
                               <div className="flex items-center gap-3">
@@ -1158,47 +1262,63 @@ export default function PainelAgendamentos() {
 
         {/* Block Date Dialog */}
         <Dialog open={showBlockDialog} onOpenChange={setShowBlockDialog}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Bloquear {selectedDatesRange.length} Data(s)</DialogTitle>
+              <DialogTitle>Bloquear Datas para {selectedAircraftId ? "Aeronave Selecionada" : "Toda a Frota"}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
+              {/* Date Range Selector with Drag */}
+              <BlockDateRangeSelector
+                selectedDates={selectedDatesRange}
+                onDatesChange={setSelectedDatesRange}
+              />
+
+              {/* Bloqueio Details - Only show if dates are selected */}
               {selectedDatesRange.length > 0 && (
-                <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                  <p className="text-sm text-muted-foreground mb-2">Datas selecionadas:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedDatesRange.map((date) => (
-                      <Badge key={date.toISOString()} variant="secondary">
-                        {format(date, "dd/MM/yyyy")}
-                      </Badge>
-                    ))}
+                <>
+                  {/* Reason Input */}
+                  <div>
+                    <label className="text-sm font-medium">Motivo do bloqueio (opcional)</label>
+                    <Input
+                      placeholder="Ex: Manutenção programada, Evento, etc..."
+                      value={blockReason}
+                      onChange={(e) => setBlockReason(e.target.value)}
+                      className="mt-2"
+                    />
                   </div>
-                </div>
+
+                  {/* Fleet Wide Checkbox - Only show if aircraft is selected */}
+                  {selectedAircraftId && (
+                    <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                      <input
+                        type="checkbox"
+                        id="fleetWide"
+                        checked={isFleetWide}
+                        onChange={(e) => setIsFleetWide(e.target.checked)}
+                        className="cursor-pointer"
+                      />
+                      <label htmlFor="fleetWide" className="text-sm cursor-pointer flex-1">
+                        Aplicar bloqueio para <strong>toda a frota</strong> nessas datas
+                      </label>
+                    </div>
+                  )}
+
+                  {!selectedAircraftId && (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                      <p className="text-sm text-amber-700">
+                        ⚠️ Nenhuma aeronave selecionada. As datas serão bloqueadas para <strong>toda a frota</strong>.
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
-              <div>
-                <label className="text-sm font-medium">Motivo do bloqueio (opcional)</label>
-                <Input
-                  placeholder="Ex: Manutenção programada, Evento, etc..."
-                  value={blockReason}
-                  onChange={(e) => setBlockReason(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-                <input
-                  type="checkbox"
-                  id="fleetWide"
-                  checked={isFleetWide}
-                  onChange={(e) => setIsFleetWide(e.target.checked)}
-                  className="cursor-pointer"
-                />
-                <label htmlFor="fleetWide" className="text-sm cursor-pointer">
-                  Aplicar bloqueio para toda a frota
-                </label>
-              </div>
             </div>
+
+            {/* Dialog Footer */}
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowBlockDialog(false)}>Cancelar</Button>
+              <Button variant="outline" onClick={() => setShowBlockDialog(false)}>
+                Cancelar
+              </Button>
               <Button
                 onClick={() => blockDateMutation.mutate()}
                 disabled={selectedDatesRange.length === 0 || blockDateMutation.isPending}
@@ -1209,7 +1329,7 @@ export default function PainelAgendamentos() {
                     Bloqueando...
                   </>
                 ) : (
-                  "Bloquear"
+                  `Bloquear ${selectedDatesRange.length} Data(s)`
                 )}
               </Button>
             </DialogFooter>

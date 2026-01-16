@@ -12,7 +12,7 @@ import { FinancialHistoryTab } from "./FinancialHistoryTab";
 import { EnvioDespesaTab } from "./EnvioDespesaTab";
 import { toast } from "sonner";
 
-interface ClientDataTabsProps {
+export interface ClientDataTabsProps {
   clientId: string;
   clientName: string;
   aircraftId: string;
@@ -49,7 +49,7 @@ interface TravelReport {
 }
 
 
-export function ClientDataTabs({ clientId, clientName = "", aircraftId, aircraftRegistration = "", isAdmin = false }: ClientDataTabsProps) {
+export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegistration, isAdmin = false }: ClientDataTabsProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [contractUploadDialogOpen, setContractUploadDialogOpen] = useState(false);
   const [files, setFiles] = useState<any[]>([]);
@@ -191,7 +191,10 @@ export function ClientDataTabs({ clientId, clientName = "", aircraftId, aircraft
       <Tabs defaultValue="financial-history" className="w-full">
         <TabsList className="flex w-full gap-2 bg-gradient-card border-b border-border overflow-x-auto px-4 py-3 h-auto rounded-none flex-wrap md:flex-nowrap">
           <TabsTrigger value="financial-history">Histórico Financeiro</TabsTrigger>
-          <TabsTrigger value="envio-despesa">Envio de Despesa</TabsTrigger>
+          <TabsTrigger value="envio-despesa">
+            <Send className="h-4 w-4 mr-1" />
+            Envio de Despesa
+          </TabsTrigger>
           <TabsTrigger value="contracts">Contrato Share</TabsTrigger>
           <TabsTrigger value="logbook">Diário de Bordo</TabsTrigger>
           <TabsTrigger value="fuel">Abastecimento</TabsTrigger>
@@ -206,9 +209,9 @@ export function ClientDataTabs({ clientId, clientName = "", aircraftId, aircraft
         <TabsContent value="envio-despesa" className="space-y-4">
           <EnvioDespesaTab 
             clientId={clientId} 
-            clientName={clientName}
-            aircraftId={aircraftId}
-            aircraftRegistration={aircraftRegistration}
+            clientName={clientName} 
+            aircraftId={aircraftId} 
+            aircraftRegistration={aircraftRegistration} 
           />
         </TabsContent>
 
@@ -355,7 +358,7 @@ export function ClientDataTabs({ clientId, clientName = "", aircraftId, aircraft
                     key={record.id}
                     className="p-4 bg-muted/50 rounded-lg border border-border"
                   >
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                       <div>
                         <p className="text-sm text-muted-foreground">Data</p>
                         <p className="font-medium text-foreground">
@@ -390,6 +393,18 @@ export function ClientDataTabs({ clientId, clientName = "", aircraftId, aircraft
                         <p className="font-medium text-green-400">
                           R$ {parseFloat(record.valor_total).toFixed(2)}
                         </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Status Pagamento</p>
+                        {record.status_pagamento === "pago" ? (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold">
+                            Pago
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 text-xs font-semibold">
+                            Em Aberto
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

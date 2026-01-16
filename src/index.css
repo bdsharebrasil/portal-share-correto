@@ -207,7 +207,7 @@
   input[type="date"]::-webkit-calendar-picker-indicator,
   input[type="month"]::-webkit-calendar-picker-indicator,
   input[type="time"]::-webkit-calendar-picker-indicator {
-    filter: invert(1) brightness(1.1);
+    filter: brightness(0) invert(1);
     cursor: pointer;
   }
 

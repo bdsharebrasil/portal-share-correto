@@ -70,7 +70,7 @@ export function ADSBForm({ aircraftId, type, onSuccess, onCancel }: ADSBFormProp
         observations: data.observations || null,
       };
 
-      const { data: newItem, error } = await supabase
+      const { data: newItem, error } = await (supabase as any)
         .from(tableName)
         .insert([insertData])
         .select()

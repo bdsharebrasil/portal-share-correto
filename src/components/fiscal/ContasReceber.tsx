@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AutocompleteInput, type AutocompleteOption } from "@/components/ui/autocomplete-input";
-import { Plus, Search, Filter, Trash2, Edit2, TrendingUp, Wallet, ChevronDown, Bell, AlertCircle, CheckCircle2, DollarSign, X, Upload, FileText } from "lucide-react";
+import { Plus, Search, Filter, Trash2, Edit2, TrendingUp, Wallet, ChevronDown, Bell, CheckCircle2, DollarSign, X, Upload, FileText, Lock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAeronaves } from "@/hooks/useAeronaves";
@@ -15,6 +15,8 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useColumnWidths } from "@/hooks/useColumnWidths";
 
 const parseLocalDate = (dateString: string): Date => {
   const [year, month, day] = dateString.split('-').map(Number);
@@ -24,6 +26,20 @@ const parseLocalDate = (dateString: string): Date => {
 export function ContasReceber() {
   const { user } = useAuth();
   const { aeronaves, isLoadingAeronaves } = useAeronaves();
+
+  const defaultColumnWidths = {
+    doc: 80,
+    referencia: 120,
+    cliente: 140,
+    descricao: 180,
+    vencimento: 110,
+    valor: 130,
+    status: 110,
+    acoes: 90,
+  };
+
+  const { columnWidths, setColumnWidth } = useColumnWidths('contas-receber', defaultColumnWidths);
+
   const [contas, setContas] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -40,6 +56,13 @@ export function ContasReceber() {
   const [selectedBank, setSelectedBank] = useState("");
   const [contasReceberData, setContasReceberData] = useState<any>(null);
   const [contasBancarias, setContasBancarias] = useState<any[]>([]);
+  const [editingConta, setEditingConta] = useState<any>(null);
+  const [dataRecebimento, setDataRecebimento] = useState(new Date().toISOString().split("T")[0]);
+  const [comprovanteFile, setComprovanteFile] = useState<File | null>(null);
+  const [isUploadingComprovante, setIsUploadingComprovante] = useState(false);
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const startXRef = useRef(0);
+  const startWidthRef = useRef(0);
 
   const [formData, setFormData] = useState({
     numero: "",
@@ -52,6 +75,7 @@ export function ContasReceber() {
     descricao: "",
     status: "pendente",
     aeronave: "",
+    referencia: "",
   });
 
   const getCurrentMonth = () => {
@@ -119,9 +143,9 @@ export function ContasReceber() {
     try {
       const { data, error } = await supabase
         .from("contas_bancarias")
-        .select("id, nome, banco")
+        .select("id, banco, numero_conta, tipo_conta")
         .eq("ativo", true)
-        .order("nome", { ascending: true });
+        .order("banco", { ascending: true });
 
       if (error) {
         console.error("Erro ao carregar contas bancárias:", error);
@@ -129,7 +153,7 @@ export function ContasReceber() {
         return;
       }
 
-      const filteredData = (data || []).filter(conta => conta.nome && conta.nome.trim() !== "");
+      const filteredData = (data || []).filter(conta => conta.banco && conta.banco.trim() !== "");
       setContasBancarias(filteredData);
     } catch (error: any) {
       console.error("Erro ao carregar contas bancárias:", error.message);
@@ -140,17 +164,255 @@ export function ContasReceber() {
   const loadContas = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      // 1. Carregar despesas aguardando reembolso do controle_bancario (com data_vencimento)
+      const { data: despesasReembolso, error: fluxoError } = await supabase
+        .from("controle_bancario")
+        .select(`
+          id,
+          data,
+          data_vencimento,
+          descricao,
+          valor,
+          status,
+          client_id,
+          client_name,
+          aeronave_registro,
+          numero_documento,
+          grupo_categoria,
+          comprovante_url,
+          nf_url,
+          boleto_url,
+          fornecedores_favoritos_id,
+          colaborador_id
+        `)
+        .eq("status", "aguardando_reembolso")
+        .not("data_vencimento", "is", null)
+        .order("data_vencimento", { ascending: true });
+
+      if (fluxoError) {
+        console.error("Erro ao carregar despesas aguardando reembolso:", fluxoError);
+      }
+
+      // 2. Carregar despesas lançadas ao cliente de bank_reconciliations
+      // IMPORTANTE: Excluir registros que já têm controle_bancario_id (já estão no fluxo de caixa)
+      const { data: bankRecData, error: bankRecError } = await supabase
+        .from("bank_reconciliations")
+        .select(`
+          id,
+          date,
+          description,
+          amount,
+          saldo_pendente,
+          status,
+          client_id,
+          aircraft_id,
+          category,
+          payment_term,
+          boleto_url,
+          nf_url,
+          comprovante_url,
+          controle_bancario_id,
+          clients:client_id (company_name),
+          aircraft:aircraft_id (registration)
+        `)
+        .eq("type", "cliente")
+        .is("controle_bancario_id", null) // Só pegar os que NÃO têm vínculo com controle_bancario
+        .in("status", ["pendente", "enviado", "aberto"])
+        .order("date", { ascending: false });
+
+      if (bankRecError) {
+        console.error("Erro ao carregar bank_reconciliations:", bankRecError);
+      }
+
+      // Carregar nomes dos fornecedores e colaboradores para referência
+      const fornecedorIds = (despesasReembolso || []).filter(d => d.fornecedores_favoritos_id).map(d => d.fornecedores_favoritos_id);
+      const colaboradorIds = (despesasReembolso || []).filter(d => d.colaborador_id).map(d => d.colaborador_id);
+
+      let fornecedoresMap: Record<string, string> = {};
+      let colaboradoresMap: Record<string, string> = {};
+
+      if (fornecedorIds.length > 0) {
+        const { data: fornecedores } = await supabase
+          .from("fornecedores_favoritos")
+          .select("id, nome_completo")
+          .in("id", fornecedorIds);
+        fornecedores?.forEach(f => { fornecedoresMap[f.id] = f.nome_completo; });
+      }
+
+      if (colaboradorIds.length > 0) {
+        const { data: colaboradores } = await supabase
+          .from("user_profiles")
+          .select("id, full_name")
+          .in("id", colaboradorIds);
+        colaboradores?.forEach(c => { colaboradoresMap[c.id] = c.full_name || ""; });
+      }
+
+      // Transformar despesas aguardando reembolso em formato compatível com contas a receber
+      const contasFromFluxo = (despesasReembolso || []).map((despesa) => {
+        // Determinar a referência com base nos IDs
+        let referencia = "";
+        if (despesa.fornecedores_favoritos_id && fornecedoresMap[despesa.fornecedores_favoritos_id]) {
+          referencia = fornecedoresMap[despesa.fornecedores_favoritos_id];
+        } else if (despesa.colaborador_id && colaboradoresMap[despesa.colaborador_id]) {
+          referencia = colaboradoresMap[despesa.colaborador_id];
+        } else if (despesa.client_name) {
+          referencia = despesa.client_name;
+        }
+
+        return {
+          id: despesa.id,
+          numero: despesa.numero_documento || `FC-${despesa.id.slice(0, 8)}`,
+          cliente_nome: despesa.client_name || "Cliente não especificado",
+          cliente_cnpj: "",
+          data_criacao: despesa.data,
+          data_vencimento: despesa.data_vencimento,
+          valor: despesa.valor,
+          categoria: despesa.grupo_categoria || "Reembolso",
+          descricao: despesa.descricao,
+          status: "pendente",
+          arquivo_pdf_url: despesa.nf_url || despesa.comprovante_url,
+          aeronave: despesa.aeronave_registro,
+          referencia: referencia,
+          isFromFluxoCaixa: true,
+          fluxoCaixaId: despesa.id
+        };
+      });
+
+      // Transformar bank_reconciliations em formato compatível
+      // Já filtrado para não incluir registros com controle_bancario_id
+      const contasFromBankRec = (bankRecData || []).map((rec: any) => {
+        const clientName = rec.clients?.company_name || "Cliente não especificado";
+        const aircraftReg = rec.aircraft?.registration || "";
+        const valor = Math.abs(rec.saldo_pendente ?? rec.amount ?? 0);
+
+        return {
+          id: rec.id,
+          numero: `BR-${rec.id.slice(0, 8)}`,
+          cliente_nome: clientName,
+          cliente_cnpj: "",
+          data_criacao: rec.date,
+          data_vencimento: rec.payment_term || rec.date,
+          valor: valor,
+          categoria: rec.category || "Despesa Cliente",
+          descricao: rec.description,
+          status: rec.status || "pendente",
+          arquivo_pdf_url: rec.nf_url || rec.comprovante_url || rec.boleto_url,
+          aeronave: aircraftReg,
+          referencia: rec.description,
+          isFromBankReconciliation: true,
+          bankReconciliationId: rec.id
+        };
+      });
+
+      // 3. Carregar contas a receber manuais (que não vieram do fluxo ou bank_reconciliations)
+      const { data: contasData, error: contasError } = await supabase
         .from("contas_areceber")
         .select("*")
         .order("data_vencimento", { ascending: true });
 
-      if (error) {
-        toast.error(`Erro ao carregar: ${error.message}`);
+      if (contasError) {
+        toast.error(`Erro ao carregar: ${contasError.message}`);
         return;
       }
 
-      setContas(data || []);
+      // Coletar todos os IDs já presentes para evitar duplicatas
+      const fluxoIds = new Set(contasFromFluxo.map(c => c.id));
+      const bankRecIds = new Set(contasFromBankRec.map(c => c.id));
+
+      // Processar contas manuais - APENAS contas que foram criadas manualmente
+      // Não devemos incluir aqui contas que vieram de outras fontes
+      const contasManuals = await Promise.all(
+        (contasData || []).map(async (conta) => {
+          // Verificar se esta conta JÁ foi importada de outras fontes
+          const isAlreadyImported = fluxoIds.has(conta.id) || bankRecIds.has(conta.id);
+
+          let referencia = conta.referencia || "";
+          let dataVencimentoFromBanco = conta.data_vencimento;
+          let isFromBankRec = false;
+
+          // Se tem banco_conciliacao_id, pode estar vinculada a bank_reconciliations
+          if (conta.banco_conciliacao_id) {
+            const { data: bancarioData } = await supabase
+              .from("bank_reconciliations")
+              .select("description, date")
+              .eq("id", conta.banco_conciliacao_id)
+              .single();
+
+            if (bancarioData) {
+              referencia = bancarioData.description || referencia;
+              isFromBankRec = true;
+            }
+          }
+
+          return {
+            ...conta,
+            referencia,
+            data_vencimento: dataVencimentoFromBanco,
+            isAlreadyImported, // Marcar se já foi importada de outra fonte
+            isFromBankReconciliation: isFromBankRec // Marcar se é da conciliação bancária
+          };
+        })
+      );
+
+      // Filtrar manuais: APENAS incluir contas que NÃO foram importadas de fluxo ou bank_reconciliations
+      const contasManuaisFiltradas = contasManuals.filter(c => !c.isAlreadyImported);
+
+      // Log para debug - verificar se há duplicatas
+      const allIds = new Set<string>();
+      const duplicateIds = new Set<string>();
+
+      const checkDuplicates = (id: string, source: string) => {
+        if (allIds.has(id)) {
+          console.warn(`⚠️ DUPLICATA DETECTADA: ID "${id}" aparece em múltiplas fontes`);
+          duplicateIds.add(id);
+        }
+        allIds.add(id);
+      };
+
+      contasFromFluxo.forEach(c => checkDuplicates(c.id, 'Fluxo de Caixa'));
+      contasFromBankRec.forEach(c => checkDuplicates(c.id, 'Bank Reconciliations'));
+      contasManuaisFiltradas.forEach(c => checkDuplicates(c.id, 'Contas Manuais'));
+
+      if (duplicateIds.size > 0) {
+        console.error(`❌ ERRO: ${duplicateIds.size} duplicata(s) encontrada(s)!`, Array.from(duplicateIds));
+        toast.warning(`Aviso: ${duplicateIds.size} registro(s) duplicado(s) detectado(s). Verifique o console.`);
+      }
+
+      // Combinar: primeiro fluxo de caixa, depois bank_reconciliations, depois manuais
+      const todasContas = [...contasFromFluxo, ...contasFromBankRec, ...contasManuaisFiltradas];
+
+      // 5. Verificar contas vencidas e atualizar status para inadimplente
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const contasVencidas = todasContas.filter(conta => {
+        if (conta.status !== "pendente") return false;
+        const vencimento = parseLocalDate(conta.data_vencimento);
+        return vencimento < today;
+      });
+
+      // Atualizar status das contas vencidas para inadimplente
+      for (const conta of contasVencidas) {
+        if ((conta as any).isFromFluxoCaixa) {
+          // Atualizar no controle_bancario
+          await supabase
+            .from("controle_bancario")
+            .update({ status: "inadimplente" })
+            .eq("id", (conta as any).fluxoCaixaId || conta.id);
+        } else if ((conta as any).isFromBankReconciliation) {
+          // Não atualizar status de bank_reconciliations aqui
+        } else {
+          // Atualizar na tabela contas_areceber
+          await supabase
+            .from("contas_areceber")
+            .update({ status: "inadimplente" })
+            .eq("id", conta.id);
+        }
+        // Atualizar localmente
+        conta.status = "inadimplente";
+      }
+
+      setContas(todasContas);
     } catch (error: any) {
       toast.error(error.message || "Erro ao carregar contas a receber");
     }
@@ -201,31 +463,62 @@ export function ContasReceber() {
 
     setIsSavingForm(true);
     try {
-      const { error } = await supabase
-        .from("contas_areceber")
-        .insert([
-          {
+      if (editingConta) {
+        // Update existing
+        const { error } = await supabase
+          .from("contas_areceber")
+          .update({
             numero: formData.numero,
             cliente_nome: formData.cliente_nome,
             cliente_cnpj: formData.cliente_cnpj || "",
-            data_criacao: formData.data_criacao,
             data_vencimento: formData.data_vencimento,
             valor: parseFloat(formData.valor),
             categoria: formData.categoria || "Serviços",
             descricao: formData.descricao || null,
             status: formData.status,
             arquivo_pdf_url: pdfUrl || null,
-            criado_por: user?.id,
             aeronave: formData.aeronave || null,
-          }
-        ]);
+            referencia: formData.referencia || null,
+            atualizado_em: new Date().toISOString()
+          })
+          .eq("id", editingConta.id);
 
-      if (error) {
-        toast.error(`Erro ao salvar: ${error.message}`);
-        return;
+        if (error) {
+          toast.error(`Erro ao atualizar: ${error.message}`);
+          return;
+        }
+
+        toast.success("Conta a receber atualizada com sucesso!");
+      } else {
+        // Insert new
+        const { error } = await supabase
+          .from("contas_areceber")
+          .insert([
+            {
+              numero: formData.numero,
+              cliente_nome: formData.cliente_nome,
+              cliente_cnpj: formData.cliente_cnpj || "",
+              data_criacao: formData.data_criacao,
+              data_vencimento: formData.data_vencimento,
+              valor: parseFloat(formData.valor),
+              categoria: formData.categoria || "Serviços",
+              descricao: formData.descricao || null,
+              status: formData.status,
+              arquivo_pdf_url: pdfUrl || null,
+              criado_por: user?.id,
+              aeronave: formData.aeronave || null,
+              referencia: formData.referencia || null,
+            }
+          ]);
+
+        if (error) {
+          toast.error(`Erro ao salvar: ${error.message}`);
+          return;
+        }
+
+        toast.success("Conta a receber criada com sucesso!");
       }
 
-      toast.success("Conta a receber criada com sucesso!");
       setShowFormDialog(false);
       resetForm();
       loadContas();
@@ -234,6 +527,30 @@ export function ContasReceber() {
     } finally {
       setIsSavingForm(false);
     }
+  };
+
+  const handleEditConta = (conta: any) => {
+    if (conta.isFromFluxoCaixa) {
+      toast.info("Esta conta foi criada no Fluxo de Caixa. Edite-a lá para atualizar.");
+      return;
+    }
+
+    setEditingConta(conta);
+    setFormData({
+      numero: conta.numero || "",
+      cliente_nome: conta.cliente_nome || "",
+      cliente_cnpj: conta.cliente_cnpj || "",
+      data_criacao: conta.data_criacao || new Date().toISOString().split("T")[0],
+      data_vencimento: conta.data_vencimento || "",
+      valor: conta.valor?.toString() || "",
+      categoria: conta.categoria || "Serviços",
+      descricao: conta.descricao || "",
+      status: conta.status || "pendente",
+      aeronave: conta.aeronave || "",
+      referencia: conta.referencia || "",
+    });
+    setPdfUrl(conta.arquivo_pdf_url || "");
+    setShowFormDialog(true);
   };
 
   const resetForm = () => {
@@ -248,16 +565,19 @@ export function ContasReceber() {
       descricao: "",
       status: "pendente",
       aeronave: "",
+      referencia: "",
     });
     setPdfUrl("");
     setAeronaveSearch("");
+    setEditingConta(null);
   };
 
   const filteredContas = useMemo(() => {
     return contas.filter(conta => {
       const searchMatch = filters.searchTerm === "" ||
         conta.cliente_nome.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-        conta.numero.toLowerCase().includes(filters.searchTerm.toLowerCase());
+        conta.numero.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+        (conta.referencia && conta.referencia.toLowerCase().includes(filters.searchTerm.toLowerCase()));
 
       const statusMatch = filters.status === "all" || conta.status === filters.status;
 
@@ -276,10 +596,6 @@ export function ContasReceber() {
     return filteredContas.reduce((sum, conta) => sum + parseFloat(conta.valor), 0);
   }, [filteredContas]);
 
-  const contasPendentes = useMemo(() => {
-    return filteredContas.filter(conta => conta.status === "pendente").length;
-  }, [filteredContas]);
-
   const proximoVencimento = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -292,6 +608,13 @@ export function ContasReceber() {
 
   const handleDelete = async () => {
     if (!deleteConfirmId) return;
+
+    const contaToDelete = contas.find(c => c.id === deleteConfirmId);
+    if (contaToDelete?.isFromFluxoCaixa) {
+      toast.error("Esta conta foi criada no Fluxo de Caixa. Exclua-a lá.");
+      setDeleteConfirmId(null);
+      return;
+    }
 
     try {
       const { error } = await supabase
@@ -313,24 +636,41 @@ export function ContasReceber() {
   };
 
   const handleChangeStatus = async (contaId: string, newStatus: string) => {
+    const conta = contas.find(c => c.id === contaId);
+    
     // Se vai mudar para "recebido", abrir dialog para selecionar banco
     if (newStatus === "recebido") {
-      const conta = contas.find(c => c.id === contaId);
       setContasReceberData(conta);
       setSelectedBank("");
+      setDataRecebimento(new Date().toISOString().split("T")[0]);
+      setComprovanteFile(null);
       setShowBankDialog(true);
       return;
     }
 
     try {
-      const { error } = await supabase
-        .from("contas_areceber")
-        .update({ status: newStatus, atualizado_em: new Date().toISOString() })
-        .eq("id", contaId);
+      // Se veio do fluxo de caixa, atualizar no controle_bancario
+      if (conta?.isFromFluxoCaixa && conta?.fluxoCaixaId) {
+        const { error } = await supabase
+          .from("controle_bancario")
+          .update({ status: newStatus, data_atualizacao: new Date().toISOString() })
+          .eq("id", conta.fluxoCaixaId);
 
-      if (error) {
-        toast.error(`Erro ao atualizar: ${error.message}`);
-        return;
+        if (error) {
+          toast.error(`Erro ao atualizar: ${error.message}`);
+          return;
+        }
+      } else {
+        // Atualizar na tabela contas_areceber
+        const { error } = await supabase
+          .from("contas_areceber")
+          .update({ status: newStatus, atualizado_em: new Date().toISOString() })
+          .eq("id", contaId);
+
+        if (error) {
+          toast.error(`Erro ao atualizar: ${error.message}`);
+          return;
+        }
       }
 
       toast.success("Status atualizado com sucesso!");
@@ -348,14 +688,79 @@ export function ContasReceber() {
       return;
     }
 
+    if (!dataRecebimento) {
+      toast.error("Informe a data do recebimento");
+      return;
+    }
+
+    // Encontrar o nome do banco baseado no ID selecionado
+    const contaBancariaSelected = contasBancarias.find(c => c.id === selectedBank);
+    const nomeBanco = contaBancariaSelected?.banco || selectedBank;
+
+    setIsUploadingComprovante(true);
+    let comprovanteUrl = "";
+
     try {
-      // 1. Atualizar status da conta para "recebido"
+      // Upload do comprovante se existir
+      if (comprovanteFile) {
+        const fileExt = comprovanteFile.name.split('.').pop();
+        const fileName = `comprovante_recebimento_${Date.now()}_${contasReceberData.numero || 'sem_numero'}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from("nfs-share-saida")
+          .upload(fileName, comprovanteFile);
+
+        if (uploadError) {
+          console.error("Erro ao fazer upload do comprovante:", uploadError);
+          toast.warning("Não foi possível enviar o comprovante, mas continuaremos com o registro.");
+        } else {
+          const { data: publicUrlData } = supabase.storage
+            .from("nfs-share-saida")
+            .getPublicUrl(fileName);
+          comprovanteUrl = publicUrlData.publicUrl;
+        }
+      }
+
+      // Se veio do fluxo de caixa, atualizar diretamente no controle_bancario
+      if (contasReceberData.isFromFluxoCaixa && contasReceberData.fluxoCaixaId) {
+        const { error: updateError } = await supabase
+          .from("controle_bancario")
+          .update({
+            status: "recebido",
+            conta_banco: nomeBanco,
+            data_reembolso: dataRecebimento,
+            comprovante_url: comprovanteUrl || undefined,
+            data_atualizacao: new Date().toISOString()
+          })
+          .eq("id", contasReceberData.fluxoCaixaId);
+
+        if (updateError) {
+          toast.error(`Erro ao atualizar: ${updateError.message}`);
+          return;
+        }
+
+        toast.success("Receita marcada como recebida!");
+        resetBankDialog();
+        loadContas();
+        return;
+      }
+
+      // Para contas manuais (tabela contas_areceber)
+      // 1. Atualizar status da conta para "recebido" com data e comprovante
+      const updateData: any = {
+        status: "recebido",
+        data_recebimento: dataRecebimento,
+        banco_recebimento: nomeBanco,
+        atualizado_em: new Date().toISOString()
+      };
+      
+      if (comprovanteUrl) {
+        updateData.comprovante_recebimento_url = comprovanteUrl;
+      }
+
       const { error: updateError } = await supabase
         .from("contas_areceber")
-        .update({
-          status: "recebido",
-          atualizado_em: new Date().toISOString()
-        })
+        .update(updateData)
         .eq("id", contasReceberData.id);
 
       if (updateError) {
@@ -364,11 +769,13 @@ export function ContasReceber() {
       }
 
       // 2. Atualizar status na conciliação bancária para "recebido" se houver referência
-      // (Isso marca como recebido quando a conta é paga na página de Contas a Receber)
       if (contasReceberData.banco_conciliacao_id) {
         const { error: updateConciliacao } = await supabase
           .from("bank_reconciliations")
-          .update({ status: "recebido" })
+          .update({ 
+            status: "recebido",
+            comprovante_url: comprovanteUrl || undefined
+          })
           .eq("id", contasReceberData.banco_conciliacao_id);
 
         if (updateConciliacao) {
@@ -379,7 +786,7 @@ export function ContasReceber() {
       // 3. Chamar função RPC para criar entrada no controle_bancario
       const { error: rpcError } = await supabase.rpc('create_entrada_bancaria_from_conta_receber', {
         p_conta_receber_id: contasReceberData.id,
-        p_conta_banco: selectedBank
+        p_conta_banco: nomeBanco
       });
 
       if (rpcError) {
@@ -389,13 +796,21 @@ export function ContasReceber() {
       }
 
       toast.success("Conta marcada como recebida e registrada no fluxo bancário!");
-      setShowBankDialog(false);
-      setContasReceberData(null);
-      setSelectedBank("");
+      resetBankDialog();
       loadContas();
     } catch (error: any) {
       toast.error(error.message || "Erro ao marcar como recebido");
+    } finally {
+      setIsUploadingComprovante(false);
     }
+  };
+
+  const resetBankDialog = () => {
+    setShowBankDialog(false);
+    setContasReceberData(null);
+    setSelectedBank("");
+    setDataRecebimento(new Date().toISOString().split("T")[0]);
+    setComprovanteFile(null);
   };
 
   const toggleRowExpand = (id: string) => {
@@ -414,6 +829,8 @@ export function ContasReceber() {
         return "bg-green-500/20 text-green-400 border-green-500/30";
       case "pendente":
         return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+      case "inadimplente":
+        return "bg-red-600/30 text-red-300 border-red-500/50";
       case "cancelado":
         return "bg-red-500/20 text-red-400 border-red-500/30";
       default:
@@ -421,10 +838,52 @@ export function ContasReceber() {
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "recebido":
+        return "Recebido";
+      case "pendente":
+        return "Pendente";
+      case "inadimplente":
+        return "Inadimplente";
+      case "cancelado":
+        return "Cancelado";
+      default:
+        return status;
+        return status;
+    }
+  };
+
+  const handleColumnResizeStart = (e: React.MouseEvent, columnId: string) => {
+    e.preventDefault();
+    setResizingColumn(columnId);
+    startXRef.current = e.clientX;
+    startWidthRef.current = columnWidths[columnId as keyof typeof columnWidths] || defaultColumnWidths[columnId as keyof typeof defaultColumnWidths];
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const diff = moveEvent.clientX - startXRef.current;
+      const newWidth = Math.max(60, startWidthRef.current + diff);
+      setColumnWidth(columnId, newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setResizingColumn(null);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const getGridTemplate = () => {
+    return `${columnWidths.doc}px ${columnWidths.referencia}px minmax(${columnWidths.cliente}px, 1fr) minmax(${columnWidths.descricao}px, 1.5fr) ${columnWidths.vencimento}px ${columnWidths.valor}px ${columnWidths.status}px ${columnWidths.acoes}px`;
+  };
+
   return (
     <div className="space-y-6 md:space-y-8 pb-8">
       {/* Cards de Totais */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6 auto-rows-max">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 auto-rows-max">
         <Card className="bg-card border-border/50 hover:border-border transition-colors h-full">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-5 px-6">
             <CardTitle className="text-sm font-semibold text-muted-foreground">Total a Receber</CardTitle>
@@ -435,19 +894,6 @@ export function ContasReceber() {
               R$ {totals.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground">Período selecionado</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card border-border/50 hover:border-border transition-colors h-full">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-5 px-6">
-            <CardTitle className="text-sm font-semibold text-muted-foreground">Contas Pendentes</CardTitle>
-            <AlertCircle className="h-5 w-5 text-blue-500 flex-shrink-0" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl md:text-3xl font-bold text-blue-500 mb-3">
-              {contasPendentes}
-            </div>
-            <p className="text-xs text-muted-foreground">Aguardando recebimento</p>
           </CardContent>
         </Card>
 
@@ -465,6 +911,21 @@ export function ContasReceber() {
         </Card>
       </div>
 
+      {/* Info sobre fonte automática */}
+      <Card className="bg-blue-500/10 border-blue-500/30">
+        <CardContent className="py-4 px-6">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-blue-400">Integração Automática com Fluxo de Caixa</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                As receitas lançadas no Fluxo de Caixa aparecem automaticamente aqui. Você também pode adicionar contas manuais se necessário.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Filtros e Ações */}
       <Card className="bg-card border-border/50">
         <CardHeader className="pb-4 pt-6 px-6 border-b border-border/50">
@@ -473,11 +934,12 @@ export function ContasReceber() {
               <Filter className="w-5 h-5" /> Filtros e Período
             </CardTitle>
             <Button
-              onClick={() => setShowFormDialog(true)}
-              className="bg-primary hover:bg-primary/90 w-full md:w-auto"
+              onClick={() => { resetForm(); setShowFormDialog(true); }}
+              variant="outline"
+              className="w-full md:w-auto"
             >
               <Plus className="w-4 h-4 mr-2" />
-              Nova Conta a Receber
+              Adicionar Manual
             </Button>
           </div>
         </CardHeader>
@@ -490,64 +952,55 @@ export function ContasReceber() {
                 variant={filters.periodo === "mes" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setFilters(prev => ({ ...prev, periodo: "mes" }))}
-                className="min-w-[90px]"
               >
-                Mês
+                Mensal
               </Button>
               <Button
                 variant={filters.periodo === "ano" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setFilters(prev => ({ ...prev, periodo: "ano" }))}
-                className="min-w-[90px]"
               >
-                Ano
+                Anual
               </Button>
             </div>
-
             {filters.periodo === "mes" ? (
               <Input
                 type="month"
                 value={filters.mes}
                 onChange={(e) => setFilters(prev => ({ ...prev, mes: e.target.value }))}
-                className="bg-background w-full lg:w-auto lg:min-w-[200px] h-10"
+                className="w-[180px] bg-background"
               />
             ) : (
               <Select value={filters.ano} onValueChange={(value) => setFilters(prev => ({ ...prev, ano: value }))}>
-                <SelectTrigger className="bg-background w-full lg:w-[160px] h-10">
-                  <SelectValue placeholder="Ano" />
+                <SelectTrigger className="w-[120px] bg-background">
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from({ length: 5 }, (_, i) => {
-                    const year = new Date().getFullYear() - i;
-                    return (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}
-                      </SelectItem>
-                    );
-                  })}
+                  {[2020, 2021, 2022, 2023, 2024, 2025, 2026].map(year => (
+                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
           </div>
 
-          {/* Outros Filtros */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          {/* Filtros adicionais */}
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="Buscar cliente ou NF..."
+                placeholder="Buscar por cliente, documento ou referência..."
                 value={filters.searchTerm}
                 onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-                className="pl-10 bg-background h-10"
+                className="pl-10 bg-background"
               />
             </div>
-
             <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
-              <SelectTrigger className="bg-background h-10">
+              <SelectTrigger className="w-full md:w-[180px] bg-background">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos os Status</SelectItem>
+                <SelectItem value="all">Todos Status</SelectItem>
                 <SelectItem value="pendente">Pendente</SelectItem>
                 <SelectItem value="recebido">Recebido</SelectItem>
                 <SelectItem value="cancelado">Cancelado</SelectItem>
@@ -557,31 +1010,21 @@ export function ContasReceber() {
         </CardContent>
       </Card>
 
-      {/* Formulário Inline - Antes da tabela */}
-      {showFormDialog && (
-        <Card className="bg-card border-border/50 border-primary/50 bg-primary/5">
-          <CardHeader className="pb-4 pt-6 px-6 border-b border-border/50">
-            <div className="flex justify-between items-center">
-              <CardTitle className="text-lg font-semibold">Nova Conta a Receber</CardTitle>
-              <Button
-                variant="ghost"
-                onClick={() => { setShowFormDialog(false); resetForm(); }}
-                className="h-8 w-8 p-0"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6">
-          <div className="space-y-5">
-            {/* Linha 1 - Número NF e Cliente */}
+      {/* Formulário Dialog */}
+      <Dialog open={showFormDialog} onOpenChange={(open) => { if (!open) { setShowFormDialog(false); resetForm(); } else { setShowFormDialog(true); } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingConta ? "Editar Conta a Receber" : "Nova Conta a Receber"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* Linha 1 - Número e Cliente */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">
-                  Número NF *
+                  Documento *
                 </label>
                 <Input
-                  placeholder="Ex: 1234"
+                  placeholder="Ex: NF-1024"
                   value={formData.numero}
                   onChange={(e) => setFormData(prev => ({ ...prev, numero: e.target.value }))}
                   className="bg-background"
@@ -593,22 +1036,14 @@ export function ContasReceber() {
                 </label>
                 <AutocompleteInput
                   value={formData.cliente_nome}
-                  onChange={(value) => {
-                    setFormData(prev => ({ ...prev, cliente_nome: value }));
-                    const cliente = clients.find(c => c.company_name === value);
-                    if (cliente) {
-                      setFormData(prev => ({ ...prev, cliente_cnpj: cliente.cnpj || "" }));
-                    } else {
-                      setFormData(prev => ({ ...prev, cliente_cnpj: "" }));
-                    }
-                  }}
+                  onChange={(value) => setFormData(prev => ({ ...prev, cliente_nome: value }))}
                   onSelect={(option) => {
-                    const cliente = clients.find(c => c.id === option.id);
-                    if (cliente) {
+                    const client = clients.find(c => c.id === option.id);
+                    if (client) {
                       setFormData(prev => ({
                         ...prev,
-                        cliente_nome: cliente.company_name,
-                        cliente_cnpj: cliente.cnpj || ""
+                        cliente_nome: client.company_name,
+                        cliente_cnpj: client.cnpj || ""
                       }));
                     }
                   }}
@@ -616,45 +1051,29 @@ export function ContasReceber() {
                     id: c.id,
                     label: c.company_name
                   }))}
-                  placeholder="Buscar ou digite um cliente"
+                  placeholder="Selecione ou digite o cliente"
                 />
               </div>
             </div>
 
-            {/* Linha 2 - CNPJ e Valor */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-semibold text-foreground mb-2 block">
-                  CNPJ
-                </label>
-                <Input
-                  placeholder="CNPJ do cliente"
-                  value={formData.cliente_cnpj}
-                  onChange={(e) => setFormData(prev => ({ ...prev, cliente_cnpj: e.target.value }))}
-                  className="bg-background"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-semibold text-foreground mb-2 block">
-                  Valor *
-                </label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  step="0.01"
-                  min="0"
-                  value={formData.valor}
-                  onChange={(e) => setFormData(prev => ({ ...prev, valor: e.target.value }))}
-                  className="bg-background"
-                />
-              </div>
+            {/* Linha 2 - Referência */}
+            <div>
+              <label className="text-sm font-semibold text-foreground mb-2 block">
+                Referência
+              </label>
+              <Input
+                placeholder="Ex: REF-2023/10"
+                value={formData.referencia}
+                onChange={(e) => setFormData(prev => ({ ...prev, referencia: e.target.value }))}
+                className="bg-background"
+              />
             </div>
 
-            {/* Linha 3 - Data Criação e Vencimento */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Linha 3 - Datas e Valor */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">
-                  Data de Criação
+                  Data Emissão
                 </label>
                 <Input
                   type="date"
@@ -665,7 +1084,7 @@ export function ContasReceber() {
               </div>
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">
-                  Data de Vencimento *
+                  Data Vencimento *
                 </label>
                 <Input
                   type="date"
@@ -674,29 +1093,32 @@ export function ContasReceber() {
                   className="bg-background"
                 />
               </div>
+              <div>
+                <label className="text-sm font-semibold text-foreground mb-2 block">
+                  Valor (R$) *
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0,00"
+                  value={formData.valor}
+                  onChange={(e) => setFormData(prev => ({ ...prev, valor: e.target.value }))}
+                  className="bg-background"
+                />
+              </div>
             </div>
 
             {/* Linha 4 - Aeronave */}
             <div>
               <label className="text-sm font-semibold text-foreground mb-2 block">
-                Aeronave (Opcional)
+                Aeronave
               </label>
               <Popover open={openAeronavePopover} onOpenChange={setOpenAeronavePopover}>
                 <PopoverTrigger asChild>
-                  <div className="relative">
-                    <Input
-                      value={formData.aeronave}
-                      onChange={(e) => {
-                        setFormData(prev => ({ ...prev, aeronave: e.target.value }));
-                        setAeronaveSearch(e.target.value);
-                        setOpenAeronavePopover(true);
-                      }}
-                      onFocus={() => setOpenAeronavePopover(true)}
-                      placeholder="Buscar ou digitar aeronave..."
-                      className="bg-background pr-10"
-                    />
-                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  </div>
+                  <Button variant="outline" className="w-full justify-between bg-background">
+                    {formData.aeronave || "Selecione uma aeronave (opcional)"}
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[300px] p-0 bg-card border-border" align="start">
                   <Command className="bg-card">
@@ -855,26 +1277,24 @@ export function ContasReceber() {
             <p className="text-xs text-muted-foreground">* Campos obrigatórios</p>
           </div>
 
-          <div className="flex gap-3 pt-6 border-t border-border/50">
+          <DialogFooter className="gap-3 sm:gap-2">
             <Button
               variant="outline"
               onClick={() => { setShowFormDialog(false); resetForm(); }}
               disabled={isSavingForm || isUploadingPDF}
-              className="flex-1"
             >
               Cancelar
             </Button>
             <Button
               onClick={handleSaveForm}
               disabled={isSavingForm || isUploadingPDF}
-              className="bg-primary hover:bg-primary/90 flex-1"
+              className="bg-primary hover:bg-primary/90"
             >
-              {isSavingForm ? "Salvando..." : "Salvar Conta"}
+              {isSavingForm ? "Salvando..." : editingConta ? "Atualizar Conta" : "Salvar Conta"}
             </Button>
-          </div>
-          </CardContent>
-        </Card>
-      )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Tabela de Contas a Receber */}
       <Card className="bg-card border-border/50">
@@ -897,31 +1317,108 @@ export function ContasReceber() {
           ) : (
             <div className="space-y-0 overflow-x-auto">
               {/* Cabeçalho Fixo - Desktop */}
-              <div className="hidden lg:grid items-center px-6 py-4 bg-muted/40 border-b border-border/50 font-semibold text-sm text-muted-foreground sticky top-0 z-10" style={{gridTemplateColumns: '80px 140px 1fr 110px 120px 100px 100px'}}>
-                <div>NF</div>
-                <div>Cliente</div>
-                <div>Descrição</div>
-                <div>Vencimento</div>
-                <div className="text-right">Valor</div>
-                <div>Status</div>
-                <div className="text-right">Ações</div>
+              <div className="hidden lg:grid items-center px-6 py-4 bg-muted/40 border-b border-border/50 font-semibold text-sm text-muted-foreground sticky top-0 z-10 select-none" style={{gridTemplateColumns: getGridTemplate()}}>
+                <div className="flex items-center justify-between pr-0 group">
+                  <span>DOC</span>
+                  <div
+                    onMouseDown={(e) => handleColumnResizeStart(e, "doc")}
+                    className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                      resizingColumn === "doc" ? "bg-primary" : ""
+                    }`}
+                    title="Arraste para redimensionar"
+                  />
+                </div>
+                <div className="flex items-center justify-between pr-0 group">
+                  <span>Referência</span>
+                  <div
+                    onMouseDown={(e) => handleColumnResizeStart(e, "referencia")}
+                    className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                      resizingColumn === "referencia" ? "bg-primary" : ""
+                    }`}
+                    title="Arraste para redimensionar"
+                  />
+                </div>
+                <div className="flex items-center justify-between pr-0 group">
+                  <span>Cliente</span>
+                  <div
+                    onMouseDown={(e) => handleColumnResizeStart(e, "cliente")}
+                    className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                      resizingColumn === "cliente" ? "bg-primary" : ""
+                    }`}
+                    title="Arraste para redimensionar"
+                  />
+                </div>
+                <div className="flex items-center justify-between pr-0 group">
+                  <span>Descrição</span>
+                  <div
+                    onMouseDown={(e) => handleColumnResizeStart(e, "descricao")}
+                    className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                      resizingColumn === "descricao" ? "bg-primary" : ""
+                    }`}
+                    title="Arraste para redimensionar"
+                  />
+                </div>
+                <div className="flex items-center justify-between pr-0 group">
+                  <span>Vencimento</span>
+                  <div
+                    onMouseDown={(e) => handleColumnResizeStart(e, "vencimento")}
+                    className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                      resizingColumn === "vencimento" ? "bg-primary" : ""
+                    }`}
+                    title="Arraste para redimensionar"
+                  />
+                </div>
+                <div className="flex items-center justify-between pr-0 group">
+                  <span className="text-right flex-1">Valor</span>
+                  <div
+                    onMouseDown={(e) => handleColumnResizeStart(e, "valor")}
+                    className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                      resizingColumn === "valor" ? "bg-primary" : ""
+                    }`}
+                    title="Arraste para redimensionar"
+                  />
+                </div>
+                <div className="flex items-center justify-between pr-0 group">
+                  <span className="text-center flex-1">Status</span>
+                  <div
+                    onMouseDown={(e) => handleColumnResizeStart(e, "status")}
+                    className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                      resizingColumn === "status" ? "bg-primary" : ""
+                    }`}
+                    title="Arraste para redimensionar"
+                  />
+                </div>
+                <div className="flex items-center justify-between pr-0 group">
+                  <span className="text-right flex-1">Ações</span>
+                  <div
+                    onMouseDown={(e) => handleColumnResizeStart(e, "acoes")}
+                    className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                      resizingColumn === "acoes" ? "bg-primary" : ""
+                    }`}
+                    title="Arraste para redimensionar"
+                  />
+                </div>
               </div>
 
               {filteredContas.length === 0 ? (
                 <div className="text-center py-20 px-6">
                   <Wallet className="w-20 h-20 text-muted-foreground/20 mx-auto mb-6" />
                   <p className="text-muted-foreground text-lg font-medium">Nenhuma conta a receber encontrada</p>
-                  <p className="text-muted-foreground text-sm mt-3">Clique em "Nova Conta a Receber" para adicionar</p>
+                  <p className="text-muted-foreground text-sm mt-3">Registre receitas no Fluxo de Caixa para vê-las aqui automaticamente</p>
                 </div>
               ) : (
                 filteredContas.map((conta) => {
                   const isExpanded = expandedRows.has(conta.id);
+                  const isFromFluxoCaixa = conta.isFromFluxoCaixa;
                   return (
                     <div key={conta.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors last:border-b-0">
                       {/* Desktop Layout - Grid */}
-                      <div className="hidden lg:grid py-5 items-center px-6 text-sm" style={{gridTemplateColumns: '80px 140px 1fr 110px 120px 100px 100px'}}>
-                        <div className="text-foreground font-medium truncate">
+                      <div className="hidden lg:grid py-4 items-center px-6 text-sm" style={{gridTemplateColumns: getGridTemplate()}}>
+                        <div className={`font-medium truncate ${isFromFluxoCaixa ? 'text-blue-400' : 'text-orange-500'}`} title={conta.numero}>
                           {conta.numero}
+                        </div>
+                        <div className="text-muted-foreground truncate" title={conta.referencia || "-"}>
+                          {conta.referencia || "-"}
                         </div>
                         <div className="font-semibold text-foreground truncate" title={conta.cliente_nome}>
                           {conta.cliente_nome}
@@ -932,16 +1429,17 @@ export function ContasReceber() {
                         <div className="text-foreground font-medium">
                           {format(parseLocalDate(conta.data_vencimento), "dd/MM/yyyy")}
                         </div>
-                        <div className="text-right font-semibold text-green-500 whitespace-nowrap">
+                        <div className="text-right font-semibold text-green-500 whitespace-nowrap pr-4">
                           R$ {parseFloat(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </div>
-                        <div className="col-span-1">
+                        <div className="flex justify-center">
                           <Select value={conta.status} onValueChange={(value) => handleChangeStatus(conta.id, value)}>
-                            <SelectTrigger className={`h-8 text-xs font-medium border rounded-lg ${getStatusColor(conta.status)}`}>
+                            <SelectTrigger className={`h-8 text-xs font-medium border rounded-lg w-[100px] ${getStatusColor(conta.status)}`}>
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="bg-card border-border">
                               <SelectItem value="pendente">Pendente</SelectItem>
+                              <SelectItem value="inadimplente">Inadimplente</SelectItem>
                               <SelectItem value="recebido">Recebido</SelectItem>
                               <SelectItem value="cancelado">Cancelado</SelectItem>
                             </SelectContent>
@@ -949,23 +1447,63 @@ export function ContasReceber() {
                         </div>
                         <div className="flex gap-1 justify-end items-center">
                           {conta.arquivo_pdf_url && (
-                            <a
-                              href={conta.arquivo_pdf_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-muted-foreground hover:text-primary transition-colors p-1"
-                              title="Ver PDF"
-                            >
-                              <FileText className="w-4 h-4" />
-                            </a>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <a
+                                    href={conta.arquivo_pdf_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-muted-foreground hover:text-primary transition-colors p-1"
+                                  >
+                                    <FileText className="w-4 h-4" />
+                                  </a>
+                                </TooltipTrigger>
+                                <TooltipContent>Ver PDF</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
-                          <button
-                            className="text-muted-foreground hover:text-red-500 transition-colors p-1"
-                            title="Deletar"
-                            onClick={() => setDeleteConfirmId(conta.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {isFromFluxoCaixa ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="text-muted-foreground/50 p-1 cursor-not-allowed">
+                                    <Lock className="w-4 h-4" />
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>Editar no Fluxo de Caixa</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            <>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      className="text-muted-foreground hover:text-primary transition-colors p-1"
+                                      onClick={() => handleEditConta(conta)}
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Editar</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      className="text-muted-foreground hover:text-red-500 transition-colors p-1"
+                                      onClick={() => setDeleteConfirmId(conta.id)}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Excluir</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </>
+                          )}
                         </div>
                       </div>
 
@@ -977,10 +1515,15 @@ export function ContasReceber() {
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-foreground text-sm mb-1">
-                                {conta.cliente_nome}
-                              </p>
-                              <p className="text-xs text-muted-foreground mb-2">NF: {conta.numero}</p>
+                              <div className="flex items-center gap-2 mb-1">
+                                <p className="font-semibold text-foreground text-sm">
+                                  {conta.cliente_nome}
+                                </p>
+                              </div>
+                              <p className={`text-xs mb-1 font-medium ${isFromFluxoCaixa ? 'text-blue-400' : 'text-orange-500'}`}>DOC: {conta.numero}</p>
+                              {conta.referencia && (
+                                <p className="text-xs text-muted-foreground mb-1">Ref: {conta.referencia}</p>
+                              )}
                               <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                                 <span>Venc: {format(parseLocalDate(conta.data_vencimento), "dd/MM/yyyy")}</span>
                               </div>
@@ -990,7 +1533,7 @@ export function ContasReceber() {
                                 R$ {parseFloat(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                               </span>
                               <Badge className={`${getStatusColor(conta.status)} text-xs`}>
-                                {conta.status}
+                                {getStatusLabel(conta.status)}
                               </Badge>
                             </div>
                             <ChevronDown className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
@@ -1033,12 +1576,28 @@ export function ContasReceber() {
                                   Ver PDF
                                 </a>
                               )}
-                              <button
-                                className="text-xs px-3 py-1.5 rounded bg-red-500/10 text-red-600 hover:bg-red-500/20"
-                                onClick={() => setDeleteConfirmId(conta.id)}
-                              >
-                                Deletar
-                              </button>
+                              {isFromFluxoCaixa ? (
+                                <span className="text-xs px-3 py-1.5 rounded bg-muted text-muted-foreground flex items-center gap-1">
+                                  <Lock className="w-3 h-3" />
+                                  Via Fluxo de Caixa
+                                </span>
+                              ) : (
+                                <>
+                                  <button
+                                    className="text-xs px-3 py-1.5 rounded bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 flex items-center gap-1"
+                                    onClick={() => handleEditConta(conta)}
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                    Editar
+                                  </button>
+                                  <button
+                                    className="text-xs px-3 py-1.5 rounded bg-red-500/10 text-red-600 hover:bg-red-500/20"
+                                    onClick={() => setDeleteConfirmId(conta.id)}
+                                  >
+                                    Deletar
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </div>
                         )}
@@ -1064,32 +1623,91 @@ export function ContasReceber() {
               <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
                 <p className="text-sm text-muted-foreground mb-1">Cliente</p>
                 <p className="font-semibold text-foreground">{contasReceberData.cliente_nome}</p>
-                <p className="text-sm text-muted-foreground mt-2">NF: {contasReceberData.numero}</p>
+                <p className="text-sm text-muted-foreground mt-2">DOC: {contasReceberData.numero}</p>
                 <p className="text-sm text-muted-foreground">Valor: R$ {parseFloat(contasReceberData.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-foreground mb-2 block">
+                    Banco de Recebimento *
+                  </label>
+                  <Select value={selectedBank} onValueChange={setSelectedBank}>
+                    <SelectTrigger className="bg-background">
+                      <SelectValue placeholder="Selecione um banco" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {contasBancarias.length > 0 ? (
+                        contasBancarias.map((conta) => (
+                          <SelectItem key={conta.id} value={conta.id}>
+                            {conta.banco} - {conta.numero_conta || 'Conta'} {conta.tipo_conta ? `(${conta.tipo_conta})` : ''}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          Nenhuma conta disponível
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-foreground mb-2 block">
+                    Data do Recebimento *
+                  </label>
+                  <Input
+                    type="date"
+                    value={dataRecebimento}
+                    onChange={(e) => setDataRecebimento(e.target.value)}
+                    className="bg-background"
+                  />
+                </div>
               </div>
 
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">
-                  Selecione o Banco de Recebimento *
+                  Comprovante de Recebimento
                 </label>
-                <Select value={selectedBank} onValueChange={setSelectedBank}>
-                  <SelectTrigger className="bg-background">
-                    <SelectValue placeholder="Selecione um banco" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {contasBancarias.length > 0 ? (
-                      contasBancarias.map((conta) => (
-                        <SelectItem key={conta.id} value={conta.nome}>
-                          {conta.nome}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                        Nenhuma conta disponível
-                      </div>
-                    )}
-                  </SelectContent>
-                </Select>
+                {comprovanteFile ? (
+                  <div className="flex items-center gap-2 p-3 bg-success/10 border border-success/30 rounded-lg">
+                    <FileText className="h-5 w-5 text-success" />
+                    <span className="text-sm text-success flex-1 truncate">
+                      {comprovanteFile.name}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setComprovanteFile(null)}
+                      className="h-8 w-8 p-0 hover:bg-destructive/10"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) setComprovanteFile(file);
+                      }}
+                      className="hidden"
+                      id="comprovante-upload"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById('comprovante-upload')?.click()}
+                      className="w-full"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Anexar Comprovante (PDF, PNG, JPG)
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1097,19 +1715,17 @@ export function ContasReceber() {
           <DialogFooter className="gap-3 sm:gap-2">
             <Button
               variant="outline"
-              onClick={() => {
-                setShowBankDialog(false);
-                setContasReceberData(null);
-                setSelectedBank("");
-              }}
+              onClick={resetBankDialog}
+              disabled={isUploadingComprovante}
             >
               Cancelar
             </Button>
             <Button
               onClick={handleMarkAsReceived}
+              disabled={isUploadingComprovante}
               className="bg-green-600 hover:bg-green-700"
             >
-              Confirmar Recebimento
+              {isUploadingComprovante ? "Processando..." : "Confirmar Recebimento"}
             </Button>
           </DialogFooter>
         </DialogContent>

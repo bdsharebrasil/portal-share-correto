@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, BookOpen, Banknote, ArrowLeft, Zap, AlertCircle, CheckCircle } from 'lucide-react';
+import { BookOpen, Banknote, ArrowLeft, Zap, AlertCircle, CheckCircle, MapPin } from 'lucide-react';
+import { LottieAirplaneSpinner } from '@/components/ui/lottie-airplane-spinner';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../integrations/supabase/client';
 import { Aircraft } from '@/types';
 import DiarioBordoDetalhes from '../components/diario/DiarioBordoDetalhes';
 import BancodeHoras from './BancodeHoras';
+import { Layout } from '@/components/layout/Layout';
 
 interface DiarioBordoProps {
   aircraftId: string | null;
@@ -47,6 +49,36 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ aircraftId, onBack }) => {
 
   useEffect(() => {
     fetchAircraft();
+
+    // Refetch dados quando a página volta ao foco
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchAircraft();
+      }
+    };
+
+    // Subscribe to realtime changes in logbook_months
+    const subscription = supabase
+      .channel('logbook-months-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'logbook_months'
+        },
+        () => {
+          // Refetch when logbook_months changes
+          fetchAircraft();
+        }
+      )
+      .subscribe();
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      supabase.removeChannel(subscription);
+    };
   }, []);
 
   const fetchAircraft = async () => {
@@ -60,23 +92,47 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ aircraftId, onBack }) => {
       if (error) throw error;
       if (data) {
         setAircraft(data);
-        // Buscar dados de logbook_months para cada aeronave (mais recente)
+        // Buscar dados de logbook_months para cada aeronave (mais recente com dados válidos)
         const monthDataMap: Record<string, LogbookMonthData | null> = {};
+        const currentMonth = new Date().getMonth() + 1; // 1-12
+        const currentYear = new Date().getFullYear();
 
         for (const ac of data) {
           try {
-            const { data: monthsData } = await supabase
+            // Primeiro, tentar buscar o mês atual
+            let { data: currentMonthData } = await supabase
               .from('logbook_months')
               .select('celula_anterior, celula_atual, celula_prox_revisao, celula_disponivel, year, month')
               .eq('aircraft_id', ac.id)
-              .order('year', { ascending: false })
-              .order('month', { ascending: false })
-              .limit(1);
+              .eq('year', currentYear)
+              .eq('month', currentMonth)
+              .maybeSingle();
 
-            if (monthsData && monthsData.length > 0) {
-              monthDataMap[ac.id] = monthsData[0];
+            // Se existe e tem dados válidos (celula_atual > 0), usar
+            if (currentMonthData && (currentMonthData.celula_atual || 0) > 0) {
+              monthDataMap[ac.id] = currentMonthData;
+              console.log(`Dados do mês atual para ${ac.registration}:`, currentMonthData);
             } else {
-              monthDataMap[ac.id] = null;
+              // Caso contrário, buscar o último mês com dados válidos
+              const { data: monthsData, error: monthError } = await supabase
+                .from('logbook_months')
+                .select('celula_anterior, celula_atual, celula_prox_revisao, celula_disponivel, year, month')
+                .eq('aircraft_id', ac.id)
+                .gt('celula_atual', 0)
+                .order('year', { ascending: false })
+                .order('month', { ascending: false })
+                .limit(1);
+
+              if (monthError) {
+                console.warn(`Erro ao carregar logbook_months para ${ac.registration}:`, monthError);
+                monthDataMap[ac.id] = null;
+              } else if (monthsData && monthsData.length > 0) {
+                monthDataMap[ac.id] = monthsData[0];
+                console.log(`Dados carregados para ${ac.registration}:`, monthsData[0]);
+              } else {
+                console.log(`Nenhum dado de logbook_months para ${ac.registration}`);
+                monthDataMap[ac.id] = null;
+              }
             }
           } catch (err) {
             console.error(`Erro ao carregar logbook_months para ${ac.registration}:`, err);
@@ -97,7 +153,10 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ aircraftId, onBack }) => {
     return (
       <DiarioBordoDetalhes
         aircraftId={selectedAircraftId}
-        onBack={() => setCurrentView('list')}
+        onBack={() => {
+          setCurrentView('list');
+          fetchAircraft(); // Recarrega dados ao voltar
+        }}
       />
     );
   }
@@ -106,7 +165,10 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ aircraftId, onBack }) => {
     return (
       <BancodeHoras
         aircraftId={selectedAircraftId}
-        onBack={() => setCurrentView('diario')}
+        onBack={() => {
+          setCurrentView('diario');
+          fetchAircraft(); // Recarrega dados ao voltar
+        }}
       />
     );
   }
@@ -114,21 +176,38 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ aircraftId, onBack }) => {
   if (loading) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-950">
-        <Loader2 className="w-12 h-12 text-sky-500 animate-spin" />
+        <LottieAirplaneSpinner size="md" text="Carregando diário de bordo..." />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 pb-20 max-w-[1600px] mx-auto p-4">
+    <Layout>
+      <div className="space-y-6 pb-20">
       <header className="mb-6">
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-2 mb-3 px-3 py-2 text-sm rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors duration-200"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Voltar ao Dashboard
-        </button>
+        <div className="flex items-center justify-between mb-3 gap-3">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors duration-200"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Voltar ao Dashboard
+          </button>
+          <button
+            onClick={() => navigate('/aerodromos')}
+            className="flex items-center gap-3 px-3 rounded-lg text-white hover:bg-emerald-700 transition-colors duration-200"
+            style={{
+              backgroundColor: 'rgba(2, 124, 87, 1)',
+              fontSize: '15px',
+              padding: '6px 12px 8px',
+              justifyContent: 'flex-start',
+              margin: '12px 28px 4px 11px'
+            }}
+          >
+            <MapPin className="w-4 h-4" style={{ marginTop: '2px' }} />
+            Aerodromos
+          </button>
+        </div>
         <h1 className="text-3xl font-black text-white uppercase mb-1">Diário de Bordo</h1>
         <p className="text-slate-500 text-xs">Selecione uma aeronave para visualizar o histórico de voos</p>
       </header>
@@ -243,6 +322,7 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ aircraftId, onBack }) => {
         </div>
       )}
     </div>
+    </Layout>
   );
 };
 

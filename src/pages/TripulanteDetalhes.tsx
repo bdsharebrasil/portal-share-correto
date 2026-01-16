@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, ArrowLeft, UploadCloud, AlertTriangle, Clock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import FlightHoursCard from "@/components/tripulacao/FlightHoursCard";
 import CrewFlightHoursTable from "@/components/tripulacao/CrewFlightHoursTable";
 import { formatBirthDateWithAge, formatDateToBR, formatMonthShort } from "@/lib/date-utils";
 import { CrewMemberNav } from "@/components/tripulacao/CrewMemberNav";
@@ -555,7 +554,6 @@ export default function TripulanteDetalhes() {
               </TabsContent>
 
               <TabsContent value="horas-voo" className="mt-6 space-y-6">
-                <FlightHoursCard crewMemberId={member.id} />
                 <CrewFlightHoursTable crewMemberId={member.id} />
               </TabsContent>
 

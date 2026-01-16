@@ -329,7 +329,7 @@ export function AddBankReconciliationDialog({
           const percentual = parseFloat(data.percentual || "0");
           const valorRateado = (parseFloat(data.amount) * percentual) / 100;
 
-          await supabase.from("rateio_despesas").insert({
+          await (supabase as any).from("rateio_despesas").insert({
             despesa_id: inserted.id,
             client_id: data.clientId,
             aeronave_id: data.aircraftId || null,
@@ -371,19 +371,22 @@ export function AddBankReconciliationDialog({
           }
 
           const numeroDocumento = `REIMB-${Date.now().toString().slice(-6)}`;
+          const clienteNome = clientData?.company_name || "Cliente";
 
           await supabase.from("contas_areceber").insert({
             numero: numeroDocumento,
-            cliente_nome: clientData?.company_name || "Cliente",
+            referencia: clienteNome,
+            cliente_nome: clienteNome,
             cliente_cnpj: clientData?.cnpj || "",
             data_criacao: data.date,
             data_vencimento: data.date,
             valor: parseFloat(data.amount),
             categoria: data.category || "Reembolso de Despesa",
-            descricao: data.description,
+            descricao: data.description || "Conta a receber",
             status: "pendente",
+            arquivo_pdf_url: null,
             aeronave: aircraftRegistration,
-            criado_por: user.id,
+            criado_por: user.id
           });
         } catch (err) {
           console.error("Erro ao criar conta a receber:", err);
