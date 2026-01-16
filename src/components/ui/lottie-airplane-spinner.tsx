@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Lottie from "lottie-react";
 import { cn } from "@/lib/utils";
+import { Plane } from "lucide-react";
 
 interface LottieAirplaneSpinnerProps {
   size?: "sm" | "md" | "lg";
@@ -14,24 +15,33 @@ export function LottieAirplaneSpinner({
   className,
 }: LottieAirplaneSpinnerProps) {
   const [animationData, setAnimationData] = useState<object | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const mounted = useRef(true);
 
   useEffect(() => {
+    mounted.current = true;
+    
     const loadAnimation = async () => {
       try {
         const response = await fetch("/animations/airplane-spinner.json");
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
-        setAnimationData(data);
+        if (mounted.current) {
+          setAnimationData(data);
+        }
       } catch (err) {
         console.error("Failed to load airplane animation:", err);
-        setError("Falha ao carregar animação");
+        if (mounted.current) {
+          setLoadFailed(true);
+        }
       }
     };
 
     loadAnimation();
+    
+    return () => {
+      mounted.current = false;
+    };
   }, []);
 
   const lottieSize = {
@@ -46,41 +56,24 @@ export function LottieAirplaneSpinner({
     lg: "text-lg",
   };
 
-  // Fallback to CSS airplane if animation fails
-  if (error || !animationData) {
+  // Fallback simples com ícone Lucide enquanto carrega ou se falhar
+  if (!animationData) {
     return (
       <div className={cn("flex flex-col items-center justify-center gap-4", className)}>
-        <div className="relative flex items-center justify-center">
-          <div 
-            className="animate-bounce"
-            style={{ width: lottieSize[size], height: lottieSize[size] / 1.5 }}
-          >
-            <svg
-              viewBox="0 0 200 140"
-              className="w-full h-full drop-shadow-lg text-cyan-600"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              {/* Corpo do avião */}
-              <path d="M 40 80 Q 100 60 160 80" fill="none" />
-              {/* Asa esquerda */}
-              <path d="M 70 80 L 30 70" fill="none" />
-              {/* Asa direita */}
-              <path d="M 130 80 L 170 70" fill="none" />
-              {/* Cauda esquerda */}
-              <path d="M 40 80 L 20 90" strokeWidth="4" fill="none" />
-              {/* Cauda direita */}
-              <path d="M 40 80 L 20 70" strokeWidth="4" fill="none" />
-              {/* Cockpit */}
-              <circle cx="145" cy="72" r="6" fill="currentColor" />
-            </svg>
-          </div>
+        <div 
+          className="flex items-center justify-center"
+          style={{ width: lottieSize[size], height: lottieSize[size] }}
+        >
+          <Plane 
+            className="text-cyan-500 animate-bounce" 
+            style={{ 
+              width: lottieSize[size] * 0.5, 
+              height: lottieSize[size] * 0.5 
+            }} 
+          />
         </div>
         {text && (
-          <p className={cn("text-muted-foreground font-medium", textClasses[size])}>
+          <p className={cn("text-muted-foreground font-medium animate-pulse", textClasses[size])}>
             {text}
           </p>
         )}
