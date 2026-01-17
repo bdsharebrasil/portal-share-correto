@@ -112,18 +112,91 @@ function BalancoClienteContent() {
           <CardDescription>Selecione o cliente e período para análise</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <div className="space-y-2">
-              <Label htmlFor="cliente-filter">Cliente</Label>
-              <Select value={clienteId} onValueChange={(val) => { setClienteId(val); setAeronaveId(''); }}>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+            {/* Seletor de Cliente/Sócio */}
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="cliente-filter">Cliente / Sócio</Label>
+              <Select 
+                value={socioId ? `${clienteId}:${socioId}` : clienteId} 
+                onValueChange={(val) => { 
+                  if (val.includes(':')) {
+                    const [newClienteId, newSocioId] = val.split(':');
+                    if (newClienteId !== clienteId) {
+                      setClienteId(newClienteId);
+                      setAeronaveId('');
+                    }
+                    setSocioId(newSocioId);
+                  } else {
+                    setClienteId(val);
+                    setSocioId(undefined);
+                    setAeronaveId('');
+                  }
+                }}
+              >
                 <SelectTrigger id="cliente-filter">
-                  <SelectValue placeholder="Selecione um cliente" />
+                  <SelectValue placeholder="Selecione cliente ou sócio">
+                    {clienteAtual && (
+                      <div className="flex items-center gap-2">
+                        {socioAtual ? (
+                          <>
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span className="truncate">{socioAtual.nome}</span>
+                            <Badge variant="secondary" className="ml-1 text-xs">
+                              {socioAtual.percentual.toFixed(1)}%
+                            </Badge>
+                          </>
+                        ) : (
+                          <>
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            <span className="truncate">
+                              {clienteAtual.company_name || clienteAtual.proprietario}
+                            </span>
+                            {clienteAtual.temMultiplosSocios && (
+                              <Badge variant="outline" className="ml-1 text-xs">
+                                {clienteAtual.socios.length} sócios
+                              </Badge>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </SelectValue>
                 </SelectTrigger>
-                <SelectContent>
-                  {clientes.map((cliente: any) => (
-                    <SelectItem key={cliente.id} value={cliente.id}>
-                      {cliente.company_name || cliente.proprietario}
-                    </SelectItem>
+                <SelectContent className="max-h-[400px]">
+                  {clientesComSocios.map((cliente) => (
+                    <React.Fragment key={cliente.id}>
+                      {/* Cliente consolidado */}
+                      <SelectItem value={cliente.id} className="py-2">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-primary" />
+                          <span className="font-medium">
+                            {cliente.company_name || cliente.proprietario}
+                          </span>
+                          {cliente.temMultiplosSocios && (
+                            <Badge variant="outline" className="ml-1 text-xs">
+                              Consolidado
+                            </Badge>
+                          )}
+                        </div>
+                      </SelectItem>
+                      {/* Sócios individuais */}
+                      {cliente.temMultiplosSocios &&
+                        cliente.socios.map((socio) => (
+                          <SelectItem
+                            key={socio.id}
+                            value={`${cliente.id}:${socio.id}`}
+                            className="py-2 pl-8"
+                          >
+                            <div className="flex items-center gap-2">
+                              <User className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-sm">{socio.nome}</span>
+                              <Badge variant="secondary" className="ml-1 text-xs font-normal">
+                                {socio.percentual.toFixed(1)}%
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        ))}
+                    </React.Fragment>
                   ))}
                 </SelectContent>
               </Select>
@@ -207,6 +280,7 @@ function BalancoClienteContent() {
           {clienteId ? (
             <BalancoVisaoGeral 
               clienteId={clienteId} 
+              socioId={socioId}
               aeronaveId={aeronaveId || undefined}
               periodo={periodo}
             />
@@ -223,6 +297,7 @@ function BalancoClienteContent() {
           {clienteId ? (
             <DespesasDetalhadas 
               clienteId={clienteId} 
+              socioId={socioId}
               aeronaveId={aeronaveId || undefined}
               periodo={periodo}
             />
@@ -239,6 +314,7 @@ function BalancoClienteContent() {
           {clienteId ? (
             <PendenciasFinanceiras 
               clienteId={clienteId} 
+              socioId={socioId}
               aeronaveId={aeronaveId || undefined}
             />
           ) : (
@@ -254,6 +330,7 @@ function BalancoClienteContent() {
           {clienteId ? (
             <BalancoAeronave 
               clienteId={clienteId} 
+              socioId={socioId}
               aeronaveId={aeronaveId || undefined}
               periodo={periodo}
             />
@@ -270,6 +347,7 @@ function BalancoClienteContent() {
           {clienteId ? (
             <RelatoriosExportacao 
               clienteId={clienteId} 
+              socioId={socioId}
               aeronaveId={aeronaveId || undefined}
               periodo={periodo}
             />

@@ -13,6 +13,7 @@ import { Search, FileText, ExternalLink, Eye } from 'lucide-react';
 
 interface DespesasDetalhadasProps {
   clienteId: string;
+  socioId?: string;
   aeronaveId?: string;
   periodo: { inicio: string; fim: string };
 }

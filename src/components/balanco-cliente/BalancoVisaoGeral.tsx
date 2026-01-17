@@ -4,17 +4,31 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AlertCircle, CheckCircle, Clock, RefreshCw, TrendingUp } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { useSocioBalanco } from '@/hooks/useSociosBalanco';
+import { SociosBalancoCards } from './SociosBalancoCards';
 
 interface BalancoVisaoGeralProps {
   clienteId: string;
+  socioId?: string;
   aeronaveId?: string;
   periodo: { inicio: string; fim: string };
 }
 
-export function BalancoVisaoGeral({ clienteId, aeronaveId, periodo }: BalancoVisaoGeralProps) {
+export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: BalancoVisaoGeralProps) {
+  // Hook para dados de sócios
+  const { sociosBalanco, socioSelecionado, temMultiplosSocios } = useSocioBalanco(
+    clienteId,
+    socioId,
+    aeronaveId,
+    periodo
+  );
+
+  // Fator de proporção (100% se consolidado, ou percentual do sócio)
+  const fatorProporcao = socioSelecionado ? socioSelecionado.percentual / 100 : 1;
+
   // Buscar resumo financeiro
   const { data: resumo, isLoading } = useQuery({
-    queryKey: ['balanco-resumo', clienteId, aeronaveId, periodo],
+    queryKey: ['balanco-resumo', clienteId, aeronaveId, periodo, socioId],
     queryFn: async () => {
       let query = supabase
         .from('bank_reconciliations')
@@ -38,22 +52,22 @@ export function BalancoVisaoGeral({ clienteId, aeronaveId, periodo }: BalancoVis
 
       return {
         pendenteEnvio: {
-          valor: pendentes.reduce((sum, r) => sum + (r.amount || 0), 0),
+          valor: pendentes.reduce((sum, r) => sum + (r.amount || 0), 0) * fatorProporcao,
           quantidade: pendentes.length
         },
         aguardandoReembolso: {
-          valor: aguardandoReembolso.reduce((sum, r) => sum + ((r.saldo_pendente || r.amount) || 0), 0),
+          valor: aguardandoReembolso.reduce((sum, r) => sum + ((r.saldo_pendente || r.amount) || 0), 0) * fatorProporcao,
           quantidade: aguardandoReembolso.length
         },
         pago: {
-          valor: pagos.reduce((sum, r) => sum + (r.amount || 0), 0),
+          valor: pagos.reduce((sum, r) => sum + (r.amount || 0), 0) * fatorProporcao,
           quantidade: pagos.length
         },
         reembolsado: {
-          valor: reembolsados.reduce((sum, r) => sum + (r.valor_reembolsado || r.amount || 0), 0),
+          valor: reembolsados.reduce((sum, r) => sum + (r.valor_reembolsado || r.amount || 0), 0) * fatorProporcao,
           quantidade: reembolsados.length
         },
-        total: data?.reduce((sum, r) => sum + (r.amount || 0), 0) || 0
+        total: (data?.reduce((sum, r) => sum + (r.amount || 0), 0) || 0) * fatorProporcao
       };
     },
     enabled: !!clienteId,
@@ -123,6 +137,32 @@ export function BalancoVisaoGeral({ clienteId, aeronaveId, periodo }: BalancoVis
 
   return (
     <div className="space-y-6">
+      {/* Cards de Distribuição por Sócio (apenas quando consolidado e tem múltiplos sócios) */}
+      {!socioId && temMultiplosSocios && (
+        <SociosBalancoCards sociosBalanco={sociosBalanco} />
+      )}
+
+      {/* Indicador de sócio selecionado */}
+      {socioSelecionado && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-primary/20">
+                <TrendingUp className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">
+                  Visualizando balanço de: <span className="text-primary">{socioSelecionado.nome}</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Participação: {socioSelecionado.percentual.toFixed(1)}% • Valores proporcionais aplicados
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Cards de Resumo */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         {/* Pendente de Envio */}
