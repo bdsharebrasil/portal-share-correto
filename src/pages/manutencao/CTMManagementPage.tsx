@@ -121,7 +121,7 @@ export default function CTMManagementPage() {
       }
 
       // Load Motor Expenses
-      const { data: motorData } = await supabase
+      const { data: motorData } = await (supabase as any)
         .from('motor_expenses')
         .select('*')
         .eq('aircraft_id', aircraftId)
@@ -146,7 +146,7 @@ export default function CTMManagementPage() {
       }
 
       // Load ADs
-      const { data: adData } = await supabase
+      const { data: adData } = await (supabase as any)
         .from('airworthiness_directives')
         .select('*')
         .eq('aircraft_id', aircraftId)
@@ -172,7 +172,7 @@ export default function CTMManagementPage() {
       }
 
       // Load SBs
-      const { data: sbData } = await supabase
+      const { data: sbData } = await (supabase as any)
         .from('service_bulletins')
         .select('*')
         .eq('aircraft_id', aircraftId)
@@ -262,7 +262,7 @@ export default function CTMManagementPage() {
 
   const handleDeleteMotorExpense = async (id: string) => {
     try {
-      const { error } = await supabase.from('motor_expenses').delete().eq('id', id);
+      const { error } = await (supabase as any).from('motor_expenses').delete().eq('id', id);
       if (error) throw error;
       setMotorExpenses(motorExpenses.filter((m) => m.id !== id));
       toast.success('Gasto deletado com sucesso');
@@ -285,7 +285,7 @@ export default function CTMManagementPage() {
 
   const handleDeleteAD = async (id: string) => {
     try {
-      const { error } = await supabase.from('airworthiness_directives').delete().eq('id', id);
+      const { error } = await (supabase as any).from('airworthiness_directives').delete().eq('id', id);
       if (error) throw error;
       setADs(ads.filter((a) => a.id !== id));
       toast.success('AD deletada com sucesso');
@@ -296,7 +296,7 @@ export default function CTMManagementPage() {
 
   const handleDeleteSB = async (id: string) => {
     try {
-      const { error } = await supabase.from('service_bulletins').delete().eq('id', id);
+      const { error } = await (supabase as any).from('service_bulletins').delete().eq('id', id);
       if (error) throw error;
       setSBs(sbs.filter((s) => s.id !== id));
       toast.success('SB deletada com sucesso');

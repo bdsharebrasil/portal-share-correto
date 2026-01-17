@@ -64,33 +64,75 @@ export function useWeather() {
   }, [setDefaultWeather]);
 
   const getLocation = useCallback(() => {
-    if (!navigator.geolocation) {
-      // Fallback para localização padrão
+    // Usar localização padrão
+    const useDefaultLocation = () => {
       fetchWeather(-23.5505, -46.6333); // São Paulo, Brasil
+    };
+
+    if (!navigator.geolocation) {
+      useDefaultLocation();
       return;
     }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        fetchWeather(latitude, longitude);
-      },
-      (error) => {
-        // Geolocation é bloqueada por política de permissões ou usuário recusou acesso
-        // Usar localização padrão como fallback
-        if (error.code === 1) {
-          console.warn('Geolocation bloqueada: usando localização padrão (São Paulo)');
-        } else {
-          console.warn('Erro ao obter geolocalização:', error.message);
+    // Verificar permissão usando Permissions API antes de tentar geolocation
+    if ('permissions' in navigator) {
+      navigator.permissions.query({ name: 'geolocation' }).then((permission) => {
+        if (permission.state === 'denied') {
+          // Permissão negada - usar padrão
+          useDefaultLocation();
+          return;
         }
-        fetchWeather(-23.5505, -46.6333); // São Paulo, Brasil
-      },
-      {
-        enableHighAccuracy: false,
-        timeout: 10000,
-        maximumAge: 300000, // 5 minutes cache
-      }
-    );
+
+        // Tentar obter localização
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            fetchWeather(latitude, longitude);
+          },
+          () => {
+            // Erro qualquer - usar padrão
+            useDefaultLocation();
+          },
+          {
+            enableHighAccuracy: false,
+            timeout: 5000,
+            maximumAge: 300000,
+          }
+        );
+      }).catch(() => {
+        // Se Permissions API falhar, tentar geolocation direto
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            fetchWeather(latitude, longitude);
+          },
+          () => {
+            useDefaultLocation();
+          },
+          {
+            enableHighAccuracy: false,
+            timeout: 5000,
+            maximumAge: 300000,
+          }
+        );
+      });
+    } else {
+      // Se Permissions API não disponível, tentar geolocation direto
+      (navigator as Navigator).geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          fetchWeather(latitude, longitude);
+        },
+        () => {
+          useDefaultLocation();
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 5000,
+          maximumAge: 300000,
+        }
+      );
+    }
   }, [fetchWeather]);
 
   useEffect(() => {

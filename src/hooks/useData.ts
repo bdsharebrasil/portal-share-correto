@@ -110,7 +110,7 @@ export const useTripulantes = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("crew_members")
-        .select("id, full_name, canac, email, status")
+        .select("id, full_name, canac, status")
         .eq("status", "active")
         .order("full_name", { ascending: true });
 
@@ -119,7 +119,7 @@ export const useTripulantes = () => {
         throw error;
       }
 
-      return (data as Tripulante[]) || null;
+      return (data || []) as unknown as Tripulante[];
     },
     staleTime: 10 * 60 * 1000, // 10 minutos
     gcTime: 30 * 60 * 1000, // 30 minutos

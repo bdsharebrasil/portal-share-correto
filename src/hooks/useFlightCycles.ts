@@ -23,7 +23,7 @@ export function useFlightCycles() {
         .order('flight_date', { ascending: false });
 
       if (error) throw error;
-      setCycles(data || []);
+      setCycles((data || []) as FlightCycle[]);
     } catch (err: any) {
       setError(err.message);
       console.error('Error fetching flight cycles:', err);
@@ -40,14 +40,14 @@ export function useFlightCycles() {
     try {
       const { data: cycle, error } = await supabase
         .from('flight_cycles')
-        .insert(cycleData)
+        .insert([cycleData as any])
         .select()
         .single();
 
       if (error) throw error;
 
       // Generate automatic checklist
-      await generateChecklist(cycle);
+      await generateChecklist(cycle as FlightCycle);
       
       toast.success('Ciclo de voo criado com sucesso!');
       await fetchCycles();
@@ -135,7 +135,7 @@ export function useFlightCycles() {
     }
 
     if (expenses.length > 0) {
-      const { error } = await supabase.from('flight_expenses').insert(expenses);
+      const { error } = await supabase.from('flight_expenses').insert(expenses as any[]);
       if (error) console.error('Error creating expenses:', error);
     }
   };
@@ -194,10 +194,10 @@ export function useFlightCycles() {
     try {
       const { error } = await supabase
         .from('flight_expenses')
-        .insert({
+        .insert([{
           flight_cycle_id: cycleId,
           ...expenseData,
-        });
+        } as any]);
 
       if (error) throw error;
       

@@ -45,7 +45,7 @@ export function FolderManagementDialog({
   const loadFolders = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("flight_document_folders")
         .select("*")
         .eq("aircraft_id", aircraftId)
@@ -53,7 +53,7 @@ export function FolderManagementDialog({
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setFolders(data || []);
+      setFolders((data || []) as DocumentFolder[]);
     } catch (error) {
       console.error("Error loading folders:", error);
       toast.error("Erro ao carregar pastas");
@@ -71,7 +71,7 @@ export function FolderManagementDialog({
     try {
       setCreating(true);
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("flight_document_folders")
         .insert({
           aircraft_id: aircraftId,
@@ -105,7 +105,7 @@ export function FolderManagementDialog({
     }
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("flight_document_folders")
         .delete()
         .eq("id", folderId);

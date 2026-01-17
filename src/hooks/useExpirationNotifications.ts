@@ -56,7 +56,7 @@ export function useExpirationNotifications(aircraftId: string) {
       }
 
       // Check Airworthiness Directives
-      const { data: ads } = await supabase
+      const { data: ads } = await (supabase as any)
         .from('airworthiness_directives')
         .select('*')
         .eq('aircraft_id', aircraftId)
@@ -88,7 +88,7 @@ export function useExpirationNotifications(aircraftId: string) {
       }
 
       // Check Service Bulletins
-      const { data: sbs } = await supabase
+      const { data: sbs } = await (supabase as any)
         .from('service_bulletins')
         .select('*')
         .eq('aircraft_id', aircraftId)
@@ -120,7 +120,7 @@ export function useExpirationNotifications(aircraftId: string) {
       }
 
       // Check Components
-      const { data: components } = await supabase
+      const { data: components } = await (supabase as any)
         .from('aircraft_components')
         .select('*')
         .eq('aircraft_id', aircraftId);

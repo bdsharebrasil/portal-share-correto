@@ -90,14 +90,14 @@ export function TimeClockTab() {
     queryKey: ["absence-justifications", userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await supabase
-        .from("absence_justifications" as any)
+      const { data, error } = await (supabase as any)
+        .from("absence_justifications")
         .select("*")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
       
       if (error) throw error;
-      return data as AbsenceJustification[];
+      return (data || []) as AbsenceJustification[];
     },
     enabled: !!userId,
   });
@@ -107,14 +107,14 @@ export function TimeClockTab() {
     queryKey: ["time-correction-requests", userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await supabase
-        .from("time_correction_requests" as any)
+      const { data, error } = await (supabase as any)
+        .from("time_correction_requests")
         .select("*")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
       
       if (error) throw error;
-      return data as TimeCorrectionRequest[];
+      return (data || []) as TimeCorrectionRequest[];
     },
     enabled: !!userId,
   });

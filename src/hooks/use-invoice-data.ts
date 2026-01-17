@@ -52,7 +52,7 @@ export function useInvoices() {
         return [];
       }
 
-      return (data || []) as Invoice[];
+      return (data || []) as unknown as Invoice[];
     },
   });
 }
@@ -77,15 +77,15 @@ export function useCreateInvoice() {
         .insert([
           {
             user_id: user.id,
-            invoiceNumber,
-            clientName: invoiceData.clientName,
-            clientDocument: invoiceData.clientDocument,
-            clientEmail: invoiceData.clientEmail,
-            clientAddress: invoiceData.clientAddress,
-            serviceDescription: invoiceData.serviceDescription,
+            invoice_number: invoiceNumber,
+            client_name: invoiceData.clientName,
+            client_document: invoiceData.clientDocument,
+            client_email: invoiceData.clientEmail,
+            client_address: invoiceData.clientAddress,
+            service_description: invoiceData.serviceDescription,
             value: parseFloat(invoiceData.value),
-            issueDate: invoiceData.issueDate.toISOString().split('T')[0],
-            dueDate: invoiceData.dueDate ? invoiceData.dueDate.toISOString().split('T')[0] : null,
+            issue_date: invoiceData.issueDate.toISOString().split('T')[0],
+            due_date: invoiceData.dueDate ? invoiceData.dueDate.toISOString().split('T')[0] : null,
             observations: invoiceData.observations,
             status: "issued",
           },
@@ -106,9 +106,9 @@ export function useCreateInvoice() {
           .from("accounts_receivable")
           .insert([
             {
-              invoiceId,
+              invoice_id: invoiceId,
               amount,
-              dueDate: dueDate.toISOString().split('T')[0],
+              due_date: dueDate.toISOString().split('T')[0],
               status: "open",
             },
           ]);
@@ -140,7 +140,7 @@ export function useAccountsReceivable() {
       const { data, error } = await supabase
         .from("accounts_receivable")
         .select("*")
-        .order("dueDate", { ascending: true });
+        .order("due_date", { ascending: true });
 
       if (error) {
         toast.error("Erro ao carregar contas a receber");
@@ -148,7 +148,11 @@ export function useAccountsReceivable() {
         return [];
       }
 
-      return (data || []) as AccountsReceivable[];
+      return (data || []).map(d => ({
+        ...d,
+        invoiceId: d.invoice_id,
+        dueDate: d.due_date,
+      })) as unknown as AccountsReceivable[];
     },
   });
 }

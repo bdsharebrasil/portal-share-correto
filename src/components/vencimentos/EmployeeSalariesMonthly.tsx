@@ -78,7 +78,7 @@ export function EmployeeSalariesMonthly() {
   const { data: employees = [], isLoading: employeesLoading } = useQuery({
     queryKey: ["employees"],
     queryFn: async () => {
-      const { data: profiles, error: profilesError } = await supabase
+      const { data: profiles, error: profilesError } = await (supabase as any)
         .from("user_profiles")
         .select("*")
         .eq("status", "ativo")
@@ -87,13 +87,13 @@ export function EmployeeSalariesMonthly() {
       if (profilesError) throw profilesError;
 
       const employeesWithRoles = await Promise.all(
-        (profiles || []).map(async (profile) => {
+        (profiles || []).map(async (profile: any) => {
           const { data: rolesData } = await supabase
             .from("user_roles")
             .select("role")
             .eq("user_id", profile.id);
 
-          const roles = rolesData?.map((r) => r.role).filter(Boolean) || [];
+          const roles = rolesData?.map((r: any) => r.role).filter(Boolean) || [];
 
           return {
             id: profile.id,
@@ -104,8 +104,8 @@ export function EmployeeSalariesMonthly() {
         })
       );
 
-      return employeesWithRoles.filter((emp) =>
-        emp.roles.some((role) =>
+      return employeesWithRoles.filter((emp: any) =>
+        emp.roles.some((role: string) =>
           ["financeiro", "financeiro_master", "tripulante", "piloto_chefe", "operacoes", "colaborador"].includes(role)
         )
       );
@@ -175,7 +175,7 @@ export function EmployeeSalariesMonthly() {
     return employeesWithSalaries.filter((emp) => {
       const matchesSearch = emp.full_name.toLowerCase().includes(searchFilter.toLowerCase()) ||
         emp.email.toLowerCase().includes(searchFilter.toLowerCase());
-      const matchesRole = !roleFilter || emp.roles.includes(roleFilter);
+      const matchesRole = !roleFilter || emp.roles.includes(roleFilter as any);
       return matchesSearch && matchesRole;
     });
   }, [employeesWithSalaries, searchFilter, roleFilter]);

@@ -24,7 +24,7 @@ export function useLancamentosRateio(lancamentoId?: string) {
   const { data: rateios, isLoading, error } = useQuery({
     queryKey: ["lancamentos_rateio", lancamentoId],
     queryFn: async () => {
-      let query = supabase
+      let query = (supabase as any)
         .from("lancamentos_rateio")
         .select("*")
         .order("cliente_nome");
@@ -35,14 +35,14 @@ export function useLancamentosRateio(lancamentoId?: string) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as LancamentoRateio[];
+      return (data || []) as LancamentoRateio[];
     },
     enabled: true,
   });
 
   const createRateios = useMutation({
     mutationFn: async (rateios: Omit<LancamentoRateio, "id" | "criado_em" | "atualizado_em">[]) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("lancamentos_rateio")
         .insert(rateios)
         .select();
@@ -58,7 +58,7 @@ export function useLancamentosRateio(lancamentoId?: string) {
 
   const updateRateio = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<LancamentoRateio> & { id: string }) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("lancamentos_rateio")
         .update({ ...updates, atualizado_em: new Date().toISOString() })
         .eq("id", id)
@@ -75,7 +75,7 @@ export function useLancamentosRateio(lancamentoId?: string) {
 
   const deleteRateiosByLancamento = useMutation({
     mutationFn: async (lancamentoId: string) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("lancamentos_rateio")
         .delete()
         .eq("lancamento_id", lancamentoId);

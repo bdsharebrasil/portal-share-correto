@@ -62,8 +62,8 @@ export function useCategoriasFinanceiro() {
         descricao: cat.descricao || undefined,
         ativo: cat.ativo ?? true,
         reembolsavel: cat.reembolsavel ?? false,
-        icone: cat.icone || null,
-        cor: cat.cor || null
+        icone: (cat as any).icone || null,
+        cor: (cat as any).cor || null
       }));
 
       setCategorias(mapped);
@@ -212,13 +212,13 @@ export function useCategoriasConta() {
         nome: conta.banco || conta.numero_conta || 'Conta sem nome',
         numero_conta: conta.numero_conta || undefined,
         banco: conta.banco || undefined,
-        tipo_conta: conta.tipo_conta || "corrente",
+        tipo_conta: (conta.tipo_conta || "corrente") as "corrente" | "investimento" | "poupanca",
         ativo: conta.ativo ?? true,
-        saldo: conta.saldo || 0,
+        saldo: (conta as any).saldo || 0,
         criado_por: conta.criado_por
       }));
 
-      setContas(mapped);
+      setContas(mapped as Conta[]);
     } catch (error) {
       console.error("Erro ao carregar contas:", error);
     } finally {

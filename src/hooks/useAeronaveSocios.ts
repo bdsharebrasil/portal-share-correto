@@ -21,7 +21,7 @@ export function useAeronaveSocios(aeronaveRegistro?: string) {
   const { data: socios, isLoading, error } = useQuery({
     queryKey: ["aeronaves_socios", aeronaveRegistro],
     queryFn: async () => {
-      let query = supabase
+      let query = (supabase as any)
         .from("aeronaves_socios")
         .select("*")
         .eq("ativo", true)
@@ -33,14 +33,14 @@ export function useAeronaveSocios(aeronaveRegistro?: string) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as AeronaveSocio[];
+      return (data || []) as AeronaveSocio[];
     },
     enabled: true,
   });
 
   const createSocio = useMutation({
     mutationFn: async (socio: Omit<AeronaveSocio, "id" | "criado_em" | "atualizado_em">) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("aeronaves_socios")
         .insert([socio])
         .select()
@@ -56,7 +56,7 @@ export function useAeronaveSocios(aeronaveRegistro?: string) {
 
   const updateSocio = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<AeronaveSocio> & { id: string }) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("aeronaves_socios")
         .update({ ...updates, atualizado_em: new Date().toISOString() })
         .eq("id", id)

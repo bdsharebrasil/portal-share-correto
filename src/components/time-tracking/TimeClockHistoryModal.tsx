@@ -76,7 +76,7 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
       const monthStart = startOfMonth(selectedMonth);
       const monthEnd = endOfMonth(selectedMonth);
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("time_clock")
         .select("*")
         .eq("user_id", user.id)
@@ -86,8 +86,8 @@ export function TimeClockHistoryModal({ open, onOpenChange }: TimeClockHistoryMo
 
       if (error) throw error;
 
-      setEntries(data || []);
-      calculateStats(data || []);
+      setEntries((data || []) as TimeEntry[]);
+      calculateStats((data || []) as TimeEntry[]);
     } catch (error) {
       console.error("Error fetching time entries:", error);
     } finally {

@@ -69,8 +69,8 @@ export function VacationRequestDialog({ open, onOpenChange }: VacationRequestDia
       const end = new Date(endDate);
       const days = differenceInDays(end, start) + 1;
 
-      const { error } = await supabase
-        .from("vacation_requests")
+      const { error } = await (supabase
+        .from("vacation_requests") as any)
         .insert({
           user_id: user.id,
           start_date: startDate,

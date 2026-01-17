@@ -144,7 +144,7 @@ export function ClientFullReportModal({
         .eq('aircraft_id', aircraftId);
 
       // Load rateio data
-      const { data: rateioData } = await supabase
+      const { data: rateioData } = await (supabase as any)
         .from('lancamentos_rateio')
         .select('*')
         .eq('cliente_id', clientId)

@@ -68,8 +68,9 @@ import AprovacaoAgendamentos from "./pages/AprovacaoAgendamentos";
 import PainelAgendamentos from "./pages/PainelAgendamentos";
 import CartoesCorporativos from "./pages/CartoesCorporativos";
 import BancodeHoras from './pages/BancodeHoras';
-import RateioCustoConsolidado from "./pages/RateioCustoConsolidado";
+import BalancoCliente from "./pages/BalancoCliente";
 import MapaComponentes from "./pages/MapaComponentes";
+import ManutencaoPreventiva from "./pages/ManutencaoPreventiva";
 const queryClient = new QueryClient();
 
 const App = () => {
@@ -176,10 +177,10 @@ const App = () => {
                         </RoleProtected>
                       )
                     } />
-                    <Route path="/financeiro/rateio-consolidado" element={
+                    <Route path="/financeiro/balanco-cliente" element={
                       renderProtected(
                         <RoleProtected allowedRoles={["admin","gestor_master","financeiro_master"]}>
-                          <RateioCustoConsolidado />
+                          <BalancoCliente />
                         </RoleProtected>
                       )
                     } />
@@ -232,6 +233,7 @@ const App = () => {
                     <Route path="/manutencao/ctm" element={renderProtected(<GestaoCTM />)} />
                     <Route path="/manutencao/ctm-detail" element={renderProtected(<CTMDetailPage />)} />
                     <Route path="/manutencao/orcamentos" element={renderProtected(<OrcamentosCTM />)} />
+                    <Route path="/manutencao/preventiva" element={renderProtected(<ManutencaoPreventiva />)} />
                     <Route path="/ferias" element={renderProtected(<Ferias />)} />
 
                     <Route path="*" element={renderProtected(<NotFound />)} />

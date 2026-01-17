@@ -83,7 +83,7 @@ export function EmployeeDocumentsManager({
 
       // Enrich with uploader names if needed
       const enrichedData = await Promise.all(
-        (data || []).map(async (doc) => {
+        (data || []).map(async (doc: any) => {
           if (doc.uploaded_by && !doc.uploaded_by_name) {
             const { data: profile } = await supabase
               .from("user_profiles")
@@ -92,7 +92,7 @@ export function EmployeeDocumentsManager({
               .single();
             return { ...doc, uploaded_by_name: profile?.full_name || "Desconhecido" };
           }
-          return doc;
+          return { ...doc, uploaded_by_name: doc.uploaded_by_name || null };
         })
       );
 

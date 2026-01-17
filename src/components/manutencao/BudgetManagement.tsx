@@ -54,7 +54,7 @@ const BudgetManagement: React.FC<{ aircraftId?: string }> = ({ aircraftId }) => 
 
         const { data, error } = await query.order('created_at', { ascending: false });
         if (error) throw error;
-        setBudgets(data || []);
+        setBudgets((data || []) as BudgetItem[]);
       } catch (error) {
         console.error('Erro Budgets:', error);
       } finally {
@@ -93,7 +93,7 @@ const BudgetManagement: React.FC<{ aircraftId?: string }> = ({ aircraftId }) => 
       const { data, error } = await supabase.from('ctm_budgets').insert([payload]).select();
       if (error) throw error;
 
-      setBudgets([data[0], ...budgets]);
+      setBudgets([data[0] as BudgetItem, ...budgets]);
       setIsModalOpen(false);
       setNewBudget({ vendor: '', description: '', value: '' });
       toast.success('Orçamento criado com sucesso');

@@ -50,7 +50,7 @@ export async function createContaAReceber(
 
   try {
     // Verificar se já existe conta para esta conciliação
-    const { data: existing } = await supabase
+    const { data: existing } = await (supabase as any)
       .from('contas_areceber')
       .select('id')
       .eq('banco_conciliacao_id', reconciliation.id)
@@ -163,8 +163,8 @@ export async function createContaAPagar(
 
   try {
     // Verificar se já existe
-    const { data: existing } = await supabase
-      .from('contas_apagar')
+    const { data: existing } = await (supabase
+      .from('contas_apagar') as any)
       .select('id')
       .eq('banco_conciliacao_id', reconciliation.id)
       .maybeSingle();
@@ -301,8 +301,8 @@ export async function createFluxoCaixaEntry(
     }
 
     // Verificar se já existe entrada com esta referência
-    const { data: existingEntry } = await supabase
-      .from('controle_bancario')
+    const { data: existingEntry } = await (supabase
+      .from('controle_bancario') as any)
       .select('id')
       .eq('referencia', referencia)
       .maybeSingle();
@@ -580,4 +580,136 @@ export function getStatusColor(status: string): string {
     'inadimplente': 'bg-red-500/20 text-red-400 border-red-500/30'
   };
   return colors[status?.toLowerCase()] || 'bg-muted text-muted-foreground';
+}
+
+/**
+ * Marca uma despesa reembolsável como recebida e cria a entrada correspondente
+ * 
+ * Quando uma saída reembolsável é marcada como "recebido", precisamos:
+ * 1. Atualizar o registro original: reembolso_recebido = true, data_reembolso = data atual
+ * 2. Criar uma nova entrada (tipo_movimento = 'entrada') representando o recebimento do reembolso
+ */
+export async function marcarDespesaComoRecebida(
+  despesaId: string,
+  dataRecebimento: string,
+  contaBanco: string | null,
+  comprovanteUrl: string | null,
+  userId: string
+): Promise<{ success: boolean; entradaId?: string; error?: string }> {
+  try {
+    console.log('=== marcarDespesaComoRecebida ===');
+    console.log('despesaId:', despesaId);
+    console.log('dataRecebimento:', dataRecebimento);
+    
+    // 1. Buscar dados da despesa original
+    const { data: despesa, error: fetchError } = await (supabase
+      .from('controle_bancario') as any)
+      .select('*')
+      .eq('id', despesaId)
+      .single();
+
+    if (fetchError || !despesa) {
+      console.error('Erro ao buscar despesa:', fetchError);
+      return { success: false, error: 'Despesa não encontrada' };
+    }
+    
+    console.log('Despesa encontrada:', {
+      id: despesa.id,
+      reembolsavel: despesa.reembolsavel,
+      reembolso_recebido: despesa.reembolso_recebido,
+      status: despesa.status
+    });
+
+    // Verificar se é reembolsável
+    if (!despesa.reembolsavel) {
+      console.log('Despesa não é reembolsável');
+      return { success: false, error: 'Esta despesa não é reembolsável' };
+    }
+
+    // Verificar se já foi marcada como recebida (reembolso_recebido = true)
+    if (despesa.reembolso_recebido === true) {
+      console.log('Despesa já foi marcada como recebida');
+      return { success: false, error: 'Esta despesa já foi marcada como recebida' };
+    }
+
+    // 2. Atualizar o registro original
+    const { error: updateError } = await supabase
+      .from('controle_bancario')
+      .update({
+        reembolso_recebido: true,
+        data_reembolso: dataRecebimento,
+        status: 'recebido',
+        atualizado_por: userId,
+        data_atualizacao: new Date().toISOString()
+      })
+      .eq('id', despesaId);
+
+    if (updateError) {
+      console.error('Erro ao atualizar despesa:', updateError);
+      return { success: false, error: updateError.message };
+    }
+
+    // 3. Verificar se já existe entrada de reembolso vinculada
+    const { data: existingEntry } = await (supabase
+      .from('controle_bancario') as any)
+      .select('id')
+      .eq('despesa_original_id', despesaId)
+      .eq('tipo_movimento', 'entrada')
+      .maybeSingle();
+
+    if (existingEntry) {
+      console.log('Entrada de reembolso já existe:', existingEntry.id);
+      return { success: true, entradaId: existingEntry.id };
+    }
+
+    // 4. Criar nova entrada representando o recebimento do reembolso
+    const descricaoEntrada = `[REEMBOLSO] ${despesa.descricao || 'Reembolso recebido'}`;
+    
+    const { data: novaEntrada, error: insertError } = await supabase
+      .from('controle_bancario')
+      .insert({
+        data: dataRecebimento,
+        data_vencimento: null,
+        tipo_movimento: 'entrada',
+        categoria_id: despesa.categoria_id,
+        descricao: descricaoEntrada,
+        valor: Math.abs(despesa.valor),
+        conta_banco: contaBanco || despesa.conta_banco,
+        numero_documento: despesa.numero_documento ? `REIMB-${despesa.numero_documento}` : null,
+        status: 'recebido',
+        client_id: despesa.client_id,
+        client_name: despesa.client_name,
+        aeronave_id: despesa.aeronave_id,
+        aeronave_registro: despesa.aeronave_registro,
+        reembolsavel: false,
+        reembolso_recebido: false,
+        despesa_original_id: despesaId,
+        comprovante_url: comprovanteUrl,
+        nf_url: despesa.nf_url,
+        observacoes: `Reembolso referente à despesa de ${despesa.data}`,
+        criado_por: userId,
+        grupo_categoria: 'RECEITAS DE REEMBOLSO',
+        tem_rateio: despesa.tem_rateio || false,
+        rateio_tipo: despesa.rateio_tipo,
+      } as any)
+      .select('id')
+      .single();
+
+    if (insertError) {
+      console.error('Erro ao criar entrada de reembolso:', insertError);
+      return { success: false, error: insertError.message };
+    }
+
+    // 5. Atualizar a despesa original com o ID do lançamento de reembolso
+    await supabase
+      .from('controle_bancario')
+      .update({ lancamento_reembolso_id: novaEntrada?.id })
+      .eq('id', despesaId);
+
+    console.log('Despesa marcada como recebida e entrada criada:', novaEntrada?.id);
+    return { success: true, entradaId: novaEntrada?.id };
+  } catch (error: any) {
+    console.error('Erro ao marcar despesa como recebida:', error);
+    return { success: false, error: error.message };
+  }
 }

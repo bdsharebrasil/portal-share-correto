@@ -12,7 +12,7 @@ import { format } from "date-fns";
 interface CreateFlightCycleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreate: (cycle: Partial<FlightCycle>) => Promise<void>;
+  onCreate: (cycle: Partial<FlightCycle>) => Promise<any>;
 }
 
 interface Client {

@@ -206,9 +206,10 @@ export function ThirteenthSalaryManager() {
   // Abre modal automaticamente quando ambas as parcelas estão pendentes
   useEffect(() => {
     if (selectedEmployee && selectedEmployee.id) {
+      const emp = selectedEmployee as any;
       const bothPending =
-        !selectedEmployee.firstInstallmentDate &&
-        !selectedEmployee.secondInstallmentDate;
+        !emp.firstInstallmentDate &&
+        !emp.secondInstallmentDate;
 
       if (bothPending) {
         const salary = selectedEmployee.salary?.base_salary_bruto || 0;
@@ -370,7 +371,7 @@ export function ThirteenthSalaryManager() {
           <div className="bg-muted/50 rounded-xl p-4 border border-border">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">1ª Parcela</Label>
             <div className="mt-3 space-y-2">
-              {selectedEmployee.firstInstallmentDate ? (
+              {(selectedEmployee as any).firstInstallmentDate ? (
                 <>
                   <Badge className="bg-green-500/10 text-green-600 border-green-500/20 rounded-full inline-flex text-xs font-medium">
                     <CheckCircle2 className="w-3 h-3 mr-1.5" />
@@ -378,7 +379,7 @@ export function ThirteenthSalaryManager() {
                   </Badge>
                   <p className="text-sm text-muted-foreground flex items-center gap-1.5">
                     <Calendar className="w-4 h-4" />
-                    {formatDate(selectedEmployee.firstInstallmentDate)}
+                    {formatDate((selectedEmployee as any).firstInstallmentDate)}
                   </p>
                 </>
               ) : (
@@ -394,7 +395,7 @@ export function ThirteenthSalaryManager() {
           <div className="bg-muted/50 rounded-xl p-4 border border-border">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">2ª Parcela</Label>
             <div className="mt-3 space-y-2">
-              {selectedEmployee.secondInstallmentDate ? (
+              {(selectedEmployee as any).secondInstallmentDate ? (
                 <>
                   <Badge className="bg-green-500/10 text-green-600 border-green-500/20 rounded-full inline-flex text-xs font-medium">
                     <CheckCircle2 className="w-3 h-3 mr-1.5" />
@@ -402,7 +403,7 @@ export function ThirteenthSalaryManager() {
                   </Badge>
                   <p className="text-sm text-muted-foreground flex items-center gap-1.5">
                     <Calendar className="w-4 h-4" />
-                    {formatDate(selectedEmployee.secondInstallmentDate)}
+                    {formatDate((selectedEmployee as any).secondInstallmentDate)}
                   </p>
                 </>
               ) : (
@@ -418,7 +419,7 @@ export function ThirteenthSalaryManager() {
           <div className="bg-muted/50 rounded-xl p-4 border border-border">
             <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</Label>
             <div className="mt-3">
-              {getStatusBadge(selectedEmployee.calculatedStatus)}
+              {getStatusBadge((selectedEmployee as any).calculatedStatus)}
             </div>
           </div>
         </div>
@@ -438,7 +439,7 @@ export function ThirteenthSalaryManager() {
       );
     }
 
-    const vac = selectedEmployee;
+    const vac = selectedEmployee as any;
     const days = vac?.total_vacation_days ?? "—";
     const valorBruto = vac?.vacation_gross_value ?? (selectedEmployee.salary?.base_salary_bruto ? (selectedEmployee.salary.base_salary_bruto).toFixed(2) : "—");
     const dataAgendada = vac?.scheduled_date ? formatDate(vac.scheduled_date) : "Pendente";

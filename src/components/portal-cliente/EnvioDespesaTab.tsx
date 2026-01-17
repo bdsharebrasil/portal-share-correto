@@ -8,10 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { Send, Receipt, X, FileText, Calendar, DollarSign, Trash2, Check, Upload, Tag } from "lucide-react";
+import { Send, Receipt, X, FileText, Calendar, DollarSign, Trash2, Check, Upload, Tag, Building2, Eye, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface EnvioDespesaTabProps {
   clientId: string;
@@ -20,60 +21,75 @@ interface EnvioDespesaTabProps {
   aircraftRegistration: string;
 }
 
-interface RateioDespesa {
+interface DespesaClienteDireto {
   id: string;
+  client_id: string;
   client_name: string;
-  aeronave_registro: string;
-  valor_rateado: number;
-  percentual: number;
-  status: string;
-  observacoes: string | null;
-  criado_em: string;
-  boleto: string | null;
-  nota_fiscal: string | null;
+  aeronave_id: string | null;
+  aeronave_registro: string | null;
   categoria_id: string | null;
-  data_pagamento: string | null;
-  comprovante_url: string | null;
+  categoria_nome: string;
+  descricao: string;
+  valor: number;
+  data_vencimento: string;
+  fornecedor_nome: string;
+  fornecedor_cnpj: string | null;
+  status: string;
+  data_envio: string | null;
+  data_pagamento_cliente: string | null;
+  comprovante_pagamento_url: string | null;
+  boleto_url: string | null;
+  nota_fiscal_url: string | null;
+  criado_em: string;
 }
 
-interface ExpenseCategory {
+interface CategoriaMovimentacao {
   id: string;
-  expense_type: string;
+  nome: string;
+  tipo: string;
+  grupo_categoria: string | null;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  combustivel_emergencia: "Combustível Emergência",
-  diaria_hangar: "Diária Hangar",
-  tarifa_infraero: "Tarifa Infraero",
-  taxa_pouso: "Taxa de Pouso",
-  servicos_rampa: "Serviços de Rampa",
-  manutencao: "Manutenção",
-  seguro: "Seguro",
-  hangaragem: "Hangaragem",
-  limpeza: "Limpeza",
-  outros: "Outros"
+const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  pendente_envio: { label: "Pendente Envio", color: "bg-gray-500/20 text-gray-400 border-gray-500/30" },
+  enviado: { label: "Enviado", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+  visualizado_cliente: { label: "Visualizado", color: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" },
+  aguardando_pagamento: { label: "Aguardando Pagamento", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
+  comprovante_recebido: { label: "Comprovante Recebido", color: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
+  pagamento_validado: { label: "Validado", color: "bg-green-500/20 text-green-400 border-green-500/30" },
+  concluido: { label: "Concluído", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+  atrasado: { label: "Atrasado", color: "bg-red-500/20 text-red-400 border-red-500/30" },
+  cancelado: { label: "Cancelado", color: "bg-red-800/20 text-red-600 border-red-800/30" }
 };
 
 export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegistration }: EnvioDespesaTabProps) {
-  const [despesas, setDespesas] = useState<RateioDespesa[]>([]);
-  const [categories, setCategories] = useState<ExpenseCategory[]>([]);
+  const { user } = useAuth();
+  const [despesas, setDespesas] = useState<DespesaClienteDireto[]>([]);
+  const [categories, setCategories] = useState<CategoriaMovimentacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   
   // Form state
-  const [valor, setValor] = useState("");
-  const [percentual, setPercentual] = useState("100");
-  const [observacoes, setObservacoes] = useState("");
   const [categoriaId, setCategoriaId] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [valor, setValor] = useState("");
+  const [dataVencimento, setDataVencimento] = useState("");
+  const [fornecedorNome, setFornecedorNome] = useState("");
+  const [fornecedorCnpj, setFornecedorCnpj] = useState("");
   const [boletoFile, setBoletoFile] = useState<File | null>(null);
   const [notaFiscalFile, setNotaFiscalFile] = useState<File | null>(null);
 
   // Payment modal state
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [selectedDespesa, setSelectedDespesa] = useState<RateioDespesa | null>(null);
+  const [selectedDespesa, setSelectedDespesa] = useState<DespesaClienteDireto | null>(null);
   const [dataPagamento, setDataPagamento] = useState("");
   const [comprovanteFile, setComprovanteFile] = useState<File | null>(null);
   const [updatingPayment, setUpdatingPayment] = useState(false);
+  
+  // View document modal
+  const [viewDocumentOpen, setViewDocumentOpen] = useState(false);
+  const [documentUrl, setDocumentUrl] = useState("");
+  const [documentTitle, setDocumentTitle] = useState("");
 
   useEffect(() => {
     loadDespesas();
@@ -83,12 +99,15 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
   const loadCategories = async () => {
     try {
       const { data, error } = await supabase
-        .from('expense_config')
-        .select('*')
-        .order('expense_type');
+        .from('categorias_movimentacao')
+        .select('id, nome, tipo, grupo_categoria')
+        .eq('ativo', true)
+        .or('grupo_categoria.eq.Despesas Aeronave,reembolsavel.eq.true')
+        .order('grupo_categoria', { ascending: true })
+        .order('nome', { ascending: true });
 
       if (error) throw error;
-      setCategories(data || []);
+      setCategories((data || []) as CategoriaMovimentacao[]);
     } catch (error) {
       console.error('Error loading categories:', error);
     }
@@ -97,15 +116,14 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
   const loadDespesas = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('rateio_despesas')
+      const { data, error } = await (supabase as any)
+        .from('despesas_cliente_direto')
         .select('*')
         .eq('client_id', clientId)
-        .eq('aeronave_id', aircraftId)
         .order('criado_em', { ascending: false });
 
       if (error) throw error;
-      setDespesas(data || []);
+      setDespesas((data || []) as DespesaClienteDireto[]);
     } catch (error) {
       console.error('Error loading despesas:', error);
       toast.error('Erro ao carregar despesas');
@@ -139,13 +157,28 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!valor || parseFloat(valor) <= 0) {
+    if (!valor || parseFloat(valor.replace(',', '.')) <= 0) {
       toast.error('Informe um valor válido');
       return;
     }
 
     if (!categoriaId) {
       toast.error('Selecione uma categoria');
+      return;
+    }
+
+    if (!descricao.trim()) {
+      toast.error('Informe uma descrição');
+      return;
+    }
+
+    if (!dataVencimento) {
+      toast.error('Informe a data de vencimento');
+      return;
+    }
+
+    if (!fornecedorNome.trim()) {
+      toast.error('Informe o nome do fornecedor');
       return;
     }
 
@@ -164,44 +197,39 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
       }
 
       const valorNum = parseFloat(valor.replace(',', '.'));
-      const percentualNum = parseFloat(percentual);
-      const valorRateado = valorNum * (percentualNum / 100);
+      const categoria = categories.find(c => c.id === categoriaId);
 
-      // Generate a unique despesa_id
-      const despesaId = crypto.randomUUID();
-
-      // Use UTC date to avoid timezone issues
-      const now = new Date();
-      const dataEnvio = format(now, 'yyyy-MM-dd');
-
-      const { error } = await supabase
-        .from('rateio_despesas')
+      const { error } = await (supabase as any)
+        .from('despesas_cliente_direto')
         .insert({
-          despesa_id: despesaId,
           client_id: clientId,
           client_name: clientName,
-          aeronave_id: aircraftId,
-          aeronave_registro: aircraftRegistration,
-          valor: valorNum,
-          valor_rateado: valorRateado,
-          percentual: percentualNum,
-          status: 'pendente',
-          observacoes: observacoes || null,
-          boleto: boletoUrl,
-          nota_fiscal: notaFiscalUrl,
+          aeronave_id: aircraftId || null,
+          aeronave_registro: aircraftRegistration || null,
           categoria_id: categoriaId,
-          data_envio: dataEnvio
-        });
+          categoria_nome: categoria?.nome || 'Despesa',
+          descricao: descricao,
+          valor: valorNum,
+          data_vencimento: dataVencimento,
+          fornecedor_nome: fornecedorNome,
+          fornecedor_cnpj: fornecedorCnpj || null,
+          status: 'pendente_envio',
+          boleto_url: boletoUrl,
+          nota_fiscal_url: notaFiscalUrl,
+          criado_por: user?.id || null
+        } as any);
 
       if (error) throw error;
 
-      toast.success('Despesa enviada com sucesso!');
+      toast.success('Despesa cadastrada com sucesso!');
       
       // Reset form
-      setValor("");
-      setPercentual("100");
-      setObservacoes("");
       setCategoriaId("");
+      setDescricao("");
+      setValor("");
+      setDataVencimento("");
+      setFornecedorNome("");
+      setFornecedorCnpj("");
       setBoletoFile(null);
       setNotaFiscalFile(null);
       
@@ -209,9 +237,31 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
       loadDespesas();
     } catch (error) {
       console.error('Error submitting despesa:', error);
-      toast.error('Erro ao enviar despesa');
+      toast.error('Erro ao cadastrar despesa');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSendToClient = async (despesa: DespesaClienteDireto) => {
+    try {
+      const { error } = await (supabase as any)
+        .from('despesas_cliente_direto')
+        .update({
+          status: 'enviado',
+          data_envio: format(new Date(), 'yyyy-MM-dd'),
+          enviado_por: user?.id || null,
+          meio_envio: 'portal'
+        })
+        .eq('id', despesa.id);
+
+      if (error) throw error;
+      
+      toast.success('Despesa enviada para o cliente!');
+      loadDespesas();
+    } catch (error) {
+      console.error('Error sending to client:', error);
+      toast.error('Erro ao enviar despesa');
     }
   };
 
@@ -219,8 +269,8 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
     if (!confirm('Deseja realmente excluir esta despesa?')) return;
 
     try {
-      const { error } = await supabase
-        .from('rateio_despesas')
+      const { error } = await (supabase as any)
+        .from('despesas_cliente_direto')
         .delete()
         .eq('id', id);
 
@@ -234,7 +284,7 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
     }
   };
 
-  const openPaymentModal = (despesa: RateioDespesa) => {
+  const openPaymentModal = (despesa: DespesaClienteDireto) => {
     setSelectedDespesa(despesa);
     setDataPagamento(format(new Date(), 'yyyy-MM-dd'));
     setComprovanteFile(null);
@@ -257,48 +307,60 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
         comprovanteUrl = await uploadFile(comprovanteFile, 'comprovantes');
       }
 
-      const { error } = await supabase
-        .from('rateio_despesas')
+      const { error } = await (supabase as any)
+        .from('despesas_cliente_direto')
         .update({
-          status: 'pago',
-          data_pagamento: dataPagamento,
-          comprovante_url: comprovanteUrl,
+          status: 'comprovante_recebido',
+          data_pagamento_cliente: dataPagamento,
+          comprovante_pagamento_url: comprovanteUrl,
           atualizado_em: new Date().toISOString()
         })
         .eq('id', selectedDespesa.id);
 
       if (error) throw error;
 
-      toast.success('Despesa marcada como paga!');
+      toast.success('Pagamento registrado!');
       setPaymentModalOpen(false);
       setSelectedDespesa(null);
       loadDespesas();
     } catch (error) {
       console.error('Error marking as paid:', error);
-      toast.error('Erro ao atualizar status');
+      toast.error('Erro ao registrar pagamento');
     } finally {
       setUpdatingPayment(false);
     }
   };
 
-  const getCategoryLabel = (categoriaId: string | null) => {
-    if (!categoriaId) return '-';
-    const category = categories.find(c => c.id === categoriaId);
-    if (!category) return '-';
-    return CATEGORY_LABELS[category.expense_type] || category.expense_type;
+  const handleValidatePayment = async (despesa: DespesaClienteDireto) => {
+    try {
+      const { error } = await (supabase as any)
+        .from('despesas_cliente_direto')
+        .update({
+          status: 'pagamento_validado',
+          validado_por: user?.id || null,
+          data_validacao: new Date().toISOString()
+        })
+        .eq('id', despesa.id);
+
+      if (error) throw error;
+      
+      toast.success('Pagamento validado!');
+      loadDespesas();
+    } catch (error) {
+      console.error('Error validating payment:', error);
+      toast.error('Erro ao validar pagamento');
+    }
+  };
+
+  const openDocument = (url: string, title: string) => {
+    setDocumentUrl(url);
+    setDocumentTitle(title);
+    setViewDocumentOpen(true);
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'pendente':
-        return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Pendente</Badge>;
-      case 'pago':
-        return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Pago</Badge>;
-      case 'cancelado':
-        return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Cancelado</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
+    const statusInfo = STATUS_LABELS[status] || { label: status, color: "bg-gray-500/20 text-gray-400" };
+    return <Badge className={statusInfo.color}>{statusInfo.label}</Badge>;
   };
 
   const formatCurrency = (value: number) => {
@@ -308,9 +370,9 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
     }).format(value);
   };
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '-';
     try {
-      // Parse as local date to avoid timezone shift
       const parts = dateStr.split('-');
       if (parts.length === 3) {
         const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
@@ -322,6 +384,14 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
     }
   };
 
+  // Group categories by grupo_categoria
+  const groupedCategories = categories.reduce((acc, cat) => {
+    const group = cat.grupo_categoria || 'Outras';
+    if (!acc[group]) acc[group] = [];
+    acc[group].push(cat);
+    return acc;
+  }, {} as Record<string, CategoriaMovimentacao[]>);
+
   return (
     <div className="space-y-6">
       {/* Form Card */}
@@ -329,29 +399,36 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-foreground">
             <Send className="h-5 w-5 text-primary" />
-            Enviar Nova Despesa
+            Cadastrar Nova Despesa
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            Envie despesas diretamente para o cliente - sem fluxo de caixa ou reembolso
+            Cadastre despesas para enviar ao cliente - {clientName}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="categoria">Categoria *</Label>
                 <Select value={categoriaId} onValueChange={setCategoriaId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione a categoria" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        <span className="flex items-center gap-2">
-                          <Tag className="h-3 w-3" />
-                          {CATEGORY_LABELS[cat.expense_type] || cat.expense_type}
-                        </span>
-                      </SelectItem>
+                  <SelectContent className="max-h-[300px]">
+                    {Object.entries(groupedCategories).map(([group, cats]) => (
+                      <div key={group}>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50 sticky top-0">
+                          {group}
+                        </div>
+                        {cats.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id}>
+                            <span className="flex items-center gap-2">
+                              <Tag className="h-3 w-3" />
+                              {cat.nome}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </div>
                     ))}
                   </SelectContent>
                 </Select>
@@ -373,33 +450,58 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="percentual">Percentual do Cliente (%)</Label>
-                <Select value={percentual} onValueChange={setPercentual}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o percentual" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="25">25%</SelectItem>
-                    <SelectItem value="50">50%</SelectItem>
-                    <SelectItem value="75">75%</SelectItem>
-                    <SelectItem value="100">100%</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="dataVencimento">Data Vencimento *</Label>
+                <div className="relative">
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="dataVencimento"
+                    type="date"
+                    value={dataVencimento}
+                    onChange={(e) => setDataVencimento(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="fornecedorNome">Fornecedor *</Label>
+                <div className="relative">
+                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="fornecedorNome"
+                    placeholder="Nome do fornecedor"
+                    value={fornecedorNome}
+                    onChange={(e) => setFornecedorNome(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="fornecedorCnpj">CNPJ do Fornecedor</Label>
+                <Input
+                  id="fornecedorCnpj"
+                  placeholder="00.000.000/0000-00"
+                  value={fornecedorCnpj}
+                  onChange={(e) => setFornecedorCnpj(e.target.value)}
+                />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="observacoes">Observações</Label>
+              <Label htmlFor="descricao">Descrição *</Label>
               <Textarea
-                id="observacoes"
-                placeholder="Descrição da despesa..."
-                value={observacoes}
-                onChange={(e) => setObservacoes(e.target.value)}
-                rows={3}
+                id="descricao"
+                placeholder="Descrição detalhada da despesa..."
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+                rows={2}
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Boleto (opcional)</Label>
                 <div className="flex items-center gap-2">
@@ -454,11 +556,11 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
             <div className="flex justify-end pt-4">
               <Button type="submit" disabled={submitting}>
                 {submitting ? (
-                  <>Enviando...</>
+                  <>Salvando...</>
                 ) : (
                   <>
                     <Send className="h-4 w-4 mr-2" />
-                    Enviar Despesa
+                    Cadastrar Despesa
                   </>
                 )}
               </Button>
@@ -472,10 +574,10 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-foreground">
             <Receipt className="h-5 w-5 text-primary" />
-            Histórico de Despesas Enviadas
+            Despesas Cadastradas
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            Despesas enviadas para {clientName} - {aircraftRegistration}
+            Despesas do cliente {clientName} - {aircraftRegistration}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -483,7 +585,7 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
             <div className="text-center py-8 text-muted-foreground">Carregando...</div>
           ) : despesas.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              Nenhuma despesa enviada ainda
+              Nenhuma despesa cadastrada ainda
             </div>
           ) : (
             <div className="space-y-3">
@@ -492,115 +594,123 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
                   key={despesa.id}
                   className="p-4 bg-muted/50 rounded-lg border border-border hover:border-primary/50 transition-colors"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-4">
+                  <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                    <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                       <div>
-                        <p className="text-xs text-muted-foreground mb-1">Data Envio</p>
-                        <p className="font-medium text-foreground flex items-center gap-1">
+                        <p className="text-xs text-muted-foreground mb-1">Vencimento</p>
+                        <p className="font-medium text-foreground text-sm flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          {format(new Date(despesa.criado_em), "dd/MM/yyyy", { locale: ptBR })}
+                          {formatDate(despesa.data_vencimento)}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground mb-1">Categoria</p>
-                        <p className="font-medium text-foreground flex items-center gap-1">
-                          <Tag className="h-3 w-3" />
-                          {getCategoryLabel(despesa.categoria_id)}
+                        <p className="font-medium text-foreground text-sm">
+                          {despesa.categoria_nome}
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground mb-1">Valor Rateado</p>
-                        <p className="font-medium text-emerald-400">
-                          {formatCurrency(despesa.valor_rateado)}
+                        <p className="text-xs text-muted-foreground mb-1">Fornecedor</p>
+                        <p className="font-medium text-foreground text-sm flex items-center gap-1">
+                          <Building2 className="h-3 w-3" />
+                          {despesa.fornecedor_nome}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          ({despesa.percentual}%)
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Valor</p>
+                        <p className="font-bold text-primary text-sm flex items-center gap-1">
+                          <DollarSign className="h-3 w-3" />
+                          {formatCurrency(despesa.valor)}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground mb-1">Status</p>
-                        <div 
-                          className={despesa.status === 'pendente' ? 'cursor-pointer' : ''}
-                          onClick={() => despesa.status === 'pendente' && openPaymentModal(despesa)}
-                          title={despesa.status === 'pendente' ? 'Clique para marcar como pago' : ''}
-                        >
-                          {getStatusBadge(despesa.status)}
-                        </div>
-                        {despesa.data_pagamento && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Pago em: {formatDate(despesa.data_pagamento)}
-                          </p>
+                        {getStatusBadge(despesa.status)}
+                      </div>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {despesa.boleto_url && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openDocument(despesa.boleto_url!, 'Boleto')}
+                            className="h-7 px-2"
+                          >
+                            <FileText className="h-3 w-3 mr-1" />
+                            Boleto
+                          </Button>
                         )}
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Anexos</p>
-                        <div className="flex flex-wrap gap-1">
-                          {despesa.boleto && (
-                            <a
-                              href={despesa.boleto}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-primary hover:underline flex items-center gap-1"
-                            >
-                              <FileText className="h-3 w-3" />
-                              Boleto
-                            </a>
-                          )}
-                          {despesa.nota_fiscal && (
-                            <a
-                              href={despesa.nota_fiscal}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-primary hover:underline flex items-center gap-1"
-                            >
-                              <FileText className="h-3 w-3" />
-                              NF
-                            </a>
-                          )}
-                          {despesa.comprovante_url && (
-                            <a
-                              href={despesa.comprovante_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-green-400 hover:underline flex items-center gap-1"
-                            >
-                              <Check className="h-3 w-3" />
-                              Comprovante
-                            </a>
-                          )}
-                          {!despesa.boleto && !despesa.nota_fiscal && !despesa.comprovante_url && (
-                            <span className="text-xs text-muted-foreground">Nenhum</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {despesa.status === 'pendente' && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-green-400 border-green-400/30 hover:bg-green-400/10"
-                              onClick={() => openPaymentModal(despesa)}
-                            >
-                              <Check className="h-3 w-3 mr-1" />
-                              Pagar
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => handleDelete(despesa.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
+                        {despesa.nota_fiscal_url && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openDocument(despesa.nota_fiscal_url!, 'Nota Fiscal')}
+                            className="h-7 px-2"
+                          >
+                            <FileText className="h-3 w-3 mr-1" />
+                            NF
+                          </Button>
+                        )}
+                        {despesa.comprovante_pagamento_url && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openDocument(despesa.comprovante_pagamento_url!, 'Comprovante')}
+                            className="h-7 px-2"
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            Compr.
+                          </Button>
                         )}
                       </div>
                     </div>
+                    
+                    <div className="flex items-center gap-2 flex-wrap lg:flex-nowrap">
+                      {despesa.status === 'pendente_envio' && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleSendToClient(despesa)}
+                        >
+                          <Send className="h-4 w-4 mr-1" />
+                          Enviar
+                        </Button>
+                      )}
+                      {['enviado', 'aguardando_pagamento'].includes(despesa.status) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openPaymentModal(despesa)}
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          Registrar Pgto
+                        </Button>
+                      )}
+                      {despesa.status === 'comprovante_recebido' && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={() => handleValidatePayment(despesa)}
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          Validar
+                        </Button>
+                      )}
+                      {['pendente_envio', 'cancelado'].includes(despesa.status) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(despesa.id)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  {despesa.observacoes && (
+                  {despesa.descricao && (
                     <p className="text-sm text-muted-foreground mt-2 pt-2 border-t border-border">
-                      {despesa.observacoes}
+                      {despesa.descricao}
                     </p>
                   )}
                 </div>
@@ -612,70 +722,75 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
 
       {/* Payment Modal */}
       <Dialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Check className="h-5 w-5 text-green-500" />
-              Marcar como Pago
-            </DialogTitle>
+            <DialogTitle>Registrar Pagamento</DialogTitle>
             <DialogDescription>
-              Informe a data de pagamento e anexe o comprovante (opcional)
+              Registre o pagamento desta despesa
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="space-y-4 py-4">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="dataPagamento">Data de Pagamento *</Label>
+              <Label>Data do Pagamento *</Label>
               <Input
-                id="dataPagamento"
                 type="date"
                 value={dataPagamento}
                 onChange={(e) => setDataPagamento(e.target.value)}
               />
             </div>
-
             <div className="space-y-2">
-              <Label>Comprovante de Pagamento (opcional)</Label>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png"
-                  onChange={(e) => setComprovanteFile(e.target.files?.[0] || null)}
-                  className="flex-1"
-                />
-                {comprovanteFile && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setComprovanteFile(null)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+              <Label>Comprovante de Pagamento</Label>
+              <Input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) => setComprovanteFile(e.target.files?.[0] || null)}
+              />
               {comprovanteFile && (
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Upload className="h-3 w-3" />
-                  {comprovanteFile.name}
-                </p>
+                <p className="text-xs text-muted-foreground">{comprovanteFile.name}</p>
               )}
             </div>
           </div>
-
           <DialogFooter>
             <Button variant="outline" onClick={() => setPaymentModalOpen(false)}>
               Cancelar
             </Button>
             <Button onClick={handleMarkAsPaid} disabled={updatingPayment}>
-              {updatingPayment ? (
-                <>Salvando...</>
-              ) : (
-                <>
-                  <Check className="h-4 w-4 mr-2" />
-                  Confirmar Pagamento
-                </>
-              )}
+              {updatingPayment ? 'Salvando...' : 'Confirmar Pagamento'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Document Modal */}
+      <Dialog open={viewDocumentOpen} onOpenChange={setViewDocumentOpen}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>{documentTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            {documentUrl.toLowerCase().endsWith('.pdf') ? (
+              <iframe
+                src={documentUrl}
+                className="w-full h-[70vh] border rounded-lg"
+                title={documentTitle}
+              />
+            ) : (
+              <img
+                src={documentUrl}
+                alt={documentTitle}
+                className="max-w-full h-auto rounded-lg"
+              />
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => window.open(documentUrl, '_blank')}
+            >
+              Abrir em Nova Aba
+            </Button>
+            <Button onClick={() => setViewDocumentOpen(false)}>
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>

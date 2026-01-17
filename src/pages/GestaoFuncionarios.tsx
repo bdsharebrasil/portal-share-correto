@@ -269,16 +269,16 @@ export default function GestaoFuncionarios() {
           const {
             data: crewMember,
             error: crewError
-          } = await supabase.from("crew_members").select("id, status, photo_url, canac").eq("user_id", profile.id).single();
+          } = await supabase.from("crew_members").select("id, status, canac").eq("user_id", profile.id).single();
           if (crewError && crewError.code !== 'PGRST116') {
             console.error("Erro ao buscar crew member para", profile.full_name, "-", crewError.message || crewError);
           }
           if (crewMember) {
             crewData = {
-              id: crewMember.id,
-              canac: crewMember.canac,
-              avatar_url: (crewMember as any).photo_url ?? null,
-              status: crewMember.status || 'active'
+              id: (crewMember as any).id,
+              canac: (crewMember as any).canac,
+              avatar_url: null,
+              status: (crewMember as any).status || 'active'
             };
           }
         }
@@ -375,12 +375,12 @@ export default function GestaoFuncionarios() {
       if (updatedData.salary !== selectedEmployee.salary || updatedData.benefits !== selectedEmployee.benefits) {
         const {
           error: salaryUpdateError
-        } = await supabase.from("salaries").upsert({
+        } = await supabase.from("salaries").upsert([{
           user_profile: employeeId,
-          base_salary: updatedData.salary ? parseFloat(updatedData.salary.toString()) : 0.00,
+          base_salary_liquid: updatedData.salary ? parseFloat(updatedData.salary.toString()) : 0.00,
           benefit: updatedData.benefits || null,
           effective_date: new Date().toISOString().split('T')[0]
-        });
+        } as any]);
         if (salaryUpdateError) console.error("Erro ao atualizar salário/benefício:", salaryUpdateError);
       }
       return employeeId;
@@ -591,7 +591,7 @@ export default function GestaoFuncionarios() {
               </TabsTrigger>
               {(isAdmin || isGestorMaster) && <TabsTrigger value="ponto" className="py-3.5 px-4 text-sm font-medium rounded-xl border-2 border-transparent transition-all duration-200
                     data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-muted/50
-                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:border-violet-500 data-[state=active]:ring-2 data-[state=active]:ring-violet-400 data-[state=active]:ring-offset-2 data-[state=active]:ring-offset-background">
+                    data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-purple-500 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:border-indigo-900 data-[state=active]:ring-2 data-[state=active]:ring-violet-400 data-[state=active]:ring-offset-2 data-[state=active]:ring-offset-background">
                   <Clock className="w-4 h-4 mr-2" />
                   Ponto
                 </TabsTrigger>}

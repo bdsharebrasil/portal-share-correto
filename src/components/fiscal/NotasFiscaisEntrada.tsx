@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Edit2, Trash2, Calendar, DollarSign, FileDown, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { fromUntyped } from "@/lib/supabase-helpers";
 import { useToast } from "@/hooks/use-toast";
 import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
 import { format } from "date-fns";
@@ -132,8 +133,7 @@ export function NotasFiscaisEntrada() {
   const loadNotas = async () => {
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from("notas_fiscais_entrada")
+      const { data, error } = await fromUntyped("notas_fiscais_entrada")
         .select("*")
         .order("data_recebimento", { ascending: false });
 
@@ -208,8 +208,7 @@ export function NotasFiscaisEntrada() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (editingNota) {
-        const { error } = await supabase
-          .from("notas_fiscais_entrada")
+        const { error } = await fromUntyped("notas_fiscais_entrada")
           .update(notaData)
           .eq("id", editingNota.id);
 
@@ -217,7 +216,7 @@ export function NotasFiscaisEntrada() {
 
         // Se status mudou para "paga" durante a edição
         if (notaData.status === "paga" && editingNota.status !== "paga" && user) {
-          await supabase.from("controle_bancario").insert({
+          await fromUntyped("controle_bancario").insert({
             descricao: `NF Entrada ${notaData.numero} - ${notaData.fornecedor_nome}`,
             valor: notaData.valor,
             data: new Date().toISOString().split("T")[0],
@@ -235,8 +234,7 @@ export function NotasFiscaisEntrada() {
           description: "Nota fiscal atualizada com sucesso",
         });
       } else {
-        const { data: insertedNota, error } = await supabase
-          .from("notas_fiscais_entrada")
+        const { data: insertedNota, error } = await fromUntyped("notas_fiscais_entrada")
           .insert([notaData])
           .select()
           .single();
@@ -245,7 +243,7 @@ export function NotasFiscaisEntrada() {
 
         // Se criada já com status "paga"
         if (notaData.status === "paga" && user && insertedNota) {
-          await supabase.from("controle_bancario").insert({
+          await fromUntyped("controle_bancario").insert({
             descricao: `NF Entrada ${notaData.numero} - ${notaData.fornecedor_nome}`,
             valor: notaData.valor,
             data: new Date().toISOString().split("T")[0],
@@ -281,8 +279,7 @@ export function NotasFiscaisEntrada() {
     if (!deleteId) return;
 
     try {
-      const { error } = await supabase
-        .from("notas_fiscais_entrada")
+      const { error } = await fromUntyped("notas_fiscais_entrada")
         .delete()
         .eq("id", deleteId);
 
@@ -362,8 +359,7 @@ export function NotasFiscaisEntrada() {
       const nota = notas.find(n => n.id === notaId);
       if (!nota) return;
 
-      const { error } = await supabase
-        .from("notas_fiscais_entrada")
+      const { error } = await fromUntyped("notas_fiscais_entrada")
         .update({ status: newStatus })
         .eq("id", notaId);
 
@@ -373,8 +369,7 @@ export function NotasFiscaisEntrada() {
       if (newStatus === "paga") {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const { error: fluxoError } = await supabase
-            .from("controle_bancario")
+          const { error: fluxoError } = await fromUntyped("controle_bancario")
             .insert({
               descricao: `NF Entrada ${nota.numero} - ${nota.fornecedor_nome}`,
               valor: nota.valor,

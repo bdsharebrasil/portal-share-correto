@@ -13,6 +13,7 @@ import { fetchManutencaoRevisao, fetchManutencaoRevisaoAtiva, updateManutencaoHo
 import { MaintenanceStatusAlert } from './MaintenanceStatusAlert';
 import { CreateMonthDialog } from './CreateMonthDialog';
 import { CloseMonthDialog } from './CloseMonthDialog';
+import { useUserRole } from '@/hooks/useUserRole';
 
 // ===================== CONSTANTES =====================
 const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -219,6 +220,22 @@ const calculateDailyAllowanceForEntry = (
 
 // ===================== COMPONENTE PRINCIPAL =====================
 const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
+  // Verificar permissões do usuário
+  const { isAdmin, isGestorMaster, isPilotoChefe } = useUserRole();
+
+  // Estados de navegação e UI (declarados primeiro para uso no useEffect)
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [showHoursBank, setShowHoursBank] = useState(false);
+  const [showTechnicalStatus, setShowTechnicalStatus] = useState(false);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [availableMonths, setAvailableMonths] = useState<Array<{ month: number; year: number }>>([]);
+
+  const canEditCelulaFields = isAdmin || isGestorMaster || isPilotoChefe;
+
   // Estados principais
   const [loading, setLoading] = useState(true);
   const [entries, setEntries] = useState([]);
@@ -230,19 +247,36 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   const [lastCelula, setLastCelula] = useState(0);
   const [logbookMonth, setLogbookMonth] = useState(null);
 
-  // Estados de navegação e UI
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [showMonthPicker, setShowMonthPicker] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [showHoursBank, setShowHoursBank] = useState(false);
-  const [showTechnicalStatus, setShowTechnicalStatus] = useState(false);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [availableMonths, setAvailableMonths] = useState<Array<{ month: number; year: number }>>([]);
-
   // Estados de edição
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+
+  // Estados para redimensionamento de colunas
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({
+    date: 70,
+    from: 60,
+    to: 60,
+    ac: 55,
+    dep: 55,
+    pou: 55,
+    cor: 55,
+    tvoo: 65,
+    dia: 65,
+    noite: 65,
+    ifr: 60,
+    pousos: 60,
+    fuel_add: 70,
+    celula: 65,
+    pic: 60,
+    canac_pic: 70,
+    sic: 60,
+    canac_sic: 70,
+    diarias: 70,
+    voo_para: 80,
+    check: 40,
+    acoes: 70
+  });
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const [resizeStart, setResizeStart] = useState(0);
   const [editingEntry, setEditingEntry] = useState<any>(null);
   const [editingMonthInfo, setEditingMonthInfo] = useState(false);
   const [editingField, setEditingField] = useState<string | null>(null);
@@ -787,8 +821,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   const handleSaveField = async () => {
     if (!editingField || editFieldValue === '') return;
 
+    // Verificar se o usuário tem permissão para editar este campo
+    if ((editingField === 'celula_anterior' || editingField === 'celula_prox_revisao') && !canEditCelulaFields) {
+      toast.error('Apenas admin, gestor master, piloto chefe e PIC podem editar célula anterior e próxima revisão');
+      setEditingField(null);
+      return;
+    }
+
     // Converter para número se for um campo numérico
-    const fieldsToConvertToNumber = ['horimetro_inicio', 'horimetro_final', 'horimetro_ativo', 'daily_rate', 'celula_prox_revisao'];
+    const fieldsToConvertToNumber = ['horimetro_inicio', 'horimetro_final', 'horimetro_ativo', 'daily_rate', 'celula_prox_revisao', 'celula_anterior'];
     const valueToSave = fieldsToConvertToNumber.includes(editingField)
       ? parseFloat(editFieldValue)
       : editFieldValue;
@@ -797,10 +838,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     setEditFieldValue('');
   };
 
-  const createNextMonth = async () => {
-    try {
-      setLoading(true);
+  // Estado para controlar mês/ano do próximo diário
+  const [nextMonthTarget, setNextMonthTarget] = useState<{ month: number; year: number } | null>(null);
 
+  // Abre o dialog para criar o PRÓXIMO mês (com dados herdados do mês atual)
+  const handleOpenCreateNextMonthDialog = async () => {
+    try {
       // Calcular o próximo mês
       let nextMonth = selectedMonth + 1;
       let nextYear = selectedYear;
@@ -820,44 +863,40 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
 
       if (existingMonth) {
         toast.error("Este mês já existe");
-        setLoading(false);
         return;
       }
 
-      // Usar a célula_atual do mês atual como célula_anterior do próximo
-      const celulaAnterior = logbookMonth?.celula_atual ?? 0;
+      // Guardar o mês alvo para uso no dialog
+      setNextMonthTarget({ month: nextMonth, year: nextYear });
 
-      // Criar o novo mês
-      const { data: newMonth, error } = await supabase
-        .from('logbook_months')
-        .insert([{
-          aircraft_id: aircraftId,
-          month: nextMonth,
-          year: nextYear,
-          celula_anterior: celulaAnterior,
-          is_closed: false
-        }])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      if (newMonth) {
-        // Adicionar o novo mês à lista de meses disponíveis
-        setAvailableMonths(prev => [...prev, { month: nextMonth, year: nextYear }]);
-
-        // Navegar para o novo mês
-        setSelectedMonth(nextMonth);
-        setSelectedYear(nextYear);
-        setShowMonthPicker(false);
-
-        toast.success(`Mês ${MONTHS[nextMonth - 1]} de ${nextYear} criado com sucesso!`);
+      // Usar dados do mês atual como base
+      if (logbookMonth) {
+        setPreviousMonthData({
+          celula_atual: logbookMonth.celula_atual ?? 0,
+          celula_prox_revisao: logbookMonth.celula_prox_revisao ?? 0,
+          horimetro_final: logbookMonth.horimetro_final ?? null,
+          base_aerodrome: logbookMonth.base_aerodrome ?? null,
+          fuel_consumption: logbookMonth.fuel_consumption ?? null,
+          has_daily_rate: logbookMonth.has_daily_rate ?? false,
+          daily_rate: logbookMonth.daily_rate ?? null,
+        });
+      } else {
+        setPreviousMonthData({
+          celula_atual: aircraft?.cell_hours_current || 0,
+          celula_prox_revisao: aircraft?.celula_prox_revisao || 0,
+          horimetro_final: null,
+          base_aerodrome: aircraft?.base || null,
+          fuel_consumption: aircraft?.fuel_consumption?.toString() || null,
+          has_daily_rate: false,
+          daily_rate: null,
+        });
       }
+
+      setShowMonthPicker(false);
+      setShowCreateMonthDialog(true);
     } catch (error: any) {
-      console.error("Erro ao criar novo mês:", error);
-      toast.error(error.message || "Erro ao criar novo mês");
-    } finally {
-      setLoading(false);
+      console.error("Erro ao preparar criação do próximo mês:", error);
+      toast.error(error.message || "Erro ao preparar criação do próximo mês");
     }
   };
 
@@ -1269,6 +1308,38 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     }
   };
 
+  // REDIMENSIONAMENTO DE COLUNAS
+  const handleResizeMouseDown = (columnKey: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    setResizingColumn(columnKey);
+    setResizeStart(e.clientX);
+  };
+
+  useEffect(() => {
+    if (!resizingColumn) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const delta = e.clientX - resizeStart;
+      setColumnWidths(prev => ({
+        ...prev,
+        [resizingColumn]: Math.max(40, (prev[resizingColumn] || 50) + delta)
+      }));
+      setResizeStart(e.clientX);
+    };
+
+    const handleMouseUp = () => {
+      setResizingColumn(null);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [resizingColumn, resizeStart]);
+
   // ABRIR DIALOG PARA CRIAR MÊS
   const handleOpenCreateMonthDialog = async () => {
     try {
@@ -1494,7 +1565,16 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
           {/* MÉTRICAS PRINCIPAIS DESTACADAS */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 my-0 px-[28px]">
             {/* CÉLULA ANTERIOR */}
-            <div className="bg-slate-900 border rounded-2xl p-6 shadow-xl transition-all border-violet-400">
+            <div className="group relative bg-slate-900 border rounded-2xl p-6 shadow-xl transition-all border-violet-400 overflow-visible">
+              {canEditCelulaFields && (
+                <button
+                  onClick={() => openEditModal('celula_anterior', logbookMonth.celula_anterior?.toString() || '0.00')}
+                  className="absolute top-2 right-2 p-2 rounded-lg bg-violet-500/40 hover:bg-violet-500/60 text-violet-200 hover:text-violet-100 transition-all duration-200 z-10 shadow-lg"
+                  title="Editar Célula Anterior"
+                >
+                  <Edit size={20} />
+                </button>
+              )}
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <p className="text-[9px] uppercase font-bold tracking-widest mb-1 text-violet-400">Célula Anterior</p>
@@ -1518,14 +1598,16 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
             </div>
 
             {/* PRÓXIMA REVISÃO */}
-            <div className="group relative bg-slate-900 border border-orange-500/30 rounded-2xl p-6 shadow-xl hover:border-orange-500/50 transition-all">
-              <button
-                onClick={() => openEditModal('celula_prox_revisao', logbookMonth.celula_prox_revisao?.toString() || '0.00')}
-                className="absolute top-3 right-3 p-1.5 rounded-lg bg-slate-800/0 group-hover:bg-slate-800/60 text-slate-500 group-hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-all duration-200"
-                title="Editar Próxima Revisão"
-              >
-                <Edit size={14} />
-              </button>
+            <div className="group relative bg-slate-900 border border-orange-500/30 rounded-2xl p-6 shadow-xl hover:border-orange-500/50 transition-all overflow-visible">
+              {canEditCelulaFields && (
+                <button
+                  onClick={() => openEditModal('celula_prox_revisao', logbookMonth.celula_prox_revisao?.toString() || '0.00')}
+                  className="absolute top-2 right-2 p-2 rounded-lg bg-orange-500/40 hover:bg-orange-500/60 text-orange-200 hover:text-orange-100 transition-all duration-200 z-10 shadow-lg"
+                  title="Editar Próxima Revisão"
+                >
+                  <Edit size={20} />
+                </button>
+              )}
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <p className="text-[9px] text-orange-500 uppercase font-bold tracking-widest mb-1">Próx. Revisão</p>
@@ -1560,10 +1642,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
               <div className="group relative bg-slate-950 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-all">
                 <button
                   onClick={() => openEditModal('base_aerodrome', logbookMonth.base_aerodrome || '')}
-                  className="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-800/0 group-hover:bg-slate-800/60 text-slate-500 group-hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-all duration-200"
+                  className="absolute top-2 right-2 p-2 rounded-lg bg-sky-500/20 hover:bg-sky-500/40 text-sky-400 hover:text-sky-300 transition-all duration-200"
                   title="Editar Base Aeródromo"
                 >
-                  <Edit size={14} />
+                  <Edit size={18} />
                 </button>
                 <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Base Aeródromo</p>
                 <p className="text-lg font-black text-white">{logbookMonth.base_aerodrome || '-'}</p>
@@ -1573,10 +1655,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
               <div className="group relative bg-slate-950 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-all">
                 <button
                   onClick={() => openEditModal('horimetro_inicio', logbookMonth.horimetro_inicio?.toString() || '0.0')}
-                  className="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-800/0 group-hover:bg-slate-800/60 text-slate-500 group-hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-all duration-200"
+                  className="absolute top-2 right-2 p-2 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 hover:text-cyan-300 transition-all duration-200"
                   title="Editar Horimetro Início"
                 >
-                  <Edit size={14} />
+                  <Edit size={18} />
                 </button>
                 <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Horimetro Início</p>
                 <p className="text-xl font-black text-blue-400">{logbookMonth.horimetro_inicio?.toFixed(1) || '0.0'}h</p>
@@ -1586,10 +1668,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
               <div className="group relative bg-slate-950 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-all">
                 <button
                   onClick={() => openEditModal('horimetro_final', logbookMonth.horimetro_final?.toString() || '0.0')}
-                  className="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-800/0 group-hover:bg-slate-800/60 text-slate-500 group-hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-all duration-200"
+                  className="absolute top-2 right-2 p-2 rounded-lg bg-orange-500/20 hover:bg-orange-500/40 text-orange-400 hover:text-orange-300 transition-all duration-200"
                   title="Editar Horimetro Final"
                 >
-                  <Edit size={14} />
+                  <Edit size={18} />
                 </button>
                 <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Horimetro Final</p>
                 <p className="text-xl font-black text-orange-400">{logbookMonth.horimetro_final?.toFixed(1) || '0.0'}h</p>
@@ -1599,27 +1681,29 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
               <div className="group relative bg-slate-950 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-all">
                 <button
                   onClick={() => openEditModal('horimetro_ativo', logbookMonth.horimetro_ativo?.toString() || '0.0')}
-                  className="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-800/0 group-hover:bg-slate-800/60 text-slate-500 group-hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-all duration-200"
+                  className="absolute top-2 right-2 p-2 rounded-lg bg-pink-500/20 hover:bg-pink-500/40 text-pink-400 hover:text-pink-300 transition-all duration-200"
                   title="Editar Horimetro Ativo"
                 >
-                  <Edit size={14} />
+                  <Edit size={18} />
                 </button>
                 <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Horimetro Ativo</p>
                 <p className="text-xl font-black text-pink-400">{logbookMonth.horimetro_ativo?.toFixed(1) || '0.0'}h</p>
               </div>
 
-              {/* Valor Diária */}
-              <div className="group relative bg-slate-950 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-all">
-                <button
-                  onClick={() => openEditModal('daily_rate', logbookMonth.daily_rate?.toString() || '0.00')}
-                  className="absolute top-2 right-2 p-1.5 rounded-lg bg-slate-800/0 group-hover:bg-slate-800/60 text-slate-500 group-hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-all duration-200"
-                  title="Editar Valor Diária"
-                >
-                  <Edit size={14} />
-                </button>
-                <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Valor Diária</p>
-                <p className="text-lg font-black text-green-400">R$ {logbookMonth.daily_rate?.toFixed(2) || '0.00'}</p>
-              </div>
+              {/* Valor Diária - Só mostra quando tem diária marcada */}
+              {logbookMonth?.has_daily_rate && (
+                <div className="group relative bg-slate-950 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-all">
+                  <button
+                    onClick={() => openEditModal('daily_rate', logbookMonth.daily_rate?.toString() || '0.00')}
+                    className="absolute top-2 right-2 p-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-400 hover:text-emerald-300 transition-all duration-200"
+                    title="Editar Valor Diária"
+                  >
+                    <Edit size={18} />
+                  </button>
+                  <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Valor Diária</p>
+                  <p className="text-lg font-black text-green-400">R$ {logbookMonth.daily_rate?.toFixed(2) || '0.00'}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>}
@@ -2469,36 +2553,103 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-800/50 text-[9px] font-black uppercase text-slate-500 tracking-widest border-b border-slate-800">
-                  <th onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')} className="p-2 text-center cursor-pointer hover:text-sky-400 transition-colors group px-[7px]">
+                  <th onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')} className="p-2 text-center cursor-pointer hover:text-sky-400 transition-colors group px-[7px] relative select-none" style={{ width: `${columnWidths.date}px` }}>
                     <div className="flex items-center justify-center gap-1">
                       <span>Data</span>
                       <span className="text-[7px] opacity-60 group-hover:opacity-100 transition-opacity font-extrabold bg-transparent text-primary-glow px-[4px]">
                         {sortDirection === 'asc' ? '↑' : '↓'}
                       </span>
                     </div>
+                    <div onMouseDown={(e) => handleResizeMouseDown('date', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
                   </th>
-                  <th className="p-2 text-center">De</th>
-                  <th className="p-2 text-center">Para</th>
-                  <th className="p-2 text-center">Ac</th>
-                  <th className="p-2 text-center">Dep</th>
-                  <th className="p-2 text-center">Pou</th>
-                  <th className="p-2 text-center">Cor</th>
-                  <th className="p-2 text-center">T.Voo</th>
-                  <th className="p-2 text-center">Dia</th>
-                  <th className="p-2 text-center">Noite</th>
-                  <th className="p-2 text-center">IFR</th>
-                  <th className="p-2 text-center">Pousos</th>
-                  <th className="p-2 text-center">Abas+</th>
-                  <th className="p-2 text-center">FUEL</th>
-                  <th className="p-2 text-center">Célula</th>
-                  <th className="p-2 text-center">Pic</th>
-                  <th className="p-2 text-center">Canac</th>
-                  <th className="p-2 text-center">Sic</th>
-                  <th className="p-2 text-center">Canac Sic</th>
-                  {logbookMonth?.has_daily_rate && <th className="p-2 text-center">Diárias</th>}
-                  <th className="p-2 text-center">Voo Para</th>
-                  <th className="p-2 text-center">✓</th>
-                  <th className="p-2 text-center">Ações</th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.from}px` }}>
+                    De
+                    <div onMouseDown={(e) => handleResizeMouseDown('from', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.to}px` }}>
+                    Para
+                    <div onMouseDown={(e) => handleResizeMouseDown('to', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.ac}px` }}>
+                    Ac
+                    <div onMouseDown={(e) => handleResizeMouseDown('ac', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.dep}px` }}>
+                    Dep
+                    <div onMouseDown={(e) => handleResizeMouseDown('dep', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.pou}px` }}>
+                    Pou
+                    <div onMouseDown={(e) => handleResizeMouseDown('pou', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.cor}px` }}>
+                    Cor
+                    <div onMouseDown={(e) => handleResizeMouseDown('cor', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.tvoo}px` }}>
+                    T.Voo
+                    <div onMouseDown={(e) => handleResizeMouseDown('tvoo', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.dia}px` }}>
+                    Dia
+                    <div onMouseDown={(e) => handleResizeMouseDown('dia', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.noite}px` }}>
+                    Noite
+                    <div onMouseDown={(e) => handleResizeMouseDown('noite', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.ifr}px` }}>
+                    IFR
+                    <div onMouseDown={(e) => handleResizeMouseDown('ifr', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.pousos}px` }}>
+                    Pousos
+                    <div onMouseDown={(e) => handleResizeMouseDown('pousos', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.fuel_add}px` }}>
+                    Abas+
+                    <div onMouseDown={(e) => handleResizeMouseDown('fuel_add', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.celula}px` }}>
+                    FUEL
+                    <div onMouseDown={(e) => handleResizeMouseDown('fuel_liters', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.celula}px` }}>
+                    Célula
+                    <div onMouseDown={(e) => handleResizeMouseDown('celula', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.pic}px` }}>
+                    Pic
+                    <div onMouseDown={(e) => handleResizeMouseDown('pic', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.canac_pic}px` }}>
+                    Canac
+                    <div onMouseDown={(e) => handleResizeMouseDown('canac_pic', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.sic}px` }}>
+                    Sic
+                    <div onMouseDown={(e) => handleResizeMouseDown('sic', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.canac_sic}px` }}>
+                    Canac Sic
+                    <div onMouseDown={(e) => handleResizeMouseDown('canac_sic', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  {logbookMonth?.has_daily_rate && <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.diarias}px` }}>
+                    Diárias
+                    <div onMouseDown={(e) => handleResizeMouseDown('diarias', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>}
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.voo_para}px` }}>
+                    Voo Para
+                    <div onMouseDown={(e) => handleResizeMouseDown('voo_para', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.check}px` }}>
+                    ✓
+                    <div onMouseDown={(e) => handleResizeMouseDown('check', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.acoes}px` }}>
+                    Ações
+                    <div onMouseDown={(e) => handleResizeMouseDown('acoes', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
@@ -2517,65 +2668,65 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                   const sicCrew = crew.find(c => c.id === e.sic_canac);
                   const clientName = clients.find(c => c.id === e.client_id)?.company_name;
                   return <tr key={e.id} className="hover:bg-slate-800/30 transition-colors group border-b border-slate-800/50">
-                    <td className="p-2 whitespace-nowrap text-center">
-                      <span className="text-white font-bold text-xs">{formatDateFromISO(e.entry_date)}</span>
+                    <td className="p-2 whitespace-nowrap text-center text-xs" style={{ width: `${columnWidths.date}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-white font-bold">{formatDateFromISO(e.entry_date)}</span>
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
-                      <span className="text-sky-400 font-bold">{e.departure_aerodrome}</span>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.from}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-sky-400 font-bold text-xs">{e.departure_aerodrome}</span>
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
-                      <span className="text-emerald-400 font-bold">{e.arrival_aerodrome}</span>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.to}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-emerald-400 font-bold text-xs">{e.arrival_aerodrome}</span>
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
-                      <span className="text-white font-bold"><p>{formatTimeFromTimestamp(e.ac_time)}</p></span>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.ac}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-white font-bold text-xs">{formatTimeFromTimestamp(e.ac_time)}</span>
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
-                      <span className="text-slate-300 text-xs"><p>{formatTimeFromTimestamp(e.dep_time)}</p></span>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.dep}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-slate-300 text-xs">{formatTimeFromTimestamp(e.dep_time)}</span>
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
-                      <span className="text-slate-300 text-xs"><p>{formatTimeFromTimestamp(e.pou_time)}</p></span>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.pou}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-slate-300 text-xs">{formatTimeFromTimestamp(e.pou_time)}</span>
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
-                      <span className="text-white font-bold"><p>{formatTimeFromTimestamp(e.cor_time)}</p></span>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.cor}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-white font-bold text-xs">{formatTimeFromTimestamp(e.cor_time)}</span>
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
-                      <span className="text-white font-bold text-sm"><p>{decimalToHHMM(e.time)}</p></span>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.tvoo}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-white font-bold text-sm">{decimalToHHMM(e.time)}</span>
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.dia}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {e.day_time > 0 ? <span className="text-emerald-400 font-bold text-sm">{decimalToHHMM(e.day_time)}</span> : <span className="text-slate-600">-</span>}
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.noite}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {e.night_hours > 0 ? <span className="text-sky-400 font-bold text-sm">{decimalToHHMM(e.night_hours)}</span> : <span className="text-slate-600">-</span>}
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.ifr}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {e.ifr_time > 0 ? <span className="text-purple-400 font-bold text-sm">{decimalToHHMM(e.ifr_time)}</span> : <span className="text-slate-600">-</span>}
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.pousos}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <span className="text-slate-300 text-xs">{e.pousos || '-'}</span>
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.fuel_add}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <span className="text-slate-300 text-xs">{e.fuel_added > 0 ? e.fuel_added?.toFixed(1) : '-'}</span>
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.celula}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <span className="text-orange-400 font-bold text-sm">{Math.round(e.fuel_liters || 0)}L</span>
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
-                      <span className="text-purple-400 font-bold">{e.celula?.toFixed(1)}</span>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.celula}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-purple-400 font-bold text-xs">{e.celula?.toFixed(1)}</span>
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.pic}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <span className="text-white text-xs">{picCrew?.full_name.split(' ')[0] || '-'}</span>
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.canac_pic}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <span className="text-slate-400 text-xs font-bold">{picCrew?.canac || '-'}</span>
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.sic}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <span className="text-white text-xs">{sicCrew?.full_name.split(' ')[0] || '-'}</span>
                     </td>
-                    <td className="p-2 whitespace-nowrap text-center">
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.canac_sic}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <span className="text-slate-400 text-xs font-bold">{sicCrew?.canac || '-'}</span>
                     </td>
                     {logbookMonth?.has_daily_rate && (
-                      <td className="p-2 whitespace-nowrap text-center">
+                      <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.diarias}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {e.daily_rate > 0 ? (
                           <span className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-lg font-bold text-sm">
                             {e.daily_rate}
@@ -2585,7 +2736,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                         )}
                       </td>
                     )}
-                    <td className="p-2 whitespace-nowrap text-center">
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.voo_para}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {e.is_equal_split ? (
                         <span className="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded text-xs font-bold uppercase">
                           Rateio
@@ -2594,12 +2745,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                         <span className="text-cyan-400 text-xs font-semibold">{shortenClientName(clientName)}</span>
                       )}
                     </td>
-                    <td className="p-2 text-center">
+                    <td className="p-2 text-center" style={{ width: `${columnWidths.check}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <div className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${e.confirmed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800/50 text-slate-600'}`}>
                         <CheckCircle size={14} />
                       </div>
                     </td>
-                    <td className="p-2 text-center">
+                    <td className="p-2 text-center" style={{ width: `${columnWidths.acoes}px`, overflow: 'hidden' }}>
                       <div className="flex items-center justify-center gap-2">
                         <button onClick={() => handleEditEntry(e)} className="p-2 hover:bg-sky-500/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 text-sky-400 hover:text-sky-300" title="Editar lançamento">
                           <Edit size={16} />
@@ -2619,11 +2770,21 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
           {filteredEntries.length > 0 && (() => {
             // Calcular totais por cliente
             const clientTotals: Record<string, { hours: number; dailyRates: number; name: string }> = {};
+            // Calcular totais por sócio/partner
+            const partnerTotals: Record<string, { hours: number; dailyRates: number; voos: number }> = {};
             let splitHours = 0;
-            
+
             filteredEntries.forEach(e => {
               if (e.is_equal_split) {
                 splitHours += (e.time || 0);
+              } else if (e.partner_name) {
+                // Se houver partner, adiciona aos totais do partner
+                if (!partnerTotals[e.partner_name]) {
+                  partnerTotals[e.partner_name] = { hours: 0, dailyRates: 0, voos: 0 };
+                }
+                partnerTotals[e.partner_name].hours += (e.time || 0);
+                partnerTotals[e.partner_name].dailyRates += (e.daily_rate || 0);
+                partnerTotals[e.partner_name].voos += 1;
               } else if (e.client_id) {
                 const clientName = clients.find(c => c.id === e.client_id)?.company_name || 'Outros';
                 if (!clientTotals[e.client_id]) {
@@ -2633,9 +2794,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                 clientTotals[e.client_id].dailyRates += (e.daily_rate || 0);
               }
             });
-            
+
             const totalDistance = filteredEntries.reduce((sum, e) => sum + (parseFloat(e.distance_nm) || 0), 0);
             const dailyRateValue = logbookMonth?.daily_rate || 0;
+            const hasPartners = Object.keys(partnerTotals).length > 0;
 
             return (
               <div className="border-t border-slate-800 bg-slate-950/50 p-4 space-y-3">
@@ -2691,26 +2853,47 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                   )}
                 </div>
 
-                {/* Horas por cliente */}
-                <div className="pt-2 border-t border-slate-800/50">
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-400">
-                    {Object.values(clientTotals).map((ct, idx) => (
-                      <span key={idx}>
-                        <span className="text-cyan-400 font-semibold">{ct.name.split(' ')[0]}</span>
-                        {' '}{decimalToHHMM(ct.hours)}h
-                        {logbookMonth?.has_daily_rate && ct.dailyRates > 0 && (
-                          <span className="text-yellow-400"> • {ct.dailyRates} diária{ct.dailyRates > 1 ? 's' : ''}</span>
-                        )}
-                      </span>
-                    ))}
-                    {splitHours > 0 && (
-                      <span>
-                        <span className="text-emerald-400 font-semibold">Traslado/Rateio</span>
-                        {' '}{decimalToHHMM(splitHours)}h
-                      </span>
-                    )}
+                {/* Horas por sócio (quando houver partners) */}
+                {hasPartners && (
+                  <div className="pt-2 border-t border-slate-800/50">
+                    <div className="text-[9px] font-bold text-slate-500 uppercase mb-2">Horas por Sócio</div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                      {Object.entries(partnerTotals).map(([partnerName, pt], idx) => (
+                        <div key={idx} className="bg-slate-900/50 rounded-lg p-2.5 border border-slate-800/50">
+                          <div className="text-[9px] font-semibold text-slate-400 uppercase mb-1 truncate">{partnerName}</div>
+                          <div className="text-sm font-black text-orange-400 mb-0.5">{decimalToHHMM(pt.hours)}</div>
+                          <div className="text-[8px] text-slate-500">{pt.voos} voo{pt.voos > 1 ? 's' : ''}</div>
+                          {logbookMonth?.has_daily_rate && pt.dailyRates > 0 && (
+                            <div className="text-[8px] text-yellow-400 font-semibold mt-1">{pt.dailyRates} diária{pt.dailyRates > 1 ? 's' : ''}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
+
+                {/* Horas por cliente (apenas quando não houver partners) */}
+                {!hasPartners && (
+                  <div className="pt-2 border-t border-slate-800/50">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-400">
+                      {Object.values(clientTotals).map((ct, idx) => (
+                        <span key={idx}>
+                          <span className="text-cyan-400 font-semibold">{ct.name.split(' ')[0]}</span>
+                          {' '}{decimalToHHMM(ct.hours)}h
+                          {logbookMonth?.has_daily_rate && ct.dailyRates > 0 && (
+                            <span className="text-yellow-400"> • {ct.dailyRates} diária{ct.dailyRates > 1 ? 's' : ''}</span>
+                          )}
+                        </span>
+                      ))}
+                      {splitHours > 0 && (
+                        <span>
+                          <span className="text-emerald-400 font-semibold">Traslado/Rateio</span>
+                          {' '}{decimalToHHMM(splitHours)}h
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -3125,7 +3308,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
 
             <div className="flex gap-3 mt-6">
               <button
-                onClick={createNextMonth}
+                onClick={handleOpenCreateNextMonthDialog}
                 disabled={loading}
                 className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 disabled:from-slate-700 disabled:to-slate-600 h-12 rounded-2xl font-bold uppercase text-xs transition-colors text-white shadow-lg"
               >

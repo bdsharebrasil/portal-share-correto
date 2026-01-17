@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface LicenseExpiryDialogProps {
   open: boolean;
@@ -33,11 +34,18 @@ export function LicenseExpiryDialog({
   isCMA = false,
   onSuccess,
 }: LicenseExpiryDialogProps) {
+  const { hasRole } = useUserRole();
+  const canEditHabilitacoes = hasRole('admin') || hasRole('gestor_master') || hasRole('piloto_chefe') || hasRole('coordenador_voo');
+
   const currentDate = isCMA ? license?.validade_cma : license?.expiry_date;
   const [expiryDate, setExpiryDate] = useState(currentDate || "");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSave = async () => {
+    if (!canEditHabilitacoes) {
+      toast.error("Você não tem permissão para editar habilitações");
+      return;
+    }
     if (!license?.id || !expiryDate) {
       toast.error("Selecione uma data válida");
       return;
@@ -108,7 +116,7 @@ export function LicenseExpiryDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={isLoading || !expiryDate}>
+          <Button onClick={handleSave} disabled={isLoading || !expiryDate || !canEditHabilitacoes}>
             {isLoading ? "Salvando..." : "Salvar"}
           </Button>
         </DialogFooter>

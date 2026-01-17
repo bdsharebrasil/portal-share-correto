@@ -68,10 +68,10 @@ const ServiceOrderTracking: React.FC<Props> = ({ aircraftId, registration }) => 
 
       if (osError) throw osError;
 
-      setServiceOrders(osData || []);
+      setServiceOrders((osData || []) as ServiceOrder[]);
 
       if (osData && osData.length > 0) {
-        setSelectedOS(osData[0]);
+        setSelectedOS(osData[0] as ServiceOrder);
         
         // Buscar items para a primeira OS
         const { data: itemsData, error: itemsError } = await supabase
@@ -81,7 +81,7 @@ const ServiceOrderTracking: React.FC<Props> = ({ aircraftId, registration }) => 
           .order('created_at', { ascending: false });
 
         if (!itemsError) {
-          setServiceItems(itemsData || []);
+          setServiceItems((itemsData || []) as ServiceItem[]);
         }
       }
     } catch (error) {
@@ -101,7 +101,7 @@ const ServiceOrderTracking: React.FC<Props> = ({ aircraftId, registration }) => 
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setServiceItems(data || []);
+      setServiceItems((data || []) as ServiceItem[]);
     } catch (error) {
       console.error('Erro ao carregar items:', error);
       toast.error('Erro ao carregar items da OS');
@@ -137,8 +137,8 @@ const ServiceOrderTracking: React.FC<Props> = ({ aircraftId, registration }) => 
       if (error) throw error;
 
       if (data && data.length > 0) {
-        setServiceOrders([data[0], ...serviceOrders]);
-        setSelectedOS(data[0]);
+        setServiceOrders([data[0] as ServiceOrder, ...serviceOrders]);
+        setSelectedOS(data[0] as ServiceOrder);
         setIsCreatingOS(false);
         setNewOSForm({
           order_number: '',

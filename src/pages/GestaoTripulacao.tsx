@@ -85,6 +85,7 @@ export default function GestaoDeTripulacao() {
   const { hasRole, userRoles, isLoading: rolesLoading } = useUserRole();
 
   const canEditProfile = hasRole('piloto_chefe') || hasRole('admin') || hasRole('gestor_master') || hasRole('financeiro_master');
+  const canEditHabilitacoes = hasRole('admin') || hasRole('gestor_master') || hasRole('piloto_chefe') || hasRole('coordenador_voo');
   useEffect(() => {
     loadCrewMembers();
   }, [statusFilter]);
@@ -188,7 +189,14 @@ export default function GestaoDeTripulacao() {
     }
   };
   const saveLicense = async (licenseData: Partial<CrewLicense>) => {
-    if (!selectedCrew) return;
+    if (!selectedCrew || !canEditHabilitacoes) {
+      toast({
+        title: "Sem permissão",
+        description: "Você não tem permissão para editar habilitações.",
+        variant: "destructive"
+      });
+      return;
+    }
     const payload = {
       crew_member_id: selectedCrew.id,
       ...licenseData
@@ -224,6 +232,14 @@ export default function GestaoDeTripulacao() {
     loadCrewDetails(selectedCrew.id);
   };
   const deleteLicense = async (licenseId: string) => {
+    if (!canEditHabilitacoes) {
+      toast({
+        title: "Sem permissão",
+        description: "Você não tem permissão para deletar habilitações.",
+        variant: "destructive"
+      });
+      return;
+    }
     if (!confirm('Deseja realmente excluir esta licença?')) return;
     const {
       error
@@ -503,7 +519,7 @@ export default function GestaoDeTripulacao() {
                     </CardTitle>
                     <Dialog open={isLicenseDialogOpen} onOpenChange={setIsLicenseDialogOpen}>
                       <DialogTrigger asChild>
-                        <Button onClick={() => setEditingLicense(null)}>
+                        <Button onClick={() => setEditingLicense(null)} disabled={!canEditHabilitacoes}>
                           <Plus className="mr-2" size={16} />
                           Nova Habilitação
                         </Button>
@@ -529,10 +545,10 @@ export default function GestaoDeTripulacao() {
                         <div className="flex-1 space-y-3">
                           <div className="flex items-center gap-3">
                             <h3 className="font-semibold text-lg">{license.license_type}</h3>
-                            {getLicenseStatusBadge(license, () => {
+                            {getLicenseStatusBadge(license, canEditHabilitacoes ? () => {
                               setEditingLicense(license);
                               setIsLicenseDialogOpen(true);
-                            })}
+                            } : undefined)}
                           </div>
                           <div className="grid grid-cols-2 gap-3 text-sm">
                             {license.license_type === 'CMA' ? (
@@ -560,9 +576,11 @@ export default function GestaoDeTripulacao() {
                           {license.observations && <p className="text-sm text-muted-foreground">{license.observations}</p>}
                         </div>
                         <div className="flex gap-2 ml-4">
-                          <Button variant="ghost" size="sm" onClick={() => deleteLicense(license.id)}>
-                            <Trash2 size={16} />
-                          </Button>
+                          {canEditHabilitacoes && (
+                            <Button variant="ghost" size="sm" onClick={() => deleteLicense(license.id)}>
+                              <Trash2 size={16} />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>)}

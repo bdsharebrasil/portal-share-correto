@@ -129,7 +129,7 @@ export default function CartoesCorporativos() {
 
       if (existingCards && existingCards.length > 0) {
         existingCards.forEach((card) => {
-          cardsMap.set(card.card_type, card);
+          cardsMap.set(card.card_type, card as BenefitCard);
         });
       } else {
         // Create default benefit cards if they don't exist
@@ -151,7 +151,7 @@ export default function CartoesCorporativos() {
 
           if (insertError) throw insertError;
           if (newCard) {
-            cardsMap.set(cardType, newCard);
+            cardsMap.set(cardType, newCard as BenefitCard);
           }
         }
       }

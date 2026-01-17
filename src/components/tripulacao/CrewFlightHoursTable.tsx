@@ -21,10 +21,10 @@ interface CrewFlightHoursTableProps {
 }
 
 function formatHours(hours: number | null) {
-  if (!hours) return "0:00";
+  if (!hours) return "00:00";
   const h = Math.floor(hours);
   const m = Math.round((hours - h) * 60);
-  return `${h}:${String(m).padStart(2, "0")}`;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTableProps) {
@@ -62,6 +62,8 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
         month: number;
         year: number;
         aircraft: { id: string; registration: string } | null;
+        pic_hours: number;
+        sic_hours: number;
         total_hours: number;
         ifr_hours: number;
         not_hours: number;
@@ -79,13 +81,24 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
             month,
             year,
             aircraft: entry.aircraft as any,
+            pic_hours: 0,
+            sic_hours: 0,
             total_hours: 0,
             ifr_hours: 0,
             not_hours: 0,
           };
         }
 
-        aggregated[key].total_hours += Number(entry.total_time || 0);
+        const totalTime = Number(entry.total_time || 0);
+
+        // Separar horas de PIC e SIC
+        if (entry.pic_canac === crewMemberId) {
+          aggregated[key].pic_hours += totalTime;
+        } else if (entry.sic_canac === crewMemberId) {
+          aggregated[key].sic_hours += totalTime;
+        }
+
+        aggregated[key].total_hours += totalTime;
         aggregated[key].ifr_hours += Number(entry.ifr_time || 0);
         aggregated[key].not_hours += Number(entry.night_hours || 0);
       }
@@ -151,6 +164,14 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
   ];
+
+  const getTotalPicHours = () => {
+    return filteredFlightHours.reduce((sum, record) => sum + (record.pic_hours || 0), 0);
+  };
+
+  const getTotalSicHours = () => {
+    return filteredFlightHours.reduce((sum, record) => sum + (record.sic_hours || 0), 0);
+  };
 
   const getTotalHours = () => {
     return filteredFlightHours.reduce((sum, record) => sum + (record.total_hours || 0), 0);
@@ -270,7 +291,15 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4">
+                <div className="text-xs text-muted-foreground">PIC (Comandante)</div>
+                <div className="text-2xl font-bold text-emerald-600">{formatHours(getTotalPicHours())}</div>
+              </div>
+              <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-lg p-4">
+                <div className="text-xs text-muted-foreground">SIC (2º Piloto)</div>
+                <div className="text-2xl font-bold text-cyan-600">{formatHours(getTotalSicHours())}</div>
+              </div>
               <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
                 <div className="text-xs text-muted-foreground">Total de Horas</div>
                 <div className="text-2xl font-bold text-primary">{formatHours(getTotalHours())}</div>
@@ -295,6 +324,8 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
                   <TableRow>
                     <TableHead>Aeronave</TableHead>
                     <TableHead>Mês/Ano</TableHead>
+                    <TableHead className="text-right">PIC</TableHead>
+                    <TableHead className="text-right">SIC</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                     <TableHead className="text-right">IFR</TableHead>
                     <TableHead className="text-right">NOT</TableHead>
@@ -308,6 +339,16 @@ export default function CrewFlightHoursTable({ crewMemberId }: CrewFlightHoursTa
                       </TableCell>
                       <TableCell>
                         {monthNames[record.month - 1]} {record.year}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className="bg-emerald-500/20 text-emerald-600 px-2 py-1 rounded text-xs font-semibold">
+                          {formatHours(record.pic_hours)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className="bg-cyan-500/20 text-cyan-600 px-2 py-1 rounded text-xs font-semibold">
+                          {formatHours(record.sic_hours)}
+                        </span>
                       </TableCell>
                       <TableCell className="text-right font-semibold">
                         {formatHours(record.total_hours)}

@@ -441,7 +441,7 @@ export function useAircraftCellHours(aircraftId: string) {
         .single();
 
       if (error) throw error;
-      return data as AircraftCellData;
+      return { ...data, aircraft_id: aircraftId } as AircraftCellData;
     },
     enabled: !!aircraftId,
   });

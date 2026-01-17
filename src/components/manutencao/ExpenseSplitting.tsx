@@ -27,7 +27,12 @@ const ExpenseSplitting: React.FC<{ aircraftId?: string }> = ({ aircraftId }) => 
 
         const { data, error } = await query;
         if (error) throw error;
-        setSplits(data || []);
+        setSplits((data || []).map((d: any) => ({
+          ...d,
+          aircraft_id: d.aeronave_id,
+          description: d.descricao || '',
+          amount: d.valor_rateado || 0
+        })) as RateioDespesa[]);
       } catch (error) {
         console.error('Erro Rateio:', error);
       } finally {

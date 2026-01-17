@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { X, Search, ChevronRight, Folder, Users, Split, Upload, FileText, Receipt, CreditCard, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { fromUntyped } from "@/lib/supabase-helpers";
+import { marcarDespesaComoRecebida } from "@/lib/reconciliation-utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCategoriasFinanceiro, useCategoriasConta } from "@/hooks/useCategoriasFinanceiro";
 import { useAeronaves } from "@/hooks/useAeronaves";
@@ -118,6 +121,7 @@ export function FluxoCaixaInlineForm({
   movimentacao
 }: FluxoCaixaInlineFormProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { categorias: allCategorias } = useCategoriasFinanceiro();
   const { contas } = useCategoriasConta();
   const { aeronaves } = useAeronaves();
@@ -481,6 +485,51 @@ export function FluxoCaixaInlineForm({
       let lancamentoId: string | null = null;
 
       if (movimentacao?.id) {
+        // Verificar se é uma despesa reembolsável sendo marcada como "recebido"
+        // Verifica se o reembolso ainda não foi processado E se o status está/ficou como recebido
+        const despesaReembolsavel = movimentacao.reembolsavel === true;
+        const ehSaida = movimentacao.tipo_movimento === 'saida';
+        const aindaNaoRecebido = movimentacao.reembolso_recebido !== true;
+        const statusRecebido = formData.status === 'recebido';
+        // Se o status anterior era diferente de recebido OU se nunca foi processado corretamente
+        const statusMudouParaRecebido = movimentacao.status !== 'recebido' || aindaNaoRecebido;
+        
+        console.log('=== Verificando reembolso ===');
+        console.log('despesaReembolsavel:', despesaReembolsavel, '| movimentacao.reembolsavel:', movimentacao.reembolsavel);
+        console.log('ehSaida:', ehSaida, '| movimentacao.tipo_movimento:', movimentacao.tipo_movimento);
+        console.log('aindaNaoRecebido:', aindaNaoRecebido, '| movimentacao.reembolso_recebido:', movimentacao.reembolso_recebido);
+        console.log('statusRecebido:', statusRecebido, '| formData.status:', formData.status);
+        console.log('statusMudouParaRecebido:', statusMudouParaRecebido, '| movimentacao.status:', movimentacao.status);
+        
+        const isMarkingAsReceived = despesaReembolsavel && ehSaida && aindaNaoRecebido && statusRecebido;
+        console.log('isMarkingAsReceived:', isMarkingAsReceived);
+
+        if (isMarkingAsReceived) {
+          // Usar função especializada para marcar como recebido e criar entrada
+          console.log('Chamando marcarDespesaComoRecebida...');
+          const result = await marcarDespesaComoRecebida(
+            movimentacao.id,
+            formData.data,
+            formData.conta_banco || null,
+            comprovanteUrl,
+            user.id
+          );
+          
+          console.log('Resultado marcarDespesaComoRecebida:', result);
+
+          if (!result.success) {
+            toast.error(result.error || 'Erro ao marcar como recebido');
+            return;
+          }
+
+          // Invalidar cache para recarregar os dados
+          await queryClient.invalidateQueries({ queryKey: ["controle_bancario"] });
+          toast.success("Reembolso recebido! Entrada criada no fluxo de caixa.");
+          onSuccess();
+          return;
+        }
+
+        // Atualização normal
         const { error } = await supabase
           .from("controle_bancario")
           .update(data)
@@ -513,8 +562,7 @@ export function FluxoCaixaInlineForm({
       // Se tem rateio, salvar os dados de rateio
       if (temRateio && rateioData && lancamentoId && formData.aeronave) {
         // Primeiro deletar rateios existentes
-        await supabase
-          .from("lancamentos_rateio")
+        await fromUntyped("lancamentos_rateio")
           .delete()
           .eq("lancamento_id", lancamentoId);
 
@@ -531,8 +579,7 @@ export function FluxoCaixaInlineForm({
           status: "pendente",
         }));
 
-        const { error: rateioError } = await supabase
-          .from("lancamentos_rateio")
+        const { error: rateioError } = await fromUntyped("lancamentos_rateio")
           .insert(rateiosToInsert);
 
         if (rateioError) {
@@ -588,8 +635,8 @@ export function FluxoCaixaInlineForm({
           // Verificar se já existe conta a receber vinculada a essa conciliação
           let alreadyHasConta = false;
           if (reconciliationId) {
-            const { data: existingConta } = await supabase
-              .from('contas_areceber')
+            const { data: existingConta } = await (supabase
+              .from('contas_areceber') as any)
               .select('id')
               .eq('banco_conciliacao_id', reconciliationId)
               .maybeSingle();

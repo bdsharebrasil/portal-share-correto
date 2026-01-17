@@ -99,29 +99,7 @@ export function AddAircraftDialog({ open, onOpenChange, aircraft }: AddAircraftD
 
         if (error) throw error;
 
-        // Create logbook months for all 12 months of current year
-        const aircraftId = insertedAircraft?.[0]?.id;
-        if (aircraftId) {
-          const currentYear = new Date().getFullYear();
-          const logbookMonths = Array.from({ length: 12 }, (_, index) => ({
-            aircraft_id: aircraftId,
-            month: index + 1,
-            year: currentYear,
-            is_closed: false,
-          }));
-
-          // Use upsert to prevent duplicates (ignore if already exists)
-          const { error: logbookError } = await supabase
-            .from('logbook_months')
-            .upsert(logbookMonths, {
-              onConflict: 'aircraft_id,year,month',
-              ignoreDuplicates: true
-            });
-
-          if (logbookError) throw logbookError;
-        }
-
-        toast({ title: "Sucesso!", description: "Aeronave cadastrada com sucesso. Todos os 12 meses foram criados." });
+        toast({ title: "Sucesso!", description: "Aeronave cadastrada com sucesso. Agora configure os diários de bordo conforme necessário." });
       }
 
       queryClient.invalidateQueries({ queryKey: ['aircraft'] });

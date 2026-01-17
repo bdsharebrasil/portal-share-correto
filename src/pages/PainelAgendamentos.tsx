@@ -152,7 +152,7 @@ export default function PainelAgendamentos() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data || []) as BookingRequest[];
+      return (data || []) as unknown as BookingRequest[];
     }
   });
 
@@ -1234,7 +1234,7 @@ export default function PainelAgendamentos() {
                           <UserCheck className="h-5 w-5 text-muted-foreground" />
                           <div>
                             <p className="font-medium">{crew.full_name}</p>
-                            <p className="text-sm text-muted-foreground">{crew.license_type}</p>
+                            <p className="text-sm text-muted-foreground">{(crew as any).license_type || "Tripulante"}</p>
                           </div>
                         </div>
                         <Switch

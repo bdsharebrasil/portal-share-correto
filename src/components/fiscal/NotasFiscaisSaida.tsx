@@ -193,7 +193,7 @@ export function NotasFiscaisSaida() {
         if ((notaData.status === "pago" || notaData.status === "pendente") &&
             (editingNota.status !== "pago" && editingNota.status !== "pendente") && user) {
           const contaBancariaStatus = notaData.status === "pago" ? "confirmado" : "pendente";
-          await supabase.from("controle_bancario").insert({
+          await (supabase.from("controle_bancario") as any).insert({
             descricao: `NF Saída ${notaData.numero} - ${notaData.cliente_nome}${formData.aeronave_registration ? ` (${formData.aeronave_registration})` : ""}`,
             valor: notaData.valor,
             data: new Date().toISOString().split("T")[0],
@@ -241,7 +241,7 @@ export function NotasFiscaisSaida() {
         // Se criada com status "pago" ou "pendente"
         if ((notaData.status === "pago" || notaData.status === "pendente") && user && insertedNota) {
           const contaBancariaStatus = notaData.status === "pago" ? "confirmado" : "pendente";
-          await supabase.from("controle_bancario").insert({
+          await (supabase.from("controle_bancario") as any).insert({
             descricao: `NF Saída ${notaData.numero} - ${notaData.cliente_nome}${formData.aeronave_registration ? ` (${formData.aeronave_registration})` : ""}`,
             valor: notaData.valor,
             data: new Date().toISOString().split("T")[0],
@@ -489,8 +489,8 @@ export function NotasFiscaisSaida() {
       // Criar entrada no controle_bancario
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { error: fluxoError } = await supabase
-          .from("controle_bancario")
+        const { error: fluxoError } = await (supabase
+          .from("controle_bancario") as any)
           .insert({
             descricao: `NF Saída ${nota.numero} - ${nota.cliente_nome}${nota.aeronave_registration ? ` (${nota.aeronave_registration})` : ""}`,
             valor: nota.valor,

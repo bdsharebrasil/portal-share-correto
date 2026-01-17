@@ -8,14 +8,16 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, ArrowLeft, UploadCloud, AlertTriangle, Clock } from "lucide-react";
+import { Calendar, ArrowLeft, UploadCloud, AlertTriangle, Clock, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserRole } from "@/hooks/useUserRole";
 import CrewFlightHoursTable from "@/components/tripulacao/CrewFlightHoursTable";
 import { formatBirthDateWithAge, formatDateToBR, formatMonthShort } from "@/lib/date-utils";
 import { CrewMemberNav } from "@/components/tripulacao/CrewMemberNav";
 import { StackedCardsUpload, type UploadFile } from "@/components/ui/stacked-cards-upload";
 import { LicenseExpiryDialog } from "@/components/tripulacao/LicenseExpiryDialog";
+import { AddLicenseDialog } from "@/components/tripulacao/AddLicenseDialog";
 
 export default function TripulanteDetalhes() {
   const { id } = useParams();
@@ -34,6 +36,12 @@ export default function TripulanteDetalhes() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedLicense, setSelectedLicense] = useState<any>(null);
   const [isCMAEdit, setIsCMAEdit] = useState(false);
+  // State for add license dialog
+  const [addLicenseDialogOpen, setAddLicenseDialogOpen] = useState(false);
+
+  // Verificação de permissões
+  const { hasRole } = useUserRole();
+  const canEditHabilitacoes = hasRole('admin') || hasRole('gestor_master') || hasRole('piloto_chefe') || hasRole('coordenador_voo');
 
   const { data: member, isLoading, refetch } = useQuery({
     queryKey: ["crew_member", id],
@@ -87,6 +95,10 @@ export default function TripulanteDetalhes() {
   });
 
   const handleEditLicense = (lic: any, isCMA: boolean = false) => {
+    if (!canEditHabilitacoes) {
+      alert('Você não tem permissão para editar habilitações');
+      return;
+    }
     setSelectedLicense(lic);
     setIsCMAEdit(isCMA);
     setEditDialogOpen(true);
@@ -207,16 +219,17 @@ export default function TripulanteDetalhes() {
       const path = `${id}/${Date.now()}-${file.name}`;
 
       const { error } = await supabase.storage.from("crew-docs").upload(path, file, {
-        upsert: false,
-        onUploadProgress: (progress: { loaded: number; total: number }) => {
-          const percent = (progress.loaded / progress.total) * 100;
-          setUploadingFiles(prev =>
-            prev.map(f =>
-              f.id === fileId ? { ...f, progress: Math.round(percent) } : f
-            )
-          );
-        }
+        upsert: false
       });
+
+      if (error) throw error;
+
+      // Set progress to 100% after upload completes
+      setUploadingFiles(prev =>
+        prev.map(f =>
+          f.id === fileId ? { ...f, progress: 100 } : f
+        )
+      );
 
       if (error) throw error;
 
@@ -395,6 +408,16 @@ export default function TripulanteDetalhes() {
               </TabsContent>
 
               <TabsContent value="habilitacoes" className="mt-6 space-y-6">
+                {/* Add License Button */}
+                {canEditHabilitacoes && (
+                  <div className="flex justify-end">
+                    <Button onClick={() => setAddLicenseDialogOpen(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Nova Habilitação
+                    </Button>
+                  </div>
+                )}
+                
                 {isLicensesLoading ? (
                   <div className="text-center py-8">
                     <div className="text-sm text-muted-foreground">Carregando habilitações...</div>
@@ -421,7 +444,7 @@ export default function TripulanteDetalhes() {
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className={`font-semibold ${typeColorClass.labelText}`}>{lic.license_type}</div>
-                              {getLicenseStatusBadge(lic, false, () => handleEditLicense(lic, false))}
+                              {getLicenseStatusBadge(lic, false, canEditHabilitacoes ? () => handleEditLicense(lic, false) : undefined)}
                             </div>
 
                             <div className="space-y-2 text-sm">
@@ -482,7 +505,7 @@ export default function TripulanteDetalhes() {
                                   Certificado Médico Aeronáutico
                                 </p>
                               </div>
-                              {getLicenseStatusBadge(lic, true, () => handleEditLicense(lic, true))}
+                              {getLicenseStatusBadge(lic, true, canEditHabilitacoes ? () => handleEditLicense(lic, true) : undefined)}
                             </div>
 
                             <div className="space-y-2 text-sm">
@@ -638,6 +661,16 @@ export default function TripulanteDetalhes() {
           isCMA={isCMAEdit}
           onSuccess={() => refetchLicenses()}
         />
+
+        {/* Add License Dialog */}
+        {id && (
+          <AddLicenseDialog
+            open={addLicenseDialogOpen}
+            onOpenChange={setAddLicenseDialogOpen}
+            crewMemberId={id}
+            onSuccess={() => refetchLicenses()}
+          />
+        )}
       </div>
     </Layout>
   );

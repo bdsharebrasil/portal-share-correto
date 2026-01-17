@@ -85,7 +85,7 @@ export function MovimentacaoBancariaDialog({
         if (error) throw error;
         toast.success("Movimentação atualizada com sucesso!");
       } else {
-        const { error } = await supabase.from("controle_bancario").insert(payload);
+        const { error } = await (supabase.from("controle_bancario") as any).insert(payload);
         if (error) throw error;
         toast.success("Movimentação criada com sucesso!");
       }

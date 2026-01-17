@@ -63,22 +63,22 @@ export function VacationConfigManager() {
             .select("role")
             .eq("user_id", profile.id);
 
-          const { data: salaryData } = await supabase
+          const { data: salaryData } = await (supabase as any)
             .from("salaries")
-            .select("base_salary")
+            .select("base_salary_bruto")
             .eq("user_profile", profile.id)
             .order("effective_date", { ascending: false })
             .limit(1)
             .single();
 
-          const roles = rolesData?.map((r) => r.role).filter(Boolean) || [];
+          const roles = rolesData?.map((r: any) => r.role).filter(Boolean) || [];
 
           return {
             id: profile.id,
             full_name: profile.full_name,
             email: profile.email || "",
             roles,
-            salary: salaryData ? { base_salary_bruto: salaryData.base_salary } : null,
+            salary: salaryData ? { base_salary_bruto: salaryData.base_salary_bruto } : null,
           };
         })
       );

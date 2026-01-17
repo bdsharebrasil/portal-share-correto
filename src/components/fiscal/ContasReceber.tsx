@@ -305,8 +305,8 @@ export function ContasReceber() {
       });
 
       // 3. Carregar contas a receber manuais (que não vieram do fluxo ou bank_reconciliations)
-      const { data: contasData, error: contasError } = await supabase
-        .from("contas_areceber")
+      const { data: contasData, error: contasError } = await (supabase
+        .from("contas_areceber") as any)
         .select("*")
         .order("data_vencimento", { ascending: true });
 
@@ -784,7 +784,7 @@ export function ContasReceber() {
       }
 
       // 3. Chamar função RPC para criar entrada no controle_bancario
-      const { error: rpcError } = await supabase.rpc('create_entrada_bancaria_from_conta_receber', {
+      const { error: rpcError } = await (supabase.rpc as any)('create_entrada_bancaria_from_conta_receber', {
         p_conta_receber_id: contasReceberData.id,
         p_conta_banco: nomeBanco
       });

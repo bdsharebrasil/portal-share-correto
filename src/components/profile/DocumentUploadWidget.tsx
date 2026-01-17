@@ -374,7 +374,7 @@ export function DocumentUploadWidget({ employeeId, employeeName }: DocumentUploa
     try {
       setIsLoading(true);
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("user_documents")
         .update({ description: editingCaption })
         .eq("id", editingDocId);

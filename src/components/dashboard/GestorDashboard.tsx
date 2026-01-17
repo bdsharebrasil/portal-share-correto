@@ -48,7 +48,7 @@ export function GestorDashboard() {
     { icon: Users, label: "Gestão de Funcionários", route: "/gestao-funcionarios", color: "from-blue-500 to-blue-600" },
     { icon: FileCheck, label: "Controle de Vencimentos", route: "/vencimentos", color: "from-purple-500 to-purple-600" },
     { icon: FileText, label: "Gestão Fiscal", route: "/financeiro/gestao-fiscal", color: "from-green-500 to-green-600" },
-    { icon: PieChart, label: "Rateio Clientes", route: "/financeiro/rateio-consolidado", color: "from-indigo-500 to-indigo-600" },
+    { icon: PieChart, label: "Balanço Clientes", route: "/financeiro/balanco-cliente", color: "from-indigo-500 to-indigo-600" },
     { icon: BarChart3, label: "Dashboard Gestor", route: "/financeiro/gestor", color: "from-orange-500 to-orange-600", restricted: true },
   ];
 

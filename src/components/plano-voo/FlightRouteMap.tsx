@@ -116,13 +116,8 @@ export const FlightRouteMap: React.FC<FlightRouteMapProps> = ({ points, classNam
         style={{ height: '100%', width: '100%', minHeight: '400px' }}
         className="z-0"
       >
-        <TileLayerAny
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        />
-        
+        <TileLayerAny url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
         <FitBounds points={points} />
-
-        {/* Main route line */}
         {routeCoordinates.length > 1 && (
           <Polyline
             positions={routeCoordinates}
@@ -134,8 +129,6 @@ export const FlightRouteMap: React.FC<FlightRouteMapProps> = ({ points, classNam
             }}
           />
         )}
-
-        {/* Alternate route line */}
         {alternateRoute.length > 0 && (
           <Polyline
             positions={alternateRoute}
@@ -147,8 +140,6 @@ export const FlightRouteMap: React.FC<FlightRouteMapProps> = ({ points, classNam
             }}
           />
         )}
-
-        {/* Markers */}
         {points.map((point, index) => (
           <MarkerAny
             key={`${point.icao}-${index}`}

@@ -41,6 +41,8 @@ export function AircraftSalariesMonthly() {
   const [selectedAircraft, setSelectedAircraft] = useState<AircraftData | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dialogValue, setDialogValue] = useState<string>("");
+  const [selectedAircraftsToShow, setSelectedAircraftsToShow] = useState<string[]>([]);
+  const [selectedAircraftToAdd, setSelectedAircraftToAdd] = useState<string>("");
 
   const months = [
     { value: 1, label: "Janeiro" },
@@ -131,6 +133,29 @@ export function AircraftSalariesMonthly() {
       };
     });
   }, [activeAircraft, allRates, selectedMonth, selectedYear]);
+
+  const aircraftWithPrice = useMemo(() => {
+    return aircraftWithRates.filter((a) => a.hourly_rate > 0);
+  }, [aircraftWithRates]);
+
+  const displayedAircraft = useMemo(() => {
+    return aircraftWithRates.filter((a) => selectedAircraftsToShow.includes(a.id));
+  }, [aircraftWithRates, selectedAircraftsToShow]);
+
+  const availableAircraftToAdd = useMemo(() => {
+    return aircraftWithRates.filter((a) => !selectedAircraftsToShow.includes(a.id));
+  }, [aircraftWithRates, selectedAircraftsToShow]);
+
+  const handleAddAircraft = () => {
+    if (selectedAircraftToAdd) {
+      setSelectedAircraftsToShow([...selectedAircraftsToShow, selectedAircraftToAdd]);
+      setSelectedAircraftToAdd("");
+    }
+  };
+
+  const handleRemoveAircraft = (aircraftId: string) => {
+    setSelectedAircraftsToShow(selectedAircraftsToShow.filter((id) => id !== aircraftId));
+  };
 
   const saveRateMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -237,7 +262,7 @@ export function AircraftSalariesMonthly() {
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 max-w-xs">
+          <div className="grid grid-cols-2 gap-4 max-w-sm mb-6">
             <div>
               <Label htmlFor="month-select">Mês</Label>
               <Select value={selectedMonth.toString()} onValueChange={(v) => setSelectedMonth(Number(v))}>
@@ -270,6 +295,36 @@ export function AircraftSalariesMonthly() {
             </div>
           </div>
 
+          <div className="bg-slate-950 border border-blue-400/30 rounded-lg p-4 mb-6">
+            <Label className="text-sm font-semibold mb-2 block text-slate-200 bg-slate-900 px-2 py-1 rounded inline-block">Adicionar Aeronave</Label>
+            <div className="flex gap-2 text-slate-400">
+              <Select value={selectedAircraftToAdd} onValueChange={setSelectedAircraftToAdd}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Selecione uma aeronave" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableAircraftToAdd.map((aircraft) => (
+                    <SelectItem key={aircraft.id} value={aircraft.id}>
+                      {aircraft.registration} - {aircraft.model} (R$ {aircraft.hourly_rate.toFixed(2)}/hora)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={handleAddAircraft}
+                disabled={!selectedAircraftToAdd}
+                className="bg-cyan-500/75 hover:bg-cyan-600/75 text-white"
+              >
+                Adicionar
+              </Button>
+            </div>
+            {availableAircraftToAdd.length === 0 && (
+              <p className="text-xs text-cyan-400 mt-2">
+                Todas as aeronaves ativas já foram adicionadas à tabela.
+              </p>
+            )}
+          </div>
+
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -278,11 +333,11 @@ export function AircraftSalariesMonthly() {
                   <TableHead>Modelo</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Valor/Hora (R$)</TableHead>
-                  <TableHead className="w-24">Ações</TableHead>
+                  <TableHead className="w-32">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {aircraftWithRates.map((aircraft) => (
+                {displayedAircraft.map((aircraft) => (
                   <TableRow key={aircraft.id}>
                     <TableCell className="font-semibold">{aircraft.registration}</TableCell>
                     <TableCell>{aircraft.model}</TableCell>
@@ -327,16 +382,29 @@ export function AircraftSalariesMonthly() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {editingId !== aircraft.id && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEditClick(aircraft)}
-                          title="Editar valor/hora"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <div className="flex gap-1">
+                        {editingId !== aircraft.id && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditClick(aircraft)}
+                            title="Editar valor/hora"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {selectedAircraftsToShow.includes(aircraft.id) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleRemoveAircraft(aircraft.id)}
+                            title="Remover da tabela"
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -344,9 +412,9 @@ export function AircraftSalariesMonthly() {
             </Table>
           </div>
 
-          {aircraftWithRates.length === 0 && (
+          {displayedAircraft.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
-              Nenhuma aeronave ativa encontrada.
+              Nenhuma aeronave selecionada. Adicione uma usando o seletor acima.
             </div>
           )}
         </CardContent>

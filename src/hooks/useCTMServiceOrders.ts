@@ -142,7 +142,7 @@ export function useCTMServiceOrders() {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        return data || [];
+        return (data || []) as CTMServiceOrder[];
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
         console.error('Error loading service orders:', errorMessage);
@@ -209,7 +209,7 @@ export function useCTMServiceOrders() {
     try {
       const { data: newOrder, error } = await supabase
         .from('ctm_service_orders')
-        .insert([data])
+        .insert([data as any])
         .select()
         .single();
 

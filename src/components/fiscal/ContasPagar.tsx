@@ -167,8 +167,8 @@ export function ContasPagar() {
 
     setIsSavingForm(true);
     try {
-      const { error } = await supabase
-        .from("contas_apagar")
+      const { error } = await (supabase
+        .from("contas_apagar") as any)
         .insert([
           {
             numero: formData.numero,

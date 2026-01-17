@@ -85,7 +85,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setBudgets(data || []);
+      setBudgets((data || []) as CTMBudget[]);
     } catch (error: any) {
       console.error("Error loading budgets:", error);
       toast.error("Erro ao carregar orçamentos");

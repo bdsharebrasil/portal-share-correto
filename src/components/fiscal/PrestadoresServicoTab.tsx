@@ -176,8 +176,8 @@ export function PrestadoresServicoTab() {
         if (error) throw error;
         toast.success("Prestador atualizado com sucesso!");
       } else {
-        const { error } = await supabase
-          .from("prestadores_servico")
+        const { error } = await (supabase
+          .from("prestadores_servico") as any)
           .insert(formData);
         if (error) throw error;
         toast.success("Prestador cadastrado com sucesso!");
@@ -217,8 +217,8 @@ export function PrestadoresServicoTab() {
         if (error) throw error;
         toast.success("Nota fiscal atualizada com sucesso!");
       } else {
-        const { error } = await supabase
-          .from("prestador_notas_fiscais")
+        const { error } = await (supabase
+          .from("prestador_notas_fiscais") as any)
           .insert(formData);
         if (error) throw error;
         toast.success("Nota fiscal cadastrada com sucesso!");
@@ -891,8 +891,8 @@ function PrestadorFormDialog({ open, onOpenChange, prestador, bancos, onSave }: 
               <User className="h-4 w-4" />
               Dados Pessoais
             </h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2 space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2 space-y-2">
                 <Label>Nome Completo *</Label>
                 <Input
                   value={formData.nome || ""}
@@ -918,7 +918,7 @@ function PrestadorFormDialog({ open, onOpenChange, prestador, bancos, onSave }: 
                   placeholder="(00) 00000-0000"
                 />
               </div>
-              <div className="col-span-2 space-y-2">
+              <div className="sm:col-span-2 space-y-2">
                 <Label>E-mail</Label>
                 <Input
                   type="email"
@@ -936,8 +936,8 @@ function PrestadorFormDialog({ open, onOpenChange, prestador, bancos, onSave }: 
               <MapPin className="h-4 w-4" />
               Endereço
             </h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2 space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2 space-y-2">
                 <Label>Endereço</Label>
                 <Input
                   value={formData.endereco || ""}
@@ -975,7 +975,7 @@ function PrestadorFormDialog({ open, onOpenChange, prestador, bancos, onSave }: 
               <CreditCard className="h-4 w-4" />
               Dados Bancários
             </h4>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Banco</Label>
                 <Input
@@ -1012,7 +1012,7 @@ function PrestadorFormDialog({ open, onOpenChange, prestador, bancos, onSave }: 
                   placeholder="00000-0"
                 />
               </div>
-              <div className="col-span-2 space-y-2">
+              <div className="sm:col-span-2 space-y-2">
                 <Label>Chave PIX</Label>
                 <Input
                   value={formData.pix || ""}
@@ -1034,11 +1034,11 @@ function PrestadorFormDialog({ open, onOpenChange, prestador, bancos, onSave }: 
             />
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSaving}>
+            <Button type="submit" disabled={isSaving} className="w-full sm:w-auto">
               {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {prestador ? "Salvar Alterações" : "Cadastrar Prestador"}
             </Button>
@@ -1049,7 +1049,7 @@ function PrestadorFormDialog({ open, onOpenChange, prestador, bancos, onSave }: 
   );
 }
 
-// Nota Fiscal Form Dialog
+// Nota Fiscal Form Dialog with NF Upload
 interface NotaFiscalFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -1057,11 +1057,15 @@ interface NotaFiscalFormDialogProps {
   prestadores: Prestador[];
   selectedPrestadorId: string | null;
   onSave: (data: Partial<NotaFiscal>) => void;
+  onRefresh?: () => void;
 }
 
-function NotaFiscalFormDialog({ open, onOpenChange, nota, prestadores, selectedPrestadorId, onSave }: NotaFiscalFormDialogProps) {
+function NotaFiscalFormDialog({ open, onOpenChange, nota, prestadores, selectedPrestadorId, onSave, onRefresh }: NotaFiscalFormDialogProps) {
   const [formData, setFormData] = useState<Partial<NotaFiscal>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [notaFile, setNotaFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     if (nota) {
@@ -1076,7 +1080,43 @@ function NotaFiscalFormDialog({ open, onOpenChange, nota, prestadores, selectedP
         status: "pendente",
       });
     }
+    setNotaFile(null);
   }, [nota, selectedPrestadorId, open]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) {
+      setNotaFile(e.target.files[0]);
+    }
+  };
+
+  const uploadNF = async (notaId: string): Promise<string | null> => {
+    if (!notaFile) return null;
+    
+    setIsUploading(true);
+    try {
+      const fileExt = notaFile.name.split('.').pop();
+      const fileName = `${notaId}_nf_${Date.now()}.${fileExt}`;
+      const filePath = `prestadores/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("documents")
+        .upload(filePath, notaFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("documents")
+        .getPublicUrl(filePath);
+
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error("Erro ao enviar NF:", error);
+      toast.error("Erro ao enviar arquivo da NF");
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1085,15 +1125,33 @@ function NotaFiscalFormDialog({ open, onOpenChange, nota, prestadores, selectedP
       return;
     }
     setIsSaving(true);
-    await onSave(formData);
-    setIsSaving(false);
+    
+    try {
+      // Se está editando e tem arquivo, faz upload primeiro
+      if (nota?.id && notaFile) {
+        const url = await uploadNF(nota.id);
+        if (url) {
+          formData.arquivo_nota_url = url;
+        }
+      }
+      
+      await onSave(formData);
+      
+      // Se criou nova nota e tem arquivo, precisaria atualizar depois
+      // Mas o onSave já fecha o dialog, então vamos apenas notificar
+      if (!nota?.id && notaFile) {
+        toast.info("Após criar a nota, adicione a NF pela lista");
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{nota ? "Editar Nota Fiscal" : "Nova Nota Fiscal"}</DialogTitle>
           <DialogDescription>
@@ -1119,7 +1177,7 @@ function NotaFiscalFormDialog({ open, onOpenChange, nota, prestadores, selectedP
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Número da Nota *</Label>
               <Input
@@ -1143,7 +1201,7 @@ function NotaFiscalFormDialog({ open, onOpenChange, nota, prestadores, selectedP
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Mês Referência</Label>
               <Select value={String(formData.mes_referencia || "")} onValueChange={(v) => setFormData({ ...formData, mes_referencia: Number(v) })}>
@@ -1172,7 +1230,7 @@ function NotaFiscalFormDialog({ open, onOpenChange, nota, prestadores, selectedP
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Data de Emissão *</Label>
               <Input
@@ -1189,6 +1247,56 @@ function NotaFiscalFormDialog({ open, onOpenChange, nota, prestadores, selectedP
                 value={formData.data_vencimento || ""}
                 onChange={(e) => setFormData({ ...formData, data_vencimento: e.target.value })}
               />
+            </div>
+          </div>
+
+          {/* Upload NF Section */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              Arquivo da Nota Fiscal
+            </Label>
+            
+            {/* Current NF preview if exists */}
+            {formData.arquivo_nota_url && !notaFile && (
+              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                <FileText className="h-5 w-5 text-primary" />
+                <span className="text-sm flex-1 truncate">NF anexada</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowPreview(true)}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  Ver
+                </Button>
+              </div>
+            )}
+
+            {/* File input */}
+            <div className="relative">
+              <Input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleFileChange}
+                className="file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+              />
+              {notaFile && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                  <FileText className="h-4 w-4" />
+                  <span className="truncate">{notaFile.name}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => setNotaFile(null)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1212,16 +1320,38 @@ function NotaFiscalFormDialog({ open, onOpenChange, nota, prestadores, selectedP
             />
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
               Cancelar
             </Button>
-            <Button type="submit" disabled={isSaving}>
-              {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            <Button type="submit" disabled={isSaving || isUploading} className="w-full sm:w-auto">
+              {(isSaving || isUploading) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {nota ? "Salvar Alterações" : "Cadastrar Nota Fiscal"}
             </Button>
           </DialogFooter>
         </form>
+
+        {/* NF Preview Dialog */}
+        {showPreview && formData.arquivo_nota_url && (
+          <Dialog open={showPreview} onOpenChange={setShowPreview}>
+            <DialogContent className="max-w-4xl h-[80vh]">
+              <DialogHeader>
+                <DialogTitle>Visualizar Nota Fiscal</DialogTitle>
+              </DialogHeader>
+              {formData.arquivo_nota_url.endsWith('.pdf') ? (
+                <iframe src={formData.arquivo_nota_url} className="w-full h-full rounded-lg" />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <img 
+                    src={formData.arquivo_nota_url} 
+                    alt="Nota Fiscal" 
+                    className="max-w-full max-h-full object-contain rounded-lg"
+                  />
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+        )}
       </DialogContent>
     </Dialog>
   );

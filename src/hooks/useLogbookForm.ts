@@ -120,9 +120,9 @@ export function useLogbookForm(aerodromes: Aerodrome[]) {
     }
   }, [formData.ac_time]);
 
-  // Calcular tempo de voo (DEP até POU) e tempo noturno do bloco (AC até COR)
+  // Calcular tempo de voo (DEP até POU) e tempo noturno preciso (AC até COR)
   useEffect(() => {
-    if (!formData.departure_time || !formData.pou_time) {
+    if (!formData.departure_time || !formData.pou_time || !formData.ac_time || !formData.cor_time) {
       setFormData(prev => ({
         ...prev,
         flight_time_hours: '',
@@ -134,71 +134,84 @@ export function useLogbookForm(aerodromes: Aerodrome[]) {
     }
 
     try {
-      // Calcular tempo de voo (DEP até POU)
-      const [depHours, depMinutes] = formData.departure_time.split(':').map(Number);
-      const [pouHours, pouMinutes] = formData.pou_time.split(':').map(Number);
+      // 1. TEMPO DE VOO (DEP -> POU)
+      const depMin = timeStringToMinutes(formData.departure_time);
+      let pouMin = timeStringToMinutes(formData.pou_time);
+      if (pouMin < depMin) pouMin += 1440; // Cruzou meia-noite
 
-      const depTotalMinutes = depHours * 60 + depMinutes;
-      const pouTotalMinutes = pouHours * 60 + pouMinutes;
+      const flightDiff = pouMin - depMin;
+      const flightH = Math.floor(flightDiff / 60);
+      const flightM = flightDiff % 60;
 
-      let diffMinutes = pouTotalMinutes - depTotalMinutes;
-      if (diffMinutes < 0) diffMinutes += 24 * 60; // Se passou da meia-noite
+      // 2. TEMPO NOTURNO (AC -> COR) baseado em Geolocalização
+      const depAero = aerodromes?.find(a => a.designativo === formData.departure_airport.toUpperCase());
+      
+      let nightMinutes = 0;
 
-      const hours = Math.floor(diffMinutes / 60);
-      const minutes = diffMinutes % 60;
+      if (depAero?.coordenadas && formData.entry_date) {
+        const coord = parseDMSCoordinate(depAero.coordenadas);
+        if (coord) {
+          const flightDate = new Date(formData.entry_date);
+          const { sunrise, sunset } = getSolarTimes(flightDate, coord.lat, coord.lng);
 
-      setFormData(prev => ({
-        ...prev,
-        flight_time_hours: hours.toString(),
-        flight_time_minutes: minutes.toString(),
-      }));
+          // Converter solares para minutos UTC
+          const sunriseMin = sunrise.getUTCHours() * 60 + sunrise.getUTCMinutes();
+          const sunsetMin = sunset.getUTCHours() * 60 + sunset.getUTCMinutes();
+          
+          // Regra RBAC: Noite = Sunset + 15min (Crepúsculo Civil) até Sunrise - 15min
+          const nightStart = sunsetMin + 15;
+          const nightEnd = sunriseMin - 15 < 0 ? sunriseMin - 15 + 1440 : sunriseMin - 15;
 
-      // Calcular tempo noturno do bloco (AC até COR) se temos AC e COR
-      if (formData.ac_time && formData.cor_time) {
-        try {
-          const [acHours, acMinutes] = formData.ac_time.split(':').map(Number);
-          const [corHours, corMinutes] = formData.cor_time.split(':').map(Number);
+          // Horários do Bloco
+          const acMin = timeStringToMinutes(formData.ac_time);
+          let corMin = timeStringToMinutes(formData.cor_time);
+          if (corMin < acMin) corMin += 1440;
 
-          const acTotalMinutes = acHours * 60 + acMinutes;
-          const corTotalMinutes = corHours * 60 + corMinutes;
+          // Função para calcular sobreposição entre dois intervalos
+          const calculateOverlap = (start1: number, end1: number, start2: number, end2: number) => {
+            return Math.max(0, Math.min(end1, end2) - Math.max(start1, start2));
+          };
 
-          let blockDiffMinutes = corTotalMinutes - acTotalMinutes;
-          if (blockDiffMinutes < 0) blockDiffMinutes += 24 * 60;
+          // A noite "pula" a meia-noite (ex: 18:30 às 05:45), então calculamos:
+          // 1. Parte noturna antes da meia-noite (nightStart até 1440)
+          // 2. Parte noturna após a meia-noite (0 até nightEnd)
+          // 3. Se o voo cruzou para o próximo dia, considerar noite do próximo dia também
+          
+          const nightBeforeMidnight = calculateOverlap(acMin, corMin, nightStart, 1440);
+          const nightAfterMidnight = calculateOverlap(acMin, corMin, 0, nightEnd);
+          const nightNextDay = calculateOverlap(acMin, corMin, nightStart + 1440, 2880);
 
-          // Determinar se AC e COR são noturnos
-          const acIsNight = acTotalMinutes < 6 * 60 || acTotalMinutes > 18 * 60;
-          const corIsNight = corTotalMinutes < 6 * 60 || corTotalMinutes > 18 * 60;
-
-          let nightMinutes = 0;
-          if (acIsNight && corIsNight) {
-            // Bloco todo noturno
-            nightMinutes = blockDiffMinutes;
-          } else if (acIsNight || corIsNight) {
-            // Bloco parcialmente noturno (metade)
-            nightMinutes = Math.round(blockDiffMinutes * 0.5);
-          }
-          // Senão é todo diurno, nightMinutes = 0
-
-          const nightHours = Math.floor(nightMinutes / 60);
-          const nightMins = nightMinutes % 60;
-
-          setFormData(prev => ({
-            ...prev,
-            night_time_hours: nightHours.toString(),
-            night_time_minutes: nightMins.toString(),
-          }));
-        } catch (err) {
-          console.error('Erro ao calcular tempo noturno:', err);
+          nightMinutes = nightBeforeMidnight + nightAfterMidnight + nightNextDay;
+          
+          // Garantir que não exceda o tempo total de bloco
+          const totalBlockTime = corMin - acMin;
+          nightMinutes = Math.min(nightMinutes, totalBlockTime);
         }
       }
-    } catch {
+
+      const nightH = Math.floor(nightMinutes / 60);
+      const nightM = nightMinutes % 60;
+
       setFormData(prev => ({
         ...prev,
-        flight_time_hours: '',
-        flight_time_minutes: '',
+        flight_time_hours: flightH.toString(),
+        flight_time_minutes: flightM.toString(),
+        night_time_hours: nightH.toString(),
+        night_time_minutes: nightM.toString(),
       }));
+
+    } catch (err) {
+      console.error('Erro no cálculo de tempos:', err);
     }
-  }, [formData.departure_time, formData.pou_time, formData.ac_time, formData.cor_time]);
+  }, [
+    formData.departure_time, 
+    formData.pou_time, 
+    formData.ac_time, 
+    formData.cor_time, 
+    formData.departure_airport, 
+    formData.entry_date, 
+    aerodromes
+  ]);
 
   // Resetar formulário
   const resetForm = useCallback(() => {

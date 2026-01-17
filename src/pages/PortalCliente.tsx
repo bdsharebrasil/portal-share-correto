@@ -119,6 +119,46 @@ export default function PortalCliente() {
       loadClientData();
     }
   }, [selectedClient, selectedAircraft]);
+
+  // Auto-refresh logbook data when visible (every 30 seconds if portal is active)
+  useEffect(() => {
+    if (!selectedAircraft?.aircraft_id) return;
+
+    const interval = setInterval(() => {
+      if (logbookMonthData) {
+        // Silently refresh data to keep in sync
+        loadClientData();
+      }
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [selectedAircraft?.aircraft_id, logbookMonthData]);
+
+  // Subscribe to realtime changes in logbook_months
+  useEffect(() => {
+    if (!selectedAircraft?.aircraft_id) return;
+
+    const subscription = supabase
+      .channel(`logbook_months_${selectedAircraft.aircraft_id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'logbook_months',
+          filter: `aircraft_id=eq.${selectedAircraft.aircraft_id}`
+        },
+        () => {
+          // Data changed, refresh
+          loadClientData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [selectedAircraft?.aircraft_id]);
   const loadClients = async () => {
     try {
       setLoading(true);
@@ -189,16 +229,94 @@ export default function PortalCliente() {
       } = await supabase.from('aircraft').select('*').eq('id', selectedAircraft.aircraft_id).single();
       if (aircraftData) setAircraft(aircraftData);
 
-      // Load logbook month data (latest)
-      const {
-        data: monthData
-      } = await supabase.from('logbook_months').select('celula_atual, celula_prox_revisao, celula_disponivel').eq('aircraft_id', selectedAircraft.aircraft_id).order('year', {
-        ascending: false
-      }).order('month', {
-        ascending: false
-      }).limit(1);
-      if (monthData && monthData.length > 0) {
-        setLogbookMonthData(monthData[0] as LogbookMonthData);
+      // Load logbook month data (current month first, then fallback to latest with data)
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+
+      // First try to get current month
+      let monthData: any = null;
+      try {
+        const { data } = await supabase
+          .from('logbook_months')
+          .select('id, celula_anterior, celula_atual, celula_prox_revisao, celula_disponivel, month, year')
+          .eq('aircraft_id', selectedAircraft.aircraft_id)
+          .eq('month', currentMonth)
+          .eq('year', currentYear)
+          .single();
+        monthData = data;
+      } catch (err) {
+        // Current month doesn't exist, we'll fetch the latest below
+        console.log('Current month not found, fetching latest...');
+      }
+
+      // If current month doesn't exist, get the latest month with data
+      if (!monthData) {
+        const { data: latestMonth } = await supabase
+          .from('logbook_months')
+          .select('id, celula_anterior, celula_atual, celula_prox_revisao, celula_disponivel, month, year')
+          .eq('aircraft_id', selectedAircraft.aircraft_id)
+          .order('year', { ascending: false })
+          .order('month', { ascending: false })
+          .limit(1);
+
+        monthData = latestMonth && latestMonth.length > 0 ? latestMonth[0] : null;
+      }
+
+      // If we have a logbook month, recalculate celula_atual from entries to ensure sync
+      if (monthData && monthData.id) {
+        // Get all entries for this aircraft
+        const { data: allEntries } = await supabase
+          .from('logbook_entries')
+          .select('total_time, entry_date')
+          .eq('aircraft_id', selectedAircraft.aircraft_id)
+          .order('entry_date', { ascending: true });
+
+        if (allEntries && allEntries.length > 0) {
+          // Calculate total flight time up to the current month
+          const relevantEntries = allEntries.filter(e => {
+            const entryDate = new Date(e.entry_date);
+            const entryMonth = entryDate.getUTCMonth() + 1;
+            const entryYear = entryDate.getUTCFullYear();
+
+            // Include entries from months up to and including the current month
+            return entryYear < monthData.year ||
+                   (entryYear === monthData.year && entryMonth <= monthData.month);
+          });
+
+          const totalFlightTime = relevantEntries.reduce((sum: number, entry: any) =>
+            sum + (Number(entry.total_time) || 0), 0);
+
+          const recalculatedCelulaAtual = parseFloat((totalFlightTime).toFixed(2));
+          const recalculatedCelulaDisponivel = parseFloat(
+            ((monthData.celula_prox_revisao ?? 0) - recalculatedCelulaAtual).toFixed(2)
+          );
+
+          // Update logbook_months if values changed significantly (more than 0.01 hours)
+          if (Math.abs((monthData.celula_atual ?? 0) - recalculatedCelulaAtual) > 0.01 ||
+              Math.abs((monthData.celula_disponivel ?? 0) - recalculatedCelulaDisponivel) > 0.01) {
+            try {
+              await supabase
+                .from('logbook_months')
+                .update({
+                  celula_atual: recalculatedCelulaAtual,
+                  celula_disponivel: recalculatedCelulaDisponivel
+                })
+                .eq('id', monthData.id);
+            } catch (err) {
+              console.error('Erro ao sincronizar célula:', err);
+            }
+          }
+
+          // Use recalculated values for display
+          setLogbookMonthData({
+            celula_atual: recalculatedCelulaAtual,
+            celula_prox_revisao: monthData.celula_prox_revisao,
+            celula_disponivel: recalculatedCelulaDisponivel
+          });
+        } else {
+          setLogbookMonthData(monthData as LogbookMonthData);
+        }
       }
 
       // Load flight activity from logbook

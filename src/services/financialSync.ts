@@ -61,8 +61,8 @@ export async function syncBankReconciliationToFinancial(
     const referencia = `REC-${reconciliationId.slice(0, 8)}`;
 
     // Verificar se já existe um registro vinculado
-    const { data: existing } = await supabase
-      .from("controle_bancario")
+    const { data: existing } = await (supabase
+      .from("controle_bancario") as any)
       .select("id")
       .eq("referencia", referencia)
       .maybeSingle();
@@ -626,14 +626,14 @@ export async function deleteSalaryPaymentFromFinancial(paymentId: string): Promi
 export async function deleteReconciliationFromFinancial(reconciliationId: string): Promise<void> {
   try {
     const referencia = `REC-${reconciliationId.slice(0, 8)}`;
-    await supabase
-      .from("controle_bancario")
+    await (supabase
+      .from("controle_bancario") as any)
       .delete()
       .eq("referencia", referencia);
 
     // Também deletar conta a receber vinculada
-    await supabase
-      .from("contas_areceber")
+    await (supabase
+      .from("contas_areceber") as any)
       .delete()
       .like("numero", `%${reconciliationId.slice(0, 8)}%`);
   } catch (error: any) {

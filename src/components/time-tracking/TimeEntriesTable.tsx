@@ -319,7 +319,8 @@ export function TimeEntriesTable({ viewAll = false }: TimeEntriesTableProps) {
                 type="month"
                 value={filterMonth}
                 onChange={(e) => setFilterMonth(e.target.value)}
-                className="w-[180px]"
+                className="w-[153px] rounded-[14px] mr-[3px] overflow-hidden"
+                style={{ padding: "8px 12px 8px 9px", lineHeight: "21px" }}
               />
             </div>
           </div>
