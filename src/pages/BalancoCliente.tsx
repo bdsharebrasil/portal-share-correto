@@ -14,6 +14,7 @@ import { ptBR } from 'date-fns/locale';
 
 import { BalancoVisaoGeral } from '@/components/balanco-cliente/BalancoVisaoGeral';
 import { DespesasDetalhadas } from '@/components/balanco-cliente/DespesasDetalhadas';
+import { HistoricoRateioConsolidado } from '@/components/balanco-cliente/HistoricoRateioConsolidado';
 import { PendenciasFinanceiras } from '@/components/balanco-cliente/PendenciasFinanceiras';
 import { BalancoAeronave } from '@/components/balanco-cliente/BalancoAeronave';
 import { RelatoriosExportacao } from '@/components/balanco-cliente/RelatoriosExportacao';
@@ -295,12 +296,20 @@ function BalancoClienteContent() {
 
         <TabsContent value="despesas" className="space-y-6">
           {clienteId ? (
-            <DespesasDetalhadas 
-              clienteId={clienteId} 
-              socioId={socioId}
-              aeronaveId={aeronaveId || undefined}
-              periodo={periodo}
-            />
+            <div className="space-y-6">
+              <DespesasDetalhadas
+                clienteId={clienteId}
+                socioId={socioId}
+                aeronaveId={aeronaveId || undefined}
+                periodo={periodo}
+              />
+              <HistoricoRateioConsolidado
+                clienteId={clienteId}
+                socioId={socioId}
+                aeronaveId={aeronaveId || undefined}
+                periodo={periodo}
+              />
+            </div>
           ) : (
             <Card className="border-border/50 bg-card/60">
               <CardContent className="pt-6 text-center text-muted-foreground">
