@@ -9,6 +9,7 @@ import { ptBR } from 'date-fns/locale';
 
 interface BalancoAeronaveProps {
   clienteId: string;
+  socioId?: string;
   aeronaveId?: string;
   periodo: { inicio: string; fim: string };
 }

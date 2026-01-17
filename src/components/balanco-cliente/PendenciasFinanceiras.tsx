@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 
 interface PendenciasFinanceirasProps {
   clienteId: string;
+  socioId?: string;
   aeronaveId?: string;
 }
 

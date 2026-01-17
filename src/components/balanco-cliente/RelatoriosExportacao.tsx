@@ -15,6 +15,7 @@ import autoTable from 'jspdf-autotable';
 
 interface RelatoriosExportacaoProps {
   clienteId: string;
+  socioId?: string;
   aeronaveId?: string;
   periodo: { inicio: string; fim: string };
 }
