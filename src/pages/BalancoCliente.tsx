@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, Receipt, AlertCircle, Plane, FileBarChart, ArrowLeft } from 'lucide-react';
+import { LayoutDashboard, Receipt, AlertCircle, Plane, FileBarChart, ArrowLeft, Users, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
@@ -17,29 +17,25 @@ import { DespesasDetalhadas } from '@/components/balanco-cliente/DespesasDetalha
 import { PendenciasFinanceiras } from '@/components/balanco-cliente/PendenciasFinanceiras';
 import { BalancoAeronave } from '@/components/balanco-cliente/BalancoAeronave';
 import { RelatoriosExportacao } from '@/components/balanco-cliente/RelatoriosExportacao';
+import { useClientesComSocios, ClienteComSocios, Socio } from '@/hooks/useSociosBalanco';
 
 function BalancoClienteContent() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('visao-geral');
   const [clienteId, setClienteId] = useState('');
+  const [socioId, setSocioId] = useState<string | undefined>(undefined);
   const [aeronaveId, setAeronaveId] = useState('');
   const [periodo, setPeriodo] = useState({
     inicio: format(startOfMonth(subMonths(new Date(), 2)), 'yyyy-MM-dd'),
     fim: format(endOfMonth(new Date()), 'yyyy-MM-dd')
   });
 
-  // Carregar clientes
-  const { data: clientes = [] } = useQuery({
-    queryKey: ['clientes-balanco'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('id, company_name, proprietario')
-        .order('company_name');
-      if (error) throw error;
-      return data || [];
-    },
-  });
+  // Carregar clientes com sócios
+  const { data: clientesComSocios = [], isLoading: loadingClientes } = useClientesComSocios();
+
+  // Cliente atual selecionado
+  const clienteAtual = clientesComSocios.find(c => c.id === clienteId);
+  const socioAtual = clienteAtual?.socios.find(s => s.id === socioId);
 
   // Carregar aeronaves do cliente
   const { data: aeronaves = [] } = useQuery({
