@@ -34,6 +34,7 @@ interface Client {
   proprietario?: string;
   financial_contact?: string;
   logo_url?: string;
+  status?: string;
   client_aircraft?: ClientAircraft[];
 }
 
