@@ -199,6 +199,45 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
         </Card>
       )}
 
+      {/* Cards de Horas Voadas e Combustível */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {/* Horas Voadas */}
+        <Card className="border-blue-500/50 bg-blue-500/10">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Horas Voadas</p>
+                <p className="text-3xl font-bold text-blue-500">
+                  {formatarHoras(resumoHorasCombustivel.horasVoadas)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {resumoHorasCombustivel.horasVoadas.toFixed(1)} horas decimais
+                </p>
+              </div>
+              <Plane className="h-12 w-12 text-blue-500/50" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Litros de Combustível */}
+        <Card className="border-green-500/50 bg-green-500/10">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Litros de Combustível</p>
+                <p className="text-3xl font-bold text-green-500">
+                  {resumoHorasCombustivel.litrosConsumidos.toFixed(1)} L
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  R$ {resumoHorasCombustivel.valorCombustivel.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              <Fuel className="h-12 w-12 text-green-500/50" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Cards de Resumo */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {/* Pendente de Envio */}

@@ -127,7 +127,7 @@ export const GestaoSalariosContent = () => {
         if (rate > 0) {
           ratesMap.set(plane.id, {
             registration: plane.registration,
-            hourly_rate: parseFloat(rate),
+            hourly_rate: rate,
           });
         }
       }

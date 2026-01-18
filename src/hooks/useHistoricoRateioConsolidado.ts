@@ -117,13 +117,18 @@ export function useResumoMensalHistorico({
     queryFn: async () => {
       if (!clienteId || !ano || !mes) return [];
 
+      // Construir intervalo de data baseado em ano/mes
+      const start = `${ano}-${String(mes).padStart(2, '0')}-01`;
+      const endDate = new Date(Number(ano), Number(mes), 0); // último dia do mês
+      const end = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+
       const { data, error } = await supabase
         .from('historico_rateio_consolidado')
         .select('*')
         .eq('cliente_id', clienteId)
         .eq('status', 'consolidado')
-        .eq('ano', ano)
-        .eq('mes', mes);
+        .gte('data_competencia', start)
+        .lte('data_competencia', end);
 
       if (error) {
         console.error('Erro ao buscar resumo mensal:', error);
