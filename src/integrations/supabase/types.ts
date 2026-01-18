@@ -10274,6 +10274,11 @@ export type Database = {
         Args: { p_bank_reconciliation_id: string; p_consolidado_por?: string }
         Returns: string[]
       }
+      consolidar_horas_mensais: { Args: never; Returns: undefined }
+      consolidar_horas_mes_especifico: {
+        Args: { p_aircraft_id: string; p_ano: number; p_mes: number }
+        Returns: undefined
+      }
       create_flight_plan_from_booking: {
         Args: { p_booking_id: string; p_pilot_id: string }
         Returns: string
