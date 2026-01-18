@@ -2,10 +2,11 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertCircle, CheckCircle, Clock, RefreshCw, TrendingUp } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, RefreshCw, TrendingUp, Plane, Fuel } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { useSocioBalanco } from '@/hooks/useSocioBalanco';
 import { SociosBalancoCards } from './SociosBalancoCards';
+import { useBalancoClienteCompleto, calcularResumoHorasCombustivel, formatarHoras } from '@/hooks/useBalancoClienteCompleto';
 
 interface BalancoVisaoGeralProps {
   clienteId: string;
@@ -23,8 +24,14 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
     periodo
   );
 
+  // Hook para dados completos (horas voadas e combustível)
+  const { data: dadosCompletos = [] } = useBalancoClienteCompleto(clienteId, periodo);
+
   // Fator de proporção (100% se consolidado, ou percentual do sócio)
   const fatorProporcao = socioSelecionado ? socioSelecionado.percentual / 100 : 1;
+
+  // Calcular resumo de horas e combustível
+  const resumoHorasCombustivel = calcularResumoHorasCombustivel(dadosCompletos, fatorProporcao);
 
   // Buscar resumo financeiro
   const { data: resumo, isLoading } = useQuery({
