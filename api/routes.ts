@@ -1643,6 +1643,59 @@ router.get('/consolidacao/reembolsos-pendentes', async (req: Request, res: Respo
   }
 });
 
+// ============= FUEL ROUTES =============
+
+// GET fuel records (abastecimentos) by client/aircraft and date range
+router.get('/fuel', async (req: Request, res: Response) => {
+  try {
+    const { client_id, aircraft_id, date_start, date_end } = req.query;
+
+    if (!client_id || typeof client_id !== 'string') {
+      return res.status(400).json({ error: 'Missing client_id parameter' });
+    }
+
+    if (!date_start || !date_end || typeof date_start !== 'string' || typeof date_end !== 'string') {
+      return res.status(400).json({ error: 'Missing date_start and date_end parameters' });
+    }
+
+    // Build query using PostgREST with proper date filtering
+    let query = supabase
+      .from('abastecimentos')
+      .select('id, valor_total, status, data')
+      .eq('client_id', client_id)
+      .gte('data', date_start)
+      .lte('data', date_end);
+
+    // Add aircraft filter if provided
+    if (aircraft_id && typeof aircraft_id === 'string') {
+      query = query.eq('aeronave_id', aircraft_id);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('[Fuel API] Supabase error:', error);
+      return res.status(500).json({
+        error: 'Failed to fetch fuel records',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+
+    res.json({
+      data: data || [],
+      timestamp: new Date().toISOString(),
+      count: data?.length || 0
+    });
+  } catch (error) {
+    console.error('[Fuel API] Exception:', error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    res.status(500).json({
+      error: 'Failed to fetch fuel records',
+      details: process.env.NODE_ENV === 'development' ? errorMsg : undefined
+    });
+  }
+});
+
 // ============= AIRPORTS ROUTES =============
 
 router.get('/airports/:icao', async (req: Request, res: Response) => {

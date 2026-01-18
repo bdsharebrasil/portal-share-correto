@@ -11,7 +11,10 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       // Disable Vite's dev overlay which can fail when serializing certain DOM nodes
       overlay: false,
+      // Allow HMR to work through proxies by using the same host as the browser
+      // This works with projects.builder.codes proxy
     },
+    middlewareMode: false,
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
@@ -23,6 +26,18 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === 'development' &&
     componentTagger(),
+    {
+      name: 'add-permissions-policy',
+      configureServer(server: any) {
+        return () => {
+          server.middlewares.use((req: any, res: any, next: any) => {
+            res.setHeader('Permissions-Policy', 'geolocation=*');
+            res.setHeader('Feature-Policy', 'geolocation *');
+            next();
+          });
+        };
+      },
+    },
   ].filter(Boolean),
   resolve: {
     alias: {

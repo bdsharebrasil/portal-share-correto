@@ -48,6 +48,18 @@
 
   <body>
     <div id="root"></div>
+    <script>
+      // Configure Vite HMR to work with proxies by using the same host as the browser
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.hostname;
+      const port = window.location.port ? parseInt(window.location.port) : (protocol === 'wss:' ? 443 : 80);
+
+      window.__vite_hmr__ = {
+        protocol,
+        host,
+        port
+      };
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -3,12 +3,12 @@ import dotenv from 'dotenv';
 // Carrega variáveis de ambiente de .env em desenvolvimento
 dotenv.config();
 
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import apiRouter from './routes';
 import { globalCache } from './lib/cache';
 
-const app = express();
+const app: Application = express();
 
 // Middleware
 const corsOrigins = [
@@ -43,6 +43,13 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
+// Permissions Policy middleware - Allow geolocation
+app.use((req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('Permissions-Policy', 'geolocation=*');
+  res.setHeader('Feature-Policy', 'geolocation *');
+  next();
+});
 
 // Request logging middleware
 app.use((req: Request, res: Response, next: NextFunction) => {

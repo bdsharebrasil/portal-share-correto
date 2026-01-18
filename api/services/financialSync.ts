@@ -153,20 +153,25 @@ export async function syncBankReconciliationToFinancial(
   }
 }
 
-// Função auxiliar para buscar/criar categoria_id
+// Função auxiliar para buscar categoria_id (NÃO cria novas categorias)
+// Usa busca case-insensitive para evitar duplicatas
 async function getCategoriaId(nomeCategoria: string, userId: string): Promise<string | null> {
   try {
     if (!userId) {
-      console.error(`❌ Erro: userId não fornecido para buscar/criar categoria "${nomeCategoria}"`);
+      console.error(`❌ Erro: userId não fornecido para buscar categoria "${nomeCategoria}"`);
       return null;
     }
 
     console.log(`🔍 Buscando categoria: "${nomeCategoria}"`);
 
+    // Busca case-insensitive para encontrar categorias existentes
     const { data, error } = await supabase
       .from("categorias_movimentacao")
-      .select("id")
-      .eq("nome", nomeCategoria)
+      .select("id, nome")
+      .ilike("nome", nomeCategoria)
+      .eq("grupo_categoria", "FOLHA DE PAGAMENTO")
+      .eq("ativo", true)
+      .limit(1)
       .maybeSingle();
 
     if (error) {
@@ -180,37 +185,16 @@ async function getCategoriaId(nomeCategoria: string, userId: string): Promise<st
     }
 
     if (!data) {
-      console.log(`⚠️ Categoria "${nomeCategoria}" não encontrada, criando com userId: ${userId}...`);
-      const { data: newCategoria, error: createError } = await supabase
-        .from("categorias_movimentacao")
-        .insert({
-          nome: nomeCategoria,
-          tipo: "despesa",
-          grupo_categoria: "FOLHA DE PAGAMENTO",
-          criado_por: userId,
-          ativo: true
-        })
-        .select("id")
-        .single();
-
-      if (createError) {
-        console.error(`❌ Erro ao criar categoria "${nomeCategoria}":`, {
-          message: createError.message,
-          code: createError.code,
-          details: createError.details,
-          hint: createError.hint
-        });
-        return null;
-      }
-
-      console.log(`✅ Categoria "${nomeCategoria}" criada:`, newCategoria.id);
-      return newCategoria.id;
+      // NÃO criar novas categorias - apenas logar aviso
+      console.warn(`⚠️ Categoria "${nomeCategoria}" não encontrada no grupo FOLHA DE PAGAMENTO.`);
+      console.warn(`📋 Verifique se as categorias de folha de pagamento estão cadastradas corretamente.`);
+      return null;
     }
 
-    console.log(`✅ Categoria "${nomeCategoria}" encontrada:`, data.id);
+    console.log(`✅ Categoria "${nomeCategoria}" encontrada: ${data.nome} (${data.id})`);
     return data.id;
   } catch (error: any) {
-    console.error(`❌ Exceção ao buscar/criar categoria "${nomeCategoria}":`, {
+    console.error(`❌ Exceção ao buscar categoria "${nomeCategoria}":`, {
       message: error?.message || String(error),
       stack: error?.stack
     });

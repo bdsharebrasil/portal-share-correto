@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { globalCache } from '../lib/cache';
 
 export interface CacheOptions {
@@ -6,7 +6,7 @@ export interface CacheOptions {
   key?: string | ((req: Request) => string);
 }
 
-export function cacheMiddleware(options: CacheOptions = {}) {
+export function cacheMiddleware(options: CacheOptions = {}): RequestHandler {
   return (req: Request, res: Response, next: NextFunction) => {
     if (req.method !== 'GET') {
       return next();
