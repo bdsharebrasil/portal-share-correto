@@ -91,7 +91,8 @@ export function FuelPaymentDialog({
       if (error) throw error;
 
       toast.success("Pagamento registrado com sucesso");
-      handleClose();
+      resetFormState();
+      onOpenChange(false);
       onSuccess();
     } catch (error) {
       console.error("Erro ao registrar pagamento:", error);
