@@ -543,7 +543,7 @@ export default function PortalCliente() {
                             </div>
                             {selectedAircraft && (
                               <Badge className="bg-emerald-500 text-white h-fit">
-                                {selectedAircraft.share_percentage}% Cota
+                                {selectedPartner ? selectedPartner.percentage : selectedAircraft.share_percentage}% Cota
                               </Badge>
                             )}
                           </div>
