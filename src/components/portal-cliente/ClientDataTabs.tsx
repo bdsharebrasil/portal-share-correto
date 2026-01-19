@@ -483,15 +483,17 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                           <td className="py-4 px-4 text-foreground">
                             {entry.fuel_added ? `${parseFloat(entry.fuel_added).toFixed(1)}L` : '—'}
                           </td>
-                          <td className="py-4 px-4 text-foreground">
-                            {entry.partner_name ? (
-                              <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">
-                                {entry.partner_name}
-                              </span>
-                            ) : (
-                              '—'
-                            )}
-                          </td>
+                          {partners.length > 1 && (
+                            <td className="py-4 px-4 text-foreground">
+                              {entry.partner_name ? (
+                                <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">
+                                  {entry.partner_name}
+                                </span>
+                              ) : (
+                                '—'
+                              )}
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
