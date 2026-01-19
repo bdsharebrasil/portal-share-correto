@@ -79,10 +79,11 @@ export function PartnerSelector({
 
       setPartners(partnersList);
 
-      // Se não há parceiros, seleciona null automaticamente
-      if (partnersList.length === 0) {
-        onSelectPartner(null);
-      }
+      // Sempre seleciona consolidado (null) automaticamente
+      // Isso carrega os dados enquanto o usuário vê o seletor
+      // Se não há parceiros, mantém consolidado
+      // Se há parceiros, mostra o consolidado e deixa o usuário mudar para um sócio específico
+      onSelectPartner(null);
     } catch (error) {
       console.error('Erro ao carregar sócios:', error);
     } finally {
