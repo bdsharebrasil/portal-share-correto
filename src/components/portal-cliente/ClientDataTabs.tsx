@@ -107,7 +107,8 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
 
   // Load client data when clientId, aircraftId, or selectedPartner changes
   useEffect(() => {
-    if (clientId && aircraftId && partners.length > 0) {
+    // Load if we have required data AND selectedPartner is defined (null = consolidado, object = specific partner)
+    if (clientId && aircraftId && partners.length > 0 && selectedPartner !== undefined) {
       loadData(clientId);
     }
   }, [clientId, aircraftId, partners, selectedPartner]);
