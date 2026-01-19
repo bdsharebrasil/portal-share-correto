@@ -606,6 +606,7 @@ export function DynamicLogbookForm({
                 setFlightCategory('cliente');
                 setSpecialFlightType('');
                 setSelectedClient('');
+                setSelectedBorrowerClient('');
                 setSelectedPic('');
                 setSelectedSic('');
                 setPassengers('');
