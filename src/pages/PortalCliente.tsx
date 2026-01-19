@@ -323,8 +323,13 @@ export default function PortalCliente() {
     setSelectedAircraft(aircraftRelation);
   };
 
+  const handlePartnerSelect = (partner: PartnerInfo | null) => {
+    setSelectedPartner(partner);
+  };
+
   const handleBack = () => {
     setSelectedClient(null);
+    setSelectedPartner(undefined);
     setSelectedAircraft(null);
     setAircraft(null);
     setFlightActivity({
@@ -334,6 +339,11 @@ export default function PortalCliente() {
       recent_destinations: []
     });
     setLogbookMonthData(null);
+  };
+
+  const handleBackFromPartnerSelection = () => {
+    setSelectedClient(null);
+    setSelectedPartner(undefined);
   };
 
   const handleAircraftChange = (aircraftRelation: ClientAircraft) => {
