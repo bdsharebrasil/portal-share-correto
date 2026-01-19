@@ -4,10 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Fuel, Wrench, Plane, Download, Upload, FileCheck, Eye, Send, Trash } from "lucide-react";
+import { FileText, Fuel, Wrench, Plane, Download, Upload, FileCheck, Eye, Send, Trash, CheckCircle2 } from "lucide-react";
 import { previewPDFForPrint, TravelReport as TravelReportPDF, TravelExpense } from "@/lib/travelReportPDF";
 import { FileUploadDialog } from "./FileUploadDialog";
 import { ContractUploadDialog } from "./ContractUploadDialog";
+import { FuelPaymentDialog } from "./FuelPaymentDialog";
 import { FinancialHistoryTab } from "./FinancialHistoryTab";
 import { EnvioDespesaTab } from "./EnvioDespesaTab";
 import { toast } from "sonner";
@@ -53,6 +54,8 @@ interface TravelReport {
 export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegistration, isAdmin = false, selectedPartner }: ClientDataTabsProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [contractUploadDialogOpen, setContractUploadDialogOpen] = useState(false);
+  const [fuelPaymentDialogOpen, setFuelPaymentDialogOpen] = useState(false);
+  const [selectedFuelRecord, setSelectedFuelRecord] = useState<any>(null);
   const [files, setFiles] = useState<any[]>([]);
   const [contracts, setContracts] = useState<any[]>([]);
   const [logbookEntries, setLogbookEntries] = useState<any[]>([]);
@@ -173,14 +176,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       // Load logbook entries
       let logbookData = null;
       try {
-        // Determinar qual cliente usar para filtro
-        // Se um sócio foi selecionado, usar apenas aquele sócio
-        // Caso contrário, usar o cliente principal
-        const logbookClientId = selectedPartner ? selectedPartner.client_id : forClientId;
+        console.log('Carregando logbook para cliente:', forClientId, 'Partner selecionado:', selectedPartner?.name);
 
-        console.log('Carregando logbook para cliente:', logbookClientId, 'Partner selecionado:', selectedPartner?.name);
-
-        const result = await supabase
+        let query = supabase
           .from('logbook_entries')
           .select(`
             id,
@@ -191,12 +189,20 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
             partner_name,
             departure_aerodrome,
             arrival_aerodrome,
+            trecho,
             aircraft:aircraft_id(registration)
           `)
           .eq('aircraft_id', aircraftId)
-          .eq('client_id', logbookClientId)
+          .eq('client_id', forClientId)
           .order('entry_date', { ascending: false })
           .limit(50);
+
+        // Se um parceiro específico foi selecionado, filtrar pelo partner_name
+        if (selectedPartner && selectedPartner.name) {
+          query = query.eq('partner_name', selectedPartner.name);
+        }
+
+        const result = await query;
         logbookData = result.data;
         if (result.error) console.warn('Erro ao carregar logbook:', result.error);
       } catch (err) {
@@ -266,16 +272,23 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         };
       });
 
-      // Load fuel records from all partners/cotistas
+      // Load fuel records - only for the selected client/partner
       let fuelData = null;
       try {
-        const result = await supabase
+        let query = supabase
           .from('abastecimentos')
           .select('*, aeronave:aeronave_id(registration), client:client_id(company_name)')
           .eq('aeronave_id', aircraftId)
-          .in('client_id', clientIds)
+          .eq('client_id', forClientId)
           .order('data', { ascending: false })
           .limit(10);
+
+        // If a specific partner is selected, also filter by partner name
+        if (selectedPartner && selectedPartner.name) {
+          query = query.eq('partner_name', selectedPartner.name);
+        }
+
+        const result = await query;
         fuelData = result.data;
         if (result.error) console.warn('Erro ao carregar abastecimentos:', result.error);
       } catch (err) {
@@ -551,7 +564,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                             {entry.entry_date ? new Date(entry.entry_date).toLocaleDateString('pt-BR') : '—'}
                           </td>
                           <td className="py-4 px-4 text-foreground">
-                            {entry.departure_aero && entry.arrival_aero ? (
+                            {entry.trecho ? (
+                              <div>{entry.trecho}</div>
+                            ) : entry.departure_aero && entry.arrival_aero ? (
                               <div className="space-y-1">
                                 <div className="font-medium">
                                   {entry.departure_aero.code} x {entry.arrival_aero.code}
@@ -595,27 +610,48 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         </TabsContent>
 
         <TabsContent value="fuel" className="space-y-4">
-          <Card className="bg-gradient-card border-border">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-foreground">
-                <Fuel className="h-5 w-5 text-primary" />
-                Abastecimentos
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Registre e acompanhe os abastecimentos da aeronave
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button
-                onClick={() => setUploadDialogOpen(true)}
-                className="w-full"
-                size="lg"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Enviar Registro de Abastecimento
-              </Button>
+          {(() => {
+            const pendingFuel = fuelRecords.filter((r: any) => r.status_pagamento === 'pendente');
+            const totalPending = pendingFuel.reduce((sum: number, r: any) => sum + (Number(r.valor_total) || 0), 0);
 
-              {fuelRecords.length === 0 ? (
+            return (
+              <>
+                {totalPending > 0 && (
+                  <Card className="border-2 border-yellow-500/20 bg-yellow-500/5">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Saldo Devedor de Combustível</p>
+                          <p className="text-3xl font-bold text-yellow-400">
+                            R$ {totalPending.toFixed(2)}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {pendingFuel.length} abastecimento{pendingFuel.length !== 1 ? 's' : ''} pendente{pendingFuel.length !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <Badge className="bg-yellow-500/20 text-yellow-300 mb-2">Pendente</Badge>
+                          <p className="text-xs text-muted-foreground">
+                            Pressione "Dar Baixa" para registrar o pagamento
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Card className="bg-gradient-card border-border">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-foreground">
+                      <Fuel className="h-5 w-5 text-primary" />
+                      Abastecimentos
+                    </CardTitle>
+                    <CardDescription className="text-muted-foreground">
+                      Acompanhe os abastecimentos da aeronave e registre os pagamentos
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {fuelRecords.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">Nenhum registro de abastecimento encontrado</p>
               ) : (
                 <div className="space-y-2">
@@ -680,12 +716,41 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                         <p className="text-xs text-muted-foreground">Abastecedor: {record.abastecedor || 'N/A'}</p>
                         <p className="text-xs text-muted-foreground ml-auto">Comanda: {record.comanda || 'N/A'}</p>
                       </div>
+
+                      {record.status_pagamento === 'pendente' && (
+                        <Button
+                          onClick={() => {
+                            setSelectedFuelRecord(record);
+                            setFuelPaymentDialogOpen(true);
+                          }}
+                          size="sm"
+                          className="w-full mt-3 bg-emerald-600 hover:bg-emerald-500 gap-2"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          Dar Baixa no Pagamento
+                        </Button>
+                      )}
+
+                      {record.status_pagamento === 'pago' && record.comprovante_url && (
+                        <Button
+                          onClick={() => window.open(record.comprovante_url, '_blank')}
+                          size="sm"
+                          variant="outline"
+                          className="w-full mt-3 gap-2"
+                        >
+                          <Download className="h-4 w-4" />
+                          Baixar Comprovante
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+                  </CardContent>
+                </Card>
+              </>
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="ctm" className="space-y-4">
@@ -910,8 +975,15 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         onSuccess={() => loadData(clientId)}
       />
 
+      <FuelPaymentDialog
+        open={fuelPaymentDialogOpen}
+        onOpenChange={setFuelPaymentDialogOpen}
+        fuelRecord={selectedFuelRecord}
+        onSuccess={() => loadData(clientId)}
+      />
+
       {/* Exemplo de uso do EnvioDespesaTab, ajuste conforme necessário */}
-      {/* 
+      {/*
       <EnvioDespesaTab
         fornecedores={fornecedoresShare}
         // ...outras props...
