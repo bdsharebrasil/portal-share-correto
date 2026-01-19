@@ -25,7 +25,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
   );
 
   // Hook para dados completos (horas voadas e combustível)
-  const { data: dadosCompletos = [] } = useBalancoClienteCompleto(clienteId, periodo);
+  const { data: dadosCompletos = [] } = useBalancoClienteCompleto(clienteId, periodo, aeronaveId);
 
   // Fator de proporção (100% se consolidado, ou percentual do sócio)
   const fatorProporcao = socioSelecionado ? socioSelecionado.percentual / 100 : 1;
@@ -67,25 +67,22 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
       const { data: despesasDiretasData, error: errorDiretas } = await queryDiretas;
       if (errorDiretas) throw errorDiretas;
 
-      // Buscar abastecimentos via backend proxy para evitar erro 400 do Supabase
-      let fuelUrl = `/api/fuel?client_id=${clienteId}&date_start=${periodo.inicio}&date_end=${periodo.fim}`;
+      // Buscar abastecimentos diretamente do Supabase
+      let abastecimentosQuery = supabase
+        .from('abastecimentos')
+        .select('id, litros, valor_total, status_pagamento')
+        .eq('client_id', clienteId)
+        .gte('data', periodo.inicio)
+        .lte('data', periodo.fim);
+
       if (aeronaveId) {
-        fuelUrl += `&aircraft_id=${aeronaveId}`;
+        abastecimentosQuery = abastecimentosQuery.eq('aeronave_id', aeronaveId);
       }
 
-      let abastecimentos = [];
-      try {
-        const fuelResponse = await fetch(fuelUrl);
-        if (fuelResponse.ok) {
-          const fuelResult = await fuelResponse.json();
-          abastecimentos = fuelResult.data || [];
-        } else {
-          console.warn(`Fuel API returned status ${fuelResponse.status}, using empty list`);
-        }
-      } catch (fuelError) {
-        console.warn('Error fetching fuel data:', fuelError);
-        // Continue without fuel data
-      }
+      const { data: abastecimentosData, error: abastecimentosError } = await abastecimentosQuery;
+      if (abastecimentosError) throw abastecimentosError;
+
+      const abastecimentos = abastecimentosData || [];
 
       const data = despesasData || [];
       const diretas = despesasDiretasData || [];
