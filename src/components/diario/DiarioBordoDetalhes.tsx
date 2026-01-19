@@ -411,7 +411,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     flight_nature: 'PV - Privado',
     occurrences: '',
     discrepancies: '',
-    corrective_actions: ''
+    corrective_actions: '',
+    daily_quantity: 0 // Novo: quantidade de diárias para este voo
   });
 
   // ===================== CÁLCULO DE DIÁRIAS =====================
