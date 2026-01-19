@@ -173,14 +173,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       // Load logbook entries
       let logbookData = null;
       try {
-        // Determinar qual cliente usar para filtro
-        // Se um sócio foi selecionado, usar apenas aquele sócio
-        // Caso contrário, usar o cliente principal
-        const logbookClientId = selectedPartner ? selectedPartner.client_id : forClientId;
+        console.log('Carregando logbook para cliente:', forClientId, 'Partner selecionado:', selectedPartner?.name);
 
-        console.log('Carregando logbook para cliente:', logbookClientId, 'Partner selecionado:', selectedPartner?.name);
-
-        const result = await supabase
+        let query = supabase
           .from('logbook_entries')
           .select(`
             id,
@@ -195,9 +190,16 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
             aircraft:aircraft_id(registration)
           `)
           .eq('aircraft_id', aircraftId)
-          .eq('client_id', logbookClientId)
+          .eq('client_id', forClientId)
           .order('entry_date', { ascending: false })
           .limit(50);
+
+        // Se um parceiro específico foi selecionado, filtrar pelo partner_name
+        if (selectedPartner && selectedPartner.name) {
+          query = query.eq('partner_name', selectedPartner.name);
+        }
+
+        const result = await query;
         logbookData = result.data;
         if (result.error) console.warn('Erro ao carregar logbook:', result.error);
       } catch (err) {
