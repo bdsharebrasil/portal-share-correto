@@ -105,9 +105,10 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
     loadPartners();
   }, [aircraftId, clientId, clientName]);
 
-  // Load client data when clientId, aircraftId, or selectedPartner changes
+  // Load client data when clientId, aircraftId changes
+  // selectedPartner can be undefined (waiting for selection), null (consolidado), or an object (specific partner)
+  // Load in all cases as long as clientId and aircraftId are present
   useEffect(() => {
-    // Load if we have required data - don't wait for partners to be loaded since that's separate
     if (clientId && aircraftId) {
       loadData(clientId);
     }
