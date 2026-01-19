@@ -92,11 +92,7 @@ export function FuelPaymentDialog({
       if (error) throw error;
 
       toast.success("Pagamento registrado com sucesso");
-      setPaymentDate("");
-      setPaymentMethod("");
-      setReceiptFile(null);
-      setReceiptFileName("");
-      onOpenChange(false);
+      handleClose();
       onSuccess();
     } catch (error) {
       console.error("Erro ao registrar pagamento:", error);
@@ -199,7 +195,7 @@ export function FuelPaymentDialog({
           <div className="flex gap-2 pt-4">
             <Button
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={handleClose}
               disabled={loading}
               className="flex-1"
             >
