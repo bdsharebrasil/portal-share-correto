@@ -198,7 +198,7 @@ export function FuelPaymentDialog({
           <div className="flex gap-2 pt-4">
             <Button
               variant="outline"
-              onClick={handleClose}
+              onClick={() => onOpenChange(false)}
               disabled={loading}
               className="flex-1"
             >
