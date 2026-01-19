@@ -554,7 +554,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                             {entry.entry_date ? new Date(entry.entry_date).toLocaleDateString('pt-BR') : '—'}
                           </td>
                           <td className="py-4 px-4 text-foreground">
-                            {entry.departure_aero && entry.arrival_aero ? (
+                            {entry.trecho ? (
+                              <div>{entry.trecho}</div>
+                            ) : entry.departure_aero && entry.arrival_aero ? (
                               <div className="space-y-1">
                                 <div className="font-medium">
                                   {entry.departure_aero.code} x {entry.arrival_aero.code}
