@@ -150,31 +150,6 @@ export function PartnerSelector({
         {partners.map((partner) => (
           <Card
             key={partner.index}
-            className="border-2 border-slate-700 hover:border-primary transition-all cursor-pointer hover:shadow-xl hover:shadow-primary/20 group overflow-hidden"
-            onClick={() => onSelectPartner(partner)}
-          >
-            <CardHeader className="pb-4 bg-gradient-to-r from-slate-800/50 to-slate-700/50 border-b border-slate-600/50 group-hover:from-slate-800 group-hover:to-primary/20 transition-all">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-all">
-                    <User className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg font-semibold text-foreground">
-                      {partner.name}
-                    </CardTitle>
-                    {partner.cpf && (
-                      <p className="text-xs text-muted-foreground font-mono mt-1">
-                        CPF: {partner.cpf}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-  {partners.map((partner) => (
-          <Card 
-            key={partner.index}
             className="border border-white/10 bg-slate-800/30 backdrop-blur-sm cursor-pointer hover:bg-slate-800/50 transition-all hover:border-emerald-500/50"
             onClick={() => onSelectPartner(partner)}
           >
@@ -227,7 +202,7 @@ export function PartnerSelector({
 
         {/* Opção para ver dados consolidados */}
         <Card
-     className="border border-white/10 bg-slate-800/30 backdrop-blur-sm cursor-pointer hover:bg-slate-800/50 transition-all hover:border-blue-500/50"
+          className="border border-white/10 bg-slate-800/30 backdrop-blur-sm cursor-pointer hover:bg-slate-800/50 transition-all hover:border-blue-500/50"
           onClick={() => onSelectPartner(null)}
         >
           <CardHeader className="pb-3">
