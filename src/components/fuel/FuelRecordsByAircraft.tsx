@@ -532,6 +532,15 @@ export function FuelRecordsByAircraft({
   const handleEdit = (record: FuelRecord) => {
     const supplierRecord = suppliers.find(s => s.supplier_name === record.abastecedor);
     setEditingRecord(record);
+
+    // Determine partner_selected from partner_name or observacao
+    let partnerSelected = "";
+    if (record.partner_name) {
+      partnerSelected = record.partner_name;
+    } else if (record.observacao?.includes("[Partner:")) {
+      partnerSelected = record.observacao.match(/\[Partner:([^\]]+)\]/)?.[1] || "";
+    }
+
     setFormData({
       data: record.data,
       trecho: record.trecho || "",
@@ -543,7 +552,7 @@ export function FuelRecordsByAircraft({
       ano: new Date().getFullYear().toString(),
       abastecedor_id: supplierRecord?.id || "",
       client_id: record.client_id || client.id,
-      partner_selected: record.observacao?.includes("[Partner:") ? record.observacao.match(/\[Partner:([^\]]+)\]/)?.[1] || "" : "",
+      partner_selected: partnerSelected,
       status_pagamento: record.status_pagamento || "em aberto",
       observacao: record.observacao?.replace(/\[Partner:[^\]]+\]\s*/, "") || "",
       comanda_file: null,
