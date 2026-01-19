@@ -2379,26 +2379,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
           {logbookMonth?.has_daily_rate && (
             <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
               <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Diárias do Período</p>
-              <div className="flex items-baseline gap-2 mb-3">
-                <p className="text-lg font-black text-yellow-400">{calculatePerDiemInfo.count} diárias</p>
-                <p className="text-xs text-sky-400 font-semibold">
-                  ({Object.values(markedDailies).filter(Boolean).length} contabilizadas)
-                </p>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400">Total:</span>
-                  <span className="text-sm font-bold text-emerald-400">
-                    R$ {(calculatePerDiemInfo.total || 0).toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400">Contabilizadas:</span>
-                  <span className="text-sm font-bold text-sky-400">
-                    R$ {(Object.values(markedDailies).filter(Boolean).length * (logbookMonth?.daily_rate || 0)).toFixed(2)}
-                  </span>
-                </div>
-              </div>
+              <p className="text-lg font-black text-yellow-400">{calculatePerDiemInfo.count} diárias</p>
+              <p className="text-xs text-emerald-400 mt-1">R$ {(calculatePerDiemInfo.total || 0).toFixed(2)}</p>
             </div>
           )}
           {logbookMonth?.has_daily_rate && calculatePerDiemInfo.count > 0 && (
