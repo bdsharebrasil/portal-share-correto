@@ -27,8 +27,9 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
   // Hook para dados completos (horas voadas e combustível)
   const { data: dadosCompletos = [] } = useBalancoClienteCompleto(clienteId, periodo, aeronaveId);
 
-  // Fator de proporção (100% se consolidado, ou percentual do sócio)
-  const fatorProporcao = socioSelecionado ? socioSelecionado.percentual / 100 : 1;
+  // Fator de proporção (100% se consolidado ou se socioId não foi informado, ou percentual do sócio se selecionado)
+  // Nota: socioSelecionado pode estar definido mas socioId pode ser undefined (consolidado)
+  const fatorProporcao = socioId && socioSelecionado ? socioSelecionado.percentual / 100 : 1;
 
   // Calcular resumo de horas e combustível
   const resumoHorasCombustivel = calcularResumoHorasCombustivel(dadosCompletos, fatorProporcao);
