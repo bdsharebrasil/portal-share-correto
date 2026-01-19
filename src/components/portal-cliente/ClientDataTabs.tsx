@@ -313,6 +313,20 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       setTravelReports(reportsData || []);
     } catch (error) {
       console.error('Error loading client data:', error);
+      // Fallback: set empty arrays to prevent UI from breaking
+      setFiles([]);
+      setContracts([]);
+      setLogbookEntries([]);
+      setFuelRecords([]);
+      setCtmTracking([]);
+      setTravelReports([]);
+
+      // Show user-friendly error message
+      if (error instanceof Error) {
+        toast.error(`Erro ao carregar dados: ${error.message}`);
+      } else {
+        toast.error('Erro desconhecido ao carregar dados do cliente');
+      }
     } finally {
       setLoading(false);
     }
