@@ -158,7 +158,19 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       // Load logbook entries
       const { data: logbookData } = await supabase
         .from('logbook_entries')
-        .select('id, entry_date, total_time, distance_nm, fuel_added, daily_rate, partner_name, is_loan, aircraft:aircraft_id(registration)')
+        .select(`
+          id,
+          entry_date,
+          total_time,
+          distance_nm,
+          fuel_added,
+          partner_name,
+          departure_aerodrome,
+          arrival_aerodrome,
+          aircraft:aircraft_id(registration),
+          departure_aero:aerodromes!logbook_entries_departure_aerodrome_fkey(id, code, name),
+          arrival_aero:aerodromes!logbook_entries_arrival_aerodrome_fkey(id, code, name)
+        `)
         .eq('aircraft_id', aircraftId)
         .eq('client_id', forClientId)
         .order('entry_date', { ascending: false })
