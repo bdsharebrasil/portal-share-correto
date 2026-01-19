@@ -159,17 +159,6 @@ export function SaldosDevedoresResume({ clienteId }: SaldosDevedoresResumeProps)
       </div>
 
       {/* Total Geral removed per request */}
-
-      {/* Informação */}
-      {saldos.total_geral === 0 && (
-        <Card className="border border-green-500/30 bg-green-500/5 backdrop-blur-sm">
-          <CardContent className="pt-6">
-            <p className="text-center text-green-300 font-medium">
-              ✓ Nenhum saldo devedor pendente. Situação financeira em dia!
-            </p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
