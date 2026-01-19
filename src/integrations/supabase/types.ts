@@ -31,6 +31,7 @@ export type Database = {
           nota_url: string | null
           observacao: string | null
           partner_index: number | null
+          partner_name: string | null
           status_pagamento: string | null
           trecho: string
           updated_at: string | null
@@ -53,6 +54,7 @@ export type Database = {
           nota_url?: string | null
           observacao?: string | null
           partner_index?: number | null
+          partner_name?: string | null
           status_pagamento?: string | null
           trecho: string
           updated_at?: string | null
@@ -75,6 +77,7 @@ export type Database = {
           nota_url?: string | null
           observacao?: string | null
           partner_index?: number | null
+          partner_name?: string | null
           status_pagamento?: string | null
           trecho?: string
           updated_at?: string | null
