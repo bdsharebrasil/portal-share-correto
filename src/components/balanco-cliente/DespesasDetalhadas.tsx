@@ -303,7 +303,7 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
                   {despesasFiltradas.map((despesa: any) => (
                     <TableRow key={`${despesa.fonte}-${despesa.id}`}>
                       <TableCell className="whitespace-nowrap">
-                        {format(new Date(despesa.data), 'dd/MM/yyyy', { locale: ptBR })}
+                        {format(new Date(despesa.data + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}
                       </TableCell>
                       <TableCell>
                         <Badge 
