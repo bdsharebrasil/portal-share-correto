@@ -673,7 +673,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                             )}
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            Data: {new Date(record.data).toLocaleDateString('pt-BR')}
+                            Data: {new Date(record.data + 'T00:00:00').toLocaleDateString('pt-BR')}
                           </p>
                         </div>
                       </div>
