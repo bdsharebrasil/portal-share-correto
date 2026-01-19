@@ -305,7 +305,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   const [logbookMonth, setLogbookMonth] = useState(null);
 
   // Estado para diárias contabilizadas (key: entryId_date, value: boolean)
-  const [markedDailies, setMarkedDailies] = useState<Record<string, boolean>>({});
+  const [markedDailies, setMarkedDailies] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem(`marked-dailies-${aircraftId}-${selectedMonth}-${selectedYear}`);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
 
   // Estados de edição
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
