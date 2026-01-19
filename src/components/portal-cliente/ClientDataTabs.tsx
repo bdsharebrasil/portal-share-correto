@@ -269,16 +269,23 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         };
       });
 
-      // Load fuel records from all partners/cotistas
+      // Load fuel records - only for the selected client/partner
       let fuelData = null;
       try {
-        const result = await supabase
+        let query = supabase
           .from('abastecimentos')
           .select('*, aeronave:aeronave_id(registration), client:client_id(company_name)')
           .eq('aeronave_id', aircraftId)
-          .in('client_id', clientIds)
+          .eq('client_id', forClientId)
           .order('data', { ascending: false })
           .limit(10);
+
+        // If a specific partner is selected, also filter by partner name
+        if (selectedPartner && selectedPartner.name) {
+          query = query.eq('partner_name', selectedPartner.name);
+        }
+
+        const result = await query;
         fuelData = result.data;
         if (result.error) console.warn('Erro ao carregar abastecimentos:', result.error);
       } catch (err) {
