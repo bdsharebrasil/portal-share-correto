@@ -33,7 +33,7 @@ const STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secon
   atrasado: { label: 'Atrasado', variant: 'destructive' },
 };
 
-export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasDetalhadasProps) {
+export function DespesasDetalhadas({ clienteId, socioId, aeronaveId, periodo }: DespesasDetalhadasProps) {
   const [busca, setBusca] = useState('');
   const [statusFilter, setStatusFilter] = useState('todos');
   const [categoriaFilter, setCategoriaFilter] = useState('todas');
