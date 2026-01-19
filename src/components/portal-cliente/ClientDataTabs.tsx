@@ -410,19 +410,32 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                     <thead>
                       <tr className="border-b border-white/10">
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Trecho</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tempo de Voo</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Distância</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Combustível</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Taxa Diária</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sócio</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {logbookEntries.map((entry) => (
+                      {logbookEntries.map((entry: any) => (
                         <tr key={entry.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                           <td className="py-4 px-4 text-foreground">
                             {entry.entry_date ? new Date(entry.entry_date).toLocaleDateString('pt-BR') : '—'}
+                          </td>
+                          <td className="py-4 px-4 text-foreground">
+                            {entry.departure_aero && entry.arrival_aero ? (
+                              <div className="space-y-1">
+                                <div className="font-medium">
+                                  {entry.departure_aero.code} x {entry.arrival_aero.code}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {entry.departure_aero.name} → {entry.arrival_aero.name}
+                                </div>
+                              </div>
+                            ) : (
+                              '—'
+                            )}
                           </td>
                           <td className="py-4 px-4 text-foreground font-medium">
                             {entry.total_time ? `${parseFloat(entry.total_time).toFixed(2)}h` : '—'}
@@ -434,26 +447,12 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                             {entry.fuel_added ? `${parseFloat(entry.fuel_added).toFixed(1)}L` : '—'}
                           </td>
                           <td className="py-4 px-4 text-foreground">
-                            {entry.daily_rate ? `R$ ${parseFloat(entry.daily_rate).toFixed(2)}` : '—'}
-                          </td>
-                          <td className="py-4 px-4 text-foreground">
                             {entry.partner_name ? (
                               <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">
                                 {entry.partner_name}
                               </span>
                             ) : (
                               '—'
-                            )}
-                          </td>
-                          <td className="py-4 px-4 text-foreground">
-                            {entry.is_loan ? (
-                              <span className="px-2 py-1 bg-amber-500/20 text-amber-300 rounded text-xs">
-                                Empréstimo
-                              </span>
-                            ) : (
-                              <span className="px-2 py-1 bg-green-500/20 text-green-300 rounded text-xs">
-                                Normal
-                              </span>
                             )}
                           </td>
                         </tr>
