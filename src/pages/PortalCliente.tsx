@@ -397,14 +397,6 @@ export default function PortalCliente() {
                 loading={loading} 
               />
             </>
-          ) : selectedPartner === undefined ? (
-            // Seleção de sócio (se o cliente tiver sócios)
-            <PartnerSelector
-              clientId={selectedClient.id}
-              clientName={selectedClient.company_name}
-              onSelectPartner={handlePartnerSelect}
-              onBack={handleBackFromPartnerSelection}
-            />
           ) : (
             <>
               {/* Header com logo e nome do cliente */}
