@@ -26,11 +26,12 @@ export function FuelPaymentDialog({
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptFileName, setReceiptFileName] = useState("");
 
-  const handleClose = () => {
+  const handleClose = (shouldClose?: boolean) => {
     setPaymentDate("");
     setPaymentMethod("");
     setReceiptFile(null);
     setReceiptFileName("");
+    if (shouldClose === false) return;
     onOpenChange(false);
   };
 
