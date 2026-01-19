@@ -284,8 +284,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           .limit(10);
 
         // If a specific partner is selected, also filter by partner name
+        // Note: partner_name in abastecimentos is stored with brackets format [NAME]
         if (selectedPartner && selectedPartner.name) {
-          query = query.eq('partner_name', selectedPartner.name);
+          query = query.eq('partner_name', `[${selectedPartner.name}]`);
         }
 
         const result = await query;
