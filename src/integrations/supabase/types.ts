@@ -6676,6 +6676,7 @@ export type Database = {
           ifr_time: number | null
           is_closed: boolean | null
           is_equal_split: boolean | null
+          is_loan: boolean | null
           last_maintenance_type: string | null
           logbook_month_id: string
           maintenance_approval_responsible: string | null
@@ -6732,6 +6733,7 @@ export type Database = {
           ifr_time?: number | null
           is_closed?: boolean | null
           is_equal_split?: boolean | null
+          is_loan?: boolean | null
           last_maintenance_type?: string | null
           logbook_month_id: string
           maintenance_approval_responsible?: string | null
@@ -6788,6 +6790,7 @@ export type Database = {
           ifr_time?: number | null
           is_closed?: boolean | null
           is_equal_split?: boolean | null
+          is_loan?: boolean | null
           last_maintenance_type?: string | null
           logbook_month_id?: string
           maintenance_approval_responsible?: string | null
