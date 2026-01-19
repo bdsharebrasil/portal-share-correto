@@ -259,30 +259,51 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       });
 
       // Load fuel records from all partners/cotistas
-      const { data: fuelData } = await supabase
-        .from('abastecimentos')
-        .select('*, aeronave:aeronave_id(registration), client:client_id(company_name)')
-        .eq('aeronave_id', aircraftId)
-        .in('client_id', clientIds)
-        .order('data', { ascending: false })
-        .limit(10);
+      let fuelData = null;
+      try {
+        const result = await supabase
+          .from('abastecimentos')
+          .select('*, aeronave:aeronave_id(registration), client:client_id(company_name)')
+          .eq('aeronave_id', aircraftId)
+          .in('client_id', clientIds)
+          .order('data', { ascending: false })
+          .limit(10);
+        fuelData = result.data;
+        if (result.error) console.warn('Erro ao carregar abastecimentos:', result.error);
+      } catch (err) {
+        console.error('Erro crítico ao carregar abastecimentos:', err);
+      }
 
       // Load CTM tracking
-      const { data: ctmData } = await supabase
-        .from('ctm_tracking')
-        .select('*, aircraft:aircraft_id(registration)')
-        .eq('aircraft_id', aircraftId)
-        .eq('client_id', forClientId)
-        .order('created_at', { ascending: false });
+      let ctmData = null;
+      try {
+        const result = await supabase
+          .from('ctm_tracking')
+          .select('*, aircraft:aircraft_id(registration)')
+          .eq('aircraft_id', aircraftId)
+          .eq('client_id', forClientId)
+          .order('created_at', { ascending: false });
+        ctmData = result.data;
+        if (result.error) console.warn('Erro ao carregar CTM:', result.error);
+      } catch (err) {
+        console.error('Erro crítico ao carregar CTM:', err);
+      }
 
       // Load travel reports for specific aircraft
-      const { data: reportsData } = await supabase
-        .from('travel_expense_reports')
-        .select('*')
-        .eq('client_id', forClientId)
-        .eq('aircraft_id', aircraftId)
-        .order('created_at', { ascending: false })
-        .limit(10);
+      let reportsData = null;
+      try {
+        const result = await supabase
+          .from('travel_expense_reports')
+          .select('*')
+          .eq('client_id', forClientId)
+          .eq('aircraft_id', aircraftId)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        reportsData = result.data;
+        if (result.error) console.warn('Erro ao carregar relatórios de viagem:', result.error);
+      } catch (err) {
+        console.error('Erro crítico ao carregar relatórios de viagem:', err);
+      }
 
       setFiles(filesData || []);
       setContracts(contractsData || []);
