@@ -386,12 +386,12 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">
-                          {despesa.comprovante_url && (
+                          {despesa.comanda_url && (
                             <Button 
                               variant="ghost" 
                               size="icon" 
                               className="h-8 w-8"
-                              onClick={() => openDocumento(despesa.comprovante_url, 'Comprovante')}
+                              onClick={() => openDocumento(despesa.comanda_url, 'Comanda')}
                               title="Ver Comprovante"
                             >
                               <Eye className="h-4 w-4" />
