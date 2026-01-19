@@ -54,6 +54,8 @@ interface TravelReport {
 export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegistration, isAdmin = false, selectedPartner }: ClientDataTabsProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [contractUploadDialogOpen, setContractUploadDialogOpen] = useState(false);
+  const [fuelPaymentDialogOpen, setFuelPaymentDialogOpen] = useState(false);
+  const [selectedFuelRecord, setSelectedFuelRecord] = useState<any>(null);
   const [files, setFiles] = useState<any[]>([]);
   const [contracts, setContracts] = useState<any[]>([]);
   const [logbookEntries, setLogbookEntries] = useState<any[]>([]);
