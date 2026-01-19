@@ -198,8 +198,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           .limit(50);
 
         // Se um parceiro específico foi selecionado, filtrar pelo partner_name
+        // Note: partner_name in logbook_entries is stored with brackets format [NAME]
         if (selectedPartner && selectedPartner.name) {
-          query = query.eq('partner_name', selectedPartner.name);
+          query = query.eq('partner_name', `[${selectedPartner.name}]`);
         }
 
         const result = await query;
