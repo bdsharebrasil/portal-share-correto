@@ -11,6 +11,7 @@ import { ClientDataTabs } from "@/components/portal-cliente/ClientDataTabs";
 import { ClientSelectionCards } from "@/components/portal-cliente/ClientSelectionCards";
 import { AircraftSelector } from "@/components/portal-cliente/AircraftSelector";
 import { SaldosDevedoresResume } from "@/components/portal-cliente/SaldosDevedoresResume";
+import { PartnerSelector, type PartnerInfo } from "@/components/portal-cliente/PartnerSelector";
 
 interface ClientAircraft {
   aircraft_id: string;
