@@ -2902,6 +2902,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                     Diárias
                     <div onMouseDown={(e) => handleResizeMouseDown('diarias', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
                   </th>}
+                  {logbookMonth?.has_daily_rate && <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.diarias}px` }}>
+                    Contab.
+                    <div onMouseDown={(e) => handleResizeMouseDown('diarias_contab', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>}
                   <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.voo_para}px` }}>
                     Voo Para
                     <div onMouseDown={(e) => handleResizeMouseDown('voo_para', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
