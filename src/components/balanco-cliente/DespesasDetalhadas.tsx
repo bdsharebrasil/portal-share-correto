@@ -285,6 +285,8 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
                 <SelectItem value="bank_reconciliations">Reembolsos</SelectItem>
                 <SelectItem value="despesas_cliente_direto">Pagamento Direto</SelectItem>
                 <SelectItem value="abastecimentos">Combustível</SelectItem>
+                 <SelectItem value="rateio_despesas">Rateio</SelectItem>
+
               </SelectContent>
             </Select>
 
