@@ -449,7 +449,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tempo de Voo</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Distância</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Combustível</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sócio</th>
+                        {partners.length > 1 && (
+                          <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sócio</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody>
