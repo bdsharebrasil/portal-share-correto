@@ -533,12 +533,30 @@ export function FuelRecordsByAircraft({
     const supplierRecord = suppliers.find(s => s.supplier_name === record.abastecedor);
     setEditingRecord(record);
 
-    // Determine partner_selected from partner_name or observacao
+    // Determine partner_selected and reconstruct client_id from partner_index or partner_name
     let partnerSelected = "";
+    let selectedClientId = record.client_id || client.id;
+
     if (record.partner_name) {
       partnerSelected = record.partner_name;
+      // Reconstruct the pseudo-client_id for partner selection
+      if (record.partner_index === 1) {
+        selectedClientId = `${client.id}-partner1`;
+      } else if (record.partner_index === 2) {
+        selectedClientId = `${client.id}-partner2`;
+      } else if (record.partner_index === 3) {
+        selectedClientId = `${client.id}-partner3`;
+      }
     } else if (record.observacao?.includes("[Partner:")) {
       partnerSelected = record.observacao.match(/\[Partner:([^\]]+)\]/)?.[1] || "";
+      // Reconstruct the pseudo-client_id for partner selection
+      if (record.partner_index === 1) {
+        selectedClientId = `${client.id}-partner1`;
+      } else if (record.partner_index === 2) {
+        selectedClientId = `${client.id}-partner2`;
+      } else if (record.partner_index === 3) {
+        selectedClientId = `${client.id}-partner3`;
+      }
     }
 
     setFormData({
@@ -551,7 +569,7 @@ export function FuelRecordsByAircraft({
       abastecimento_galoes: record.abastecimento_galoes?.toString() || "",
       ano: new Date().getFullYear().toString(),
       abastecedor_id: supplierRecord?.id || "",
-      client_id: record.client_id || client.id,
+      client_id: selectedClientId,
       partner_selected: partnerSelected,
       status_pagamento: record.status_pagamento || "em aberto",
       observacao: record.observacao?.replace(/\[Partner:[^\]]+\]\s*/, "") || "",
