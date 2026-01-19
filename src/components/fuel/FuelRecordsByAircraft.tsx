@@ -451,11 +451,14 @@ export function FuelRecordsByAircraft({
         observacaoFinal = observacaoFinal ? `${partnerInfo} ${observacaoFinal}` : partnerInfo;
       }
 
-      // Determine partner_index from selected partner
+      // Determine partner_index and partner_name from selected partner
       let partnerIndex: number | null = null;
+      let partnerName: string | null = null;
       if (selectedPartner && !selectedPartner.isMainClient) {
         // Extract partner index (1, 2, or 3)
         if (formData.client_id.includes('-partner1')) partnerIndex = 1;else if (formData.client_id.includes('-partner2')) partnerIndex = 2;else if (formData.client_id.includes('-partner3')) partnerIndex = 3;
+        // Save partner name
+        partnerName = selectedPartner.name;
       }
       const recordData = {
         client_id: client.id,
@@ -472,6 +475,7 @@ export function FuelRecordsByAircraft({
         status_pagamento: formData.status_pagamento || "em aberto",
         observacao: observacaoFinal,
         partner_index: partnerIndex,
+        partner_name: partnerName,
         comanda_url: comandaUrl || null,
         nota_url: notaUrl || null,
         boleto_url: boletoUrl || null
