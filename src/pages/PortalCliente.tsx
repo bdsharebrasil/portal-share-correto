@@ -81,6 +81,7 @@ export default function PortalCliente() {
   const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [selectedPartner, setSelectedPartner] = useState<PartnerInfo | null | undefined>(undefined);
   const [selectedAircraft, setSelectedAircraft] = useState<ClientAircraft | null>(null);
   const [aircraft, setAircraft] = useState<Aircraft | null>(null);
   const [loading, setLoading] = useState(true);
