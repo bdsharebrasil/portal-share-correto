@@ -975,8 +975,15 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         onSuccess={() => loadData(clientId)}
       />
 
+      <FuelPaymentDialog
+        open={fuelPaymentDialogOpen}
+        onOpenChange={setFuelPaymentDialogOpen}
+        fuelRecord={selectedFuelRecord}
+        onSuccess={() => loadData(clientId)}
+      />
+
       {/* Exemplo de uso do EnvioDespesaTab, ajuste conforme necessário */}
-      {/* 
+      {/*
       <EnvioDespesaTab
         fornecedores={fornecedoresShare}
         // ...outras props...
