@@ -3004,6 +3004,26 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                         )}
                       </td>
                     )}
+                    {logbookMonth?.has_daily_rate && (
+                      <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.diarias}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {e.daily_rate > 0 ? (
+                          <input
+                            type="checkbox"
+                            checked={markedDailies[`${e.id}_${e.entry_date}`] || false}
+                            onChange={(event) => {
+                              event.stopPropagation();
+                              setMarkedDailies(prev => ({
+                                ...prev,
+                                [`${e.id}_${e.entry_date}`]: !prev[`${e.id}_${e.entry_date}`]
+                              }));
+                            }}
+                            className="w-4 h-4 accent-sky-500 cursor-pointer"
+                          />
+                        ) : (
+                          <span className="text-slate-600">-</span>
+                        )}
+                      </td>
+                    )}
                     <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.voo_para}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {e.is_equal_split ? (
                         <span className="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded text-xs font-bold uppercase">
