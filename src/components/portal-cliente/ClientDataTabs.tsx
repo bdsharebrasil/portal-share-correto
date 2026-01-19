@@ -383,49 +383,71 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-foreground">
                 <Plane className="h-5 w-5 text-primary" />
-                Logbook
+                Diário de Bordo
               </CardTitle>
               <CardDescription className="text-muted-foreground">
-                Registre e acompanhe os voos da aeronave
+                Histórico de voos da aeronave
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button
-                onClick={() => setUploadDialogOpen(true)}
-                className="w-full"
-                size="lg"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Enviar Registro de Voo
-              </Button>
-
               {logbookEntries.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">Nenhum registro de voo encontrado</p>
               ) : (
-                <div className="space-y-2">
-                  {logbookEntries.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="p-4 bg-muted/50 rounded-lg border border-border flex justify-between items-center"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium text-foreground">{entry.flight_number}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Data: {new Date(entry.entry_date).toLocaleDateString('pt-BR')}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => downloadFile(entry.file_path)}
-                        >
-                          <Download className="h-4 w-4" />
-                          Baixar
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tempo de Voo</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Distância</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Combustível</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Taxa Diária</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sócio</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {logbookEntries.map((entry) => (
+                        <tr key={entry.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="py-4 px-4 text-foreground">
+                            {entry.entry_date ? new Date(entry.entry_date).toLocaleDateString('pt-BR') : '—'}
+                          </td>
+                          <td className="py-4 px-4 text-foreground font-medium">
+                            {entry.total_time ? `${parseFloat(entry.total_time).toFixed(2)}h` : '—'}
+                          </td>
+                          <td className="py-4 px-4 text-foreground">
+                            {entry.distance_nm ? `${parseFloat(entry.distance_nm).toFixed(1)} NM` : '—'}
+                          </td>
+                          <td className="py-4 px-4 text-foreground">
+                            {entry.fuel_added ? `${parseFloat(entry.fuel_added).toFixed(1)}L` : '—'}
+                          </td>
+                          <td className="py-4 px-4 text-foreground">
+                            {entry.daily_rate ? `R$ ${parseFloat(entry.daily_rate).toFixed(2)}` : '—'}
+                          </td>
+                          <td className="py-4 px-4 text-foreground">
+                            {entry.partner_name ? (
+                              <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">
+                                {entry.partner_name}
+                              </span>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                          <td className="py-4 px-4 text-foreground">
+                            {entry.is_loan ? (
+                              <span className="px-2 py-1 bg-amber-500/20 text-amber-300 rounded text-xs">
+                                Empréstimo
+                              </span>
+                            ) : (
+                              <span className="px-2 py-1 bg-green-500/20 text-green-300 rounded text-xs">
+                                Normal
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </CardContent>
