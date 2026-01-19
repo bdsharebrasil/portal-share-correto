@@ -2929,10 +2929,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                     Diárias
                     <div onMouseDown={(e) => handleResizeMouseDown('diarias', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
                   </th>}
-                  {logbookMonth?.has_daily_rate && <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.diarias}px` }}>
-                    Contab.
-                    <div onMouseDown={(e) => handleResizeMouseDown('diarias_contab', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </th>}
                   <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.voo_para}px` }}>
                     Voo Para
                     <div onMouseDown={(e) => handleResizeMouseDown('voo_para', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -3026,26 +3022,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                           <span className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-lg font-bold text-sm">
                             {e.daily_rate}
                           </span>
-                        ) : (
-                          <span className="text-slate-600">-</span>
-                        )}
-                      </td>
-                    )}
-                    {logbookMonth?.has_daily_rate && (
-                      <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.diarias}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {e.daily_rate > 0 ? (
-                          <input
-                            type="checkbox"
-                            checked={markedDailies[`${e.id}_${e.entry_date}`] || false}
-                            onChange={(event) => {
-                              event.stopPropagation();
-                              setMarkedDailies(prev => ({
-                                ...prev,
-                                [`${e.id}_${e.entry_date}`]: !prev[`${e.id}_${e.entry_date}`]
-                              }));
-                            }}
-                            className="w-4 h-4 accent-sky-500 cursor-pointer"
-                          />
                         ) : (
                           <span className="text-slate-600">-</span>
                         )}

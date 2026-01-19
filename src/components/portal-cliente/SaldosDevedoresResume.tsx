@@ -158,22 +158,7 @@ export function SaldosDevedoresResume({ clienteId }: SaldosDevedoresResumeProps)
         </Card>
       </div>
 
-      {/* Total Geral */}
-      <Card className="border border-white/10 bg-slate-800/30 backdrop-blur-sm">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-foreground">Total de Saldos Devedores</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-baseline gap-2">
-            <p className="text-4xl font-bold text-red-400">
-              {formatCurrency(saldos.total_geral)}
-            </p>
-            <p className="text-muted-foreground text-sm">
-              em {saldos.reembolsos.quantidade_registros + saldos.pagamento_direto.quantidade_registros + saldos.combustivel.quantidade_registros} registro{(saldos.reembolsos.quantidade_registros + saldos.pagamento_direto.quantidade_registros + saldos.combustivel.quantidade_registros) !== 1 ? 's' : ''}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Total Geral removed per request */}
 
       {/* Informação */}
       {saldos.total_geral === 0 && (

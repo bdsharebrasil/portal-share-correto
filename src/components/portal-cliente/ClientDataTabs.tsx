@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Fuel, Wrench, Plane, Download, Upload, FileCheck, Eye, Send } from "lucide-react";
+import { FileText, Fuel, Wrench, Plane, Download, Upload, FileCheck, Eye, Send, Trash } from "lucide-react";
 import { previewPDFForPrint, TravelReport as TravelReportPDF, TravelExpense } from "@/lib/travelReportPDF";
 import { FileUploadDialog } from "./FileUploadDialog";
 import { ContractUploadDialog } from "./ContractUploadDialog";
@@ -59,13 +59,66 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
   const [ctmTracking, setCtmTracking] = useState<any[]>([]);
   const [travelReports, setTravelReports] = useState<TravelReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [partners, setPartners] = useState<any[]>([]);
+  const [activeClientId, setActiveClientId] = useState<string>(clientId);
+  const [fornecedoresShare, setFornecedoresShare] = useState<any[]>([]);
 
-  // Carregador de dados principal
+  // Carregador de dados principal (carrega dados do cliente ativo)
   useEffect(() => {
-    loadData();
-  }, [clientId, aircraftId]);
+    setActiveClientId(clientId);
+  }, [clientId]);
 
-  const loadData = async () => {
+  useEffect(() => {
+    // Buscar cotistas/partners da aeronave
+    const loadPartners = async () => {
+      if (!aircraftId) return;
+      try {
+        const { data } = await supabase
+          .from('aircraft_shareholders')
+          .select('*, client:client_id(id, company_name)')
+          .eq('aircraft_id', aircraftId)
+          .order('share_percentage', { ascending: false });
+
+        const partnerList = (data || []).map((p: any) => ({
+          client_id: p.client_id,
+          company_name: p.client?.company_name || p.client_name || p.partner_name || p.client_id,
+          share_percentage: p.share_percentage || 0,
+        }));
+
+        // Ensure the primary client is included
+        if (!partnerList.find((p: any) => p.client_id === clientId)) {
+          partnerList.unshift({ client_id: clientId, company_name: clientName, share_percentage: 100 });
+        }
+
+        setPartners(partnerList);
+        // default to the provided clientId if present
+        setActiveClientId(clientId);
+      } catch (error) {
+        console.error('Error loading partners:', error);
+      }
+    };
+
+    loadPartners();
+  }, [aircraftId, clientId, clientName]);
+
+  // Buscar fornecedores favoritos categoria 'share'
+  useEffect(() => {
+    const loadFornecedoresShare = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('fornecedores_favoritos')
+          .select('nome_completo')
+          .eq('categoria', 'share');
+        if (error) throw error;
+        setFornecedoresShare(data || []);
+      } catch (err) {
+        console.error('Erro ao buscar fornecedores favoritos:', err);
+      }
+    };
+    loadFornecedoresShare();
+  }, []);
+
+  const loadData = async (forClientId: string) => {
     try {
       setLoading(true);
 
@@ -73,14 +126,14 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       const { data: filesData } = await supabase
         .from('client_portal_files')
         .select('*')
-        .eq('client_id', clientId)
+        .eq('client_id', forClientId)
         .order('created_at', { ascending: false });
 
       // Load contracts
       const { data: contractsData } = await supabase
         .from('client_contracts')
         .select('*')
-        .eq('client_id', clientId)
+        .eq('client_id', forClientId)
         .order('created_at', { ascending: false });
 
       // Load logbook entries
@@ -88,7 +141,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         .from('logbook_entries')
         .select('*, aircraft:aircraft_id(registration)')
         .eq('aircraft_id', aircraftId)
-        .eq('client_id', clientId)
+        .eq('client_id', forClientId)
         .order('entry_date', { ascending: false })
         .limit(10);
 
@@ -97,7 +150,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         .from('abastecimentos')
         .select('*, aeronave:aeronave_id(registration)')
         .eq('aeronave_id', aircraftId)
-        .eq('client_id', clientId)
+        .eq('client_id', forClientId)
         .order('data', { ascending: false })
         .limit(10);
 
@@ -106,14 +159,14 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         .from('ctm_tracking')
         .select('*, aircraft:aircraft_id(registration)')
         .eq('aircraft_id', aircraftId)
-        .eq('client_id', clientId)
+        .eq('client_id', forClientId)
         .order('created_at', { ascending: false });
 
       // Load travel reports for specific aircraft
       const { data: reportsData } = await supabase
         .from('travel_expense_reports')
         .select('*')
-        .eq('client_id', clientId)
+        .eq('client_id', forClientId)
         .eq('aircraft_id', aircraftId)
         .order('created_at', { ascending: false })
         .limit(10);
@@ -126,8 +179,6 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       setTravelReports(reportsData || []);
     } catch (error) {
       console.error('Error loading client data:', error);
-      // Não mostrar toast de erro para não assustar o usuário
-      // O polling vai tentar novamente em 10 segundos
     } finally {
       setLoading(false);
     }
@@ -163,7 +214,6 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         .remove([filePath]);
 
       if (storageError) throw storageError;
-
       // Delete from database
       const { error: dbError } = await supabase
         .from('client_contracts')
@@ -180,110 +230,130 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
     }
   };
 
-
-
-  if (loading) {
-    return <div className="text-center py-8">Carregando...</div>;
-  }
-
   return (
     <>
-      <Tabs defaultValue="financial-history" className="w-full">
-        <TabsList className="flex w-full gap-2 bg-gradient-card border-b border-border overflow-x-auto px-4 py-3 h-auto rounded-none flex-wrap md:flex-nowrap">
-          <TabsTrigger value="financial-history">Histórico Financeiro</TabsTrigger>
-          <TabsTrigger value="envio-despesa">
-            <Send className="h-4 w-4 mr-1" />
-            Envio de Despesa
-          </TabsTrigger>
-          <TabsTrigger value="contracts">Contrato Share</TabsTrigger>
-          <TabsTrigger value="logbook">Diário de Bordo</TabsTrigger>
-          <TabsTrigger value="fuel">Abastecimento</TabsTrigger>
+      <Tabs defaultValue="files" className="w-full">
+        <TabsList>
+          <TabsTrigger value="files">Arquivos</TabsTrigger>
+          <TabsTrigger value="contracts">Contratos</TabsTrigger>
+          <TabsTrigger value="logbook">Logbook</TabsTrigger>
+          <TabsTrigger value="fuel">Abastecimentos</TabsTrigger>
           <TabsTrigger value="ctm">CTM</TabsTrigger>
-          <TabsTrigger value="travel-reports">Relatórios</TabsTrigger>
+          <TabsTrigger value="travel-reports">Relatórios de Viagem</TabsTrigger>
+          <TabsTrigger value="envio-despesa">Envio de Despesa</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="financial-history" className="space-y-4">
-          <FinancialHistoryTab clientId={clientId} aircraftId={aircraftId} />
-        </TabsContent>
+        <TabsContent value="files" className="space-y-4">
+          <Card className="bg-gradient-card border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <Upload className="h-5 w-5 text-primary" />
+                Upload de Arquivos
+              </CardTitle>
+              <CardDescription className="text-muted-foreground">
+                Envie seus arquivos para o portal
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                onClick={() => setUploadDialogOpen(true)}
+                className="w-full"
+                size="lg"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Enviar Arquivos
+              </Button>
 
-        <TabsContent value="envio-despesa" className="space-y-4">
-          <EnvioDespesaTab 
-            clientId={clientId} 
-            clientName={clientName} 
-            aircraftId={aircraftId} 
-            aircraftRegistration={aircraftRegistration} 
-          />
+              {files.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">Nenhum arquivo enviado ainda</p>
+              ) : (
+                <div className="space-y-2">
+                  {files.map((file) => (
+                    <div
+                      key={file.id}
+                      className="p-4 bg-muted/50 rounded-lg border border-border flex justify-between items-center"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium text-foreground">{file.file_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Enviado em: {new Date(file.created_at).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadFile(file.file_path)}
+                        >
+                          <Download className="h-4 w-4" />
+                          Baixar
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="contracts" className="space-y-4">
           <Card className="bg-gradient-card border-border">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-foreground">
-                    <FileCheck className="h-5 w-5 text-primary" />
-                    Contrato Share
-                  </CardTitle>
-                  <CardDescription className="text-muted-foreground mt-1">
-                    Contratos de compartilhamento de aeronave
-                  </CardDescription>
-                </div>
-                {isAdmin && (
-                  <Button onClick={() => setContractUploadDialogOpen(true)} size="sm">
-                    <Upload className="h-4 w-4 mr-2" />
-                    Enviar Contrato
-                  </Button>
-                )}
-              </div>
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <FileText className="h-5 w-5 text-primary" />
+                Contratos
+              </CardTitle>
+              <CardDescription className="text-muted-foreground">
+                Gerencie os contratos da sua empresa
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
+              <Button
+                onClick={() => setContractUploadDialogOpen(true)}
+                className="w-full"
+                size="lg"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Enviar Contrato
+              </Button>
+
               {contracts.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">Nenhum contrato disponível</p>
+                <p className="text-muted-foreground text-center py-8">Nenhum contrato encontrado</p>
               ) : (
-                contracts.map((contract) => (
-                  <div
-                    key={contract.id}
-                    className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border hover:border-primary/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3 flex-1">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <FileCheck className="h-5 w-5 text-primary" />
-                      </div>
+                <div className="space-y-2">
+                  {contracts.map((contract) => (
+                    <div
+                      key={contract.id}
+                      className="p-4 bg-muted/50 rounded-lg border border-border flex justify-between items-center"
+                    >
                       <div className="flex-1">
                         <p className="font-medium text-foreground">{contract.file_name}</p>
-                        <p className="text-sm text-muted-foreground">{contract.description}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Enviado em: {new Date(contract.uploaded_at).toLocaleDateString('pt-BR', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          })}
+                        <p className="text-sm text-muted-foreground">
+                          Enviado em: {new Date(contract.created_at).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => downloadFile(contract.file_path)}
-                        className="gap-2"
-                      >
-                        <Download className="h-4 w-4" />
-                        Baixar
-                      </Button>
-                      {isAdmin && (
+                      <div className="flex items-center gap-2">
                         <Button
+                          variant="outline"
                           size="sm"
-                          variant="ghost"
-                          onClick={() => deleteContract(contract.id, contract.file_path)}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => downloadFile(contract.file_path)}
                         >
-                          ✕
+                          <Download className="h-4 w-4" />
+                          Baixar
                         </Button>
-                      )}
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => deleteContract(contract.id, contract.file_path)}
+                        >
+                          <Trash className="h-4 w-4" />
+                          Remover
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -294,45 +364,50 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-foreground">
                 <Plane className="h-5 w-5 text-primary" />
-                Diário de Bordo
+                Logbook
               </CardTitle>
               <CardDescription className="text-muted-foreground">
-                Últimos voos registrados
+                Registre e acompanhe os voos da aeronave
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
+              <Button
+                onClick={() => setUploadDialogOpen(true)}
+                className="w-full"
+                size="lg"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Enviar Registro de Voo
+              </Button>
+
               {logbookEntries.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">Nenhum voo registrado</p>
+                <p className="text-muted-foreground text-center py-8">Nenhum registro de voo encontrado</p>
               ) : (
-                logbookEntries.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="p-4 bg-muted/50 rounded-lg border border-border"
-                  >
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Data</p>
-                        <p className="font-medium text-foreground">
-                          {new Date(entry.entry_date).toLocaleDateString('pt-BR')}
+                <div className="space-y-2">
+                  {logbookEntries.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="p-4 bg-muted/50 rounded-lg border border-border flex justify-between items-center"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium text-foreground">{entry.flight_number}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Data: {new Date(entry.entry_date).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Origem → Destino</p>
-                        <p className="font-medium text-foreground">
-                          {entry.departure_aerodrome} → {entry.arrival_aerodrome}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Horas</p>
-                        <p className="font-medium text-foreground">{entry.total_time}h</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Pousos</p>
-                        <p className="font-medium text-foreground">{entry.pousos}</p>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadFile(entry.file_path)}
+                        >
+                          <Download className="h-4 w-4" />
+                          Baixar
+                        </Button>
                       </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -343,72 +418,50 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-foreground">
                 <Fuel className="h-5 w-5 text-primary" />
-                Controle de Abastecimento
+                Abastecimentos
               </CardTitle>
               <CardDescription className="text-muted-foreground">
-                Histórico de abastecimentos
+                Registre e acompanhe os abastecimentos da aeronave
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
+              <Button
+                onClick={() => setUploadDialogOpen(true)}
+                className="w-full"
+                size="lg"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Enviar Registro de Abastecimento
+              </Button>
+
               {fuelRecords.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">Nenhum abastecimento registrado</p>
+                <p className="text-muted-foreground text-center py-8">Nenhum registro de abastecimento encontrado</p>
               ) : (
-                fuelRecords.map((record) => (
-                  <div
-                    key={record.id}
-                    className="p-4 bg-muted/50 rounded-lg border border-border"
-                  >
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Data</p>
-                        <p className="font-medium text-foreground">
-                          {(() => {
-                            // Handle both ISO timestamps and date-only strings
-                            let dateStr = record.data;
-                            if (typeof dateStr === 'string') {
-                              // If it's a date-only string (YYYY-MM-DD), parse it directly
-                              if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                                const [year, month, day] = dateStr.split('-').map(Number);
-                                return new Date(year, month - 1, day).toLocaleDateString('pt-BR');
-                              }
-                              // If it's an ISO timestamp, extract the date part
-                              const datePart = dateStr.split('T')[0];
-                              const [year, month, day] = datePart.split('-').map(Number);
-                              return new Date(year, month - 1, day).toLocaleDateString('pt-BR');
-                            }
-                            return new Date(record.data).toLocaleDateString('pt-BR');
-                          })()}
+                <div className="space-y-2">
+                  {fuelRecords.map((record) => (
+                    <div
+                      key={record.id}
+                      className="p-4 bg-muted/50 rounded-lg border border-border flex justify-between items-center"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium text-foreground">{record.registration}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Data: {new Date(record.data).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Local</p>
-                        <p className="font-medium text-foreground">{record.local}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Litros</p>
-                        <p className="font-medium text-foreground">{record.litros}L</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Valor Total</p>
-                        <p className="font-medium text-green-400">
-                          R$ {parseFloat(record.valor_total).toFixed(2)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Status Pagamento</p>
-                        {record.status_pagamento === "pago" ? (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold">
-                            Pago
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 text-xs font-semibold">
-                            Em Aberto
-                          </span>
-                        )}
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadFile(record.file_path)}
+                        >
+                          <Download className="h-4 w-4" />
+                          Baixar
+                        </Button>
                       </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -602,6 +655,23 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           </Card>
         </TabsContent>
 
+        <TabsContent value="envio-despesa" className="space-y-4">
+          <Card className="bg-gradient-card border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <Send className="h-5 w-5 text-primary" />
+                Envio de Despesa ao Cliente
+              </CardTitle>
+              <CardDescription className="text-muted-foreground">
+                Envie despesas diretamente para o cliente, selecionando um fornecedor favorito.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <EnvioDespesaTab fornecedores={fornecedoresShare} clientId={clientId} aircraftId={aircraftId} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
       </Tabs>
 
       <FileUploadDialog
@@ -609,16 +679,23 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         onOpenChange={setUploadDialogOpen}
         clientId={clientId}
         aircraftId={aircraftId}
-        onSuccess={loadData}
+        onSuccess={() => loadData(clientId)}
       />
 
       <ContractUploadDialog
         open={contractUploadDialogOpen}
         onOpenChange={setContractUploadDialogOpen}
         clientId={clientId}
-        onSuccess={loadData}
+        onSuccess={() => loadData(clientId)}
       />
 
+      {/* Exemplo de uso do EnvioDespesaTab, ajuste conforme necessário */}
+      {/* 
+      <EnvioDespesaTab
+        fornecedores={fornecedoresShare}
+        // ...outras props...
+      />
+      */}
     </>
   );
 }

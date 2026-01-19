@@ -6021,7 +6021,9 @@ export type Database = {
       }
       fornecedores_favoritos: {
         Row: {
+          apelido: string | null
           atualizado_em: string
+          categoria: string | null
           cidade: string | null
           criado_em: string
           criado_por: string
@@ -6031,7 +6033,9 @@ export type Database = {
           telefone: string | null
         }
         Insert: {
+          apelido?: string | null
           atualizado_em?: string
+          categoria?: string | null
           cidade?: string | null
           criado_em?: string
           criado_por: string
@@ -6041,7 +6045,9 @@ export type Database = {
           telefone?: string | null
         }
         Update: {
+          apelido?: string | null
           atualizado_em?: string
+          categoria?: string | null
           cidade?: string | null
           criado_em?: string
           criado_por?: string
