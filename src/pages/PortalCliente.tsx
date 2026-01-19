@@ -454,36 +454,55 @@ export default function PortalCliente() {
                 selectedAircraftId={selectedAircraft?.aircraft_id || ""}
                 onSelect={handleAircraftChange}
               >
-                {/* Dados da Empresa */}
+                {/* Dados da Empresa ou Sócio */}
                 <Card className="border border-white/10 bg-slate-800/30 backdrop-blur-sm mb-8">
                   <CardHeader className="pb-4 border-b border-white/10">
                     <CardTitle className="flex items-center gap-2 text-foreground text-lg">
                       <Building className="h-5 w-5 text-blue-400" />
-                      Dados da Empresa
+                      {selectedPartner ? 'Dados do Sócio' : 'Dados da Empresa'}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-6">
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-white/10">
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nome Fantasia</th>
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">CNPJ</th>
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Inscrição Estadual</th>
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email</th>
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Telefone</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                            <td className="py-4 px-4 text-foreground font-medium">{selectedClient.company_name}</td>
-                            <td className="py-4 px-4 text-foreground">{selectedClient.cnpj || '—'}</td>
-                            <td className="py-4 px-4 text-foreground">{selectedClient.inscricao_estadual || '—'}</td>
-                            <td className="py-4 px-4 text-foreground">{selectedClient.email || '—'}</td>
-                            <td className="py-4 px-4 text-foreground">{selectedClient.phone || '—'}</td>
-                          </tr>
-                        </tbody>
-                      </table>
+                      {selectedPartner ? (
+                        // Dados do Sócio Selecionado
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-white/10">
+                              <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nome do Sócio</th>
+                              <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">CPF</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                              <td className="py-4 px-4 text-foreground font-medium">{selectedPartner.name}</td>
+                              <td className="py-4 px-4 text-foreground">{selectedPartner.cpf || '—'}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      ) : (
+                        // Dados Consolidados da Empresa
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-white/10">
+                              <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nome Fantasia</th>
+                              <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">CNPJ</th>
+                              <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Inscrição Estadual</th>
+                              <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email</th>
+                              <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Telefone</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                              <td className="py-4 px-4 text-foreground font-medium">{selectedClient.company_name}</td>
+                              <td className="py-4 px-4 text-foreground">{selectedClient.cnpj || '—'}</td>
+                              <td className="py-4 px-4 text-foreground">{selectedClient.inscricao_estadual || '—'}</td>
+                              <td className="py-4 px-4 text-foreground">{selectedClient.email || '—'}</td>
+                              <td className="py-4 px-4 text-foreground">{selectedClient.phone || '—'}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
