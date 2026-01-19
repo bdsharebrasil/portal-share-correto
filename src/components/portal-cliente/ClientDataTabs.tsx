@@ -610,27 +610,48 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         </TabsContent>
 
         <TabsContent value="fuel" className="space-y-4">
-          <Card className="bg-gradient-card border-border">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-foreground">
-                <Fuel className="h-5 w-5 text-primary" />
-                Abastecimentos
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Registre e acompanhe os abastecimentos da aeronave
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button
-                onClick={() => setUploadDialogOpen(true)}
-                className="w-full"
-                size="lg"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Enviar Registro de Abastecimento
-              </Button>
+          {(() => {
+            const pendingFuel = fuelRecords.filter((r: any) => r.status_pagamento === 'pendente');
+            const totalPending = pendingFuel.reduce((sum: number, r: any) => sum + (Number(r.valor_total) || 0), 0);
 
-              {fuelRecords.length === 0 ? (
+            return (
+              <>
+                {totalPending > 0 && (
+                  <Card className="border-2 border-yellow-500/20 bg-yellow-500/5">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">Saldo Devedor de Combustível</p>
+                          <p className="text-3xl font-bold text-yellow-400">
+                            R$ {totalPending.toFixed(2)}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {pendingFuel.length} abastecimento{pendingFuel.length !== 1 ? 's' : ''} pendente{pendingFuel.length !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <Badge className="bg-yellow-500/20 text-yellow-300 mb-2">Pendente</Badge>
+                          <p className="text-xs text-muted-foreground">
+                            Pressione "Dar Baixa" para registrar o pagamento
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Card className="bg-gradient-card border-border">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-foreground">
+                      <Fuel className="h-5 w-5 text-primary" />
+                      Abastecimentos
+                    </CardTitle>
+                    <CardDescription className="text-muted-foreground">
+                      Acompanhe os abastecimentos da aeronave e registre os pagamentos
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {fuelRecords.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">Nenhum registro de abastecimento encontrado</p>
               ) : (
                 <div className="space-y-2">
@@ -695,12 +716,41 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                         <p className="text-xs text-muted-foreground">Abastecedor: {record.abastecedor || 'N/A'}</p>
                         <p className="text-xs text-muted-foreground ml-auto">Comanda: {record.comanda || 'N/A'}</p>
                       </div>
+
+                      {record.status_pagamento === 'pendente' && (
+                        <Button
+                          onClick={() => {
+                            setSelectedFuelRecord(record);
+                            setFuelPaymentDialogOpen(true);
+                          }}
+                          size="sm"
+                          className="w-full mt-3 bg-emerald-600 hover:bg-emerald-500 gap-2"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                          Dar Baixa no Pagamento
+                        </Button>
+                      )}
+
+                      {record.status_pagamento === 'pago' && record.comprovante_url && (
+                        <Button
+                          onClick={() => window.open(record.comprovante_url, '_blank')}
+                          size="sm"
+                          variant="outline"
+                          className="w-full mt-3 gap-2"
+                        >
+                          <Download className="h-4 w-4" />
+                          Baixar Comprovante
+                        </Button>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+                  </CardContent>
+                </Card>
+              </>
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="ctm" className="space-y-4">
