@@ -53,8 +53,6 @@ interface FuelRecord {
   client_id?: string | null;
   status_pagamento?: string | null;
   observacao?: string | null;
-  partner_index?: number | null;
-  partner_name?: string | null;
 }
 interface FuelSupplier {
   id: string;
@@ -306,12 +304,7 @@ export function FuelRecordsByAircraft({
       console.error("Load error:", error);
       return;
     }
-    // Mapear dados para adicionar propriedade 'ano' extraída da data
-    const mappedRecords = (data || []).map(record => ({
-      ...record,
-      ano: record.data ? new Date(record.data).getFullYear().toString() : null
-    }));
-    setRecords(mappedRecords);
+    setRecords(data || []);
     setCurrentPage(1);
   };
 
@@ -451,14 +444,11 @@ export function FuelRecordsByAircraft({
         observacaoFinal = observacaoFinal ? `${partnerInfo} ${observacaoFinal}` : partnerInfo;
       }
 
-      // Determine partner_index and partner_name from selected partner
+      // Determine partner_index from selected partner
       let partnerIndex: number | null = null;
-      let partnerName: string | null = null;
       if (selectedPartner && !selectedPartner.isMainClient) {
         // Extract partner index (1, 2, or 3)
         if (formData.client_id.includes('-partner1')) partnerIndex = 1;else if (formData.client_id.includes('-partner2')) partnerIndex = 2;else if (formData.client_id.includes('-partner3')) partnerIndex = 3;
-        // Save partner name
-        partnerName = selectedPartner.name;
       }
       const recordData = {
         client_id: client.id,
@@ -475,7 +465,6 @@ export function FuelRecordsByAircraft({
         status_pagamento: formData.status_pagamento || "em aberto",
         observacao: observacaoFinal,
         partner_index: partnerIndex,
-        partner_name: partnerName,
         comanda_url: comandaUrl || null,
         nota_url: notaUrl || null,
         boleto_url: boletoUrl || null
@@ -532,33 +521,6 @@ export function FuelRecordsByAircraft({
   const handleEdit = (record: FuelRecord) => {
     const supplierRecord = suppliers.find(s => s.supplier_name === record.abastecedor);
     setEditingRecord(record);
-
-    // Determine partner_selected and reconstruct client_id from partner_index or partner_name
-    let partnerSelected = "";
-    let selectedClientId = record.client_id || client.id;
-
-    if (record.partner_name) {
-      partnerSelected = record.partner_name;
-      // Reconstruct the pseudo-client_id for partner selection
-      if (record.partner_index === 1) {
-        selectedClientId = `${client.id}-partner1`;
-      } else if (record.partner_index === 2) {
-        selectedClientId = `${client.id}-partner2`;
-      } else if (record.partner_index === 3) {
-        selectedClientId = `${client.id}-partner3`;
-      }
-    } else if (record.observacao?.includes("[Partner:")) {
-      partnerSelected = record.observacao.match(/\[Partner:([^\]]+)\]/)?.[1] || "";
-      // Reconstruct the pseudo-client_id for partner selection
-      if (record.partner_index === 1) {
-        selectedClientId = `${client.id}-partner1`;
-      } else if (record.partner_index === 2) {
-        selectedClientId = `${client.id}-partner2`;
-      } else if (record.partner_index === 3) {
-        selectedClientId = `${client.id}-partner3`;
-      }
-    }
-
     setFormData({
       data: record.data,
       trecho: record.trecho || "",
@@ -569,8 +531,8 @@ export function FuelRecordsByAircraft({
       abastecimento_galoes: record.abastecimento_galoes?.toString() || "",
       ano: new Date().getFullYear().toString(),
       abastecedor_id: supplierRecord?.id || "",
-      client_id: selectedClientId,
-      partner_selected: partnerSelected,
+      client_id: record.client_id || client.id,
+      partner_selected: record.observacao?.includes("[Partner:") ? record.observacao.match(/\[Partner:([^\]]+)\]/)?.[1] || "" : "",
       status_pagamento: record.status_pagamento || "em aberto",
       observacao: record.observacao?.replace(/\[Partner:[^\]]+\]\s*/, "") || "",
       comanda_file: null,
