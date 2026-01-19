@@ -27,12 +27,17 @@ interface ClientAircraft {
 interface Client {
   id: string;
   company_name: string;
+  status: string;
   cnpj?: string;
   inscricao_estadual?: string;
   email?: string;
   phone?: string;
+  address?: string;
+  city?: string;
+  uf?: string;
   proprietario?: string;
   financial_contact?: string;
+  observations?: string;
   logo_url?: string;
   client_aircraft?: ClientAircraft[];
 }
@@ -147,12 +152,17 @@ export default function PortalCliente() {
         .select(`
           id,
           company_name,
+          status,
           cnpj,
           inscricao_estadual,
           email,
           phone,
+          address,
+          city,
+          uf,
           proprietario,
           financial_contact,
+          observations,
           logo_url,
           client_aircraft (
             aircraft_id,

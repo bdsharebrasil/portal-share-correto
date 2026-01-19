@@ -9,7 +9,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Search, FileText, ExternalLink, Eye } from 'lucide-react';
+import { Search, FileText, Eye, Image, Receipt } from 'lucide-react';
+import { DocumentoViewer } from './DocumentoViewer';
 
 interface DespesasDetalhadasProps {
   clienteId: string;
@@ -24,17 +25,31 @@ const STATUS_LABELS: Record<string, { label: string; variant: 'default' | 'secon
   pago: { label: 'Pago', variant: 'default' },
   conciliado: { label: 'Conciliado', variant: 'default' },
   aguardando_reembolso: { label: 'Aguardando Reembolso', variant: 'outline' },
+  aguardando_pagamento: { label: 'Aguardando Pagamento', variant: 'outline' },
+  visualizado_cliente: { label: 'Visualizado', variant: 'secondary' },
+  comprovante_recebido: { label: 'Comprovante Recebido', variant: 'default' },
   reembolsado: { label: 'Reembolsado', variant: 'default' },
+  atrasado: { label: 'Atrasado', variant: 'destructive' },
 };
 
 export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasDetalhadasProps) {
   const [busca, setBusca] = useState('');
   const [statusFilter, setStatusFilter] = useState('todos');
   const [categoriaFilter, setCategoriaFilter] = useState('todas');
+  const [fonteFilter, setFonteFilter] = useState('todas');
+  const [documentoViewerOpen, setDocumentoViewerOpen] = useState(false);
+  const [documentoUrl, setDocumentoUrl] = useState('');
+  const [documentoTitle, setDocumentoTitle] = useState('');
 
-  // Buscar despesas
-  const { data: despesas = [], isLoading } = useQuery({
-    queryKey: ['despesas-detalhadas', clienteId, aeronaveId, periodo],
+  const openDocumento = (url: string, title: string) => {
+    setDocumentoUrl(url);
+    setDocumentoTitle(title);
+    setDocumentoViewerOpen(true);
+  };
+
+  // Buscar despesas de bank_reconciliations
+  const { data: despesasBankRec = [], isLoading: loadingBankRec } = useQuery({
+    queryKey: ['despesas-bank-rec', clienteId, aeronaveId, periodo],
     queryFn: async () => {
       let query = supabase
         .from('bank_reconciliations')
@@ -54,10 +69,99 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
 
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      return (data || []).map((d: any) => ({
+        ...d,
+        fonte: 'bank_reconciliations',
+        valor: d.amount,
+        data: d.date,
+        descricao: d.description,
+        categoria_nome: d.categorias_movimentacao?.nome || 'Sem categoria',
+        aeronave_registro: d.aircraft?.registration || '-',
+      }));
     },
     enabled: !!clienteId,
   });
+
+  // Buscar despesas de despesas_cliente_direto
+  const { data: despesasDiretas = [], isLoading: loadingDiretas } = useQuery({
+    queryKey: ['despesas-cliente-direto', clienteId, aeronaveId, periodo],
+    queryFn: async () => {
+      let query = supabase
+        .from('despesas_cliente_direto')
+        .select(`
+          *,
+          aircraft:aeronave_id (registration)
+        `)
+        .eq('client_id', clienteId)
+        .gte('data_vencimento', periodo.inicio)
+        .lte('data_vencimento', periodo.fim)
+        .order('data_vencimento', { ascending: false });
+
+      if (aeronaveId) {
+        query = query.eq('aeronave_id', aeronaveId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []).map((d: any) => ({
+        ...d,
+        fonte: 'despesas_cliente_direto',
+        valor: d.valor,
+        data: d.data_vencimento,
+        descricao: d.descricao,
+        categoria_nome: d.categoria || 'Pagamento Direto',
+        aeronave_registro: d.aircraft?.registration || '-',
+        comprovante_url: d.comprovante_url,
+        boleto_url: d.boleto_url,
+        nf_url: null,
+      }));
+    },
+    enabled: !!clienteId,
+  });
+
+  // Buscar abastecimentos
+  const { data: abastecimentos = [], isLoading: loadingAbastecimentos } = useQuery({
+    queryKey: ['despesas-abastecimentos', clienteId, aeronaveId, periodo],
+    queryFn: async () => {
+      let query = supabase
+        .from('abastecimentos')
+        .select(`
+          *,
+          aircraft:aeronave_id (registration)
+        `)
+        .eq('client_id', clienteId)
+        .gte('data', periodo.inicio)
+        .lte('data', periodo.fim)
+        .order('data', { ascending: false });
+
+      if (aeronaveId) {
+        query = query.eq('aeronave_id', aeronaveId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []).map((d: any) => ({
+        ...d,
+        fonte: 'abastecimentos',
+        valor: d.valor_total,
+        data: d.data,
+        descricao: `Abastecimento - ${d.local} (${d.trecho})`,
+        categoria_nome: 'Combustível',
+        aeronave_registro: d.aircraft?.registration || '-',
+        status: d.status_pagamento || 'pendente',
+        comprovante_url: d.comanda_url,
+        boleto_url: d.boleto_url,
+        nf_url: d.nota_url,
+      }));
+    },
+    enabled: !!clienteId,
+  });
+
+  // Combinar despesas de todas as fontes
+  const despesas = [...despesasBankRec, ...despesasDiretas, ...abastecimentos].sort(
+    (a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()
+  );
+  const isLoading = loadingBankRec || loadingDiretas || loadingAbastecimentos;
 
   // Buscar categorias para filtro (apenas categorias do cliente)
   const { data: categorias = [] } = useQuery({
@@ -86,15 +190,17 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
   // Filtrar despesas
   const despesasFiltradas = despesas.filter((d: any) => {
     const matchBusca = !busca || 
-      d.description?.toLowerCase().includes(busca.toLowerCase()) ||
+      d.descricao?.toLowerCase().includes(busca.toLowerCase()) ||
       d.fornecedor_nome?.toLowerCase().includes(busca.toLowerCase());
     const matchStatus = statusFilter === 'todos' || d.status === statusFilter;
     const matchCategoria = categoriaFilter === 'todas' || 
-      d.categorias_movimentacao?.id === categoriaFilter;
-    return matchBusca && matchStatus && matchCategoria;
+      d.categorias_movimentacao?.id === categoriaFilter ||
+      d.categoria_nome?.toLowerCase().includes(categoriaFilter.toLowerCase());
+    const matchFonte = fonteFilter === 'todas' || d.fonte === fonteFilter;
+    return matchBusca && matchStatus && matchCategoria && matchFonte;
   });
 
-  const totalFiltrado = despesasFiltradas.reduce((sum: number, d: any) => sum + (d.amount || 0), 0);
+  const totalFiltrado = despesasFiltradas.reduce((sum: number, d: any) => sum + (d.valor || 0), 0);
 
 
   return (
@@ -102,7 +208,7 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
       {/* Filtros */}
       <Card className="border-border/50 bg-card/60">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -123,7 +229,11 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
                 <SelectItem value="enviado">Enviado</SelectItem>
                 <SelectItem value="pago">Pago</SelectItem>
                 <SelectItem value="aguardando_reembolso">Aguardando Reembolso</SelectItem>
+                <SelectItem value="aguardando_pagamento">Aguardando Pagamento</SelectItem>
+                <SelectItem value="visualizado_cliente">Visualizado</SelectItem>
+                <SelectItem value="comprovante_recebido">Comprovante Recebido</SelectItem>
                 <SelectItem value="reembolsado">Reembolsado</SelectItem>
+                <SelectItem value="atrasado">Atrasado</SelectItem>
               </SelectContent>
             </Select>
 
@@ -136,6 +246,18 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
                 {categorias.map((cat: any) => (
                   <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={fonteFilter} onValueChange={setFonteFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Fonte" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas as fontes</SelectItem>
+                <SelectItem value="bank_reconciliations">Reembolsos</SelectItem>
+                <SelectItem value="despesas_cliente_direto">Pagamento Direto</SelectItem>
+                <SelectItem value="abastecimentos">Combustível</SelectItem>
               </SelectContent>
             </Select>
 
@@ -167,7 +289,8 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Data</TableHead>
+                    <TableHead>Data Vencimento</TableHead>
+                    <TableHead>Fonte</TableHead>
                     <TableHead>Categoria</TableHead>
                     <TableHead>Descrição</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
@@ -178,20 +301,38 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
                 </TableHeader>
                 <TableBody>
                   {despesasFiltradas.map((despesa: any) => (
-                    <TableRow key={despesa.id}>
+                    <TableRow key={`${despesa.fonte}-${despesa.id}`}>
                       <TableCell className="whitespace-nowrap">
-                        {format(new Date(despesa.date), 'dd/MM/yyyy', { locale: ptBR })}
+                        {format(new Date(despesa.data), 'dd/MM/yyyy', { locale: ptBR })}
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={
+                            despesa.fonte === 'despesas_cliente_direto' 
+                              ? 'outline' 
+                              : despesa.fonte === 'abastecimentos' 
+                                ? 'default' 
+                                : 'secondary'
+                          } 
+                          className="text-xs"
+                        >
+                          {despesa.fonte === 'despesas_cliente_direto' 
+                            ? 'Pag. Direto' 
+                            : despesa.fonte === 'abastecimentos' 
+                              ? 'Combustível' 
+                              : 'Reembolso'}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm">
-                          {despesa.categorias_movimentacao?.nome || '-'}
+                          {despesa.categoria_nome || '-'}
                         </span>
                       </TableCell>
                       <TableCell className="max-w-[200px] truncate">
-                        {despesa.description || '-'}
+                        {despesa.descricao || '-'}
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        R$ {(despesa.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R$ {(despesa.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell>
                         <Badge variant={STATUS_LABELS[despesa.status]?.variant || 'secondary'}>
@@ -199,30 +340,45 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {despesa.aircraft?.registration || '-'}
+                        {despesa.aeronave_registro || '-'}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-1">
                           {despesa.comprovante_url && (
-                            <Button variant="ghost" size="icon" asChild className="h-8 w-8">
-                              <a href={despesa.comprovante_url} target="_blank" rel="noopener noreferrer">
-                                <Eye className="h-4 w-4" />
-                              </a>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8"
+                              onClick={() => openDocumento(despesa.comprovante_url, 'Comprovante')}
+                              title="Ver Comprovante"
+                            >
+                              <Eye className="h-4 w-4" />
                             </Button>
                           )}
                           {despesa.boleto_url && (
-                            <Button variant="ghost" size="icon" asChild className="h-8 w-8">
-                              <a href={despesa.boleto_url} target="_blank" rel="noopener noreferrer">
-                                <FileText className="h-4 w-4" />
-                              </a>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8"
+                              onClick={() => openDocumento(despesa.boleto_url, 'Boleto')}
+                              title="Ver Boleto"
+                            >
+                              <FileText className="h-4 w-4" />
                             </Button>
                           )}
                           {despesa.nf_url && (
-                            <Button variant="ghost" size="icon" asChild className="h-8 w-8">
-                              <a href={despesa.nf_url} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="h-4 w-4" />
-                              </a>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8"
+                              onClick={() => openDocumento(despesa.nf_url, 'Nota Fiscal')}
+                              title="Ver Nota Fiscal"
+                            >
+                              <Receipt className="h-4 w-4" />
                             </Button>
+                          )}
+                          {!despesa.comprovante_url && !despesa.boleto_url && !despesa.nf_url && (
+                            <span className="text-xs text-muted-foreground">-</span>
                           )}
                         </div>
                       </TableCell>
@@ -234,6 +390,14 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
           )}
         </CardContent>
       </Card>
+
+      {/* Document Viewer Modal */}
+      <DocumentoViewer
+        open={documentoViewerOpen}
+        onOpenChange={setDocumentoViewerOpen}
+        url={documentoUrl}
+        title={documentoTitle}
+      />
     </div>
   );
 }

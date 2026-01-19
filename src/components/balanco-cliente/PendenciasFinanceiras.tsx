@@ -1,14 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { AlertCircle, Clock, Send, CheckCircle, Mail, Receipt } from 'lucide-react';
-import { toast } from 'sonner';
+import { Clock, Send, CheckCircle, Receipt, Fuel } from 'lucide-react';
+import { MarcarPagoDialog } from './MarcarPagoDialog';
 
 interface PendenciasFinanceirasProps {
   clienteId: string;
@@ -18,24 +18,39 @@ interface PendenciasFinanceirasProps {
 
 export function PendenciasFinanceiras({ clienteId, aeronaveId }: PendenciasFinanceirasProps) {
   const queryClient = useQueryClient();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogTipo, setDialogTipo] = useState<'despesa_direta' | 'reembolso' | 'combustivel'>('despesa_direta');
+  const [selectedItemId, setSelectedItemId] = useState('');
 
-  // Valores a enviar ao cliente (pendentes)
-  const { data: pendentesEnvio = [], isLoading: loadingEnvio } = useQuery({
-    queryKey: ['pendentes-envio', clienteId, aeronaveId],
+  const handleOpenPagoDialog = (tipo: 'despesa_direta' | 'reembolso' | 'combustivel', id: string) => {
+    setDialogTipo(tipo);
+    setSelectedItemId(id);
+    setDialogOpen(true);
+  };
+
+  const handleDialogSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ['pagamento-direto-pendente'] });
+    queryClient.invalidateQueries({ queryKey: ['aguardando-reembolso'] });
+    queryClient.invalidateQueries({ queryKey: ['combustivel-pendente'] });
+    queryClient.invalidateQueries({ queryKey: ['balanco-resumo'] });
+  };
+
+  // Valores enviados ao cliente - Pagamento Direto (status: enviado, visualizado_cliente, aguardando_pagamento, atrasado)
+  const { data: pagamentoDiretoPendente = [], isLoading: loadingDireto } = useQuery({
+    queryKey: ['pagamento-direto-pendente', clienteId, aeronaveId],
     queryFn: async () => {
       let query = supabase
-        .from('bank_reconciliations')
+        .from('despesas_cliente_direto')
         .select(`
           *,
-          categorias_movimentacao:categoria_movimentacao_id (nome),
-          aircraft:aircraft_id (registration)
+          aircraft:aeronave_id (registration)
         `)
         .eq('client_id', clienteId)
-        .eq('status', 'pendente')
-        .order('date', { ascending: false });
+        .in('status', ['enviado', 'visualizado_cliente', 'aguardando_pagamento', 'atrasado'])
+        .order('data_vencimento', { ascending: false });
 
       if (aeronaveId) {
-        query = query.eq('aircraft_id', aeronaveId);
+        query = query.eq('aeronave_id', aeronaveId);
       }
 
       const { data, error } = await query;
@@ -45,7 +60,7 @@ export function PendenciasFinanceiras({ clienteId, aeronaveId }: PendenciasFinan
     enabled: !!clienteId,
   });
 
-  // Valores aguardando reembolso
+  // Valores aguardando reembolso (bank_reconciliations com status aguardando_reembolso)
   const { data: aguardandoReembolso = [], isLoading: loadingReembolso } = useQuery({
     queryKey: ['aguardando-reembolso', clienteId, aeronaveId],
     queryFn: async () => {
@@ -71,121 +86,113 @@ export function PendenciasFinanceiras({ clienteId, aeronaveId }: PendenciasFinan
     enabled: !!clienteId,
   });
 
-  // Mutation para marcar como enviado
-  const marcarEnviado = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('bank_reconciliations')
-        .update({ status: 'enviado', updated_at: new Date().toISOString() })
-        .eq('id', id);
+  // Combustível enviado (pendente de pagamento)
+  const { data: combustivelPendente = [], isLoading: loadingCombustivel } = useQuery({
+    queryKey: ['combustivel-pendente', clienteId, aeronaveId],
+    queryFn: async () => {
+      let query = supabase
+        .from('abastecimentos')
+        .select(`
+          *,
+          aircraft:aeronave_id (registration)
+        `)
+        .eq('client_id', clienteId)
+        .neq('status_pagamento', 'pago')
+        .order('data', { ascending: false });
+
+      if (aeronaveId) {
+        query = query.eq('aeronave_id', aeronaveId);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
+      return data || [];
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pendentes-envio'] });
-      queryClient.invalidateQueries({ queryKey: ['pendencias-count'] });
-      toast.success('Despesa marcada como enviada');
-    },
-    onError: () => {
-      toast.error('Erro ao atualizar status');
-    },
+    enabled: !!clienteId,
   });
 
-  // Mutation para registrar reembolso
-  const registrarReembolso = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('bank_reconciliations')
-        .update({ 
-          status: 'reembolsado', 
-          data_reembolso: new Date().toISOString(),
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['aguardando-reembolso'] });
-      queryClient.invalidateQueries({ queryKey: ['pendencias-count'] });
-      toast.success('Reembolso registrado com sucesso');
-    },
-    onError: () => {
-      toast.error('Erro ao registrar reembolso');
-    },
-  });
-
-  const totalEnvio = pendentesEnvio.reduce((sum: number, d: any) => sum + (d.amount || 0), 0);
+  const totalDireto = pagamentoDiretoPendente.reduce((sum: number, d: any) => sum + (d.valor || 0), 0);
   const totalReembolso = aguardandoReembolso.reduce((sum: number, d: any) => sum + ((d.saldo_pendente || d.amount) || 0), 0);
+  const totalCombustivel = combustivelPendente.reduce((sum: number, d: any) => sum + (d.valor_total || 0), 0);
 
   return (
     <div className="space-y-6">
-      {/* Seção 1: Valores a Enviar */}
-      <Card className="border-destructive/30 bg-card/60">
+      {/* Seção 1: Valores Enviados ao Cliente - Pagamento Direto */}
+      <Card className="border-purple-500/30 bg-card/60">
         <CardHeader className="flex flex-row items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-destructive/20">
-              <AlertCircle className="h-5 w-5 text-destructive" />
+            <div className="p-2 rounded-lg bg-purple-500/20">
+              <Send className="h-5 w-5 text-purple-500" />
             </div>
             <div>
-              <CardTitle className="text-lg">Valores a Enviar ao Cliente</CardTitle>
+              <CardTitle className="text-lg">Valores Enviados ao Cliente - Pagamento Direto</CardTitle>
               <CardDescription>
-                Despesas pendentes de envio de cobrança
+                Despesas enviadas ao cliente aguardando pagamento
               </CardDescription>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold text-destructive">
-              R$ {totalEnvio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            <p className="text-2xl font-bold text-purple-500">
+              R$ {totalDireto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </p>
-            <p className="text-xs text-muted-foreground">{pendentesEnvio.length} despesas</p>
+            <p className="text-xs text-muted-foreground">{pagamentoDiretoPendente.length} despesas</p>
           </div>
         </CardHeader>
         <CardContent>
-          {loadingEnvio ? (
+          {loadingDireto ? (
             <div className="text-center py-4">Carregando...</div>
-          ) : pendentesEnvio.length === 0 ? (
+          ) : pagamentoDiretoPendente.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-500" />
-              <p>Nenhuma despesa pendente de envio</p>
+              <p>Nenhuma despesa pendente de pagamento</p>
             </div>
           ) : (
             <Table>
-              <TableHeader>
+                <TableHeader>
                 <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Categoria</TableHead>
+                  <TableHead>Data Vencimento</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
                   <TableHead>Aeronave</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead className="text-center">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {pendentesEnvio.map((item: any) => (
-                  <TableRow key={item.id}>
-                    <TableCell>
-                      {format(new Date(item.date), 'dd/MM/yyyy', { locale: ptBR })}
-                    </TableCell>
-                    <TableCell>{item.categorias_movimentacao?.nome || '-'}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">{item.description || '-'}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      R$ {(item.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell>{item.aircraft?.registration || '-'}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-center gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => marcarEnviado.mutate(item.id)}
-                          disabled={marcarEnviado.isPending}
-                        >
-                          <Send className="h-3 w-3 mr-1" />
-                          Marcar Enviado
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {pagamentoDiretoPendente.map((item: any) => {
+                  const diasAtraso = differenceInDays(new Date(), new Date(item.data_vencimento));
+                  const isAtrasado = diasAtraso > 0;
+
+                  return (
+                    <TableRow key={item.id} className={isAtrasado ? 'bg-destructive/10' : ''}>
+                      <TableCell>
+                        {format(new Date(item.data_vencimento), 'dd/MM/yyyy', { locale: ptBR })}
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate">{item.descricao || '-'}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        R$ {(item.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell>{item.aircraft?.registration || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant={isAtrasado ? 'destructive' : 'secondary'}>
+                          {isAtrasado ? `${diasAtraso} dias atrasado` : item.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenPagoDialog('despesa_direta', item.id)}
+                          >
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Marcar Pago
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -258,8 +265,7 @@ export function PendenciasFinanceiras({ clienteId, aeronaveId }: PendenciasFinan
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => registrarReembolso.mutate(item.id)}
-                            disabled={registrarReembolso.isPending}
+                            onClick={() => handleOpenPagoDialog('reembolso', item.id)}
                           >
                             <Receipt className="h-3 w-3 mr-1" />
                             Registrar Reembolso
@@ -274,6 +280,92 @@ export function PendenciasFinanceiras({ clienteId, aeronaveId }: PendenciasFinan
           )}
         </CardContent>
       </Card>
+
+      {/* Seção 3: Combustível Enviado */}
+      <Card className="border-orange-500/30 bg-card/60">
+        <CardHeader className="flex flex-row items-start justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-orange-500/20">
+              <Fuel className="h-5 w-5 text-orange-500" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Combustível Enviado</CardTitle>
+              <CardDescription>
+                Abastecimentos enviados ao cliente pendentes de pagamento
+              </CardDescription>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-2xl font-bold text-orange-500">
+              R$ {totalCombustivel.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-muted-foreground">{combustivelPendente.length} abastecimentos</p>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loadingCombustivel ? (
+            <div className="text-center py-4">Carregando...</div>
+          ) : combustivelPendente.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-500" />
+              <p>Nenhum combustível pendente</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Local</TableHead>
+                  <TableHead>Trecho</TableHead>
+                  <TableHead className="text-right">Litros</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead>Aeronave</TableHead>
+                  <TableHead className="text-center">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {combustivelPendente.map((item: any) => (
+                  <TableRow key={item.id}>
+                    <TableCell>
+                      {format(new Date(item.data), 'dd/MM/yyyy', { locale: ptBR })}
+                    </TableCell>
+                    <TableCell>{item.local || '-'}</TableCell>
+                    <TableCell className="max-w-[150px] truncate">{item.trecho || '-'}</TableCell>
+                    <TableCell className="text-right">
+                      {(item.litros || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1 })} L
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      R$ {(item.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell>{item.aircraft?.registration || '-'}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenPagoDialog('combustivel', item.id)}
+                        >
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Marcar Pago
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Dialog para registrar pagamento */}
+      <MarcarPagoDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        tipo={dialogTipo}
+        itemId={selectedItemId}
+        onSuccess={handleDialogSuccess}
+      />
     </div>
   );
 }

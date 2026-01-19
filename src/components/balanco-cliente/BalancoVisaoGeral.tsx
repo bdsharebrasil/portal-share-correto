@@ -37,6 +37,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
   const { data: resumo, isLoading } = useQuery({
     queryKey: ['balanco-resumo', clienteId, aeronaveId, periodo, socioId],
     queryFn: async () => {
+      // Buscar despesas de bank_reconciliations
       let queryDespesas = supabase
         .from('bank_reconciliations')
         .select('id, amount, status, type, saldo_pendente, valor_reembolsado, date')
@@ -48,9 +49,23 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
         queryDespesas = queryDespesas.eq('aircraft_id', aeronaveId);
       }
 
-      // Fetch despesas
       const { data: despesasData, error: errorDespesas } = await queryDespesas;
       if (errorDespesas) throw errorDespesas;
+
+      // Buscar despesas de despesas_cliente_direto
+      let queryDiretas = supabase
+        .from('despesas_cliente_direto')
+        .select('id, valor, status, data_vencimento')
+        .eq('client_id', clienteId)
+        .gte('data_vencimento', periodo.inicio)
+        .lte('data_vencimento', periodo.fim);
+
+      if (aeronaveId) {
+        queryDiretas = queryDiretas.eq('aeronave_id', aeronaveId);
+      }
+
+      const { data: despesasDiretasData, error: errorDiretas } = await queryDiretas;
+      if (errorDiretas) throw errorDiretas;
 
       // Buscar abastecimentos via backend proxy para evitar erro 400 do Supabase
       let fuelUrl = `/api/fuel?client_id=${clienteId}&date_start=${periodo.inicio}&date_end=${periodo.fim}`;
@@ -66,16 +81,25 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
       const abastecimentos = fuelResult.data || [];
 
       const data = despesasData || [];
+      const diretas = despesasDiretasData || [];
 
-      // Calcular totais despesas
+      // Calcular totais despesas reembolso (bank_reconciliations)
       const pendentes = data.filter(r => r.status === 'pendente') || [];
       const aguardandoReembolso = data.filter(r => r.status === 'aguardando_reembolso') || [];
       const pagos = data.filter(r => r.status === 'pago' || r.status === 'conciliado') || [];
       const reembolsados = data.filter(r => r.status === 'reembolsado') || [];
 
+      // Calcular totais despesas diretas (despesas_cliente_direto)
+      const diretasPendentes = diretas.filter((d: any) => 
+        ['enviado', 'visualizado_cliente', 'aguardando_pagamento', 'atrasado'].includes(d.status)
+      );
+      const diretasPagas = diretas.filter((d: any) => 
+        ['pago', 'comprovante_recebido'].includes(d.status)
+      );
+
       // Calcular totais abastecimentos
-      const abastecimentosPendentes = abastecimentos.filter(a => a.status === 'pendente') || [];
-      const abastecimentosPagos = abastecimentos.filter(a => a.status === 'pago') || [];
+      const abastecimentosPendentes = abastecimentos.filter((a: any) => a.status_pagamento !== 'pago') || [];
+      const abastecimentosPagos = abastecimentos.filter((a: any) => a.status_pagamento === 'pago') || [];
 
       return {
         pendenteEnvio: {
@@ -94,16 +118,25 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
           valor: reembolsados.reduce((sum, r) => sum + (r.valor_reembolsado || r.amount || 0), 0) * fatorProporcao,
           quantidade: reembolsados.length
         },
+        pagamentoDiretoPendente: {
+          valor: diretasPendentes.reduce((sum: number, d: any) => sum + (d.valor || 0), 0) * fatorProporcao,
+          quantidade: diretasPendentes.length
+        },
+        pagamentoDiretoPago: {
+          valor: diretasPagas.reduce((sum: number, d: any) => sum + (d.valor || 0), 0) * fatorProporcao,
+          quantidade: diretasPagas.length
+        },
         abastecimentoPendente: {
-          valor: abastecimentosPendentes.reduce((sum, a) => sum + (a.valor_total || 0), 0) * fatorProporcao,
+          valor: abastecimentosPendentes.reduce((sum: number, a: any) => sum + (a.valor_total || 0), 0) * fatorProporcao,
           quantidade: abastecimentosPendentes.length
         },
         abastecimentoPago: {
-          valor: abastecimentosPagos.reduce((sum, a) => sum + (a.valor_total || 0), 0) * fatorProporcao,
+          valor: abastecimentosPagos.reduce((sum: number, a: any) => sum + (a.valor_total || 0), 0) * fatorProporcao,
           quantidade: abastecimentosPagos.length
         },
         total: (data.reduce((sum, r) => sum + (r.amount || 0), 0) || 0) * fatorProporcao +
-               (abastecimentos.reduce((sum, a) => sum + (a.valor_total || 0), 0) || 0) * fatorProporcao
+               (diretas.reduce((sum: number, d: any) => sum + (d.valor || 0), 0) || 0) * fatorProporcao +
+               (abastecimentos.reduce((sum: number, a: any) => sum + (a.valor_total || 0), 0) || 0) * fatorProporcao
       };
     },
     enabled: !!clienteId,
@@ -239,21 +272,21 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
       </div>
 
       {/* Cards de Resumo */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Pendente de Envio */}
-        <Card className="border-destructive/50 bg-destructive/10">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* Valores Enviados ao Cliente - Pagamento Direto */}
+        <Card className="border-purple-500/50 bg-purple-500/10">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Pendente de Envio</p>
-                <p className="text-2xl font-bold text-destructive">
-                  R$ {(resumo?.pendenteEnvio.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                <p className="text-sm text-muted-foreground">Enviado ao Cliente - Pagamento Direto</p>
+                <p className="text-2xl font-bold text-purple-500">
+                  R$ {(resumo?.pagamentoDiretoPendente.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {resumo?.pendenteEnvio.quantidade || 0} despesas
+                  {resumo?.pagamentoDiretoPendente.quantidade || 0} despesas
                 </p>
               </div>
-              <AlertCircle className="h-12 w-12 text-destructive/50" />
+              <Clock className="h-12 w-12 text-purple-500/50" />
             </div>
           </CardContent>
         </Card>
@@ -276,6 +309,27 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
           </CardContent>
         </Card>
 
+        {/* Combustível Enviado (Pendente) */}
+        <Card className="border-orange-500/50 bg-orange-500/10">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Combustível Enviado</p>
+                <p className="text-2xl font-bold text-orange-500">
+                  R$ {(resumo?.abastecimentoPendente.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {resumo?.abastecimentoPendente.quantidade || 0} registros
+                </p>
+              </div>
+              <Fuel className="h-12 w-12 text-orange-500/50" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Cards Secundários */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {/* Pago pelo Cliente */}
         <Card className="border-green-500/50 bg-green-500/10">
           <CardContent className="pt-6">
@@ -311,52 +365,48 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
             </div>
           </CardContent>
         </Card>
+
+        {/* Pagamento Direto Pago */}
+        {(resumo?.pagamentoDiretoPago?.valor || 0) > 0 && (
+          <Card className="border-teal-500/50 bg-teal-500/10">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Pagamento Direto Pago</p>
+                  <p className="text-2xl font-bold text-teal-500">
+                    R$ {(resumo?.pagamentoDiretoPago?.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {resumo?.pagamentoDiretoPago?.quantidade || 0} despesas
+                  </p>
+                </div>
+                <CheckCircle className="h-12 w-12 text-teal-500/50" />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Combustível Pago */}
+        {(resumo?.abastecimentoPago?.valor || 0) > 0 && (
+          <Card className="border-emerald-500/50 bg-emerald-500/10">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Combustível Pago</p>
+                  <p className="text-2xl font-bold text-emerald-500">
+                    R$ {(resumo?.abastecimentoPago?.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {resumo?.abastecimentoPago?.quantidade || 0} registros
+                  </p>
+                </div>
+                <CheckCircle className="h-12 w-12 text-emerald-500/50" />
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      {/* Cards de Abastecimento */}
-      {(resumo?.abastecimentoPendente.valor || 0) > 0 || (resumo?.abastecimentoPago.valor || 0) > 0 ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {/* Abastecimento Pendente */}
-          {(resumo?.abastecimentoPendente.valor || 0) > 0 && (
-            <Card className="border-orange-500/50 bg-orange-500/10">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Abastecimentos Pendentes</p>
-                    <p className="text-3xl font-bold text-orange-500">
-                      R$ {(resumo?.abastecimentoPendente.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {resumo?.abastecimentoPendente.quantidade || 0} registros
-                    </p>
-                  </div>
-                  <AlertCircle className="h-12 w-12 text-orange-500/50" />
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Abastecimento Pago */}
-          {(resumo?.abastecimentoPago.valor || 0) > 0 && (
-            <Card className="border-emerald-500/50 bg-emerald-500/10">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Abastecimentos Pagos</p>
-                    <p className="text-3xl font-bold text-emerald-500">
-                      R$ {(resumo?.abastecimentoPago.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {resumo?.abastecimentoPago.quantidade || 0} registros
-                    </p>
-                  </div>
-                  <CheckCircle className="h-12 w-12 text-emerald-500/50" />
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      ) : null}
 
       {/* Gráficos */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

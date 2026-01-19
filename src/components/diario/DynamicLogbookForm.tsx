@@ -11,13 +11,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn, formatBRL, parseBRL } from '@/lib/utils';
-import { 
-  CalendarIcon, 
-  Info, 
-  Plane, 
-  Clock, 
-  MapPin, 
-  Fuel, 
+import {
+  CalendarIcon,
+  Info,
+  Plane,
+  Clock,
+  MapPin,
+  Fuel,
   Check,
   ChevronRight,
   ChevronLeft,
@@ -30,6 +30,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { useLogbookForm } from '@/hooks/useLogbookForm';
+import { useTripulantes } from '@/hooks/useTripulantes';
 import type { Aerodrome } from '@/types';
 
 // Tipos de voo especiais que dividem custos igualmente entre sócios
@@ -77,8 +78,21 @@ export function DynamicLogbookForm({
   const [selectedClient, setSelectedClient] = useState<string>('');
   const [clientOpen, setClientOpen] = useState(false);
 
+  // Tripulação
+  const [selectedPic, setSelectedPic] = useState<string>('');
+  const [selectedSic, setSelectedSic] = useState<string>('');
+  const [picOpen, setPicOpen] = useState(false);
+  const [sicOpen, setSicOpen] = useState(false);
+
+  // Campos adicionais
+  const [passengers, setPassengers] = useState<string>('');
+  const [cargoKg, setCargoKg] = useState<string>('');
+  const [occurrences, setOccurrences] = useState<string>('');
+  const [discrepancies, setDiscrepancies] = useState<string>('');
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { tripulantes } = useTripulantes();
 
   const { data: aerodromes = [] } = useQuery({
     queryKey: ['aerodromes'],
@@ -211,6 +225,16 @@ export function DynamicLogbookForm({
       toast({
         title: 'Erro',
         description: 'Preencha os aeroportos DE e PARA.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    // Validar PIC (obrigatório)
+    if (!selectedPic) {
+      toast({
+        title: 'Erro',
+        description: 'Selecione o Piloto em Comando (PIC).',
         variant: 'destructive',
       });
       return false;
@@ -369,22 +393,13 @@ export function DynamicLogbookForm({
           flight_nature: flightNature,
           client_id: flightCategory === 'cliente' ? selectedClient : null,
           is_equal_split: flightCategory === 'rateio',
-          pic_canac: '' as any,
-          ac_time: formData.ac_time
-            ? new Date(`${format(date!, 'yyyy-MM-dd')}T${formData.ac_time}:00`).toISOString()
-            : null,
-          dep_time: formData.departure_time
-            ? new Date(`${format(date!, 'yyyy-MM-dd')}T${formData.departure_time}:00`).toISOString()
-            : null,
-          pou_time: formData.pou_time
-            ? new Date(`${format(date!, 'yyyy-MM-dd')}T${formData.pou_time}:00`).toISOString()
-            : null,
-          cor_time: formData.cor_time
-            ? new Date(`${format(date!, 'yyyy-MM-dd')}T${formData.cor_time}:00`).toISOString()
-            : null,
-          crew_checkin_time: formData.crew_checkin_time
-            ? new Date(`${format(date!, 'yyyy-MM-dd')}T${formData.crew_checkin_time}:00`).toISOString()
-            : null,
+          pic_canac: selectedPic,
+          sic_canac: selectedSic || null,
+          ac_time: formData.ac_time,
+          dep_time: formData.departure_time,
+          pou_time: formData.pou_time,
+          cor_time: formData.cor_time,
+          crew_checkin_time: formData.crew_checkin_time,
           time: flightTime,
           total_time: totalBlockTime,
           day_time: totalDay,
@@ -394,8 +409,11 @@ export function DynamicLogbookForm({
           fuel_added: parseFloat(formData.fuel_added) || 0,
           celula: parseFloat(formData.fuel_cell) || 0,
           daily_rate: finalDailyRate || (formData.daily_rate ? parseBRL(formData.daily_rate) : null),
-          extras: formData.extras || null,
           distance_nm: parseFloat(formData.distance_nm) || 0,
+          passengers: parseInt(passengers) || 0,
+          cargo_kg: parseFloat(cargoKg) || 0,
+          occurrences: occurrences || null,
+          discrepancies: discrepancies || null,
         },
       ]);
 
@@ -420,6 +438,12 @@ export function DynamicLogbookForm({
         setFlightCategory('cliente');
         setSpecialFlightType('');
         setSelectedClient('');
+        setSelectedPic('');
+        setSelectedSic('');
+        setPassengers('');
+        setCargoKg('');
+        setOccurrences('');
+        setDiscrepancies('');
         resetForm();
         setSaved(false);
       }, 700);
@@ -505,6 +529,12 @@ export function DynamicLogbookForm({
                 setFlightCategory('cliente');
                 setSpecialFlightType('');
                 setSelectedClient('');
+                setSelectedPic('');
+                setSelectedSic('');
+                setPassengers('');
+                setCargoKg('');
+                setOccurrences('');
+                setDiscrepancies('');
                 resetForm();
               }}
               disabled={loading || saved}
@@ -750,6 +780,124 @@ export function DynamicLogbookForm({
               </p>
             </div>
           )}
+
+          {/* Tripulação: PIC e SIC */}
+          <div className="space-y-3">
+            <Label className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              Tripulação *
+            </Label>
+            <div className="grid grid-cols-2 gap-3">
+              {/* PIC (obrigatório) */}
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">PIC (Piloto em Comando)</Label>
+                <Popover open={picOpen} onOpenChange={setPicOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between h-11 font-normal"
+                    >
+                      {selectedPic
+                        ? tripulantes.find(t => t.id === selectedPic)?.full_name || 'PIC selecionado'
+                        : 'Selecione o PIC...'
+                      }
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Buscar piloto..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhum piloto encontrado.</CommandEmpty>
+                        <CommandGroup>
+                          {tripulantes.map((tripulante) => (
+                            <CommandItem
+                              key={tripulante.id}
+                              value={tripulante.full_name}
+                              onSelect={() => {
+                                setSelectedPic(tripulante.id);
+                                setPicOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedPic === tripulante.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <span>{tripulante.full_name}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* SIC (opcional) */}
+              <div className="space-y-2">
+                <Label className="text-sm text-muted-foreground">SIC (Segundo Piloto)</Label>
+                <Popover open={sicOpen} onOpenChange={setSicOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between h-11 font-normal"
+                    >
+                      {selectedSic
+                        ? tripulantes.find(t => t.id === selectedSic)?.full_name || 'SIC selecionado'
+                        : 'Selecione o SIC (opt.)...'
+                      }
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Buscar piloto..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhum piloto encontrado.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="none"
+                            onSelect={() => {
+                              setSelectedSic('');
+                              setSicOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                !selectedSic ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <span className="text-muted-foreground">Sem SIC</span>
+                          </CommandItem>
+                          {tripulantes.map((tripulante) => (
+                            <CommandItem
+                              key={tripulante.id}
+                              value={tripulante.full_name}
+                              onSelect={() => {
+                                setSelectedSic(tripulante.id);
+                                setSicOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedSic === tripulante.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <span>{tripulante.full_name}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          </div>
 
           {/* Rota: DE → PARA */}
           <div className="space-y-2">
@@ -1083,6 +1231,57 @@ export function DynamicLogbookForm({
             </div>
           )}
 
+          {/* Passageiros e Carga */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Passageiros</Label>
+              <Input
+                type="number"
+                min="0"
+                value={passengers}
+                onChange={e => setPassengers(e.target.value)}
+                placeholder="0"
+                className="h-11"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Carga (kg)</Label>
+              <Input
+                type="number"
+                step="0.1"
+                min="0"
+                value={cargoKg}
+                onChange={e => setCargoKg(e.target.value)}
+                placeholder="0"
+                className="h-11"
+              />
+            </div>
+          </div>
+
+          {/* Ocorrências e Discrepâncias */}
+          <div className="space-y-2">
+            <Label>Ocorrências</Label>
+            <Textarea
+              value={occurrences}
+              onChange={e => setOccurrences(e.target.value)}
+              rows={2}
+              placeholder="Ocorrências durante o voo..."
+              className="resize-none"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Discrepâncias</Label>
+            <Textarea
+              value={discrepancies}
+              onChange={e => setDiscrepancies(e.target.value)}
+              rows={2}
+              placeholder="Discrepâncias da aeronave..."
+              className="resize-none"
+            />
+          </div>
+
           {/* Observações */}
           <div className="space-y-2">
             <Label>Observações</Label>
@@ -1122,6 +1321,15 @@ export function DynamicLogbookForm({
                 </p>
               </div>
               <div>
+                <p className="text-muted-foreground text-xs">PIC</p>
+                <p className="font-medium text-xs">
+                  {selectedPic
+                    ? tripulantes.find(t => t.id === selectedPic)?.full_name?.split(' ')[0] || 'PIC'
+                    : '-'
+                  }
+                </p>
+              </div>
+              <div>
                 <p className="text-muted-foreground text-xs">Bloco</p>
                 <p className="font-medium font-mono">
                   {formData.ac_time || '--:--'} - {formData.cor_time || '--:--'}
@@ -1136,6 +1344,14 @@ export function DynamicLogbookForm({
               <div>
                 <p className="text-muted-foreground text-xs">Distância</p>
                 <p className="font-medium">{formData.distance_nm || '0'} NM</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Passageiros</p>
+                <p className="font-medium">{passengers || '0'}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">Carga</p>
+                <p className="font-medium">{cargoKg || '0'} kg</p>
               </div>
             </div>
           </div>
@@ -1203,6 +1419,12 @@ export function DynamicLogbookForm({
                 setFlightCategory('cliente');
                 setSpecialFlightType('');
                 setSelectedClient('');
+                setSelectedPic('');
+                setSelectedSic('');
+                setPassengers('');
+                setCargoKg('');
+                setOccurrences('');
+                setDiscrepancies('');
                 resetForm();
               }}
               disabled={loading || saved}
