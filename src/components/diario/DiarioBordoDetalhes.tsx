@@ -304,6 +304,16 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   const [lastCelula, setLastCelula] = useState(0);
   const [logbookMonth, setLogbookMonth] = useState(null);
 
+  // Estado para diárias contabilizadas (key: entryId_date, value: boolean)
+  const [markedDailies, setMarkedDailies] = useState<Record<string, boolean>>(() => {
+    try {
+      const saved = localStorage.getItem(`marked-dailies-${aircraftId}-${selectedMonth}-${selectedYear}`);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
   // Estados de edição
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
 
@@ -401,7 +411,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     flight_nature: 'PV - Privado',
     occurrences: '',
     discrepancies: '',
-    corrective_actions: ''
+    corrective_actions: '',
+    daily_quantity: 0 // Novo: quantidade de diárias para este voo
   });
 
   // ===================== CÁLCULO DE DIÁRIAS =====================
@@ -583,6 +594,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       }
     }
   }, [availableMonths]);
+
+  // Sincronizar diárias marcadas com localStorage
+  useEffect(() => {
+    localStorage.setItem(`marked-dailies-${aircraftId}-${selectedMonth}-${selectedYear}`, JSON.stringify(markedDailies));
+  }, [markedDailies, aircraftId, selectedMonth, selectedYear]);
 
   // ===================== AUTOMAÇÕES =====================
 
@@ -1029,21 +1045,33 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       // 3. Adicionar à lista para cálculo
       const allEntriesForCalc = [...periodEntriesForCalc, tempEntry];
 
-      // 4. Calcular diárias
-      const dailyAllowance = calculateDailyAllowanceForEntry(
-        tempEntry,
-        logbookMonth.base_aerodrome || '',
-        allEntriesForCalc
-      );
+      // 4. Calcular diárias (automático ou manual)
+      let dailyAllowance = 0;
 
-      console.log('🔍 DEBUG - Cálculo de Diárias:', {
-        base: logbookMonth.base_aerodrome,
-        origem: newEntry.departure_aerodrome,
-        destino: newEntry.arrival_aerodrome,
-        data: newEntry.entry_date,
-        diarias_calculadas: dailyAllowance,
-        total_voos_periodo: allEntriesForCalc.length
-      });
+      if (newEntry.daily_quantity > 0) {
+        // Se o usuário informou manualmente, usar esse valor
+        dailyAllowance = newEntry.daily_quantity * (logbookMonth.daily_rate || 0);
+        console.log('📋 Diárias (Manual):', {
+          quantidade: newEntry.daily_quantity,
+          taxa_diaria: logbookMonth.daily_rate,
+          total: dailyAllowance
+        });
+      } else {
+        // Caso contrário, calcular automaticamente
+        dailyAllowance = calculateDailyAllowanceForEntry(
+          tempEntry,
+          logbookMonth.base_aerodrome || '',
+          allEntriesForCalc
+        );
+        console.log('🔍 DEBUG - Cálculo de Diárias (Automático):', {
+          base: logbookMonth.base_aerodrome,
+          origem: newEntry.departure_aerodrome,
+          destino: newEntry.arrival_aerodrome,
+          data: newEntry.entry_date,
+          diarias_calculadas: dailyAllowance,
+          total_voos_periodo: allEntriesForCalc.length
+        });
+      }
 
       // ====== FIM DO CÁLCULO DE DIÁRIAS ======
 
@@ -1186,7 +1214,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         flight_nature: 'PV - Privado',
         occurrences: '',
         discrepancies: '',
-        corrective_actions: ''
+        corrective_actions: '',
+        daily_quantity: 0
       });
       setFlightType('cliente');
       setShowAddForm(false);
@@ -2339,6 +2368,36 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                 </Select>
               </div>
 
+              {logbookMonth?.has_daily_rate && (
+                <div className="space-y-1 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                  <Label className="text-[9px] uppercase text-yellow-500 font-bold ml-1 block">
+                    Quantidade de Diárias
+                  </Label>
+                  <div className="flex gap-2 items-end">
+                    <Input
+                      type="number"
+                      min="0"
+                      value={newEntry.daily_quantity}
+                      onChange={e => setNewEntry({
+                        ...newEntry,
+                        daily_quantity: parseInt(e.target.value) || 0
+                      })}
+                      className="bg-slate-950 border-yellow-500/30 text-yellow-400 font-bold text-center flex-1"
+                      placeholder="0"
+                    />
+                    <div className="text-sm font-bold text-yellow-400">
+                      × R$ {(logbookMonth?.daily_rate || 0).toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-yellow-500/20 text-right">
+                    <div className="text-[9px] uppercase text-yellow-500 font-bold">Total de Diárias</div>
+                    <div className="text-lg font-black text-yellow-400">
+                      R$ {((newEntry.daily_quantity || 0) * (logbookMonth?.daily_rate || 0)).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <Button onClick={handleSaveFlight} className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 h-14 font-black uppercase text-sm rounded-2xl">
                 <Save size={18} className="mr-2" />
                 Salvar Voo
@@ -2373,16 +2432,46 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
               <div className="flex items-center gap-2 mb-4">
                 <MapPin className="text-yellow-500" size={18} />
                 <h2 className="text-sm font-black text-slate-500 uppercase tracking-widest">
-                  Detalhamento de Diárias
+                  Detalhamento de Diárias (Clique para marcar como contabilizada)
                 </h2>
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                {calculatePerDiemInfo.details.map((pd, idx) => (
-                  <div key={idx} className="bg-slate-950 border border-yellow-500/30 rounded-lg p-3">
-                    <p className="text-[9px] text-yellow-500 uppercase font-bold mb-1">{pd.date}</p>
-                    <p className="text-xs text-slate-400">{pd.location}</p>
-                  </div>
-                ))}
+                {calculatePerDiemInfo.details.map((pd, idx) => {
+                  const uniqueKey = pd.entryId ? `${pd.entryId}_${pd.date}` : `${idx}`;
+                  const isMarked = markedDailies[uniqueKey] || false;
+                  return (
+                    <div
+                      key={idx}
+                      className={`border rounded-lg p-3 transition-all cursor-pointer ${
+                        isMarked
+                          ? 'bg-sky-500/20 border-sky-500/50'
+                          : 'bg-slate-950 border-yellow-500/30'
+                      }`}
+                      onClick={() => {
+                        const newMarked = {...markedDailies};
+                        newMarked[uniqueKey] = !isMarked;
+                        setMarkedDailies(newMarked);
+                      }}
+                    >
+                      <div className="flex items-start gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isMarked}
+                          onChange={() => {}}
+                          className="w-4 h-4 mt-0.5 accent-sky-500 cursor-pointer"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-[9px] uppercase font-bold mb-1 ${
+                            isMarked ? 'text-sky-400' : 'text-yellow-500'
+                          }`}>
+                            {pd.date}
+                          </p>
+                          <p className="text-xs text-slate-400 truncate">{pd.location}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
               <div className="mt-4 pt-4 border-t border-slate-800 text-right">
                 <p className="text-sm text-slate-400">
@@ -2840,6 +2929,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                     Diárias
                     <div onMouseDown={(e) => handleResizeMouseDown('diarias', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
                   </th>}
+                  {logbookMonth?.has_daily_rate && <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.diarias}px` }}>
+                    Contab.
+                    <div onMouseDown={(e) => handleResizeMouseDown('diarias_contab', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>}
                   <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.voo_para}px` }}>
                     Voo Para
                     <div onMouseDown={(e) => handleResizeMouseDown('voo_para', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -2933,6 +3026,26 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                           <span className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-lg font-bold text-sm">
                             {e.daily_rate}
                           </span>
+                        ) : (
+                          <span className="text-slate-600">-</span>
+                        )}
+                      </td>
+                    )}
+                    {logbookMonth?.has_daily_rate && (
+                      <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.diarias}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {e.daily_rate > 0 ? (
+                          <input
+                            type="checkbox"
+                            checked={markedDailies[`${e.id}_${e.entry_date}`] || false}
+                            onChange={(event) => {
+                              event.stopPropagation();
+                              setMarkedDailies(prev => ({
+                                ...prev,
+                                [`${e.id}_${e.entry_date}`]: !prev[`${e.id}_${e.entry_date}`]
+                              }));
+                            }}
+                            className="w-4 h-4 accent-sky-500 cursor-pointer"
+                          />
                         ) : (
                           <span className="text-slate-600">-</span>
                         )}
