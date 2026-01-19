@@ -172,28 +172,53 @@ export function PartnerSelector({
                 </div>
               </div>
             </CardHeader>
-
-            <CardContent className="pt-6 space-y-4">
-              <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Percent className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Participação</span>
+  {partners.map((partner) => (
+          <Card 
+            key={partner.index}
+            className="border border-white/10 bg-slate-800/30 backdrop-blur-sm cursor-pointer hover:bg-slate-800/50 transition-all hover:border-emerald-500/50"
+            onClick={() => onSelectPartner(partner)}
+          >
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-emerald-500/20">
+                  <User className="h-5 w-5 text-emerald-400" />
                 </div>
-                <Badge className="bg-primary/20 text-primary font-semibold text-sm">
+                <div className="flex-1 min-w-0">
+                  <p className="text-lg font-semibold text-foreground truncate">
+                    {partner.name}
+                  </p>
+                  {partner.cpf && (
+                    <p className="text-xs text-muted-foreground">
+                      CPF: {partner.cpf}
+                    </p>
+                  )}
+                </div>
+              </CardTitle>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Percent className="h-4 w-4" />
+                  Participação
+                </div>
+                <Badge className="bg-emerald-500 text-white">
                   {partner.percentage.toFixed(2)}%
                 </Badge>
               </div>
 
-              <div className="pt-2">
-                <p className="text-xs text-muted-foreground mb-3">
+              <div className="pt-2 border-t border-white/10">
+                <p className="text-xs text-muted-foreground mb-2">
                   Clique para acessar seus dados e despesas específicas
                 </p>
-                <Button
-                  className="w-full bg-primary hover:bg-primary/90 text-white font-semibold group-hover:shadow-lg group-hover:shadow-primary/30 transition-all"
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full justify-between hover:bg-emerald-500/20"
                   onClick={() => onSelectPartner(partner)}
                 >
                   Acessar Portal
-                  <ChevronRight className="h-4 w-4 ml-2" />
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             </CardContent>
