@@ -184,23 +184,38 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         });
 
         if (aerodromeCodes.size > 0) {
-          // Try to fetch aerodromes - use simple code matching
-          const { data: aerodromes, error } = await supabase
-            .from('aerodromes')
-            .select('code, name')
-            .in('code', Array.from(aerodromeCodes));
+          try {
+            const codesArray = Array.from(aerodromeCodes);
+            console.log('Buscando aerodromes:', codesArray);
 
-          if (aerodromes) {
-            aerodromes.forEach((aero: any) => {
-              aerodromeMap[aero.code] = { code: aero.code, name: aero.name };
-            });
-          } else if (error) {
-            console.warn('Erro ao buscar aerodromes:', error);
-            // Fallback: use the codes as names
-            Array.from(aerodromeCodes).forEach((code: string) => {
-              aerodromeMap[code] = { code, name: code };
-            });
+            // Try to fetch aerodromes - use simple code matching
+            const { data: aerodromes, error } = await supabase
+              .from('aerodromes')
+              .select('code, name')
+              .in('code', codesArray);
+
+            if (error) {
+              console.warn('Erro ao buscar aerodromes:', error);
+            }
+
+            if (aerodromes && aerodromes.length > 0) {
+              aerodromes.forEach((aero: any) => {
+                aerodromeMap[aero.code] = { code: aero.code, name: aero.name };
+              });
+              console.log('Aerodromes carregados:', aerodromeMap);
+            } else {
+              console.warn('Nenhum aeródromo encontrado, usando fallback');
+            }
+          } catch (err) {
+            console.error('Erro crítico ao buscar aerodromes:', err);
           }
+
+          // Fallback: use the codes as names for any missing aerodromes
+          Array.from(aerodromeCodes).forEach((code: string) => {
+            if (!aerodromeMap[code]) {
+              aerodromeMap[code] = { code, name: code };
+            }
+          });
         }
       }
 
