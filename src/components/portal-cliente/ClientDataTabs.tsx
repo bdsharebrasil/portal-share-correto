@@ -158,11 +158,11 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       // Load logbook entries
       const { data: logbookData } = await supabase
         .from('logbook_entries')
-        .select('*, aircraft:aircraft_id(registration)')
+        .select('id, entry_date, total_time, distance_nm, fuel_added, daily_rate, partner_name, is_loan, aircraft:aircraft_id(registration)')
         .eq('aircraft_id', aircraftId)
         .eq('client_id', forClientId)
         .order('entry_date', { ascending: false })
-        .limit(10);
+        .limit(50);
 
       // Load fuel records from all partners/cotistas
       const { data: fuelData } = await supabase
