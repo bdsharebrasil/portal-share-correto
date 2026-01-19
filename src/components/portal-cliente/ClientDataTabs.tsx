@@ -255,7 +255,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         <TabsList>
           <TabsTrigger value="files">Arquivos</TabsTrigger>
           <TabsTrigger value="contracts">Contratos</TabsTrigger>
-          <TabsTrigger value="logbook">Logbook</TabsTrigger>
+          <TabsTrigger value="logbook">Diário de Bordo</TabsTrigger>
           <TabsTrigger value="fuel">Abastecimentos</TabsTrigger>
           <TabsTrigger value="ctm">CTM</TabsTrigger>
           <TabsTrigger value="travel-reports">Relatórios de Viagem</TabsTrigger>
