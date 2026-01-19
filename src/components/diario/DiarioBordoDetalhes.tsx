@@ -109,6 +109,58 @@ const shortenClientName = (fullName?: string): string => {
   return firstName.substring(0, 5);
 };
 
+// ===================== EXPANDIR CLIENTES COM PARCEIROS =====================
+/**
+ * Expande cada cliente em múltiplas opções (company + parceiros)
+ * Retorna array com id, label e tipo (company ou partner)
+ */
+const expandClientsWithPartners = (clients: any[]) => {
+  const expanded: any[] = [];
+  
+  clients.forEach(client => {
+    // Adicionar company_name como opção principal
+    if (client.company_name) {
+      expanded.push({
+        id: client.id,
+        label: client.company_name,
+        type: 'company',
+        clientId: client.id
+      });
+    }
+    
+    // Adicionar parceiros como opções
+    if (client.partner_name) {
+      expanded.push({
+        id: `${client.id}_partner1`,
+        label: client.partner_name,
+        type: 'partner',
+        clientId: client.id,
+        partnerName: client.partner_name
+      });
+    }
+    if (client.partner_name2) {
+      expanded.push({
+        id: `${client.id}_partner2`,
+        label: client.partner_name2,
+        type: 'partner',
+        clientId: client.id,
+        partnerName: client.partner_name2
+      });
+    }
+    if (client.partner_name3) {
+      expanded.push({
+        id: `${client.id}_partner3`,
+        label: client.partner_name3,
+        type: 'partner',
+        clientId: client.id,
+        partnerName: client.partner_name3
+      });
+    }
+  });
+  
+  return expanded;
+};
+
 // ===================== CÁLCULO DE CUSTO COM RATEIO =====================
 const calculateCostPerPartner = (
   totalCost: number,
@@ -167,6 +219,11 @@ const calculateDailyAllowanceForEntry = (
   // Quando é_rateio_igual (is_equal_split), não há cobrança de diária independente do tipo de voo
   if (entry.is_equal_split) {
     return 0; // Sem cobrança de diária quando é rateio entre sócios
+  }
+
+  // REGRA: Voos de empréstimo NÃO cobram diária
+  if (entry.is_loan) {
+    return 0; // Sem cobrança de diária quando é empréstimo
   }
 
   // REGRA 1: Saiu da base → 0 diárias
@@ -307,6 +364,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   });
 
   // Estado do Novo Voo
+  const [flightType, setFlightType] = useState<'cliente' | 'rateio' | 'emprestimo'>('cliente'); // Novo: tipo de voo
   const [newEntry, setNewEntry] = useState({
     entry_date: format(new Date(), 'yyyy-MM-dd'),
     pic_canac: '',
@@ -318,6 +376,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     client_id: '',
     partner_name: '',
     is_equal_split: false,
+    is_loan: false, // Novo: flag para empréstimo
+    loan_borrower_client_id: '', // Novo: cliente que está pegando emprestado
     ac_time: '',
     dep_time: '',
     pou_time: '',
@@ -921,10 +981,21 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       return;
     }
 
-    // Validação: rateio OU cliente (um dos dois deve ser preenchido)
-    if (!newEntry.is_equal_split && !newEntry.client_id) {
-      toast.error('Selecione um cliente ou marque como "Rateio Igual" para voos compartilhados');
+    // Validação por tipo de voo
+    if (flightType === 'cliente' && !newEntry.client_id) {
+      toast.error('Selecione um cliente para este voo');
       return;
+    }
+
+    if (flightType === 'emprestimo') {
+      if (!newEntry.client_id) {
+        toast.error('Selecione o cotista que está emprestando a aeronave');
+        return;
+      }
+      if (!newEntry.loan_borrower_client_id) {
+        toast.error('Selecione o cliente que está pegando emprestado');
+        return;
+      }
     }
 
     if (!newEntry.ac_time || !newEntry.cor_time) {
@@ -990,9 +1061,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         pic_canac: newEntry.pic_canac,
         sic_canac: newEntry.sic_canac || null,
         sic_name: newEntry.sic_name || null,
-        client_id: newEntry.is_equal_split ? null : newEntry.client_id,
+        client_id: newEntry.is_equal_split ? null : (newEntry.is_loan ? newEntry.client_id : newEntry.client_id),
         partner_name: newEntry.is_equal_split ? null : (newEntry.partner_name || null),
         is_equal_split: newEntry.is_equal_split,
+        is_loan: newEntry.is_loan || false,
+        loan_borrower_client_id: newEntry.is_loan ? newEntry.loan_borrower_client_id : null,
         total_time: newEntry.total_time,
         time: newEntry.time,
         day_time: newEntry.day_time,
@@ -1018,6 +1091,33 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       }]);
 
       if (error) throw error;
+
+      // Buscar o ID da entrada que foi inserida
+      const { data: insertedEntry } = await supabase
+        .from('logbook_entries')
+        .select('id')
+        .eq('aircraft_id', aircraftId)
+        .eq('entry_date', newEntry.entry_date)
+        .eq('departure_aerodrome', newEntry.departure_aerodrome)
+        .eq('arrival_aerodrome', newEntry.arrival_aerodrome)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      // Se é empréstimo, registrar na tabela aircraft_loans
+      if (newEntry.is_loan && insertedEntry?.id) {
+        await supabase.from('aircraft_loans').insert([{
+          lender_client_id: newEntry.client_id, // Cotista que empresta
+          lender_aircraft_id: aircraftId,
+          borrower_client_id: newEntry.loan_borrower_client_id, // Cliente que pega emprestado
+          borrower_aircraft_id: null, // Não aplicável para empréstimo simples
+          hours_borrowed: newEntry.total_time,
+          hours_paid_back: 0,
+          logbook_entry_id: insertedEntry.id,
+          entry_date: newEntry.entry_date,
+          status: 'pending'
+        }]);
+      }
 
       // Atualizar horas de voo da tripulação (PIC e SIC)
       const entryDate = new Date(newEntry.entry_date);
@@ -1061,6 +1161,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         client_id: '',
         partner_name: '',
         is_equal_split: false,
+        is_loan: false,
+        loan_borrower_client_id: '',
         ac_time: '',
         dep_time: '',
         pou_time: '',
@@ -1086,6 +1188,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         discrepancies: '',
         corrective_actions: ''
       });
+      setFlightType('cliente');
       setShowAddForm(false);
 
       // Recarregar entries
@@ -1118,9 +1221,21 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       return;
     }
 
-    if (!editingEntry.is_equal_split && !editingEntry.client_id) {
-      toast.error('Selecione um cliente ou marque como "Rateio Igual" para voos compartilhados');
+    // Validação por tipo de voo
+    if (!editingEntry.is_equal_split && !editingEntry.is_loan && !editingEntry.client_id) {
+      toast.error('Selecione um cliente para este voo ou marque como rateio/empréstimo');
       return;
+    }
+
+    if (editingEntry.is_loan) {
+      if (!editingEntry.client_id) {
+        toast.error('Selecione o cotista que está emprestando a aeronave');
+        return;
+      }
+      if (!editingEntry.loan_borrower_client_id) {
+        toast.error('Selecione o cliente que está pegando emprestado');
+        return;
+      }
     }
 
     if (!editingEntry.ac_time || !editingEntry.cor_time) {
@@ -1844,49 +1959,49 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
               </div>}
 
               <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="split-toggle"
-                    checked={newEntry.is_equal_split}
-                    onChange={e => setNewEntry({
-                      ...newEntry,
-                      is_equal_split: e.target.checked,
-                      client_id: e.target.checked ? '' : newEntry.client_id
-                    })}
-                    className="w-4 h-4 rounded cursor-pointer accent-emerald-500"
-                  />
-                  <Label htmlFor="split-toggle" className="text-[9px] uppercase text-slate-400 cursor-pointer">
-                    Rateio Igual (Sócios)
-                  </Label>
+                {/* Seleção do Tipo de Voo: Cliente | Rateio | Empréstimo */}
+                <div className="space-y-2">
+                  <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Responsável pelos Custos</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={flightType === 'cliente' ? 'default' : 'outline'}
+                      className="flex-1 h-10 text-xs font-semibold"
+                      onClick={() => {
+                        setFlightType('cliente');
+                        setNewEntry({...newEntry, is_equal_split: false, is_loan: false, client_id: '', loan_borrower_client_id: ''});
+                      }}
+                    >
+                      Cliente
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={flightType === 'rateio' ? 'default' : 'outline'}
+                      className="flex-1 h-10 text-xs font-semibold"
+                      onClick={() => {
+                        setFlightType('rateio');
+                        setNewEntry({...newEntry, is_equal_split: true, is_loan: false, client_id: '', loan_borrower_client_id: ''});
+                      }}
+                    >
+                      Rateio
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={flightType === 'emprestimo' ? 'default' : 'outline'}
+                      className="flex-1 h-10 text-xs font-semibold bg-amber-600/20 border-amber-500/30 hover:bg-amber-600/30"
+                      onClick={() => {
+                        setFlightType('emprestimo');
+                        setNewEntry({...newEntry, is_equal_split: false, is_loan: true, flight_nature: 'PV - Privado'});
+                      }}
+                    >
+                      Empréstimo
+                    </Button>
+                  </div>
                 </div>
 
-                {newEntry.is_equal_split ? (
-                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
-                    <p className="text-[9px] text-emerald-400 uppercase font-bold tracking-widest mb-2">
-                      Tipo de Voo para Rateio
-                    </p>
-                    <Select value={newEntry.flight_nature} onValueChange={v => setNewEntry({
-                      ...newEntry,
-                      flight_nature: v
-                    })}>
-                      <SelectTrigger className="bg-slate-950 border border-emerald-500/30 text-emerald-400">
-                        <SelectValue placeholder="Selecione o tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {SPLIT_FLIGHT_TYPES.map(type => (
-                          <SelectItem key={type.code} value={type.code}>
-                            {type.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-[8px] text-slate-400 mt-2 italic">
-                      Custos serão divididos igualmente entre todos os sócios
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
+                {/* SEÇÃO: Tipo Cliente */}
+                {flightType === 'cliente' && (
+                  <div className="space-y-3 animate-in slide-in-from-top-2 p-3 bg-slate-950/50 border border-slate-800 rounded-lg">
                     <div className="space-y-1">
                       <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Cliente / Cotista *</Label>
                       <Select value={newEntry.client_id} onValueChange={v => {
@@ -1901,13 +2016,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                           <SelectValue placeholder="Selecione o Cliente" />
                         </SelectTrigger>
                         <SelectContent>
-                          {sortedClients.map(cl => {
-                            const isLinked = cl.client_aircraft?.some(ca => ca.aircraft_id === aircraftId);
-                            return <SelectItem key={cl.id} value={cl.id}>
-                              {cl.company_name}
-                              {isLinked && <span className="text-emerald-400"> ✓</span>}
-                            </SelectItem>;
-                          })}
+                          {sortedClients
+                            .filter(cl => cl.client_aircraft?.some(ca => ca.aircraft_id === aircraftId))
+                            .map(cl => (
+                              <SelectItem key={cl.id} value={cl.id}>
+                                {cl.company_name}
+                                <span className="text-emerald-400"> ✓</span>
+                              </SelectItem>
+                            ))
+                          }
                         </SelectContent>
                       </Select>
                     </div>
@@ -1949,6 +2066,91 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                       }
                       return null;
                     })()}
+                  </div>
+                )}
+
+                {/* SEÇÃO: Tipo Rateio */}
+                {flightType === 'rateio' && (
+                  <div className="space-y-3 animate-in slide-in-from-top-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                    <p className="text-[9px] text-emerald-400 uppercase font-bold tracking-widest">
+                      Tipo de Voo para Rateio
+                    </p>
+                    <Select value={newEntry.flight_nature} onValueChange={v => setNewEntry({
+                      ...newEntry,
+                      flight_nature: v
+                    })}>
+                      <SelectTrigger className="bg-slate-950 border border-emerald-500/30 text-emerald-400">
+                        <SelectValue placeholder="Selecione o tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SPLIT_FLIGHT_TYPES.map(type => (
+                          <SelectItem key={type.code} value={type.code}>
+                            {type.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[8px] text-slate-400 mt-2 italic">
+                      💡 Custos serão divididos igualmente entre todos os sócios
+                    </p>
+                  </div>
+                )}
+
+                {/* SEÇÃO: Tipo Empréstimo */}
+                {flightType === 'emprestimo' && (
+                  <div className="space-y-3 animate-in slide-in-from-top-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                    <p className="text-[9px] text-amber-400 uppercase font-bold tracking-widest mb-3">
+                      Configurar Empréstimo
+                    </p>
+                    
+                    {/* Cotista que empresta */}
+                    <div className="space-y-1">
+                      <Label className="text-[9px] uppercase text-amber-400 ml-1 block">Cotista que Empresta a Aeronave *</Label>
+                      <Select value={newEntry.client_id} onValueChange={v => setNewEntry({
+                        ...newEntry,
+                        client_id: v
+                      })}>
+                        <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
+                          <SelectValue placeholder="Selecione o cotista" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {expandClientsWithPartners(
+                            sortedClients.filter(cl => cl.client_aircraft?.some(ca => ca.aircraft_id === aircraftId))
+                          ).map(option => (
+                            <SelectItem key={option.id} value={option.clientId}>
+                              {option.label} ✓
+                            </SelectItem>
+                          ))
+                          }
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Cliente que pega emprestado */}
+                    <div className="space-y-1">
+                      <Label className="text-[9px] uppercase text-amber-400 ml-1 block">Cliente que Pega Emprestado *</Label>
+                      <Select value={newEntry.loan_borrower_client_id} onValueChange={v => setNewEntry({
+                        ...newEntry,
+                        loan_borrower_client_id: v
+                      })}>
+                        <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
+                          <SelectValue placeholder="Selecione o cliente externo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {expandClientsWithPartners(
+                            sortedClients.filter(cl => !cl.client_aircraft?.some(ca => ca.aircraft_id === aircraftId))
+                          ).map(option => (
+                            <SelectItem key={option.id} value={option.clientId}>
+                              {option.label}
+                            </SelectItem>
+                          ))
+                          }
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[8px] text-amber-300/80 mt-2 italic">
+                        ⚠️ Este voo será registrado como empréstimo. As horas voadas serão debitadas do banco de horas do cliente que pegou emprestado.
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>

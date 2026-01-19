@@ -577,7 +577,7 @@ export default function DashboardGestor() {
                           const dataVenc = conta.data_vencimento
                             ? (typeof conta.data_vencimento === 'string' ? parseISO(conta.data_vencimento) : new Date(conta.data_vencimento))
                             : (conta.data ? (typeof conta.data === 'string' ? parseISO(conta.data) : new Date(conta.data)) : null);
-                          return dataVenc && dataVenc < new Date() && conta.status !== "confirmado" && conta.status !== "pago";
+                            return dataVenc && dataVenc < new Date() && conta.status !== "confirmado" && conta.status !== "pago" && conta.status !== "recebido" && conta.status !== "reembolsado";
                         })
                         .sort((a: any, b: any) => {
                           const dateA = typeof a.data === 'string' ? parseISO(a.data) : new Date(a.data);
@@ -608,7 +608,7 @@ export default function DashboardGestor() {
                         const dataVenc = conta.data_vencimento
                           ? (typeof conta.data_vencimento === 'string' ? parseISO(conta.data_vencimento) : new Date(conta.data_vencimento))
                           : (conta.data ? (typeof conta.data === 'string' ? parseISO(conta.data) : new Date(conta.data)) : null);
-                        return dataVenc && dataVenc < new Date() && conta.status !== "confirmado" && conta.status !== "pago";
+                          return dataVenc && dataVenc < new Date() && conta.status !== "confirmado" && conta.status !== "pago" && conta.status !== "recebido" && conta.status !== "reembolsado";
                       }).length === 0 && (
                         <TableRow>
                           <TableCell colSpan={4} className="text-center text-muted-foreground py-8 text-sm">

@@ -130,19 +130,52 @@ export function useClientesComSocios() {
  */
 export function calcularAbastecimentos(
   abastecimentos: any[],
-  fator: number = 1
+  fator: number = 1,
+  socioIndice?: number
 ) {
-  const pendentes = abastecimentos.filter((a) => a.status === "pendente");
-  const pagos = abastecimentos.filter((a) => a.status === "pago");
+  // Quando fornecido um socioIndice, atribuímos abastecimentos que têm partner_index
+  // diretamente ao sócio correspondente. Abastecimentos sem partner_index são
+  // tratados como compartilhados e divididos pelo fator.
 
-  const totalPendentes = pendentes.reduce((sum, a) => sum + (a.valor_total || 0), 0);
-  const totalPagos = pagos.reduce((sum, a) => sum + (a.valor_total || 0), 0);
+  let pendentesCount = 0;
+  let pagosCount = 0;
+  let totalPendentes = 0;
+  let totalPagos = 0;
+
+  for (const a of abastecimentos) {
+    const status = a.status || a.status_pagamento || 'pendente';
+    const valor = Number(a.valor_total || 0);
+    const partnerIdx = a.partner_index || a.partner || a.socio_indice || null;
+
+    if (partnerIdx != null) {
+      // Abastecimento atribuído a um sócio específico
+      if (socioIndice != null && Number(partnerIdx) === Number(socioIndice)) {
+        if (status === 'pendente') {
+          pendentesCount += 1;
+          totalPendentes += valor;
+        } else if (status === 'pago') {
+          pagosCount += 1;
+          totalPagos += valor;
+        }
+      }
+      // se não é do sócio atual, ignora
+    } else {
+      // Abastecimento compartilhado: distribuir proporcionalmente
+      if (status === 'pendente') {
+        pendentesCount += 1;
+        totalPendentes += valor * fator;
+      } else if (status === 'pago') {
+        pagosCount += 1;
+        totalPagos += valor * fator;
+      }
+    }
+  }
 
   return {
-    abastecimentosPendentes: pendentes.length,
-    abastecimentosPagos: pagos.length,
-    valorAbastecimentosPendentes: totalPendentes * fator,
-    valorAbastecimentosPagos: totalPagos * fator,
+    abastecimentosPendentes: pendentesCount,
+    abastecimentosPagos: pagosCount,
+    valorAbastecimentosPendentes: totalPendentes,
+    valorAbastecimentosPagos: totalPagos,
   };
 }
 
@@ -173,8 +206,8 @@ export function calcularBalancoSocio(
   );
   const totalGeral = despesas.reduce((sum, d) => sum + (d.amount || 0), 0);
 
-  // Calcular abastecimentos
-  const abastecimentosCalculo = calcularAbastecimentos(abastecimentos, fator);
+  // Calcular abastecimentos (agora atribuindo registros por partner_index ao sócio quando aplicável)
+  const abastecimentosCalculo = calcularAbastecimentos(abastecimentos, fator, socio.indice);
 
   return {
     ...socio,

@@ -62,21 +62,54 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
     if (!aircraftId) return;
     setLoading(true);
     try {
-      const [acRes, partRes, entriesRes] = await Promise.all([
-        supabase.from('aircraft').select('*').eq('id', aircraftId).single(),
-        supabase
-          .from('aircraft_partners')
-          .select('*, clients(id, company_name)')
-          .eq('aircraft_id', aircraftId),
-        supabase
-          .from('logbook_entries')
-          .select('*')
-          .eq('aircraft_id', aircraftId)
-          .order('entry_date', { ascending: false }),
-      ]);
+      // Buscar aeronave
+      const acRes = await supabase
+        .from('aircraft')
+        .select('*')
+        .eq('id', aircraftId)
+        .single();
 
       if (acRes.data) setAircraft(acRes.data);
-      if (partRes.data) setPartners(partRes.data as AircraftPartner[]);
+
+      // Buscar cotistas/shareholders da aeronave (com suas quotas de horas)
+      const shareholdersRes = await supabase
+        .from('aircraft_shareholders')
+        .select(`
+          id,
+          aircraft_id,
+          client_id,
+          quota_hours,
+          clients:client_id (
+            id,
+            company_name,
+            partner_name,
+            partner_name2,
+            partner_name3
+          )
+        `)
+        .eq('aircraft_id', aircraftId);
+
+      // Transformar em formato de partners
+      if (shareholdersRes.data) {
+        const partnerList = shareholdersRes.data.map((sh: any) => ({
+          id: sh.id,
+          aircraft_id: aircraftId,
+          partner_id: sh.client_id,
+          quota_hours: sh.quota_hours || 0,
+          balance_hours: 0,
+          client: sh.clients
+        }));
+        setPartners(partnerList);
+      }
+
+      // Buscar entradas de diário (apenas voos normais, não empréstimos)
+      const entriesRes = await supabase
+        .from('logbook_entries')
+        .select('*')
+        .eq('aircraft_id', aircraftId)
+        .eq('is_loan', false) // Excluir voos de empréstimo
+        .order('entry_date', { ascending: false });
+
       if (entriesRes.data) setEntries(entriesRes.data);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);

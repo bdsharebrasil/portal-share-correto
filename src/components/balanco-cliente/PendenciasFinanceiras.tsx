@@ -160,13 +160,13 @@ export function PendenciasFinanceiras({ clienteId, aeronaveId }: PendenciasFinan
               </TableHeader>
               <TableBody>
                 {pagamentoDiretoPendente.map((item: any) => {
-                  const diasAtraso = differenceInDays(new Date(), new Date(item.data_vencimento));
+                  const diasAtraso = differenceInDays(new Date(), new Date(item.data_vencimento + 'T00:00:00'));
                   const isAtrasado = diasAtraso > 0;
 
                   return (
                     <TableRow key={item.id} className={isAtrasado ? 'bg-destructive/10' : ''}>
                       <TableCell>
-                        {format(new Date(item.data_vencimento), 'dd/MM/yyyy', { locale: ptBR })}
+                        {format(new Date(item.data_vencimento + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}
                       </TableCell>
                       <TableCell className="max-w-[200px] truncate">{item.descricao || '-'}</TableCell>
                       <TableCell className="text-right font-medium">
@@ -242,13 +242,13 @@ export function PendenciasFinanceiras({ clienteId, aeronaveId }: PendenciasFinan
               </TableHeader>
               <TableBody>
                 {aguardandoReembolso.map((item: any) => {
-                  const diasPendente = differenceInDays(new Date(), new Date(item.date));
+                  const diasPendente = differenceInDays(new Date(), new Date(item.date + 'T00:00:00'));
                   const isAtrasado = diasPendente > 30;
                   
                   return (
                     <TableRow key={item.id} className={isAtrasado ? 'bg-destructive/10' : ''}>
                       <TableCell>
-                        {format(new Date(item.date), 'dd/MM/yyyy', { locale: ptBR })}
+                        {format(new Date(item.date + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}
                       </TableCell>
                       <TableCell>{item.categorias_movimentacao?.nome || '-'}</TableCell>
                       <TableCell className="max-w-[200px] truncate">{item.description || '-'}</TableCell>
@@ -327,7 +327,7 @@ export function PendenciasFinanceiras({ clienteId, aeronaveId }: PendenciasFinan
                 {combustivelPendente.map((item: any) => (
                   <TableRow key={item.id}>
                     <TableCell>
-                      {format(new Date(item.data), 'dd/MM/yyyy', { locale: ptBR })}
+                      {format(new Date(item.data + 'T00:00:00'), 'dd/MM/yyyy', { locale: ptBR })}
                     </TableCell>
                     <TableCell>{item.local || '-'}</TableCell>
                     <TableCell className="max-w-[150px] truncate">{item.trecho || '-'}</TableCell>

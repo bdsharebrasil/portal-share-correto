@@ -73,12 +73,19 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
         fuelUrl += `&aircraft_id=${aeronaveId}`;
       }
 
-      const fuelResponse = await fetch(fuelUrl);
-      if (!fuelResponse.ok) {
-        throw new Error(`Failed to fetch fuel data: ${fuelResponse.statusText}`);
+      let abastecimentos = [];
+      try {
+        const fuelResponse = await fetch(fuelUrl);
+        if (fuelResponse.ok) {
+          const fuelResult = await fuelResponse.json();
+          abastecimentos = fuelResult.data || [];
+        } else {
+          console.warn(`Fuel API returned status ${fuelResponse.status}, using empty list`);
+        }
+      } catch (fuelError) {
+        console.warn('Error fetching fuel data:', fuelError);
+        // Continue without fuel data
       }
-      const fuelResult = await fuelResponse.json();
-      const abastecimentos = fuelResult.data || [];
 
       const data = despesasData || [];
       const diretas = despesasDiretasData || [];

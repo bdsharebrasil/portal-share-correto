@@ -176,7 +176,14 @@ export function useDashboardGestorData(currentDate: Date) {
       const dataVenc = d.data_vencimento
         ? (typeof d.data_vencimento === 'string' ? parseISO(d.data_vencimento) : new Date(d.data_vencimento))
         : (d.data ? (typeof d.data === 'string' ? parseISO(d.data) : new Date(d.data)) : null);
-      return dataVenc && dataVenc < today && d.status !== "confirmado" && d.status !== "pago";
+      return (
+        dataVenc &&
+        dataVenc < today &&
+        d.status !== "confirmado" &&
+        d.status !== "pago" &&
+        d.status !== "recebido" &&
+        d.status !== "reembolsado"
+      );
     }).length;
 
     // Recebimentos vencidos
@@ -184,7 +191,14 @@ export function useDashboardGestorData(currentDate: Date) {
       const dataVenc = r.data_vencimento
         ? (typeof r.data_vencimento === 'string' ? parseISO(r.data_vencimento) : new Date(r.data_vencimento))
         : (r.data ? (typeof r.data === 'string' ? parseISO(r.data) : new Date(r.data)) : null);
-      return dataVenc && dataVenc < today && r.status !== "confirmado" && r.status !== "pago";
+      return (
+        dataVenc &&
+        dataVenc < today &&
+        r.status !== "confirmado" &&
+        r.status !== "pago" &&
+        r.status !== "recebido" &&
+        r.status !== "reembolsado"
+      );
     }).length;
 
     // Total conferido no mês (pago ou confirmado)
