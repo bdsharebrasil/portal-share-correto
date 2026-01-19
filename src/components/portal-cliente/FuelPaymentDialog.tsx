@@ -36,6 +36,11 @@ export function FuelPaymentDialog({
 
   const handleSubmit = async () => {
     try {
+      if (!fuelRecord) {
+        toast.error("Erro ao carregar dados do abastecimento");
+        return;
+      }
+
       if (!paymentDate || !paymentMethod) {
         toast.error("Preencha a data e a forma de pagamento");
         return;
