@@ -1045,21 +1045,33 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       // 3. Adicionar à lista para cálculo
       const allEntriesForCalc = [...periodEntriesForCalc, tempEntry];
 
-      // 4. Calcular diárias
-      const dailyAllowance = calculateDailyAllowanceForEntry(
-        tempEntry,
-        logbookMonth.base_aerodrome || '',
-        allEntriesForCalc
-      );
+      // 4. Calcular diárias (automático ou manual)
+      let dailyAllowance = 0;
 
-      console.log('🔍 DEBUG - Cálculo de Diárias:', {
-        base: logbookMonth.base_aerodrome,
-        origem: newEntry.departure_aerodrome,
-        destino: newEntry.arrival_aerodrome,
-        data: newEntry.entry_date,
-        diarias_calculadas: dailyAllowance,
-        total_voos_periodo: allEntriesForCalc.length
-      });
+      if (newEntry.daily_quantity > 0) {
+        // Se o usuário informou manualmente, usar esse valor
+        dailyAllowance = newEntry.daily_quantity * (logbookMonth.daily_rate || 0);
+        console.log('📋 Diárias (Manual):', {
+          quantidade: newEntry.daily_quantity,
+          taxa_diaria: logbookMonth.daily_rate,
+          total: dailyAllowance
+        });
+      } else {
+        // Caso contrário, calcular automaticamente
+        dailyAllowance = calculateDailyAllowanceForEntry(
+          tempEntry,
+          logbookMonth.base_aerodrome || '',
+          allEntriesForCalc
+        );
+        console.log('🔍 DEBUG - Cálculo de Diárias (Automático):', {
+          base: logbookMonth.base_aerodrome,
+          origem: newEntry.departure_aerodrome,
+          destino: newEntry.arrival_aerodrome,
+          data: newEntry.entry_date,
+          diarias_calculadas: dailyAllowance,
+          total_voos_periodo: allEntriesForCalc.length
+        });
+      }
 
       // ====== FIM DO CÁLCULO DE DIÁRIAS ======
 
