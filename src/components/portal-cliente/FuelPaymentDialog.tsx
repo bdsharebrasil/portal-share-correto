@@ -103,7 +103,7 @@ export function FuelPaymentDialog({
 
   if (!fuelRecord) {
     return (
-      <Dialog open={open} onOpenChange={handleClose}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Carregando...</DialogTitle>
@@ -114,7 +114,10 @@ export function FuelPaymentDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={(isOpen) => {
+      if (!isOpen) resetFormState();
+      onOpenChange(isOpen);
+    }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Dar Baixa no Pagamento</DialogTitle>
