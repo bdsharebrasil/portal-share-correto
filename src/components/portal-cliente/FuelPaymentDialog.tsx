@@ -14,17 +14,25 @@ interface FuelPaymentDialogProps {
   onSuccess: () => void;
 }
 
-export function FuelPaymentDialog({ 
-  open, 
-  onOpenChange, 
-  fuelRecord, 
-  onSuccess 
+export function FuelPaymentDialog({
+  open,
+  onOpenChange,
+  fuelRecord,
+  onSuccess
 }: FuelPaymentDialogProps) {
   const [loading, setLoading] = useState(false);
   const [paymentDate, setPaymentDate] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptFileName, setReceiptFileName] = useState("");
+
+  const handleClose = () => {
+    setPaymentDate("");
+    setPaymentMethod("");
+    setReceiptFile(null);
+    setReceiptFileName("");
+    onOpenChange(false);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
