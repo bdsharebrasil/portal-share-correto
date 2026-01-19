@@ -122,6 +122,18 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
     try {
       setLoading(true);
 
+      // Get all client IDs (main client + all partners/cotistas)
+      const clientIds = [forClientId];
+
+      // Add partner/cotista IDs if they exist
+      if (partners.length > 1) {
+        partners.forEach((partner: any) => {
+          if (partner.client_id && partner.client_id !== forClientId && !clientIds.includes(partner.client_id)) {
+            clientIds.push(partner.client_id);
+          }
+        });
+      }
+
       // Load files (for bank reconciliation - Notas Fiscais e Boletos)
       const { data: filesData } = await supabase
         .from('client_portal_files')
@@ -145,12 +157,12 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         .order('entry_date', { ascending: false })
         .limit(10);
 
-      // Load fuel records
+      // Load fuel records from all partners/cotistas
       const { data: fuelData } = await supabase
         .from('abastecimentos')
-        .select('*, aeronave:aeronave_id(registration)')
+        .select('*, aeronave:aeronave_id(registration), client:client_id(company_name)')
         .eq('aeronave_id', aircraftId)
-        .eq('client_id', forClientId)
+        .in('client_id', clientIds)
         .order('data', { ascending: false })
         .limit(10);
 
