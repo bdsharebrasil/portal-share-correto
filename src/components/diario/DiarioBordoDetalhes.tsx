@@ -2388,46 +2388,41 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
               <div className="flex items-center gap-2 mb-4">
                 <MapPin className="text-yellow-500" size={18} />
                 <h2 className="text-sm font-black text-slate-500 uppercase tracking-widest">
-                  Detalhamento de Diárias
+                  Detalhamento de Diárias (Clique para marcar como contabilizada)
                 </h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto pr-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 {calculatePerDiemInfo.details.map((pd, idx) => {
-                  const uniqueKey = `${pd.entryId}_${pd.date}`;
+                  const uniqueKey = pd.entryId ? `${pd.entryId}_${pd.date}` : `${idx}`;
                   const isMarked = markedDailies[uniqueKey] || false;
                   return (
                     <div
                       key={idx}
-                      className={`border rounded-lg p-4 transition-all cursor-pointer ${
+                      className={`border rounded-lg p-3 transition-all cursor-pointer ${
                         isMarked
                           ? 'bg-sky-500/20 border-sky-500/50'
-                          : 'bg-slate-950 border-yellow-500/30 hover:border-yellow-500/60'
+                          : 'bg-slate-950 border-yellow-500/30'
                       }`}
-                      onClick={() => setMarkedDailies(prev => ({
-                        ...prev,
-                        [uniqueKey]: !isMarked
-                      }))}
+                      onClick={() => {
+                        const newMarked = {...markedDailies};
+                        newMarked[uniqueKey] = !isMarked;
+                        setMarkedDailies(newMarked);
+                      }}
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-2">
                         <input
                           type="checkbox"
                           checked={isMarked}
-                          onChange={(e) => {
-                            e.stopPropagation();
-                            setMarkedDailies(prev => ({
-                              ...prev,
-                              [uniqueKey]: !isMarked
-                            }));
-                          }}
-                          className="w-4 h-4 mt-1 accent-sky-500 cursor-pointer"
+                          onChange={() => {}}
+                          className="w-4 h-4 mt-0.5 accent-sky-500 cursor-pointer"
                         />
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <p className={`text-[9px] uppercase font-bold mb-1 ${
                             isMarked ? 'text-sky-400' : 'text-yellow-500'
                           }`}>
                             {pd.date}
                           </p>
-                          <p className="text-xs text-slate-400">{pd.location}</p>
+                          <p className="text-xs text-slate-400 truncate">{pd.location}</p>
                         </div>
                       </div>
                     </div>
@@ -2439,12 +2434,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                   Total: <span className="text-2xl font-black text-yellow-400">
                     {calculatePerDiemInfo.count} × R$ {(logbookMonth.daily_rate || 0).toFixed(2)} =
                     R$ {(calculatePerDiemInfo.total || 0).toFixed(2)}
-                  </span>
-                </p>
-                <p className="text-sm text-slate-400 mt-2">
-                  Contabilizadas: <span className="text-lg font-black text-sky-400">
-                    {Object.values(markedDailies).filter(Boolean).length} × R$ {(logbookMonth.daily_rate || 0).toFixed(2)} =
-                    R$ {(Object.values(markedDailies).filter(Boolean).length * (logbookMonth?.daily_rate || 0)).toFixed(2)}
                   </span>
                 </p>
               </div>
