@@ -167,14 +167,42 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           partner_name,
           departure_aerodrome,
           arrival_aerodrome,
-          aircraft:aircraft_id(registration),
-          departure_aero:aerodromes!logbook_entries_departure_aerodrome_fkey(id, code, name),
-          arrival_aero:aerodromes!logbook_entries_arrival_aerodrome_fkey(id, code, name)
+          aircraft:aircraft_id(registration)
         `)
         .eq('aircraft_id', aircraftId)
         .eq('client_id', forClientId)
         .order('entry_date', { ascending: false })
         .limit(50);
+
+      // Load aerodromes data
+      let aerodromeMap: any = {};
+      if (logbookData && logbookData.length > 0) {
+        const aerodromeCodes = new Set<string>();
+        logbookData.forEach((entry: any) => {
+          if (entry.departure_aerodrome) aerodromeCodes.add(entry.departure_aerodrome);
+          if (entry.arrival_aerodrome) aerodromeCodes.add(entry.arrival_aerodrome);
+        });
+
+        if (aerodromeCodes.size > 0) {
+          const { data: aerodromes } = await supabase
+            .from('aerodromes')
+            .select('id, code, name')
+            .in('code', Array.from(aerodromeCodes));
+
+          if (aerodromes) {
+            aerodromes.forEach((aero: any) => {
+              aerodromeMap[aero.code] = { code: aero.code, name: aero.name };
+            });
+          }
+        }
+      }
+
+      // Enrich logbook data with aerodrome information
+      const enrichedLogbookData = (logbookData || []).map((entry: any) => ({
+        ...entry,
+        departure_aero: entry.departure_aerodrome ? aerodromeMap[entry.departure_aerodrome] : null,
+        arrival_aero: entry.arrival_aerodrome ? aerodromeMap[entry.arrival_aerodrome] : null
+      }));
 
       // Load fuel records from all partners/cotistas
       const { data: fuelData } = await supabase
