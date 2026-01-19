@@ -202,6 +202,8 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         if (selectedPartner && selectedPartner.name) {
           query = query.eq('partner_name', `[${selectedPartner.name}]`);
         }
+        // Se nenhum parceiro foi selecionado (consolidado), não adicionar filtro de partner_name
+        // Isso retorna TODOS os registros de todos os sócios
 
         const result = await query;
         logbookData = result.data;
