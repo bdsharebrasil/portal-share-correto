@@ -93,6 +93,18 @@ export function FuelPaymentDialog({
     }
   };
 
+  if (!fuelRecord) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Carregando...</DialogTitle>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -108,10 +120,10 @@ export function FuelPaymentDialog({
             <div className="text-sm space-y-1">
               <p className="text-muted-foreground">Aeronave:</p>
               <p className="font-medium text-foreground">
-                {fuelRecord.aeronave?.registration} - {fuelRecord.local}
+                {fuelRecord?.aeronave?.registration || 'N/A'} - {fuelRecord?.local || 'N/A'}
               </p>
               <p className="text-xs text-muted-foreground mt-2">
-                Valor: R$ {fuelRecord.valor_total}
+                Valor: R$ {fuelRecord?.valor_total || '0,00'}
               </p>
             </div>
           </div>
