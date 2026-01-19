@@ -146,7 +146,7 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
         fonte: 'abastecimentos',
         valor: d.valor_total,
         data: d.data,
-        descricao: `Abastecimento - ${d.local} (${d.trecho})${d.partner_index?` (Sócio ${d.partner_index})`:''}`,
+        descricao: `Abastecimento - ${d.local} (${d.trecho})`,
         categoria_nome: 'Combustível',
         aeronave_registro: d.aircraft?.registration || '-',
         status: d.status_pagamento || d.status || 'pendente',
