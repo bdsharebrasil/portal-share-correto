@@ -18,6 +18,7 @@ export interface ClientDataTabsProps {
   aircraftId: string;
   aircraftRegistration: string;
   isAdmin?: boolean;
+  selectedPartner?: any;
 }
 
 interface TravelReport {
