@@ -453,23 +453,63 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                   {fuelRecords.map((record) => (
                     <div
                       key={record.id}
-                      className="p-4 bg-muted/50 rounded-lg border border-border flex justify-between items-center"
+                      className="p-4 bg-muted/50 rounded-lg border border-border"
                     >
-                      <div className="flex-1">
-                        <p className="font-medium text-foreground">{record.registration}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Data: {new Date(record.data).toLocaleDateString('pt-BR')}
-                        </p>
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium text-foreground">
+                              {record.aeronave?.registration || 'N/A'} - {record.local}
+                            </p>
+                            {record.partner_name && (
+                              <Badge variant="outline" className="bg-blue-500/20 text-blue-300 text-xs">
+                                {record.partner_name}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Data: {new Date(record.data).toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => downloadFile(record.file_path)}
-                        >
-                          <Download className="h-4 w-4" />
-                          Baixar
-                        </Button>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3 border-t border-border/50 text-sm">
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Litros</p>
+                          <p className="font-medium text-foreground">{record.litros || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Valor Unitário</p>
+                          <p className="font-medium text-foreground">R$ {record.valor_unitario || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Valor Total</p>
+                          <p className="font-medium text-green-400">R$ {record.valor_total || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Status</p>
+                          <Badge className={
+                            record.status_pagamento === 'pago'
+                              ? 'bg-green-500/20 text-green-300'
+                              : record.status_pagamento === 'pendente'
+                              ? 'bg-yellow-500/20 text-yellow-300'
+                              : 'bg-gray-500/20 text-gray-300'
+                          }>
+                            {record.status_pagamento === 'pago' ? 'Pago' : record.status_pagamento === 'pendente' ? 'Pendente' : record.status_pagamento || 'N/A'}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {record.observacao && (
+                        <div className="pt-3 border-t border-border/50">
+                          <p className="text-xs text-muted-foreground mb-1">Observações</p>
+                          <p className="text-sm text-foreground">{record.observacao}</p>
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
+                        <p className="text-xs text-muted-foreground">Abastecedor: {record.abastecedor || 'N/A'}</p>
+                        <p className="text-xs text-muted-foreground ml-auto">Comanda: {record.comanda || 'N/A'}</p>
                       </div>
                     </div>
                   ))}
