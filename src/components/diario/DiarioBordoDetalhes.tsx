@@ -2367,8 +2367,26 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
           {logbookMonth?.has_daily_rate && (
             <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
               <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Diárias do Período</p>
-              <p className="text-lg font-black text-yellow-400">{calculatePerDiemInfo.count} diárias</p>
-              <p className="text-xs text-emerald-400 mt-1">R$ {(calculatePerDiemInfo.total || 0).toFixed(2)}</p>
+              <div className="flex items-baseline gap-2 mb-3">
+                <p className="text-lg font-black text-yellow-400">{calculatePerDiemInfo.count} diárias</p>
+                <p className="text-xs text-sky-400 font-semibold">
+                  ({Object.values(markedDailies).filter(Boolean).length} contabilizadas)
+                </p>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-400">Total:</span>
+                  <span className="text-sm font-bold text-emerald-400">
+                    R$ {(calculatePerDiemInfo.total || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-400">Contabilizadas:</span>
+                  <span className="text-sm font-bold text-sky-400">
+                    R$ {(Object.values(markedDailies).filter(Boolean).length * (logbookMonth?.daily_rate || 0)).toFixed(2)}
+                  </span>
+                </div>
+              </div>
             </div>
           )}
           {logbookMonth?.has_daily_rate && calculatePerDiemInfo.count > 0 && (
@@ -2379,19 +2397,60 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                   Detalhamento de Diárias
                 </h2>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                {calculatePerDiemInfo.details.map((pd, idx) => (
-                  <div key={idx} className="bg-slate-950 border border-yellow-500/30 rounded-lg p-3">
-                    <p className="text-[9px] text-yellow-500 uppercase font-bold mb-1">{pd.date}</p>
-                    <p className="text-xs text-slate-400">{pd.location}</p>
-                  </div>
-                ))}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto pr-2">
+                {calculatePerDiemInfo.details.map((pd, idx) => {
+                  const uniqueKey = `${pd.entryId}_${pd.date}`;
+                  const isMarked = markedDailies[uniqueKey] || false;
+                  return (
+                    <div
+                      key={idx}
+                      className={`border rounded-lg p-4 transition-all cursor-pointer ${
+                        isMarked
+                          ? 'bg-sky-500/20 border-sky-500/50'
+                          : 'bg-slate-950 border-yellow-500/30 hover:border-yellow-500/60'
+                      }`}
+                      onClick={() => setMarkedDailies(prev => ({
+                        ...prev,
+                        [uniqueKey]: !isMarked
+                      }))}
+                    >
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          checked={isMarked}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setMarkedDailies(prev => ({
+                              ...prev,
+                              [uniqueKey]: !isMarked
+                            }));
+                          }}
+                          className="w-4 h-4 mt-1 accent-sky-500 cursor-pointer"
+                        />
+                        <div className="flex-1">
+                          <p className={`text-[9px] uppercase font-bold mb-1 ${
+                            isMarked ? 'text-sky-400' : 'text-yellow-500'
+                          }`}>
+                            {pd.date}
+                          </p>
+                          <p className="text-xs text-slate-400">{pd.location}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
               <div className="mt-4 pt-4 border-t border-slate-800 text-right">
                 <p className="text-sm text-slate-400">
                   Total: <span className="text-2xl font-black text-yellow-400">
                     {calculatePerDiemInfo.count} × R$ {(logbookMonth.daily_rate || 0).toFixed(2)} =
                     R$ {(calculatePerDiemInfo.total || 0).toFixed(2)}
+                  </span>
+                </p>
+                <p className="text-sm text-slate-400 mt-2">
+                  Contabilizadas: <span className="text-lg font-black text-sky-400">
+                    {Object.values(markedDailies).filter(Boolean).length} × R$ {(logbookMonth.daily_rate || 0).toFixed(2)} =
+                    R$ {(Object.values(markedDailies).filter(Boolean).length * (logbookMonth?.daily_rate || 0)).toFixed(2)}
                   </span>
                 </p>
               </div>
