@@ -105,12 +105,14 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
     loadPartners();
   }, [aircraftId, clientId, clientName]);
 
-  // Load client data when clientId, aircraftId, or selectedPartner changes
+  // Load client data when clientId, aircraftId changes
+  // selectedPartner can be undefined (waiting for selection), null (consolidado), or an object (specific partner)
+  // Load in all cases as long as clientId and aircraftId are present
   useEffect(() => {
-    if (clientId && aircraftId && partners.length > 0) {
+    if (clientId && aircraftId) {
       loadData(clientId);
     }
-  }, [clientId, aircraftId, partners, selectedPartner]);
+  }, [clientId, aircraftId, selectedPartner]);
 
   // Buscar fornecedores favoritos categoria 'share'
   useEffect(() => {
@@ -198,9 +200,12 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           .limit(50);
 
         // Se um parceiro específico foi selecionado, filtrar pelo partner_name
+        // Note: partner_name in logbook_entries is stored with brackets format [NAME]
         if (selectedPartner && selectedPartner.name) {
-          query = query.eq('partner_name', selectedPartner.name);
+          query = query.eq('partner_name', `[${selectedPartner.name}]`);
         }
+        // Se nenhum parceiro foi selecionado (consolidado), não adicionar filtro de partner_name
+        // Isso retorna TODOS os registros de todos os sócios
 
         const result = await query;
         logbookData = result.data;
@@ -284,8 +289,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           .limit(10);
 
         // If a specific partner is selected, also filter by partner name
+        // Note: partner_name in abastecimentos is stored with brackets format [NAME]
         if (selectedPartner && selectedPartner.name) {
-          query = query.eq('partner_name', selectedPartner.name);
+          query = query.eq('partner_name', `[${selectedPartner.name}]`);
         }
 
         const result = await query;
@@ -673,7 +679,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                             )}
                           </div>
                           <p className="text-sm text-muted-foreground">
-                            Data: {new Date(record.data).toLocaleDateString('pt-BR')}
+                            Data: {new Date(record.data + 'T00:00:00').toLocaleDateString('pt-BR')}
                           </p>
                         </div>
                       </div>

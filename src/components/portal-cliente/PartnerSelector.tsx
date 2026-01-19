@@ -78,7 +78,7 @@ export function PartnerSelector({
       }
 
       setPartners(partnersList);
-      
+
       // Se não há parceiros, seleciona null automaticamente
       if (partnersList.length === 0) {
         onSelectPartner(null);
@@ -146,54 +146,65 @@ export function PartnerSelector({
         </div>
       </div>
 
+      <div className="flex justify-center mb-8">
+        <Button
+          onClick={() => onSelectPartner(null)}
+          variant="secondary"
+          size="lg"
+          className="gap-2"
+        >
+          Ver Dados Consolidados (Todos os Sócios)
+        </Button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {partners.map((partner) => (
           <Card
             key={partner.index}
-            className="border-2 border-slate-700 hover:border-primary transition-all cursor-pointer hover:shadow-xl hover:shadow-primary/20 group overflow-hidden"
+            className="border border-white/10 bg-slate-800/30 backdrop-blur-sm cursor-pointer hover:bg-slate-800/50 transition-all hover:border-emerald-500/50"
             onClick={() => onSelectPartner(partner)}
           >
-            <CardHeader className="pb-4 bg-gradient-to-r from-slate-800/50 to-slate-700/50 border-b border-slate-600/50 group-hover:from-slate-800 group-hover:to-primary/20 transition-all">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-all">
-                    <User className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg font-semibold text-foreground">
-                      {partner.name}
-                    </CardTitle>
-                    {partner.cpf && (
-                      <p className="text-xs text-muted-foreground font-mono mt-1">
-                        CPF: {partner.cpf}
-                      </p>
-                    )}
-                  </div>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-emerald-500/20">
+                  <User className="h-5 w-5 text-emerald-400" />
                 </div>
-              </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-lg font-semibold text-foreground truncate">
+                    {partner.name}
+                  </p>
+                  {partner.cpf && (
+                    <p className="text-xs text-muted-foreground">
+                      CPF: {partner.cpf}
+                    </p>
+                  )}
+                </div>
+              </CardTitle>
             </CardHeader>
 
-            <CardContent className="pt-6 space-y-4">
-              <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Percent className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Participação</span>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Percent className="h-4 w-4" />
+                  Participação
                 </div>
-                <Badge className="bg-primary/20 text-primary font-semibold text-sm">
+                <Badge className="bg-emerald-500 text-white">
                   {partner.percentage.toFixed(2)}%
                 </Badge>
               </div>
 
-              <div className="pt-2">
-                <p className="text-xs text-muted-foreground mb-3">
+              <div className="pt-2 border-t border-white/10">
+                <p className="text-xs text-muted-foreground mb-2">
                   Clique para acessar seus dados e despesas específicas
                 </p>
-                <Button
-                  className="w-full bg-primary hover:bg-primary/90 text-white font-semibold group-hover:shadow-lg group-hover:shadow-primary/30 transition-all"
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full justify-between hover:bg-emerald-500/20"
                   onClick={() => onSelectPartner(partner)}
                 >
                   Acessar Portal
-                  <ChevronRight className="h-4 w-4 ml-2" />
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             </CardContent>
@@ -202,48 +213,49 @@ export function PartnerSelector({
 
         {/* Opção para ver dados consolidados */}
         <Card
-          className="border-2 border-slate-700 hover:border-emerald-500 transition-all cursor-pointer hover:shadow-xl hover:shadow-emerald-500/20 group overflow-hidden"
+          className="border border-white/10 bg-slate-800/30 backdrop-blur-sm cursor-pointer hover:bg-slate-800/50 transition-all hover:border-blue-500/50"
           onClick={() => onSelectPartner(null)}
         >
-          <CardHeader className="pb-4 bg-gradient-to-r from-slate-800/50 to-slate-700/50 border-b border-slate-600/50 group-hover:from-slate-800 group-hover:to-emerald-500/20 transition-all">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-emerald-500/10 rounded-lg group-hover:bg-emerald-500/20 transition-all">
-                  <Users className="h-5 w-5 text-emerald-500" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg font-semibold text-foreground">
-                    Consolidado
-                  </CardTitle>
-                  <p className="text-xs text-muted-foreground font-mono mt-1">
-                    Ver dados de todos os sócios
-                  </p>
-                </div>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-blue-500/20">
+                <Users className="h-5 w-5 text-blue-400" />
               </div>
-            </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-lg font-semibold text-foreground">
+                  Consolidado
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Ver dados de todos os sócios
+                </p>
+              </div>
+            </CardTitle>
           </CardHeader>
 
-          <CardContent className="pt-6 space-y-4">
-            <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Visão</span>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Percent className="h-4 w-4" />
+                Visão
               </div>
-              <Badge className="bg-emerald-500/20 text-emerald-400 font-semibold text-sm">
+
+              <Badge variant="secondary">
                 100%
               </Badge>
             </div>
 
-            <div className="pt-2">
-              <p className="text-xs text-muted-foreground mb-3">
+            <div className="pt-2 border-t border-white/10">
+              <p className="text-xs text-muted-foreground mb-2">
                 Acesse uma visão consolidada com todos os dados e despesas da empresa
               </p>
-              <Button
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold group-hover:shadow-lg group-hover:shadow-emerald-500/30 transition-all"
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="w-full justify-between hover:bg-blue-500/20"
                 onClick={() => onSelectPartner(null)}
               >
                 Acessar Consolidado
-                <ChevronRight className="h-4 w-4 ml-2" />
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
           </CardContent>

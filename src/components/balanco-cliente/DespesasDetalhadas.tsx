@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -146,11 +145,10 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
         fonte: 'abastecimentos',
         valor: d.valor_total,
         data: d.data,
-        descricao: `Abastecimento - ${d.local} (${d.trecho})${d.partner_index?` (Sócio ${d.partner_index})`:''}`,
+        descricao: `Abastecimento - ${d.local} (${d.trecho})`,
         categoria_nome: 'Combustível',
         aeronave_registro: d.aircraft?.registration || '-',
-        status: d.status_pagamento || d.status || 'pendente',
-        partner_index: d.partner_index || null,
+        status: d.status_pagamento || 'pendente',
         comprovante_url: d.comanda_url,
         boleto_url: d.boleto_url,
         nf_url: d.nota_url,
@@ -164,31 +162,6 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
     (a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()
   );
   const isLoading = loadingBankRec || loadingDiretas || loadingAbastecimentos;
-
-  // Buscar nomes dos sócios do cliente para exibir na tabela (se houver)
-  const { data: clientePartners = null } = useQuery({
-    queryKey: ['cliente-partners', clienteId],
-    queryFn: async () => {
-      if (!clienteId) return null;
-      const { data, error } = await supabase
-        .from('clients')
-        .select('partner_name, partner_name2, partner_name3')
-        .eq('id', clienteId)
-        .single();
-      if (error) return null;
-      return data;
-    },
-    enabled: !!clienteId,
-  });
-
-  const getPartnerName = (index: number | string | null) => {
-    if (!clientePartners || !index) return null;
-    const idx = Number(index);
-    if (idx === 1) return clientePartners.partner_name || null;
-    if (idx === 2) return clientePartners.partner_name2 || null;
-    if (idx === 3) return clientePartners.partner_name3 || null;
-    return null;
-  };
 
   // Buscar categorias para filtro (apenas categorias do cliente)
   const { data: categorias = [] } = useQuery({
@@ -221,8 +194,8 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
       d.fornecedor_nome?.toLowerCase().includes(busca.toLowerCase());
     const matchStatus = statusFilter === 'todos' || d.status === statusFilter;
     const matchCategoria = categoriaFilter === 'todas' || 
-      d.categoria_nome?.toLowerCase() === categoriaFilter.toLowerCase() ||
-      categorias.some(cat => cat.id === categoriaFilter && d.categoria_nome === cat.nome);
+      d.categorias_movimentacao?.id === categoriaFilter ||
+      d.categoria_nome?.toLowerCase().includes(categoriaFilter.toLowerCase());
     const matchFonte = fonteFilter === 'todas' || d.fonte === fonteFilter;
     return matchBusca && matchStatus && matchCategoria && matchFonte;
   });
@@ -312,20 +285,18 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
               Nenhuma despesa encontrada
             </div>
           ) : (
-            <TooltipProvider>
-              <div className="overflow-x-auto">
-                <Table>
+            <div className="overflow-x-auto">
+              <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4 min-w-[110px]">Data Vencimento</TableHead>
-                    <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4 min-w-[120px]">Fonte</TableHead>
-                    <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4 min-w-[140px]">Categoria</TableHead>
-                    <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4 w-[40%]">Descrição</TableHead>
-                    <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4 min-w-[120px] text-right">Valor</TableHead>
-                    <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4 min-w-[110px]">Status</TableHead>
-                    <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4 min-w-[140px]">Sócio</TableHead>
-                    <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Aeronave</TableHead>
-                    <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Docs</TableHead>
+                    <TableHead>Data Vencimento</TableHead>
+                    <TableHead>Fonte</TableHead>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Aeronave</TableHead>
+                    <TableHead className="text-center">Docs</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -357,15 +328,8 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
                           {despesa.categoria_nome || '-'}
                         </span>
                       </TableCell>
-                      <TableCell className="max-w-[520px]">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="block max-w-full truncate cursor-help">{despesa.descricao || '-'}</span>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-xs">
-                            {despesa.descricao || '-'}
-                          </TooltipContent>
-                        </Tooltip>
+                      <TableCell className="max-w-[200px] truncate">
+                        {despesa.descricao || '-'}
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         R$ {(despesa.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -374,10 +338,6 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
                         <Badge variant={STATUS_LABELS[despesa.status]?.variant || 'secondary'}>
                           {STATUS_LABELS[despesa.status]?.label || despesa.status}
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {/* Mostrar nome do sócio quando disponível */}
-                        {despesa.partner_index ? (getPartnerName(despesa.partner_index) || `Sócio ${despesa.partner_index}`) : (despesa.fonte === 'abastecimentos' ? 'Rateio' : '-')}
                       </TableCell>
                       <TableCell>
                         {despesa.aeronave_registro || '-'}
@@ -427,7 +387,6 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
                 </TableBody>
               </Table>
             </div>
-            </TooltipProvider>
           )}
         </CardContent>
       </Card>

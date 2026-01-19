@@ -13,15 +13,16 @@ export interface DadosBalancoCompleto {
  */
 export function useBalancoClienteCompleto(
   clienteId: string | undefined,
-  periodo: { inicio: string; fim: string }
+  periodo: { inicio: string; fim: string },
+  aeronaveId?: string
 ) {
   return useQuery({
-    queryKey: ["balanco-cliente-completo", clienteId, periodo],
+    queryKey: ["balanco-cliente-completo", clienteId, periodo, aeronaveId],
     queryFn: async (): Promise<DadosBalancoCompleto[]> => {
       if (!clienteId) return [];
 
       // Buscar horas voadas do logbook
-      const { data: logbookData, error: logbookError } = await supabase
+      let logbookQuery = supabase
         .from("logbook_entries")
         .select(`
           total_time,
@@ -31,16 +32,29 @@ export function useBalancoClienteCompleto(
         .gte("entry_date", periodo.inicio)
         .lte("entry_date", periodo.fim);
 
+      if (aeronaveId) {
+        logbookQuery = logbookQuery.eq("aircraft_id", aeronaveId);
+      }
+
+      const { data: logbookData, error: logbookError } = await logbookQuery;
+
       if (logbookError) throw logbookError;
 
-      // Buscar abastecimentos
-      let fuelUrl = `/api/fuel?client_id=${clienteId}&date_start=${periodo.inicio}&date_end=${periodo.fim}`;
-      const fuelResponse = await fetch(fuelUrl);
-      let abastecimentos: any[] = [];
-      if (fuelResponse.ok) {
-        const fuelResult = await fuelResponse.json();
-        abastecimentos = fuelResult.data || [];
+      // Buscar abastecimentos diretamente do Supabase
+      let abastecimentosQuery = supabase
+        .from("abastecimentos")
+        .select("litros, valor_total")
+        .eq("client_id", clienteId)
+        .gte("data", periodo.inicio)
+        .lte("data", periodo.fim);
+
+      if (aeronaveId) {
+        abastecimentosQuery = abastecimentosQuery.eq("aeronave_id", aeronaveId);
       }
+
+      const { data: abastecimentos, error: abastecimentosError } = await abastecimentosQuery;
+
+      if (abastecimentosError) throw abastecimentosError;
 
       // Calcular totais
       const horasVoadas = (logbookData || []).reduce(
@@ -48,12 +62,12 @@ export function useBalancoClienteCompleto(
         0
       );
 
-      const litrosConsumidos = abastecimentos.reduce(
+      const litrosConsumidos = (abastecimentos || []).reduce(
         (sum: number, a: any) => sum + (a.litros || 0),
         0
       );
 
-      const valorCombustivel = abastecimentos.reduce(
+      const valorCombustivel = (abastecimentos || []).reduce(
         (sum: number, a: any) => sum + (a.valor_total || 0),
         0
       );
