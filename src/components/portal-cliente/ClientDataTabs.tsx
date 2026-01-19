@@ -142,37 +142,58 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       }
 
       // Load files (for bank reconciliation - Notas Fiscais e Boletos)
-      const { data: filesData } = await supabase
-        .from('client_portal_files')
-        .select('*')
-        .eq('client_id', forClientId)
-        .order('created_at', { ascending: false });
+      let filesData = null;
+      try {
+        const result = await supabase
+          .from('client_portal_files')
+          .select('*')
+          .eq('client_id', forClientId)
+          .order('created_at', { ascending: false });
+        filesData = result.data;
+        if (result.error) console.warn('Erro ao carregar arquivos:', result.error);
+      } catch (err) {
+        console.error('Erro crítico ao carregar arquivos:', err);
+      }
 
       // Load contracts
-      const { data: contractsData } = await supabase
-        .from('client_contracts')
-        .select('*')
-        .eq('client_id', forClientId)
-        .order('created_at', { ascending: false });
+      let contractsData = null;
+      try {
+        const result = await supabase
+          .from('client_contracts')
+          .select('*')
+          .eq('client_id', forClientId)
+          .order('created_at', { ascending: false });
+        contractsData = result.data;
+        if (result.error) console.warn('Erro ao carregar contratos:', result.error);
+      } catch (err) {
+        console.error('Erro crítico ao carregar contratos:', err);
+      }
 
       // Load logbook entries
-      const { data: logbookData } = await supabase
-        .from('logbook_entries')
-        .select(`
-          id,
-          entry_date,
-          total_time,
-          distance_nm,
-          fuel_added,
-          partner_name,
-          departure_aerodrome,
-          arrival_aerodrome,
-          aircraft:aircraft_id(registration)
-        `)
-        .eq('aircraft_id', aircraftId)
-        .eq('client_id', forClientId)
-        .order('entry_date', { ascending: false })
-        .limit(50);
+      let logbookData = null;
+      try {
+        const result = await supabase
+          .from('logbook_entries')
+          .select(`
+            id,
+            entry_date,
+            total_time,
+            distance_nm,
+            fuel_added,
+            partner_name,
+            departure_aerodrome,
+            arrival_aerodrome,
+            aircraft:aircraft_id(registration)
+          `)
+          .eq('aircraft_id', aircraftId)
+          .eq('client_id', forClientId)
+          .order('entry_date', { ascending: false })
+          .limit(50);
+        logbookData = result.data;
+        if (result.error) console.warn('Erro ao carregar logbook:', result.error);
+      } catch (err) {
+        console.error('Erro crítico ao carregar logbook:', err);
+      }
 
       // Load aerodromes data
       let aerodromeMap: any = {};
