@@ -304,6 +304,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   const [lastCelula, setLastCelula] = useState(0);
   const [logbookMonth, setLogbookMonth] = useState(null);
 
+  // Estado para diárias contabilizadas (key: entryId_date, value: boolean)
+  const [markedDailies, setMarkedDailies] = useState<Record<string, boolean>>({});
+
   // Estados de edição
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
 
