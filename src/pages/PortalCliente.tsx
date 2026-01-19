@@ -633,6 +633,7 @@ export default function PortalCliente() {
                     aircraftId={selectedAircraft?.aircraft_id || ""}
                     aircraftRegistration={selectedAircraft?.aircraft?.registration || ""}
                     isAdmin={false}
+                    selectedPartner={selectedPartner}
                   />
                 </div>
               </AircraftSelector>

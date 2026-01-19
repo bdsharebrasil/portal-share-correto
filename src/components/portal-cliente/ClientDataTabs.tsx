@@ -18,6 +18,7 @@ export interface ClientDataTabsProps {
   aircraftId: string;
   aircraftRegistration: string;
   isAdmin?: boolean;
+  selectedPartner?: any;
 }
 
 interface TravelReport {
@@ -49,7 +50,7 @@ interface TravelReport {
 }
 
 
-export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegistration, isAdmin = false }: ClientDataTabsProps) {
+export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegistration, isAdmin = false, selectedPartner }: ClientDataTabsProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [contractUploadDialogOpen, setContractUploadDialogOpen] = useState(false);
   const [files, setFiles] = useState<any[]>([]);
@@ -101,6 +102,13 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
     loadPartners();
   }, [aircraftId, clientId, clientName]);
 
+  // Load client data when clientId, aircraftId, or selectedPartner changes
+  useEffect(() => {
+    if (clientId && aircraftId && partners.length > 0) {
+      loadData(clientId);
+    }
+  }, [clientId, aircraftId, partners, selectedPartner]);
+
   // Buscar fornecedores favoritos categoria 'share'
   useEffect(() => {
     const loadFornecedoresShare = async () => {
@@ -122,63 +130,211 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
     try {
       setLoading(true);
 
+      // Get all client IDs (main client + all partners/cotistas)
+      const clientIds = [forClientId];
+
+      // Add partner/cotista IDs if they exist
+      if (partners.length > 1) {
+        partners.forEach((partner: any) => {
+          if (partner.client_id && partner.client_id !== forClientId && !clientIds.includes(partner.client_id)) {
+            clientIds.push(partner.client_id);
+          }
+        });
+      }
+
       // Load files (for bank reconciliation - Notas Fiscais e Boletos)
-      const { data: filesData } = await supabase
-        .from('client_portal_files')
-        .select('*')
-        .eq('client_id', forClientId)
-        .order('created_at', { ascending: false });
+      let filesData = null;
+      try {
+        const result = await supabase
+          .from('client_portal_files')
+          .select('*')
+          .eq('client_id', forClientId)
+          .order('created_at', { ascending: false });
+        filesData = result.data;
+        if (result.error) console.warn('Erro ao carregar arquivos:', result.error);
+      } catch (err) {
+        console.error('Erro crítico ao carregar arquivos:', err);
+      }
 
       // Load contracts
-      const { data: contractsData } = await supabase
-        .from('client_contracts')
-        .select('*')
-        .eq('client_id', forClientId)
-        .order('created_at', { ascending: false });
+      let contractsData = null;
+      try {
+        const result = await supabase
+          .from('client_contracts')
+          .select('*')
+          .eq('client_id', forClientId)
+          .order('created_at', { ascending: false });
+        contractsData = result.data;
+        if (result.error) console.warn('Erro ao carregar contratos:', result.error);
+      } catch (err) {
+        console.error('Erro crítico ao carregar contratos:', err);
+      }
 
       // Load logbook entries
-      const { data: logbookData } = await supabase
-        .from('logbook_entries')
-        .select('*, aircraft:aircraft_id(registration)')
-        .eq('aircraft_id', aircraftId)
-        .eq('client_id', forClientId)
-        .order('entry_date', { ascending: false })
-        .limit(10);
+      let logbookData = null;
+      try {
+        // Determinar qual cliente usar para filtro
+        // Se um sócio foi selecionado, usar apenas aquele sócio
+        // Caso contrário, usar o cliente principal
+        const logbookClientId = selectedPartner ? selectedPartner.client_id : forClientId;
 
-      // Load fuel records
-      const { data: fuelData } = await supabase
-        .from('abastecimentos')
-        .select('*, aeronave:aeronave_id(registration)')
-        .eq('aeronave_id', aircraftId)
-        .eq('client_id', forClientId)
-        .order('data', { ascending: false })
-        .limit(10);
+        console.log('Carregando logbook para cliente:', logbookClientId, 'Partner selecionado:', selectedPartner?.name);
+
+        const result = await supabase
+          .from('logbook_entries')
+          .select(`
+            id,
+            entry_date,
+            total_time,
+            distance_nm,
+            fuel_added,
+            partner_name,
+            departure_aerodrome,
+            arrival_aerodrome,
+            aircraft:aircraft_id(registration)
+          `)
+          .eq('aircraft_id', aircraftId)
+          .eq('client_id', logbookClientId)
+          .order('entry_date', { ascending: false })
+          .limit(50);
+        logbookData = result.data;
+        if (result.error) console.warn('Erro ao carregar logbook:', result.error);
+      } catch (err) {
+        console.error('Erro crítico ao carregar logbook:', err);
+      }
+
+      // Load aerodromes data
+      let aerodromeMap: any = {};
+      if (logbookData && logbookData.length > 0) {
+        const aerodromeCodes = new Set<string>();
+        logbookData.forEach((entry: any) => {
+          if (entry.departure_aerodrome) aerodromeCodes.add(entry.departure_aerodrome);
+          if (entry.arrival_aerodrome) aerodromeCodes.add(entry.arrival_aerodrome);
+        });
+
+        if (aerodromeCodes.size > 0) {
+          try {
+            const codesArray = Array.from(aerodromeCodes);
+            console.log('Buscando aerodromes:', codesArray);
+
+            // Try to fetch aerodromes - use simple code matching
+            const { data: aerodromes, error } = await supabase
+              .from('aerodromes')
+              .select('code, name')
+              .in('code', codesArray);
+
+            if (error) {
+              console.warn('Erro ao buscar aerodromes:', error);
+            }
+
+            if (aerodromes && aerodromes.length > 0) {
+              aerodromes.forEach((aero: any) => {
+                aerodromeMap[aero.code] = { code: aero.code, name: aero.name };
+              });
+              console.log('Aerodromes carregados:', aerodromeMap);
+            } else {
+              console.warn('Nenhum aeródromo encontrado, usando fallback');
+            }
+          } catch (err) {
+            console.error('Erro crítico ao buscar aerodromes:', err);
+          }
+
+          // Fallback: use the codes as names for any missing aerodromes
+          Array.from(aerodromeCodes).forEach((code: string) => {
+            if (!aerodromeMap[code]) {
+              aerodromeMap[code] = { code, name: code };
+            }
+          });
+        }
+      }
+
+      // Enrich logbook data with aerodrome information
+      const enrichedLogbookData = (logbookData || []).map((entry: any) => {
+        // Use code directly if not found in map, otherwise use map data
+        const departure = entry.departure_aerodrome
+          ? (aerodromeMap[entry.departure_aerodrome] || { code: entry.departure_aerodrome, name: entry.departure_aerodrome })
+          : null;
+
+        const arrival = entry.arrival_aerodrome
+          ? (aerodromeMap[entry.arrival_aerodrome] || { code: entry.arrival_aerodrome, name: entry.arrival_aerodrome })
+          : null;
+
+        return {
+          ...entry,
+          departure_aero: departure,
+          arrival_aero: arrival
+        };
+      });
+
+      // Load fuel records from all partners/cotistas
+      let fuelData = null;
+      try {
+        const result = await supabase
+          .from('abastecimentos')
+          .select('*, aeronave:aeronave_id(registration), client:client_id(company_name)')
+          .eq('aeronave_id', aircraftId)
+          .in('client_id', clientIds)
+          .order('data', { ascending: false })
+          .limit(10);
+        fuelData = result.data;
+        if (result.error) console.warn('Erro ao carregar abastecimentos:', result.error);
+      } catch (err) {
+        console.error('Erro crítico ao carregar abastecimentos:', err);
+      }
 
       // Load CTM tracking
-      const { data: ctmData } = await supabase
-        .from('ctm_tracking')
-        .select('*, aircraft:aircraft_id(registration)')
-        .eq('aircraft_id', aircraftId)
-        .eq('client_id', forClientId)
-        .order('created_at', { ascending: false });
+      let ctmData = null;
+      try {
+        const result = await supabase
+          .from('ctm_tracking')
+          .select('*, aircraft:aircraft_id(registration)')
+          .eq('aircraft_id', aircraftId)
+          .eq('client_id', forClientId)
+          .order('created_at', { ascending: false });
+        ctmData = result.data;
+        if (result.error) console.warn('Erro ao carregar CTM:', result.error);
+      } catch (err) {
+        console.error('Erro crítico ao carregar CTM:', err);
+      }
 
       // Load travel reports for specific aircraft
-      const { data: reportsData } = await supabase
-        .from('travel_expense_reports')
-        .select('*')
-        .eq('client_id', forClientId)
-        .eq('aircraft_id', aircraftId)
-        .order('created_at', { ascending: false })
-        .limit(10);
+      let reportsData = null;
+      try {
+        const result = await supabase
+          .from('travel_expense_reports')
+          .select('*')
+          .eq('client_id', forClientId)
+          .eq('aircraft_id', aircraftId)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        reportsData = result.data;
+        if (result.error) console.warn('Erro ao carregar relatórios de viagem:', result.error);
+      } catch (err) {
+        console.error('Erro crítico ao carregar relatórios de viagem:', err);
+      }
 
       setFiles(filesData || []);
       setContracts(contractsData || []);
-      setLogbookEntries(logbookData || []);
+      setLogbookEntries(enrichedLogbookData || []);
       setFuelRecords(fuelData || []);
       setCtmTracking(ctmData || []);
       setTravelReports(reportsData || []);
     } catch (error) {
       console.error('Error loading client data:', error);
+      // Fallback: set empty arrays to prevent UI from breaking
+      setFiles([]);
+      setContracts([]);
+      setLogbookEntries([]);
+      setFuelRecords([]);
+      setCtmTracking([]);
+      setTravelReports([]);
+
+      // Show user-friendly error message
+      if (error instanceof Error) {
+        toast.error(`Erro ao carregar dados: ${error.message}`);
+      } else {
+        toast.error('Erro desconhecido ao carregar dados do cliente');
+      }
     } finally {
       setLoading(false);
     }
@@ -236,7 +392,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         <TabsList>
           <TabsTrigger value="files">Arquivos</TabsTrigger>
           <TabsTrigger value="contracts">Contratos</TabsTrigger>
-          <TabsTrigger value="logbook">Logbook</TabsTrigger>
+          <TabsTrigger value="logbook">Diário de Bordo</TabsTrigger>
           <TabsTrigger value="fuel">Abastecimentos</TabsTrigger>
           <TabsTrigger value="ctm">CTM</TabsTrigger>
           <TabsTrigger value="travel-reports">Relatórios de Viagem</TabsTrigger>
@@ -364,49 +520,74 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-foreground">
                 <Plane className="h-5 w-5 text-primary" />
-                Logbook
+                Diário de Bordo
               </CardTitle>
               <CardDescription className="text-muted-foreground">
-                Registre e acompanhe os voos da aeronave
+                Histórico de voos da aeronave
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button
-                onClick={() => setUploadDialogOpen(true)}
-                className="w-full"
-                size="lg"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Enviar Registro de Voo
-              </Button>
-
               {logbookEntries.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">Nenhum registro de voo encontrado</p>
               ) : (
-                <div className="space-y-2">
-                  {logbookEntries.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="p-4 bg-muted/50 rounded-lg border border-border flex justify-between items-center"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium text-foreground">{entry.flight_number}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Data: {new Date(entry.entry_date).toLocaleDateString('pt-BR')}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => downloadFile(entry.file_path)}
-                        >
-                          <Download className="h-4 w-4" />
-                          Baixar
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/10">
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Trecho</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tempo de Voo</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Distância</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Combustível</th>
+                        {partners.length > 1 && (
+                          <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sócio</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {logbookEntries.map((entry: any) => (
+                        <tr key={entry.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="py-4 px-4 text-foreground">
+                            {entry.entry_date ? new Date(entry.entry_date).toLocaleDateString('pt-BR') : '—'}
+                          </td>
+                          <td className="py-4 px-4 text-foreground">
+                            {entry.departure_aero && entry.arrival_aero ? (
+                              <div className="space-y-1">
+                                <div className="font-medium">
+                                  {entry.departure_aero.code} x {entry.arrival_aero.code}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {entry.departure_aero.name} → {entry.arrival_aero.name}
+                                </div>
+                              </div>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                          <td className="py-4 px-4 text-foreground font-medium">
+                            {entry.total_time ? `${parseFloat(entry.total_time).toFixed(2)}h` : '—'}
+                          </td>
+                          <td className="py-4 px-4 text-foreground">
+                            {entry.distance_nm ? `${parseFloat(entry.distance_nm).toFixed(1)} NM` : '—'}
+                          </td>
+                          <td className="py-4 px-4 text-foreground">
+                            {entry.fuel_added ? `${parseFloat(entry.fuel_added).toFixed(1)}L` : '—'}
+                          </td>
+                          {partners.length > 1 && (
+                            <td className="py-4 px-4 text-foreground">
+                              {entry.partner_name ? (
+                                <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">
+                                  {entry.partner_name}
+                                </span>
+                              ) : (
+                                '—'
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </CardContent>
@@ -441,23 +622,63 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                   {fuelRecords.map((record) => (
                     <div
                       key={record.id}
-                      className="p-4 bg-muted/50 rounded-lg border border-border flex justify-between items-center"
+                      className="p-4 bg-muted/50 rounded-lg border border-border"
                     >
-                      <div className="flex-1">
-                        <p className="font-medium text-foreground">{record.registration}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Data: {new Date(record.data).toLocaleDateString('pt-BR')}
-                        </p>
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium text-foreground">
+                              {record.aeronave?.registration || 'N/A'} - {record.local}
+                            </p>
+                            {record.partner_name && (
+                              <Badge variant="outline" className="bg-blue-500/20 text-blue-300 text-xs">
+                                {record.partner_name}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Data: {new Date(record.data).toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => downloadFile(record.file_path)}
-                        >
-                          <Download className="h-4 w-4" />
-                          Baixar
-                        </Button>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3 border-t border-border/50 text-sm">
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Litros</p>
+                          <p className="font-medium text-foreground">{record.litros || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Valor Unitário</p>
+                          <p className="font-medium text-foreground">R$ {record.valor_unitario || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Valor Total</p>
+                          <p className="font-medium text-green-400">R$ {record.valor_total || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Status</p>
+                          <Badge className={
+                            record.status_pagamento === 'pago'
+                              ? 'bg-green-500/20 text-green-300'
+                              : record.status_pagamento === 'pendente'
+                              ? 'bg-yellow-500/20 text-yellow-300'
+                              : 'bg-gray-500/20 text-gray-300'
+                          }>
+                            {record.status_pagamento === 'pago' ? 'Pago' : record.status_pagamento === 'pendente' ? 'Pendente' : record.status_pagamento || 'N/A'}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {record.observacao && (
+                        <div className="pt-3 border-t border-border/50">
+                          <p className="text-xs text-muted-foreground mb-1">Observações</p>
+                          <p className="text-sm text-foreground">{record.observacao}</p>
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
+                        <p className="text-xs text-muted-foreground">Abastecedor: {record.abastecedor || 'N/A'}</p>
+                        <p className="text-xs text-muted-foreground ml-auto">Comanda: {record.comanda || 'N/A'}</p>
                       </div>
                     </div>
                   ))}
