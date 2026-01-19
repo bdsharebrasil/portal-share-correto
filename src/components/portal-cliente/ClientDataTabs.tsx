@@ -307,7 +307,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
 
       setFiles(filesData || []);
       setContracts(contractsData || []);
-      setLogbookEntries(enrichedLogbookData);
+      setLogbookEntries(enrichedLogbookData || []);
       setFuelRecords(fuelData || []);
       setCtmTracking(ctmData || []);
       setTravelReports(reportsData || []);
