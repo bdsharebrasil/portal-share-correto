@@ -232,7 +232,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
 
       setFiles(filesData || []);
       setContracts(contractsData || []);
-      setLogbookEntries(logbookData || []);
+      setLogbookEntries(enrichedLogbookData);
       setFuelRecords(fuelData || []);
       setCtmTracking(ctmData || []);
       setTravelReports(reportsData || []);
