@@ -107,11 +107,11 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
 
   // Load client data when clientId, aircraftId, or selectedPartner changes
   useEffect(() => {
-    // Load if we have required data
-    if (clientId && aircraftId && partners.length > 0) {
+    // Load if we have required data - don't wait for partners to be loaded since that's separate
+    if (clientId && aircraftId) {
       loadData(clientId);
     }
-  }, [clientId, aircraftId, partners, selectedPartner]);
+  }, [clientId, aircraftId, selectedPartner]);
 
   // Buscar fornecedores favoritos categoria 'share'
   useEffect(() => {
