@@ -2355,6 +2355,36 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                 </Select>
               </div>
 
+              {logbookMonth?.has_daily_rate && (
+                <div className="space-y-1 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                  <Label className="text-[9px] uppercase text-yellow-500 font-bold ml-1 block">
+                    Quantidade de Diárias
+                  </Label>
+                  <div className="flex gap-2 items-end">
+                    <Input
+                      type="number"
+                      min="0"
+                      value={newEntry.daily_quantity}
+                      onChange={e => setNewEntry({
+                        ...newEntry,
+                        daily_quantity: parseInt(e.target.value) || 0
+                      })}
+                      className="bg-slate-950 border-yellow-500/30 text-yellow-400 font-bold text-center flex-1"
+                      placeholder="0"
+                    />
+                    <div className="text-sm font-bold text-yellow-400">
+                      × R$ {(logbookMonth?.daily_rate || 0).toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-yellow-500/20 text-right">
+                    <div className="text-[9px] uppercase text-yellow-500 font-bold">Total de Diárias</div>
+                    <div className="text-lg font-black text-yellow-400">
+                      R$ {((newEntry.daily_quantity || 0) * (logbookMonth?.daily_rate || 0)).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <Button onClick={handleSaveFlight} className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 h-14 font-black uppercase text-sm rounded-2xl">
                 <Save size={18} className="mr-2" />
                 Salvar Voo
