@@ -102,12 +102,12 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
     loadPartners();
   }, [aircraftId, clientId, clientName]);
 
-  // Load client data when clientId or aircraftId changes
+  // Load client data when clientId, aircraftId, or selectedPartner changes
   useEffect(() => {
     if (clientId && aircraftId && partners.length > 0) {
       loadData(clientId);
     }
-  }, [clientId, aircraftId, partners]);
+  }, [clientId, aircraftId, partners, selectedPartner]);
 
   // Buscar fornecedores favoritos categoria 'share'
   useEffect(() => {
