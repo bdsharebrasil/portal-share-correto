@@ -151,7 +151,7 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
         aeronave_registro: d.aircraft?.registration || '-',
         status: d.status_pagamento || d.status || 'pendente',
         partner_index: d.partner_index || null,
-        comprovante_url: d.comanda_url,
+        comanda_url: d.comanda_url,
         boleto_url: d.boleto_url,
         nf_url: d.nota_url,
       }));
