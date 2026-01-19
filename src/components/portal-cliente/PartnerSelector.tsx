@@ -1,0 +1,254 @@
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { User, Users, Percent, ChevronRight, ArrowLeft } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+export interface PartnerInfo {
+  index: number;
+  name: string;
+  cpf?: string;
+  percentage: number;
+}
+
+interface PartnerSelectorProps {
+  clientId: string;
+  clientName: string;
+  onSelectPartner: (partner: PartnerInfo | null) => void;
+  onBack: () => void;
+}
+
+export function PartnerSelector({ 
+  clientId, 
+  clientName, 
+  onSelectPartner,
+  onBack
+}: PartnerSelectorProps) {
+  const [partners, setPartners] = useState<PartnerInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadPartners();
+  }, [clientId]);
+
+  const loadPartners = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('clients')
+        .select('partner_name, partner_cpf, partner_percentage1, partner_name2, partner_cpf2, partner_percentage2, partner_name3, partner_cpf3, partner_percentage3')
+        .eq('id', clientId)
+        .single();
+
+      if (error || !data) {
+        console.error('Erro ao buscar sócios:', error);
+        setPartners([]);
+        return;
+      }
+
+      const partnersList: PartnerInfo[] = [];
+      
+      if (data.partner_name) {
+        partnersList.push({
+          index: 1,
+          name: data.partner_name,
+          cpf: data.partner_cpf || undefined,
+          percentage: Number(data.partner_percentage1) || 33.33
+        });
+      }
+      
+      if (data.partner_name2) {
+        partnersList.push({
+          index: 2,
+          name: data.partner_name2,
+          cpf: data.partner_cpf2 || undefined,
+          percentage: Number(data.partner_percentage2) || 33.33
+        });
+      }
+      
+      if (data.partner_name3) {
+        partnersList.push({
+          index: 3,
+          name: data.partner_name3,
+          cpf: data.partner_cpf3 || undefined,
+          percentage: Number(data.partner_percentage3) || 33.34
+        });
+      }
+
+      setPartners(partnersList);
+      
+      // Se não há parceiros, seleciona null automaticamente
+      if (partnersList.length === 0) {
+        onSelectPartner(null);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar sócios:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4 mb-8">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={onBack}
+            className="h-10 w-10"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-foreground">
+              Selecione seu Perfil
+            </h1>
+            <p className="text-muted-foreground text-base mt-2">
+              Escolha o sócio para acessar os dados e despesas específicas
+            </p>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <Skeleton key={i} className="h-64 rounded-xl" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (partners.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-6 mb-8">
+      <div className="flex items-center gap-4 mb-8">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={onBack}
+          className="h-10 w-10"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold text-foreground">
+            Selecione seu Perfil
+          </h1>
+          <p className="text-muted-foreground text-base mt-2">
+            Escolha o sócio para acessar os dados e despesas específicas em <span className="font-semibold text-foreground">{clientName}</span>
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {partners.map((partner) => (
+          <Card
+            key={partner.index}
+            className="border-2 border-slate-700 hover:border-primary transition-all cursor-pointer hover:shadow-xl hover:shadow-primary/20 group overflow-hidden"
+            onClick={() => onSelectPartner(partner)}
+          >
+            <CardHeader className="pb-4 bg-gradient-to-r from-slate-800/50 to-slate-700/50 border-b border-slate-600/50 group-hover:from-slate-800 group-hover:to-primary/20 transition-all">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-primary/10 rounded-lg group-hover:bg-primary/20 transition-all">
+                    <User className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-foreground">
+                      {partner.name}
+                    </CardTitle>
+                    {partner.cpf && (
+                      <p className="text-xs text-muted-foreground font-mono mt-1">
+                        CPF: {partner.cpf}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="pt-6 space-y-4">
+              <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Percent className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Participação</span>
+                </div>
+                <Badge className="bg-primary/20 text-primary font-semibold text-sm">
+                  {partner.percentage.toFixed(2)}%
+                </Badge>
+              </div>
+
+              <div className="pt-2">
+                <p className="text-xs text-muted-foreground mb-3">
+                  Clique para acessar seus dados e despesas específicas
+                </p>
+                <Button
+                  className="w-full bg-primary hover:bg-primary/90 text-white font-semibold group-hover:shadow-lg group-hover:shadow-primary/30 transition-all"
+                  onClick={() => onSelectPartner(partner)}
+                >
+                  Acessar Portal
+                  <ChevronRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+
+        {/* Opção para ver dados consolidados */}
+        <Card
+          className="border-2 border-slate-700 hover:border-emerald-500 transition-all cursor-pointer hover:shadow-xl hover:shadow-emerald-500/20 group overflow-hidden"
+          onClick={() => onSelectPartner(null)}
+        >
+          <CardHeader className="pb-4 bg-gradient-to-r from-slate-800/50 to-slate-700/50 border-b border-slate-600/50 group-hover:from-slate-800 group-hover:to-emerald-500/20 transition-all">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-emerald-500/10 rounded-lg group-hover:bg-emerald-500/20 transition-all">
+                  <Users className="h-5 w-5 text-emerald-500" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg font-semibold text-foreground">
+                    Consolidado
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground font-mono mt-1">
+                    Ver dados de todos os sócios
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="pt-6 space-y-4">
+            <div className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Visão</span>
+              </div>
+              <Badge className="bg-emerald-500/20 text-emerald-400 font-semibold text-sm">
+                100%
+              </Badge>
+            </div>
+
+            <div className="pt-2">
+              <p className="text-xs text-muted-foreground mb-3">
+                Acesse uma visão consolidada com todos os dados e despesas da empresa
+              </p>
+              <Button
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold group-hover:shadow-lg group-hover:shadow-emerald-500/30 transition-all"
+                onClick={() => onSelectPartner(null)}
+              >
+                Acessar Consolidado
+                <ChevronRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

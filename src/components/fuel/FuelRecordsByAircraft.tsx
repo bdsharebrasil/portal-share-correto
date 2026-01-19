@@ -304,12 +304,7 @@ export function FuelRecordsByAircraft({
       console.error("Load error:", error);
       return;
     }
-    // Mapear dados para adicionar propriedade 'ano' extraída da data
-    const mappedRecords = (data || []).map(record => ({
-      ...record,
-      ano: record.data ? new Date(record.data).getFullYear().toString() : null
-    }));
-    setRecords(mappedRecords);
+    setRecords(data || []);
     setCurrentPage(1);
   };
 

@@ -11,6 +11,7 @@ import { ClientDataTabs } from "@/components/portal-cliente/ClientDataTabs";
 import { ClientSelectionCards } from "@/components/portal-cliente/ClientSelectionCards";
 import { AircraftSelector } from "@/components/portal-cliente/AircraftSelector";
 import { SaldosDevedoresResume } from "@/components/portal-cliente/SaldosDevedoresResume";
+import { PartnerSelector, type PartnerInfo } from "@/components/portal-cliente/PartnerSelector";
 
 interface ClientAircraft {
   aircraft_id: string;
@@ -80,6 +81,7 @@ export default function PortalCliente() {
   const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [selectedPartner, setSelectedPartner] = useState<PartnerInfo | null | undefined>(undefined);
   const [selectedAircraft, setSelectedAircraft] = useState<ClientAircraft | null>(null);
   const [aircraft, setAircraft] = useState<Aircraft | null>(null);
   const [loading, setLoading] = useState(true);
@@ -321,8 +323,13 @@ export default function PortalCliente() {
     setSelectedAircraft(aircraftRelation);
   };
 
+  const handlePartnerSelect = (partner: PartnerInfo | null) => {
+    setSelectedPartner(partner);
+  };
+
   const handleBack = () => {
     setSelectedClient(null);
+    setSelectedPartner(undefined);
     setSelectedAircraft(null);
     setAircraft(null);
     setFlightActivity({
@@ -332,6 +339,11 @@ export default function PortalCliente() {
       recent_destinations: []
     });
     setLogbookMonthData(null);
+  };
+
+  const handleBackFromPartnerSelection = () => {
+    setSelectedClient(null);
+    setSelectedPartner(undefined);
   };
 
   const handleAircraftChange = (aircraftRelation: ClientAircraft) => {
@@ -372,6 +384,7 @@ export default function PortalCliente() {
       <div className="portal-cliente-outer">
         <div className="container mx-auto px-4 md:px-6 py-8 md:py-10 portal-cliente-container">
           {!selectedClient ? (
+            // Seleção de cliente
             <>
               <div className="mb-10">
                 <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">Portal do Cliente</h1>
@@ -384,6 +397,14 @@ export default function PortalCliente() {
                 loading={loading} 
               />
             </>
+          ) : selectedPartner === undefined ? (
+            // Seleção de sócio (se o cliente tiver sócios)
+            <PartnerSelector
+              clientId={selectedClient.id}
+              clientName={selectedClient.company_name}
+              onSelectPartner={handlePartnerSelect}
+              onBack={handleBackFromPartnerSelection}
+            />
           ) : (
             <>
               {/* Header com logo e nome do cliente */}
@@ -433,36 +454,55 @@ export default function PortalCliente() {
                 selectedAircraftId={selectedAircraft?.aircraft_id || ""}
                 onSelect={handleAircraftChange}
               >
-                {/* Dados da Empresa */}
+                {/* Dados da Empresa ou Sócio */}
                 <Card className="border border-white/10 bg-slate-800/30 backdrop-blur-sm mb-8">
                   <CardHeader className="pb-4 border-b border-white/10">
                     <CardTitle className="flex items-center gap-2 text-foreground text-lg">
                       <Building className="h-5 w-5 text-blue-400" />
-                      Dados da Empresa
+                      {selectedPartner ? 'Dados do Sócio' : 'Dados da Empresa'}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-6">
                     <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-white/10">
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nome Fantasia</th>
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">CNPJ</th>
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Inscrição Estadual</th>
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email</th>
-                            <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Telefone</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                            <td className="py-4 px-4 text-foreground font-medium">{selectedClient.company_name}</td>
-                            <td className="py-4 px-4 text-foreground">{selectedClient.cnpj || '—'}</td>
-                            <td className="py-4 px-4 text-foreground">{selectedClient.inscricao_estadual || '—'}</td>
-                            <td className="py-4 px-4 text-foreground">{selectedClient.email || '—'}</td>
-                            <td className="py-4 px-4 text-foreground">{selectedClient.phone || '—'}</td>
-                          </tr>
-                        </tbody>
-                      </table>
+                      {selectedPartner ? (
+                        // Dados do Sócio Selecionado
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-white/10">
+                              <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nome do Sócio</th>
+                              <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">CPF</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                              <td className="py-4 px-4 text-foreground font-medium">{selectedPartner.name}</td>
+                              <td className="py-4 px-4 text-foreground">{selectedPartner.cpf || '—'}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      ) : (
+                        // Dados Consolidados da Empresa
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-white/10">
+                              <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Nome Fantasia</th>
+                              <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">CNPJ</th>
+                              <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Inscrição Estadual</th>
+                              <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email</th>
+                              <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Telefone</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                              <td className="py-4 px-4 text-foreground font-medium">{selectedClient.company_name}</td>
+                              <td className="py-4 px-4 text-foreground">{selectedClient.cnpj || '—'}</td>
+                              <td className="py-4 px-4 text-foreground">{selectedClient.inscricao_estadual || '—'}</td>
+                              <td className="py-4 px-4 text-foreground">{selectedClient.email || '—'}</td>
+                              <td className="py-4 px-4 text-foreground">{selectedClient.phone || '—'}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -503,7 +543,7 @@ export default function PortalCliente() {
                             </div>
                             {selectedAircraft && (
                               <Badge className="bg-emerald-500 text-white h-fit">
-                                {selectedAircraft.share_percentage}% Cota
+                                {selectedPartner ? selectedPartner.percentage : selectedAircraft.share_percentage}% Cota
                               </Badge>
                             )}
                           </div>
