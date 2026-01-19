@@ -220,11 +220,22 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       }
 
       // Enrich logbook data with aerodrome information
-      const enrichedLogbookData = (logbookData || []).map((entry: any) => ({
-        ...entry,
-        departure_aero: entry.departure_aerodrome ? (aerodromeMap[entry.departure_aerodrome] || { code: entry.departure_aerodrome, name: entry.departure_aerodrome }) : null,
-        arrival_aero: entry.arrival_aerodrome ? (aerodromeMap[entry.arrival_aerodrome] || { code: entry.arrival_aerodrome, name: entry.arrival_aerodrome }) : null
-      }));
+      const enrichedLogbookData = (logbookData || []).map((entry: any) => {
+        // Use code directly if not found in map, otherwise use map data
+        const departure = entry.departure_aerodrome
+          ? (aerodromeMap[entry.departure_aerodrome] || { code: entry.departure_aerodrome, name: entry.departure_aerodrome })
+          : null;
+
+        const arrival = entry.arrival_aerodrome
+          ? (aerodromeMap[entry.arrival_aerodrome] || { code: entry.arrival_aerodrome, name: entry.arrival_aerodrome })
+          : null;
+
+        return {
+          ...entry,
+          departure_aero: departure,
+          arrival_aero: arrival
+        };
+      });
 
       // Load fuel records from all partners/cotistas
       const { data: fuelData } = await supabase
