@@ -146,6 +146,17 @@ export function PartnerSelector({
         </div>
       </div>
 
+      <div className="flex justify-center mb-8">
+        <Button
+          onClick={() => onSelectPartner(null)}
+          variant="secondary"
+          size="lg"
+          className="gap-2"
+        >
+          Ver Dados Consolidados (Todos os Sócios)
+        </Button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {partners.map((partner) => (
           <Card
