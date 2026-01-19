@@ -53,6 +53,8 @@ interface FuelRecord {
   client_id?: string | null;
   status_pagamento?: string | null;
   observacao?: string | null;
+  partner_index?: number | null;
+  partner_name?: string | null;
 }
 interface FuelSupplier {
   id: string;
