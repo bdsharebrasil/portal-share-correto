@@ -594,6 +594,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     }
   }, [availableMonths]);
 
+  // Sincronizar diárias marcadas com localStorage
+  useEffect(() => {
+    localStorage.setItem(`marked-dailies-${aircraftId}-${selectedMonth}-${selectedYear}`, JSON.stringify(markedDailies));
+  }, [markedDailies, aircraftId, selectedMonth, selectedYear]);
+
   // ===================== AUTOMAÇÕES =====================
 
   // AUTOMAÇÃO 1: Apresentação = Acionamento - 30 min
