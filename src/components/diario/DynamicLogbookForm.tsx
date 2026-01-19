@@ -73,10 +73,12 @@ export function DynamicLogbookForm({
   const [dailyCount, setDailyCount] = useState<string>('');
   const [baseAerodrome, setBaseAerodrome] = useState<string | null>(null);
   const [aircraftDailyRate, setAircraftDailyRate] = useState<number | null>(null);
-  const [flightCategory, setFlightCategory] = useState<'cliente' | 'rateio'>('cliente');
+  const [flightCategory, setFlightCategory] = useState<'cliente' | 'rateio' | 'emprestimo'>('cliente');
   const [specialFlightType, setSpecialFlightType] = useState<string>('');
   const [selectedClient, setSelectedClient] = useState<string>('');
   const [clientOpen, setClientOpen] = useState(false);
+  const [selectedBorrowerClient, setSelectedBorrowerClient] = useState<string>('');
+  const [borrowerClientOpen, setBorrowerClientOpen] = useState(false);
 
   // Tripulação
   const [selectedPic, setSelectedPic] = useState<string>('');
@@ -127,6 +129,24 @@ export function DynamicLogbookForm({
     },
     enabled: !!aircraftId,
   });
+
+  // Buscar TODOS os clientes (para empréstimo - seleção do cliente que está pegando emprestado)
+  const { data: allClients = [] } = useQuery({
+    queryKey: ['all-clients'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, company_name, proprietario')
+        .order('company_name');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // Clientes que NÃO são cotistas desta aeronave (para selecionar quem está pegando emprestado)
+  const borrowerClients = allClients.filter(
+    (c) => !clients.some((ac: any) => ac.client_id === c.id)
+  );
 
   // Buscar dados do logbook_month para obter base_aerodrome, daily_rate e has_daily_rate
   const { data: logbookMonth } = useQuery({
@@ -240,7 +260,7 @@ export function DynamicLogbookForm({
       return false;
     }
 
-    // Validar cliente ou tipo de rateio
+    // Validar cliente ou tipo de rateio ou empréstimo
     if (flightCategory === 'cliente' && !selectedClient) {
       toast({
         title: 'Erro',
@@ -257,6 +277,25 @@ export function DynamicLogbookForm({
         variant: 'destructive',
       });
       return false;
+    }
+
+    if (flightCategory === 'emprestimo') {
+      if (!selectedClient) {
+        toast({
+          title: 'Erro',
+          description: 'Selecione o cotista que está emprestando a aeronave.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+      if (!selectedBorrowerClient) {
+        toast({
+          title: 'Erro',
+          description: 'Selecione o cliente que está pegando emprestado.',
+          variant: 'destructive',
+        });
+        return false;
+      }
     }
 
     const timeRegex = /^\d{2}:\d{2}$/;
@@ -375,15 +414,26 @@ export function DynamicLogbookForm({
       // Determinar tipo de voo e cliente
       const flightNature = flightCategory === 'rateio'
         ? specialFlightType.toUpperCase()
-        : 'PV';
+        : flightCategory === 'emprestimo'
+          ? 'EP' // Empréstimo
+          : 'PV';
 
-      // Rateio entre sócios NÃO cobra diária
+      // Rateio entre sócios e empréstimo NÃO cobram diária
       if (flightCategory === 'cliente' && dailyCount && aircraftDailyRate) {
         const quantity = parseInt(dailyCount) || 0;
         finalDailyRate = quantity * aircraftDailyRate;
       }
 
-      const { error } = await supabase.from('logbook_entries').insert([
+      // Determinar client_id baseado na categoria
+      let entryClientId: string | null = null;
+      if (flightCategory === 'cliente') {
+        entryClientId = selectedClient;
+      } else if (flightCategory === 'emprestimo') {
+        // No empréstimo, o client_id é quem está pegando emprestado
+        entryClientId = selectedBorrowerClient;
+      }
+
+      const { data: insertedEntry, error } = await supabase.from('logbook_entries').insert([
         {
           logbook_month_id: typeof logbookMonthId !== 'undefined' ? logbookMonthId : null,
           aircraft_id: aircraftId,
@@ -391,8 +441,9 @@ export function DynamicLogbookForm({
           departure_aerodrome: formData.departure_airport,
           arrival_aerodrome: formData.arrival_airport,
           flight_nature: flightNature,
-          client_id: flightCategory === 'cliente' ? selectedClient : null,
+          client_id: entryClientId,
           is_equal_split: flightCategory === 'rateio',
+          is_loan: flightCategory === 'emprestimo',
           pic_canac: selectedPic,
           sic_canac: selectedSic || null,
           ac_time: formData.ac_time,
@@ -415,9 +466,34 @@ export function DynamicLogbookForm({
           occurrences: occurrences || null,
           discrepancies: discrepancies || null,
         },
-      ]);
+      ]).select().single();
 
       if (error) throw error;
+
+      // Se for empréstimo, registrar na tabela aircraft_loans
+      if (flightCategory === 'emprestimo' && insertedEntry) {
+        const { error: loanError } = await supabase.from('aircraft_loans').insert([
+          {
+            lender_aircraft_id: aircraftId,
+            lender_client_id: selectedClient, // Cotista que está emprestando
+            borrower_client_id: selectedBorrowerClient, // Cliente que está pegando emprestado
+            hours_borrowed: totalBlockTime,
+            entry_date: format(date!, 'yyyy-MM-dd'),
+            logbook_entry_id: insertedEntry.id,
+            status: 'pending',
+            notes: `Empréstimo registrado via diário de bordo - ${formData.departure_airport} → ${formData.arrival_airport}`,
+          },
+        ]);
+
+        if (loanError) {
+          console.error('Erro ao registrar empréstimo:', loanError);
+          toast({
+            title: 'Atenção',
+            description: 'Voo registrado, mas houve erro ao registrar empréstimo no banco de horas.',
+            variant: 'destructive',
+          });
+        }
+      }
 
       toast({
         title: 'Sucesso!',
@@ -438,6 +514,7 @@ export function DynamicLogbookForm({
         setFlightCategory('cliente');
         setSpecialFlightType('');
         setSelectedClient('');
+        setSelectedBorrowerClient('');
         setSelectedPic('');
         setSelectedSic('');
         setPassengers('');
@@ -672,7 +749,7 @@ export function DynamicLogbookForm({
               </div>
             </div>
 
-            {/* Categoria: Cliente ou Rateio */}
+            {/* Categoria: Cliente, Rateio ou Empréstimo */}
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-muted-foreground" />
@@ -682,10 +759,11 @@ export function DynamicLogbookForm({
                 <Button
                   type="button"
                   variant={flightCategory === 'cliente' ? 'default' : 'outline'}
-                  className="flex-1 h-11"
+                  className="flex-1 h-11 text-xs sm:text-sm"
                   onClick={() => {
                     setFlightCategory('cliente');
                     setSpecialFlightType('');
+                    setSelectedBorrowerClient('');
                   }}
                 >
                   Cliente
@@ -693,13 +771,25 @@ export function DynamicLogbookForm({
                 <Button
                   type="button"
                   variant={flightCategory === 'rateio' ? 'default' : 'outline'}
-                  className="flex-1 h-11"
+                  className="flex-1 h-11 text-xs sm:text-sm"
                   onClick={() => {
                     setFlightCategory('rateio');
                     setSelectedClient('');
+                    setSelectedBorrowerClient('');
                   }}
                 >
-                  Rateio Igual
+                  Rateio
+                </Button>
+                <Button
+                  type="button"
+                  variant={flightCategory === 'emprestimo' ? 'default' : 'outline'}
+                  className="flex-1 h-11 text-xs sm:text-sm bg-amber-600/20 border-amber-500/30 hover:bg-amber-600/30"
+                  onClick={() => {
+                    setFlightCategory('emprestimo');
+                    setSpecialFlightType('');
+                  }}
+                >
+                  Empréstimo
                 </Button>
               </div>
             </div>
@@ -777,6 +867,114 @@ export function DynamicLogbookForm({
               </Select>
               <p className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
                 💡 As despesas deste voo serão divididas igualmente entre todos os sócios da aeronave.
+              </p>
+            </div>
+          )}
+
+          {/* Empréstimo: Selecionar cotista que empresta e cliente que pega emprestado */}
+          {flightCategory === 'emprestimo' && (
+            <div className="space-y-4 animate-in slide-in-from-top-2 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <div className="flex items-center gap-2 text-amber-400 mb-2">
+                <ArrowRight className="h-4 w-4" />
+                <span className="text-sm font-semibold">Configurar Empréstimo</span>
+              </div>
+
+              {/* Cotista que está emprestando (seleciona entre os cotistas da aeronave) */}
+              <div className="space-y-2">
+                <Label>Cotista que empresta a aeronave</Label>
+                <Popover open={clientOpen} onOpenChange={setClientOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between h-11 font-normal"
+                    >
+                      {selectedClient ? getClientName(selectedClient) : 'Selecione o cotista...'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Buscar cotista..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhum cotista encontrado.</CommandEmpty>
+                        <CommandGroup heading="Cotistas da aeronave">
+                          {clients.map((item: any) => {
+                            const clientData = item.clients as any;
+                            if (!clientData) return null;
+                            return (
+                              <CommandItem
+                                key={item.client_id}
+                                value={clientData.company_name || clientData.proprietario}
+                                onSelect={() => {
+                                  setSelectedClient(item.client_id);
+                                  setClientOpen(false);
+                                }}
+                              >
+                                <Check className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedClient === item.client_id ? "opacity-100" : "opacity-0"
+                                )} />
+                                <span>{clientData.company_name || clientData.proprietario}</span>
+                                <span className="ml-auto text-xs text-muted-foreground">
+                                  {item.share_percentage}%
+                                </span>
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Cliente que está pegando emprestado */}
+              <div className="space-y-2">
+                <Label>Cliente que pega emprestado</Label>
+                <Popover open={borrowerClientOpen} onOpenChange={setBorrowerClientOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between h-11 font-normal border-amber-500/30"
+                    >
+                      {selectedBorrowerClient 
+                        ? allClients.find(c => c.id === selectedBorrowerClient)?.company_name || 'Cliente selecionado'
+                        : 'Selecione quem pega emprestado...'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Buscar cliente..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                        <CommandGroup heading="Outros clientes (não cotistas)">
+                          {borrowerClients.map((client) => (
+                            <CommandItem
+                              key={client.id}
+                              value={client.company_name || client.proprietario || ''}
+                              onSelect={() => {
+                                setSelectedBorrowerClient(client.id);
+                                setBorrowerClientOpen(false);
+                              }}
+                            >
+                              <Check className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedBorrowerClient === client.id ? "opacity-100" : "opacity-0"
+                              )} />
+                              <span>{client.company_name || client.proprietario}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <p className="text-xs text-amber-200/80 bg-amber-500/20 p-3 rounded-lg">
+                ⚠️ Este voo será registrado como empréstimo. As horas voadas serão debitadas do banco de horas 
+                do cliente que pegou emprestado e creditadas quando ele devolver em outra aeronave.
               </p>
             </div>
           )}
