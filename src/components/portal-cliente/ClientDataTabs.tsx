@@ -191,6 +191,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
             partner_name,
             departure_aerodrome,
             arrival_aerodrome,
+            trecho,
             aircraft:aircraft_id(registration)
           `)
           .eq('aircraft_id', aircraftId)
