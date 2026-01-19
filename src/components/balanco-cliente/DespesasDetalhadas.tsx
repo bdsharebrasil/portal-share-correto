@@ -50,7 +50,7 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
 
   // Buscar despesas de bank_reconciliations
   const { data: despesasBankRec = [], isLoading: loadingBankRec } = useQuery({
-    queryKey: ['despesas-bank-rec', clienteId, aeronaveId, periodo],
+    queryKey: ['despesas-bank-rec', clienteId, socioId, aeronaveId, periodo],
     queryFn: async () => {
       let query = supabase
         .from('bank_reconciliations')
@@ -63,6 +63,10 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
         .gte('date', periodo.inicio)
         .lte('date', periodo.fim)
         .order('date', { ascending: false });
+
+      if (socioId) {
+        query = query.eq('socio_id', socioId);
+      }
 
       if (aeronaveId) {
         query = query.eq('aircraft_id', aeronaveId);
@@ -85,7 +89,7 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
 
   // Buscar despesas de despesas_cliente_direto
   const { data: despesasDiretas = [], isLoading: loadingDiretas } = useQuery({
-    queryKey: ['despesas-cliente-direto', clienteId, aeronaveId, periodo],
+    queryKey: ['despesas-cliente-direto', clienteId, socioId, aeronaveId, periodo],
     queryFn: async () => {
       let query = supabase
         .from('despesas_cliente_direto')
@@ -97,6 +101,10 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
         .gte('data_vencimento', periodo.inicio)
         .lte('data_vencimento', periodo.fim)
         .order('data_vencimento', { ascending: false });
+
+      if (socioId) {
+        query = query.eq('socio_id', socioId);
+      }
 
       if (aeronaveId) {
         query = query.eq('aeronave_id', aeronaveId);
@@ -122,7 +130,7 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
 
   // Buscar abastecimentos
   const { data: abastecimentos = [], isLoading: loadingAbastecimentos } = useQuery({
-    queryKey: ['despesas-abastecimentos', clienteId, aeronaveId, periodo],
+    queryKey: ['despesas-abastecimentos', clienteId, socioId, aeronaveId, periodo],
     queryFn: async () => {
       let query = supabase
         .from('abastecimentos')
@@ -134,6 +142,10 @@ export function DespesasDetalhadas({ clienteId, aeronaveId, periodo }: DespesasD
         .gte('data', periodo.inicio)
         .lte('data', periodo.fim)
         .order('data', { ascending: false });
+
+      if (socioId) {
+        query = query.eq('socio_id', socioId);
+      }
 
       if (aeronaveId) {
         query = query.eq('aeronave_id', aeronaveId);
