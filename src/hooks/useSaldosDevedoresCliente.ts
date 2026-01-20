@@ -57,7 +57,7 @@ export function useSaldosDevedoresCliente(clienteId?: string) {
 
         const pagamentoDireto = pagamentoDiretoData || [];
 
-        // 3. Buscar despesas de combustível (pode vir de ambas as tabelas)
+        // 3. Buscar despesas de combustível (pode vir de três tabelas)
         // Do bank_reconciliations
         const { data: combustivelBankData, error: combustivelBankError } = await supabase
           .from('bank_reconciliations')
@@ -72,15 +72,24 @@ export function useSaldosDevedoresCliente(clienteId?: string) {
           .eq('client_id', clienteId)
           .ilike('descricao', '%combustivel%');
 
+        // Da tabela abastecimentos (combustível pendente de pagamento)
+        const { data: abastecimentoData, error: abastecimentoError } = await supabase
+          .from('abastecimentos')
+          .select('id, valor_total, status_pagamento')
+          .eq('client_id', clienteId)
+          .neq('status_pagamento', 'pago');
+
         const combustivelBank = combustivelBankData || [];
         const combustivelDireto = combustivelDiretoData || [];
+        const abastecimentos = abastecimentoData || [];
 
         // Calcular totais
         const totalReembolsos = reembolsos.reduce((sum, item: any) => sum + (Number(item.amount) || 0), 0);
         const totalPagamentoDireto = pagamentoDireto.reduce((sum, item: any) => sum + (Number(item.valor) || 0), 0);
         const totalCombustivel =
           combustivelBank.reduce((sum, item: any) => sum + (Number(item.amount) || 0), 0) +
-          combustivelDireto.reduce((sum, item: any) => sum + (Number(item.valor) || 0), 0);
+          combustivelDireto.reduce((sum, item: any) => sum + (Number(item.valor) || 0), 0) +
+          abastecimentos.reduce((sum, item: any) => sum + (Number(item.valor_total) || 0), 0);
 
         const resumo: ResumoPagamentos = {
           total_geral: totalReembolsos + totalPagamentoDireto + totalCombustivel,
