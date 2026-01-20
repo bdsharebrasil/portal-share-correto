@@ -57,7 +57,7 @@ export function MaintenanceAlertCard({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        'border rounded-2xl p-4 backdrop-blur-xl overflow-hidden relative group transition-all',
+        'border rounded-2xl p-3 backdrop-blur-xl overflow-hidden relative group transition-all',
         styles.bgColor,
         styles.borderColor,
         onClick && 'cursor-pointer hover:scale-[1.01]'
@@ -73,43 +73,43 @@ export function MaintenanceAlertCard({
         status.alertLevel === 'green' && 'bg-green-500'
       )} />
 
-      <div className="relative z-10 space-y-3">
+      <div className="relative z-10 space-y-2">
         {/* Header */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3 flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start gap-2 flex-1 min-w-0">
             <div className={cn(
-              'p-2 rounded-xl shrink-0',
+              'p-1.5 rounded-lg shrink-0',
               status.alertLevel === 'red' && 'bg-red-500/30',
               status.alertLevel === 'orange' && 'bg-orange-500/30',
               status.alertLevel === 'yellow' && 'bg-yellow-500/30',
               status.alertLevel === 'green' && 'bg-green-500/30'
             )}>
-              <Icon className={cn('h-5 w-5', styles.iconColor)} />
+              <Icon className={cn('h-4 w-4', styles.iconColor)} />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <span className={cn(
-                  'text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full',
+                  'text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full',
                   styles.bgColor,
                   styles.textColor
                 )}>
                   {styles.labelPt}
                 </span>
-                <span className="text-sm font-semibold opacity-90">
-                  Manutenção {status.maintenanceType}
+                <span className="text-xs font-semibold opacity-90">
+                  {status.maintenanceType}
                 </span>
               </div>
               {aircraftRegistration && (
-                <p className="text-xs opacity-70 mt-1">{aircraftRegistration}</p>
+                <p className="text-xs opacity-70 mt-0.5">{aircraftRegistration}</p>
               )}
             </div>
           </div>
           <div className="text-right shrink-0">
-            <p className={cn('text-2xl font-black', styles.textColor)}>
+            <p className={cn('text-lg font-black', styles.textColor)}>
               {status.isOverdue ? (
                 <span className="text-red-400">VENCIDO</span>
               ) : (
-                <>{status.hoursRemaining.toFixed(1)}<span className="text-sm font-medium">h</span></>
+                <>{status.hoursRemaining.toFixed(1)}<span className="text-xs font-medium">h</span></>
               )}
             </p>
             <p className="text-xs opacity-60">restantes</p>
@@ -117,22 +117,22 @@ export function MaintenanceAlertCard({
         </div>
 
         {/* Progress Bar */}
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <div className="flex items-center justify-between text-xs opacity-75">
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              {status.currentHours.toFixed(1)}h voadas
+              {status.currentHours.toFixed(1)}h
             </span>
             <span className="flex items-center gap-1">
               <Wrench className="h-3 w-3" />
-              Próxima: {status.nextDueHours.toFixed(1)}h
+              {status.nextDueHours.toFixed(1)}h
             </span>
           </div>
           <div className="relative">
-            <Progress 
-              value={status.percentComplete} 
+            <Progress
+              value={status.percentComplete}
               className={cn(
-                'h-3',
+                'h-2',
                 status.alertLevel === 'red' && '[&>div]:bg-red-500',
                 status.alertLevel === 'orange' && '[&>div]:bg-orange-500',
                 status.alertLevel === 'yellow' && '[&>div]:bg-yellow-500',
@@ -141,23 +141,23 @@ export function MaintenanceAlertCard({
             />
           </div>
           <p className="text-xs text-center opacity-60">
-            {status.percentComplete.toFixed(0)}% do intervalo
+            {status.percentComplete.toFixed(0)}%
           </p>
         </div>
 
         {/* Message */}
         <div className={cn(
-          'pt-3 border-t text-sm',
+          'pt-2 border-t text-xs',
           `border-current/20`
         )}>
-          <p className="font-medium">{status.message}</p>
+          <p className="font-medium leading-tight">{status.message}</p>
         </div>
 
         {/* Warning for blocking */}
         {status.shouldBlockScheduling && (
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 text-xs">
-            <AlertCircle className="h-4 w-4 shrink-0" />
-            <span>⚠️ Agendamentos de voo bloqueados até a manutenção ser realizada</span>
+          <div className="flex items-center gap-1 p-1.5 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 text-xs">
+            <AlertCircle className="h-3 w-3 shrink-0" />
+            <span>Agendamentos bloqueados</span>
           </div>
         )}
       </div>

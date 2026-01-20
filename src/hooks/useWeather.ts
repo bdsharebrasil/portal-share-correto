@@ -327,5 +327,5 @@ export function useWeather() {
     };
   }, [fetchWeatherFromAvwx]);
 
-  return { weather, loading };
+  return { weather, loading, fetchWeatherFromAvwx };
 }

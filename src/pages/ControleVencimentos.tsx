@@ -464,10 +464,10 @@ export default function ControleVencimentos() {
                   <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                     <Search className="text-gray-500 group-focus-within:text-blue-400 transition-colors" size={20} />
                   </span>
-                  <input className="w-full pl-11 pr-4 py-2.5 bg-slate-800/60 border border-white/10 text-gray-200 placeholder-gray-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent focus:bg-slate-800 transition-all text-sm font-medium" placeholder="Buscar item, descrição ou código..." type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                  <input className="w-full pl-11 pr-4 py-2.5 bg-slate-800/60 border border-white/10 text-gray-200 placeholder-gray-500 rounded-xl focus:outline-none focus:border-blue-500/50 focus:bg-slate-800 transition-all text-sm font-medium" placeholder="Buscar item, descrição ou código..." type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                 </div>
                 <div className="relative min-w-[220px]">
-                  <select className="w-full pl-4 pr-10 py-2.5 bg-slate-800/60 border border-white/10 text-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent focus:bg-slate-800 appearance-none cursor-pointer text-sm font-medium transition-all" value={selectedAeronave} onChange={e => setSelectedAeronave(e.target.value)}>
+                  <select className="w-full pl-4 pr-10 py-2.5 bg-slate-800/60 border border-white/10 text-gray-200 rounded-xl focus:outline-none focus:border-blue-500/50 focus:bg-slate-800 appearance-none cursor-pointer text-sm font-medium transition-all" value={selectedAeronave} onChange={e => setSelectedAeronave(e.target.value)}>
                     <option value="todas">Todas as Aeronaves</option>
                     {aeronavesAtivas.map(a => <option key={a.id} value={a.id}>{a.registration} ({a.model})</option>)}
                   </select>

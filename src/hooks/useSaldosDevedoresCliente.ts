@@ -57,7 +57,7 @@ export function useSaldosDevedoresCliente(clienteId?: string) {
 
         const pagamentoDireto = pagamentoDiretoData || [];
 
-        // 3. Buscar despesas de combustível (pode vir de ambas as tabelas)
+        // 3. Buscar despesas de combustível (pode vir de três tabelas)
         // Do bank_reconciliations
         const { data: combustivelBankData, error: combustivelBankError } = await supabase
           .from('bank_reconciliations')
@@ -72,15 +72,24 @@ export function useSaldosDevedoresCliente(clienteId?: string) {
           .eq('client_id', clienteId)
           .ilike('descricao', '%combustivel%');
 
+        // Da tabela abastecimentos (combustível pendente de pagamento)
+        const { data: abastecimentoData, error: abastecimentoError } = await supabase
+          .from('abastecimentos')
+          .select('id, valor_total, status_pagamento')
+          .eq('client_id', clienteId)
+          .neq('status_pagamento', 'pago');
+
         const combustivelBank = combustivelBankData || [];
         const combustivelDireto = combustivelDiretoData || [];
+        const abastecimentos = abastecimentoData || [];
 
         // Calcular totais
         const totalReembolsos = reembolsos.reduce((sum, item: any) => sum + (Number(item.amount) || 0), 0);
         const totalPagamentoDireto = pagamentoDireto.reduce((sum, item: any) => sum + (Number(item.valor) || 0), 0);
         const totalCombustivel =
           combustivelBank.reduce((sum, item: any) => sum + (Number(item.amount) || 0), 0) +
-          combustivelDireto.reduce((sum, item: any) => sum + (Number(item.valor) || 0), 0);
+          combustivelDireto.reduce((sum, item: any) => sum + (Number(item.valor) || 0), 0) +
+          abastecimentos.reduce((sum, item: any) => sum + (Number(item.valor_total) || 0), 0);
 
         const resumo: ResumoPagamentos = {
           total_geral: totalReembolsos + totalPagamentoDireto + totalCombustivel,
@@ -100,7 +109,7 @@ export function useSaldosDevedoresCliente(clienteId?: string) {
             tipo: 'combustivel',
             descricao: 'Saldo Devedor de Combustível',
             saldo: totalCombustivel,
-            quantidade_registros: combustivelBank.length + combustivelDireto.length,
+            quantidade_registros: combustivelBank.length + combustivelDireto.length + abastecimentos.length,
           },
         };
 
@@ -152,7 +161,7 @@ export function useSaldosDevedoresDetalhes(
           if (error) throw error;
           return data || [];
         } else if (tipo === 'combustivel') {
-          // Buscar de ambas as tabelas
+          // Buscar de três tabelas
           const { data: bankData, error: bankError } = await supabase
             .from('bank_reconciliations')
             .select('id, amount, status, description, date')
@@ -167,8 +176,15 @@ export function useSaldosDevedoresDetalhes(
             .ilike('descricao', '%combustivel%')
             .order('data_vencimento', { ascending: false });
 
-          if (bankError || diretoError) throw bankError || diretoError;
-          return [...(bankData || []), ...(diretoData || [])];
+          const { data: abastecimentosData, error: abastecimentosError } = await supabase
+            .from('abastecimentos')
+            .select('id, valor_total as valor, status_pagamento as status, data')
+            .eq('client_id', clienteId)
+            .neq('status_pagamento', 'pago')
+            .order('data', { ascending: false });
+
+          if (bankError || diretoError || abastecimentosError) throw bankError || diretoError || abastecimentosError;
+          return [...(bankData || []), ...(diretoData || []), ...(abastecimentosData || [])];
         }
 
         return [];

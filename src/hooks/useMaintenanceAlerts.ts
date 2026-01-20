@@ -181,17 +181,22 @@ export function useMaintenanceStatuses(aircraftId: string) {
   });
 
   const lastMaintenanceList = Object.values(lastMaintenanceByType);
-  
+
   const statuses = calculateAllMaintenanceStatuses(
     hoursData.currentHours,
     lastMaintenanceList,
     configs
   );
 
+  // Filtrar apenas 50h e 100h, removendo 150h e 200h
+  const filteredStatuses = statuses.filter(s =>
+    s.maintenanceType === '50h' || s.maintenanceType === '100h'
+  );
+
   return {
-    statuses,
-    mostCritical: getMostCriticalStatus(statuses),
-    hasBlocking: hasBlockingMaintenance(statuses),
+    statuses: filteredStatuses,
+    mostCritical: getMostCriticalStatus(filteredStatuses),
+    hasBlocking: hasBlockingMaintenance(filteredStatuses),
     isLoading,
     currentHours: hoursData.currentHours,
   };

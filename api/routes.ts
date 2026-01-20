@@ -1661,7 +1661,7 @@ router.get('/fuel', async (req: Request, res: Response) => {
     // Build query using PostgREST with proper date filtering
     let query = supabase
       .from('abastecimentos')
-      .select('id, valor_total, status, data')
+      .select('id, valor_total, status_pagamento, data')
       .eq('client_id', client_id)
       .gte('data', date_start)
       .lte('data', date_end);
