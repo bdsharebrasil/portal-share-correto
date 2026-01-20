@@ -135,6 +135,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
     try {
       setLoading(true);
 
+      // Normalize partner name for filtering (trim spaces) - used for logbook and fuel records
+      const normalizedPartnerName = selectedPartner?.name?.trim() || '';
+
       // Get all client IDs (main client + all partners/cotistas)
       const clientIds = [forClientId];
 
@@ -180,7 +183,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       try {
         console.log('Carregando logbook para cliente:', forClientId, 'Partner selecionado:', selectedPartner?.name);
 
-        let query = supabase
+        const { data: allLogbookData, error } = await supabase
           .from('logbook_entries')
           .select(`
             id,
@@ -197,19 +200,29 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           .eq('aircraft_id', aircraftId)
           .eq('client_id', forClientId)
           .order('entry_date', { ascending: false })
-          .limit(50);
+          .limit(100);
+
+        if (error) console.warn('Erro ao carregar logbook:', error);
 
         // Se um parceiro específico foi selecionado, filtrar pelo partner_name
-        // Note: partner_name in logbook_entries is stored with brackets format [NAME]
-        if (selectedPartner && selectedPartner.name) {
-          query = query.eq('partner_name', `[${selectedPartner.name}]`);
+        // Logbook entries podem ter partner_name em diferentes formatos:
+        // - Com espaço no início: " GUAVIRA"
+        // - Sem espaço: "GUAVIRA"
+        // - Possivelmente com colchetes: "[GUAVIRA]" (menos comum)
+        if (selectedPartner && normalizedPartnerName && allLogbookData) {
+          logbookData = allLogbookData.filter((entry: any) => {
+            if (!entry.partner_name) return false;
+            // Normaliza o partner_name removendo espaços e colchetes para comparação
+            const entryPartnerName = entry.partner_name
+              .replace(/^\[|\]$/g, '') // Remove colchetes
+              .trim() // Remove espaços
+              .toUpperCase();
+            return entryPartnerName === normalizedPartnerName.toUpperCase();
+          });
+          console.log(`Logbook filtrado para ${normalizedPartnerName}: ${logbookData.length} de ${allLogbookData.length} registros`);
+        } else {
+          logbookData = allLogbookData;
         }
-        // Se nenhum parceiro foi selecionado (consolidado), não adicionar filtro de partner_name
-        // Isso retorna TODOS os registros de todos os sócios
-
-        const result = await query;
-        logbookData = result.data;
-        if (result.error) console.warn('Erro ao carregar logbook:', result.error);
       } catch (err) {
         console.error('Erro crítico ao carregar logbook:', err);
       }
@@ -229,10 +242,13 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
             console.log('Buscando aerodromes:', codesArray);
 
             // Try to fetch aerodromes - use simple code matching
-            const { data: aerodromes, error } = await supabase
+            // @ts-ignore - Supabase type instantiation too deep
+            const result = await supabase
               .from('aerodromes')
               .select('code, name')
               .in('code', codesArray);
+            const aerodromes = result.data as any[];
+            const error = result.error;
 
             if (error) {
               console.warn('Erro ao buscar aerodromes:', error);
@@ -280,23 +296,34 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       // Load fuel records - only for the selected client/partner
       let fuelData = null;
       try {
-        let query = supabase
+        console.log('Carregando abastecimentos para cliente:', forClientId, 'Partner selecionado:', selectedPartner?.name);
+
+        const { data: allFuelData, error } = await supabase
           .from('abastecimentos')
           .select('*, aeronave:aeronave_id(registration), client:client_id(company_name)')
           .eq('aeronave_id', aircraftId)
           .eq('client_id', forClientId)
           .order('data', { ascending: false })
-          .limit(10);
+          .limit(50);
 
-        // If a specific partner is selected, also filter by partner name
-        // Note: partner_name in abastecimentos is stored with brackets format [NAME]
-        if (selectedPartner && selectedPartner.name) {
-          query = query.eq('partner_name', `[${selectedPartner.name}]`);
+        if (error) console.warn('Erro ao carregar abastecimentos:', error);
+
+        // If a specific partner is selected, filter by partner name
+        // Abastecimentos store partner_name in format [NAME]
+        if (selectedPartner && normalizedPartnerName && allFuelData) {
+          fuelData = allFuelData.filter((record: any) => {
+            if (!record.partner_name) return false;
+            // Remove colchetes e normaliza para comparação
+            const recordPartnerName = record.partner_name
+              .replace(/^\[|\]$/g, '')
+              .trim()
+              .toUpperCase();
+            return recordPartnerName === normalizedPartnerName.toUpperCase();
+          });
+          console.log(`Abastecimentos filtrados para ${normalizedPartnerName}: ${fuelData.length} de ${allFuelData.length} registros`);
+        } else {
+          fuelData = allFuelData;
         }
-
-        const result = await query;
-        fuelData = result.data;
-        if (result.error) console.warn('Erro ao carregar abastecimentos:', result.error);
       } catch (err) {
         console.error('Erro crítico ao carregar abastecimentos:', err);
       }
@@ -959,7 +986,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <EnvioDespesaTab fornecedores={fornecedoresShare} clientId={clientId} aircraftId={aircraftId} />
+              <EnvioDespesaTab clientId={clientId} clientName={clientName} aircraftId={aircraftId} aircraftRegistration={aircraftRegistration} />
             </CardContent>
           </Card>
         </TabsContent>

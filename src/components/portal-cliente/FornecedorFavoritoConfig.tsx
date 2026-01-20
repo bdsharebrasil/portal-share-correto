@@ -35,7 +35,8 @@ export function FornecedorFavoritoConfig({ onSave, fornecedor }: { onSave: (data
           .eq('id', id)
           .select());
       } else {
-        // Criar novo fornecedor
+        // Criar novo fornecedor - criado_por será preenchido pelo sistema (backend)
+        // Se necessário, podemos obter o usuário atual do contexto de autenticação
         ({ data, error } = await supabase
           .from('fornecedores_favoritos')
           .insert([{
@@ -43,6 +44,7 @@ export function FornecedorFavoritoConfig({ onSave, fornecedor }: { onSave: (data
             cidade,
             telefone,
             documento,
+            criado_por: 'sistema', // valor padrão para novos registros
           }])
           .select());
       }

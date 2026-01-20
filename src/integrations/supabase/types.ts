@@ -25,6 +25,7 @@ export type Database = {
           comanda_url: string | null
           created_at: string | null
           data: string
+          data_vencimento_boleto: string | null
           id: string
           litros: number
           local: string
@@ -48,6 +49,7 @@ export type Database = {
           comanda_url?: string | null
           created_at?: string | null
           data: string
+          data_vencimento_boleto?: string | null
           id?: string
           litros?: number
           local: string
@@ -71,6 +73,7 @@ export type Database = {
           comanda_url?: string | null
           created_at?: string | null
           data?: string
+          data_vencimento_boleto?: string | null
           id?: string
           litros?: number
           local?: string
@@ -1322,6 +1325,7 @@ export type Database = {
           fornecedor_nome: string | null
           id: string
           nf_url: string | null
+          partner_name: string | null
           payment_term: string | null
           percentual: string | null
           receiver_id: string | null
@@ -1355,6 +1359,7 @@ export type Database = {
           fornecedor_nome?: string | null
           id?: string
           nf_url?: string | null
+          partner_name?: string | null
           payment_term?: string | null
           percentual?: string | null
           receiver_id?: string | null
@@ -1388,6 +1393,7 @@ export type Database = {
           fornecedor_nome?: string | null
           id?: string
           nf_url?: string | null
+          partner_name?: string | null
           payment_term?: string | null
           percentual?: string | null
           receiver_id?: string | null
@@ -1904,6 +1910,7 @@ export type Database = {
           file_path: string
           file_size: number | null
           id: string
+          partner_name: string | null
           public_url: string | null
           updated_at: string | null
           uploaded_at: string | null
@@ -1917,6 +1924,7 @@ export type Database = {
           file_path: string
           file_size?: number | null
           id?: string
+          partner_name?: string | null
           public_url?: string | null
           updated_at?: string | null
           uploaded_at?: string | null
@@ -1930,6 +1938,7 @@ export type Database = {
           file_path?: string
           file_size?: number | null
           id?: string
+          partner_name?: string | null
           public_url?: string | null
           updated_at?: string | null
           uploaded_at?: string | null
@@ -2139,6 +2148,7 @@ export type Database = {
           file_size: number
           file_type: string
           id: string
+          partner_name: string | null
           reference_month: number | null
           reference_year: number | null
           status: string | null
@@ -2157,6 +2167,7 @@ export type Database = {
           file_size: number
           file_type: string
           id?: string
+          partner_name?: string | null
           reference_month?: number | null
           reference_year?: number | null
           status?: string | null
@@ -2175,6 +2186,7 @@ export type Database = {
           file_size?: number
           file_type?: string
           id?: string
+          partner_name?: string | null
           reference_month?: number | null
           reference_year?: number | null
           status?: string | null
@@ -3117,6 +3129,7 @@ export type Database = {
           numero_documento: string | null
           observacao_cliente: string | null
           observacoes: string | null
+          partner_name: string | null
           rateio_completo: boolean | null
           rateio_tipo: string | null
           recibo_url: string | null
@@ -3156,6 +3169,7 @@ export type Database = {
           numero_documento?: string | null
           observacao_cliente?: string | null
           observacoes?: string | null
+          partner_name?: string | null
           rateio_completo?: boolean | null
           rateio_tipo?: string | null
           recibo_url?: string | null
@@ -3195,6 +3209,7 @@ export type Database = {
           numero_documento?: string | null
           observacao_cliente?: string | null
           observacoes?: string | null
+          partner_name?: string | null
           rateio_completo?: boolean | null
           rateio_tipo?: string | null
           recibo_url?: string | null
@@ -4182,6 +4197,7 @@ export type Database = {
           left_value: string | null
           month: number
           orçamento: string | null
+          partner_name: string | null
           remaining_hours: number | null
           right_value: string | null
           service_order_number: string | null
@@ -4202,6 +4218,7 @@ export type Database = {
           left_value?: string | null
           month: number
           orçamento?: string | null
+          partner_name?: string | null
           remaining_hours?: number | null
           right_value?: string | null
           service_order_number?: string | null
@@ -4222,6 +4239,7 @@ export type Database = {
           left_value?: string | null
           month?: number
           orçamento?: string | null
+          partner_name?: string | null
           remaining_hours?: number | null
           right_value?: string | null
           service_order_number?: string | null
@@ -4407,6 +4425,7 @@ export type Database = {
           observacoes_pagamento: string | null
           observacoes_validacao: string | null
           outros_documentos: Json | null
+          partner_name: string | null
           quantidade_lembretes: number | null
           status: string
           validado_por: string | null
@@ -4446,6 +4465,7 @@ export type Database = {
           observacoes_pagamento?: string | null
           observacoes_validacao?: string | null
           outros_documentos?: Json | null
+          partner_name?: string | null
           quantidade_lembretes?: number | null
           status?: string
           validado_por?: string | null
@@ -4485,6 +4505,7 @@ export type Database = {
           observacoes_pagamento?: string | null
           observacoes_validacao?: string | null
           outros_documentos?: Json | null
+          partner_name?: string | null
           quantidade_lembretes?: number | null
           status?: string
           validado_por?: string | null
@@ -6704,6 +6725,7 @@ export type Database = {
           sic_name: string | null
           time: number | null
           total_time: number | null
+          trecho: string | null
         }
         Insert: {
           ac_time?: string | null
@@ -6761,6 +6783,7 @@ export type Database = {
           sic_name?: string | null
           time?: number | null
           total_time?: number | null
+          trecho?: string | null
         }
         Update: {
           ac_time?: string | null
@@ -6818,6 +6841,7 @@ export type Database = {
           sic_name?: string | null
           time?: number | null
           total_time?: number | null
+          trecho?: string | null
         }
         Relationships: [
           {
@@ -8446,6 +8470,7 @@ export type Database = {
           nota_fiscal: string | null
           observacoes: string | null
           pago_diretamente: boolean | null
+          partner_name: string | null
           percentual: number | null
           recebimento_id: string | null
           status: string | null
@@ -8473,6 +8498,7 @@ export type Database = {
           nota_fiscal?: string | null
           observacoes?: string | null
           pago_diretamente?: boolean | null
+          partner_name?: string | null
           percentual?: number | null
           recebimento_id?: string | null
           status?: string | null
@@ -8500,6 +8526,7 @@ export type Database = {
           nota_fiscal?: string | null
           observacoes?: string | null
           pago_diretamente?: boolean | null
+          partner_name?: string | null
           percentual?: number | null
           recebimento_id?: string | null
           status?: string | null
@@ -9598,6 +9625,7 @@ export type Database = {
           expenses: string | null
           id: string
           observations: string | null
+          partner_name: string | null
           pdf_url: string | null
           report_number: string
           route: string | null
@@ -9630,6 +9658,7 @@ export type Database = {
           expenses?: string | null
           id?: string
           observations?: string | null
+          partner_name?: string | null
           pdf_url?: string | null
           report_number: string
           route?: string | null
@@ -9662,6 +9691,7 @@ export type Database = {
           expenses?: string | null
           id?: string
           observations?: string | null
+          partner_name?: string | null
           pdf_url?: string | null
           report_number?: string
           route?: string | null

@@ -45,7 +45,7 @@ interface FuelRecord {
   valor_unitario: number;
   valor_total: number;
   abastecimento_galoes: number | null;
-  ano: string | null;
+  ano?: string | null;
   comanda_url: string | null;
   nota_url: string | null;
   boleto_url: string | null;
