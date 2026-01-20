@@ -39,57 +39,24 @@ export function WeatherDisplay() {
     setIsRefreshing(true);
     console.log('[METAR MANUAL] 🔄 Usuário clicou em refresh...');
 
-    let abortController: AbortController | null = null;
     try {
-      // Use backend proxy endpoint to avoid CORS issues
-      const url = '/api/weather/metar?icao=SBGR';
+      // Chamar a função fetch do hook para atualizar o estado imediatamente
+      // Isso garante que os dados novos sejam refletidos no estado do hook
+      await fetchWeatherFromAvwx('SBGR');
 
-      console.log('[METAR MANUAL] 🌐 Buscando via backend:', url);
+      console.log('[METAR MANUAL] ✅ METAR atualizado com sucesso!');
 
-      abortController = new AbortController();
-      const timeoutId = setTimeout(() => abortController?.abort(), 15000);
-
-      try {
-        const response = await fetch(url, {
-          signal: abortController.signal,
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-          }
-        });
-
-        clearTimeout(timeoutId);
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log('[METAR MANUAL] ✅ Resposta recebida:', data);
-
-          // Dados foram atualizados, aguardar um pouco antes de parar de rodar
-          if (refreshTimeoutRef.current) {
-            clearTimeout(refreshTimeoutRef.current);
-          }
-          refreshTimeoutRef.current = setTimeout(() => {
-            setIsRefreshing(false);
-            console.log('[METAR MANUAL] ✅ Refresh concluído!');
-          }, 1500);
-        } else {
-          console.error('[METAR MANUAL] ❌ HTTP Error:', response.status, response.statusText);
-          setIsRefreshing(false);
-        }
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
-        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-          console.error('[METAR MANUAL] ⏱️ Timeout na requisição');
-        } else {
-          console.error('[METAR MANUAL] ❌ Erro fetch:', fetchError);
-        }
-        setIsRefreshing(false);
+      // Aguardar um pouco antes de parar a animação
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
       }
+      refreshTimeoutRef.current = setTimeout(() => {
+        setIsRefreshing(false);
+        console.log('[METAR MANUAL] ✅ Refresh concluído!');
+      }, 500);
     } catch (error) {
-      console.error('[METAR MANUAL] ❌ Erro inesperado:', error);
+      console.error('[METAR MANUAL] ❌ Erro ao fazer refresh:', error);
       setIsRefreshing(false);
-    } finally {
-      abortController = null;
     }
   };
 
