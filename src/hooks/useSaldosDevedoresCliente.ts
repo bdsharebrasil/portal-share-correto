@@ -161,7 +161,7 @@ export function useSaldosDevedoresDetalhes(
           if (error) throw error;
           return data || [];
         } else if (tipo === 'combustivel') {
-          // Buscar de ambas as tabelas
+          // Buscar de três tabelas
           const { data: bankData, error: bankError } = await supabase
             .from('bank_reconciliations')
             .select('id, amount, status, description, date')
@@ -176,8 +176,15 @@ export function useSaldosDevedoresDetalhes(
             .ilike('descricao', '%combustivel%')
             .order('data_vencimento', { ascending: false });
 
-          if (bankError || diretoError) throw bankError || diretoError;
-          return [...(bankData || []), ...(diretoData || [])];
+          const { data: abastecimentosData, error: abastecimentosError } = await supabase
+            .from('abastecimentos')
+            .select('id, valor_total as valor, status_pagamento as status, data')
+            .eq('client_id', clienteId)
+            .neq('status_pagamento', 'pago')
+            .order('data', { ascending: false });
+
+          if (bankError || diretoError || abastecimentosError) throw bankError || diretoError || abastecimentosError;
+          return [...(bankData || []), ...(diretoData || []), ...(abastecimentosData || [])];
         }
 
         return [];
