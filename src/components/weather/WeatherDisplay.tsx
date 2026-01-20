@@ -29,7 +29,7 @@ function isDayTime(): boolean {
 }
 
 export function WeatherDisplay() {
-  const { weather, loading } = useWeather();
+  const { weather, loading, fetchWeatherFromAvwx } = useWeather();
   const [isOpen, setIsOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const isDay = isDayTime();
