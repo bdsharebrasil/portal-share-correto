@@ -109,7 +109,7 @@ export function useSaldosDevedoresCliente(clienteId?: string) {
             tipo: 'combustivel',
             descricao: 'Saldo Devedor de Combustível',
             saldo: totalCombustivel,
-            quantidade_registros: combustivelBank.length + combustivelDireto.length,
+            quantidade_registros: combustivelBank.length + combustivelDireto.length + abastecimentos.length,
           },
         };
 
