@@ -1126,21 +1126,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         .limit(1)
         .single();
 
-      // Se é empréstimo, registrar na tabela aircraft_loans
-      if (newEntry.is_loan && insertedEntry?.id) {
-        await supabase.from('aircraft_loans').insert([{
-          lender_client_id: newEntry.client_id, // Cotista que empresta
-          lender_aircraft_id: aircraftId,
-          borrower_client_id: newEntry.loan_borrower_client_id, // Cliente que pega emprestado
-          borrower_aircraft_id: null, // Não aplicável para empréstimo simples
-          hours_borrowed: newEntry.total_time,
-          hours_paid_back: 0,
-          logbook_entry_id: insertedEntry.id,
-          entry_date: newEntry.entry_date,
-          status: 'pending'
-        }]);
-      }
-
       // Atualizar horas de voo da tripulação (PIC e SIC)
       const entryDate = new Date(newEntry.entry_date);
       await updateCrewFlightHours({
