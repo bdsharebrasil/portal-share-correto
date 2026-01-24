@@ -1690,6 +1690,20 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
           onSuccess={() => { setShowCloseMonthDialog(false); onBack(); }}
         />
 
+        {/* Dialog para exportar diário em PDF */}
+        <ExportLogbookDialog
+          open={showExportDialog}
+          onOpenChange={setShowExportDialog}
+          aircraftId={aircraftId}
+          aircraftRegistration={aircraft?.registration || ''}
+          aircraftModel={aircraft?.model || ''}
+          clientName={''}
+          availableMonths={availableMonths}
+          entries={entries}
+          currentMonth={selectedMonth}
+          currentYear={selectedYear}
+        />
+
         {/* INFORMAÇÕES TÉCNICAS DO PERÍODO */}
         {logbookMonth && <div className="space-y-6">
           {/* MÉTRICAS PRINCIPAIS DESTACADAS */}
