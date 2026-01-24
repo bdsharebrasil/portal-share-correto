@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Layout } from "../layout/Layout";
-import { ArrowLeft, Plus, CheckCircle, Loader2, Save, X, Clock, Navigation, Users, Fuel, Calendar, Search, ChevronLeft, ChevronRight, Plane, Info, AlertCircle, TrendingUp, DollarSign, Edit, Trash2, MapPin } from 'lucide-react';
+import { ArrowLeft, Plus, CheckCircle, Loader2, Save, X, Clock, Navigation, Users, Fuel, Calendar, Search, ChevronLeft, ChevronRight, Plane, Info, AlertCircle, TrendingUp, DollarSign, Edit, Trash2, MapPin, Download } from 'lucide-react';
 import { supabase } from '../../integrations/supabase/client';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -13,6 +13,7 @@ import { fetchManutencaoRevisao, fetchManutencaoRevisaoAtiva, updateManutencaoHo
 import { MaintenanceStatusAlert } from './MaintenanceStatusAlert';
 import { CreateMonthDialog } from './CreateMonthDialog';
 import { CloseMonthDialog } from './CloseMonthDialog';
+import { ExportLogbookDialog } from './ExportLogbookDialog';
 import { useUserRole } from '@/hooks/useUserRole';
 
 // ===================== CONSTANTES =====================
@@ -288,6 +289,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showHoursBank, setShowHoursBank] = useState(false);
   const [showTechnicalStatus, setShowTechnicalStatus] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [availableMonths, setAvailableMonths] = useState<Array<{ month: number; year: number }>>([]);
 
@@ -1617,6 +1619,16 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
 
             {logbookMonth && (
               <button
+                onClick={() => setShowExportDialog(true)}
+                className="px-6 h-12 bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/30 rounded-2xl text-sky-400 font-black uppercase text-xs transition-all"
+              >
+                <Download className="inline mr-2" size={16} />
+                Exportar PDF
+              </button>
+            )}
+
+            {logbookMonth && (
+              <button
                 onClick={() => setShowCloseMonthDialog(true)}
                 className="px-6 h-12 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-2xl text-red-400 font-black uppercase text-xs transition-all"
               >
@@ -1676,6 +1688,20 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
           totalLandings={entries.reduce((sum, e) => sum + (Number(e.pousos) || 0), 0)}
           totalFuelAdded={entries.reduce((sum, e) => sum + (Number(e.combustivel_adicionado) || 0), 0)}
           onSuccess={() => { setShowCloseMonthDialog(false); onBack(); }}
+        />
+
+        {/* Dialog para exportar diário em PDF */}
+        <ExportLogbookDialog
+          open={showExportDialog}
+          onOpenChange={setShowExportDialog}
+          aircraftId={aircraftId}
+          aircraftRegistration={aircraft?.registration || ''}
+          aircraftModel={aircraft?.model || ''}
+          clientName={''}
+          availableMonths={availableMonths}
+          entries={entries}
+          currentMonth={selectedMonth}
+          currentYear={selectedYear}
         />
 
         {/* INFORMAÇÕES TÉCNICAS DO PERÍODO */}
