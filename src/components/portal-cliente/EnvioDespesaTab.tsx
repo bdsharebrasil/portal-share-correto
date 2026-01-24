@@ -86,22 +86,6 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
     loadDespesas();
   }, [clientId, aircraftId]);
 
-  const loadCategories = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('categorias_movimentacao')
-        .select('id, nome, tipo, grupo_categoria')
-        .eq('ativo', true)
-        .or('grupo_categoria.eq.Despesas Aeronave,reembolsavel.eq.true')
-        .order('grupo_categoria', { ascending: true })
-        .order('nome', { ascending: true });
-
-      if (error) throw error;
-      setCategories((data || []) as CategoriaMovimentacao[]);
-    } catch (error) {
-      console.error('Error loading categories:', error);
-    }
-  };
 
   const loadDespesas = async () => {
     try {
