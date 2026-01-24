@@ -1619,6 +1619,16 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
 
             {logbookMonth && (
               <button
+                onClick={() => setShowExportDialog(true)}
+                className="px-6 h-12 bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/30 rounded-2xl text-sky-400 font-black uppercase text-xs transition-all"
+              >
+                <Download className="inline mr-2" size={16} />
+                Exportar PDF
+              </button>
+            )}
+
+            {logbookMonth && (
+              <button
                 onClick={() => setShowCloseMonthDialog(true)}
                 className="px-6 h-12 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-2xl text-red-400 font-black uppercase text-xs transition-all"
               >
