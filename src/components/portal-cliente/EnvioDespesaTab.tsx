@@ -8,11 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { Send, Receipt, X, FileText, Calendar, DollarSign, Trash2, Check, Upload, Tag, Building2, Eye, AlertCircle } from "lucide-react";
+import { Send, Receipt, X, FileText, Calendar, DollarSign, Trash2, Check, Upload, Tag, Building2, Eye, AlertCircle, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
+import { NovaFormularioDespesaDialog } from "./NovaFormularioDespesaDialog";
 
 interface EnvioDespesaTabProps {
   clientId: string;
