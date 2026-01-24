@@ -68,17 +68,7 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
   const [despesas, setDespesas] = useState<DespesaClienteDireto[]>([]);
   const [categories, setCategories] = useState<CategoriaMovimentacao[]>([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  
-  // Form state
-  const [categoriaId, setCategoriaId] = useState("");
-  const [descricao, setDescricao] = useState("");
-  const [valor, setValor] = useState("");
-  const [dataVencimento, setDataVencimento] = useState("");
-  const [fornecedorNome, setFornecedorNome] = useState("");
-  const [fornecedorCnpj, setFornecedorCnpj] = useState("");
-  const [boletoFile, setBoletoFile] = useState<File | null>(null);
-  const [notaFiscalFile, setNotaFiscalFile] = useState<File | null>(null);
+  const [novaFormularioOpen, setNovaFormularioOpen] = useState(false);
 
   // Payment modal state
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
