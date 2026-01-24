@@ -386,8 +386,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     client_id: '',
     partner_name: '',
     is_equal_split: false,
-    is_loan: false, // Novo: flag para empréstimo
-    loan_borrower_client_id: '', // Novo: cliente que está pegando emprestado
+    is_loan: false,
     ac_time: '',
     dep_time: '',
     pou_time: '',
@@ -1008,10 +1007,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         toast.error('Selecione o cotista que está emprestando a aeronave');
         return;
       }
-      if (!newEntry.loan_borrower_client_id) {
-        toast.error('Selecione o cliente que está pegando emprestado');
-        return;
-      }
     }
 
     if (!newEntry.ac_time || !newEntry.cor_time) {
@@ -1093,7 +1088,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         partner_name: newEntry.is_equal_split ? null : (newEntry.partner_name || null),
         is_equal_split: newEntry.is_equal_split,
         is_loan: newEntry.is_loan || false,
-        loan_borrower_client_id: newEntry.is_loan ? newEntry.loan_borrower_client_id : null,
         total_time: newEntry.total_time,
         time: newEntry.time,
         day_time: newEntry.day_time,
@@ -1190,7 +1184,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         partner_name: '',
         is_equal_split: false,
         is_loan: false,
-        loan_borrower_client_id: '',
         ac_time: '',
         dep_time: '',
         pou_time: '',
