@@ -1254,10 +1254,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         toast.error('Selecione o cotista que está emprestando a aeronave');
         return;
       }
-      if (!editingEntry.loan_borrower_client_id) {
-        toast.error('Selecione o cliente que está pegando emprestado');
-        return;
-      }
     }
 
     if (!editingEntry.ac_time || !editingEntry.cor_time) {
@@ -2148,31 +2144,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                       </Select>
                     </div>
 
-                    {/* Cliente que pega emprestado */}
-                    <div className="space-y-1">
-                      <Label className="text-[9px] uppercase text-amber-400 ml-1 block">Cliente que Pega Emprestado *</Label>
-                      <Select value={newEntry.loan_borrower_client_id} onValueChange={v => setNewEntry({
-                        ...newEntry,
-                        loan_borrower_client_id: v
-                      })}>
-                        <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
-                          <SelectValue placeholder="Selecione o cliente externo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {expandClientsWithPartners(
-                            sortedClients.filter(cl => !cl.client_aircraft?.some(ca => ca.aircraft_id === aircraftId))
-                          ).map(option => (
-                            <SelectItem key={option.id} value={option.clientId}>
-                              {option.label}
-                            </SelectItem>
-                          ))
-                          }
-                        </SelectContent>
-                      </Select>
-                      <p className="text-[8px] text-amber-300/80 mt-2 italic">
-                        ⚠️ Este voo será registrado como empréstimo. As horas voadas serão debitadas do banco de horas do cliente que pegou emprestado.
-                      </p>
-                    </div>
                   </div>
                 )}
               </div>
