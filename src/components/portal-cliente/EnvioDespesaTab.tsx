@@ -504,6 +504,17 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Nova Formulário Despesa Dialog */}
+      <NovaFormularioDespesaDialog
+        open={novaFormularioOpen}
+        onOpenChange={setNovaFormularioOpen}
+        clientId={clientId}
+        clientName={clientName}
+        aircraftId={aircraftId}
+        aircraftRegistration={aircraftRegistration}
+        onSuccess={loadDespesas}
+      />
     </div>
   );
 }
