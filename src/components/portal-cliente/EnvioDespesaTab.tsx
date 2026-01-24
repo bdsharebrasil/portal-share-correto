@@ -76,7 +76,7 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
   const [dataPagamento, setDataPagamento] = useState("");
   const [comprovanteFile, setComprovanteFile] = useState<File | null>(null);
   const [updatingPayment, setUpdatingPayment] = useState(false);
-  
+
   // View document modal
   const [viewDocumentOpen, setViewDocumentOpen] = useState(false);
   const [documentUrl, setDocumentUrl] = useState("");
@@ -84,7 +84,6 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
 
   useEffect(() => {
     loadDespesas();
-    loadCategories();
   }, [clientId, aircraftId]);
 
   const loadCategories = async () => {
