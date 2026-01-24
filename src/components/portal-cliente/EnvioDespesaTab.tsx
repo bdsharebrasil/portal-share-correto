@@ -248,14 +248,6 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
     }
   };
 
-  // Group categories by grupo_categoria
-  const groupedCategories = categories.reduce((acc, cat) => {
-    const group = cat.grupo_categoria || 'Outras';
-    if (!acc[group]) acc[group] = [];
-    acc[group].push(cat);
-    return acc;
-  }, {} as Record<string, CategoriaMovimentacao[]>);
-
   return (
     <div className="space-y-6">
       {/* Header com botão de novo envio */}
