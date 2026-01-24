@@ -1972,7 +1972,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                       className="flex-1 h-10 text-xs font-semibold"
                       onClick={() => {
                         setFlightType('cliente');
-                        setNewEntry({...newEntry, is_equal_split: false, is_loan: false, client_id: '', loan_borrower_client_id: ''});
+                        setNewEntry({...newEntry, is_equal_split: false, is_loan: false, client_id: ''});
                       }}
                     >
                       Cliente
@@ -1983,7 +1983,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                       className="flex-1 h-10 text-xs font-semibold"
                       onClick={() => {
                         setFlightType('rateio');
-                        setNewEntry({...newEntry, is_equal_split: true, is_loan: false, client_id: '', loan_borrower_client_id: ''});
+                        setNewEntry({...newEntry, is_equal_split: true, is_loan: false, client_id: ''});
                       }}
                     >
                       Rateio
