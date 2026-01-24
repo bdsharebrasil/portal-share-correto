@@ -13,6 +13,7 @@ import { fetchManutencaoRevisao, fetchManutencaoRevisaoAtiva, updateManutencaoHo
 import { MaintenanceStatusAlert } from './MaintenanceStatusAlert';
 import { CreateMonthDialog } from './CreateMonthDialog';
 import { CloseMonthDialog } from './CloseMonthDialog';
+import { ExportLogbookDialog } from './ExportLogbookDialog';
 import { useUserRole } from '@/hooks/useUserRole';
 
 // ===================== CONSTANTES =====================
