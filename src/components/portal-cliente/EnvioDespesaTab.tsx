@@ -66,7 +66,6 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegistration }: EnvioDespesaTabProps) {
   const { user } = useAuth();
   const [despesas, setDespesas] = useState<DespesaClienteDireto[]>([]);
-  const [categories, setCategories] = useState<CategoriaMovimentacao[]>([]);
   const [loading, setLoading] = useState(true);
   const [novaFormularioOpen, setNovaFormularioOpen] = useState(false);
 
