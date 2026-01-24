@@ -289,6 +289,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showHoursBank, setShowHoursBank] = useState(false);
   const [showTechnicalStatus, setShowTechnicalStatus] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [availableMonths, setAvailableMonths] = useState<Array<{ month: number; year: number }>>([]);
 
