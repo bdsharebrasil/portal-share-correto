@@ -258,180 +258,25 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
 
   return (
     <div className="space-y-6">
-      {/* Form Card */}
-      <Card className="bg-gradient-card border-border">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-foreground">
+      {/* Header com botão de novo envio */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
             <Send className="h-5 w-5 text-primary" />
-            Cadastrar Nova Despesa
-          </CardTitle>
-          <CardDescription className="text-muted-foreground">
-            Cadastre despesas para enviar ao cliente - {clientName}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="categoria">Categoria *</Label>
-                <Select value={categoriaId} onValueChange={setCategoriaId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a categoria" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[300px]">
-                    {Object.entries(groupedCategories).map(([group, cats]) => (
-                      <div key={group}>
-                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground bg-muted/50 sticky top-0">
-                          {group}
-                        </div>
-                        {cats.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.id}>
-                            <span className="flex items-center gap-2">
-                              <Tag className="h-3 w-3" />
-                              {cat.nome}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </div>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="valor">Valor (R$) *</Label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="valor"
-                    type="text"
-                    placeholder="0,00"
-                    value={valor}
-                    onChange={(e) => setValor(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="dataVencimento">Data Vencimento *</Label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="dataVencimento"
-                    type="date"
-                    value={dataVencimento}
-                    onChange={(e) => setDataVencimento(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="fornecedorNome">Fornecedor *</Label>
-                <div className="relative">
-                  <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="fornecedorNome"
-                    placeholder="Nome do fornecedor"
-                    value={fornecedorNome}
-                    onChange={(e) => setFornecedorNome(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="fornecedorCnpj">CNPJ do Fornecedor</Label>
-                <Input
-                  id="fornecedorCnpj"
-                  placeholder="00.000.000/0000-00"
-                  value={fornecedorCnpj}
-                  onChange={(e) => setFornecedorCnpj(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="descricao">Descrição *</Label>
-              <Textarea
-                id="descricao"
-                placeholder="Descrição detalhada da despesa..."
-                value={descricao}
-                onChange={(e) => setDescricao(e.target.value)}
-                rows={2}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Boleto (opcional)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={(e) => setBoletoFile(e.target.files?.[0] || null)}
-                    className="flex-1"
-                  />
-                  {boletoFile && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setBoletoFile(null)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-                {boletoFile && (
-                  <p className="text-xs text-muted-foreground">{boletoFile.name}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label>Nota Fiscal (opcional)</Label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    type="file"
-                    accept=".pdf,.jpg,.jpeg,.png"
-                    onChange={(e) => setNotaFiscalFile(e.target.files?.[0] || null)}
-                    className="flex-1"
-                  />
-                  {notaFiscalFile && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setNotaFiscalFile(null)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-                {notaFiscalFile && (
-                  <p className="text-xs text-muted-foreground">{notaFiscalFile.name}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-4">
-              <Button type="submit" disabled={submitting}>
-                {submitting ? (
-                  <>Salvando...</>
-                ) : (
-                  <>
-                    <Send className="h-4 w-4 mr-2" />
-                    Cadastrar Despesa
-                  </>
-                )}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+            Envio de Despesa ao Cliente
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Despesas do cliente {clientName} - {aircraftRegistration}
+          </p>
+        </div>
+        <Button
+          onClick={() => setNovaFormularioOpen(true)}
+          className="gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          Nova Despesa
+        </Button>
+      </div>
 
       {/* Histórico de Despesas */}
       <Card className="bg-gradient-card border-border">
