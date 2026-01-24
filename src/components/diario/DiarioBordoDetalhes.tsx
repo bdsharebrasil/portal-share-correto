@@ -386,8 +386,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     client_id: '',
     partner_name: '',
     is_equal_split: false,
-    is_loan: false, // Novo: flag para empréstimo
-    loan_borrower_client_id: '', // Novo: cliente que está pegando emprestado
+    is_loan: false,
     ac_time: '',
     dep_time: '',
     pou_time: '',
@@ -1008,10 +1007,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         toast.error('Selecione o cotista que está emprestando a aeronave');
         return;
       }
-      if (!newEntry.loan_borrower_client_id) {
-        toast.error('Selecione o cliente que está pegando emprestado');
-        return;
-      }
     }
 
     if (!newEntry.ac_time || !newEntry.cor_time) {
@@ -1093,7 +1088,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         partner_name: newEntry.is_equal_split ? null : (newEntry.partner_name || null),
         is_equal_split: newEntry.is_equal_split,
         is_loan: newEntry.is_loan || false,
-        loan_borrower_client_id: newEntry.is_loan ? newEntry.loan_borrower_client_id : null,
         total_time: newEntry.total_time,
         time: newEntry.time,
         day_time: newEntry.day_time,
@@ -1131,21 +1125,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
-
-      // Se é empréstimo, registrar na tabela aircraft_loans
-      if (newEntry.is_loan && insertedEntry?.id) {
-        await supabase.from('aircraft_loans').insert([{
-          lender_client_id: newEntry.client_id, // Cotista que empresta
-          lender_aircraft_id: aircraftId,
-          borrower_client_id: newEntry.loan_borrower_client_id, // Cliente que pega emprestado
-          borrower_aircraft_id: null, // Não aplicável para empréstimo simples
-          hours_borrowed: newEntry.total_time,
-          hours_paid_back: 0,
-          logbook_entry_id: insertedEntry.id,
-          entry_date: newEntry.entry_date,
-          status: 'pending'
-        }]);
-      }
 
       // Atualizar horas de voo da tripulação (PIC e SIC)
       const entryDate = new Date(newEntry.entry_date);
@@ -1190,7 +1169,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         partner_name: '',
         is_equal_split: false,
         is_loan: false,
-        loan_borrower_client_id: '',
         ac_time: '',
         dep_time: '',
         pou_time: '',
@@ -1259,10 +1237,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     if (editingEntry.is_loan) {
       if (!editingEntry.client_id) {
         toast.error('Selecione o cotista que está emprestando a aeronave');
-        return;
-      }
-      if (!editingEntry.loan_borrower_client_id) {
-        toast.error('Selecione o cliente que está pegando emprestado');
         return;
       }
     }
@@ -1998,7 +1972,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                       className="flex-1 h-10 text-xs font-semibold"
                       onClick={() => {
                         setFlightType('cliente');
-                        setNewEntry({...newEntry, is_equal_split: false, is_loan: false, client_id: '', loan_borrower_client_id: ''});
+                        setNewEntry({...newEntry, is_equal_split: false, is_loan: false, client_id: ''});
                       }}
                     >
                       Cliente
@@ -2009,7 +1983,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                       className="flex-1 h-10 text-xs font-semibold"
                       onClick={() => {
                         setFlightType('rateio');
-                        setNewEntry({...newEntry, is_equal_split: true, is_loan: false, client_id: '', loan_borrower_client_id: ''});
+                        setNewEntry({...newEntry, is_equal_split: true, is_loan: false, client_id: ''});
                       }}
                     >
                       Rateio
@@ -2155,31 +2129,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                       </Select>
                     </div>
 
-                    {/* Cliente que pega emprestado */}
-                    <div className="space-y-1">
-                      <Label className="text-[9px] uppercase text-amber-400 ml-1 block">Cliente que Pega Emprestado *</Label>
-                      <Select value={newEntry.loan_borrower_client_id} onValueChange={v => setNewEntry({
-                        ...newEntry,
-                        loan_borrower_client_id: v
-                      })}>
-                        <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
-                          <SelectValue placeholder="Selecione o cliente externo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {expandClientsWithPartners(
-                            sortedClients.filter(cl => !cl.client_aircraft?.some(ca => ca.aircraft_id === aircraftId))
-                          ).map(option => (
-                            <SelectItem key={option.id} value={option.clientId}>
-                              {option.label}
-                            </SelectItem>
-                          ))
-                          }
-                        </SelectContent>
-                      </Select>
-                      <p className="text-[8px] text-amber-300/80 mt-2 italic">
-                        ⚠️ Este voo será registrado como empréstimo. As horas voadas serão debitadas do banco de horas do cliente que pegou emprestado.
-                      </p>
-                    </div>
                   </div>
                 )}
               </div>
@@ -2960,7 +2909,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                   const clientName = clients.find(c => c.id === e.client_id)?.company_name;
                   return <tr key={e.id} className="hover:bg-slate-800/30 transition-colors group border-b border-slate-800/50">
                     <td className="p-2 whitespace-nowrap text-center text-xs" style={{ width: `${columnWidths.date}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      <span className="text-white font-bold">{formatDateFromISO(e.entry_date)}</span>
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="text-slate-500 text-[10px]" title={`Número sequencial: ${e.sequential_number}`}>#{e.sequential_number}</span>
+                        <span className="text-white font-bold">{formatDateFromISO(e.entry_date)}</span>
+                      </div>
                     </td>
                     <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.from}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <span className="text-sky-400 font-bold text-xs">{e.departure_aerodrome}</span>
