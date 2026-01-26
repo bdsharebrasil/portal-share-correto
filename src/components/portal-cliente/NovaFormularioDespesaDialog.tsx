@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,11 +6,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { DollarSign, Calendar, Building2, Tag, Upload, X, Command, Check, ChevronsUpDown } from "lucide-react";
+import { DollarSign, Calendar, Building2, Tag, X, Check, ChevronsUpDown, Fuel, MapPin, Plane, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
+
+// ID da categoria de combustível aeronave
+const COMBUSTIVEL_AERONAVE_CATEGORIA_ID = "e4693f97-73bf-43ad-9a0e-86188e96a439";
 
 interface NovaFormularioDespesaDialogProps {
   open: boolean;
@@ -51,7 +55,7 @@ export function NovaFormularioDespesaDialog({
   const [categories, setCategories] = useState<CategoriaMovimentacao[]>([]);
   const [fornecedoresFavoritos, setFornecedoresFavoritos] = useState<FornecedorFavorito[]>([]);
   
-  // Form state
+  // Form state - Campos básicos
   const [categoriaId, setCategoriaId] = useState("");
   const [descricao, setDescricao] = useState("");
   const [valor, setValor] = useState("");
@@ -63,12 +67,45 @@ export function NovaFormularioDespesaDialog({
   const [notaFiscalFile, setNotaFiscalFile] = useState<File | null>(null);
   const [openCombobox, setOpenCombobox] = useState(false);
 
+  // Form state - Campos de Abastecimento
+  const [litros, setLitros] = useState("");
+  const [valorUnitario, setValorUnitario] = useState("");
+  const [local, setLocal] = useState("");
+  const [trecho, setTrecho] = useState("");
+  const [dataAbastecimento, setDataAbastecimento] = useState("");
+  const [abastecedor, setAbastecedor] = useState("");
+  const [comanda, setComanda] = useState("");
+  const [observacao, setObservacao] = useState("");
+  const [comandaFile, setComandaFile] = useState<File | null>(null);
+
+  // Verifica se a categoria selecionada é de combustível
+  const isCombustivel = useMemo(() => {
+    if (!categoriaId) return false;
+    const categoria = categories.find(c => c.id === categoriaId);
+    return categoria?.nome?.toUpperCase().includes('COMBUSTÍVEL AERONAVE') || 
+           categoriaId === COMBUSTIVEL_AERONAVE_CATEGORIA_ID;
+  }, [categoriaId, categories]);
+
+  // Calcular valor total automaticamente quando litros ou valor unitário mudar
+  useEffect(() => {
+    if (isCombustivel && litros && valorUnitario) {
+      const litrosNum = parseFloat(litros.replace(',', '.')) || 0;
+      const valorUnitarioNum = parseFloat(valorUnitario.replace(',', '.')) || 0;
+      const total = litrosNum * valorUnitarioNum;
+      if (total > 0) {
+        setValor(total.toFixed(2).replace('.', ','));
+      }
+    }
+  }, [litros, valorUnitario, isCombustivel]);
+
   // Carregar categorias e fornecedores ao abrir o dialog
   useEffect(() => {
     if (open) {
       loadCategories();
       loadFornecedoresFavoritos();
-      setDataVencimento(new Date().toISOString().split('T')[0]);
+      const today = new Date().toISOString().split('T')[0];
+      setDataVencimento(today);
+      setDataAbastecimento(today);
     }
   }, [open]);
 
@@ -162,11 +199,32 @@ export function NovaFormularioDespesaDialog({
       return;
     }
 
+    // Validações adicionais para abastecimento
+    if (isCombustivel) {
+      if (!litros || parseFloat(litros.replace(',', '.')) <= 0) {
+        toast.error('Informe a quantidade de litros');
+        return;
+      }
+      if (!valorUnitario || parseFloat(valorUnitario.replace(',', '.')) <= 0) {
+        toast.error('Informe o valor unitário por litro');
+        return;
+      }
+      if (!local.trim()) {
+        toast.error('Informe o local do abastecimento');
+        return;
+      }
+      if (!trecho.trim()) {
+        toast.error('Informe o trecho');
+        return;
+      }
+    }
+
     try {
       setSubmitting(true);
 
       let boletoUrl = null;
       let notaFiscalUrl = null;
+      let comandaUrl = null;
 
       // Upload files if provided
       if (boletoFile) {
@@ -175,11 +233,15 @@ export function NovaFormularioDespesaDialog({
       if (notaFiscalFile) {
         notaFiscalUrl = await uploadFile(notaFiscalFile, 'notas-fiscais');
       }
+      if (comandaFile) {
+        comandaUrl = await uploadFile(comandaFile, 'comandas');
+      }
 
       const valorNum = parseFloat(valor.replace(',', '.'));
       const categoria = categories.find(c => c.id === categoriaId);
 
-      const { error } = await (supabase as any)
+      // Inserir na tabela de despesas
+      const { data: despesaData, error: despesaError } = await (supabase as any)
         .from('despesas_cliente_direto')
         .insert({
           client_id: clientId,
@@ -193,15 +255,52 @@ export function NovaFormularioDespesaDialog({
           data_vencimento: dataVencimento,
           fornecedor_nome: fornecedorNome,
           fornecedor_cnpj: fornecedorCnpj || null,
-          status: 'pendente_envio',
+          status: 'pendente_pagamento',
           boleto_url: boletoUrl,
           nota_fiscal_url: notaFiscalUrl,
-          criado_por: user?.id || null
-        } as any);
+          criado_por: user?.id || null,
+          tipo_despesa: isCombustivel ? 'abastecimento' : 'geral'
+        } as any)
+        .select('id')
+        .single();
 
-      if (error) throw error;
+      if (despesaError) throw despesaError;
 
-      toast.success('Despesa cadastrada com sucesso!');
+      // Se for combustível, inserir também na tabela de abastecimentos
+      if (isCombustivel) {
+        const litrosNum = parseFloat(litros.replace(',', '.'));
+        const valorUnitarioNum = parseFloat(valorUnitario.replace(',', '.'));
+
+        const { error: abastecimentoError } = await supabase
+          .from('abastecimentos')
+          .insert({
+            aeronave_id: aircraftId,
+            client_id: clientId,
+            data: dataAbastecimento || dataVencimento,
+            litros: litrosNum,
+            valor_unitario: valorUnitarioNum,
+            valor_total: valorNum,
+            local: local,
+            trecho: trecho,
+            abastecedor: abastecedor || fornecedorNome,
+            comanda: comanda || null,
+            comanda_url: comandaUrl,
+            boleto_url: boletoUrl,
+            nota_url: notaFiscalUrl,
+            observacao: observacao || descricao,
+            status_pagamento: 'pendente',
+            data_vencimento_boleto: dataVencimento,
+            partner_name: `[${clientName}]`
+          });
+
+        if (abastecimentoError) {
+          console.error('Erro ao inserir abastecimento:', abastecimentoError);
+          // Não falha a operação, apenas loga o erro
+          toast.warning('Despesa criada, mas houve um erro ao registrar o abastecimento');
+        }
+      }
+
+      toast.success(isCombustivel ? 'Abastecimento cadastrado com sucesso!' : 'Despesa cadastrada com sucesso!');
       
       // Reset form
       resetForm();
@@ -225,6 +324,16 @@ export function NovaFormularioDespesaDialog({
     setFornecedorCnpj("");
     setBoletoFile(null);
     setNotaFiscalFile(null);
+    // Reset campos de abastecimento
+    setLitros("");
+    setValorUnitario("");
+    setLocal("");
+    setTrecho("");
+    setDataAbastecimento(new Date().toISOString().split('T')[0]);
+    setAbastecedor("");
+    setComanda("");
+    setObservacao("");
+    setComandaFile(null);
   };
 
   const handleClose = () => {
@@ -242,15 +351,22 @@ export function NovaFormularioDespesaDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nova Despesa</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            {isCombustivel ? <Fuel className="h-5 w-5 text-amber-500" /> : <Tag className="h-5 w-5" />}
+            {isCombustivel ? 'Novo Abastecimento' : 'Nova Despesa'}
+          </DialogTitle>
           <DialogDescription>
-            Cadastre uma nova despesa para {clientName}
+            {isCombustivel 
+              ? `Registre um novo abastecimento para ${aircraftRegistration}`
+              : `Cadastre uma nova despesa para ${clientName}`
+            }
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Categoria e campos básicos */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="categoria">Categoria *</Label>
@@ -267,7 +383,11 @@ export function NovaFormularioDespesaDialog({
                       {cats.map((cat) => (
                         <SelectItem key={cat.id} value={cat.id}>
                           <span className="flex items-center gap-2">
-                            <Tag className="h-3 w-3" />
+                            {cat.nome.toUpperCase().includes('COMBUSTÍVEL') ? (
+                              <Fuel className="h-3 w-3 text-amber-500" />
+                            ) : (
+                              <Tag className="h-3 w-3" />
+                            )}
                             {cat.nome}
                           </span>
                         </SelectItem>
@@ -278,35 +398,225 @@ export function NovaFormularioDespesaDialog({
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="valor">Valor (R$) *</Label>
-              <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="valor"
-                  type="text"
-                  placeholder="0,00"
-                  value={valor}
-                  onChange={(e) => setValor(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
+            {!isCombustivel && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="valor">Valor (R$) *</Label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="valor"
+                      type="text"
+                      placeholder="0,00"
+                      value={valor}
+                      onChange={(e) => setValor(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="dataVencimento">Data Vencimento *</Label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="dataVencimento"
-                  type="date"
-                  value={dataVencimento}
-                  onChange={(e) => setDataVencimento(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dataVencimento">Data Vencimento *</Label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="dataVencimento"
+                      type="date"
+                      value={dataVencimento}
+                      onChange={(e) => setDataVencimento(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
+
+          {/* Campos específicos de abastecimento */}
+          {isCombustivel && (
+            <Card className="border-amber-500/30 bg-amber-500/5">
+              <CardContent className="pt-4 space-y-4">
+                <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 mb-2">
+                  <Fuel className="h-4 w-4" />
+                  <span className="text-sm font-medium">Dados do Abastecimento</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="litros">Litros *</Label>
+                    <div className="relative">
+                      <Fuel className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="litros"
+                        type="text"
+                        placeholder="0,00"
+                        value={litros}
+                        onChange={(e) => setLitros(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="valorUnitario">Valor/Litro (R$) *</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="valorUnitario"
+                        type="text"
+                        placeholder="0,00"
+                        value={valorUnitario}
+                        onChange={(e) => setValorUnitario(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="valorTotal">Valor Total (R$)</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="valorTotal"
+                        type="text"
+                        placeholder="0,00"
+                        value={valor}
+                        onChange={(e) => setValor(e.target.value)}
+                        className="pl-10 bg-muted/50"
+                        readOnly
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="dataAbastecimento">Data Abastecimento *</Label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="dataAbastecimento"
+                        type="date"
+                        value={dataAbastecimento}
+                        onChange={(e) => setDataAbastecimento(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="local">Local *</Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="local"
+                        type="text"
+                        placeholder="SBGR, SBSP..."
+                        value={local}
+                        onChange={(e) => setLocal(e.target.value.toUpperCase())}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="trecho">Trecho *</Label>
+                    <div className="relative">
+                      <Plane className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="trecho"
+                        type="text"
+                        placeholder="SBGR-SBSP"
+                        value={trecho}
+                        onChange={(e) => setTrecho(e.target.value.toUpperCase())}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="abastecedor">Abastecedor</Label>
+                    <Input
+                      id="abastecedor"
+                      type="text"
+                      placeholder="Nome do abastecedor"
+                      value={abastecedor}
+                      onChange={(e) => setAbastecedor(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="comanda">Nº Comanda</Label>
+                    <div className="relative">
+                      <FileText className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="comanda"
+                        type="text"
+                        placeholder="Número da comanda"
+                        value={comanda}
+                        onChange={(e) => setComanda(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="observacao">Observações</Label>
+                  <Textarea
+                    id="observacao"
+                    placeholder="Observações adicionais..."
+                    value={observacao}
+                    onChange={(e) => setObservacao(e.target.value)}
+                    rows={2}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="dataVencimentoAbast">Data Venc. Boleto *</Label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="dataVencimentoAbast"
+                        type="date"
+                        value={dataVencimento}
+                        onChange={(e) => setDataVencimento(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Comanda (arquivo)</Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        onChange={(e) => setComandaFile(e.target.files?.[0] || null)}
+                        className="flex-1"
+                      />
+                      {comandaFile && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setComandaFile(null)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    {comandaFile && (
+                      <p className="text-xs text-muted-foreground">{comandaFile.name}</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Combobox para Fornecedor */}
           <div className="space-y-2">
@@ -392,10 +702,10 @@ export function NovaFormularioDespesaDialog({
             <Label htmlFor="descricao">Descrição *</Label>
             <Textarea
               id="descricao"
-              placeholder="Descrição detalhada da despesa..."
+              placeholder={isCombustivel ? "Descrição do abastecimento..." : "Descrição detalhada da despesa..."}
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
-              rows={3}
+              rows={2}
             />
           </div>
 
@@ -457,7 +767,7 @@ export function NovaFormularioDespesaDialog({
             Cancelar
           </Button>
           <Button onClick={handleSubmit} disabled={submitting}>
-            {submitting ? 'Salvando...' : 'Cadastrar Despesa'}
+            {submitting ? 'Salvando...' : (isCombustivel ? 'Registrar Abastecimento' : 'Cadastrar Despesa')}
           </Button>
         </DialogFooter>
       </DialogContent>
