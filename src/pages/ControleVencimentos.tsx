@@ -676,11 +676,13 @@ export default function ControleVencimentos() {
                                       onClick={() => {
                                         console.log('📖 Abrindo documento:', {
                                           name: vencimento.item,
-                                          url: vencimento.comprovanteUrl
+                                          url: vencimento.comprovanteUrl,
+                                          fileType: vencimento.fileType
                                         });
                                         setDocumentToView({
                                           url: vencimento.comprovanteUrl!,
-                                          name: vencimento.item
+                                          name: vencimento.item,
+                                          fileType: vencimento.fileType || "application/pdf"
                                         });
                                         setViewDocumentOpen(true);
                                       }}
