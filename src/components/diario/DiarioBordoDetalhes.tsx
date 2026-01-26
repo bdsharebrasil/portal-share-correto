@@ -1893,40 +1893,115 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
 
         {/* BANCO DE HORAS */}
         {showHoursBank && <div className="bg-slate-900 border-2 border-purple-500/20 rounded-3xl p-8 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-black text-white uppercase tracking-tight">Banco de Horas - Compartilhamento</h2>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-black text-white uppercase tracking-tight">Banco de Horas</h2>
+              <p className="text-slate-500 text-[9px] uppercase mt-1">Gestão de Empréstimos de Horas</p>
+            </div>
             <button onClick={() => setShowHoursBank(false)} className="text-slate-500 hover:text-white">
               <X size={24} />
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {clients.map(client => <div key={client.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-black text-white">{client.company_name}</h3>
-                <DollarSign className="text-purple-500" size={20} />
-              </div>
+          {/* RESUMO DE TOTAIS */}
+          {loans.length > 0 && (() => {
+            const totalBorrowed = loans.reduce((sum, loan) => sum + (loan.hours_borrowed || 0), 0);
+            const totalPaidBack = loans.reduce((sum, loan) => sum + (loan.hours_paid_back || 0), 0);
+            const totalBalance = totalBorrowed - totalPaidBack;
 
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Cota Mensal:</span>
-                  <span className="text-white font-bold">50.0h</span>
+            const decimalToHM = (decimal: number | null | undefined): string => {
+              if (!decimal || isNaN(decimal)) return '0:00';
+              const totalMinutes = Math.round(Math.abs(decimal) * 60);
+              const h = Math.floor(totalMinutes / 60);
+              const m = totalMinutes % 60;
+              const sign = decimal < 0 ? '-' : '';
+              return `${sign}${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+            };
+
+            return (
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="bg-sky-500/10 border border-sky-500/20 p-4 rounded-2xl">
+                  <p className="text-[9px] font-black text-sky-600 uppercase mb-2">Total Emprestado</p>
+                  <p className="text-xl font-black text-sky-400 font-mono">{decimalToHM(totalBorrowed)}</p>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Utilizado:</span>
-                  <span className="text-emerald-400 font-bold">12.5h</span>
+                <div className="bg-rose-500/10 border border-rose-500/20 p-4 rounded-2xl">
+                  <p className="text-[9px] font-black text-rose-600 uppercase mb-2">Devolvido</p>
+                  <p className="text-xl font-black text-rose-400 font-mono">{decimalToHM(totalPaidBack)}</p>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-500">Banco (Acúmulo):</span>
-                  <span className="text-sky-400 font-bold">+5.0h</span>
-                </div>
-                <div className="h-2 bg-slate-800 rounded-full overflow-hidden mt-4">
-                  <div className="h-full bg-gradient-to-r from-emerald-500 to-sky-500" style={{
-                    width: '25%'
-                  }}></div>
+                <div className={`p-4 rounded-2xl border ${totalBalance > 0 ? 'bg-amber-500/10 border-amber-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
+                  <p className={`text-[9px] font-black uppercase mb-2 ${totalBalance > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>Saldo Pendente</p>
+                  <p className={`text-xl font-black font-mono ${totalBalance > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>{decimalToHM(totalBalance)}</p>
                 </div>
               </div>
-            </div>)}
+            );
+          })()}
+
+          {/* GRID DE CLIENTES */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {loans.length === 0 ? (
+              <div className="lg:col-span-3 text-center py-8 text-slate-500">
+                <p className="text-sm">Nenhum empréstimo registrado para esta aeronave</p>
+              </div>
+            ) : (
+              loans.map(loan => {
+                const borrowerName = loan.borrower_client?.company_name || 'Cliente desconhecido';
+                const hoursBorrowed = loan.hours_borrowed || 0;
+                const hoursPaidBack = loan.hours_paid_back || 0;
+                const balance = hoursBorrowed - hoursPaidBack;
+                const isPending = balance > 0;
+                const percentPaidBack = (hoursPaidBack / (hoursBorrowed || 1)) * 100;
+
+                const decimalToHM = (decimal: number | null | undefined): string => {
+                  if (!decimal || isNaN(decimal)) return '0:00';
+                  const totalMinutes = Math.round(Math.abs(decimal) * 60);
+                  const h = Math.floor(totalMinutes / 60);
+                  const m = totalMinutes % 60;
+                  const sign = decimal < 0 ? '-' : '';
+                  return `${sign}${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+                };
+
+                return (
+                  <div key={loan.id} className="bg-slate-950 border border-slate-800 rounded-2xl p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-black text-white text-sm">{borrowerName}</h3>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-800/50">
+                          <p className="text-[8px] text-slate-500 uppercase font-bold mb-1">Emprestado</p>
+                          <p className="text-sm font-black text-sky-400 font-mono">{decimalToHM(hoursBorrowed)}</p>
+                        </div>
+                        <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-800/50">
+                          <p className="text-[8px] text-slate-500 uppercase font-bold mb-1">Devolvido</p>
+                          <p className="text-sm font-black text-rose-400 font-mono">{decimalToHM(hoursPaidBack)}</p>
+                        </div>
+                      </div>
+
+                      {/* Barra de Progresso */}
+                      <div>
+                        <div className="flex justify-between mb-1">
+                          <p className="text-[8px] text-slate-500 uppercase font-bold">Devolvido</p>
+                          <p className="text-[8px] text-slate-500 font-bold">{percentPaidBack.toFixed(0)}%</p>
+                        </div>
+                        <div className="w-full bg-slate-800/50 rounded-full h-2 overflow-hidden border border-slate-700/30">
+                          <div
+                            className={`h-full transition-all ${percentPaidBack >= 100 ? 'bg-emerald-500' : percentPaidBack >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                            style={{ width: `${Math.min(percentPaidBack, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Saldo */}
+                      <div className={`p-3 rounded-lg border text-center ${isPending ? 'bg-amber-500/10 border-amber-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
+                        <p className={`text-[8px] font-bold uppercase mb-1 ${isPending ? 'text-amber-600' : 'text-emerald-600'}`}>Saldo Pendente</p>
+                        <p className={`text-lg font-black font-mono ${isPending ? 'text-amber-400' : 'text-emerald-400'}`}>{decimalToHM(balance)}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>}
 
