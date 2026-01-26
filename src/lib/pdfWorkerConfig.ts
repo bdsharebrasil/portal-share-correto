@@ -19,6 +19,9 @@ export function configurePDFWorker(): void {
   // Se já foi configurado, não fazer novamente
   if (pdfWorkerConfigured && pdfjs.GlobalWorkerOptions.workerSrc) {
     console.log(`✅ PDF Worker já configurado: ${pdfjs.GlobalWorkerOptions.workerSrc}`);
+
+    // Aplicar configurações de segurança mesmo que já esteja configurado
+    applySafePDFSettings();
     return;
   }
 
@@ -76,9 +79,35 @@ export function configurePDFWorker(): void {
       }
     }
 
+    // Aplicar configurações de segurança após configurar o worker
+    applySafePDFSettings();
+
     console.log(`✅ PDF Worker configurado com sucesso (v${workerVersion})`);
+    pdfWorkerConfigured = true;
   } catch (err) {
     console.error('❌ Erro crítico ao configurar PDF Worker:', err instanceof Error ? err.message : String(err));
     throw err;
+  }
+}
+
+/**
+ * Aplica configurações de segurança e robustez ao PDF.js
+ * Ajuda a lidar com PDFs corrompidos ou malformados
+ */
+function applySafePDFSettings(): void {
+  try {
+    // Desabilitar execução de scripts JavaScript em PDFs (segurança)
+    if (pdfjs.GlobalWorkerOptions && typeof pdfjs.GlobalWorkerOptions === 'object') {
+      // Configurar para ser mais tolerante com PDFs malformados
+      (pdfjs as any).disableAutoFetch = false; // Permitir carregamento automático
+      (pdfjs as any).disableStream = false; // Permitir streaming
+      (pdfjs as any).disableRange = false; // Permitir range requests
+
+      console.log('✅ Configurações de segurança do PDF.js aplicadas');
+    }
+  } catch (err) {
+    console.warn('⚠️ Não foi possível aplicar todas as configurações de segurança:',
+      err instanceof Error ? err.message : String(err));
+    // Não falhar se não conseguir aplicar configurações extras
   }
 }

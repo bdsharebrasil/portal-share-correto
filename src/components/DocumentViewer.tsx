@@ -1,8 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Document, Page } from "react-pdf";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut, AlertTriangle } from "lucide-react";
 import { usePDFWorker } from "@/hooks/use-pdf-worker";
+import { validateAndCheckPDF } from "@/lib/pdfUrlValidator";
+import { pdfLogger } from "@/lib/pdfLogger";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
@@ -21,10 +23,32 @@ export function DocumentViewer({ url, fileName, fileType, onDownload }: Document
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
   const [error, setError] = useState<string | null>(null);
+  const [urlValidationError, setUrlValidationError] = useState<string | null>(null);
+  const [isValidatingUrl, setIsValidatingUrl] = useState<boolean>(false);
+
+  // Validar URL ao montar (apenas para PDFs)
+  useEffect(() => {
+    if (fileType === "application/pdf") {
+      const validateUrl = async () => {
+        setIsValidatingUrl(true);
+        const validation = await validateAndCheckPDF(url);
+        if (!validation.isValid) {
+          const errorMsg = validation.error || 'URL inválida';
+          setUrlValidationError(errorMsg);
+          pdfLogger.logValidationError(url, fileName, errorMsg);
+        }
+        setIsValidatingUrl(false);
+      };
+
+      validateUrl();
+    }
+  }, [url, fileType]);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
     setPageNumber(1);
+    setError(null); // Limpar erro anterior se tinha
+    setUrlValidationError(null); // Limpar erro de validação também
   };
 
   const onDocumentLoadError = (error: any) => {
@@ -39,13 +63,8 @@ export function DocumentViewer({ url, fileName, fileType, onDownload }: Document
       errorDetails = error;
     }
 
-    console.error('Erro ao carregar PDF:', {
-      message: error?.message,
-      code: error?.code,
-      stack: error?.stack,
-      errorType: error?.name,
-      fullError: errorDetails,
-    });
+    // Log do erro
+    pdfLogger.logLoadError(url, fileName, error);
 
     // Mensagem mais específica baseado no tipo de erro
     let errorMessage = 'Não foi possível carregar o PDF.';
@@ -62,6 +81,9 @@ export function DocumentViewer({ url, fileName, fileType, onDownload }: Document
       errorMessage = 'Erro de acesso ao PDF. Tente novamente mais tarde.';
     } else if (errorLower.includes('version') || errorLower.includes('mismatch')) {
       errorMessage = 'Erro de compatibilidade do PDF. Recarregue a página.';
+    } else if (errorLower.includes('invalid pdf') || errorLower.includes('structure')) {
+      errorMessage = 'O PDF está corrompido ou tem uma estrutura inválida. Tente fazer download e verificar o arquivo.';
+      pdfLogger.logStructureError(url, fileName);
     } else if (errorDetails.length > 0) {
       errorMessage = `Erro ao carregar PDF: ${errorDetails.substring(0, 80)}`;
     }
@@ -87,16 +109,58 @@ export function DocumentViewer({ url, fileName, fileType, onDownload }: Document
 
   // Renderizar PDF
   if (fileType === "application/pdf") {
-    // Se houver erro ao configurar worker, mostrar mensagem
+    // Se houver erro de validação de URL, mostrar mensagem antes de tentar carregar
+    if (urlValidationError) {
+      return (
+        <div className="border rounded-lg overflow-auto bg-muted/30 flex items-center justify-center p-8" style={{ minHeight: "70vh" }}>
+          <div className="text-destructive text-center max-w-lg">
+            <p className="font-semibold text-lg mb-2">Não foi possível acessar o arquivo PDF</p>
+            <p className="text-sm text-muted-foreground mb-4">{urlValidationError}</p>
+            <div className="text-xs text-muted-foreground mb-6">
+              <p className="mb-2">Possíveis causas:</p>
+              <ul className="list-disc list-inside text-left inline-block">
+                <li>O arquivo foi excluído ou movido</li>
+                <li>A URL expirou e não é mais válida</li>
+                <li>O servidor está temporariamente indisponível</li>
+              </ul>
+            </div>
+            {onDownload && (
+              <p className="text-xs text-muted-foreground">
+                Você pode tentar fazer o download do arquivo usando o botão abaixo
+              </p>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Se estiver validando a URL, mostrar carregamento
+    if (isValidatingUrl) {
+      return (
+        <div className="border rounded-lg overflow-auto bg-muted/30 flex items-center justify-center p-8" style={{ minHeight: "70vh" }}>
+          <div className="text-muted-foreground text-center">
+            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+            <p>Validando arquivo PDF...</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Se houver erro ao carregar o PDF, mostrar mensagem
     if (error) {
       return (
         <div className="border rounded-lg overflow-auto bg-muted/30 flex items-center justify-center p-8" style={{ minHeight: "70vh" }}>
-          <div className="text-destructive text-center max-w-md">
+          <div className="text-destructive text-center max-w-lg">
             <p className="font-semibold text-lg mb-2">Erro ao Carregar PDF</p>
             <p className="text-sm text-muted-foreground mb-4">{error}</p>
-            <p className="text-xs text-muted-foreground">
-              Você pode tentar fazer o download do arquivo usando o botão abaixo
+            <p className="text-xs text-muted-foreground mb-6">
+              Arquivo: <code className="bg-muted px-2 py-1 rounded">{fileName}</code>
             </p>
+            {onDownload && (
+              <p className="text-xs text-muted-foreground">
+                Você pode tentar fazer o download do arquivo para verificar se não está corrompido
+              </p>
+            )}
           </div>
         </div>
       );

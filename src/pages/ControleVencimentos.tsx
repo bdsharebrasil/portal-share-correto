@@ -18,6 +18,7 @@ import { NovoVencimentoDialog } from "@/components/vencimentos/NovoVencimentoDia
 import { NovoDocumentoDialog } from "@/components/vencimentos/NovoDocumentoDialog";
 import { MaintenanceDashboard } from "@/components/maintenance";
 import { supabase } from "@/integrations/supabase/client";
+import { getFlightDocumentPublicUrl } from "@/lib/storageHelper";
 
 interface Vencimento {
   id: string;
@@ -30,6 +31,7 @@ interface Vencimento {
   status: string;
   tipo: "manutencao" | "documento";
   comprovanteUrl?: string;
+  fileType?: string;
   valorPago?: number;
 }
 
@@ -54,7 +56,7 @@ export default function ControleVencimentos() {
   const [selectedVencimento, setSelectedVencimento] = useState<Vencimento | null>(null);
   const [uploading, setUploading] = useState(false);
   const [viewDocumentOpen, setViewDocumentOpen] = useState(false);
-  const [documentToView, setDocumentToView] = useState<{ url: string; name: string } | null>(null);
+  const [documentToView, setDocumentToView] = useState<{ url: string; name: string; fileType: string } | null>(null);
   const [aeronavesComHoras, setAeronavesComHoras] = useState<Set<string>>(new Set());
 
   const aeronavesAtivas = useMemo(() => {
@@ -117,6 +119,10 @@ export default function ControleVencimentos() {
           const dt = new Date(doc.expiry_date).getTime();
           const diasRestantes = Math.ceil((dt - today) / (1000 * 60 * 60 * 24));
           const aircraft = aeronaves.find(a => a.id === doc.aircraft_id);
+
+          // Converter file_path para URL pública
+          const publicUrl = doc.file_path ? getFlightDocumentPublicUrl(doc.file_path) : undefined;
+
           return {
             id: doc.id,
             item: doc.name,
@@ -127,10 +133,20 @@ export default function ControleVencimentos() {
             diasAlerta: doc.alert_days || 30,
             status: diasRestantes < 0 ? "vencido" : "pendente",
             tipo: "documento" as const,
-            comprovanteUrl: doc.file_path
+            comprovanteUrl: publicUrl,
+            fileType: doc.file_type || "application/pdf"
           };
         });
         setVencimentos([...mapped, ...mappedDocs]);
+
+        console.log('📄 Documentos carregados:', mappedDocs.length);
+        if (mappedDocs.length > 0) {
+          console.log('🔗 Primeiro documento:', {
+            name: mappedDocs[0].item,
+            url: mappedDocs[0].comprovanteUrl,
+            fileType: mappedDocs[0].fileType
+          });
+        }
       } else {
         setVencimentos(mapped);
       }
@@ -542,11 +558,16 @@ export default function ControleVencimentos() {
                           {/* Aircraft Info Section */}
                           <div className="flex-1 flex flex-col justify-center gap-2">
                             <div>
-                              <p className="text-[10px] uppercase tracking-wider text-blue-400 font-bold mb-1">Matrícula</p>
-                              <h2 className="text-3xl font-bold text-white tracking-tight">{grupo.aeronave}</h2>
+                              <p className="text-[10px] uppercase tracking-wider text-blue-400 font-bold mb-1.5">Matrícula da Aeronave</p>
+                              <h2 className="text-4xl font-extrabold text-white tracking-tight font-mono">
+                                {grupo.aeronave && grupo.aeronave !== "-" ? grupo.aeronave : (aeronaveData?.registration || "N/A")}
+                              </h2>
+                              {grupo.aeronave === "-" && aeronaveData?.registration && (
+                                <p className="text-xs text-blue-300 mt-1">Registrado: {aeronaveData.registration}</p>
+                              )}
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-2 gap-3 mt-1">
                               <div>
                                 <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-0.5">Modelo</p>
                                 <p className="text-xs font-medium text-gray-200">{aeronaveData?.model || "-"}</p>
@@ -653,7 +674,16 @@ export default function ControleVencimentos() {
                                       size="sm"
                                       className="bg-slate-700/50 border-white/10 text-gray-300 hover:bg-slate-600 text-[10px] px-2 py-1 h-auto flex-1"
                                       onClick={() => {
-                                        setDocumentToView({ url: vencimento.comprovanteUrl!, name: vencimento.item });
+                                        console.log('📖 Abrindo documento:', {
+                                          name: vencimento.item,
+                                          url: vencimento.comprovanteUrl,
+                                          fileType: vencimento.fileType
+                                        });
+                                        setDocumentToView({
+                                          url: vencimento.comprovanteUrl!,
+                                          name: vencimento.item,
+                                          fileType: vencimento.fileType || "application/pdf"
+                                        });
                                         setViewDocumentOpen(true);
                                       }}
                                     >
@@ -791,7 +821,7 @@ export default function ControleVencimentos() {
                   <DocumentViewer
                     url={documentToView.url}
                     fileName={documentToView.name}
-                    fileType="application/pdf"
+                    fileType={documentToView.fileType || "application/pdf"}
                     onDownload={() => window.open(documentToView.url, "_blank")}
                   />
                 );
