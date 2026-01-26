@@ -33,12 +33,9 @@ export function DocumentViewer({ url, fileName, fileType, onDownload }: Document
         setIsValidatingUrl(true);
         const validation = await validateAndCheckPDF(url);
         if (!validation.isValid) {
-          setUrlValidationError(validation.error || 'URL inválida');
-          console.warn('Validação de PDF falhou:', {
-            url,
-            fileName,
-            validation,
-          });
+          const errorMsg = validation.error || 'URL inválida';
+          setUrlValidationError(errorMsg);
+          pdfLogger.logValidationError(url, fileName, errorMsg);
         }
         setIsValidatingUrl(false);
       };
