@@ -8,24 +8,31 @@ import { Layout } from '../components/layout/Layout';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 
-interface AircraftPartner {
+interface AircraftLoan {
   id: string;
-  aircraft_id: string;
-  partner_id: string;
-  quota_hours: number;
-  balance_hours: number;
-  client?: {
+  lender_client_id: string;
+  borrower_client_id: string;
+  lender_aircraft_id: string;
+  hours_borrowed: number;
+  hours_paid_back: number | null;
+  entry_date: string;
+  status: string;
+  lender_client?: {
+    id: string;
+    company_name: string;
+  };
+  borrower_client?: {
     id: string;
     company_name: string;
   };
 }
 
-interface LogbookEntry {
-  id: string;
-  entry_date: string;
+interface ClientBalance {
   client_id: string;
-  total_time: number;
-  aircraft_id: string;
+  client_name: string;
+  total_borrowed: number;
+  total_paid_back: number;
+  balance: number;
 }
 
 interface Aircraft {
@@ -51,10 +58,7 @@ const decimalToHM = (decimal: number | null | undefined): string => {
 const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
   const [loading, setLoading] = useState(true);
   const [aircraft, setAircraft] = useState<Aircraft | null>(null);
-  const [partners, setPartners] = useState<AircraftPartner[]>([]);
-  const [entries, setEntries] = useState<LogbookEntry[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [loans, setLoans] = useState<AircraftLoan[]>([]);
 
   const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -71,46 +75,26 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
 
       if (acRes.data) setAircraft(acRes.data);
 
-      // Buscar cotistas/shareholders da aeronave (com suas quotas de horas)
-      const shareholdersRes = await supabase
-        .from('aircraft_shareholders')
+      // Buscar empréstimos de aeronaves (aircraft_loans) para esta aeronave
+      const loansRes = await supabase
+        .from('aircraft_loans')
         .select(`
-          id,
-          aircraft_id,
-          client_id,
-          quota_hours,
-          clients:client_id (
+          *,
+          lender_client:lender_client_id (
             id,
-            company_name,
-            partner_name,
-            partner_name2,
-            partner_name3
+            company_name
+          ),
+          borrower_client:borrower_client_id (
+            id,
+            company_name
           )
         `)
-        .eq('aircraft_id', aircraftId);
-
-      // Transformar em formato de partners
-      if (shareholdersRes.data) {
-        const partnerList = shareholdersRes.data.map((sh: any) => ({
-          id: sh.id,
-          aircraft_id: aircraftId,
-          partner_id: sh.client_id,
-          quota_hours: sh.quota_hours || 0,
-          balance_hours: 0,
-          client: sh.clients
-        }));
-        setPartners(partnerList);
-      }
-
-      // Buscar entradas de diário (apenas voos normais, não empréstimos)
-      const entriesRes = await supabase
-        .from('logbook_entries')
-        .select('*')
-        .eq('aircraft_id', aircraftId)
-        .eq('is_loan', false) // Excluir voos de empréstimo
+        .eq('lender_aircraft_id', aircraftId)
         .order('entry_date', { ascending: false });
 
-      if (entriesRes.data) setEntries(entriesRes.data);
+      if (loansRes.data) {
+        setLoans(loansRes.data as AircraftLoan[]);
+      }
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
       toast.error("Erro ao carregar dados do banco de horas");
@@ -123,40 +107,48 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
     fetchData();
   }, [aircraftId]);
 
-  // Calcular consumo mensal por cotista
-  const monthlyUsage = useMemo(() => {
-    const usage: Record<string, number> = {};
-    entries.forEach(e => {
-      if (e.client_id) {
-        const dateObj = new Date(e.entry_date);
-        const month = dateObj.getUTCMonth() + 1;
-        const year = dateObj.getUTCFullYear();
-        
-        if (month === selectedMonth && year === selectedYear) {
-          usage[e.client_id] = (usage[e.client_id] || 0) + (e.total_time || 0);
-        }
-      }
-    });
-    return usage;
-  }, [entries, selectedMonth, selectedYear]);
+  // Calcular saldos por cliente que pegou emprestado (borrower)
+  const clientBalances = useMemo(() => {
+    const balances: Record<string, ClientBalance> = {};
 
-  // Calcular totais
+    loans.forEach(loan => {
+      const borrowerId = loan.borrower_client_id;
+      const borrowerName = loan.borrower_client?.company_name || 'Cliente desconhecido';
+      const hoursBorrowed = loan.hours_borrowed || 0;
+      const hoursPaidBack = loan.hours_paid_back || 0;
+
+      if (!balances[borrowerId]) {
+        balances[borrowerId] = {
+          client_id: borrowerId,
+          client_name: borrowerName,
+          total_borrowed: 0,
+          total_paid_back: 0,
+          balance: 0
+        };
+      }
+
+      balances[borrowerId].total_borrowed += hoursBorrowed;
+      balances[borrowerId].total_paid_back += hoursPaidBack;
+      balances[borrowerId].balance = balances[borrowerId].total_borrowed - balances[borrowerId].total_paid_back;
+    });
+
+    return Object.values(balances);
+  }, [loans]);
+
+  // Calcular totais gerais
   const totals = useMemo(() => {
-    let totalQuota = 0;
-    let totalUsed = 0;
+    let totalBorrowed = 0;
+    let totalPaidBack = 0;
     let totalBalance = 0;
 
-    partners.forEach(p => {
-      const used = monthlyUsage[p.partner_id] || 0;
-      const balance = (p.quota_hours || 0) - used;
-      
-      totalQuota += p.quota_hours || 0;
-      totalUsed += used;
-      totalBalance += balance;
+    clientBalances.forEach(cb => {
+      totalBorrowed += cb.total_borrowed;
+      totalPaidBack += cb.total_paid_back;
+      totalBalance += cb.balance;
     });
 
-    return { totalQuota, totalUsed, totalBalance };
-  }, [partners, monthlyUsage]);
+    return { totalBorrowed, totalPaidBack, totalBalance };
+  }, [clientBalances]);
 
   if (loading) return (
     <Layout>
@@ -182,105 +174,102 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
             </div>
           </div>
 
-          {/* PERÍODO */}
+          {/* INFORMAÇÕES */}
           <div className="flex items-center gap-4 mt-6 p-4 bg-slate-950/40 rounded-2xl border border-slate-800/30 w-fit">
-            <p className="text-[9px] font-black text-slate-600 uppercase">Período:</p>
-            <span className="text-lg font-black text-white uppercase">{MONTHS[selectedMonth - 1]} {selectedYear}</span>
+            <p className="text-[9px] font-black text-slate-600 uppercase">Empréstimos:</p>
+            <span className="text-lg font-black text-white uppercase">{loans.length} registro(s)</span>
           </div>
         </div>
 
         {/* CARDS DE RESUMO */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-gradient-to-br from-sky-500/10 to-cyan-500/10 border border-sky-500/20 p-6 rounded-3xl">
-            <p className="text-[9px] font-black text-sky-600 uppercase tracking-wider mb-3">Cota Total</p>
-            <p className="text-3xl font-black text-sky-500 font-mono">{decimalToHM(totals.totalQuota)}</p>
-            <p className="text-[9px] text-sky-600 font-bold mt-2">Soma de todas as cotas</p>
+            <p className="text-[9px] font-black text-sky-600 uppercase tracking-wider mb-3">Total Emprestado</p>
+            <p className="text-3xl font-black text-sky-500 font-mono">{decimalToHM(totals.totalBorrowed)}</p>
+            <p className="text-[9px] text-sky-600 font-bold mt-2">Horas totais emprestadas</p>
           </div>
 
           <div className="bg-gradient-to-br from-rose-500/10 to-orange-500/10 border border-rose-500/20 p-6 rounded-3xl">
-            <p className="text-[9px] font-black text-rose-600 uppercase tracking-wider mb-3">Consumido</p>
-            <p className="text-3xl font-black text-rose-500 font-mono">{decimalToHM(totals.totalUsed)}</p>
-            <p className="text-[9px] text-rose-600 font-bold mt-2">Horas utilizadas</p>
+            <p className="text-[9px] font-black text-rose-600 uppercase tracking-wider mb-3">Devolvido</p>
+            <p className="text-3xl font-black text-rose-500 font-mono">{decimalToHM(totals.totalPaidBack)}</p>
+            <p className="text-[9px] text-rose-600 font-bold mt-2">Horas devolvidas</p>
           </div>
 
           <div className={`bg-gradient-to-br ${totals.totalBalance >= 0 ? 'from-emerald-500/10 to-green-500/10 border-emerald-500/20' : 'from-rose-500/10 to-orange-500/10 border-rose-500/20'} border p-6 rounded-3xl`}>
             <p className={`text-[9px] font-black uppercase tracking-wider mb-3 ${totals.totalBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-              Saldo Total
+              Saldo Pendente
             </p>
             <p className={`text-3xl font-black font-mono ${totals.totalBalance >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
               {decimalToHM(totals.totalBalance)}
             </p>
             <p className={`text-[9px] font-bold mt-2 ${totals.totalBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {totals.totalBalance >= 0 ? 'Disponível' : 'Em débito'}
+              {totals.totalBalance > 0 ? 'Pendente de devolução' : 'Quitado'}
             </p>
           </div>
         </div>
 
-        {/* GRID DE COTISTAS */}
+        {/* GRID DE CLIENTES COM EMPRÉSTIMOS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {partners.length === 0 ? (
+          {clientBalances.length === 0 ? (
             <div className="lg:col-span-3 flex items-center justify-center h-64 bg-slate-900/40 border border-slate-800/50 rounded-3xl">
-              <p className="text-slate-500 text-center">Nenhum cotista associado a esta aeronave</p>
+              <p className="text-slate-500 text-center">Nenhum empréstimo registrado para esta aeronave</p>
             </div>
           ) : (
-            partners.map(partner => {
-              const clientName = (partner.client as any)?.company_name || 'Cotista';
-              const hoursUsed = monthlyUsage[partner.partner_id] || 0;
-              const finalBalance = (partner.quota_hours || 0) - hoursUsed;
-              const isDeficit = finalBalance < 0;
-              const percentUsed = ((hoursUsed / (partner.quota_hours || 1)) * 100);
+            clientBalances.map(client => {
+              const isPending = client.balance > 0;
+              const percentPaidBack = (client.total_paid_back / (client.total_borrowed || 1)) * 100;
 
               return (
                 <div
-                  key={partner.id}
+                  key={client.client_id}
                   className="bg-gradient-to-br from-slate-900/60 to-slate-950/60 border border-slate-800/50 p-8 rounded-3xl shadow-xl hover:border-slate-700/50 transition-all"
                 >
                   <div className="space-y-6">
-                    {/* NOME DO COTISTA */}
+                    {/* NOME DO CLIENTE */}
                     <div>
-                      <h3 className="text-xl font-black text-white uppercase tracking-tight truncate">{clientName}</h3>
-                      <p className="text-[9px] text-slate-600 font-bold uppercase mt-1">Cotista</p>
+                      <h3 className="text-xl font-black text-white uppercase tracking-tight truncate">{client.client_name}</h3>
+                      <p className="text-[9px] text-slate-600 font-bold uppercase mt-1">Cliente Mutuário</p>
                     </div>
 
                     {/* GRID 2x2 DE MÉTRICAS */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-slate-950/40 p-4 rounded-2xl border border-slate-800/30">
-                        <p className="text-[8px] font-black text-slate-600 uppercase mb-2">Cota</p>
-                        <p className="text-xl font-black text-sky-500 font-mono">{decimalToHM(partner.quota_hours)}</p>
+                        <p className="text-[8px] font-black text-slate-600 uppercase mb-2">Emprestado</p>
+                        <p className="text-xl font-black text-sky-500 font-mono">{decimalToHM(client.total_borrowed)}</p>
                       </div>
                       <div className="bg-slate-950/40 p-4 rounded-2xl border border-slate-800/30">
-                        <p className="text-[8px] font-black text-slate-600 uppercase mb-2">Consumido</p>
-                        <p className="text-xl font-black text-rose-500 font-mono">{decimalToHM(hoursUsed)}</p>
+                        <p className="text-[8px] font-black text-slate-600 uppercase mb-2">Devolvido</p>
+                        <p className="text-xl font-black text-rose-500 font-mono">{decimalToHM(client.total_paid_back)}</p>
                       </div>
                     </div>
 
-                    {/* BARRA DE PROGRESSO */}
+                    {/* BARRA DE PROGRESSO - DEVOLUÇÃO */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <p className="text-[9px] font-black text-slate-600 uppercase">Utilização</p>
-                        <p className="text-[9px] font-black text-slate-500">{percentUsed.toFixed(0)}%</p>
+                        <p className="text-[9px] font-black text-slate-600 uppercase">Devolvido</p>
+                        <p className="text-[9px] font-black text-slate-500">{percentPaidBack.toFixed(0)}%</p>
                       </div>
                       <div className="w-full bg-slate-800/50 rounded-full h-2.5 overflow-hidden border border-slate-700/30">
                         <div
-                          className={`h-full transition-all ${percentUsed > 100 ? 'bg-gradient-to-r from-rose-500 to-red-500' : percentUsed > 80 ? 'bg-gradient-to-r from-orange-500 to-amber-500' : 'bg-gradient-to-r from-emerald-500 to-green-500'}`}
-                          style={{ width: `${Math.min(percentUsed, 100)}%` }}
+                          className={`h-full transition-all ${percentPaidBack >= 100 ? 'bg-gradient-to-r from-emerald-500 to-green-500' : percentPaidBack >= 50 ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-gradient-to-r from-rose-500 to-red-500'}`}
+                          style={{ width: `${Math.min(percentPaidBack, 100)}%` }}
                         />
                       </div>
                     </div>
 
-                    {/* SALDO */}
-                    <div className={`p-5 rounded-2xl border ${isDeficit ? 'bg-rose-500/10 border-rose-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
-                      <p className={`text-[8px] font-black uppercase mb-2 ${isDeficit ? 'text-rose-600' : 'text-emerald-600'}`}>
-                        Saldo Atual
+                    {/* SALDO PENDENTE */}
+                    <div className={`p-5 rounded-2xl border ${isPending ? 'bg-rose-500/10 border-rose-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
+                      <p className={`text-[8px] font-black uppercase mb-2 ${isPending ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        Saldo Pendente
                       </p>
-                      <p className={`text-2xl font-black font-mono ${isDeficit ? 'text-rose-500' : 'text-emerald-500'}`}>
-                        {decimalToHM(finalBalance)}
+                      <p className={`text-2xl font-black font-mono ${isPending ? 'text-rose-500' : 'text-emerald-500'}`}>
+                        {decimalToHM(client.balance)}
                       </p>
                     </div>
 
                     {/* INDICADOR DE STATUS */}
-                    <div className={`p-3 rounded-lg text-center text-[10px] font-black uppercase border ${isDeficit ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : percentUsed > 80 ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
-                      {isDeficit ? '⚠️ Em Débito' : percentUsed > 80 ? '⏰ Limite próximo' : '✓ Normal'}
+                    <div className={`p-3 rounded-lg text-center text-[10px] font-black uppercase border ${isPending ? (percentPaidBack > 0 ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-rose-500/20 text-rose-400 border-rose-500/30') : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
+                      {!isPending ? '✓ Quitado' : percentPaidBack > 0 ? '⏳ Parcialmente Devolvido' : '⏸️ Pendente'}
                     </div>
                   </div>
                 </div>
@@ -289,41 +278,45 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
           )}
         </div>
 
-        {/* TABELA DE HISTÓRICO */}
-        {partners.length > 0 && (
+        {/* TABELA DE HISTÓRICO DE EMPRÉSTIMOS */}
+        {loans.length > 0 && (
           <div className="bg-slate-900/40 border border-slate-800/50 rounded-3xl overflow-hidden shadow-xl">
             <div className="p-6 border-b border-slate-800/50">
-              <h3 className="text-lg font-black text-white uppercase">Resumo por Cotista</h3>
+              <h3 className="text-lg font-black text-white uppercase">Histórico de Empréstimos</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-[11px] font-bold uppercase">
                 <thead>
                   <tr className="bg-slate-800/50 text-slate-400">
-                    <th className="px-6 py-4 text-left">Cotista</th>
-                    <th className="px-6 py-4 text-center">Cota</th>
-                    <th className="px-6 py-4 text-center">Consumido</th>
+                    <th className="px-6 py-4 text-left">Data</th>
+                    <th className="px-6 py-4 text-left">Cliente Mutuário</th>
+                    <th className="px-6 py-4 text-center">Emprestado</th>
+                    <th className="px-6 py-4 text-center">Devolvido</th>
                     <th className="px-6 py-4 text-center">Saldo</th>
                     <th className="px-6 py-4 text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/30">
-                  {partners.map(partner => {
-                    const clientName = (partner.client as any)?.company_name || 'Cotista';
-                    const hoursUsed = monthlyUsage[partner.partner_id] || 0;
-                    const balance = (partner.quota_hours || 0) - hoursUsed;
-                    const isDeficit = balance < 0;
+                  {loans.map(loan => {
+                    const borrowerName = loan.borrower_client?.company_name || 'Cliente desconhecido';
+                    const hoursBorrowed = loan.hours_borrowed || 0;
+                    const hoursPaidBack = loan.hours_paid_back || 0;
+                    const balance = hoursBorrowed - hoursPaidBack;
+                    const isPending = balance > 0;
+                    const formattedDate = new Date(loan.entry_date).toLocaleDateString('pt-BR');
 
                     return (
-                      <tr key={partner.id} className="hover:bg-slate-800/20 transition-colors">
-                        <td className="px-6 py-4 text-slate-300">{clientName}</td>
-                        <td className="px-6 py-4 text-center text-sky-500 font-mono">{decimalToHM(partner.quota_hours)}</td>
-                        <td className="px-6 py-4 text-center text-rose-500 font-mono">{decimalToHM(hoursUsed)}</td>
-                        <td className={`px-6 py-4 text-center font-black font-mono ${isDeficit ? 'text-rose-500' : 'text-emerald-500'}`}>
+                      <tr key={loan.id} className="hover:bg-slate-800/20 transition-colors">
+                        <td className="px-6 py-4 text-slate-300">{formattedDate}</td>
+                        <td className="px-6 py-4 text-slate-300">{borrowerName}</td>
+                        <td className="px-6 py-4 text-center text-sky-500 font-mono">{decimalToHM(hoursBorrowed)}</td>
+                        <td className="px-6 py-4 text-center text-rose-500 font-mono">{decimalToHM(hoursPaidBack)}</td>
+                        <td className={`px-6 py-4 text-center font-black font-mono ${isPending ? 'text-amber-500' : 'text-emerald-500'}`}>
                           {decimalToHM(balance)}
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg text-[9px] font-black uppercase border ${isDeficit ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
-                            {isDeficit ? '⚠️ Débito' : '✓ OK'}
+                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg text-[9px] font-black uppercase border ${isPending ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
+                            {isPending ? '⏳ Pendente' : '✓ Quitado'}
                           </span>
                         </td>
                       </tr>
