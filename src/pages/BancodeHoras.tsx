@@ -278,41 +278,45 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
           )}
         </div>
 
-        {/* TABELA DE HISTÓRICO */}
-        {partners.length > 0 && (
+        {/* TABELA DE HISTÓRICO DE EMPRÉSTIMOS */}
+        {loans.length > 0 && (
           <div className="bg-slate-900/40 border border-slate-800/50 rounded-3xl overflow-hidden shadow-xl">
             <div className="p-6 border-b border-slate-800/50">
-              <h3 className="text-lg font-black text-white uppercase">Resumo por Cotista</h3>
+              <h3 className="text-lg font-black text-white uppercase">Histórico de Empréstimos</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-[11px] font-bold uppercase">
                 <thead>
                   <tr className="bg-slate-800/50 text-slate-400">
-                    <th className="px-6 py-4 text-left">Cotista</th>
-                    <th className="px-6 py-4 text-center">Cota</th>
-                    <th className="px-6 py-4 text-center">Consumido</th>
+                    <th className="px-6 py-4 text-left">Data</th>
+                    <th className="px-6 py-4 text-left">Cliente Mutuário</th>
+                    <th className="px-6 py-4 text-center">Emprestado</th>
+                    <th className="px-6 py-4 text-center">Devolvido</th>
                     <th className="px-6 py-4 text-center">Saldo</th>
                     <th className="px-6 py-4 text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/30">
-                  {partners.map(partner => {
-                    const clientName = (partner.client as any)?.company_name || 'Cotista';
-                    const hoursUsed = monthlyUsage[partner.partner_id] || 0;
-                    const balance = (partner.quota_hours || 0) - hoursUsed;
-                    const isDeficit = balance < 0;
+                  {loans.map(loan => {
+                    const borrowerName = loan.borrower_client?.company_name || 'Cliente desconhecido';
+                    const hoursBorrowed = loan.hours_borrowed || 0;
+                    const hoursPaidBack = loan.hours_paid_back || 0;
+                    const balance = hoursBorrowed - hoursPaidBack;
+                    const isPending = balance > 0;
+                    const formattedDate = new Date(loan.entry_date).toLocaleDateString('pt-BR');
 
                     return (
-                      <tr key={partner.id} className="hover:bg-slate-800/20 transition-colors">
-                        <td className="px-6 py-4 text-slate-300">{clientName}</td>
-                        <td className="px-6 py-4 text-center text-sky-500 font-mono">{decimalToHM(partner.quota_hours)}</td>
-                        <td className="px-6 py-4 text-center text-rose-500 font-mono">{decimalToHM(hoursUsed)}</td>
-                        <td className={`px-6 py-4 text-center font-black font-mono ${isDeficit ? 'text-rose-500' : 'text-emerald-500'}`}>
+                      <tr key={loan.id} className="hover:bg-slate-800/20 transition-colors">
+                        <td className="px-6 py-4 text-slate-300">{formattedDate}</td>
+                        <td className="px-6 py-4 text-slate-300">{borrowerName}</td>
+                        <td className="px-6 py-4 text-center text-sky-500 font-mono">{decimalToHM(hoursBorrowed)}</td>
+                        <td className="px-6 py-4 text-center text-rose-500 font-mono">{decimalToHM(hoursPaidBack)}</td>
+                        <td className={`px-6 py-4 text-center font-black font-mono ${isPending ? 'text-amber-500' : 'text-emerald-500'}`}>
                           {decimalToHM(balance)}
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg text-[9px] font-black uppercase border ${isDeficit ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
-                            {isDeficit ? '⚠️ Débito' : '✓ OK'}
+                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg text-[9px] font-black uppercase border ${isPending ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
+                            {isPending ? '⏳ Pendente' : '✓ Quitado'}
                           </span>
                         </td>
                       </tr>
