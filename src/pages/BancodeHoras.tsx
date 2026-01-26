@@ -174,10 +174,10 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
             </div>
           </div>
 
-          {/* PERÍODO */}
+          {/* INFORMAÇÕES */}
           <div className="flex items-center gap-4 mt-6 p-4 bg-slate-950/40 rounded-2xl border border-slate-800/30 w-fit">
-            <p className="text-[9px] font-black text-slate-600 uppercase">Período:</p>
-            <span className="text-lg font-black text-white uppercase">{MONTHS[selectedMonth - 1]} {selectedYear}</span>
+            <p className="text-[9px] font-black text-slate-600 uppercase">Empréstimos:</p>
+            <span className="text-lg font-black text-white uppercase">{loans.length} registro(s)</span>
           </div>
         </div>
 
