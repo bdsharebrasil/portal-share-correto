@@ -30,9 +30,14 @@ export function DocumentViewer({ url, fileName, fileType, onDownload }: Document
     if (fileType === "application/pdf") {
       const validateUrl = async () => {
         setIsValidatingUrl(true);
-        const validation = await validatePDFUrl(url);
-        if (!validation.valid) {
+        const validation = await validateAndCheckPDF(url);
+        if (!validation.isValid) {
           setUrlValidationError(validation.error || 'URL inválida');
+          console.warn('Validação de PDF falhou:', {
+            url,
+            fileName,
+            validation,
+          });
         }
         setIsValidatingUrl(false);
       };
