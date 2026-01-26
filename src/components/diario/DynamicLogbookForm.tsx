@@ -143,9 +143,10 @@ export function DynamicLogbookForm({
     },
   });
 
-  // Clientes que NÃO são cotistas desta aeronave (para selecionar quem está pegando emprestado)
+  // Para empréstimo, mostrar todos os clientes (exceto quem está emprestando)
+  // O cliente que está pegando emprestado pode ser qualquer cliente, inclusive os cotistas
   const borrowerClients = allClients.filter(
-    (c) => !clients.some((ac: any) => ac.client_id === c.id)
+    (c) => c.id !== selectedClient // Excluir apenas quem está emprestando
   );
 
   // Buscar dados do logbook_month para obter base_aerodrome, daily_rate e has_daily_rate
