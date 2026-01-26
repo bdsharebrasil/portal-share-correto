@@ -66,15 +66,8 @@ export function DocumentViewer({ url, fileName, fileType, onDownload }: Document
       errorDetails = error;
     }
 
-    console.error('Erro ao carregar PDF:', {
-      message: error?.message,
-      code: error?.code,
-      stack: error?.stack,
-      errorType: error?.name,
-      fullError: errorDetails,
-      url: url,
-      fileName: fileName,
-    });
+    // Log do erro
+    pdfLogger.logLoadError(url, fileName, error);
 
     // Mensagem mais específica baseado no tipo de erro
     let errorMessage = 'Não foi possível carregar o PDF.';
@@ -93,6 +86,7 @@ export function DocumentViewer({ url, fileName, fileType, onDownload }: Document
       errorMessage = 'Erro de compatibilidade do PDF. Recarregue a página.';
     } else if (errorLower.includes('invalid pdf') || errorLower.includes('structure')) {
       errorMessage = 'O PDF está corrompido ou tem uma estrutura inválida. Tente fazer download e verificar o arquivo.';
+      pdfLogger.logStructureError(url, fileName);
     } else if (errorDetails.length > 0) {
       errorMessage = `Erro ao carregar PDF: ${errorDetails.substring(0, 80)}`;
     }
