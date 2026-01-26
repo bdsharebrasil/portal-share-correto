@@ -208,71 +208,68 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
           </div>
         </div>
 
-        {/* GRID DE COTISTAS */}
+        {/* GRID DE CLIENTES COM EMPRÉSTIMOS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {partners.length === 0 ? (
+          {clientBalances.length === 0 ? (
             <div className="lg:col-span-3 flex items-center justify-center h-64 bg-slate-900/40 border border-slate-800/50 rounded-3xl">
-              <p className="text-slate-500 text-center">Nenhum cotista associado a esta aeronave</p>
+              <p className="text-slate-500 text-center">Nenhum empréstimo registrado para esta aeronave</p>
             </div>
           ) : (
-            partners.map(partner => {
-              const clientName = (partner.client as any)?.company_name || 'Cotista';
-              const hoursUsed = monthlyUsage[partner.partner_id] || 0;
-              const finalBalance = (partner.quota_hours || 0) - hoursUsed;
-              const isDeficit = finalBalance < 0;
-              const percentUsed = ((hoursUsed / (partner.quota_hours || 1)) * 100);
+            clientBalances.map(client => {
+              const isPending = client.balance > 0;
+              const percentPaidBack = (client.total_paid_back / (client.total_borrowed || 1)) * 100;
 
               return (
                 <div
-                  key={partner.id}
+                  key={client.client_id}
                   className="bg-gradient-to-br from-slate-900/60 to-slate-950/60 border border-slate-800/50 p-8 rounded-3xl shadow-xl hover:border-slate-700/50 transition-all"
                 >
                   <div className="space-y-6">
-                    {/* NOME DO COTISTA */}
+                    {/* NOME DO CLIENTE */}
                     <div>
-                      <h3 className="text-xl font-black text-white uppercase tracking-tight truncate">{clientName}</h3>
-                      <p className="text-[9px] text-slate-600 font-bold uppercase mt-1">Cotista</p>
+                      <h3 className="text-xl font-black text-white uppercase tracking-tight truncate">{client.client_name}</h3>
+                      <p className="text-[9px] text-slate-600 font-bold uppercase mt-1">Cliente Mutuário</p>
                     </div>
 
                     {/* GRID 2x2 DE MÉTRICAS */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="bg-slate-950/40 p-4 rounded-2xl border border-slate-800/30">
-                        <p className="text-[8px] font-black text-slate-600 uppercase mb-2">Cota</p>
-                        <p className="text-xl font-black text-sky-500 font-mono">{decimalToHM(partner.quota_hours)}</p>
+                        <p className="text-[8px] font-black text-slate-600 uppercase mb-2">Emprestado</p>
+                        <p className="text-xl font-black text-sky-500 font-mono">{decimalToHM(client.total_borrowed)}</p>
                       </div>
                       <div className="bg-slate-950/40 p-4 rounded-2xl border border-slate-800/30">
-                        <p className="text-[8px] font-black text-slate-600 uppercase mb-2">Consumido</p>
-                        <p className="text-xl font-black text-rose-500 font-mono">{decimalToHM(hoursUsed)}</p>
+                        <p className="text-[8px] font-black text-slate-600 uppercase mb-2">Devolvido</p>
+                        <p className="text-xl font-black text-rose-500 font-mono">{decimalToHM(client.total_paid_back)}</p>
                       </div>
                     </div>
 
-                    {/* BARRA DE PROGRESSO */}
+                    {/* BARRA DE PROGRESSO - DEVOLUÇÃO */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <p className="text-[9px] font-black text-slate-600 uppercase">Utilização</p>
-                        <p className="text-[9px] font-black text-slate-500">{percentUsed.toFixed(0)}%</p>
+                        <p className="text-[9px] font-black text-slate-600 uppercase">Devolvido</p>
+                        <p className="text-[9px] font-black text-slate-500">{percentPaidBack.toFixed(0)}%</p>
                       </div>
                       <div className="w-full bg-slate-800/50 rounded-full h-2.5 overflow-hidden border border-slate-700/30">
                         <div
-                          className={`h-full transition-all ${percentUsed > 100 ? 'bg-gradient-to-r from-rose-500 to-red-500' : percentUsed > 80 ? 'bg-gradient-to-r from-orange-500 to-amber-500' : 'bg-gradient-to-r from-emerald-500 to-green-500'}`}
-                          style={{ width: `${Math.min(percentUsed, 100)}%` }}
+                          className={`h-full transition-all ${percentPaidBack >= 100 ? 'bg-gradient-to-r from-emerald-500 to-green-500' : percentPaidBack >= 50 ? 'bg-gradient-to-r from-amber-500 to-orange-500' : 'bg-gradient-to-r from-rose-500 to-red-500'}`}
+                          style={{ width: `${Math.min(percentPaidBack, 100)}%` }}
                         />
                       </div>
                     </div>
 
-                    {/* SALDO */}
-                    <div className={`p-5 rounded-2xl border ${isDeficit ? 'bg-rose-500/10 border-rose-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
-                      <p className={`text-[8px] font-black uppercase mb-2 ${isDeficit ? 'text-rose-600' : 'text-emerald-600'}`}>
-                        Saldo Atual
+                    {/* SALDO PENDENTE */}
+                    <div className={`p-5 rounded-2xl border ${isPending ? 'bg-rose-500/10 border-rose-500/20' : 'bg-emerald-500/10 border-emerald-500/20'}`}>
+                      <p className={`text-[8px] font-black uppercase mb-2 ${isPending ? 'text-rose-600' : 'text-emerald-600'}`}>
+                        Saldo Pendente
                       </p>
-                      <p className={`text-2xl font-black font-mono ${isDeficit ? 'text-rose-500' : 'text-emerald-500'}`}>
-                        {decimalToHM(finalBalance)}
+                      <p className={`text-2xl font-black font-mono ${isPending ? 'text-rose-500' : 'text-emerald-500'}`}>
+                        {decimalToHM(client.balance)}
                       </p>
                     </div>
 
                     {/* INDICADOR DE STATUS */}
-                    <div className={`p-3 rounded-lg text-center text-[10px] font-black uppercase border ${isDeficit ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' : percentUsed > 80 ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
-                      {isDeficit ? '⚠️ Em Débito' : percentUsed > 80 ? '⏰ Limite próximo' : '✓ Normal'}
+                    <div className={`p-3 rounded-lg text-center text-[10px] font-black uppercase border ${isPending ? (percentPaidBack > 0 ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-rose-500/20 text-rose-400 border-rose-500/30') : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
+                      {!isPending ? '✓ Quitado' : percentPaidBack > 0 ? '⏳ Parcialmente Devolvido' : '⏸️ Pendente'}
                     </div>
                   </div>
                 </div>
