@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
 import { Document, Page } from "react-pdf";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut, AlertTriangle } from "lucide-react";
 import { usePDFWorker } from "@/hooks/use-pdf-worker";
+import { validateAndCheckPDF } from "@/lib/pdfUrlValidator";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
@@ -11,55 +12,6 @@ interface DocumentViewerProps {
   fileName: string;
   fileType: string;
   onDownload?: () => void;
-}
-
-// Validar se a URL retorna um PDF válido
-async function validatePDFUrl(url: string): Promise<{ valid: boolean; error?: string }> {
-  try {
-    const response = await fetch(url, { method: 'HEAD' });
-
-    if (!response.ok) {
-      return {
-        valid: false,
-        error: `HTTP ${response.status}: ${response.statusText}`
-      };
-    }
-
-    const contentType = response.headers.get('content-type');
-    if (!contentType?.includes('application/pdf')) {
-      return {
-        valid: false,
-        error: `Tipo de conteúdo inválido: ${contentType || 'desconhecido'}. Esperado: application/pdf`
-      };
-    }
-
-    const contentLength = response.headers.get('content-length');
-    if (contentLength && parseInt(contentLength) < 100) {
-      return {
-        valid: false,
-        error: 'Arquivo muito pequeno (provavelmente não é um PDF válido)'
-      };
-    }
-
-    return { valid: true };
-  } catch (err) {
-    // Se HEAD falhar, pode ser um problema CORS, tentar com GET
-    try {
-      const response = await fetch(url, { method: 'GET', headers: { 'Range': 'bytes=0-100' } });
-      if (!response.ok) {
-        return {
-          valid: false,
-          error: `Não conseguiu acessar o arquivo (HTTP ${response.status})`
-        };
-      }
-      return { valid: true };
-    } catch {
-      return {
-        valid: false,
-        error: 'Não foi possível validar o arquivo. Verifique se a URL é acessível.'
-      };
-    }
-  }
 }
 
 export function DocumentViewer({ url, fileName, fileType, onDownload }: DocumentViewerProps) {
