@@ -58,10 +58,7 @@ const decimalToHM = (decimal: number | null | undefined): string => {
 const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
   const [loading, setLoading] = useState(true);
   const [aircraft, setAircraft] = useState<Aircraft | null>(null);
-  const [partners, setPartners] = useState<AircraftPartner[]>([]);
-  const [entries, setEntries] = useState<LogbookEntry[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [loans, setLoans] = useState<AircraftLoan[]>([]);
 
   const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -78,46 +75,26 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
 
       if (acRes.data) setAircraft(acRes.data);
 
-      // Buscar cotistas/shareholders da aeronave (com suas quotas de horas)
-      const shareholdersRes = await supabase
-        .from('aircraft_shareholders')
+      // Buscar empréstimos de aeronaves (aircraft_loans) para esta aeronave
+      const loansRes = await supabase
+        .from('aircraft_loans')
         .select(`
-          id,
-          aircraft_id,
-          client_id,
-          quota_hours,
-          clients:client_id (
+          *,
+          lender_client:lender_client_id (
             id,
-            company_name,
-            partner_name,
-            partner_name2,
-            partner_name3
+            company_name
+          ),
+          borrower_client:borrower_client_id (
+            id,
+            company_name
           )
         `)
-        .eq('aircraft_id', aircraftId);
-
-      // Transformar em formato de partners
-      if (shareholdersRes.data) {
-        const partnerList = shareholdersRes.data.map((sh: any) => ({
-          id: sh.id,
-          aircraft_id: aircraftId,
-          partner_id: sh.client_id,
-          quota_hours: sh.quota_hours || 0,
-          balance_hours: 0,
-          client: sh.clients
-        }));
-        setPartners(partnerList);
-      }
-
-      // Buscar entradas de diário (apenas voos normais, não empréstimos)
-      const entriesRes = await supabase
-        .from('logbook_entries')
-        .select('*')
-        .eq('aircraft_id', aircraftId)
-        .eq('is_loan', false) // Excluir voos de empréstimo
+        .eq('lender_aircraft_id', aircraftId)
         .order('entry_date', { ascending: false });
 
-      if (entriesRes.data) setEntries(entriesRes.data);
+      if (loansRes.data) {
+        setLoans(loansRes.data as AircraftLoan[]);
+      }
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
       toast.error("Erro ao carregar dados do banco de horas");
