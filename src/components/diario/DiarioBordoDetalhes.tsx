@@ -355,6 +355,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   const [showCloseMonthDialog, setShowCloseMonthDialog] = useState(false);
   const [previousMonthData, setPreviousMonthData] = useState<any>(null);
 
+  // Estado para Banco de Horas (empréstimos)
+  const [loans, setLoans] = useState<any[]>([]);
+
   // Estado para Situação Técnica da Aeronave
   const [technicalStatus, setTechnicalStatus] = useState({
     last_maintenance_type: '',
