@@ -528,7 +528,18 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         supabase.from('clients').select('id, company_name, cnpj, partner_name, partner_name2, partner_name3, client_aircraft(aircraft_id)').order('company_name'),
         supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('entry_date', { ascending: false }),
         supabase.from('logbook_months').select('month, year').eq('aircraft_id', aircraftId).eq('is_closed', false).order('year', { ascending: false }).order('month', { ascending: false }),
-        supabase.from('aircraft_partners').select('*, clients(id, company_name)').eq('aircraft_id', aircraftId)
+        supabase.from('aircraft_partners').select('*, clients(id, company_name)').eq('aircraft_id', aircraftId),
+        supabase.from('aircraft_loans').select(`
+          *,
+          lender_client:lender_client_id (
+            id,
+            company_name
+          ),
+          borrower_client:borrower_client_id (
+            id,
+            company_name
+          )
+        `).eq('lender_aircraft_id', aircraftId).order('entry_date', { ascending: false })
       ]);
 
       if (acRes.data) {
