@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut, AlertTriangle } from "lucide-react";
 import { usePDFWorker } from "@/hooks/use-pdf-worker";
 import { validateAndCheckPDF } from "@/lib/pdfUrlValidator";
+import { pdfLogger } from "@/lib/pdfLogger";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
