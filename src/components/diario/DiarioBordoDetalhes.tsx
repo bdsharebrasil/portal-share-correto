@@ -553,6 +553,25 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       if (monthsRes.data) setAvailableMonths(monthsRes.data || []);
       if (partnersRes.data) setPartners(partnersRes.data || []);
 
+      // Carregar empréstimos de horas
+      const loansRes = await supabase
+        .from('aircraft_loans')
+        .select(`
+          *,
+          lender_client:lender_client_id (
+            id,
+            company_name
+          ),
+          borrower_client:borrower_client_id (
+            id,
+            company_name
+          )
+        `)
+        .eq('lender_aircraft_id', aircraftId)
+        .order('entry_date', { ascending: false });
+
+      if (loansRes.data) setLoans(loansRes.data || []);
+
         // Buscar logbook_months para o período selecionado
         let { data: monthData } = await supabase
           .from('logbook_months')
