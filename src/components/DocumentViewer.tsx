@@ -116,14 +116,14 @@ export function DocumentViewer({ url, fileName, fileType, onDownload }: Document
           <div className="text-destructive text-center max-w-lg">
             <p className="font-semibold text-lg mb-2">Não foi possível acessar o arquivo PDF</p>
             <p className="text-sm text-muted-foreground mb-4">{urlValidationError}</p>
-            <p className="text-xs text-muted-foreground mb-6">
-              Possíveis causas:
-              <ul className="list-disc list-inside mt-2 text-left inline-block">
+            <div className="text-xs text-muted-foreground mb-6">
+              <p className="mb-2">Possíveis causas:</p>
+              <ul className="list-disc list-inside text-left inline-block">
                 <li>O arquivo foi excluído ou movido</li>
                 <li>A URL expirou e não é mais válida</li>
                 <li>O servidor está temporariamente indisponível</li>
               </ul>
-            </p>
+            </div>
             {onDownload && (
               <p className="text-xs text-muted-foreground">
                 Você pode tentar fazer o download do arquivo usando o botão abaixo
