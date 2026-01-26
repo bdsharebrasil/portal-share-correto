@@ -118,6 +118,10 @@ export default function ControleVencimentos() {
           const dt = new Date(doc.expiry_date).getTime();
           const diasRestantes = Math.ceil((dt - today) / (1000 * 60 * 60 * 24));
           const aircraft = aeronaves.find(a => a.id === doc.aircraft_id);
+
+          // Converter file_path para URL pública
+          const publicUrl = doc.file_path ? getFlightDocumentPublicUrl(doc.file_path) : undefined;
+
           return {
             id: doc.id,
             item: doc.name,
@@ -128,10 +132,15 @@ export default function ControleVencimentos() {
             diasAlerta: doc.alert_days || 30,
             status: diasRestantes < 0 ? "vencido" : "pendente",
             tipo: "documento" as const,
-            comprovanteUrl: doc.file_path
+            comprovanteUrl: publicUrl
           };
         });
         setVencimentos([...mapped, ...mappedDocs]);
+
+        console.log('📄 Documentos carregados:', mappedDocs.length);
+        if (mappedDocs.length > 0) {
+          console.log('🔗 URL do primeiro documento:', mappedDocs[0].comprovanteUrl);
+        }
       } else {
         setVencimentos(mapped);
       }
