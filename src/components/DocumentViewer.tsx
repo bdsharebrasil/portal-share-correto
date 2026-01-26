@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Document, Page } from "react-pdf";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Download, ZoomIn, ZoomOut } from "lucide-react";
@@ -13,6 +13,55 @@ interface DocumentViewerProps {
   onDownload?: () => void;
 }
 
+// Validar se a URL retorna um PDF válido
+async function validatePDFUrl(url: string): Promise<{ valid: boolean; error?: string }> {
+  try {
+    const response = await fetch(url, { method: 'HEAD' });
+
+    if (!response.ok) {
+      return {
+        valid: false,
+        error: `HTTP ${response.status}: ${response.statusText}`
+      };
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType?.includes('application/pdf')) {
+      return {
+        valid: false,
+        error: `Tipo de conteúdo inválido: ${contentType || 'desconhecido'}. Esperado: application/pdf`
+      };
+    }
+
+    const contentLength = response.headers.get('content-length');
+    if (contentLength && parseInt(contentLength) < 100) {
+      return {
+        valid: false,
+        error: 'Arquivo muito pequeno (provavelmente não é um PDF válido)'
+      };
+    }
+
+    return { valid: true };
+  } catch (err) {
+    // Se HEAD falhar, pode ser um problema CORS, tentar com GET
+    try {
+      const response = await fetch(url, { method: 'GET', headers: { 'Range': 'bytes=0-100' } });
+      if (!response.ok) {
+        return {
+          valid: false,
+          error: `Não conseguiu acessar o arquivo (HTTP ${response.status})`
+        };
+      }
+      return { valid: true };
+    } catch {
+      return {
+        valid: false,
+        error: 'Não foi possível validar o arquivo. Verifique se a URL é acessível.'
+      };
+    }
+  }
+}
+
 export function DocumentViewer({ url, fileName, fileType, onDownload }: DocumentViewerProps) {
   // Configurar PDF worker (apenas uma vez, mesmo que múltiplos DocumentViewers montem)
   usePDFWorker();
@@ -21,6 +70,8 @@ export function DocumentViewer({ url, fileName, fileType, onDownload }: Document
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [scale, setScale] = useState<number>(1.0);
   const [error, setError] = useState<string | null>(null);
+  const [urlValidationError, setUrlValidationError] = useState<string | null>(null);
+  const [isValidatingUrl, setIsValidatingUrl] = useState<boolean>(false);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
