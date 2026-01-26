@@ -184,26 +184,26 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
         {/* CARDS DE RESUMO */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-gradient-to-br from-sky-500/10 to-cyan-500/10 border border-sky-500/20 p-6 rounded-3xl">
-            <p className="text-[9px] font-black text-sky-600 uppercase tracking-wider mb-3">Cota Total</p>
-            <p className="text-3xl font-black text-sky-500 font-mono">{decimalToHM(totals.totalQuota)}</p>
-            <p className="text-[9px] text-sky-600 font-bold mt-2">Soma de todas as cotas</p>
+            <p className="text-[9px] font-black text-sky-600 uppercase tracking-wider mb-3">Total Emprestado</p>
+            <p className="text-3xl font-black text-sky-500 font-mono">{decimalToHM(totals.totalBorrowed)}</p>
+            <p className="text-[9px] text-sky-600 font-bold mt-2">Horas totais emprestadas</p>
           </div>
 
           <div className="bg-gradient-to-br from-rose-500/10 to-orange-500/10 border border-rose-500/20 p-6 rounded-3xl">
-            <p className="text-[9px] font-black text-rose-600 uppercase tracking-wider mb-3">Consumido</p>
-            <p className="text-3xl font-black text-rose-500 font-mono">{decimalToHM(totals.totalUsed)}</p>
-            <p className="text-[9px] text-rose-600 font-bold mt-2">Horas utilizadas</p>
+            <p className="text-[9px] font-black text-rose-600 uppercase tracking-wider mb-3">Devolvido</p>
+            <p className="text-3xl font-black text-rose-500 font-mono">{decimalToHM(totals.totalPaidBack)}</p>
+            <p className="text-[9px] text-rose-600 font-bold mt-2">Horas devolvidas</p>
           </div>
 
           <div className={`bg-gradient-to-br ${totals.totalBalance >= 0 ? 'from-emerald-500/10 to-green-500/10 border-emerald-500/20' : 'from-rose-500/10 to-orange-500/10 border-rose-500/20'} border p-6 rounded-3xl`}>
             <p className={`text-[9px] font-black uppercase tracking-wider mb-3 ${totals.totalBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-              Saldo Total
+              Saldo Pendente
             </p>
             <p className={`text-3xl font-black font-mono ${totals.totalBalance >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
               {decimalToHM(totals.totalBalance)}
             </p>
             <p className={`text-[9px] font-bold mt-2 ${totals.totalBalance >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-              {totals.totalBalance >= 0 ? 'Disponível' : 'Em débito'}
+              {totals.totalBalance > 0 ? 'Pendente de devolução' : 'Quitado'}
             </p>
           </div>
         </div>
