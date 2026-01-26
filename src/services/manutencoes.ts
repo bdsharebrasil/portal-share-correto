@@ -23,24 +23,36 @@ export interface ManutencaoWithAircraft extends ManutencaoRow {
 }
 
 export const fetchAircraftMap = async (): Promise<Record<string, string>> => {
-  // Try primary table name "aeronave", fallback to "aircraft"
+  // Try primary table name "aircraft" first (mais comum), fallback to "aeronave"
   const maps: Record<string, string> = {};
 
   const tryFetch = async (table: any) => {
-    const { data, error } = await supabase.from(table as any).select("id, registration");
-    if (!error && data) {
-      for (const row of data as any[]) {
-        if (row.id && row.registration) maps[row.id] = row.registration as string;
+    try {
+      const { data, error } = await supabase.from(table as any).select("id, registration");
+      if (!error && data && data.length > 0) {
+        for (const row of data as any[]) {
+          if (row.id && row.registration) {
+            maps[row.id] = row.registration as string;
+          }
+        }
+        console.log(`✅ Carregadas ${data.length} aeronaves da tabela "${table}"`);
+        return true;
       }
-      return true;
+      return false;
+    } catch (err) {
+      console.error(`Erro ao buscar aeronaves da tabela "${table}":`, err);
+      return false;
     }
-    return false;
   };
 
-  const ok = await tryFetch("aeronave");
+  // Tentar "aircraft" primeiro
+  const ok = await tryFetch("aircraft");
   if (!ok) {
-    await tryFetch("aircraft");
+    // Fallback para "aeronave"
+    await tryFetch("aeronave");
   }
+
+  console.log(`Total de aeronaves carregadas: ${Object.keys(maps).length}`);
   return maps;
 };
 
