@@ -821,7 +821,7 @@ export default function ControleVencimentos() {
                   <DocumentViewer
                     url={documentToView.url}
                     fileName={documentToView.name}
-                    fileType="application/pdf"
+                    fileType={documentToView.fileType || "application/pdf"}
                     onDownload={() => window.open(documentToView.url, "_blank")}
                   />
                 );
