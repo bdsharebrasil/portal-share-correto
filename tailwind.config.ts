@@ -145,6 +145,46 @@ export default {
 					to: {
 						strokeDashoffset: '-1000'
 					}
+				},
+				'slide-in-from-top': {
+					from: {
+						transform: 'translateY(-100%)',
+						opacity: '0'
+					},
+					to: {
+						transform: 'translateY(0)',
+						opacity: '1'
+					}
+				},
+				'slide-out-to-top': {
+					from: {
+						transform: 'translateY(0)',
+						opacity: '1'
+					},
+					to: {
+						transform: 'translateY(-100%)',
+						opacity: '0'
+					}
+				},
+				'fade-in': {
+					from: {
+						opacity: '0',
+						transform: 'scale(0.95)'
+					},
+					to: {
+						opacity: '1',
+						transform: 'scale(1)'
+					}
+				},
+				'fade-out': {
+					from: {
+						opacity: '1',
+						transform: 'scale(1)'
+					},
+					to: {
+						opacity: '0',
+						transform: 'scale(0.95)'
+					}
 				}
 			},
 			animation: {
@@ -153,7 +193,11 @@ export default {
 				'scroll-left': 'scroll-left 8s linear infinite',
 				'scroll-right': 'scroll-right 10s linear infinite',
 				'plane-float': 'plane-float 3s ease-in-out infinite',
-				'route-dash': 'dash 60s linear infinite'
+				'route-dash': 'dash 60s linear infinite',
+				'slide-in-from-top': 'slide-in-from-top 0.3s cubic-bezier(0.21, 1.02, 0.73, 1)',
+				'slide-out-to-top': 'slide-out-to-top 0.25s cubic-bezier(0.21, 1.02, 0.73, 1)',
+				'fade-in': 'fade-in 0.2s ease-out',
+				'fade-out': 'fade-out 0.2s ease-out'
 			},
 			scale: {
 				'102': '1.02'

@@ -1,4 +1,4 @@
-import { jsPDF } from 'jspdf';
+import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const MONTHS = [
@@ -243,6 +243,22 @@ export const generateLogbookPDF = async (options: ExportOptions): Promise<Blob> 
 
       // Tentar carregar logo se fornecido
       let logoDataUrl: string | undefined;
+      
+      const generateDocument = () => {
+        // Gerar capa
+        generateCoverPage(doc, options, logoDataUrl);
+
+        // Gerar páginas do diário para cada mês
+        options.months.forEach(({ month, year }) => {
+          generateLogbookPage(doc, options.entries, month, year);
+        });
+
+        // Converter para blob
+        doc.output('blob').then(blob => {
+          resolve(blob);
+        }).catch(reject);
+      };
+
       if (options.logoUrl) {
         const img = new Image();
         img.onload = () => {
@@ -264,21 +280,6 @@ export const generateLogbookPDF = async (options: ExportOptions): Promise<Blob> 
       } else {
         generateDocument();
       }
-
-      const generateDocument = () => {
-        // Gerar capa
-        generateCoverPage(doc, options, logoDataUrl);
-
-        // Gerar páginas do diário para cada mês
-        options.months.forEach(({ month, year }) => {
-          generateLogbookPage(doc, options.entries, month, year);
-        });
-
-        // Converter para blob
-        doc.output('blob').then(blob => {
-          resolve(blob);
-        }).catch(reject);
-      };
     } catch (error) {
       reject(error);
     }

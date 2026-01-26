@@ -92,6 +92,90 @@
 }
 
 @layer utilities {
+  /* Modern Toast Animations */
+  @keyframes slideInFromTop {
+    from {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideOutToTop {
+    from {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateY(-100%);
+      opacity: 0;
+    }
+  }
+
+  @keyframes scaleIn {
+    from {
+      transform: scale(0.95);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
+  .toast-slide-in {
+    animation: slideInFromTop 0.35s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+  }
+
+  .toast-slide-out {
+    animation: slideOutToTop 0.25s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+  }
+
+  .toast-scale-in {
+    animation: scaleIn 0.2s ease-out forwards;
+  }
+
+  /* Toast container styling */
+  [data-sonner-toaster] {
+    --offset: 16px;
+    --gap: 12px;
+    z-index: 9999 !important;
+  }
+
+  [data-sonner-toast] {
+    will-change: transform, opacity;
+  }
+
+  /* Toast glow effects */
+  .modern-toast-success [data-sonner-toast] {
+    box-shadow: 0 0 30px -5px rgba(16, 185, 129, 0.25);
+  }
+
+  .modern-toast-error [data-sonner-toast] {
+    box-shadow: 0 0 30px -5px rgba(239, 68, 68, 0.25);
+  }
+
+  .modern-toast-warning [data-sonner-toast] {
+    box-shadow: 0 0 30px -5px rgba(245, 158, 11, 0.25);
+  }
+
+  .modern-toast-info [data-sonner-toast] {
+    box-shadow: 0 0 30px -5px rgba(59, 130, 246, 0.25);
+  }
+
+
   /* Scrollbar styling - Transparent by default, visible on hover */
   ::-webkit-scrollbar {
     width: 6px;
