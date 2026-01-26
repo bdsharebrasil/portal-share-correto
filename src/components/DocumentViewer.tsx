@@ -160,16 +160,58 @@ export function DocumentViewer({ url, fileName, fileType, onDownload }: Document
 
   // Renderizar PDF
   if (fileType === "application/pdf") {
-    // Se houver erro ao configurar worker, mostrar mensagem
+    // Se houver erro de validação de URL, mostrar mensagem antes de tentar carregar
+    if (urlValidationError) {
+      return (
+        <div className="border rounded-lg overflow-auto bg-muted/30 flex items-center justify-center p-8" style={{ minHeight: "70vh" }}>
+          <div className="text-destructive text-center max-w-lg">
+            <p className="font-semibold text-lg mb-2">Não foi possível acessar o arquivo PDF</p>
+            <p className="text-sm text-muted-foreground mb-4">{urlValidationError}</p>
+            <p className="text-xs text-muted-foreground mb-6">
+              Possíveis causas:
+              <ul className="list-disc list-inside mt-2 text-left inline-block">
+                <li>O arquivo foi excluído ou movido</li>
+                <li>A URL expirou e não é mais válida</li>
+                <li>O servidor está temporariamente indisponível</li>
+              </ul>
+            </p>
+            {onDownload && (
+              <p className="text-xs text-muted-foreground">
+                Você pode tentar fazer o download do arquivo usando o botão abaixo
+              </p>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Se estiver validando a URL, mostrar carregamento
+    if (isValidatingUrl) {
+      return (
+        <div className="border rounded-lg overflow-auto bg-muted/30 flex items-center justify-center p-8" style={{ minHeight: "70vh" }}>
+          <div className="text-muted-foreground text-center">
+            <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+            <p>Validando arquivo PDF...</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Se houver erro ao carregar o PDF, mostrar mensagem
     if (error) {
       return (
         <div className="border rounded-lg overflow-auto bg-muted/30 flex items-center justify-center p-8" style={{ minHeight: "70vh" }}>
-          <div className="text-destructive text-center max-w-md">
+          <div className="text-destructive text-center max-w-lg">
             <p className="font-semibold text-lg mb-2">Erro ao Carregar PDF</p>
             <p className="text-sm text-muted-foreground mb-4">{error}</p>
-            <p className="text-xs text-muted-foreground">
-              Você pode tentar fazer o download do arquivo usando o botão abaixo
+            <p className="text-xs text-muted-foreground mb-6">
+              Arquivo: <code className="bg-muted px-2 py-1 rounded">{fileName}</code>
             </p>
+            {onDownload && (
+              <p className="text-xs text-muted-foreground">
+                Você pode tentar fazer o download do arquivo para verificar se não está corrompido
+              </p>
+            )}
           </div>
         </div>
       );
