@@ -8,24 +8,31 @@ import { Layout } from '../components/layout/Layout';
 import { supabase } from '../integrations/supabase/client';
 import { toast } from 'sonner';
 
-interface AircraftPartner {
+interface AircraftLoan {
   id: string;
-  aircraft_id: string;
-  partner_id: string;
-  quota_hours: number;
-  balance_hours: number;
-  client?: {
+  lender_client_id: string;
+  borrower_client_id: string;
+  lender_aircraft_id: string;
+  hours_borrowed: number;
+  hours_paid_back: number | null;
+  entry_date: string;
+  status: string;
+  lender_client?: {
+    id: string;
+    company_name: string;
+  };
+  borrower_client?: {
     id: string;
     company_name: string;
   };
 }
 
-interface LogbookEntry {
-  id: string;
-  entry_date: string;
+interface ClientBalance {
   client_id: string;
-  total_time: number;
-  aircraft_id: string;
+  client_name: string;
+  total_borrowed: number;
+  total_paid_back: number;
+  balance: number;
 }
 
 interface Aircraft {
