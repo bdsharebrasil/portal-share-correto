@@ -56,7 +56,7 @@ export default function ControleVencimentos() {
   const [selectedVencimento, setSelectedVencimento] = useState<Vencimento | null>(null);
   const [uploading, setUploading] = useState(false);
   const [viewDocumentOpen, setViewDocumentOpen] = useState(false);
-  const [documentToView, setDocumentToView] = useState<{ url: string; name: string } | null>(null);
+  const [documentToView, setDocumentToView] = useState<{ url: string; name: string; fileType: string } | null>(null);
   const [aeronavesComHoras, setAeronavesComHoras] = useState<Set<string>>(new Set());
 
   const aeronavesAtivas = useMemo(() => {
