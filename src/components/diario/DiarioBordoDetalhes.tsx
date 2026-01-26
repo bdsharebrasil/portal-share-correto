@@ -2146,11 +2146,20 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                           <SelectValue placeholder="Selecione o Cliente" />
                         </SelectTrigger>
                         <SelectContent>
-                          {sortedClients.map(cl => (
-                            <SelectItem key={cl.id} value={cl.id}>
-                              {cl.company_name}
-                            </SelectItem>
-                          ))}
+                          {sortedClients.map(cl => {
+                            // Verificar se o cliente tem sócio
+                            const hasSocio = cl.partner_name || cl.partner_name2 || cl.partner_name3;
+                            // Se tem sócio, mostrar todos. Se não tem, mostrar apenas os vinculados à aeronave
+                            const isLinkedToAircraft = cl.client_aircraft?.some(ca => ca.aircraft_id === aircraftId);
+                            const shouldShow = hasSocio || isLinkedToAircraft;
+
+                            return shouldShow ? (
+                              <SelectItem key={cl.id} value={cl.id}>
+                                {cl.company_name}
+                                {hasSocio && <span className="text-emerald-400"> (com sócio)</span>}
+                              </SelectItem>
+                            ) : null;
+                          })}
                         </SelectContent>
                       </Select>
                     </div>
