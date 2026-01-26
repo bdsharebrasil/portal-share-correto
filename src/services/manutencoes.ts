@@ -57,19 +57,40 @@ export const fetchAircraftMap = async (): Promise<Record<string, string>> => {
 };
 
 export const fetchManutencoesWithAircraft = async (): Promise<ManutencaoWithAircraft[]> => {
-  const { data, error } = await supabase
-    .from("manutencoes")
-    .select("*")
-    .order("updated_at", { ascending: false }); // Ordenar por updated_at para incluir manutenções por horas
-  if (error) throw error;
-  const manutencoes = (data || []) as ManutencaoRow[];
-  if (manutencoes.length === 0) return [];
+  try {
+    const { data, error } = await supabase
+      .from("manutencoes")
+      .select("*")
+      .order("updated_at", { ascending: false }); // Ordenar por updated_at para incluir manutenções por horas
 
-  const aircraftMap = await fetchAircraftMap();
-  return manutencoes.map((m) => ({
-    ...m,
-    aeronave_registration: m.aeronave_id ? aircraftMap[m.aeronave_id] : undefined,
-  }));
+    if (error) {
+      console.error("Erro ao buscar manutenções:", error);
+      throw error;
+    }
+
+    const manutencoes = (data || []) as ManutencaoRow[];
+    console.log(`Carregadas ${manutencoes.length} manutenções`);
+
+    if (manutencoes.length === 0) return [];
+
+    const aircraftMap = await fetchAircraftMap();
+
+    const result = manutencoes.map((m) => {
+      const aeronave_registration = m.aeronave_id ? aircraftMap[m.aeronave_id] : undefined;
+      if (!aeronave_registration && m.aeronave_id) {
+        console.warn(`⚠️ Matrícula não encontrada para aeronave ID: ${m.aeronave_id}`);
+      }
+      return {
+        ...m,
+        aeronave_registration,
+      };
+    });
+
+    return result;
+  } catch (error) {
+    console.error("Erro em fetchManutencoesWithAircraft:", error);
+    throw error;
+  }
 };
 
 export interface CreateManutencaoInput {
