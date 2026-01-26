@@ -668,7 +668,14 @@ export default function ControleVencimentos() {
                                       size="sm"
                                       className="bg-slate-700/50 border-white/10 text-gray-300 hover:bg-slate-600 text-[10px] px-2 py-1 h-auto flex-1"
                                       onClick={() => {
-                                        setDocumentToView({ url: vencimento.comprovanteUrl!, name: vencimento.item });
+                                        console.log('📖 Abrindo documento:', {
+                                          name: vencimento.item,
+                                          url: vencimento.comprovanteUrl
+                                        });
+                                        setDocumentToView({
+                                          url: vencimento.comprovanteUrl!,
+                                          name: vencimento.item
+                                        });
                                         setViewDocumentOpen(true);
                                       }}
                                     >
