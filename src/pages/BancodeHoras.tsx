@@ -107,40 +107,48 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
     fetchData();
   }, [aircraftId]);
 
-  // Calcular consumo mensal por cotista
-  const monthlyUsage = useMemo(() => {
-    const usage: Record<string, number> = {};
-    entries.forEach(e => {
-      if (e.client_id) {
-        const dateObj = new Date(e.entry_date);
-        const month = dateObj.getUTCMonth() + 1;
-        const year = dateObj.getUTCFullYear();
-        
-        if (month === selectedMonth && year === selectedYear) {
-          usage[e.client_id] = (usage[e.client_id] || 0) + (e.total_time || 0);
-        }
-      }
-    });
-    return usage;
-  }, [entries, selectedMonth, selectedYear]);
+  // Calcular saldos por cliente que pegou emprestado (borrower)
+  const clientBalances = useMemo(() => {
+    const balances: Record<string, ClientBalance> = {};
 
-  // Calcular totais
+    loans.forEach(loan => {
+      const borrowerId = loan.borrower_client_id;
+      const borrowerName = loan.borrower_client?.company_name || 'Cliente desconhecido';
+      const hoursBorrowed = loan.hours_borrowed || 0;
+      const hoursPaidBack = loan.hours_paid_back || 0;
+
+      if (!balances[borrowerId]) {
+        balances[borrowerId] = {
+          client_id: borrowerId,
+          client_name: borrowerName,
+          total_borrowed: 0,
+          total_paid_back: 0,
+          balance: 0
+        };
+      }
+
+      balances[borrowerId].total_borrowed += hoursBorrowed;
+      balances[borrowerId].total_paid_back += hoursPaidBack;
+      balances[borrowerId].balance = balances[borrowerId].total_borrowed - balances[borrowerId].total_paid_back;
+    });
+
+    return Object.values(balances);
+  }, [loans]);
+
+  // Calcular totais gerais
   const totals = useMemo(() => {
-    let totalQuota = 0;
-    let totalUsed = 0;
+    let totalBorrowed = 0;
+    let totalPaidBack = 0;
     let totalBalance = 0;
 
-    partners.forEach(p => {
-      const used = monthlyUsage[p.partner_id] || 0;
-      const balance = (p.quota_hours || 0) - used;
-      
-      totalQuota += p.quota_hours || 0;
-      totalUsed += used;
-      totalBalance += balance;
+    clientBalances.forEach(cb => {
+      totalBorrowed += cb.total_borrowed;
+      totalPaidBack += cb.total_paid_back;
+      totalBalance += cb.balance;
     });
 
-    return { totalQuota, totalUsed, totalBalance };
-  }, [partners, monthlyUsage]);
+    return { totalBorrowed, totalPaidBack, totalBalance };
+  }, [clientBalances]);
 
   if (loading) return (
     <Layout>
