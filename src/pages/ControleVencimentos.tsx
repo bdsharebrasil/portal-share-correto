@@ -542,11 +542,16 @@ export default function ControleVencimentos() {
                           {/* Aircraft Info Section */}
                           <div className="flex-1 flex flex-col justify-center gap-2">
                             <div>
-                              <p className="text-[10px] uppercase tracking-wider text-blue-400 font-bold mb-1">Matrícula</p>
-                              <h2 className="text-3xl font-bold text-white tracking-tight">{grupo.aeronave}</h2>
+                              <p className="text-[10px] uppercase tracking-wider text-blue-400 font-bold mb-1.5">Matrícula da Aeronave</p>
+                              <h2 className="text-4xl font-extrabold text-white tracking-tight font-mono">
+                                {grupo.aeronave && grupo.aeronave !== "-" ? grupo.aeronave : (aeronaveData?.registration || "N/A")}
+                              </h2>
+                              {grupo.aeronave === "-" && aeronaveData?.registration && (
+                                <p className="text-xs text-blue-300 mt-1">Registrado: {aeronaveData.registration}</p>
+                              )}
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-2 gap-3 mt-1">
                               <div>
                                 <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold mb-0.5">Modelo</p>
                                 <p className="text-xs font-medium text-gray-200">{aeronaveData?.model || "-"}</p>
