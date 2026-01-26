@@ -31,6 +31,7 @@ interface Vencimento {
   status: string;
   tipo: "manutencao" | "documento";
   comprovanteUrl?: string;
+  fileType?: string;
   valorPago?: number;
 }
 
