@@ -19,6 +19,9 @@ export function configurePDFWorker(): void {
   // Se já foi configurado, não fazer novamente
   if (pdfWorkerConfigured && pdfjs.GlobalWorkerOptions.workerSrc) {
     console.log(`✅ PDF Worker já configurado: ${pdfjs.GlobalWorkerOptions.workerSrc}`);
+
+    // Aplicar configurações de segurança mesmo que já esteja configurado
+    applySafePDFSettings();
     return;
   }
 
