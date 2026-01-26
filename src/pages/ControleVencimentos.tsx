@@ -18,6 +18,7 @@ import { NovoVencimentoDialog } from "@/components/vencimentos/NovoVencimentoDia
 import { NovoDocumentoDialog } from "@/components/vencimentos/NovoDocumentoDialog";
 import { MaintenanceDashboard } from "@/components/maintenance";
 import { supabase } from "@/integrations/supabase/client";
+import { getFlightDocumentPublicUrl } from "@/lib/storageHelper";
 
 interface Vencimento {
   id: string;
