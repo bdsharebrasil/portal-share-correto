@@ -143,9 +143,10 @@ export function DynamicLogbookForm({
     },
   });
 
-  // Clientes que NÃO são cotistas desta aeronave (para selecionar quem está pegando emprestado)
+  // Para empréstimo, mostrar todos os clientes (exceto quem está emprestando)
+  // O cliente que está pegando emprestado pode ser qualquer cliente, inclusive os cotistas
   const borrowerClients = allClients.filter(
-    (c) => !clients.some((ac: any) => ac.client_id === c.id)
+    (c) => c.id !== selectedClient // Excluir apenas quem está emprestando
   );
 
   // Buscar dados do logbook_month para obter base_aerodrome, daily_rate e has_daily_rate
@@ -939,8 +940,8 @@ export function DynamicLogbookForm({
                       role="combobox"
                       className="w-full justify-between h-11 font-normal border-amber-500/30"
                     >
-                      {selectedBorrowerClient 
-                        ? allClients.find(c => c.id === selectedBorrowerClient)?.company_name || 'Cliente selecionado'
+                      {selectedBorrowerClient
+                        ? borrowerClients.find(c => c.id === selectedBorrowerClient)?.company_name || allClients.find(c => c.id === selectedBorrowerClient)?.company_name || 'Cliente selecionado'
                         : 'Selecione quem pega emprestado...'}
                     </Button>
                   </PopoverTrigger>
@@ -948,25 +949,28 @@ export function DynamicLogbookForm({
                     <Command>
                       <CommandInput placeholder="Buscar cliente..." />
                       <CommandList>
-                        <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
-                        <CommandGroup heading="Outros clientes (não cotistas)">
-                          {borrowerClients.map((client) => (
-                            <CommandItem
-                              key={client.id}
-                              value={client.company_name || client.proprietario || ''}
-                              onSelect={() => {
-                                setSelectedBorrowerClient(client.id);
-                                setBorrowerClientOpen(false);
-                              }}
-                            >
-                              <Check className={cn(
-                                "mr-2 h-4 w-4",
-                                selectedBorrowerClient === client.id ? "opacity-100" : "opacity-0"
-                              )} />
-                              <span>{client.company_name || client.proprietario}</span>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
+                        {borrowerClients.length === 0 ? (
+                          <CommandEmpty>Nenhum cliente disponível (talvez todos sejam cotistas).</CommandEmpty>
+                        ) : (
+                          <CommandGroup heading="Clientes disponíveis">
+                            {borrowerClients.map((client) => (
+                              <CommandItem
+                                key={client.id}
+                                value={client.company_name || client.proprietario || ''}
+                                onSelect={() => {
+                                  setSelectedBorrowerClient(client.id);
+                                  setBorrowerClientOpen(false);
+                                }}
+                              >
+                                <Check className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedBorrowerClient === client.id ? "opacity-100" : "opacity-0"
+                                )} />
+                                <span>{client.company_name || client.proprietario}</span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        )}
                       </CommandList>
                     </Command>
                   </PopoverContent>
