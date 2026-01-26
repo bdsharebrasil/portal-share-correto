@@ -12,14 +12,12 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
 import { NovaFormularioDespesaDialog } from "./NovaFormularioDespesaDialog";
-
 interface EnvioDespesaTabProps {
   clientId: string;
   clientName: string;
   aircraftId: string;
   aircraftRegistration: string;
 }
-
 interface DespesaClienteDireto {
   id: string;
   client_id: string;
@@ -41,17 +39,46 @@ interface DespesaClienteDireto {
   nota_fiscal_url: string | null;
   criado_em: string;
 }
-
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  pendente_envio: { label: "Pendente Envio", color: "bg-gray-500/20 text-gray-400 border-gray-500/30" },
-  enviado: { label: "Enviado", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-  visualizado_cliente: { label: "Visualizado", color: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30" },
-  aguardando_pagamento: { label: "Aguardando Pagamento", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
-  comprovante_recebido: { label: "Comprovante Recebido", color: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
-  pagamento_validado: { label: "Validado", color: "bg-green-500/20 text-green-400 border-green-500/30" },
-  concluido: { label: "Concluído", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
-  atrasado: { label: "Atrasado", color: "bg-red-500/20 text-red-400 border-red-500/30" },
-  cancelado: { label: "Cancelado", color: "bg-red-800/20 text-red-600 border-red-800/30" }
+const STATUS_LABELS: Record<string, {
+  label: string;
+  color: string;
+}> = {
+  pendente_envio: {
+    label: "Pendente Envio",
+    color: "bg-gray-500/20 text-gray-400 border-gray-500/30"
+  },
+  enviado: {
+    label: "Enviado",
+    color: "bg-blue-500/20 text-blue-400 border-blue-500/30"
+  },
+  visualizado_cliente: {
+    label: "Visualizado",
+    color: "bg-cyan-500/20 text-cyan-400 border-cyan-500/30"
+  },
+  aguardando_pagamento: {
+    label: "Aguardando Pagamento",
+    color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+  },
+  comprovante_recebido: {
+    label: "Comprovante Recebido",
+    color: "bg-orange-500/20 text-orange-400 border-orange-500/30"
+  },
+  pagamento_validado: {
+    label: "Validado",
+    color: "bg-green-500/20 text-green-400 border-green-500/30"
+  },
+  concluido: {
+    label: "Concluído",
+    color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+  },
+  atrasado: {
+    label: "Atrasado",
+    color: "bg-red-500/20 text-red-400 border-red-500/30"
+  },
+  cancelado: {
+    label: "Cancelado",
+    color: "bg-red-800/20 text-red-600 border-red-800/30"
+  }
 };
 
 // Função auxiliar para upload de arquivos
@@ -59,22 +86,26 @@ const uploadFile = async (file: File, folder: string): Promise<string> => {
   const fileExt = file.name.split('.').pop();
   const fileName = `${Math.random().toString(36).substring(2)}-${Date.now()}.${fileExt}`;
   const filePath = `${folder}/${fileName}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from('documentos')
-    .upload(filePath, file);
-
+  const {
+    error: uploadError
+  } = await supabase.storage.from('documentos').upload(filePath, file);
   if (uploadError) throw uploadError;
-
-  const { data: { publicUrl } } = supabase.storage
-    .from('documentos')
-    .getPublicUrl(filePath);
-
+  const {
+    data: {
+      publicUrl
+    }
+  } = supabase.storage.from('documentos').getPublicUrl(filePath);
   return publicUrl;
 };
-
-export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegistration }: EnvioDespesaTabProps) {
-  const { user } = useAuth();
+export function EnvioDespesaTab({
+  clientId,
+  clientName,
+  aircraftId,
+  aircraftRegistration
+}: EnvioDespesaTabProps) {
+  const {
+    user
+  } = useAuth();
   const [despesas, setDespesas] = useState<DespesaClienteDireto[]>([]);
   const [loading, setLoading] = useState(true);
   const [novaFormularioOpen, setNovaFormularioOpen] = useState(false);
@@ -90,20 +121,18 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
   const [viewDocumentOpen, setViewDocumentOpen] = useState(false);
   const [documentUrl, setDocumentUrl] = useState("");
   const [documentTitle, setDocumentTitle] = useState("");
-
   useEffect(() => {
     loadDespesas();
   }, [clientId, aircraftId]);
-
   const loadDespesas = async () => {
     try {
       setLoading(true);
-      const { data, error } = await (supabase as any)
-        .from('despesas_cliente_direto')
-        .select('*')
-        .eq('client_id', clientId)
-        .order('criado_em', { ascending: false });
-
+      const {
+        data,
+        error
+      } = await (supabase as any).from('despesas_cliente_direto').select('*').eq('client_id', clientId).order('criado_em', {
+        ascending: false
+      });
       if (error) throw error;
       setDespesas((data || []) as DespesaClienteDireto[]);
     } catch (error) {
@@ -113,21 +142,17 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
       setLoading(false);
     }
   };
-
   const handleSendToClient = async (despesa: DespesaClienteDireto) => {
     try {
-      const { error } = await (supabase as any)
-        .from('despesas_cliente_direto')
-        .update({
-          status: 'enviado',
-          data_envio: format(new Date(), 'yyyy-MM-dd'),
-          enviado_por: user?.id || null,
-          meio_envio: 'portal'
-        })
-        .eq('id', despesa.id);
-
+      const {
+        error
+      } = await (supabase as any).from('despesas_cliente_direto').update({
+        status: 'enviado',
+        data_envio: format(new Date(), 'yyyy-MM-dd'),
+        enviado_por: user?.id || null,
+        meio_envio: 'portal'
+      }).eq('id', despesa.id);
       if (error) throw error;
-      
       toast.success('Despesa enviada para o cliente!');
       loadDespesas();
     } catch (error) {
@@ -135,18 +160,13 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
       toast.error('Erro ao enviar despesa');
     }
   };
-
   const handleDelete = async (id: string) => {
     if (!confirm('Deseja realmente excluir esta despesa?')) return;
-
     try {
-      const { error } = await (supabase as any)
-        .from('despesas_cliente_direto')
-        .delete()
-        .eq('id', id);
-
+      const {
+        error
+      } = await (supabase as any).from('despesas_cliente_direto').delete().eq('id', id);
       if (error) throw error;
-      
       toast.success('Despesa excluída');
       loadDespesas();
     } catch (error) {
@@ -154,42 +174,33 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
       toast.error('Erro ao excluir despesa');
     }
   };
-
   const openPaymentModal = (despesa: DespesaClienteDireto) => {
     setSelectedDespesa(despesa);
     setDataPagamento(format(new Date(), 'yyyy-MM-dd'));
     setComprovanteFile(null);
     setPaymentModalOpen(true);
   };
-
   const handleMarkAsPaid = async () => {
     if (!selectedDespesa) return;
-    
     if (!dataPagamento) {
       toast.error('Informe a data de pagamento');
       return;
     }
-
     try {
       setUpdatingPayment(true);
-
       let comprovanteUrl = null;
       if (comprovanteFile) {
         comprovanteUrl = await uploadFile(comprovanteFile, 'comprovantes');
       }
-
-      const { error } = await (supabase as any)
-        .from('despesas_cliente_direto')
-        .update({
-          status: 'comprovante_recebido',
-          data_pagamento_cliente: dataPagamento,
-          comprovante_pagamento_url: comprovanteUrl,
-          atualizado_em: new Date().toISOString()
-        })
-        .eq('id', selectedDespesa.id);
-
+      const {
+        error
+      } = await (supabase as any).from('despesas_cliente_direto').update({
+        status: 'comprovante_recebido',
+        data_pagamento_cliente: dataPagamento,
+        comprovante_pagamento_url: comprovanteUrl,
+        atualizado_em: new Date().toISOString()
+      }).eq('id', selectedDespesa.id);
       if (error) throw error;
-
       toast.success('Pagamento registrado!');
       setPaymentModalOpen(false);
       setSelectedDespesa(null);
@@ -201,20 +212,16 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
       setUpdatingPayment(false);
     }
   };
-
   const handleValidatePayment = async (despesa: DespesaClienteDireto) => {
     try {
-      const { error } = await (supabase as any)
-        .from('despesas_cliente_direto')
-        .update({
-          status: 'pagamento_validado',
-          validado_por: user?.id || null,
-          data_validacao: new Date().toISOString()
-        })
-        .eq('id', despesa.id);
-
+      const {
+        error
+      } = await (supabase as any).from('despesas_cliente_direto').update({
+        status: 'pagamento_validado',
+        validado_por: user?.id || null,
+        data_validacao: new Date().toISOString()
+      }).eq('id', despesa.id);
       if (error) throw error;
-      
       toast.success('Pagamento validado!');
       loadDespesas();
     } catch (error) {
@@ -222,56 +229,46 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
       toast.error('Erro ao validar pagamento');
     }
   };
-
   const openDocument = (url: string, title: string) => {
     setDocumentUrl(url);
     setDocumentTitle(title);
     setViewDocumentOpen(true);
   };
-
   const getStatusBadge = (status: string) => {
-    const statusInfo = STATUS_LABELS[status] || { label: status, color: "bg-gray-500/20 text-gray-400" };
+    const statusInfo = STATUS_LABELS[status] || {
+      label: status,
+      color: "bg-gray-500/20 text-gray-400"
+    };
     return <Badge className={statusInfo.color}>{statusInfo.label}</Badge>;
   };
-
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
     }).format(value);
   };
-
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '-';
     try {
       const parts = dateStr.split('-');
       if (parts.length === 3) {
         const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-        return format(date, "dd/MM/yyyy", { locale: ptBR });
+        return format(date, "dd/MM/yyyy", {
+          locale: ptBR
+        });
       }
-      return format(parseISO(dateStr), "dd/MM/yyyy", { locale: ptBR });
+      return format(parseISO(dateStr), "dd/MM/yyyy", {
+        locale: ptBR
+      });
     } catch {
       return dateStr;
     }
   };
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       {/* Header com botão de novo envio */}
       <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Send className="h-5 w-5 text-primary" />
-            Envio de Despesa ao Cliente
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            Despesas do cliente {clientName} - {aircraftRegistration}
-          </p>
-        </div>
-        <Button
-          onClick={() => setNovaFormularioOpen(true)}
-          className="gap-2"
-        >
+        
+        <Button onClick={() => setNovaFormularioOpen(true)} className="gap-2">
           <Plus className="h-4 w-4" />
           Nova Despesa
         </Button>
@@ -289,19 +286,10 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="text-center py-8 text-muted-foreground">Carregando...</div>
-          ) : despesas.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
+          {loading ? <div className="text-center py-8 text-muted-foreground">Carregando...</div> : despesas.length === 0 ? <div className="text-center py-8 text-muted-foreground">
               Nenhuma despesa cadastrada ainda
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {despesas.map((despesa) => (
-                <div
-                  key={despesa.id}
-                  className="p-4 bg-muted/50 rounded-lg border border-border hover:border-primary/50 transition-colors"
-                >
+            </div> : <div className="space-y-3">
+              {despesas.map(despesa => <div key={despesa.id} className="p-4 bg-muted/50 rounded-lg border border-border hover:border-primary/50 transition-colors">
                   <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                     <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                       <div>
@@ -336,95 +324,44 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
                         {getStatusBadge(despesa.status)}
                       </div>
                       <div className="flex items-center gap-1 flex-wrap">
-                        {despesa.boleto_url && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openDocument(despesa.boleto_url!, 'Boleto')}
-                            className="h-7 px-2"
-                          >
+                        {despesa.boleto_url && <Button variant="outline" size="sm" onClick={() => openDocument(despesa.boleto_url!, 'Boleto')} className="h-7 px-2">
                             <FileText className="h-3 w-3 mr-1" />
                             Boleto
-                          </Button>
-                        )}
-                        {despesa.nota_fiscal_url && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openDocument(despesa.nota_fiscal_url!, 'Nota Fiscal')}
-                            className="h-7 px-2"
-                          >
+                          </Button>}
+                        {despesa.nota_fiscal_url && <Button variant="outline" size="sm" onClick={() => openDocument(despesa.nota_fiscal_url!, 'Nota Fiscal')} className="h-7 px-2">
                             <FileText className="h-3 w-3 mr-1" />
                             NF
-                          </Button>
-                        )}
-                        {despesa.comprovante_pagamento_url && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openDocument(despesa.comprovante_pagamento_url!, 'Comprovante')}
-                            className="h-7 px-2"
-                          >
+                          </Button>}
+                        {despesa.comprovante_pagamento_url && <Button variant="outline" size="sm" onClick={() => openDocument(despesa.comprovante_pagamento_url!, 'Comprovante')} className="h-7 px-2">
                             <Eye className="h-3 w-3 mr-1" />
                             Compr.
-                          </Button>
-                        )}
+                          </Button>}
                       </div>
                     </div>
                     
                     <div className="flex items-center gap-2 flex-wrap lg:flex-nowrap">
-                      {despesa.status === 'pendente_envio' && (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => handleSendToClient(despesa)}
-                        >
+                      {despesa.status === 'pendente_envio' && <Button variant="default" size="sm" onClick={() => handleSendToClient(despesa)}>
                           <Send className="h-4 w-4 mr-1" />
                           Enviar
-                        </Button>
-                      )}
-                      {['enviado', 'aguardando_pagamento'].includes(despesa.status) && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openPaymentModal(despesa)}
-                        >
+                        </Button>}
+                      {['enviado', 'aguardando_pagamento'].includes(despesa.status) && <Button variant="outline" size="sm" onClick={() => openPaymentModal(despesa)}>
                           <Check className="h-4 w-4 mr-1" />
                           Registrar Pgto
-                        </Button>
-                      )}
-                      {despesa.status === 'comprovante_recebido' && (
-                        <Button
-                          variant="default"
-                          size="sm"
-                          className="bg-green-600 hover:bg-green-700"
-                          onClick={() => handleValidatePayment(despesa)}
-                        >
+                        </Button>}
+                      {despesa.status === 'comprovante_recebido' && <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleValidatePayment(despesa)}>
                           <Check className="h-4 w-4 mr-1" />
                           Validar
-                        </Button>
-                      )}
-                      {['pendente_envio', 'cancelado'].includes(despesa.status) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDelete(despesa.id)}
-                          className="text-destructive hover:text-destructive"
-                        >
+                        </Button>}
+                      {['pendente_envio', 'cancelado'].includes(despesa.status) && <Button variant="ghost" size="sm" onClick={() => handleDelete(despesa.id)} className="text-destructive hover:text-destructive">
                           <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
+                        </Button>}
                     </div>
                   </div>
-                  {despesa.descricao && (
-                    <p className="text-sm text-muted-foreground mt-2 pt-2 border-t border-border">
+                  {despesa.descricao && <p className="text-sm text-muted-foreground mt-2 pt-2 border-t border-border">
                       {despesa.descricao}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+                    </p>}
+                </div>)}
+            </div>}
         </CardContent>
       </Card>
 
@@ -440,22 +377,12 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Data do Pagamento *</Label>
-              <Input
-                type="date"
-                value={dataPagamento}
-                onChange={(e) => setDataPagamento(e.target.value)}
-              />
+              <Input type="date" value={dataPagamento} onChange={e => setDataPagamento(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Comprovante de Pagamento</Label>
-              <Input
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={(e) => setComprovanteFile(e.target.files?.[0] || null)}
-              />
-              {comprovanteFile && (
-                <p className="text-xs text-muted-foreground">{comprovanteFile.name}</p>
-              )}
+              <Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => setComprovanteFile(e.target.files?.[0] || null)} />
+              {comprovanteFile && <p className="text-xs text-muted-foreground">{comprovanteFile.name}</p>}
             </div>
           </div>
           <DialogFooter>
@@ -476,25 +403,10 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
             <DialogTitle>{documentTitle}</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-auto">
-            {documentUrl.toLowerCase().endsWith('.pdf') ? (
-              <iframe
-                src={documentUrl}
-                className="w-full h-[70vh] border rounded-lg"
-                title={documentTitle}
-              />
-            ) : (
-              <img
-                src={documentUrl}
-                alt={documentTitle}
-                className="max-w-full h-auto rounded-lg"
-              />
-            )}
+            {documentUrl.toLowerCase().endsWith('.pdf') ? <iframe src={documentUrl} className="w-full h-[70vh] border rounded-lg" title={documentTitle} /> : <img src={documentUrl} alt={documentTitle} className="max-w-full h-auto rounded-lg" />}
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => window.open(documentUrl, '_blank')}
-            >
+            <Button variant="outline" onClick={() => window.open(documentUrl, '_blank')}>
               Abrir em Nova Aba
             </Button>
             <Button onClick={() => setViewDocumentOpen(false)}>
@@ -505,15 +417,6 @@ export function EnvioDespesaTab({ clientId, clientName, aircraftId, aircraftRegi
       </Dialog>
 
       {/* Nova Formulário Despesa Dialog */}
-      <NovaFormularioDespesaDialog
-        open={novaFormularioOpen}
-        onOpenChange={setNovaFormularioOpen}
-        clientId={clientId}
-        clientName={clientName}
-        aircraftId={aircraftId}
-        aircraftRegistration={aircraftRegistration}
-        onSuccess={loadDespesas}
-      />
-    </div>
-  );
+      <NovaFormularioDespesaDialog open={novaFormularioOpen} onOpenChange={setNovaFormularioOpen} clientId={clientId} clientName={clientName} aircraftId={aircraftId} aircraftRegistration={aircraftRegistration} onSuccess={loadDespesas} />
+    </div>;
 }
