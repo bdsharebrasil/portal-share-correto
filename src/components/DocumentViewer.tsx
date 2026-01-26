@@ -73,9 +73,27 @@ export function DocumentViewer({ url, fileName, fileType, onDownload }: Document
   const [urlValidationError, setUrlValidationError] = useState<string | null>(null);
   const [isValidatingUrl, setIsValidatingUrl] = useState<boolean>(false);
 
+  // Validar URL ao montar (apenas para PDFs)
+  useEffect(() => {
+    if (fileType === "application/pdf") {
+      const validateUrl = async () => {
+        setIsValidatingUrl(true);
+        const validation = await validatePDFUrl(url);
+        if (!validation.valid) {
+          setUrlValidationError(validation.error || 'URL inválida');
+        }
+        setIsValidatingUrl(false);
+      };
+
+      validateUrl();
+    }
+  }, [url, fileType]);
+
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
     setPageNumber(1);
+    setError(null); // Limpar erro anterior se tinha
+    setUrlValidationError(null); // Limpar erro de validação também
   };
 
   const onDocumentLoadError = (error: any) => {
@@ -96,6 +114,8 @@ export function DocumentViewer({ url, fileName, fileType, onDownload }: Document
       stack: error?.stack,
       errorType: error?.name,
       fullError: errorDetails,
+      url: url,
+      fileName: fileName,
     });
 
     // Mensagem mais específica baseado no tipo de erro
@@ -113,6 +133,8 @@ export function DocumentViewer({ url, fileName, fileType, onDownload }: Document
       errorMessage = 'Erro de acesso ao PDF. Tente novamente mais tarde.';
     } else if (errorLower.includes('version') || errorLower.includes('mismatch')) {
       errorMessage = 'Erro de compatibilidade do PDF. Recarregue a página.';
+    } else if (errorLower.includes('invalid pdf') || errorLower.includes('structure')) {
+      errorMessage = 'O PDF está corrompido ou tem uma estrutura inválida. Tente fazer download e verificar o arquivo.';
     } else if (errorDetails.length > 0) {
       errorMessage = `Erro ao carregar PDF: ${errorDetails.substring(0, 80)}`;
     }
