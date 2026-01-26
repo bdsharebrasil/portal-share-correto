@@ -2131,29 +2131,62 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                     <p className="text-[9px] text-amber-400 uppercase font-bold tracking-widest mb-3">
                       Configurar Empréstimo
                     </p>
-                    
-                    {/* Cotista que empresta */}
+
+                    {/* Cliente que está emprestando */}
                     <div className="space-y-1">
-                      <Label className="text-[9px] uppercase text-amber-400 ml-1 block">Cotista que Empresta a Aeronave *</Label>
-                      <Select value={newEntry.client_id} onValueChange={v => setNewEntry({
-                        ...newEntry,
-                        client_id: v
-                      })}>
+                      <Label className="text-[9px] uppercase text-amber-400 ml-1 block">Cliente que Empresta a Aeronave *</Label>
+                      <Select value={newEntry.client_id} onValueChange={v => {
+                        setNewEntry({
+                          ...newEntry,
+                          client_id: v,
+                          partner_name: '' // Reset partner when client changes
+                        });
+                      }}>
                         <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
-                          <SelectValue placeholder="Selecione o cotista" />
+                          <SelectValue placeholder="Selecione o Cliente" />
                         </SelectTrigger>
                         <SelectContent>
-                          {expandClientsWithPartners(
-                            sortedClients.filter(cl => cl.client_aircraft?.some(ca => ca.aircraft_id === aircraftId))
-                          ).map(option => (
-                            <SelectItem key={option.id} value={option.clientId}>
-                              {option.label} ✓
+                          {sortedClients.map(cl => (
+                            <SelectItem key={cl.id} value={cl.id}>
+                              {cl.company_name}
                             </SelectItem>
-                          ))
-                          }
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {/* Sócio/Cotista responsável pelo empréstimo */}
+                    {(() => {
+                      const selectedClient = clients.find(c => c.id === newEntry.client_id);
+                      const partnerOptions = [];
+                      if (selectedClient?.partner_name) partnerOptions.push(selectedClient.partner_name);
+                      if (selectedClient?.partner_name2) partnerOptions.push(selectedClient.partner_name2);
+                      if (selectedClient?.partner_name3) partnerOptions.push(selectedClient.partner_name3);
+
+                      if (partnerOptions.length > 0) {
+                        return (
+                          <div className="space-y-1 mt-2">
+                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Cotista Responsável (Aeronave) *</Label>
+                            <Select value={newEntry.partner_name} onValueChange={v => setNewEntry({
+                              ...newEntry,
+                              partner_name: v
+                            })}>
+                              <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
+                                <SelectValue placeholder="Selecione o Cotista" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {partnerOptions.map((partner, idx) => (
+                                  <SelectItem key={idx} value={partner}>
+                                    {partner}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
 
                   </div>
                 )}
