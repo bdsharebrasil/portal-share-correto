@@ -133,14 +133,19 @@ export default function ControleVencimentos() {
             diasAlerta: doc.alert_days || 30,
             status: diasRestantes < 0 ? "vencido" : "pendente",
             tipo: "documento" as const,
-            comprovanteUrl: publicUrl
+            comprovanteUrl: publicUrl,
+            fileType: doc.file_type || "application/pdf"
           };
         });
         setVencimentos([...mapped, ...mappedDocs]);
 
         console.log('📄 Documentos carregados:', mappedDocs.length);
         if (mappedDocs.length > 0) {
-          console.log('🔗 URL do primeiro documento:', mappedDocs[0].comprovanteUrl);
+          console.log('🔗 Primeiro documento:', {
+            name: mappedDocs[0].item,
+            url: mappedDocs[0].comprovanteUrl,
+            fileType: mappedDocs[0].fileType
+          });
         }
       } else {
         setVencimentos(mapped);
