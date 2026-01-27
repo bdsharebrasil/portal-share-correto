@@ -389,6 +389,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     departure_aerodrome: '',
     arrival_aerodrome: '',
     client_id: '',
+    borrower_client_id: '',
     partner_name: '',
     is_equal_split: false,
     is_loan: false,
@@ -1031,6 +1032,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         toast.error('Selecione o cotista que está emprestando a aeronave');
         return;
       }
+      if (!newEntry.borrower_client_id) {
+        toast.error('Selecione o cliente que está pegando emprestado (quem está usando a aeronave)');
+        return;
+      }
     }
 
     if (!newEntry.ac_time || !newEntry.cor_time) {
@@ -1108,7 +1113,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         pic_canac: newEntry.pic_canac,
         sic_canac: newEntry.sic_canac || null,
         sic_name: newEntry.sic_name || null,
-        client_id: newEntry.is_equal_split ? null : (newEntry.is_loan ? newEntry.client_id : newEntry.client_id),
+        // No empréstimo, o client_id do logbook deve ser quem USOU a aeronave (borrower)
+        client_id: newEntry.is_equal_split
+          ? null
+          : (newEntry.is_loan ? newEntry.borrower_client_id : newEntry.client_id),
         partner_name: newEntry.is_equal_split ? null : (newEntry.partner_name || null),
         is_equal_split: newEntry.is_equal_split,
         is_loan: newEntry.is_loan || false,
@@ -1150,6 +1158,44 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         .limit(1)
         .single();
 
+      // Se for empréstimo, registrar na tabela aircraft_loans e no banco de horas (hour_transactions)
+      if (flightType === 'emprestimo' && insertedEntry?.id) {
+        // 1) Registrar empréstimo
+        const { error: loanError } = await supabase.from('aircraft_loans').insert([
+          {
+            lender_aircraft_id: aircraftId,
+            lender_client_id: newEntry.client_id, // Cotista que empresta
+            borrower_client_id: newEntry.borrower_client_id, // Cliente que usa
+            hours_borrowed: newEntry.total_time,
+            entry_date: newEntry.entry_date,
+            logbook_entry_id: insertedEntry.id,
+            status: 'active',
+            notes: `Empréstimo registrado via diário de bordo - ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
+          },
+        ]);
+
+        if (loanError) {
+          console.error('Erro ao registrar empréstimo:', loanError);
+        }
+
+        // 2) Registrar transação no banco de horas: crédito para quem emprestou
+        const { error: transactionError } = await supabase.from('hour_transactions').insert([
+          {
+            aircraft_id: aircraftId,
+            from_partner_id: newEntry.borrower_client_id, // Quem usou (deve horas)
+            to_partner_id: newEntry.client_id, // Quem emprestou (recebe crédito)
+            hours: newEntry.total_time,
+            type: 'loan',
+            description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome} - Cliente usou aeronave emprestada`,
+            logbook_entry_id: insertedEntry.id,
+          },
+        ]);
+
+        if (transactionError) {
+          console.error('Erro ao registrar transação no banco de horas:', transactionError);
+        }
+      }
+
       // Atualizar horas de voo da tripulação (PIC e SIC)
       const entryDate = new Date(newEntry.entry_date);
       await updateCrewFlightHours({
@@ -1190,6 +1236,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         departure_aerodrome: '',
         arrival_aerodrome: '',
         client_id: '',
+        borrower_client_id: '',
         partner_name: '',
         is_equal_split: false,
         is_loan: false,
@@ -2095,7 +2142,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                       className="flex-1 h-10 text-xs font-semibold"
                       onClick={() => {
                         setFlightType('cliente');
-                        setNewEntry({...newEntry, is_equal_split: false, is_loan: false, client_id: ''});
+                        setNewEntry({
+                          ...newEntry,
+                          is_equal_split: false,
+                          is_loan: false,
+                          client_id: '',
+                          borrower_client_id: '',
+                          partner_name: '',
+                        });
                       }}
                     >
                       Cliente
@@ -2106,7 +2160,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                       className="flex-1 h-10 text-xs font-semibold"
                       onClick={() => {
                         setFlightType('rateio');
-                        setNewEntry({...newEntry, is_equal_split: true, is_loan: false, client_id: ''});
+                        setNewEntry({
+                          ...newEntry,
+                          is_equal_split: true,
+                          is_loan: false,
+                          client_id: '',
+                          borrower_client_id: '',
+                          partner_name: '',
+                        });
                       }}
                     >
                       Rateio
@@ -2117,7 +2178,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                       className="flex-1 h-10 text-xs font-semibold bg-amber-600/20 border-amber-500/30 hover:bg-amber-600/30"
                       onClick={() => {
                         setFlightType('emprestimo');
-                        setNewEntry({...newEntry, is_equal_split: false, is_loan: true, flight_nature: 'PV - Privado'});
+                        setNewEntry({
+                          ...newEntry,
+                          is_equal_split: false,
+                          is_loan: true,
+                          flight_nature: 'PV - Privado',
+                          partner_name: '',
+                          borrower_client_id: '',
+                        });
                       }}
                     >
                       Empréstimo
@@ -2293,6 +2361,33 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                       }
                       return null;
                     })()}
+
+                    {/* Cliente que está usando a aeronave emprestada (deve aparecer TODOS os clientes) */}
+                    <div className="space-y-1 mt-2">
+                      <Label className="text-[9px] uppercase text-amber-500 ml-1 block">
+                        Cliente que Pega Emprestado (Usa a Aeronave) *
+                      </Label>
+                      <Select
+                        value={newEntry.borrower_client_id}
+                        onValueChange={(v) =>
+                          setNewEntry({
+                            ...newEntry,
+                            borrower_client_id: v,
+                          })
+                        }
+                      >
+                        <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
+                          <SelectValue placeholder="Selecione o cliente que está usando" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clients.map((cl) => (
+                            <SelectItem key={cl.id} value={cl.id}>
+                              {cl.company_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
                   </div>
                 )}

@@ -130,24 +130,26 @@ export function DynamicLogbookForm({
     enabled: !!aircraftId,
   });
 
-  // Buscar TODOS os clientes (para empréstimo - seleção do cliente que está pegando emprestado)
+  // Buscar TODOS os clientes (para empréstimo - seleção do cliente que está usando a aeronave)
   const { data: allClients = [] } = useQuery({
-    queryKey: ['all-clients'],
+    queryKey: ['all-clients-for-loan'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
         .select('id, company_name, proprietario')
         .order('company_name');
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao buscar clientes:', error);
+        throw error;
+      }
+      console.log('Total de clientes para empréstimo:', data?.length);
       return data || [];
     },
   });
 
-  // Para empréstimo, mostrar todos os clientes (exceto quem está emprestando)
-  // O cliente que está pegando emprestado pode ser qualquer cliente, inclusive os cotistas
-  const borrowerClients = allClients.filter(
-    (c) => c.id !== selectedClient // Excluir apenas quem está emprestando
-  );
+  // Para empréstimo, mostrar TODOS os clientes disponíveis
+  // O cliente que está usando a aeronave emprestada pode ser qualquer cliente cadastrado
+  const borrowerClients = allClients;
 
   // Buscar dados do logbook_month para obter base_aerodrome, daily_rate e has_daily_rate
   const { data: logbookMonth } = useQuery({
@@ -471,28 +473,50 @@ export function DynamicLogbookForm({
 
       if (error) throw error;
 
-      // Se for empréstimo, registrar na tabela aircraft_loans
+      // Se for empréstimo, registrar na tabela aircraft_loans E no banco de horas (hour_transactions)
       if (flightCategory === 'emprestimo' && insertedEntry) {
+        // 1. Registrar na tabela aircraft_loans
         const { error: loanError } = await supabase.from('aircraft_loans').insert([
           {
             lender_aircraft_id: aircraftId,
             lender_client_id: selectedClient, // Cotista que está emprestando
-            borrower_client_id: selectedBorrowerClient, // Cliente que está pegando emprestado
+            borrower_client_id: selectedBorrowerClient, // Cliente que está usando a aeronave
             hours_borrowed: totalBlockTime,
             entry_date: format(date!, 'yyyy-MM-dd'),
             logbook_entry_id: insertedEntry.id,
-            status: 'pending',
+            status: 'active',
             notes: `Empréstimo registrado via diário de bordo - ${formData.departure_airport} → ${formData.arrival_airport}`,
           },
         ]);
 
         if (loanError) {
           console.error('Erro ao registrar empréstimo:', loanError);
+        }
+
+        // 2. Registrar no banco de horas (hour_transactions) - crédito para quem voou
+        // Quando alguém voa na aeronave emprestada, o cotista que emprestou recebe crédito
+        // para poder usar a aeronave do cliente que voou
+        const { error: transactionError } = await supabase.from('hour_transactions').insert([
+          {
+            aircraft_id: aircraftId,
+            from_partner_id: selectedBorrowerClient, // Cliente que usou a aeronave (deve horas)
+            to_partner_id: selectedClient, // Cotista que emprestou (recebe crédito)
+            hours: totalBlockTime,
+            type: 'loan',
+            description: `Empréstimo: ${formData.departure_airport} → ${formData.arrival_airport} - Cliente usou aeronave emprestada`,
+            logbook_entry_id: insertedEntry.id,
+          },
+        ]);
+
+        if (transactionError) {
+          console.error('Erro ao registrar transação no banco de horas:', transactionError);
           toast({
             title: 'Atenção',
-            description: 'Voo registrado, mas houve erro ao registrar empréstimo no banco de horas.',
+            description: 'Voo registrado, mas houve erro ao registrar no banco de horas.',
             variant: 'destructive',
           });
+        } else {
+          console.log('✅ Transação de empréstimo registrada no banco de horas');
         }
       }
 
@@ -978,8 +1002,8 @@ export function DynamicLogbookForm({
               </div>
 
               <p className="text-xs text-amber-200/80 bg-amber-500/20 p-3 rounded-lg">
-                ⚠️ Este voo será registrado como empréstimo. As horas voadas serão debitadas do banco de horas 
-                do cliente que pegou emprestado e creditadas quando ele devolver em outra aeronave.
+                ⚠️ Este voo será registrado como empréstimo. O cotista que emprestar receberá crédito no banco de horas
+                para poder usar a aeronave do cliente que voou.
               </p>
             </div>
           )}

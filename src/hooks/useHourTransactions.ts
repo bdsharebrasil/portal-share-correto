@@ -12,8 +12,8 @@ export function useHourTransactions(aircraftId: string | null | undefined) {
         .from('hour_transactions')
         .select(`
           *,
-          from_partner:clients!from_partner_id(id, company_name),
-          to_partner:clients!to_partner_id(id, company_name)
+          from_partner:clients!hour_transactions_from_partner_id_fkey(id, company_name),
+          to_partner:clients!hour_transactions_to_partner_id_fkey(id, company_name)
         `)
         .eq('aircraft_id', aircraftId)
         .order('created_at', { ascending: false })
@@ -85,8 +85,8 @@ export function useHourTransactionsByPartner(
         .from('hour_transactions')
         .select(`
           *,
-          from_partner:clients!from_partner_id(id, company_name),
-          to_partner:clients!to_partner_id(id, company_name)
+          from_partner:clients!hour_transactions_from_partner_id_fkey(id, company_name),
+          to_partner:clients!hour_transactions_to_partner_id_fkey(id, company_name)
         `)
         .eq('aircraft_id', aircraftId)
         .or(`from_partner_id.eq.${partnerId},to_partner_id.eq.${partnerId}`)

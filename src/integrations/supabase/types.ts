@@ -4393,6 +4393,7 @@ export type Database = {
       }
       despesas_cliente_direto: {
         Row: {
+          abastecimento_id: string | null
           aeronave_id: string | null
           aeronave_registro: string | null
           atualizado_em: string | null
@@ -4428,11 +4429,13 @@ export type Database = {
           partner_name: string | null
           quantidade_lembretes: number | null
           status: string
+          tipo_despesa: string | null
           validado_por: string | null
           valor: number
           valor_pago: number | null
         }
         Insert: {
+          abastecimento_id?: string | null
           aeronave_id?: string | null
           aeronave_registro?: string | null
           atualizado_em?: string | null
@@ -4468,11 +4471,13 @@ export type Database = {
           partner_name?: string | null
           quantidade_lembretes?: number | null
           status?: string
+          tipo_despesa?: string | null
           validado_por?: string | null
           valor: number
           valor_pago?: number | null
         }
         Update: {
+          abastecimento_id?: string | null
           aeronave_id?: string | null
           aeronave_registro?: string | null
           atualizado_em?: string | null
@@ -4508,11 +4513,19 @@ export type Database = {
           partner_name?: string | null
           quantidade_lembretes?: number | null
           status?: string
+          tipo_despesa?: string | null
           validado_por?: string | null
           valor?: number
           valor_pago?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "despesas_cliente_direto_abastecimento_id_fkey"
+            columns: ["abastecimento_id"]
+            isOneToOne: false
+            referencedRelation: "abastecimentos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "despesas_cliente_direto_aeronave_id_fkey"
             columns: ["aeronave_id"]

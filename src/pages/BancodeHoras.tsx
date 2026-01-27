@@ -80,11 +80,11 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
         .from('aircraft_loans')
         .select(`
           *,
-          lender_client:lender_client_id (
+          lender_client:clients!aircraft_loans_lender_client_id_fkey (
             id,
             company_name
           ),
-          borrower_client:borrower_client_id (
+          borrower_client:clients!aircraft_loans_borrower_client_id_fkey (
             id,
             company_name
           )
@@ -93,7 +93,7 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
         .order('entry_date', { ascending: false });
 
       if (loansRes.data) {
-        setLoans(loansRes.data as AircraftLoan[]);
+        setLoans(loansRes.data as unknown as AircraftLoan[]);
       }
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
