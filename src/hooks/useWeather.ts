@@ -330,7 +330,7 @@ export function useWeather() {
     const interval = setInterval(() => {
       if (!isFetching) {
         console.log('[METAR] ⏰ Atualizando por intervalo (5 min)...');
-        safeFetch().catch(err => console.warn('[METAR] Erro no intervalo:', err));
+        safeFetch();
       }
     }, UPDATE_INTERVAL);
 
