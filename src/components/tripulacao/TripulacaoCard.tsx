@@ -152,7 +152,7 @@ export function CrewMemberCard({ member }: CrewMemberCardProps) {
                   className={`${config.cardBg} border ${config.cardBorder} rounded-lg p-3 hover:border-opacity-50 transition-colors`}
                 >
                   <p className="text-xs font-semibold text-slate-300 mb-2">{license.license_type}</p>
-                  <p className="text-xs text-slate-400 mb-2">{formatDate(expiryDate)}</p>
+                  <p className="text-xs text-slate-400 mb-2">{formatDateToBR(expiryDate)}</p>
                   <Badge className={`${config.badgeColor} ${config.textColor} text-xs font-semibold w-full justify-center border`}>
                     {config.label}
                   </Badge>
