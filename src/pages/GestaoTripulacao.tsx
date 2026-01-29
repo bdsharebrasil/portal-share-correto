@@ -48,13 +48,9 @@ interface CrewLicense {
   id: string;
   crew_member_id: string;
   license_type: string;
-  license_number?: string;
-  issue_date?: string;
-  expiry_date: string;
-  issuing_authority?: string;
-  status: string;
-  observations?: string;
-  document_url?: string;
+  expiry_date?: string;
+  status?: string;
+  observacao?: string;
   CMA?: string;
   FS_RH?: string;
   validade_cma?: string;
@@ -159,7 +155,7 @@ export default function GestaoDeTripulacao() {
     // Carregar licenças
     const {
       data: licensesData
-    } = await (supabase as any).from('crew_licenses').select('*').eq('crew_member_id', crewId).order('expiry_date');
+    } = await (supabase as any).from('crew_licenses').select('*').eq('crew_member_id', crewId).order('created_at', { ascending: false });
     setLicenses(licensesData || []);
 
     // Carregar escalas de voo
@@ -171,7 +167,14 @@ export default function GestaoDeTripulacao() {
     setSchedules(schedulesData || []);
   };
   const getLicenseStatusBadge = (license: CrewLicense, onEdit?: () => void) => {
-    const expiryDate = new Date(license.expiry_date);
+    // Para CMA, usar validade_cma; para outros, usar expiry_date
+    const dateStr = license.license_type === 'CMA' ? license.validade_cma : license.expiry_date;
+
+    if (!dateStr) {
+      return <Badge className="bg-gray-500">Sem data de validade</Badge>;
+    }
+
+    const expiryDate = new Date(dateStr);
     const today = new Date();
     const daysUntilExpiry = Math.floor((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     const badgeClass = "flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity";
@@ -199,6 +202,7 @@ export default function GestaoDeTripulacao() {
     }
     const payload = {
       crew_member_id: selectedCrew.id,
+      license_number: "", // Campo obrigatório no banco
       ...licenseData
     };
     if (editingLicense) {
@@ -556,24 +560,14 @@ export default function GestaoDeTripulacao() {
                                 {license.CMA && <div><strong>Classe:</strong> {license.CMA}</div>}
                                 {license.FS_RH && <div><strong>FS/RH:</strong> {license.FS_RH}</div>}
                                 {license.validade_cma && <div className="col-span-2"><strong>Validade CMA:</strong> {formatDate(license.validade_cma)}</div>}
-                                {license.license_number && <div><strong>Número:</strong> {license.license_number}</div>}
-                              </>
-                            ) : license.license_type === 'CHT' ? (
-                              <>
-                                {license.license_number && <div><strong>Tipo de Aeronave:</strong> {license.license_number}</div>}
-                                {license.issue_date && <div><strong>Emissão:</strong> {formatDate(license.issue_date)}</div>}
-                                <div><strong>Validade:</strong> {formatDate(license.expiry_date)}</div>
                               </>
                             ) : (
                               <>
-                                {license.license_number && <div><strong>Número:</strong> {license.license_number}</div>}
-                                {license.issuing_authority && <div><strong>Emissor:</strong> {license.issuing_authority}</div>}
-                                {license.issue_date && <div><strong>Emissão:</strong> {formatDate(license.issue_date)}</div>}
-                                <div><strong>Validade:</strong> {formatDate(license.expiry_date)}</div>
+                                {license.expiry_date && <div className="col-span-2"><strong>Validade:</strong> {formatDate(license.expiry_date)}</div>}
                               </>
                             )}
                           </div>
-                          {license.observations && <p className="text-sm text-muted-foreground">{license.observations}</p>}
+                          {license.observacao && <p className="text-sm text-muted-foreground">{license.observacao}</p>}
                         </div>
                         <div className="flex gap-2 ml-4">
                           {canEditHabilitacoes && (
@@ -652,11 +646,8 @@ function LicenseForm({
 }) {
   const [formData, setFormData] = useState<Partial<CrewLicense>>(license || {
     license_type: '',
-    license_number: '',
-    issue_date: '',
     expiry_date: '',
-    issuing_authority: '',
-    observations: '',
+    observacao: '',
     CMA: '',
     FS_RH: '',
     validade_cma: ''
@@ -665,7 +656,7 @@ function LicenseForm({
     e.preventDefault();
     if (!formData.license_type) {
       toast({
-        title: "Preencha o tipo de habilitação",
+        title: "Informe o tipo de licença",
         variant: "destructive"
       });
       return;
@@ -691,115 +682,62 @@ function LicenseForm({
     onSave(formData);
   };
   return <form onSubmit={handleSubmit} className="space-y-4">
-    <div className="grid grid-cols-2 gap-4">
-      <div>
-        <Label>Tipo de Habilitação *</Label>
-        <Select value={formData.license_type} onValueChange={value => setFormData({
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="sm:col-span-2">
+        <Label>Tipo de Licença *</Label>
+        <Input className="w-full" value={formData.license_type} onChange={e => setFormData({
           ...formData,
-          license_type: value
-        })}>
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="PPL">PPL - Piloto Privado</SelectItem>
-            <SelectItem value="CPL">CPL - Piloto Comercial</SelectItem>
-            <SelectItem value="ATPL">ATPL - Piloto de Linha Aérea</SelectItem>
-            <SelectItem value="INVA">INVA - Instrutor de Voo</SelectItem>
-            <SelectItem value="IFR">IFR - Instrumentos</SelectItem>
-            <SelectItem value="MLTE">MLTE - Multi-motor Terrestre</SelectItem>
-            <SelectItem value="MNTE">MNTE - Mono-motor Terrestre</SelectItem>
-            <SelectItem value="CMA">CMA - Certificado Médico Aeronáutico</SelectItem>
-            <SelectItem value="CHT">CHT - Habilitação de Tipo</SelectItem>
-            <SelectItem value="Outro">Outro</SelectItem>
-          </SelectContent>
-        </Select>
+          license_type: e.target.value
+        })} placeholder="Ex: PP, PC, CMA, IFR" />
       </div>
 
       {formData.license_type === 'CMA' ? (
         <>
           <div>
             <Label>Classe CMA</Label>
-            <Input value={formData.CMA || ''} onChange={e => setFormData({
+            <Input className="w-full" value={formData.CMA || ''} onChange={e => setFormData({
               ...formData,
               CMA: e.target.value
             })} placeholder="Ex: Primeira, Segunda, Terceira" />
           </div>
           <div>
             <Label>FS/RH</Label>
-            <Input value={formData.FS_RH || ''} onChange={e => setFormData({
+            <Input className="w-full" value={formData.FS_RH || ''} onChange={e => setFormData({
               ...formData,
               FS_RH: e.target.value
             })} />
           </div>
-          <div>
+          <div className="sm:col-span-2">
             <Label>Validade CMA</Label>
-            <Input type="date" value={formData.validade_cma || ''} onChange={e => setFormData({
+            <Input className="w-full" type="date" value={formData.validade_cma || ''} onChange={e => setFormData({
               ...formData,
               validade_cma: e.target.value
             })} />
           </div>
         </>
-      ) : formData.license_type === 'CHT' ? (
-        <div>
-          <Label>Tipo de Aeronave</Label>
-          <Input value={formData.license_number || ''} onChange={e => setFormData({
-            ...formData,
-            license_number: e.target.value
-          })} placeholder="Ex: PA-28, C-172" />
-        </div>
       ) : (
-        <>
-          <div>
-            <Label>Número da Licença</Label>
-            <Input value={formData.license_number} onChange={e => setFormData({
-              ...formData,
-              license_number: e.target.value
-            })} />
-          </div>
-          <div>
-            <Label>Data de Emissão</Label>
-            <Input type="date" value={formData.issue_date} onChange={e => setFormData({
-              ...formData,
-              issue_date: e.target.value
-            })} />
-          </div>
-        </>
-      )}
-
-      {formData.license_type !== 'CMA' && (
-        <div>
+        <div className="sm:col-span-2">
           <Label>Data de Validade *</Label>
-          <Input type="date" value={formData.expiry_date} onChange={e => setFormData({
+          <Input className="w-full" type="date" value={formData.expiry_date} onChange={e => setFormData({
             ...formData,
             expiry_date: e.target.value
           })} required />
         </div>
       )}
 
-      {formData.license_type !== 'CMA' && (
-        <div className="col-span-2">
-          <Label>Autoridade Emissora</Label>
-          <Input value={formData.issuing_authority} onChange={e => setFormData({
-            ...formData,
-            issuing_authority: e.target.value
-          })} placeholder="Ex: ANAC, FAA, EASA" />
-        </div>
-      )}
-
-      <div className="col-span-2">
+      <div className="sm:col-span-2">
         <Label>Observações</Label>
-        <Textarea value={formData.observations} onChange={e => setFormData({
+        <Textarea className="w-full" value={formData.observacao || ''} onChange={e => setFormData({
           ...formData,
-          observations: e.target.value
-        })} rows={3} />
+          observacao: e.target.value
+        })} rows={4} />
       </div>
     </div>
-    <div className="flex justify-end gap-2">
-      <Button type="button" variant="outline" onClick={onCancel}>
+    <div className="flex flex-col sm:flex-row justify-end gap-2">
+      <Button className="w-full sm:w-auto" type="button" variant="outline" onClick={onCancel}>
         Cancelar
       </Button>
-      <Button type="submit">
+      <Button className="w-full sm:w-auto" type="submit" variant="premium">
         Salvar
       </Button>
     </div>
