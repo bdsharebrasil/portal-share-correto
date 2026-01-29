@@ -974,22 +974,46 @@ router.get(
       );
 
       if (!response.ok) {
-        console.error(`METAR API error: HTTP ${response.status} for ${icao}`);
+        console.error(`[METAR API] HTTP Error: ${response.status} for ${icao}`);
         return res.status(response.status).json({
           error: `METAR API returned ${response.status}`,
           icao: icao.toUpperCase()
         });
       }
 
-      const data = await response.json();
+      // Get the response text first to check if it's empty
+      const responseText = await response.text();
+
+      if (!responseText || responseText.trim().length === 0) {
+        console.warn(`[METAR API] Empty response body for ${icao}`);
+        return res.status(503).json({
+          error: 'METAR service returned empty response',
+          icao: icao.toUpperCase()
+        });
+      }
+
+      // Try to parse JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error(`[METAR API] JSON Parse Error for ${icao}:`, parseError);
+        return res.status(502).json({
+          error: 'METAR service returned invalid JSON',
+          icao: icao.toUpperCase(),
+          details: process.env.NODE_ENV === 'development' ? String(parseError) : undefined
+        });
+      }
 
       if (!Array.isArray(data) || data.length === 0) {
+        console.warn(`[METAR API] No METAR data found for ${icao}`);
         return res.status(404).json({
           error: 'METAR not found',
           icao: icao.toUpperCase()
         });
       }
 
+      console.log(`[METAR API] ✅ Successfully fetched METAR for ${icao}`);
       res.json({
         data: data[0],
         icao: icao.toUpperCase(),
@@ -997,7 +1021,7 @@ router.get(
         cached: res.get('X-Cache') === 'HIT'
       });
     } catch (error) {
-      console.error('[METAR API] Exception:', error);
+      console.error('[METAR API] Unexpected Exception:', error);
       const errorMsg = error instanceof Error ? error.message : String(error);
       res.status(500).json({
         error: 'Failed to fetch METAR data',
