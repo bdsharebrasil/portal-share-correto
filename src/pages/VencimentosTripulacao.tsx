@@ -186,26 +186,26 @@ export default function VencimentosTripulacao() {
   };
 
   const handleUpdateDate = async () => {
-    if (!editingVencimento || !newDate) return;
+    if (!editingHabilitacao || !newDate) return;
 
     try {
       const { error } = await supabase
         .from('crew_licenses')
         .update({
-          [editingVencimento.tipo === 'habilitacao' ? 'expiry_date' : 'validade_cma']: newDate
+          [editingHabilitacao.habilitacao.tipo === 'habilitacao' ? 'expiry_date' : 'validade_cma']: newDate
         })
-        .eq('id', editingVencimento.licenseId);
+        .eq('id', editingHabilitacao.habilitacao.licenseId);
 
       if (error) throw error;
 
       setNotification({
         type: 'success',
         title: 'Data atualizada com sucesso!',
-        description: `${editingVencimento.habilitacao} de ${editingVencimento.tripulanteName} atualizada`
+        description: `${editingHabilitacao.habilitacao.habilitacao} de ${editingHabilitacao.tripulanteName} atualizada`
       });
 
       setEditDialogOpen(false);
-      setEditingVencimento(null);
+      setEditingHabilitacao(null);
       setNewDate('');
       loadVencimentos();
     } catch (error) {
