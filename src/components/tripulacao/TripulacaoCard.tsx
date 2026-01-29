@@ -150,7 +150,8 @@ export function CrewMemberCard({ member }: CrewMemberCardProps) {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {displayLicenses.map((license) => {
-              const status = getLicenseStatus(license.expiry_date);
+              const expiryDate = license.license_type === 'CMA' ? license.validade_cma : license.expiry_date;
+              const status = getLicenseStatus(expiryDate);
               const config = statusConfig[status];
 
               return (
@@ -159,7 +160,7 @@ export function CrewMemberCard({ member }: CrewMemberCardProps) {
                   className={`${config.cardBg} border ${config.cardBorder} rounded-lg p-3 hover:border-opacity-50 transition-colors`}
                 >
                   <p className="text-xs font-semibold text-slate-300 mb-2">{license.license_type}</p>
-                  <p className="text-xs text-slate-400 mb-2">{formatDate(license.expiry_date)}</p>
+                  <p className="text-xs text-slate-400 mb-2">{formatDate(expiryDate)}</p>
                   <Badge className={`${config.badgeColor} ${config.textColor} text-xs font-semibold w-full justify-center border`}>
                     {config.label}
                   </Badge>
