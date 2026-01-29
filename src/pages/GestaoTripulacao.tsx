@@ -48,13 +48,9 @@ interface CrewLicense {
   id: string;
   crew_member_id: string;
   license_type: string;
-  license_number?: string;
-  issue_date?: string;
-  expiry_date: string;
-  issuing_authority?: string;
-  status: string;
-  observations?: string;
-  document_url?: string;
+  expiry_date?: string;
+  status?: string;
+  observacao?: string;
   CMA?: string;
   FS_RH?: string;
   validade_cma?: string;
@@ -556,24 +552,14 @@ export default function GestaoDeTripulacao() {
                                 {license.CMA && <div><strong>Classe:</strong> {license.CMA}</div>}
                                 {license.FS_RH && <div><strong>FS/RH:</strong> {license.FS_RH}</div>}
                                 {license.validade_cma && <div className="col-span-2"><strong>Validade CMA:</strong> {formatDate(license.validade_cma)}</div>}
-                                {license.license_number && <div><strong>Número:</strong> {license.license_number}</div>}
-                              </>
-                            ) : license.license_type === 'CHT' ? (
-                              <>
-                                {license.license_number && <div><strong>Tipo de Aeronave:</strong> {license.license_number}</div>}
-                                {license.issue_date && <div><strong>Emissão:</strong> {formatDate(license.issue_date)}</div>}
-                                <div><strong>Validade:</strong> {formatDate(license.expiry_date)}</div>
                               </>
                             ) : (
                               <>
-                                {license.license_number && <div><strong>Número:</strong> {license.license_number}</div>}
-                                {license.issuing_authority && <div><strong>Emissor:</strong> {license.issuing_authority}</div>}
-                                {license.issue_date && <div><strong>Emissão:</strong> {formatDate(license.issue_date)}</div>}
-                                <div><strong>Validade:</strong> {formatDate(license.expiry_date)}</div>
+                                {license.expiry_date && <div className="col-span-2"><strong>Validade:</strong> {formatDate(license.expiry_date)}</div>}
                               </>
                             )}
                           </div>
-                          {license.observations && <p className="text-sm text-muted-foreground">{license.observations}</p>}
+                          {license.observacao && <p className="text-sm text-muted-foreground">{license.observacao}</p>}
                         </div>
                         <div className="flex gap-2 ml-4">
                           {canEditHabilitacoes && (
