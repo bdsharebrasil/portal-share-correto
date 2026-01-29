@@ -176,7 +176,7 @@ export function CrewMemberCard({ member }: CrewMemberCardProps) {
             <div className="text-center border-l border-r border-slate-700/50">
               <p className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-2">Validade</p>
               <p className={`text-sm font-bold ${statusConfig[getLicenseStatus(cmaLicense.validade_cma)].textColor}`}>
-                {formatDate(cmaLicense.validade_cma)}
+                {formatDateToBR(cmaLicense.validade_cma)}
               </p>
             </div>
             <div className="text-center">
