@@ -296,7 +296,7 @@ export function useWeather() {
             console.warn('[METAR] ❌ Erro ao buscar METAR:', fetchError.message);
           }
         }
-        throw fetchError;
+        // Don't re-throw, fall through to the outer catch block
       }
     } catch (error) {
       console.warn('[METAR] ⚠️ Usando dados locais como fallback');
