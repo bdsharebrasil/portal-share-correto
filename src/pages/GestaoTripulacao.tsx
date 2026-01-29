@@ -155,7 +155,7 @@ export default function GestaoDeTripulacao() {
     // Carregar licenças
     const {
       data: licensesData
-    } = await (supabase as any).from('crew_licenses').select('*').eq('crew_member_id', crewId).order('expiry_date');
+    } = await (supabase as any).from('crew_licenses').select('*').eq('crew_member_id', crewId).order('created_at', { ascending: false });
     setLicenses(licensesData || []);
 
     // Carregar escalas de voo
