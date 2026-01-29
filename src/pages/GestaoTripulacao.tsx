@@ -202,6 +202,7 @@ export default function GestaoDeTripulacao() {
     }
     const payload = {
       crew_member_id: selectedCrew.id,
+      license_number: "", // Campo obrigatório no banco
       ...licenseData
     };
     if (editingLicense) {
