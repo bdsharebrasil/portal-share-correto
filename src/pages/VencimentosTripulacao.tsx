@@ -475,27 +475,27 @@ export default function VencimentosTripulacao() {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredVencimentos.map((vencimento) => {
-                  const statusInfo = getStatusInfo(vencimento.status);
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {filteredVencimentos.map((tripulante) => {
+                  const statusInfo = getStatusInfo(tripulante.statusGeral);
                   const StatusIcon = statusInfo.icon;
 
                   return (
                     <div
-                      key={vencimento.id}
-                      className={`rounded-xl border backdrop-blur-sm transition-all hover:scale-[1.02] hover:shadow-lg ${statusInfo.bgColor} ${statusInfo.borderColor} p-4 group`}
+                      key={tripulante.tripulanteId}
+                      className={`rounded-xl border backdrop-blur-sm transition-all hover:shadow-lg ${statusInfo.bgColor} ${statusInfo.borderColor} p-5 group`}
                     >
                       {/* Header com Tripulante */}
-                      <div className="flex items-center gap-3 mb-4">
-                        <Avatar className="w-10 h-10 ring-2 ring-white/10">
-                          <AvatarImage src={vencimento.tripulanteAvatar} alt={vencimento.tripulanteName} />
-                          <AvatarFallback className="bg-slate-700 text-xs">
-                            {vencimento.tripulanteName.split(' ').map(n => n[0]).join('')}
+                      <div className="flex items-start gap-4 mb-5 pb-4 border-b border-white/10">
+                        <Avatar className="w-14 h-14 ring-2 ring-white/10 flex-shrink-0">
+                          <AvatarImage src={tripulante.tripulanteAvatar} alt={tripulante.tripulanteName} />
+                          <AvatarFallback className="bg-slate-700 text-sm font-semibold">
+                            {tripulante.tripulanteName.split(' ').map(n => n[0]).join('')}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white truncate">{vencimento.tripulanteName}</p>
-                          <p className="text-xs text-gray-400">{vencimento.habilitacao}</p>
+                          <p className="text-base font-bold text-white truncate">{tripulante.tripulanteName}</p>
+                          <p className="text-xs text-gray-400 mt-1">{tripulante.habilitacoes.length} habilitação{tripulante.habilitacoes.length !== 1 ? 's' : ''}</p>
                         </div>
                         <Badge className={statusInfo.badgeClass}>
                           <StatusIcon className="h-3 w-3 mr-1" />
@@ -503,43 +503,52 @@ export default function VencimentosTripulacao() {
                         </Badge>
                       </div>
 
-                      {/* Data e Dias Restantes */}
-                      <div className="space-y-2 mb-4">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-500 flex-shrink-0" />
-                          <span className="text-sm font-medium text-gray-300">
-                            {new Date(vencimento.dataVencimento).toLocaleDateString('pt-BR')}
-                          </span>
-                        </div>
+                      {/* Lista de Habilitações */}
+                      <div className="space-y-3">
+                        {tripulante.habilitacoes.map((hab) => {
+                          const habStatusInfo = getStatusInfo(hab.status);
+                          return (
+                            <div key={hab.id} className={`rounded-lg px-3 py-2 border ${habStatusInfo.borderColor} ${habStatusInfo.bgColor}`}>
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex-1">
+                                  <p className="text-sm font-semibold text-white">{hab.habilitacao}</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Calendar className="h-3 w-3 text-gray-500 flex-shrink-0" />
+                                    <span className="text-xs text-gray-400">
+                                      {new Date(hab.dataVencimento).toLocaleDateString('pt-BR')}
+                                    </span>
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 hover:bg-white/10"
+                                  onClick={() => {
+                                    setEditingHabilitacao({ habilitacao: hab, tripulanteName: tripulante.tripulanteName });
+                                    setNewDate(hab.dataVencimento);
+                                    setEditDialogOpen(true);
+                                  }}
+                                  title="Editar data de vencimento"
+                                >
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                              </div>
 
-                        {vencimento.status === 'vencido' ? (
-                          <div className="bg-red-500/20 rounded-lg px-3 py-2 border border-red-500/30">
-                            <p className="text-red-300 font-semibold text-sm">Vencido há {Math.abs(vencimento.diasRestantes)} dias</p>
-                          </div>
-                        ) : (
-                          <div className={`${statusInfo.bgColor} border ${statusInfo.borderColor} rounded-lg px-3 py-2`}>
-                            <p className={`${statusInfo.textColor} font-semibold text-lg`}>
-                              {vencimento.diasRestantes} <span className="text-xs">dias</span>
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Ações */}
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 bg-slate-700/50 border-white/10 text-gray-300 hover:bg-slate-600 text-xs"
-                          onClick={() => {
-                            setEditingVencimento(vencimento);
-                            setNewDate(vencimento.dataVencimento);
-                            setEditDialogOpen(true);
-                          }}
-                        >
-                          <Edit className="h-3 w-3 mr-1" />
-                          Editar
-                        </Button>
+                              {/* Status Badge */}
+                              {hab.status === 'vencido' ? (
+                                <div className="bg-red-500/20 rounded px-2 py-1 border border-red-500/30 inline-block">
+                                  <p className="text-red-300 font-semibold text-xs">Vencido há {Math.abs(hab.diasRestantes)} dias</p>
+                                </div>
+                              ) : (
+                                <div className="inline-block">
+                                  <p className={`${habStatusInfo.textColor} font-semibold text-xs`}>
+                                    {hab.diasRestantes} dias restantes
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
