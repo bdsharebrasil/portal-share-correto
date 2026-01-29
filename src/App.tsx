@@ -110,7 +110,8 @@ const App = () => {
         <AuthProvider>
           <LoadingProvider>
             <ViewModeProvider>
-              <TooltipProvider>
+              <VencimentosSyncProvider>
+                <TooltipProvider>
                 <Toaster />
                 <GlobalLoader />
                 <InstallPrompt />
@@ -245,6 +246,7 @@ const App = () => {
                   </Routes>
                 </HashRouter>
               </TooltipProvider>
+              </VencimentosSyncProvider>
             </ViewModeProvider>
           </LoadingProvider>
         </AuthProvider>
