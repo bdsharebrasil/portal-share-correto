@@ -48,6 +48,7 @@ interface CrewLicense {
   id: string;
   crew_member_id: string;
   license_type: string;
+  license_number?: string;
   expiry_date?: string;
   status?: string;
   observacao?: string;
