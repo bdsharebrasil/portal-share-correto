@@ -36,6 +36,7 @@ interface DocumentoVencimento {
 
 export default function VencimentosDocumentos() {
   const { toast } = useToast();
+  const { subscribe } = useVencimentosSync();
   const [documentos, setDocumentos] = useState<DocumentoVencimento[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -47,7 +48,16 @@ export default function VencimentosDocumentos() {
 
   useEffect(() => {
     loadDocumentos();
-  }, []);
+
+    // Inscrever para mudanças em tempo real
+    const unsubscribe = subscribe((event) => {
+      if (event.entityType === 'flight_document') {
+        loadDocumentos();
+      }
+    });
+
+    return unsubscribe;
+  }, [subscribe]);
 
   const loadDocumentos = async () => {
     setLoading(true);
