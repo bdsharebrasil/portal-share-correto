@@ -112,8 +112,8 @@ export function AddLicenseDialog({
           <DialogTitle>Nova Habilitação</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
-          <div className="space-y-2">
+        <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto max-[991px]:ml-[17px]">
+          <div className="space-y-2 max-[991px]:leading-[27px] max-[991px]:ml-[12px]">
             <Label htmlFor="license-type">Tipo de Licença *</Label>
             <Input
               id="license-type"
@@ -125,7 +125,7 @@ export function AddLicenseDialog({
           </div>
 
           {!isCMA && (
-            <div className="space-y-2">
+            <div className="space-y-2 max-[991px]:ml-[12px]">
               <Label htmlFor="expiry-date">Data de Validade *</Label>
               <Input
                 id="expiry-date"
