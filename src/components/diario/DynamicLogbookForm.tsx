@@ -31,6 +31,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { useLogbookForm } from '@/hooks/useLogbookForm';
 import { useTripulantes } from '@/hooks/useTripulantes';
+import { updateCrewFlightHours } from '@/services/crewFlightHours';
 import type { Aerodrome } from '@/types';
 
 // Tipos de voo especiais que dividem custos igualmente entre sócios
