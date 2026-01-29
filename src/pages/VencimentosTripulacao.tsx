@@ -75,9 +75,9 @@ export default function VencimentosTripulacao() {
     try {
       // Carregar membros da tripulação
       const { data: crew, error: crewError } = await supabase
-        .from('user_profiles')
+        .from('crew_members')
         .select('*')
-        .eq('employment_status', 'ativo')
+        .eq('status', 'ativo')
         .order('full_name');
 
       if (crewError) throw crewError;
