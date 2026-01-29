@@ -6,6 +6,7 @@ import { RoleProtected } from "@/components/auth/RoleProtected";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LoadingProvider } from "@/contexts/LoadingContext";
 import { ViewModeProvider } from "@/contexts/ViewModeContext";
+import { VencimentosSyncProvider } from "@/contexts/VencimentosSyncContext";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
