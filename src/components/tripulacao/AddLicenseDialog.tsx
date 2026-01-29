@@ -21,7 +21,6 @@ interface AddLicenseDialogProps {
   onSuccess: () => void;
 }
 
-
 export function AddLicenseDialog({
   open,
   onOpenChange,
@@ -31,7 +30,6 @@ export function AddLicenseDialog({
   const [licenseType, setLicenseType] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [observations, setObservations] = useState("");
-  // CMA specific fields
   const [cmaClass, setCmaClass] = useState("");
   const [fsRh, setFsRh] = useState("");
   const [validadeCma, setValidadeCma] = useState("");
@@ -69,7 +67,7 @@ export function AddLicenseDialog({
       const insertData: any = {
         crew_member_id: crewMemberId,
         license_type: licenseType,
-        license_number: "", // Campo obrigatório no banco
+        license_number: "",
         expiry_date: isCMA ? null : expiryDate,
         observacao: observations || null,
       };
@@ -107,32 +105,46 @@ export function AddLicenseDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg max-w-[414px]">
-        <DialogHeader>
-          <DialogTitle>Nova Habilitação</DialogTitle>
+      <DialogContent className="sm:max-w-[480px] gap-0 p-0 overflow-hidden bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border-zinc-200/50 dark:border-zinc-800/50">
+        {/* Header com estilo macOS */}
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-zinc-100 dark:border-zinc-800">
+          <DialogTitle className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            Nova Habilitação
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto max-[991px]:ml-[17px]">
-          <div className="space-y-2 max-[991px]:leading-[27px] max-[991px]:ml-[12px]">
-            <Label htmlFor="license-type">Tipo de Licença *</Label>
+        {/* Form com padding e espaçamento macOS */}
+        <div className="px-6 py-5 space-y-5 max-h-[60vh] overflow-y-auto">
+          <div className="space-y-2">
+            <Label 
+              htmlFor="license-type" 
+              className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+            >
+              Tipo de Licença *
+            </Label>
             <Input
               id="license-type"
               value={licenseType}
               onChange={(e) => setLicenseType(e.target.value)}
               placeholder="Ex: PP, PC, CMA, IFR"
-              className="max-[991px]:w-[78%]"
+              className="h-10 rounded-lg border-zinc-200 dark:border-zinc-700 focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400"
             />
           </div>
 
           {!isCMA && (
-            <div className="space-y-2 max-[991px]:ml-[12px]">
-              <Label htmlFor="expiry-date">Data de Validade *</Label>
+            <div className="space-y-2">
+              <Label 
+                htmlFor="expiry-date"
+                className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+              >
+                Data de Validade *
+              </Label>
               <Input
                 id="expiry-date"
                 type="date"
                 value={expiryDate}
                 onChange={(e) => setExpiryDate(e.target.value)}
-                className="max-[991px]:w-[78%]"
+                className="h-10 rounded-lg border-zinc-200 dark:border-zinc-700 focus-visible:ring-blue-500"
               />
             </div>
           )}
@@ -140,12 +152,17 @@ export function AddLicenseDialog({
           {isCMA && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="cma-class">Classe do CMA *</Label>
+                <Label 
+                  htmlFor="cma-class"
+                  className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                >
+                  Classe do CMA *
+                </Label>
                 <Select value={cmaClass} onValueChange={setCmaClass}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-10 rounded-lg border-zinc-200 dark:border-zinc-700">
                     <SelectValue placeholder="Selecione a classe" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="rounded-lg">
                     <SelectItem value="primeira">1ª Classe</SelectItem>
                     <SelectItem value="segunda">2ª Classe</SelectItem>
                   </SelectContent>
@@ -153,44 +170,71 @@ export function AddLicenseDialog({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="fs-rh">FS/RH</Label>
+                <Label 
+                  htmlFor="fs-rh"
+                  className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                >
+                  FS/RH
+                </Label>
                 <Input
                   id="fs-rh"
                   value={fsRh}
                   onChange={(e) => setFsRh(e.target.value)}
                   placeholder="Ex: Apto"
+                  className="h-10 rounded-lg border-zinc-200 dark:border-zinc-700"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="validade-cma">Validade do CMA *</Label>
+                <Label 
+                  htmlFor="validade-cma"
+                  className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+                >
+                  Validade do CMA *
+                </Label>
                 <Input
                   id="validade-cma"
                   type="date"
                   value={validadeCma}
                   onChange={(e) => setValidadeCma(e.target.value)}
+                  className="h-10 rounded-lg border-zinc-200 dark:border-zinc-700"
                 />
               </div>
             </>
           )}
 
-          <div className="space-y-2 max-[991px]:ml-[12px]">
-            <Label htmlFor="observations">Observações</Label>
+          <div className="space-y-2">
+            <Label 
+              htmlFor="observations"
+              className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+            >
+              Observações
+            </Label>
             <Textarea
               id="observations"
               value={observations}
               onChange={(e) => setObservations(e.target.value)}
               placeholder="Observações adicionais..."
               rows={3}
+              className="rounded-lg border-zinc-200 dark:border-zinc-700 resize-none"
             />
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        {/* Footer com estilo macOS */}
+        <DialogFooter className="px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/50 gap-3">
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+            className="rounded-lg h-10 px-4 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={isLoading}>
+          <Button 
+            onClick={handleSave} 
+            disabled={isLoading}
+            className="rounded-lg h-10 px-4 bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700"
+          >
             {isLoading ? "Salvando..." : "Adicionar"}
           </Button>
         </DialogFooter>
