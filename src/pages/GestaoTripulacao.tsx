@@ -264,20 +264,35 @@ export default function GestaoDeTripulacao() {
       return;
     }
     if (!confirm('Deseja realmente excluir esta licença?')) return;
-    const {
-      error
-    } = await (supabase as any).from('crew_licenses').delete().eq('id', licenseId);
-    if (error) {
+
+    try {
+      console.log("[License] Deleting license:", licenseId);
+      const {
+        error
+      } = await (supabase as any).from('crew_licenses').delete().eq('id', licenseId);
+      if (error) {
+        console.error("[License] Delete error:", error);
+        const errorMsg = error?.message || error?.details || "Erro ao excluir licença";
+        toast({
+          title: "Erro ao excluir licença",
+          description: errorMsg,
+          variant: "destructive"
+        });
+        return;
+      }
+      toast({
+        title: "Licença excluída com sucesso!"
+      });
+      if (selectedCrew) loadCrewDetails(selectedCrew.id);
+    } catch (error) {
+      console.error("[License] Unexpected error:", error);
+      const errorMsg = error instanceof Error ? error.message : "Erro inesperado ao excluir licença";
       toast({
         title: "Erro ao excluir licença",
+        description: errorMsg,
         variant: "destructive"
       });
-      return;
     }
-    toast({
-      title: "Licença excluída com sucesso!"
-    });
-    if (selectedCrew) loadCrewDetails(selectedCrew.id);
   };
   const filteredCrewMembers = crewMembers.filter(crew => crew.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || crew.canac.toLowerCase().includes(searchTerm.toLowerCase()));
   const formatDate = formatDateToBR;
