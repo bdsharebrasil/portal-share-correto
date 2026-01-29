@@ -256,7 +256,7 @@ export function useWeather() {
 
         if (temp === null) {
           console.warn('[METAR] ⚠️ Temperatura não parseada - usando fallback');
-          setDefaultWeather();
+          setDefaultWeather(aerodrome);
           return;
         }
 
