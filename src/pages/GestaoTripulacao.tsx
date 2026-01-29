@@ -678,12 +678,7 @@ function LicenseForm({
       return;
     }
 
-    // Garantir que license_number está preenchido (campo obrigatório)
-    const submitData = {
-      ...formData,
-      license_number: formData.license_number || ""
-    };
-    onSave(submitData);
+    onSave(formData);
   };
   return <form onSubmit={handleSubmit} className="space-y-4">
     <div className="grid grid-cols-2 gap-4">
