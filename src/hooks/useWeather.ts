@@ -296,10 +296,11 @@ export function useWeather() {
             console.warn('[METAR] ❌ Erro ao buscar METAR:', fetchError.message);
           }
         }
-        // Don't re-throw, fall through to the outer catch block
+        console.warn('[METAR] ⚠️ Usando dados locais como fallback');
+        setDefaultWeather(aerodrome);
       }
     } catch (error) {
-      console.warn('[METAR] ⚠️ Usando dados locais como fallback');
+      console.warn('[METAR] ⚠️ Usando dados locais como fallback (outer)');
       setDefaultWeather(aerodrome);
     } finally {
       setLoading(false);
