@@ -107,7 +107,7 @@ export function AddLicenseDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-w-[414px]">
         <DialogHeader>
           <DialogTitle>Nova Habilitação</DialogTitle>
         </DialogHeader>
@@ -120,6 +120,7 @@ export function AddLicenseDialog({
               value={licenseType}
               onChange={(e) => setLicenseType(e.target.value)}
               placeholder="Ex: PP, PC, CMA, IFR"
+              className="max-[991px]:w-[78%]"
             />
           </div>
 
@@ -131,6 +132,7 @@ export function AddLicenseDialog({
                 type="date"
                 value={expiryDate}
                 onChange={(e) => setExpiryDate(e.target.value)}
+                className="max-[991px]:w-[78%]"
               />
             </div>
           )}
