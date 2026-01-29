@@ -69,6 +69,7 @@ export function AddLicenseDialog({
       const insertData: any = {
         crew_member_id: crewMemberId,
         license_type: licenseType,
+        license_number: "", // Campo obrigatório
         expiry_date: isCMA ? null : expiryDate,
         observacao: observations || null,
       };
