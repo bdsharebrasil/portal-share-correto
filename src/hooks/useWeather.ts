@@ -325,13 +325,17 @@ export function useWeather() {
 
     // Fetch imediato ao montar
     console.log('[METAR] 🚀 Inicializando hook de clima...');
-    safeFetch();
+    safeFetch().catch(() => {
+      // Erro já foi tratado dentro de safeFetch, apenas prevenindo unhandled rejection
+    });
 
     // Configurar intervalo de atualização (5 minutos)
     const interval = setInterval(() => {
       if (!isFetching) {
         console.log('[METAR] ⏰ Atualizando por intervalo (5 min)...');
-        safeFetch();
+        safeFetch().catch(() => {
+          // Erro já foi tratado dentro de safeFetch, apenas prevenindo unhandled rejection
+        });
       }
     }, UPDATE_INTERVAL);
 
@@ -339,7 +343,9 @@ export function useWeather() {
     const handleVisibilityChange = () => {
       if (!document.hidden && !isFetching && isMounted) {
         console.log('[METAR] 👁️ Aba ficou visível - refrescando...');
-        safeFetch();
+        safeFetch().catch(() => {
+          // Erro já foi tratado dentro de safeFetch, apenas prevenindo unhandled rejection
+        });
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
