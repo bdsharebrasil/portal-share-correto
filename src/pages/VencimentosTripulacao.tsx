@@ -57,7 +57,7 @@ export default function VencimentosTripulacao() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeStatus, setActiveStatus] = useState<'todos' | 'vencidos' | 'proximos' | 'ok'>('todos');
-  const [editingVencimento, setEditingVencimento] = useState<VencimentoItem | null>(null);
+  const [editingHabilitacao, setEditingHabilitacao] = useState<{ habilitacao: Habilitacao; tripulanteName: string } | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [newDate, setNewDate] = useState('');
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'warning' | 'info'; title: string; description?: string } | null>(null);
