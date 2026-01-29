@@ -96,6 +96,12 @@ export function AddLicenseDialog({
 
     setIsLoading(true);
     try {
+      // Validate crew member ID
+      if (!crewMemberId) {
+        toast.error("ID do tripulante não informado");
+        return;
+      }
+
       const insertData: any = {
         crew_member_id: crewMemberId,
         license_type: licenseType,
@@ -110,11 +116,23 @@ export function AddLicenseDialog({
         insertData.validade_cma = validadeCma || null;
       }
 
+      console.log("[License] Attempting to insert:", insertData);
+
       const { error } = await (supabase as any)
         .from("crew_licenses")
         .insert(insertData);
 
-      if (error) throw error;
+      if (error) {
+        console.error("[License] Supabase error:", error);
+        // Extract error message from various error formats
+        const errorMessage =
+          error?.message ||
+          error?.error_description ||
+          error?.details ||
+          String(error);
+
+        throw new Error(errorMessage);
+      }
 
       toast.success("Habilitação adicionada com sucesso!");
       resetForm();
@@ -122,7 +140,21 @@ export function AddLicenseDialog({
       onOpenChange(false);
     } catch (error) {
       console.error("Error adding license:", error);
-      toast.error("Erro ao adicionar habilitação");
+
+      // Extract and display a meaningful error message
+      let errorMessage = "Erro ao adicionar habilitação";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        if (errorMessage.includes("crew_member_id")) {
+          errorMessage = "Tripulante inválido ou não encontrado";
+        } else if (errorMessage.includes("unique")) {
+          errorMessage = "Esta habilitação já existe para este tripulante";
+        } else if (errorMessage.includes("RLS")) {
+          errorMessage = "Permissão negada ao adicionar habilitação";
+        }
+      }
+
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
