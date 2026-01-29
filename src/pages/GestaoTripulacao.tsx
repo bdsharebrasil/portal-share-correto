@@ -682,10 +682,10 @@ function LicenseForm({
     onSave(formData);
   };
   return <form onSubmit={handleSubmit} className="space-y-4">
-    <div className="grid grid-cols-2 gap-4">
-      <div className="col-span-2">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="sm:col-span-2">
         <Label>Tipo de Licença *</Label>
-        <Input value={formData.license_type} onChange={e => setFormData({
+        <Input className="w-full" value={formData.license_type} onChange={e => setFormData({
           ...formData,
           license_type: e.target.value
         })} placeholder="Ex: PP, PC, CMA, IFR" />
@@ -695,49 +695,49 @@ function LicenseForm({
         <>
           <div>
             <Label>Classe CMA</Label>
-            <Input value={formData.CMA || ''} onChange={e => setFormData({
+            <Input className="w-full" value={formData.CMA || ''} onChange={e => setFormData({
               ...formData,
               CMA: e.target.value
             })} placeholder="Ex: Primeira, Segunda, Terceira" />
           </div>
           <div>
             <Label>FS/RH</Label>
-            <Input value={formData.FS_RH || ''} onChange={e => setFormData({
+            <Input className="w-full" value={formData.FS_RH || ''} onChange={e => setFormData({
               ...formData,
               FS_RH: e.target.value
             })} />
           </div>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <Label>Validade CMA</Label>
-            <Input type="date" value={formData.validade_cma || ''} onChange={e => setFormData({
+            <Input className="w-full" type="date" value={formData.validade_cma || ''} onChange={e => setFormData({
               ...formData,
               validade_cma: e.target.value
             })} />
           </div>
         </>
       ) : (
-        <div>
+        <div className="sm:col-span-2">
           <Label>Data de Validade *</Label>
-          <Input type="date" value={formData.expiry_date} onChange={e => setFormData({
+          <Input className="w-full" type="date" value={formData.expiry_date} onChange={e => setFormData({
             ...formData,
             expiry_date: e.target.value
           })} required />
         </div>
       )}
 
-      <div className="col-span-2">
+      <div className="sm:col-span-2">
         <Label>Observações</Label>
-        <Textarea value={formData.observacao || ''} onChange={e => setFormData({
+        <Textarea className="w-full" value={formData.observacao || ''} onChange={e => setFormData({
           ...formData,
           observacao: e.target.value
-        })} rows={3} />
+        })} rows={4} />
       </div>
     </div>
-    <div className="flex justify-end gap-2">
-      <Button type="button" variant="outline" onClick={onCancel}>
+    <div className="flex flex-col sm:flex-row justify-end gap-2">
+      <Button className="w-full sm:w-auto" type="button" variant="outline" onClick={onCancel}>
         Cancelar
       </Button>
-      <Button type="submit">
+      <Button className="w-full sm:w-auto" type="submit" variant="premium">
         Salvar
       </Button>
     </div>
