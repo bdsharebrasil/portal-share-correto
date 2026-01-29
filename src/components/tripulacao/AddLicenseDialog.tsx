@@ -241,21 +241,28 @@ export function AddLicenseDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label 
+                  <Label
                     htmlFor="fs-rh"
                     data-mobile-label
                     className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
                   >
-                    FS/RH
+                    Tipo Sanguíneo (FS/RH)
                   </Label>
-                  <Input
-                    id="fs-rh"
-                    value={fsRh}
-                    onChange={(e) => setFsRh(e.target.value)}
-                    placeholder="Ex: Apto"
-                    data-mobile-input
-                    className="h-10 rounded-lg border-zinc-200 dark:border-zinc-700"
-                  />
+                  <Select value={fsRh} onValueChange={setFsRh}>
+                    <SelectTrigger data-mobile-input className="h-10 rounded-lg border-zinc-200 dark:border-zinc-700">
+                      <SelectValue placeholder="Selecione o tipo sanguíneo" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-lg">
+                      <SelectItem value="A+">A+</SelectItem>
+                      <SelectItem value="A-">A-</SelectItem>
+                      <SelectItem value="B+">B+</SelectItem>
+                      <SelectItem value="B-">B-</SelectItem>
+                      <SelectItem value="AB+">AB+</SelectItem>
+                      <SelectItem value="AB-">AB-</SelectItem>
+                      <SelectItem value="O+">O+</SelectItem>
+                      <SelectItem value="O-">O-</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
