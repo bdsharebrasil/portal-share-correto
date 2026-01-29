@@ -234,8 +234,8 @@ export function AddLicenseDialog({
                       <SelectValue placeholder="Selecione a classe" />
                     </SelectTrigger>
                     <SelectContent className="rounded-lg">
-                      <SelectItem value="primeira">1ª Classe</SelectItem>
-                      <SelectItem value="segunda">2ª Classe</SelectItem>
+                      <SelectItem value="1º classe">1º Classe</SelectItem>
+                      <SelectItem value="2º classe">2º Classe</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
