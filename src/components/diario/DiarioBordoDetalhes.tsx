@@ -279,7 +279,7 @@ const calculateDailyAllowanceForEntry = (
 // ===================== COMPONENTE PRINCIPAL =====================
 const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   // Verificar permissões do usuário
-  const { isAdmin, isGestorMaster, isPilotoChefe } = useUserRole();
+  const { isAdmin, isGestorMaster, isPilotoChefe, isCoordenadorVoo, isTripulante } = useUserRole();
 
   // Estados de navegação e UI (declarados primeiro para uso no useEffect)
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
