@@ -26,7 +26,6 @@ export default function FlightHoursCard({ crewMemberId }: Props) {
     queryKey: ["crew-flight-hours-month", crewMemberId, start, end],
     enabled: !!crewMemberId,
     queryFn: async () => {
-      // Busca entradas do logbook onde o tripulante é PIC ou SIC
       const { data, error } = await supabase
         .from("logbook_entries")
         .select("id, total_time, pousos, pic_canac, sic_canac, entry_date, ifr_time, night_hours")
@@ -40,7 +39,6 @@ export default function FlightHoursCard({ crewMemberId }: Props) {
         throw new Error(errorMessage);
       }
 
-      // Agregar dados
       let totals = {
         pic: 0,
         sic: 0,
@@ -89,13 +87,15 @@ export default function FlightHoursCard({ crewMemberId }: Props) {
 
   if (isError) {
     return (
-      <Card className="bg-gradient-to-br from-slate-900/80 to-slate-950/80 border-red-500/20">
-        <CardHeader>
-          <CardTitle>Horas de Voo</CardTitle>
+      <Card className="overflow-hidden bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border-zinc-200/50 dark:border-zinc-800/50">
+        <CardHeader className="border-b border-zinc-100 dark:border-zinc-800">
+          <CardTitle className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            Horas de Voo
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="bg-red-950/30 border border-red-700/50 rounded-lg p-4">
-            <p className="text-red-400">
+        <CardContent className="pt-6">
+          <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 rounded-lg p-4">
+            <p className="text-sm text-red-600 dark:text-red-400">
               {error instanceof Error ? error.message : "Erro ao carregar horas de voo"}
             </p>
           </div>
@@ -106,88 +106,108 @@ export default function FlightHoursCard({ crewMemberId }: Props) {
 
   if (isLoading) {
     return (
-      <Card className="bg-gradient-to-br from-slate-900/80 to-slate-950/80 border-cyan-500/20">
-        <CardHeader>
-          <CardTitle>Horas de Voo</CardTitle>
+      <Card className="overflow-hidden bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border-zinc-200/50 dark:border-zinc-800/50">
+        <CardHeader className="border-b border-zinc-100 dark:border-zinc-800">
+          <CardTitle className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            Horas de Voo
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="text-center text-slate-400">Carregando...</div>
+        <CardContent className="pt-6">
+          <div className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+            Carregando...
+          </div>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="bg-gradient-to-br from-slate-900/80 to-slate-950/80 border-cyan-500/20">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-        <CardTitle>Horas de Voo</CardTitle>
+    <Card className="overflow-hidden bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border-zinc-200/50 dark:border-zinc-800/50">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-zinc-100 dark:border-zinc-800">
+        <CardTitle className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+          Horas de Voo
+        </CardTitle>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="icon"
             onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}
+            className="h-9 w-9 rounded-lg border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <div className="min-w-[180px] text-center font-semibold capitalize text-sm">
+          <div className="min-w-[180px] text-center font-medium capitalize text-sm text-zinc-700 dark:text-zinc-300">
             {monthLabel}
           </div>
           <Button
             variant="outline"
             size="icon"
             onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}
+            className="h-9 w-9 rounded-lg border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-6">
-        {/* Cards de resumo */}
+      <CardContent className="pt-6 space-y-6">
+        {/* Cards de resumo - estilo iOS */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-4">
-            <div className="text-xs text-slate-400 uppercase tracking-wider font-bold mb-2">
+          <div className="bg-gradient-to-br from-cyan-50 to-cyan-100/50 dark:from-cyan-950/30 dark:to-cyan-900/20 border border-cyan-200/50 dark:border-cyan-800/30 rounded-xl p-4 shadow-sm">
+            <div className="text-xs text-cyan-600 dark:text-cyan-400 uppercase tracking-wider font-semibold mb-2">
               Total de Horas
             </div>
-            <div className="text-2xl font-bold text-cyan-400">{hoursToHhmm(totals.total)}</div>
+            <div className="text-2xl font-bold text-cyan-700 dark:text-cyan-300">
+              {hoursToHhmm(totals.total)}
+            </div>
           </div>
 
-          <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-4">
-            <div className="text-xs text-slate-400 uppercase tracking-wider font-bold mb-2">
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 border border-blue-200/50 dark:border-blue-800/30 rounded-xl p-4 shadow-sm">
+            <div className="text-xs text-blue-600 dark:text-blue-400 uppercase tracking-wider font-semibold mb-2">
               PIC
             </div>
-            <div className="text-2xl font-bold text-blue-400">{hoursToHhmm(totals.pic)}</div>
+            <div className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+              {hoursToHhmm(totals.pic)}
+            </div>
           </div>
 
-          <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-4">
-            <div className="text-xs text-slate-400 uppercase tracking-wider font-bold mb-2">
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-950/30 dark:to-purple-900/20 border border-purple-200/50 dark:border-purple-800/30 rounded-xl p-4 shadow-sm">
+            <div className="text-xs text-purple-600 dark:text-purple-400 uppercase tracking-wider font-semibold mb-2">
               SIC
             </div>
-            <div className="text-2xl font-bold text-purple-400">{hoursToHhmm(totals.sic)}</div>
+            <div className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+              {hoursToHhmm(totals.sic)}
+            </div>
           </div>
 
-          <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-4">
-            <div className="text-xs text-slate-400 uppercase tracking-wider font-bold mb-2">
+          <div className="bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20 border border-amber-200/50 dark:border-amber-800/30 rounded-xl p-4 shadow-sm">
+            <div className="text-xs text-amber-600 dark:text-amber-400 uppercase tracking-wider font-semibold mb-2">
               IFR
             </div>
-            <div className="text-2xl font-bold text-amber-400">{hoursToHhmm(totals.ifr)}</div>
+            <div className="text-2xl font-bold text-amber-700 dark:text-amber-300">
+              {hoursToHhmm(totals.ifr)}
+            </div>
           </div>
         </div>
 
         {/* Grid de detalhes */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-          <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-3">
-            <p className="text-xs text-slate-400 uppercase tracking-wider font-bold mb-2">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/50 rounded-xl p-4 text-center shadow-sm">
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 uppercase tracking-wider font-semibold mb-2">
               Noturnas
             </p>
-            <p className="text-xl font-bold text-slate-200">{hoursToHhmm(totals.night)}</p>
+            <p className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+              {hoursToHhmm(totals.night)}
+            </p>
           </div>
 
-          <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-3">
-            <p className="text-xs text-slate-400 uppercase tracking-wider font-bold mb-2">
+          <div className="bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-700/50 rounded-xl p-4 text-center shadow-sm">
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 uppercase tracking-wider font-semibold mb-2">
               Pousos
             </p>
-            <p className="text-xl font-bold text-slate-200">{totals.landings}</p>
+            <p className="text-xl font-bold text-zinc-900 dark:text-zinc-100">
+              {totals.landings}
+            </p>
           </div>
         </div>
       </CardContent>
