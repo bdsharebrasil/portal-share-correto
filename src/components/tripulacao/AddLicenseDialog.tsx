@@ -105,7 +105,7 @@ export function AddLicenseDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[480px] gap-0 p-0 overflow-hidden bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border-zinc-200/50 dark:border-zinc-800/50 max-[991px]:bg-[rgba(8,2,32,1)] max-[991px]:border-[rgba(29,29,114,1)] max-[991px]:rounded-[28px]">
+      <DialogContent style={{"--mobile-bg": "rgba(8, 2, 32, 1)", "--mobile-border": "rgba(29, 29, 114, 1)"} as React.CSSProperties} className="sm:max-w-[480px] gap-0 p-0 overflow-hidden bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl border-zinc-200/50 dark:border-zinc-800/50 [&_*]:transition-colors max-[991px]:rounded-[28px]" style={{backgroundColor: "rgba(8, 2, 32, 1)", borderColor: "rgba(29, 29, 114, 1)"}}>
         {/* Header com estilo macOS */}
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-zinc-100 dark:border-zinc-800 max-[991px]:text-[rgba(234,244,255,1)] max-[991px]:border-[rgba(4,4,54,1)]">
           <DialogTitle className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 max-[991px]:text-white">
