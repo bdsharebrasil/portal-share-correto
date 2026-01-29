@@ -87,7 +87,7 @@ export default function VencimentosTripulacao() {
 
       if (crewError) throw crewError;
 
-      const vencimentosTemp: VencimentoItem[] = [];
+      const vencimentosTemp: TripulanteVencimento[] = [];
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -103,6 +103,9 @@ export default function VencimentosTripulacao() {
           continue;
         }
 
+        const habilitacoes: Habilitacao[] = [];
+        let statusGeral: 'vencido' | 'proximo' | 'ok' = 'ok';
+
         // Processar habilitações
         for (const license of licenses || []) {
           if (license.expiry_date) {
@@ -115,17 +118,18 @@ export default function VencimentosTripulacao() {
             else if (diasRestantes <= 60) status = 'proximo';
             else status = 'ok';
 
-            vencimentosTemp.push({
+            // Atualizar status geral (prioridade: vencido > proximo > ok)
+            if (status === 'vencido') statusGeral = 'vencido';
+            else if (status === 'proximo' && statusGeral !== 'vencido') statusGeral = 'proximo';
+
+            habilitacoes.push({
               id: `${member.id}-${license.id}-hab`,
-              tripulanteId: member.id,
-              tripulanteName: member.full_name,
-              tripulanteAvatar: member.avatar_url,
+              licenseId: license.id,
               habilitacao: license.license_type || 'Habilitação',
               dataVencimento: license.expiry_date,
               diasRestantes,
               status,
               tipo: 'habilitacao',
-              licenseId: license.id
             });
           }
 
@@ -140,19 +144,31 @@ export default function VencimentosTripulacao() {
             else if (diasRestantes <= 60) status = 'proximo';
             else status = 'ok';
 
-            vencimentosTemp.push({
+            // Atualizar status geral
+            if (status === 'vencido') statusGeral = 'vencido';
+            else if (status === 'proximo' && statusGeral !== 'vencido') statusGeral = 'proximo';
+
+            habilitacoes.push({
               id: `${member.id}-${license.id}-cma`,
-              tripulanteId: member.id,
-              tripulanteName: member.full_name,
-              tripulanteAvatar: member.avatar_url,
+              licenseId: license.id,
               habilitacao: `CMA (${license.license_type})`,
               dataVencimento: license.validade_cma,
               diasRestantes,
               status,
               tipo: 'cma',
-              licenseId: license.id
             });
           }
+        }
+
+        // Adicionar tripulante com suas habilitações (só se houver habilitações)
+        if (habilitacoes.length > 0) {
+          vencimentosTemp.push({
+            tripulanteId: member.id,
+            tripulanteName: member.full_name,
+            tripulanteAvatar: member.avatar_url,
+            habilitacoes,
+            statusGeral,
+          });
         }
       }
 
