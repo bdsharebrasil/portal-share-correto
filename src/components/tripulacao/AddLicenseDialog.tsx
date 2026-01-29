@@ -29,7 +29,6 @@ export function AddLicenseDialog({
   onSuccess,
 }: AddLicenseDialogProps) {
   const [licenseType, setLicenseType] = useState("");
-  const [licenseNumber, setLicenseNumber] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [observations, setObservations] = useState("");
   // CMA specific fields
