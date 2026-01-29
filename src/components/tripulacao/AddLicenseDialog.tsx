@@ -69,7 +69,7 @@ export function AddLicenseDialog({
       const insertData: any = {
         crew_member_id: crewMemberId,
         license_type: licenseType,
-        license_number: licenseNumber || "", // Campo obrigatório
+        license_number: "", // Campo obrigatório no banco
         expiry_date: isCMA ? null : expiryDate,
         observacao: observations || null,
       };
