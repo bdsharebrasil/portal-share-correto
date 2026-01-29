@@ -296,10 +296,11 @@ export function useWeather() {
             console.warn('[METAR] ❌ Erro ao buscar METAR:', fetchError.message);
           }
         }
-        throw fetchError;
+        console.warn('[METAR] ⚠️ Usando dados locais como fallback');
+        setDefaultWeather(aerodrome);
       }
     } catch (error) {
-      console.warn('[METAR] ⚠️ Usando dados locais como fallback');
+      console.warn('[METAR] ⚠️ Usando dados locais como fallback (outer)');
       setDefaultWeather(aerodrome);
     } finally {
       setLoading(false);
@@ -317,6 +318,10 @@ export function useWeather() {
       isFetching = true;
       try {
         await fetchWeatherFromAvwx('SBGR');
+      } catch (error) {
+        // Erro já foi tratado dentro de fetchWeatherFromAvwx
+        // Este catch é apenas para garantir que nenhuma promessa seja rejeitada
+        console.log('[METAR] ✅ Erro tratado internamente, usando fallback');
       } finally {
         isFetching = false;
       }
@@ -324,13 +329,17 @@ export function useWeather() {
 
     // Fetch imediato ao montar
     console.log('[METAR] 🚀 Inicializando hook de clima...');
-    safeFetch().catch(err => console.warn('[METAR] Erro inicial:', err));
+    safeFetch().catch(() => {
+      // Erro já foi tratado dentro de safeFetch, apenas prevenindo unhandled rejection
+    });
 
     // Configurar intervalo de atualização (5 minutos)
     const interval = setInterval(() => {
       if (!isFetching) {
         console.log('[METAR] ⏰ Atualizando por intervalo (5 min)...');
-        safeFetch().catch(err => console.warn('[METAR] Erro no intervalo:', err));
+        safeFetch().catch(() => {
+          // Erro já foi tratado dentro de safeFetch, apenas prevenindo unhandled rejection
+        });
       }
     }, UPDATE_INTERVAL);
 
@@ -338,7 +347,9 @@ export function useWeather() {
     const handleVisibilityChange = () => {
       if (!document.hidden && !isFetching && isMounted) {
         console.log('[METAR] 👁️ Aba ficou visível - refrescando...');
-        safeFetch().catch(err => console.warn('[METAR] Erro ao voltar aba:', err));
+        safeFetch().catch(() => {
+          // Erro já foi tratado dentro de safeFetch, apenas prevenindo unhandled rejection
+        });
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);

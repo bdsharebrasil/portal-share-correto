@@ -32,27 +32,32 @@ interface CrewLicense {
   observacao?: string;
 }
 
-interface VencimentoItem {
+interface Habilitacao {
   id: string;
-  tripulanteId: string;
-  tripulanteName: string;
-  tripulanteAvatar?: string;
+  licenseId: string;
   habilitacao: string;
   dataVencimento: string;
   diasRestantes: number;
   status: 'vencido' | 'proximo' | 'ok';
   tipo: 'habilitacao' | 'cma';
-  licenseId: string;
+}
+
+interface TripulanteVencimento {
+  tripulanteId: string;
+  tripulanteName: string;
+  tripulanteAvatar?: string;
+  habilitacoes: Habilitacao[];
+  statusGeral: 'vencido' | 'proximo' | 'ok'; // Status do primeiro vencimento
 }
 
 export default function VencimentosTripulacao() {
   const { toast } = useToast();
   const { subscribe } = useVencimentosSync();
-  const [vencimentos, setVencimentos] = useState<VencimentoItem[]>([]);
+  const [vencimentos, setVencimentos] = useState<TripulanteVencimento[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeStatus, setActiveStatus] = useState<'todos' | 'vencidos' | 'proximos' | 'ok'>('todos');
-  const [editingVencimento, setEditingVencimento] = useState<VencimentoItem | null>(null);
+  const [editingHabilitacao, setEditingHabilitacao] = useState<{ habilitacao: Habilitacao; tripulanteName: string } | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [newDate, setNewDate] = useState('');
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'warning' | 'info'; title: string; description?: string } | null>(null);
@@ -75,14 +80,14 @@ export default function VencimentosTripulacao() {
     try {
       // Carregar membros da tripulação
       const { data: crew, error: crewError } = await supabase
-        .from('user_profiles')
+        .from('crew_members')
         .select('*')
-        .eq('employment_status', 'ativo')
+        .eq('status', 'ativo')
         .order('full_name');
 
       if (crewError) throw crewError;
 
-      const vencimentosTemp: VencimentoItem[] = [];
+      const vencimentosTemp: TripulanteVencimento[] = [];
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
@@ -98,6 +103,9 @@ export default function VencimentosTripulacao() {
           continue;
         }
 
+        const habilitacoes: Habilitacao[] = [];
+        let statusGeral: 'vencido' | 'proximo' | 'ok' = 'ok';
+
         // Processar habilitações
         for (const license of licenses || []) {
           if (license.expiry_date) {
@@ -110,17 +118,18 @@ export default function VencimentosTripulacao() {
             else if (diasRestantes <= 60) status = 'proximo';
             else status = 'ok';
 
-            vencimentosTemp.push({
+            // Atualizar status geral (prioridade: vencido > proximo > ok)
+            if (status === 'vencido') statusGeral = 'vencido';
+            else if (status === 'proximo' && statusGeral !== 'vencido') statusGeral = 'proximo';
+
+            habilitacoes.push({
               id: `${member.id}-${license.id}-hab`,
-              tripulanteId: member.id,
-              tripulanteName: member.full_name,
-              tripulanteAvatar: member.avatar_url,
+              licenseId: license.id,
               habilitacao: license.license_type || 'Habilitação',
               dataVencimento: license.expiry_date,
               diasRestantes,
               status,
               tipo: 'habilitacao',
-              licenseId: license.id
             });
           }
 
@@ -135,19 +144,31 @@ export default function VencimentosTripulacao() {
             else if (diasRestantes <= 60) status = 'proximo';
             else status = 'ok';
 
-            vencimentosTemp.push({
+            // Atualizar status geral
+            if (status === 'vencido') statusGeral = 'vencido';
+            else if (status === 'proximo' && statusGeral !== 'vencido') statusGeral = 'proximo';
+
+            habilitacoes.push({
               id: `${member.id}-${license.id}-cma`,
-              tripulanteId: member.id,
-              tripulanteName: member.full_name,
-              tripulanteAvatar: member.avatar_url,
+              licenseId: license.id,
               habilitacao: `CMA (${license.license_type})`,
               dataVencimento: license.validade_cma,
               diasRestantes,
               status,
               tipo: 'cma',
-              licenseId: license.id
             });
           }
+        }
+
+        // Adicionar tripulante com suas habilitações (só se houver habilitações)
+        if (habilitacoes.length > 0) {
+          vencimentosTemp.push({
+            tripulanteId: member.id,
+            tripulanteName: member.full_name,
+            tripulanteAvatar: member.avatar_url,
+            habilitacoes,
+            statusGeral,
+          });
         }
       }
 
@@ -165,26 +186,26 @@ export default function VencimentosTripulacao() {
   };
 
   const handleUpdateDate = async () => {
-    if (!editingVencimento || !newDate) return;
+    if (!editingHabilitacao || !newDate) return;
 
     try {
       const { error } = await supabase
         .from('crew_licenses')
         .update({
-          [editingVencimento.tipo === 'habilitacao' ? 'expiry_date' : 'validade_cma']: newDate
+          [editingHabilitacao.habilitacao.tipo === 'habilitacao' ? 'expiry_date' : 'validade_cma']: newDate
         })
-        .eq('id', editingVencimento.licenseId);
+        .eq('id', editingHabilitacao.habilitacao.licenseId);
 
       if (error) throw error;
 
       setNotification({
         type: 'success',
         title: 'Data atualizada com sucesso!',
-        description: `${editingVencimento.habilitacao} de ${editingVencimento.tripulanteName} atualizada`
+        description: `${editingHabilitacao.habilitacao.habilitacao} de ${editingHabilitacao.tripulanteName} atualizada`
       });
 
       setEditDialogOpen(false);
-      setEditingVencimento(null);
+      setEditingHabilitacao(null);
       setNewDate('');
       loadVencimentos();
     } catch (error) {
@@ -198,20 +219,42 @@ export default function VencimentosTripulacao() {
   };
 
   const filteredVencimentos = useMemo(() => {
-    return vencimentos.filter(v => {
-      const matchSearch = v.tripulanteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         v.habilitacao.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchStatus = activeStatus === 'todos' || v.status === activeStatus;
+    return vencimentos.filter(tripulante => {
+      // Filtrar por nome
+      const matchSearch = tripulante.tripulanteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         tripulante.habilitacoes.some(h => h.habilitacao.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      // Filtrar por status: verifica se tripulante tem habilitações do status selecionado
+      let matchStatus = true;
+      if (activeStatus !== 'todos') {
+        matchStatus = tripulante.habilitacoes.some(h => h.status === activeStatus);
+      }
+
       return matchSearch && matchStatus;
     });
   }, [vencimentos, searchTerm, activeStatus]);
 
-  const stats = useMemo(() => ({
-    vencidos: vencimentos.filter(v => v.status === 'vencido').length,
-    proximos: vencimentos.filter(v => v.status === 'proximo').length,
-    ok: vencimentos.filter(v => v.status === 'ok').length,
-    total: new Set(vencimentos.map(v => v.tripulanteId)).size
-  }), [vencimentos]);
+  const stats = useMemo(() => {
+    // Contar habilitações por status
+    let vencidosCount = 0;
+    let proximosCount = 0;
+    let okCount = 0;
+
+    vencimentos.forEach(tripulante => {
+      tripulante.habilitacoes.forEach(hab => {
+        if (hab.status === 'vencido') vencidosCount++;
+        else if (hab.status === 'proximo') proximosCount++;
+        else if (hab.status === 'ok') okCount++;
+      });
+    });
+
+    return {
+      vencidos: vencidosCount,
+      proximos: proximosCount,
+      ok: okCount,
+      total: vencimentos.length
+    };
+  }, [vencimentos]);
 
   const getStatusInfo = (status: 'vencido' | 'proximo' | 'ok') => {
     const statusMap = {
@@ -325,7 +368,7 @@ export default function VencimentosTripulacao() {
                 </div>
               </div>
 
-              <div className="bg-slate-800/30 backdrop-blur-[12px] border border-white/5 rounded-2xl p-6 relative overflow-hidden group transition-all duration-300 hover:bg-slate-800/50 hover:border-white/10">
+              <div className="bg-slate-800/30 backdrop-blur-[12px] border border-white/5 rounded-2xl p-6 relative overflow-hidden group transition-all duration-300 hover:bg-slate-800/50 hover:border-white/10 max-lg:bg-cyan-500 max-lg:bg-cover max-lg:bg-center max-lg:bg-no-repeat" style={{ backgroundImage: 'url(https://cdn.builder.io/api/v1/image/assets%2F25cf751450f841169c5b78d468379b00%2F9730745efc0547d9adf3f15857247c42)' }}>
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-15 transition-opacity pointer-events-none">
                   <AlertTriangle className="text-8xl text-yellow-400 transform -rotate-12" />
                 </div>
@@ -333,7 +376,7 @@ export default function VencimentosTripulacao() {
                   <div>
                     <div className="flex items-center gap-2 mb-3">
                       <span className="w-2 h-2 rounded-full bg-yellow-400" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-yellow-400">Próximos 60d</span>
+                      <span className="text-xs font-bold uppercase tracking-wider text-yellow-400"><p>Próximos 60 dias</p></span>
                     </div>
                     <div className="flex items-baseline gap-1">
                       <span className="text-4xl font-bold text-white tracking-tight">{stats.proximos}</span>
@@ -432,27 +475,27 @@ export default function VencimentosTripulacao() {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredVencimentos.map((vencimento) => {
-                  const statusInfo = getStatusInfo(vencimento.status);
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {filteredVencimentos.map((tripulante) => {
+                  const statusInfo = getStatusInfo(tripulante.statusGeral);
                   const StatusIcon = statusInfo.icon;
 
                   return (
                     <div
-                      key={vencimento.id}
-                      className={`rounded-xl border backdrop-blur-sm transition-all hover:scale-[1.02] hover:shadow-lg ${statusInfo.bgColor} ${statusInfo.borderColor} p-4 group`}
+                      key={tripulante.tripulanteId}
+                      className={`rounded-xl border backdrop-blur-sm transition-all hover:shadow-lg ${statusInfo.bgColor} ${statusInfo.borderColor} p-5 group`}
                     >
                       {/* Header com Tripulante */}
-                      <div className="flex items-center gap-3 mb-4">
-                        <Avatar className="w-10 h-10 ring-2 ring-white/10">
-                          <AvatarImage src={vencimento.tripulanteAvatar} alt={vencimento.tripulanteName} />
-                          <AvatarFallback className="bg-slate-700 text-xs">
-                            {vencimento.tripulanteName.split(' ').map(n => n[0]).join('')}
+                      <div className="flex items-start gap-4 mb-5 pb-4 border-b border-white/10">
+                        <Avatar className="w-14 h-14 ring-2 ring-white/10 flex-shrink-0">
+                          <AvatarImage src={tripulante.tripulanteAvatar} alt={tripulante.tripulanteName} />
+                          <AvatarFallback className="bg-slate-700 text-sm font-semibold">
+                            {tripulante.tripulanteName.split(' ').map(n => n[0]).join('')}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white truncate">{vencimento.tripulanteName}</p>
-                          <p className="text-xs text-gray-400">{vencimento.habilitacao}</p>
+                          <p className="text-base font-bold text-white truncate">{tripulante.tripulanteName}</p>
+                          <p className="text-xs text-gray-400 mt-1">{tripulante.habilitacoes.length} habilitação{tripulante.habilitacoes.length !== 1 ? 's' : ''}</p>
                         </div>
                         <Badge className={statusInfo.badgeClass}>
                           <StatusIcon className="h-3 w-3 mr-1" />
@@ -460,43 +503,52 @@ export default function VencimentosTripulacao() {
                         </Badge>
                       </div>
 
-                      {/* Data e Dias Restantes */}
-                      <div className="space-y-2 mb-4">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-500 flex-shrink-0" />
-                          <span className="text-sm font-medium text-gray-300">
-                            {new Date(vencimento.dataVencimento).toLocaleDateString('pt-BR')}
-                          </span>
-                        </div>
+                      {/* Lista de Habilitações */}
+                      <div className="space-y-3">
+                        {tripulante.habilitacoes.map((hab) => {
+                          const habStatusInfo = getStatusInfo(hab.status);
+                          return (
+                            <div key={hab.id} className={`rounded-lg px-3 py-2 border ${habStatusInfo.borderColor} ${habStatusInfo.bgColor}`}>
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex-1">
+                                  <p className="text-sm font-semibold text-white">{hab.habilitacao}</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <Calendar className="h-3 w-3 text-gray-500 flex-shrink-0" />
+                                    <span className="text-xs text-gray-400">
+                                      {new Date(hab.dataVencimento).toLocaleDateString('pt-BR')}
+                                    </span>
+                                  </div>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 hover:bg-white/10"
+                                  onClick={() => {
+                                    setEditingHabilitacao({ habilitacao: hab, tripulanteName: tripulante.tripulanteName });
+                                    setNewDate(hab.dataVencimento);
+                                    setEditDialogOpen(true);
+                                  }}
+                                  title="Editar data de vencimento"
+                                >
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                              </div>
 
-                        {vencimento.status === 'vencido' ? (
-                          <div className="bg-red-500/20 rounded-lg px-3 py-2 border border-red-500/30">
-                            <p className="text-red-300 font-semibold text-sm">Vencido há {Math.abs(vencimento.diasRestantes)} dias</p>
-                          </div>
-                        ) : (
-                          <div className={`${statusInfo.bgColor} border ${statusInfo.borderColor} rounded-lg px-3 py-2`}>
-                            <p className={`${statusInfo.textColor} font-semibold text-lg`}>
-                              {vencimento.diasRestantes} <span className="text-xs">dias</span>
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Ações */}
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 bg-slate-700/50 border-white/10 text-gray-300 hover:bg-slate-600 text-xs"
-                          onClick={() => {
-                            setEditingVencimento(vencimento);
-                            setNewDate(vencimento.dataVencimento);
-                            setEditDialogOpen(true);
-                          }}
-                        >
-                          <Edit className="h-3 w-3 mr-1" />
-                          Editar
-                        </Button>
+                              {/* Status Badge */}
+                              {hab.status === 'vencido' ? (
+                                <div className="bg-red-500/20 rounded px-2 py-1 border border-red-500/30 inline-block">
+                                  <p className="text-red-300 font-semibold text-xs">Vencido há {Math.abs(hab.diasRestantes)} dias</p>
+                                </div>
+                              ) : (
+                                <div className="inline-block">
+                                  <p className={`${habStatusInfo.textColor} font-semibold text-xs`}>
+                                    {hab.diasRestantes} dias restantes
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -516,18 +568,15 @@ export default function VencimentosTripulacao() {
               Atualizar Data de Vencimento
             </DialogTitle>
           </DialogHeader>
-          {editingVencimento && (
+          {editingHabilitacao && (
             <div className="space-y-4">
               <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 border border-white/5">
-                <Avatar className="w-10 h-10 ring-2 ring-white/10">
-                  <AvatarImage src={editingVencimento.tripulanteAvatar} />
-                  <AvatarFallback>
-                    {editingVencimento.tripulanteName.split(' ').map(n => n[0]).join('')}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                  <Calendar className="h-5 w-5 text-purple-400" />
+                </div>
                 <div>
-                  <p className="text-sm font-semibold text-white">{editingVencimento.tripulanteName}</p>
-                  <p className="text-xs text-gray-400">{editingVencimento.habilitacao}</p>
+                  <p className="text-sm font-semibold text-white">{editingHabilitacao.tripulanteName}</p>
+                  <p className="text-xs text-gray-400">{editingHabilitacao.habilitacao.habilitacao}</p>
                 </div>
               </div>
 
@@ -545,7 +594,10 @@ export default function VencimentosTripulacao() {
                 <Button
                   variant="outline"
                   className="flex-1"
-                  onClick={() => setEditDialogOpen(false)}
+                  onClick={() => {
+                    setEditDialogOpen(false);
+                    setEditingHabilitacao(null);
+                  }}
                 >
                   Cancelar
                 </Button>

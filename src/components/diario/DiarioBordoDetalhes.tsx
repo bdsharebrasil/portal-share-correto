@@ -1466,26 +1466,51 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         .eq('id', id)
         .single();
 
-      // Deletar a entrada
+      if (!entryToDelete) {
+        throw new Error('Entrada não encontrada');
+      }
+
+      // Deletar registros relacionados em cascade
+      // 1. Deletar aircraft_loans associadas a esta entrada
+      if (entryToDelete.is_loan) {
+        const { error: loansError } = await supabase
+          .from('aircraft_loans')
+          .delete()
+          .eq('logbook_entry_id', id);
+
+        if (loansError) {
+          console.error('Erro ao deletar aircraft_loans:', loansError);
+        }
+
+        // 2. Deletar hour_transactions associadas a esta entrada
+        const { error: transError } = await supabase
+          .from('hour_transactions')
+          .delete()
+          .eq('logbook_entry_id', id);
+
+        if (transError) {
+          console.error('Erro ao deletar hour_transactions:', transError);
+        }
+      }
+
+      // 3. Deletar a entrada
       const { error } = await supabase.from('logbook_entries').delete().eq('id', id);
       if (error) throw error;
 
-      // Remover as horas de voo da tripulação
-      if (entryToDelete) {
-        const entryDate = new Date(entryToDelete.entry_date);
-        await updateCrewFlightHours({
-          picId: entryToDelete.pic_canac,
-          sicId: entryToDelete.sic_canac || null,
-          aircraftId,
-          month: entryDate.getMonth() + 1,
-          year: entryDate.getFullYear(),
-          totalTime: entryToDelete.total_time,
-          ifrTime: entryToDelete.ifr_time || 0,
-          nightHours: entryToDelete.night_hours || 0,
-          flightDay: entryToDelete.entry_date,
-          operation: 'remove'
-        });
-      }
+      // 4. Remover as horas de voo da tripulação
+      const entryDate = new Date(entryToDelete.entry_date);
+      await updateCrewFlightHours({
+        picId: entryToDelete.pic_canac,
+        sicId: entryToDelete.sic_canac || null,
+        aircraftId,
+        month: entryDate.getMonth() + 1,
+        year: entryDate.getFullYear(),
+        totalTime: entryToDelete.total_time,
+        ifrTime: entryToDelete.ifr_time || 0,
+        nightHours: entryToDelete.night_hours || 0,
+        flightDay: entryToDelete.entry_date,
+        operation: 'remove'
+      });
 
       toast.success("Lançamento deletado com sucesso!");
 
@@ -1581,10 +1606,29 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   const handleCreateMonthWithData = async (monthData: any) => {
     try {
       setCreatingMonth(true);
-      
+
       // Usa mês/ano do dialog (monthData pode ter mês/ano selecionado pelo usuário)
       const targetMonth = monthData.month || selectedMonth;
       const targetYear = monthData.year || selectedYear;
+
+      // Verificar se já existe um diário para este mês/ano
+      const { data: existingMonth, error: checkError } = await supabase
+        .from('logbook_months')
+        .select('id, month, year')
+        .eq('aircraft_id', aircraftId)
+        .eq('month', targetMonth)
+        .eq('year', targetYear)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Erro ao verificar diários existentes:', checkError);
+      }
+
+      if (existingMonth) {
+        toast.error(`Já existe um diário de bordo para ${MONTHS[targetMonth - 1]} de ${targetYear}. Selecione outro mês ou ano.`);
+        setCreatingMonth(false);
+        return;
+      }
 
       const { data: newMonth, error } = await supabase
         .from('logbook_months')

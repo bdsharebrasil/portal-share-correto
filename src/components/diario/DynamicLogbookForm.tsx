@@ -31,6 +31,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { useLogbookForm } from '@/hooks/useLogbookForm';
 import { useTripulantes } from '@/hooks/useTripulantes';
+import { updateCrewFlightHours } from '@/services/crewFlightHours';
 import type { Aerodrome } from '@/types';
 
 // Tipos de voo especiais que dividem custos igualmente entre sócios
@@ -472,6 +473,31 @@ export function DynamicLogbookForm({
       ]).select().single();
 
       if (error) throw error;
+
+      // Atualizar horas de voo da tripulação
+      if (insertedEntry) {
+        try {
+          await updateCrewFlightHours({
+            picId: selectedPic,
+            sicId: selectedSic || null,
+            aircraftId,
+            month: date!.getMonth() + 1,
+            year: date!.getFullYear(),
+            totalTime: totalBlockTime,
+            ifrTime: parseFloat(formData.ifr_count) || 0,
+            nightHours: totalNight,
+            flightDay: format(date!, 'yyyy-MM-dd'),
+            operation: 'add'
+          });
+        } catch (error) {
+          console.error('Erro ao atualizar horas de voo:', error);
+          toast({
+            title: 'Aviso',
+            description: 'Voo registrado, mas houve erro ao atualizar horas de voo da tripulação.',
+            variant: 'destructive',
+          });
+        }
+      }
 
       // Se for empréstimo, registrar na tabela aircraft_loans E no banco de horas (hour_transactions)
       if (flightCategory === 'emprestimo' && insertedEntry) {
