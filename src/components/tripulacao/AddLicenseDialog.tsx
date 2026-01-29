@@ -42,6 +42,7 @@ export function AddLicenseDialog({
 
   const resetForm = () => {
     setLicenseType("");
+    setLicenseNumber("");
     setExpiryDate("");
     setObservations("");
     setCmaClass("");
