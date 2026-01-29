@@ -47,15 +47,6 @@ const getInitials = (name: string) =>
     .join("")
     .slice(0, 2);
 
-const formatDate = (date: string | null | undefined) => {
-  if (!date) return "-";
-  try {
-    return new Date(date).toLocaleDateString("pt-BR");
-  } catch {
-    return "-";
-  }
-};
-
 type LicenseStatus = "active" | "expiring" | "expired";
 
 const getLicenseStatus = (expiryDate: string | null | undefined): LicenseStatus => {
