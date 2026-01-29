@@ -219,20 +219,42 @@ export default function VencimentosTripulacao() {
   };
 
   const filteredVencimentos = useMemo(() => {
-    return vencimentos.filter(v => {
-      const matchSearch = v.tripulanteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         v.habilitacao.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchStatus = activeStatus === 'todos' || v.status === activeStatus;
+    return vencimentos.filter(tripulante => {
+      // Filtrar por nome
+      const matchSearch = tripulante.tripulanteName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         tripulante.habilitacoes.some(h => h.habilitacao.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      // Filtrar por status: verifica se tripulante tem habilitações do status selecionado
+      let matchStatus = true;
+      if (activeStatus !== 'todos') {
+        matchStatus = tripulante.habilitacoes.some(h => h.status === activeStatus);
+      }
+
       return matchSearch && matchStatus;
     });
   }, [vencimentos, searchTerm, activeStatus]);
 
-  const stats = useMemo(() => ({
-    vencidos: vencimentos.filter(v => v.status === 'vencido').length,
-    proximos: vencimentos.filter(v => v.status === 'proximo').length,
-    ok: vencimentos.filter(v => v.status === 'ok').length,
-    total: new Set(vencimentos.map(v => v.tripulanteId)).size
-  }), [vencimentos]);
+  const stats = useMemo(() => {
+    // Contar habilitações por status
+    let vencidosCount = 0;
+    let proximosCount = 0;
+    let okCount = 0;
+
+    vencimentos.forEach(tripulante => {
+      tripulante.habilitacoes.forEach(hab => {
+        if (hab.status === 'vencido') vencidosCount++;
+        else if (hab.status === 'proximo') proximosCount++;
+        else if (hab.status === 'ok') okCount++;
+      });
+    });
+
+    return {
+      vencidos: vencidosCount,
+      proximos: proximosCount,
+      ok: okCount,
+      total: vencimentos.length
+    };
+  }, [vencimentos]);
 
   const getStatusInfo = (status: 'vencido' | 'proximo' | 'ok') => {
     const statusMap = {
