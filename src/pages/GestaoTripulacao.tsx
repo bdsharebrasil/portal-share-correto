@@ -646,7 +646,6 @@ function LicenseForm({
 }) {
   const [formData, setFormData] = useState<Partial<CrewLicense>>(license || {
     license_type: '',
-    license_number: '',
     expiry_date: '',
     observacao: '',
     CMA: '',
