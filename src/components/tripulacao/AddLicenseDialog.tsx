@@ -21,17 +21,6 @@ interface AddLicenseDialogProps {
   onSuccess: () => void;
 }
 
-const LICENSE_TYPES = [
-  "PP",
-  "PC",
-  "PLA",
-  "INVA",
-  "MLTE",
-  "IFR",
-  "CHT",
-  "CMA",
-  "Outro",
-];
 
 export function AddLicenseDialog({
   open,
@@ -40,9 +29,6 @@ export function AddLicenseDialog({
   onSuccess,
 }: AddLicenseDialogProps) {
   const [licenseType, setLicenseType] = useState("");
-  const [licenseNumber, setLicenseNumber] = useState("");
-  const [issuingAuthority, setIssuingAuthority] = useState("ANAC");
-  const [issueDate, setIssueDate] = useState("");
   const [expiryDate, setExpiryDate] = useState("");
   const [observations, setObservations] = useState("");
   // CMA specific fields
@@ -55,9 +41,6 @@ export function AddLicenseDialog({
 
   const resetForm = () => {
     setLicenseType("");
-    setLicenseNumber("");
-    setIssuingAuthority("ANAC");
-    setIssueDate("");
     setExpiryDate("");
     setObservations("");
     setCmaClass("");
@@ -67,7 +50,7 @@ export function AddLicenseDialog({
 
   const handleSave = async () => {
     if (!licenseType) {
-      toast.error("Selecione o tipo de habilitação");
+      toast.error("Informe o tipo de licença");
       return;
     }
 
@@ -86,11 +69,8 @@ export function AddLicenseDialog({
       const insertData: any = {
         crew_member_id: crewMemberId,
         license_type: licenseType,
-        license_number: licenseNumber || null,
-        issuing_authority: issuingAuthority || null,
-        issue_date: issueDate || null,
         expiry_date: isCMA ? null : expiryDate,
-        observations: observations || null,
+        observacao: observations || null,
       };
 
       if (isCMA) {
@@ -133,65 +113,25 @@ export function AddLicenseDialog({
 
         <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
           <div className="space-y-2">
-            <Label htmlFor="license-type">Tipo de Habilitação *</Label>
-            <Select value={licenseType} onValueChange={setLicenseType}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o tipo" />
-              </SelectTrigger>
-              <SelectContent>
-                {LICENSE_TYPES.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {type}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="license-type">Tipo de Licença *</Label>
+            <Input
+              id="license-type"
+              value={licenseType}
+              onChange={(e) => setLicenseType(e.target.value)}
+              placeholder="Ex: PP, PC, CMA, IFR"
+            />
           </div>
 
           {!isCMA && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="license-number">Número da Licença</Label>
-                <Input
-                  id="license-number"
-                  value={licenseNumber}
-                  onChange={(e) => setLicenseNumber(e.target.value)}
-                  placeholder="Ex: 123456"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="issuing-authority">Órgão Emissor</Label>
-                <Input
-                  id="issuing-authority"
-                  value={issuingAuthority}
-                  onChange={(e) => setIssuingAuthority(e.target.value)}
-                  placeholder="Ex: ANAC"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="issue-date">Data de Emissão</Label>
-                  <Input
-                    id="issue-date"
-                    type="date"
-                    value={issueDate}
-                    onChange={(e) => setIssueDate(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="expiry-date">Data de Validade *</Label>
-                  <Input
-                    id="expiry-date"
-                    type="date"
-                    value={expiryDate}
-                    onChange={(e) => setExpiryDate(e.target.value)}
-                  />
-                </div>
-              </div>
-            </>
+            <div className="space-y-2">
+              <Label htmlFor="expiry-date">Data de Validade *</Label>
+              <Input
+                id="expiry-date"
+                type="date"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+              />
+            </div>
           )}
 
           {isCMA && (
