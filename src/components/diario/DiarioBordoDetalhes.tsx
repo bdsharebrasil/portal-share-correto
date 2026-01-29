@@ -1466,26 +1466,51 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         .eq('id', id)
         .single();
 
-      // Deletar a entrada
+      if (!entryToDelete) {
+        throw new Error('Entrada não encontrada');
+      }
+
+      // Deletar registros relacionados em cascade
+      // 1. Deletar aircraft_loans associadas a esta entrada
+      if (entryToDelete.is_loan) {
+        const { error: loansError } = await supabase
+          .from('aircraft_loans')
+          .delete()
+          .eq('logbook_entry_id', id);
+
+        if (loansError) {
+          console.error('Erro ao deletar aircraft_loans:', loansError);
+        }
+
+        // 2. Deletar hour_transactions associadas a esta entrada
+        const { error: transError } = await supabase
+          .from('hour_transactions')
+          .delete()
+          .eq('logbook_entry_id', id);
+
+        if (transError) {
+          console.error('Erro ao deletar hour_transactions:', transError);
+        }
+      }
+
+      // 3. Deletar a entrada
       const { error } = await supabase.from('logbook_entries').delete().eq('id', id);
       if (error) throw error;
 
-      // Remover as horas de voo da tripulação
-      if (entryToDelete) {
-        const entryDate = new Date(entryToDelete.entry_date);
-        await updateCrewFlightHours({
-          picId: entryToDelete.pic_canac,
-          sicId: entryToDelete.sic_canac || null,
-          aircraftId,
-          month: entryDate.getMonth() + 1,
-          year: entryDate.getFullYear(),
-          totalTime: entryToDelete.total_time,
-          ifrTime: entryToDelete.ifr_time || 0,
-          nightHours: entryToDelete.night_hours || 0,
-          flightDay: entryToDelete.entry_date,
-          operation: 'remove'
-        });
-      }
+      // 4. Remover as horas de voo da tripulação
+      const entryDate = new Date(entryToDelete.entry_date);
+      await updateCrewFlightHours({
+        picId: entryToDelete.pic_canac,
+        sicId: entryToDelete.sic_canac || null,
+        aircraftId,
+        month: entryDate.getMonth() + 1,
+        year: entryDate.getFullYear(),
+        totalTime: entryToDelete.total_time,
+        ifrTime: entryToDelete.ifr_time || 0,
+        nightHours: entryToDelete.night_hours || 0,
+        flightDay: entryToDelete.entry_date,
+        operation: 'remove'
+      });
 
       toast.success("Lançamento deletado com sucesso!");
 
