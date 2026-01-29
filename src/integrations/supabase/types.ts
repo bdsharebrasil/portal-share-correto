@@ -3500,8 +3500,9 @@ export type Database = {
           expiry_date: string | null
           FS_RH: string | null
           id: string
-          license_number: string
+          license_number: string | null
           license_type: string
+          observacao: string | null
           updated_at: string | null
           validade_cma: string | null
         }
@@ -3512,8 +3513,9 @@ export type Database = {
           expiry_date?: string | null
           FS_RH?: string | null
           id?: string
-          license_number: string
+          license_number?: string | null
           license_type: string
+          observacao?: string | null
           updated_at?: string | null
           validade_cma?: string | null
         }
@@ -3524,8 +3526,9 @@ export type Database = {
           expiry_date?: string | null
           FS_RH?: string | null
           id?: string
-          license_number?: string
+          license_number?: string | null
           license_type?: string
+          observacao?: string | null
           updated_at?: string | null
           validade_cma?: string | null
         }
