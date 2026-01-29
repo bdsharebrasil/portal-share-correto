@@ -652,10 +652,7 @@ function LicenseForm({
 }) {
   const [formData, setFormData] = useState<Partial<CrewLicense>>(license || {
     license_type: '',
-    license_number: '',
-    issue_date: '',
     expiry_date: '',
-    issuing_authority: '',
     observations: '',
     CMA: '',
     FS_RH: '',
@@ -665,7 +662,7 @@ function LicenseForm({
     e.preventDefault();
     if (!formData.license_type) {
       toast({
-        title: "Preencha o tipo de habilitação",
+        title: "Informe o tipo de licença",
         variant: "destructive"
       });
       return;
@@ -692,28 +689,12 @@ function LicenseForm({
   };
   return <form onSubmit={handleSubmit} className="space-y-4">
     <div className="grid grid-cols-2 gap-4">
-      <div>
-        <Label>Tipo de Habilitação *</Label>
-        <Select value={formData.license_type} onValueChange={value => setFormData({
+      <div className="col-span-2">
+        <Label>Tipo de Licença *</Label>
+        <Input value={formData.license_type} onChange={e => setFormData({
           ...formData,
-          license_type: value
-        })}>
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="PPL">PPL - Piloto Privado</SelectItem>
-            <SelectItem value="CPL">CPL - Piloto Comercial</SelectItem>
-            <SelectItem value="ATPL">ATPL - Piloto de Linha Aérea</SelectItem>
-            <SelectItem value="INVA">INVA - Instrutor de Voo</SelectItem>
-            <SelectItem value="IFR">IFR - Instrumentos</SelectItem>
-            <SelectItem value="MLTE">MLTE - Multi-motor Terrestre</SelectItem>
-            <SelectItem value="MNTE">MNTE - Mono-motor Terrestre</SelectItem>
-            <SelectItem value="CMA">CMA - Certificado Médico Aeronáutico</SelectItem>
-            <SelectItem value="CHT">CHT - Habilitação de Tipo</SelectItem>
-            <SelectItem value="Outro">Outro</SelectItem>
-          </SelectContent>
-        </Select>
+          license_type: e.target.value
+        })} placeholder="Ex: PP, PC, CMA, IFR" />
       </div>
 
       {formData.license_type === 'CMA' ? (
@@ -732,7 +713,7 @@ function LicenseForm({
               FS_RH: e.target.value
             })} />
           </div>
-          <div>
+          <div className="col-span-2">
             <Label>Validade CMA</Label>
             <Input type="date" value={formData.validade_cma || ''} onChange={e => setFormData({
               ...formData,
@@ -740,50 +721,13 @@ function LicenseForm({
             })} />
           </div>
         </>
-      ) : formData.license_type === 'CHT' ? (
-        <div>
-          <Label>Tipo de Aeronave</Label>
-          <Input value={formData.license_number || ''} onChange={e => setFormData({
-            ...formData,
-            license_number: e.target.value
-          })} placeholder="Ex: PA-28, C-172" />
-        </div>
       ) : (
-        <>
-          <div>
-            <Label>Número da Licença</Label>
-            <Input value={formData.license_number} onChange={e => setFormData({
-              ...formData,
-              license_number: e.target.value
-            })} />
-          </div>
-          <div>
-            <Label>Data de Emissão</Label>
-            <Input type="date" value={formData.issue_date} onChange={e => setFormData({
-              ...formData,
-              issue_date: e.target.value
-            })} />
-          </div>
-        </>
-      )}
-
-      {formData.license_type !== 'CMA' && (
         <div>
           <Label>Data de Validade *</Label>
           <Input type="date" value={formData.expiry_date} onChange={e => setFormData({
             ...formData,
             expiry_date: e.target.value
           })} required />
-        </div>
-      )}
-
-      {formData.license_type !== 'CMA' && (
-        <div className="col-span-2">
-          <Label>Autoridade Emissora</Label>
-          <Input value={formData.issuing_authority} onChange={e => setFormData({
-            ...formData,
-            issuing_authority: e.target.value
-          })} placeholder="Ex: ANAC, FAA, EASA" />
         </div>
       )}
 
