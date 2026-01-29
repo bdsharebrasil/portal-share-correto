@@ -1446,6 +1446,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
 
   // DELETAR ENTRADA
   const handleDeleteEntry = async (id: string) => {
+    // Verificar permissão: apenas admin, gestor_master, coordenador_de_voo, piloto_chefe e tripulante podem deletar
+    const canDeleteEntry = isAdmin || isGestorMaster || isPilotoChefe || isCoordenadorVoo || isTripulante;
+
+    if (!canDeleteEntry) {
+      toast.error('Você não tem permissão para deletar lançamentos do diário de bordo');
+      return;
+    }
+
     if (!window.confirm('Tem certeza que deseja deletar este lançamento?')) {
       return;
     }
