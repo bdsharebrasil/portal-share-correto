@@ -205,35 +205,54 @@ export default function GestaoDeTripulacao() {
       license_number: "", // Campo obrigatório no banco
       ...licenseData
     };
-    if (editingLicense) {
-      const {
-        error
-      } = await (supabase as any).from('crew_licenses').update(payload).eq('id', editingLicense.id);
-      if (error) {
-        toast({
-          title: "Erro ao atualizar licença",
-          variant: "destructive"
-        });
-        return;
+
+    try {
+      if (editingLicense) {
+        console.log("[License] Updating license:", { id: editingLicense.id, ...payload });
+        const {
+          error
+        } = await (supabase as any).from('crew_licenses').update(payload).eq('id', editingLicense.id);
+        if (error) {
+          console.error("[License] Update error:", error);
+          const errorMsg = error?.message || error?.details || "Erro ao atualizar licença";
+          toast({
+            title: "Erro ao atualizar licença",
+            description: errorMsg,
+            variant: "destructive"
+          });
+          return;
+        }
+      } else {
+        console.log("[License] Inserting license:", payload);
+        const {
+          error
+        } = await (supabase as any).from('crew_licenses').insert([payload]);
+        if (error) {
+          console.error("[License] Insert error:", error);
+          const errorMsg = error?.message || error?.details || "Erro ao criar licença";
+          toast({
+            title: "Erro ao criar licença",
+            description: errorMsg,
+            variant: "destructive"
+          });
+          return;
+        }
       }
-    } else {
-      const {
-        error
-      } = await (supabase as any).from('crew_licenses').insert([payload]);
-      if (error) {
-        toast({
-          title: "Erro ao criar licença",
-          variant: "destructive"
-        });
-        return;
-      }
+      toast({
+        title: "Licença salva com sucesso!"
+      });
+      setIsLicenseDialogOpen(false);
+      setEditingLicense(null);
+      loadCrewDetails(selectedCrew.id);
+    } catch (error) {
+      console.error("[License] Unexpected error:", error);
+      const errorMsg = error instanceof Error ? error.message : "Erro inesperado ao salvar licença";
+      toast({
+        title: "Erro ao salvar licença",
+        description: errorMsg,
+        variant: "destructive"
+      });
     }
-    toast({
-      title: "Licença salva com sucesso!"
-    });
-    setIsLicenseDialogOpen(false);
-    setEditingLicense(null);
-    loadCrewDetails(selectedCrew.id);
   };
   const deleteLicense = async (licenseId: string) => {
     if (!canEditHabilitacoes) {
