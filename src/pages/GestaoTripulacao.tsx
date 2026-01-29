@@ -205,35 +205,54 @@ export default function GestaoDeTripulacao() {
       license_number: "", // Campo obrigatório no banco
       ...licenseData
     };
-    if (editingLicense) {
-      const {
-        error
-      } = await (supabase as any).from('crew_licenses').update(payload).eq('id', editingLicense.id);
-      if (error) {
-        toast({
-          title: "Erro ao atualizar licença",
-          variant: "destructive"
-        });
-        return;
+
+    try {
+      if (editingLicense) {
+        console.log("[License] Updating license:", { id: editingLicense.id, ...payload });
+        const {
+          error
+        } = await (supabase as any).from('crew_licenses').update(payload).eq('id', editingLicense.id);
+        if (error) {
+          console.error("[License] Update error:", error);
+          const errorMsg = error?.message || error?.details || "Erro ao atualizar licença";
+          toast({
+            title: "Erro ao atualizar licença",
+            description: errorMsg,
+            variant: "destructive"
+          });
+          return;
+        }
+      } else {
+        console.log("[License] Inserting license:", payload);
+        const {
+          error
+        } = await (supabase as any).from('crew_licenses').insert([payload]);
+        if (error) {
+          console.error("[License] Insert error:", error);
+          const errorMsg = error?.message || error?.details || "Erro ao criar licença";
+          toast({
+            title: "Erro ao criar licença",
+            description: errorMsg,
+            variant: "destructive"
+          });
+          return;
+        }
       }
-    } else {
-      const {
-        error
-      } = await (supabase as any).from('crew_licenses').insert([payload]);
-      if (error) {
-        toast({
-          title: "Erro ao criar licença",
-          variant: "destructive"
-        });
-        return;
-      }
+      toast({
+        title: "Licença salva com sucesso!"
+      });
+      setIsLicenseDialogOpen(false);
+      setEditingLicense(null);
+      loadCrewDetails(selectedCrew.id);
+    } catch (error) {
+      console.error("[License] Unexpected error:", error);
+      const errorMsg = error instanceof Error ? error.message : "Erro inesperado ao salvar licença";
+      toast({
+        title: "Erro ao salvar licença",
+        description: errorMsg,
+        variant: "destructive"
+      });
     }
-    toast({
-      title: "Licença salva com sucesso!"
-    });
-    setIsLicenseDialogOpen(false);
-    setEditingLicense(null);
-    loadCrewDetails(selectedCrew.id);
   };
   const deleteLicense = async (licenseId: string) => {
     if (!canEditHabilitacoes) {
@@ -245,20 +264,35 @@ export default function GestaoDeTripulacao() {
       return;
     }
     if (!confirm('Deseja realmente excluir esta licença?')) return;
-    const {
-      error
-    } = await (supabase as any).from('crew_licenses').delete().eq('id', licenseId);
-    if (error) {
+
+    try {
+      console.log("[License] Deleting license:", licenseId);
+      const {
+        error
+      } = await (supabase as any).from('crew_licenses').delete().eq('id', licenseId);
+      if (error) {
+        console.error("[License] Delete error:", error);
+        const errorMsg = error?.message || error?.details || "Erro ao excluir licença";
+        toast({
+          title: "Erro ao excluir licença",
+          description: errorMsg,
+          variant: "destructive"
+        });
+        return;
+      }
+      toast({
+        title: "Licença excluída com sucesso!"
+      });
+      if (selectedCrew) loadCrewDetails(selectedCrew.id);
+    } catch (error) {
+      console.error("[License] Unexpected error:", error);
+      const errorMsg = error instanceof Error ? error.message : "Erro inesperado ao excluir licença";
       toast({
         title: "Erro ao excluir licença",
+        description: errorMsg,
         variant: "destructive"
       });
-      return;
     }
-    toast({
-      title: "Licença excluída com sucesso!"
-    });
-    if (selectedCrew) loadCrewDetails(selectedCrew.id);
   };
   const filteredCrewMembers = crewMembers.filter(crew => crew.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || crew.canac.toLowerCase().includes(searchTerm.toLowerCase()));
   const formatDate = formatDateToBR;
@@ -695,17 +729,39 @@ function LicenseForm({
         <>
           <div>
             <Label>Classe CMA</Label>
-            <Input className="w-full" value={formData.CMA || ''} onChange={e => setFormData({
+            <Select value={formData.CMA || ''} onValueChange={(value) => setFormData({
               ...formData,
-              CMA: e.target.value
-            })} placeholder="Ex: Primeira, Segunda, Terceira" />
+              CMA: value
+            })}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecione a classe" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1º classe">1º Classe</SelectItem>
+                <SelectItem value="2º classe">2º Classe</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div>
-            <Label>FS/RH</Label>
-            <Input className="w-full" value={formData.FS_RH || ''} onChange={e => setFormData({
+            <Label>Tipo Sanguíneo (FS/RH)</Label>
+            <Select value={formData.FS_RH || ''} onValueChange={(value) => setFormData({
               ...formData,
-              FS_RH: e.target.value
-            })} />
+              FS_RH: value
+            })}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecione o tipo sanguíneo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="A+">A+</SelectItem>
+                <SelectItem value="A-">A-</SelectItem>
+                <SelectItem value="B+">B+</SelectItem>
+                <SelectItem value="B-">B-</SelectItem>
+                <SelectItem value="AB+">AB+</SelectItem>
+                <SelectItem value="AB-">AB-</SelectItem>
+                <SelectItem value="O+">O+</SelectItem>
+                <SelectItem value="O-">O-</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="sm:col-span-2">
             <Label>Validade CMA</Label>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { METAR_MOCK_DATA } from '@/data/metarMockData';
 
 export interface MetarInfo {
   temperature: number;
@@ -161,20 +162,41 @@ export function useWeather() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const setDefaultWeather = useCallback(() => {
-    setWeather({
-      temperature: 25,
-      dewpoint: 18,
-      windDirection: 90,
-      windSpeed: 12,
-      windGust: null,
-      visibility: { value: 10, unit: 'SM' },
-      flightCategory: 'VFR',
-      rawMetar: '',
-      location: 'São Paulo (SBGR)',
-      icon: '01d',
-      description: 'Clima estável',
-    });
+  const setDefaultWeather = useCallback((aerodrome: string = 'SBGR') => {
+    // Try to use mock data for the specified aerodrome
+    const mockData = METAR_MOCK_DATA[aerodrome.toUpperCase()];
+
+    if (mockData) {
+      const { temp, dewp, wdir, wspd, wgst, visib, rawOb } = mockData;
+      setWeather({
+        temperature: temp,
+        dewpoint: dewp,
+        windDirection: wdir,
+        windSpeed: wspd,
+        windGust: wgst,
+        visibility: { value: visib, unit: 'SM' },
+        flightCategory: 'VFR',
+        rawMetar: rawOb,
+        location: `${aerodrome.toUpperCase()} (Fallback)`,
+        icon: '01d',
+        description: 'Dados do servidor indisponíveis - usando dados locais',
+      });
+    } else {
+      // Fallback to generic defaults for unknown aerodromes
+      setWeather({
+        temperature: 25,
+        dewpoint: 18,
+        windDirection: 90,
+        windSpeed: 12,
+        windGust: null,
+        visibility: { value: 10, unit: 'SM' },
+        flightCategory: 'VFR',
+        rawMetar: '',
+        location: `${aerodrome.toUpperCase()}`,
+        icon: '01d',
+        description: 'Dados indisponíveis',
+      });
+    }
     setLoading(false);
   }, []);
 
@@ -234,7 +256,7 @@ export function useWeather() {
 
         if (temp === null) {
           console.warn('[METAR] ⚠️ Temperatura não parseada - usando fallback');
-          setDefaultWeather();
+          setDefaultWeather(aerodrome);
           return;
         }
 
@@ -277,7 +299,7 @@ export function useWeather() {
       }
     } catch (error) {
       console.warn('[METAR] ⚠️ Usando dados padrão como fallback');
-      setDefaultWeather();
+      setDefaultWeather(aerodrome);
     } finally {
       setLoading(false);
       abortController = null;
