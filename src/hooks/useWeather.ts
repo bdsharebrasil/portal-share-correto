@@ -338,7 +338,7 @@ export function useWeather() {
     const handleVisibilityChange = () => {
       if (!document.hidden && !isFetching && isMounted) {
         console.log('[METAR] 👁️ Aba ficou visível - refrescando...');
-        safeFetch().catch(err => console.warn('[METAR] Erro ao voltar aba:', err));
+        safeFetch();
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
