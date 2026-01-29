@@ -125,16 +125,6 @@ export function AddLicenseDialog({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="license-number">Número da Licença</Label>
-            <Input
-              id="license-number"
-              value={licenseNumber}
-              onChange={(e) => setLicenseNumber(e.target.value)}
-              placeholder="Ex: 123456 ou deixe em branco"
-            />
-          </div>
-
           {!isCMA && (
             <div className="space-y-2">
               <Label htmlFor="expiry-date">Data de Validade *</Label>
