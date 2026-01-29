@@ -1606,10 +1606,29 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   const handleCreateMonthWithData = async (monthData: any) => {
     try {
       setCreatingMonth(true);
-      
+
       // Usa mês/ano do dialog (monthData pode ter mês/ano selecionado pelo usuário)
       const targetMonth = monthData.month || selectedMonth;
       const targetYear = monthData.year || selectedYear;
+
+      // Verificar se já existe um diário para este mês/ano
+      const { data: existingMonth, error: checkError } = await supabase
+        .from('logbook_months')
+        .select('id, month, year')
+        .eq('aircraft_id', aircraftId)
+        .eq('month', targetMonth)
+        .eq('year', targetYear)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Erro ao verificar diários existentes:', checkError);
+      }
+
+      if (existingMonth) {
+        toast.error(`Já existe um diário de bordo para ${MONTHS[targetMonth - 1]} de ${targetYear}. Selecione outro mês ou ano.`);
+        setCreatingMonth(false);
+        return;
+      }
 
       const { data: newMonth, error } = await supabase
         .from('logbook_months')
