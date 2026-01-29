@@ -174,7 +174,7 @@ export function AddLicenseDialog({
             </>
           )}
 
-          <div className="space-y-2">
+          <div className="space-y-2 max-[991px]:ml-[12px]">
             <Label htmlFor="observations">Observações</Label>
             <Textarea
               id="observations"
