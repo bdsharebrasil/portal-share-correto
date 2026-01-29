@@ -299,7 +299,7 @@ export function useWeather() {
       }
     } catch (error) {
       console.warn('[METAR] ⚠️ Usando dados padrão como fallback');
-      setDefaultWeather();
+      setDefaultWeather(aerodrome);
     } finally {
       setLoading(false);
       abortController = null;
