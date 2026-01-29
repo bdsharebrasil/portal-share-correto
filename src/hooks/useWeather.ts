@@ -324,7 +324,7 @@ export function useWeather() {
 
     // Fetch imediato ao montar
     console.log('[METAR] 🚀 Inicializando hook de clima...');
-    safeFetch().catch(err => console.warn('[METAR] Erro inicial:', err));
+    safeFetch();
 
     // Configurar intervalo de atualização (5 minutos)
     const interval = setInterval(() => {
