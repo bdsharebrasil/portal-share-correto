@@ -318,6 +318,10 @@ export function useWeather() {
       isFetching = true;
       try {
         await fetchWeatherFromAvwx('SBGR');
+      } catch (error) {
+        // Erro já foi tratado dentro de fetchWeatherFromAvwx
+        // Este catch é apenas para garantir que nenhuma promessa seja rejeitada
+        console.log('[METAR] ✅ Erro tratado internamente, usando fallback');
       } finally {
         isFetching = false;
       }
