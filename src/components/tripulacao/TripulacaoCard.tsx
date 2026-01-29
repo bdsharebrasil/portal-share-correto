@@ -5,6 +5,7 @@ import { Phone, CheckCircle, Clock, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDateToBR } from "@/lib/date-utils";
 
 interface CrewLicense {
   id: string;
@@ -45,15 +46,6 @@ const getInitials = (name: string) =>
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("")
     .slice(0, 2);
-
-const formatDate = (date: string | null | undefined) => {
-  if (!date) return "-";
-  try {
-    return new Date(date).toLocaleDateString("pt-BR");
-  } catch {
-    return "-";
-  }
-};
 
 type LicenseStatus = "active" | "expiring" | "expired";
 
@@ -150,7 +142,8 @@ export function CrewMemberCard({ member }: CrewMemberCardProps) {
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {displayLicenses.map((license) => {
-              const status = getLicenseStatus(license.expiry_date);
+              const expiryDate = license.license_type === 'CMA' ? license.validade_cma : license.expiry_date;
+              const status = getLicenseStatus(expiryDate);
               const config = statusConfig[status];
 
               return (
@@ -159,7 +152,7 @@ export function CrewMemberCard({ member }: CrewMemberCardProps) {
                   className={`${config.cardBg} border ${config.cardBorder} rounded-lg p-3 hover:border-opacity-50 transition-colors`}
                 >
                   <p className="text-xs font-semibold text-slate-300 mb-2">{license.license_type}</p>
-                  <p className="text-xs text-slate-400 mb-2">{formatDate(license.expiry_date)}</p>
+                  <p className="text-xs text-slate-400 mb-2">{formatDateToBR(expiryDate)}</p>
                   <Badge className={`${config.badgeColor} ${config.textColor} text-xs font-semibold w-full justify-center border`}>
                     {config.label}
                   </Badge>
@@ -183,7 +176,7 @@ export function CrewMemberCard({ member }: CrewMemberCardProps) {
             <div className="text-center border-l border-r border-slate-700/50">
               <p className="text-[9px] text-slate-500 uppercase tracking-wider font-bold mb-2">Validade</p>
               <p className={`text-sm font-bold ${statusConfig[getLicenseStatus(cmaLicense.validade_cma)].textColor}`}>
-                {formatDate(cmaLicense.validade_cma)}
+                {formatDateToBR(cmaLicense.validade_cma)}
               </p>
             </div>
             <div className="text-center">
