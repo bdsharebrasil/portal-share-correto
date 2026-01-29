@@ -167,7 +167,14 @@ export default function GestaoDeTripulacao() {
     setSchedules(schedulesData || []);
   };
   const getLicenseStatusBadge = (license: CrewLicense, onEdit?: () => void) => {
-    const expiryDate = new Date(license.expiry_date);
+    // Para CMA, usar validade_cma; para outros, usar expiry_date
+    const dateStr = license.license_type === 'CMA' ? license.validade_cma : license.expiry_date;
+
+    if (!dateStr) {
+      return <Badge className="bg-gray-500">Sem data de validade</Badge>;
+    }
+
+    const expiryDate = new Date(dateStr);
     const today = new Date();
     const daysUntilExpiry = Math.floor((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
     const badgeClass = "flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity";
