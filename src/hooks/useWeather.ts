@@ -205,22 +205,22 @@ export function useWeather() {
     try {
       setLoading(true);
 
-      // Use the backend proxy endpoint instead of calling AVWX/aviationweather directly
-      // This avoids CORS issues and allows caching on the server (10 min cache)
-      const backendUrl = `/api/weather/metar?icao=${aerodrome.toUpperCase()}`;
+      // Fetch directly from aviationweather.gov API to avoid backend dependency
+      const apiUrl = `https://aviationweather.gov/api/data/metar?ids=${aerodrome.toUpperCase()}&format=json`;
 
-      console.log('[METAR] 🌐 Buscando dados via backend:', backendUrl);
+      console.log('[METAR] 🌐 Buscando dados direto de aviationweather.gov:', aerodrome);
 
       // Usar AbortController em vez de timeout
       abortController = new AbortController();
-      const timeoutId = setTimeout(() => abortController?.abort(), 15000);
+      const timeoutId = setTimeout(() => abortController?.abort(), 10000);
 
       try {
-        const response = await fetch(backendUrl, {
+        const response = await fetch(apiUrl, {
           signal: abortController.signal,
           method: 'GET',
           headers: {
             'Accept': 'application/json',
+            'User-Agent': 'ShareBrasil-App/1.0',
           }
         });
 
@@ -228,24 +228,25 @@ export function useWeather() {
 
         if (!response.ok) {
           console.error(`[METAR] ❌ HTTP Error: ${response.status} ${response.statusText}`);
-          throw new Error(`Backend API error: ${response.status} ${response.statusText}`);
+          throw new Error(`API error: ${response.status}`);
         }
 
         const responseData: any = await response.json();
 
-        if (responseData.error) {
-          console.error(`[METAR] ❌ API Error: ${responseData.error}`);
-          throw new Error(`METAR error: ${responseData.error}`);
-        }
-
-        // The backend returns data.data which contains the METAR response from aviationweather.gov
-        // The format includes: rawOb, temp, dewp, wdir, wspd, visib, etc.
-        if (!responseData.data || !responseData.data.rawOb) {
+        // The API returns an array with METAR observations
+        if (!responseData || !Array.isArray(responseData) || responseData.length === 0) {
           console.error('[METAR] ❌ Nenhum dado válido retornado pela API');
           throw new Error('METAR error: Invalid response format');
         }
 
-        const metar = responseData.data.rawOb;
+        const metarObj = responseData[0];
+        const metar = metarObj.rawOb || metarObj.raw_text;
+
+        if (!metar) {
+          console.error('[METAR] ❌ Sem texto METAR na resposta');
+          throw new Error('METAR error: No raw METAR text');
+        }
+
         console.log('[METAR] ✅ Raw METAR recebido:', metar);
 
         const { temp, dewpoint } = parseTemperatureDewpoint(metar);
@@ -284,13 +285,13 @@ export function useWeather() {
 
         if (fetchError instanceof Error) {
           if (fetchError.name === 'AbortError') {
-            console.warn('[METAR] ⏱️ Timeout na requisição (15s)');
+            console.warn('[METAR] ⏱️ Timeout na requisição (10s)');
           } else if (fetchError.message.includes('Failed to fetch')) {
-            console.warn('[METAR] ❌ Failed to fetch - possível conectividade');
+            console.warn('[METAR] ❌ Falha ao conectar com API de clima');
             console.warn('[METAR] 💡 Possíveis causas:');
-            console.warn('[METAR]   1. Backend não está respondendo');
-            console.warn('[METAR]   2. Sem conexão de internet');
-            console.warn('[METAR]   3. API de clima indisponível');
+            console.warn('[METAR]   1. Sem conexão de internet');
+            console.warn('[METAR]   2. API de clima temporariamente indisponível');
+            console.warn('[METAR]   3. Problema de CORS');
           } else {
             console.warn('[METAR] ❌ Erro ao buscar METAR:', fetchError.message);
           }
@@ -298,7 +299,7 @@ export function useWeather() {
         throw fetchError;
       }
     } catch (error) {
-      console.warn('[METAR] ⚠️ Usando dados padrão como fallback');
+      console.warn('[METAR] ⚠️ Usando dados locais como fallback');
       setDefaultWeather(aerodrome);
     } finally {
       setLoading(false);

@@ -6,6 +6,7 @@ import { RoleProtected } from "@/components/auth/RoleProtected";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LoadingProvider } from "@/contexts/LoadingContext";
 import { ViewModeProvider } from "@/contexts/ViewModeContext";
+import { VencimentosSyncProvider } from "@/contexts/VencimentosSyncContext";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -70,6 +71,9 @@ import BancodeHoras from './pages/BancodeHoras';
 import BalancoCliente from "./pages/BalancoCliente";
 import MapaComponentes from "./pages/MapaComponentes";
 import ManutencaoPreventiva from "./pages/ManutencaoPreventiva";
+import ManutencaoAeronave from "./pages/ManutencaoAeronave";
+import VencimentosTripulacao from "./pages/VencimentosTripulacao";
+import VencimentosDocumentos from "./pages/VencimentosDocumentos";
 const queryClient = new QueryClient();
 
 const App = () => {
@@ -106,7 +110,8 @@ const App = () => {
         <AuthProvider>
           <LoadingProvider>
             <ViewModeProvider>
-              <TooltipProvider>
+              <VencimentosSyncProvider>
+                <TooltipProvider>
                 <Toaster />
                 <GlobalLoader />
                 <InstallPrompt />
@@ -224,6 +229,8 @@ const App = () => {
                     <Route path="/aeronaves" element={renderProtected(<Aeronaves />)} />
                     <Route path="/aeronaves/:id" element={renderProtected(<AeronaveDetalhes />)} />
                     <Route path="/vencimentos" element={renderProtected(<ControleVencimentos />)} />
+                    <Route path="/vencimentos/tripulacao" element={renderProtected(<VencimentosTripulacao />)} />
+                    <Route path="/vencimentos/documentos" element={renderProtected(<VencimentosDocumentos />)} />
                     <Route path="/manutencao/vencimentos" element={renderProtected(<ControleVencimentos />)} />
                     <Route path="/manutencao/programacao" element={renderProtected(<ProgramacaoManutencao />)} />
                     <Route path="/manutencao/relatorios" element={renderProtected(<RelatoriosTecnicos />)} />
@@ -232,12 +239,14 @@ const App = () => {
                     <Route path="/manutencao/ctm-detail" element={renderProtected(<CTMDetailPage />)} />
                     <Route path="/manutencao/orcamentos" element={renderProtected(<OrcamentosCTM />)} />
                     <Route path="/manutencao/preventiva" element={renderProtected(<ManutencaoPreventiva />)} />
+                    <Route path="/manutencao/aeronaves" element={renderProtected(<ManutencaoAeronave />)} />
                     <Route path="/ferias" element={renderProtected(<Ferias />)} />
 
                     <Route path="*" element={renderProtected(<NotFound />)} />
                   </Routes>
                 </HashRouter>
               </TooltipProvider>
+              </VencimentosSyncProvider>
             </ViewModeProvider>
           </LoadingProvider>
         </AuthProvider>
