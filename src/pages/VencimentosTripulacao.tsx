@@ -333,7 +333,7 @@ export default function VencimentosTripulacao() {
                   <div>
                     <div className="flex items-center gap-2 mb-3">
                       <span className="w-2 h-2 rounded-full bg-yellow-400" />
-                      <span className="text-xs font-bold uppercase tracking-wider text-yellow-400">Próximos 60d</span>
+                      <span className="text-xs font-bold uppercase tracking-wider text-yellow-400"><p>Próximos 60 dias</p></span>
                     </div>
                     <div className="flex items-baseline gap-1">
                       <span className="text-4xl font-bold text-white tracking-tight">{stats.proximos}</span>
