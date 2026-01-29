@@ -226,6 +226,8 @@ const App = () => {
                     <Route path="/aeronaves" element={renderProtected(<Aeronaves />)} />
                     <Route path="/aeronaves/:id" element={renderProtected(<AeronaveDetalhes />)} />
                     <Route path="/vencimentos" element={renderProtected(<ControleVencimentos />)} />
+                    <Route path="/vencimentos/tripulacao" element={renderProtected(<VencimentosTripulacao />)} />
+                    <Route path="/vencimentos/documentos" element={renderProtected(<VencimentosDocumentos />)} />
                     <Route path="/manutencao/vencimentos" element={renderProtected(<ControleVencimentos />)} />
                     <Route path="/manutencao/programacao" element={renderProtected(<ProgramacaoManutencao />)} />
                     <Route path="/manutencao/relatorios" element={renderProtected(<RelatoriosTecnicos />)} />
