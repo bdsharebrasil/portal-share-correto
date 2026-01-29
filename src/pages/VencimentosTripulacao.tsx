@@ -32,23 +32,28 @@ interface CrewLicense {
   observacao?: string;
 }
 
-interface VencimentoItem {
+interface Habilitacao {
   id: string;
-  tripulanteId: string;
-  tripulanteName: string;
-  tripulanteAvatar?: string;
+  licenseId: string;
   habilitacao: string;
   dataVencimento: string;
   diasRestantes: number;
   status: 'vencido' | 'proximo' | 'ok';
   tipo: 'habilitacao' | 'cma';
-  licenseId: string;
+}
+
+interface TripulanteVencimento {
+  tripulanteId: string;
+  tripulanteName: string;
+  tripulanteAvatar?: string;
+  habilitacoes: Habilitacao[];
+  statusGeral: 'vencido' | 'proximo' | 'ok'; // Status do primeiro vencimento
 }
 
 export default function VencimentosTripulacao() {
   const { toast } = useToast();
   const { subscribe } = useVencimentosSync();
-  const [vencimentos, setVencimentos] = useState<VencimentoItem[]>([]);
+  const [vencimentos, setVencimentos] = useState<TripulanteVencimento[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeStatus, setActiveStatus] = useState<'todos' | 'vencidos' | 'proximos' | 'ok'>('todos');
