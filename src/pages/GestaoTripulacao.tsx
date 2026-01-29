@@ -697,14 +697,6 @@ function LicenseForm({
         })} placeholder="Ex: PP, PC, CMA, IFR" />
       </div>
 
-      <div className="col-span-2">
-        <Label>Número da Licença</Label>
-        <Input value={formData.license_number || ''} onChange={e => setFormData({
-          ...formData,
-          license_number: e.target.value
-        })} placeholder="Ex: 123456 ou deixe em branco" />
-      </div>
-
       {formData.license_type === 'CMA' ? (
         <>
           <div>
