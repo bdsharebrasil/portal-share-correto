@@ -39,6 +39,7 @@ interface ManutencaoItem {
 
 export default function ManutencaoAeronave() {
   const { toast } = useToast();
+  const { subscribe } = useVencimentosSync();
   const [manutencoes, setManutencoes] = useState<ManutencaoItem[]>([]);
   const [aeronaves, setAeronaves] = useState<Aircraft[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,7 +61,16 @@ export default function ManutencaoAeronave() {
 
   useEffect(() => {
     loadData();
-  }, []);
+
+    // Inscrever para mudanças em tempo real
+    const unsubscribe = subscribe((event) => {
+      if (event.entityType === 'manutencao') {
+        loadData();
+      }
+    });
+
+    return unsubscribe;
+  }, [subscribe]);
 
   const loadData = async () => {
     setLoading(true);
