@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { METAR_MOCK_DATA } from '@/data/metarMockData';
 
 export interface MetarInfo {
   temperature: number;
