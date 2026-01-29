@@ -53,23 +53,47 @@ export function LicenseExpiryDialog({
 
     setIsLoading(true);
     try {
+      if (!license?.id) {
+        toast.error("Habilitação não encontrada");
+        return;
+      }
+
       const updateData = isCMA
         ? { validade_cma: expiryDate }
         : { expiry_date: expiryDate };
+
+      console.log("[License] Attempting to update:", { id: license.id, ...updateData });
 
       const { error } = await (supabase as any)
         .from("crew_licenses")
         .update(updateData)
         .eq("id", license.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("[License] Supabase error:", error);
+        const errorMessage =
+          error?.message ||
+          error?.error_description ||
+          error?.details ||
+          String(error);
+        throw new Error(errorMessage);
+      }
 
       toast.success("Validade atualizada com sucesso!");
       onSuccess();
       onOpenChange(false);
     } catch (error) {
       console.error("Error updating license:", error);
-      toast.error("Erro ao atualizar validade");
+
+      let errorMessage = "Erro ao atualizar validade";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        if (errorMessage.includes("RLS")) {
+          errorMessage = "Permissão negada ao atualizar habilitação";
+        }
+      }
+
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
