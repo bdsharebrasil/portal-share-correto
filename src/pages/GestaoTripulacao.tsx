@@ -726,9 +726,9 @@ function LicenseForm({
 
       <div className="col-span-2">
         <Label>Observações</Label>
-        <Textarea value={formData.observations} onChange={e => setFormData({
+        <Textarea value={formData.observacao || ''} onChange={e => setFormData({
           ...formData,
-          observations: e.target.value
+          observacao: e.target.value
         })} rows={3} />
       </div>
     </div>
