@@ -735,11 +735,25 @@ function LicenseForm({
             })} placeholder="Ex: Primeira, Segunda, Terceira" />
           </div>
           <div>
-            <Label>FS/RH</Label>
-            <Input className="w-full" value={formData.FS_RH || ''} onChange={e => setFormData({
+            <Label>Tipo Sanguíneo (FS/RH)</Label>
+            <Select value={formData.FS_RH || ''} onValueChange={(value) => setFormData({
               ...formData,
-              FS_RH: e.target.value
-            })} />
+              FS_RH: value
+            })}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecione o tipo sanguíneo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="A+">A+</SelectItem>
+                <SelectItem value="A-">A-</SelectItem>
+                <SelectItem value="B+">B+</SelectItem>
+                <SelectItem value="B-">B-</SelectItem>
+                <SelectItem value="AB+">AB+</SelectItem>
+                <SelectItem value="AB-">AB-</SelectItem>
+                <SelectItem value="O+">O+</SelectItem>
+                <SelectItem value="O-">O-</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="sm:col-span-2">
             <Label>Validade CMA</Label>
