@@ -729,10 +729,18 @@ function LicenseForm({
         <>
           <div>
             <Label>Classe CMA</Label>
-            <Input className="w-full" value={formData.CMA || ''} onChange={e => setFormData({
+            <Select value={formData.CMA || ''} onValueChange={(value) => setFormData({
               ...formData,
-              CMA: e.target.value
-            })} placeholder="Ex: Primeira, Segunda, Terceira" />
+              CMA: value
+            })}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Selecione a classe" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1º classe">1º Classe</SelectItem>
+                <SelectItem value="2º classe">2º Classe</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label>Tipo Sanguíneo (FS/RH)</Label>
