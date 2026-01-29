@@ -5,6 +5,7 @@ import { Phone, CheckCircle, Clock, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDateToBR } from "@/lib/date-utils";
 
 interface CrewLicense {
   id: string;
