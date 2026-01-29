@@ -70,6 +70,7 @@ import BancodeHoras from './pages/BancodeHoras';
 import BalancoCliente from "./pages/BalancoCliente";
 import MapaComponentes from "./pages/MapaComponentes";
 import ManutencaoPreventiva from "./pages/ManutencaoPreventiva";
+import ManutencaoAeronave from "./pages/ManutencaoAeronave";
 import VencimentosTripulacao from "./pages/VencimentosTripulacao";
 import VencimentosDocumentos from "./pages/VencimentosDocumentos";
 const queryClient = new QueryClient();
