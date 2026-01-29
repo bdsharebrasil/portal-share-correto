@@ -237,6 +237,7 @@ const App = () => {
                     <Route path="/manutencao/ctm-detail" element={renderProtected(<CTMDetailPage />)} />
                     <Route path="/manutencao/orcamentos" element={renderProtected(<OrcamentosCTM />)} />
                     <Route path="/manutencao/preventiva" element={renderProtected(<ManutencaoPreventiva />)} />
+                    <Route path="/manutencao/aeronaves" element={renderProtected(<ManutencaoAeronave />)} />
                     <Route path="/ferias" element={renderProtected(<Ferias />)} />
 
                     <Route path="*" element={renderProtected(<NotFound />)} />
