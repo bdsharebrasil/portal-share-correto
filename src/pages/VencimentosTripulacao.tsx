@@ -325,18 +325,7 @@ export default function VencimentosTripulacao() {
                 </div>
               </div>
 
-              <div
-                className="bg-slate-800/30 backdrop-blur-[12px] border border-white/5 rounded-2xl p-6 relative overflow-hidden group transition-all duration-300 hover:bg-slate-800/50 hover:border-white/10"
-                style={{
-                  '@media (max-width: 991px)': {
-                    backgroundColor: 'rgba(80, 185, 199, 1)',
-                    backgroundImage: 'url(https://cdn.builder.io/api/v1/image/assets%2F25cf751450f841169c5b78d468379b00%2F9730745efc0547d9adf3f15857247c42)',
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'center',
-                    backgroundSize: 'cover'
-                  }
-                } as any}
-              >
+              <div className="bg-slate-800/30 backdrop-blur-[12px] border border-white/5 rounded-2xl p-6 relative overflow-hidden group transition-all duration-300 hover:bg-slate-800/50 hover:border-white/10 max-md:bg-cyan-500 max-md:bg-cover max-md:bg-center max-md:bg-no-repeat" style={{ backgroundImage: 'url(https://cdn.builder.io/api/v1/image/assets%2F25cf751450f841169c5b78d468379b00%2F9730745efc0547d9adf3f15857247c42)' }}>
                 <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-15 transition-opacity pointer-events-none">
                   <AlertTriangle className="text-8xl text-yellow-400 transform -rotate-12" />
                 </div>
