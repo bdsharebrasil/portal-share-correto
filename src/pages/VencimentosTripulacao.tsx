@@ -47,6 +47,7 @@ interface VencimentoItem {
 
 export default function VencimentosTripulacao() {
   const { toast } = useToast();
+  const { subscribe } = useVencimentosSync();
   const [vencimentos, setVencimentos] = useState<VencimentoItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,7 +59,16 @@ export default function VencimentosTripulacao() {
 
   useEffect(() => {
     loadVencimentos();
-  }, []);
+
+    // Inscrever para mudanças em tempo real
+    const unsubscribe = subscribe((event) => {
+      if (event.entityType === 'crew_license') {
+        loadVencimentos();
+      }
+    });
+
+    return unsubscribe;
+  }, [subscribe]);
 
   const loadVencimentos = async () => {
     setLoading(true);
