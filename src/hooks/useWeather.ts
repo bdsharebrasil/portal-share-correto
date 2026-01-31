@@ -205,10 +205,10 @@ export function useWeather() {
     try {
       setLoading(true);
 
-      // Fetch directly from aviationweather.gov API to avoid backend dependency
-      const apiUrl = `https://aviationweather.gov/api/data/metar?ids=${aerodrome.toUpperCase()}&format=json`;
+      // Fetch from backend API endpoint (which handles CORS properly)
+      const apiUrl = `/api/weather/metar?icao=${aerodrome.toUpperCase()}`;
 
-      console.log('[METAR] 🌐 Buscando dados direto de aviationweather.gov:', aerodrome);
+      console.log('[METAR] 🌐 Buscando dados via backend:', aerodrome);
 
       // Usar AbortController em vez de timeout
       abortController = new AbortController();
@@ -220,7 +220,6 @@ export function useWeather() {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
-            'User-Agent': 'ShareBrasil-App/1.0',
           }
         });
 
@@ -233,14 +232,9 @@ export function useWeather() {
 
         const responseData: any = await response.json();
 
-        // The API returns an array with METAR observations
-        if (!responseData || !Array.isArray(responseData) || responseData.length === 0) {
-          console.error('[METAR] ❌ Nenhum dado válido retornado pela API');
-          throw new Error('METAR error: Invalid response format');
-        }
-
-        const metarObj = responseData[0];
-        const metar = metarObj.rawOb || metarObj.raw_text;
+        // The backend returns the METAR data in the 'data' field
+        const metarObj = responseData.data;
+        const metar = metarObj?.rawOb || metarObj?.raw_text || metarObj?.raw;
 
         if (!metar) {
           console.error('[METAR] ❌ Sem texto METAR na resposta');
@@ -287,11 +281,11 @@ export function useWeather() {
           if (fetchError.name === 'AbortError') {
             console.warn('[METAR] ⏱️ Timeout na requisição (10s)');
           } else if (fetchError.message.includes('Failed to fetch')) {
-            console.warn('[METAR] ❌ Falha ao conectar com API de clima');
+            console.warn('[METAR] ❌ Falha ao conectar com backend de clima');
             console.warn('[METAR] 💡 Possíveis causas:');
             console.warn('[METAR]   1. Sem conexão de internet');
-            console.warn('[METAR]   2. API de clima temporariamente indisponível');
-            console.warn('[METAR]   3. Problema de CORS');
+            console.warn('[METAR]   2. Backend temporariamente indisponível');
+            console.warn('[METAR]   3. Problema de rede');
           } else {
             console.warn('[METAR] ❌ Erro ao buscar METAR:', fetchError.message);
           }
