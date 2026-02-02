@@ -324,20 +324,13 @@ function generateReceiptHTML(data: ReceiptData): string {
         /* ===== RODAPÉ ===== */
         .footer {
           border-top: 2px solid #333;
-          padding-top: 15px;
+          padding-top: 20px;
           text-align: center;
           margin-top: auto;
         }
 
-        .footer-logo {
-          width: 50px;
-          height: 50px;
-          margin-bottom: 8px;
-          object-fit: contain;
-        }
-
         .footer-text {
-          font-size: 10px;
+          font-size: 11px;
           font-weight: bold;
           color: #333;
         }
