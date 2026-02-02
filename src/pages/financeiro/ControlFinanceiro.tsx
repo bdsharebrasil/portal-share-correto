@@ -130,7 +130,10 @@ export default function ControlFinanceiro() {
     setShowDialog(true);
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string, tipoMovimento?: string) => {
+    if (tipoMovimento === "entrada" && status === "pendente") {
+      return "bg-orange-100 text-orange-800";
+    }
     switch (status) {
       case "confirmado":
         return "bg-green-100 text-green-800";
