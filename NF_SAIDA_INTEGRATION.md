@@ -84,6 +84,8 @@ Foram criados 3 triggers que funcionam automaticamente:
 
 ## Fluxo de Funcionamento
 
+### Fluxo 1: Notas Fiscais de Saída
+
 ```
 Usuario cria Nota Fiscal (status = "pendente" ou "recebido")
         ↓
@@ -96,6 +98,31 @@ Usuario cria Nota Fiscal (status = "pendente" ou "recebido")
 4. Trigger cria automaticamente em contas_areceber
         ↓
 5. Sincronização mantida em atualizações de status
+```
+
+### Fluxo 2: Controle Bancário (Entrada)
+
+```
+Usuario insere registro em controle_bancario (tipo_movimento = 'entrada')
+        ↓
+1. Insere em controle_bancario
+        ↓
+2. Trigger cria automaticamente em bank_reconciliations ✅
+   (reference_type = 'controle_bancario')
+        ↓
+3. Atualizações sincronizadas automaticamente
+```
+
+### Fluxo 3: Sincronização Histórica (Uma Única Vez)
+
+```
+Executar: sync_controle_bancario_to_bank_reconciliations.sql
+        ↓
+Busca registros em controle_bancario (tipo_movimento = 'entrada')
+        ↓
+Insere em bank_reconciliations os que não existem
+        ↓
+Previne duplicatas automaticamente
 ```
 
 ## Instruções de Implementação
