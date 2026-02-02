@@ -188,6 +188,10 @@ DROP FUNCTION IF EXISTS update_contas_areceber_from_nf_saida();
 ## Observações Importantes
 
 1. **Aeronave agora é persistida**: O valor `aeronave_registration` (ex: "PR-GJM") é salvo no banco no campo `aeronave`
-2. **Triggers são automáticos**: Não precisa de código adicional no frontend para criar registros em controle_bancario ou bank_reconciliations
-3. **Sincronização em atualização**: Se o status da NF for alterado, ambas as tabelas são atualizadas automaticamente
-4. **Categoria fixa**: A categoria usada é sempre "2874b45b-a3bb-4bec-8f7e-74b328f8693c" (RECEITAS OPERACIONAIS)
+2. **Triggers são automáticos**: Não precisa de código adicional no frontend para criar registros em controle_bancario, bank_reconciliations ou contas_areceber
+3. **Sincronização em atualização**: Se o status da NF for alterado, TODAS as tabelas são atualizadas automaticamente
+4. **Categoria fixa em controle_bancario**: A categoria usada é sempre "2874b45b-a3bb-4bec-8f7e-74b328f8693c" (RECEITAS OPERACIONAIS)
+5. **Prevenção de duplicatas**: Triggers verificam se registros já existem antes de criar:
+   - controle_bancario: verifica por numero_documento + tipo_movimento
+   - bank_reconciliations: verifica por reference_type + reference_id
+   - contas_areceber: verifica por numero
