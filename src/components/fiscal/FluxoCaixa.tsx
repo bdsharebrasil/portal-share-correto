@@ -428,12 +428,17 @@ export function FluxoCaixa() {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string, tipoMovimento?: string) => {
+    if (tipoMovimento === "entrada" && status === "pendente") {
+      return "bg-orange-900/20 text-orange-400 border-orange-600";
+    }
     switch (status) {
       case "recebido":
         return "bg-purple-900/20 text-purple-400 border-purple-600";
       case "pago":
         return "bg-green-900/20 text-green-400 border-green-600";
+      case "pendente":
+        return "bg-yellow-900/20 text-yellow-400 border-yellow-600";
       case "cancelado":
         return "bg-red-900/20 text-red-400 border-red-600";
       default:
