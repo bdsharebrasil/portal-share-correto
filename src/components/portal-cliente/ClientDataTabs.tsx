@@ -463,54 +463,56 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           <TabsTrigger value="envio-despesa">Envio de Despesa</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="files" className="space-y-4">
+        <TabsContent value="financeiro" className="space-y-4">
           <Card className="bg-gradient-card border-border">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-foreground">
-                <Upload className="h-5 w-5 text-primary" />
-                Upload de Arquivos
+                <FileText className="h-5 w-5 text-primary" />
+                Dados Financeiros
               </CardTitle>
               <CardDescription className="text-muted-foreground">
-                Envie seus arquivos para o portal
+                Histórico de movimentações financeiras
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button
-                onClick={() => setUploadDialogOpen(true)}
-                className="w-full"
-                size="lg"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Enviar Arquivos
-              </Button>
-
-              {files.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">Nenhum arquivo enviado ainda</p>
+              {bankReconciliations.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">Nenhum registro financeiro encontrado</p>
               ) : (
-                <div className="space-y-2">
-                  {files.map((file) => (
-                    <div
-                      key={file.id}
-                      className="p-4 bg-muted/50 rounded-lg border border-border flex justify-between items-center"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium text-foreground">{file.file_name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Enviado em: {new Date(file.created_at).toLocaleDateString('pt-BR')}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => downloadFile(file.file_path)}
-                        >
-                          <Download className="h-4 w-4" />
-                          Baixar
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Descrição</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Valor</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Categoria</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bankReconciliations.map((record: any) => (
+                        <tr key={record.id} className="border-b border-border/40 hover:bg-muted/50 transition-colors">
+                          <td className="py-3 px-4 text-foreground whitespace-nowrap">{new Date(record.date).toLocaleDateString('pt-BR')}</td>
+                          <td className="py-3 px-4 text-foreground">
+                            <Badge variant="outline" className="capitalize">
+                              {record.type}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-foreground">{record.description}</td>
+                          <td className="py-3 px-4 text-foreground font-medium">
+                            R$ {Number(record.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant="outline" className="capitalize">
+                              {record.status}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-foreground text-sm">{record.category || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </CardContent>
