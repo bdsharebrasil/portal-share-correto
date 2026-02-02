@@ -118,6 +118,22 @@ O código frontend já foi atualizado. Apenas faça redeploy da aplicação.
 | status | status |
 | id | reference_id |
 
+### notas_fiscais_saida → contas_areceber
+| NF Saída | Contas a Receber |
+|----------|-----------------|
+| numero | numero |
+| cliente_nome | cliente_nome |
+| cliente_cnpj | cliente_cnpj |
+| valor | valor |
+| data_criacao | data_criacao |
+| data_vencimento | data_vencimento |
+| categoria | categoria |
+| descricao | descricao |
+| status | status |
+| aeronave | aeronave |
+| criado_por | criado_por |
+| arquivo_pdf_url | arquivo_pdf_url |
+
 ## Comportamento em Diferentes Cenários
 
 ### Cenário 1: NF criada com status "pendente"
