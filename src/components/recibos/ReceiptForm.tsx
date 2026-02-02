@@ -182,12 +182,12 @@ export function ReceiptForm({
     // Atualiza os dados do pagador no formulário
     setFormData((prev) => ({
       ...prev,
-      clienteId: searchValue.clienteId,
-      pagadorNome: searchValue.nome,
-      pagadorDocumento: searchValue.documento,
-      pagadorEndereco: searchValue.endereco,
-      pagadorCidade: searchValue.cidade,
-      pagadorUF: searchValue.uf,
+      clienteId: searchValue.clienteId || "",
+      pagadorNome: searchValue.nome || "",
+      pagadorDocumento: searchValue.documento || "",
+      pagadorEndereco: searchValue.endereco || "",
+      pagadorCidade: searchValue.cidade || "",
+      pagadorUF: searchValue.uf || "",
     }));
 
     // Se é reembolso e foi selecionado um cliente, carrega as aeronaves
