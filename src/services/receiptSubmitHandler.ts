@@ -397,4 +397,111 @@ export async function handleReceiptSubmit(
   }
 }
 
+/**
+ * Insere um recibo de saída (nota fiscal ou recibo) em bank_reconciliations
+ * Função auxiliar para sincronizar dados de controle_bancario com bank_reconciliations
+ *
+ * @param data - Dados do recibo de saída
+ * @param userId - ID do usuário que está criando o registro
+ * @returns Resultado da operação
+ */
+export async function insertReceiptToBankReconciliations(
+  data: {
+    descricao: string;
+    valor: number;
+    data: string;
+    data_vencimento?: string;
+    numero_documento: string;
+    status?: string;
+    client_id?: string;
+    client_name?: string;
+    aeronave_id?: string;
+    aeronave_registro?: string;
+    categoria_id?: string;
+    recibo_url?: string;
+    nf_url?: string;
+    tipo?: "recibo" | "nf"; // recibo ou nota fiscal
+  },
+  userId: string
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    console.log("🔄 Inserindo recibo de saída em bank_reconciliations...", data);
+
+    // Validações básicas
+    if (!data.descricao?.trim()) {
+      throw new Error("Descrição é obrigatória");
+    }
+    if (!data.valor || data.valor <= 0) {
+      throw new Error("Valor deve ser maior que zero");
+    }
+    if (!data.data) {
+      throw new Error("Data é obrigatória");
+    }
+
+    // Buscar categoria se foi fornecido categoria_id
+    let categoria_movimentacao_id = null;
+    if (data.categoria_id) {
+      const { data: categoryData } = await supabase
+        .from("categorias_movimentacao")
+        .select("id")
+        .eq("id", data.categoria_id)
+        .single();
+
+      if (categoryData) {
+        categoria_movimentacao_id = categoryData.id;
+      }
+    }
+
+    // Preparar dados para bank_reconciliations
+    const bankReconciliationPayload = {
+      type: "cliente" as const,
+      date: data.data,
+      description: data.descricao,
+      amount: data.valor,
+      status: data.status || "pendente",
+      client_id: data.client_id || null,
+      aircraft_id: data.aeronave_id || null,
+      categoria_movimentacao_id: categoria_movimentacao_id,
+      tipo_documento: data.tipo === "recibo" ? "recibo" : "recibo",
+      doc: data.numero_documento || null,
+      payment_term: data.data_vencimento || null,
+      forma_pagamento: "empresa_paga" as const,
+      afeta_caixa_empresa: true,
+      created_by: userId,
+      recibo_url: data.recibo_url || null,
+      nf_url: data.nf_url || null,
+      partner_name: data.client_name || null,
+      reference_type: "controle_bancario",
+      reference_id: data.numero_documento || null,
+    };
+
+    // Inserir em bank_reconciliations
+    const { data: result, error } = await supabase
+      .from("bank_reconciliations")
+      .insert(bankReconciliationPayload)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("❌ Erro ao inserir em bank_reconciliations:", error);
+      return {
+        success: false,
+        error: `Erro ao inserir em bank_reconciliations: ${error.message}`,
+      };
+    }
+
+    console.log("✅ Recibo inserido em bank_reconciliations:", result.id);
+    return {
+      success: true,
+      id: result.id,
+    };
+  } catch (error: any) {
+    console.error("❌ Erro ao processar recibo de saída:", error);
+    return {
+      success: false,
+      error: error.message || "Erro desconhecido",
+    };
+  }
+}
+
 export default handleReceiptSubmit;
