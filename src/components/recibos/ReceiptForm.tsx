@@ -175,6 +175,27 @@ export function ReceiptForm({
     }
   }, [formData.receiptType]);
 
+  // Sincroniza a seleção de cliente com o formData
+  const handleClienteSearchChange = (searchValue: typeof clienteSearchValue) => {
+    setClienteSearchValue(searchValue);
+
+    // Atualiza os dados do pagador no formulário
+    setFormData((prev) => ({
+      ...prev,
+      clienteId: searchValue.clienteId,
+      pagadorNome: searchValue.nome,
+      pagadorDocumento: searchValue.documento,
+      pagadorEndereco: searchValue.endereco,
+      pagadorCidade: searchValue.cidade,
+      pagadorUF: searchValue.uf,
+    }));
+
+    // Se é reembolso e foi selecionado um cliente, carrega as aeronaves
+    if (formData.receiptType === "reembolso" && searchValue.clienteId) {
+      loadAircrafts(searchValue.clienteId);
+    }
+  };
+
   // Cliente / Aeronave
   useEffect(() => {
     if (!formData.clienteId) {
