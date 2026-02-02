@@ -71,7 +71,9 @@ Usuario cria Nota Fiscal (status = "pendente" ou "recebido")
         ↓
 3. Trigger cria automaticamente em bank_reconciliations
         ↓
-4. Sincronização mantida em atualizações de status
+4. Trigger cria automaticamente em contas_areceber
+        ↓
+5. Sincronização mantida em atualizações de status
 ```
 
 ## Instruções de Implementação
