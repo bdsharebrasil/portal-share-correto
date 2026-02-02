@@ -414,7 +414,6 @@ function generateReceiptHTML(data: ReceiptData): string {
 
         <!-- RODAPÉ -->
         <div class="footer">
-          <img src="/logoshare.png" alt="Logo" class="footer-logo">
           <div class="footer-text">SHARE BRASIL SERVIÇOS AERONÁUTICOS</div>
         </div>
       </div>
