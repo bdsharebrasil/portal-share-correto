@@ -666,10 +666,12 @@ export function NotasFiscaisSaida() {
       // Criar entrada no controle_bancario
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        const descricao = `NF Saída ${nota.numero} - ${nota.cliente_nome}${nota.aeronave_registration ? ` (${nota.aeronave_registration})` : ""}`;
+
         const { error: fluxoError } = await supabase
           .from("controle_bancario")
           .insert({
-            descricao: `NF Saída ${nota.numero} - ${nota.cliente_nome}${nota.aeronave_registration ? ` (${nota.aeronave_registration})` : ""}`,
+            descricao: descricao,
             valor: nota.valor,
             data: new Date().toISOString().split("T")[0],
             data_vencimento: nota.data_vencimento,
@@ -688,6 +690,35 @@ export function NotasFiscaisSaida() {
             description: "Status atualizado, mas houve um erro ao registrar no fluxo de caixa",
             variant: "destructive",
           });
+        } else {
+          // Inserir também em bank_reconciliations
+          const bankRecResult = await insertReceiptToBankReconciliations(
+            {
+              descricao: descricao,
+              valor: nota.valor,
+              data: new Date().toISOString().split("T")[0],
+              data_vencimento: nota.data_vencimento,
+              numero_documento: nota.numero,
+              status: "pendente",
+              client_id: nota.client_id || undefined,
+              client_name: nota.cliente_nome,
+              aeronave_id: nota.aircraft_id || undefined,
+              aeronave_registro: nota.aeronave_registration || undefined,
+              categoria_id: "2874b45b-a3bb-4bec-8f7e-74b328f8693c",
+              nf_url: nota.arquivo_pdf_url || undefined,
+              tipo: "nf",
+            },
+            user.id
+          );
+
+          if (!bankRecResult.success) {
+            console.error("Erro ao inserir em bank_reconciliations:", bankRecResult.error);
+            toast({
+              title: "Aviso",
+              description: "NF registrada no fluxo, mas houve um erro ao registrar na reconciliação bancária",
+              variant: "default",
+            });
+          }
         }
       }
 
