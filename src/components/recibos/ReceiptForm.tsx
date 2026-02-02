@@ -360,73 +360,18 @@ export function ReceiptForm({
             </Select>
           </div>
 
-          {/* CAMPOS DO PAGADOR - Para tipo PAGAMENTO */}
-          {!isReembolso && (
-            <div className="space-y-4 p-4 border border-border rounded-lg bg-muted/30">
-              <h3 className="font-semibold text-sm">Dados do Pagador</h3>
-              
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Nome do Pagador *</Label>
-                  <Input
-                    value={formData.pagadorNome}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, pagadorNome: e.target.value }))
-                    }
-                    placeholder="Nome completo ou razão social"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label>CPF/CNPJ</Label>
-                  <Input
-                    value={formData.pagadorDocumento}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, pagadorDocumento: e.target.value }))
-                    }
-                    placeholder="Documento do pagador"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label>Endereço</Label>
-                <Input
-                  value={formData.pagadorEndereco}
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, pagadorEndereco: e.target.value }))
-                  }
-                  placeholder="Endereço completo"
-                />
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Cidade</Label>
-                  <Input
-                    value={formData.pagadorCidade}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, pagadorCidade: e.target.value }))
-                    }
-                    placeholder="Cidade"
-                  />
-                </div>
-
-                <div>
-                  <Label>UF</Label>
-                  <Input
-                    value={formData.pagadorUF}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, pagadorUF: e.target.value }))
-                    }
-                    placeholder="UF"
-                    maxLength={2}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
+          {/* BUSCA DE CLIENTE / PAGADOR - Para ambos os tipos */}
+          <div className="p-4 border border-border rounded-lg bg-muted/30">
+            <h3 className="font-semibold text-sm mb-4">
+              {isReembolso ? "Dados do Cliente (Reembolso)" : "Dados do Pagador"}
+            </h3>
+            <ClienteSearchInput
+              value={clienteSearchValue}
+              onChange={handleClienteSearchChange}
+              required={true}
+              disabled={false}
+            />
+          </div>
 
           {/* CLIENTE / AERONAVE */}
           {isReembolso && (
