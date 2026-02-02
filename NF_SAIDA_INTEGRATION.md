@@ -243,13 +243,71 @@ DROP FUNCTION IF EXISTS create_contas_areceber_from_nf_saida();
 DROP FUNCTION IF EXISTS update_contas_areceber_from_nf_saida();
 ```
 
+## Verificação Pós-Sincronização
+
+Após executar os scripts, você pode verificar se os dados foram sincronizados corretamente:
+
+### Query 1: Contar registros sincronizados
+
+```sql
+-- Registros de controle_bancario sincronizados
+SELECT COUNT(*) as total_sincronizado
+FROM public.bank_reconciliations
+WHERE reference_type = 'controle_bancario';
+
+-- Resultado esperado: número de registros de entrada em controle_bancario
+```
+
+### Query 2: Listar registros sincronizados
+
+```sql
+-- Ver os dados sincronizados
+SELECT
+  br.id,
+  br.doc,
+  br.description,
+  br.amount,
+  br.status,
+  br.reference_id,
+  cb.descricao,
+  cb.valor
+FROM public.bank_reconciliations br
+JOIN public.controle_bancario cb ON cb.id::text = br.reference_id
+WHERE br.reference_type = 'controle_bancario'
+ORDER BY br.created_at DESC
+LIMIT 20;
+```
+
+### Query 3: Verificar ainda não sincronizados
+
+```sql
+-- Registros em controle_bancario que ainda não foram sincronizados
+SELECT
+  cb.id,
+  cb.numero_documento,
+  cb.descricao,
+  cb.valor,
+  cb.status
+FROM public.controle_bancario cb
+WHERE cb.tipo_movimento = 'entrada'
+AND cb.valor > 0
+AND NOT EXISTS (
+  SELECT 1 FROM public.bank_reconciliations br
+  WHERE br.reference_type = 'controle_bancario'
+  AND br.reference_id = cb.id::text
+)
+ORDER BY cb.data DESC;
+```
+
 ## Observações Importantes
 
 1. **Aeronave agora é persistida**: O valor `aeronave_registration` (ex: "PR-GJM") é salvo no banco no campo `aeronave`
 2. **Triggers são automáticos**: Não precisa de código adicional no frontend para criar registros em controle_bancario, bank_reconciliations ou contas_areceber
-3. **Sincronização em atualização**: Se o status da NF for alterado, TODAS as tabelas são atualizadas automaticamente
-4. **Categoria fixa em controle_bancario**: A categoria usada é sempre "2874b45b-a3bb-4bec-8f7e-74b328f8693c" (RECEITAS OPERACIONAIS)
-5. **Prevenção de duplicatas**: Triggers verificam se registros já existem antes de criar:
+3. **Sincronização contínua**: Registros novos em controle_bancario são sincronizados automaticamente
+4. **Sincronização em atualização**: Se dados forem alterados, TODAS as tabelas são atualizadas automaticamente
+5. **Categoria fixa em controle_bancario**: A categoria usada é sempre "2874b45b-a3bb-4bec-8f7e-74b328f8693c" (RECEITAS OPERACIONAIS)
+6. **Prevenção de duplicatas**: Triggers verificam se registros já existem antes de criar:
    - controle_bancario: verifica por numero_documento + tipo_movimento
    - bank_reconciliations: verifica por reference_type + reference_id
    - contas_areceber: verifica por numero
+7. **Apenas entradas sincronizadas**: Apenas registros com `tipo_movimento = 'entrada'` são sincronizados com bank_reconciliations
