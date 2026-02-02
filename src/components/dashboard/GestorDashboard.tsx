@@ -44,15 +44,20 @@ export function GestorDashboard() {
 
 
   const allQuickTools = [
-    { icon: Plane, label: "Gestão de Aeronaves", route: "/aeronaves", color: "from-cyan-500 to-cyan-600" },
-    { icon: Users, label: "Gestão de Funcionários", route: "/gestao-funcionarios", color: "from-blue-500 to-blue-600" },
-    { icon: FileCheck, label: "Controle de Vencimentos", route: "/vencimentos", color: "from-purple-500 to-purple-600" },
-    { icon: FileText, label: "Gestão Fiscal", route: "/financeiro/gestao-fiscal", color: "from-green-500 to-green-600" },
-    { icon: PieChart, label: "Balanço Clientes", route: "/financeiro/balanco-cliente", color: "from-indigo-500 to-indigo-600" },
-    { icon: BarChart3, label: "Dashboard Gestor", route: "/financeiro/gestor", color: "from-orange-500 to-orange-600", restricted: true },
+    { icon: FileText, label: "Gestão Fiscal", route: "/financeiro/gestao-fiscal", color: "from-green-500 to-green-600", grid: 1 },
+    { icon: FileCheck, label: "Controle de Vencimentos", route: "/vencimentos", color: "from-purple-500 to-purple-600", grid: 1 },
+    { icon: Users, label: "Gestão de Funcionários", route: "/gestao-funcionarios", color: "from-blue-500 to-blue-600", grid: 1 },
+    { icon: Plane, label: "Controle de Aeronaves", route: "/aeronaves", textColor: "text-cyan-400", grid: 2 },
+    { icon: PieChart, label: "Balanço Clientes", route: "/financeiro/balanco-cliente", textColor: "text-indigo-400", grid: 2 },
+    { icon: BarChart3, label: "Dashboard Gestor", route: "/financeiro/gestor", color: "from-orange-500 to-orange-600", restricted: true, grid: 3 },
   ];
 
   const quickTools = allQuickTools.filter(tool => !tool.restricted || isAdmin || isGestorMaster);
+  
+  // Organizar ferramentas por grid
+  const grid1Tools = quickTools.filter(tool => tool.grid === 1);
+  const grid2Tools = quickTools.filter(tool => tool.grid === 2);
+  const grid3Tools = quickTools.filter(tool => tool.grid === 3);
 
   return (
     <main className="flex-1 p-6 space-y-6">
@@ -150,22 +155,55 @@ export function GestorDashboard() {
         </Card>
       </div>
 
-      {/* Quick Tools */}
+      {/* Quick Tools - 3 Grids */}
       <div>
-        <h3 className="text-lg font-semibold text-foreground mb-4">Ferramentas de Gestão</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {quickTools.map((tool) => (
-            <button
-              key={tool.label}
-              onClick={() => navigate(tool.route)}
-              className="flex flex-col items-center justify-center gap-3 p-6 bg-card/50 backdrop-blur-sm rounded-xl border border-border hover:border-primary/50 hover:bg-card transition-all duration-200 group"
-            >
-              <div className={`p-3 rounded-lg bg-gradient-to-br ${tool.color} shadow-lg group-hover:scale-110 transition-transform`}>
-                <tool.icon className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-sm font-medium text-foreground">{tool.label}</span>
-            </button>
-          ))}
+        <h3 className="text-lg font-semibold text-foreground mb-6">Ferramentas de Gestão</h3>
+        <div className="space-y-6">
+          {/* Grid 1: Gestão Fiscal, Controle de Vencimentos, Gestão Funcionários */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {grid1Tools.map((tool) => (
+              <button
+                key={tool.label}
+                onClick={() => navigate(tool.route)}
+                className="flex flex-col items-center justify-center gap-3 p-6 bg-card/50 backdrop-blur-sm rounded-xl border border-border hover:border-primary/50 hover:bg-card transition-all duration-200 group"
+              >
+                <div className={`p-3 rounded-lg bg-gradient-to-br ${tool.color} shadow-lg group-hover:scale-110 transition-transform`}>
+                  <tool.icon className="h-6 w-6 text-white" />
+                </div>
+                <span className="text-sm font-medium text-foreground text-center">{tool.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Grid 2: Controle de Aeronaves, Balanço Clientes */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {grid2Tools.map((tool) => (
+              <button
+                key={tool.label}
+                onClick={() => navigate(tool.route)}
+                className="flex flex-col items-center justify-center gap-3 p-6 bg-card/50 backdrop-blur-sm rounded-xl border border-border hover:border-primary/50 hover:bg-card transition-all duration-200 group"
+              >
+                <tool.icon className={`h-8 w-8 ${tool.textColor} group-hover:scale-110 transition-all duration-300`} strokeWidth={1.5} />
+                <span className="text-sm font-medium text-foreground text-center">{tool.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Grid 3: Dashboard Gestor */}
+          <div className="grid grid-cols-1 gap-4">
+            {grid3Tools.map((tool) => (
+              <button
+                key={tool.label}
+                onClick={() => navigate(tool.route)}
+                className="flex flex-col items-center justify-center gap-3 p-6 bg-card/50 backdrop-blur-sm rounded-xl border border-border hover:border-primary/50 hover:bg-card transition-all duration-200 group"
+              >
+                <div className={`p-3 rounded-lg bg-gradient-to-br ${tool.color} shadow-lg group-hover:scale-110 transition-transform`}>
+                  <tool.icon className="h-6 w-6 text-white" />
+                </div>
+                <span className="text-sm font-medium text-foreground text-center">{tool.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

@@ -258,8 +258,7 @@ export function NovaFormularioDespesaDialog({
           status: 'pendente_pagamento',
           boleto_url: boletoUrl,
           nota_fiscal_url: notaFiscalUrl,
-          criado_por: user?.id || null,
-          tipo_despesa: isCombustivel ? 'abastecimento' : 'geral'
+          criado_por: user?.id || null
         } as any)
         .select('id')
         .single();
