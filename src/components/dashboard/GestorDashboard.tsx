@@ -158,17 +158,15 @@ export function GestorDashboard() {
       <div>
         <h3 className="text-lg font-semibold text-foreground mb-6">Ferramentas de Gestão</h3>
         <div className="space-y-6">
-          {/* Grid 1: Gestão Fiscal, Controle de Vencimentos, Gestão Funcionários */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Grid 1: Gestão Fiscal, Gestão Funcionários */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {grid1Tools.map((tool) => (
               <button
                 key={tool.label}
                 onClick={() => navigate(tool.route)}
                 className="flex flex-col items-center justify-center gap-3 p-6 bg-card/50 backdrop-blur-sm rounded-xl border border-border hover:border-primary/50 hover:bg-card transition-all duration-200 group"
               >
-                <div className={`p-3 rounded-lg bg-gradient-to-br ${tool.color} shadow-lg group-hover:scale-110 transition-transform`}>
-                  <tool.icon className="h-6 w-6 text-white" />
-                </div>
+                <tool.icon className="h-8 w-8 text-green-400 group-hover:scale-110 transition-all duration-300" strokeWidth={1.5} />
                 <span className="text-sm font-medium text-foreground text-center">{tool.label}</span>
               </button>
             ))}

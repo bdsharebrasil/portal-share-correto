@@ -65,6 +65,8 @@ export function NotasFiscaisSaida() {
   const [selectedBankForStatus, setSelectedBankForStatus] = useState<string>("");
   const [notaBeingStatusChanged, setNotaBeingStatusChanged] = useState<NotaFiscalSaida | null>(null);
   const [showReciboDialog, setShowReciboDialog] = useState(false);
+  const [showReciboViewer, setShowReciboViewer] = useState(false);
+  const [reciboViewUrl, setReciboViewUrl] = useState<string>("");
   const [reciboData, setReciboData] = useState({
     cliente_id: "",
     cliente_nome: "",
@@ -631,12 +633,28 @@ export function NotasFiscaisSaida() {
       // Gerar número do recibo
       const numeroRecibo = await generateReciboNumber(reciboData.cliente_nome);
 
+      // Buscar dados completos do cliente para o recibo
+      let clienteCompleto: any = {};
+      if (reciboData.cliente_id) {
+        const { data: clientData } = await supabase
+          .from("clients")
+          .select("company_name, cnpj, address, city, state")
+          .eq("id", reciboData.cliente_id)
+          .single();
+        if (clientData) {
+          clienteCompleto = clientData;
+        }
+      }
+
       // Preparar dados para o servidor gerar o PDF
       const receiptData = {
         id: `recibo_${numeroRecibo}_${Date.now()}`,
         receipt_number: numeroRecibo,
         payer_name: reciboData.cliente_nome,
         payer_document: reciboData.cliente_cnpj || "000.000.000-00",
+        payer_address: clienteCompleto.address || "",
+        payer_city: clienteCompleto.city || "",
+        payer_uf: clienteCompleto.state || "",
         amount: parseFloat(reciboData.valor),
         service_description: reciboData.descricao || "Prestação de serviços aeronáuticos",
         receipt_type: "pagamento" as const,
@@ -666,16 +684,19 @@ export function NotasFiscaisSaida() {
       const pdfBlob = await new Promise<Blob>((resolve, reject) => {
         html2pdf()
           .set({
-            margin: 10,
+            margin: [5, 5, 5, 5],
             filename: `${numeroRecibo}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            html2canvas: { scale: 2, useCORS: true, allowTaint: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
           })
           .from(element)
           .outputPdf('blob')
           .then((blob: Blob) => resolve(blob))
-          .catch((err: any) => reject(err));
+          .catch((err: any) => {
+            console.error("Erro ao gerar PDF:", err);
+            reject(err);
+          });
       });
 
       // Upload do PDF
@@ -704,7 +725,41 @@ export function NotasFiscaisSaida() {
 
       const CATEGORIA_ID = "2874b45b-a3bb-4bec-8f7e-74b328f8693c";
 
-      // 1. Inserir em controle_bancario
+      // Buscar client_id pelo nome
+      let clientId: string | null = null;
+      if (reciboData.cliente_id) {
+        clientId = reciboData.cliente_id;
+      } else {
+        const { data: clientData } = await supabase
+          .from("clients")
+          .select("id")
+          .eq("company_name", reciboData.cliente_nome)
+          .single();
+        clientId = clientData?.id || null;
+      }
+
+      // Buscar aeronave_id pelo registro
+      let aeronaveId: string | null = null;
+      if (reciboData.aeronave_id) {
+        aeronaveId = reciboData.aeronave_id;
+      } else {
+        const { data: aeroData } = await supabase
+          .from("aircraft")
+          .select("id")
+          .eq("registration", reciboData.aeronave_registro)
+          .single();
+        aeronaveId = aeroData?.id || null;
+      }
+
+      // Buscar grupo_categoria pela categoria_id
+      const { data: categoriaData } = await supabase
+        .from("categorias_movimentacao")
+        .select("grupo_categoria")
+        .eq("id", CATEGORIA_ID)
+        .single();
+      const grupoCategoria = categoriaData?.grupo_categoria || null;
+
+      // 1. Inserir em controle_bancario com todos os campos
       const { error: controleBancarioError } = await supabase
         .from("controle_bancario")
         .insert({
@@ -717,7 +772,14 @@ export function NotasFiscaisSaida() {
           categoria_id: CATEGORIA_ID,
           criado_por: currentUser.id,
           descricao: reciboData.descricao || "Recibo de Saída - Serviços",
-          recibo_url: reciboUrl, // ✅ Armazenar URL do recibo
+          recibo_url: reciboUrl,
+          // ✅ NOVOS CAMPOS ADICIONADOS:
+          client_id: clientId,
+          client_name: reciboData.cliente_nome,
+          aeronave_id: aeronaveId,
+          aeronave_registro: reciboData.aeronave_registro,
+          grupo_categoria: grupoCategoria,
+          colaborador_id: currentUser.id,
         });
 
       if (controleBancarioError) {
@@ -751,20 +813,16 @@ export function NotasFiscaisSaida() {
         });
       }
 
-      // Download automático do PDF
-      const link = document.createElement("a");
-      link.href = reciboUrl;
-      link.download = `${numeroRecibo}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Exibir recibo no viewer dentro da aplicação
+      setReciboViewUrl(reciboUrl);
+      setShowReciboViewer(true);
 
       toast({
         title: "Sucesso",
-        description: `Recibo ${numeroRecibo} gerado e salvo com sucesso!`,
+        description: `Recibo ${numeroRecibo} gerado com sucesso!`,
       });
 
-      // Fechar diálogo e resetar
+      // Fechar diálogo de entrada e resetar
       setShowReciboDialog(false);
       setReciboData({
         cliente_id: "",
@@ -1641,6 +1699,48 @@ export function NotasFiscaisSaida() {
               Confirmar Recebimento
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para Visualizar Recibo */}
+      <Dialog open={showReciboViewer} onOpenChange={setShowReciboViewer}>
+        <DialogContent className="bg-card border-border max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Recibo Gerado</DialogTitle>
+          </DialogHeader>
+          {reciboViewUrl && (
+            <div className="space-y-4">
+              <div className="w-full h-[600px] border border-border rounded-lg overflow-hidden bg-background">
+                <iframe
+                  src={reciboViewUrl}
+                  className="w-full h-full"
+                  title="Visualizar Recibo"
+                  allow="fullscreen"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowReciboViewer(false)}
+                >
+                  Fechar
+                </Button>
+                <Button
+                  className="bg-primary hover:bg-primary/90"
+                  onClick={() => {
+                    const link = document.createElement("a");
+                    link.href = reciboViewUrl;
+                    link.download = "recibo.pdf";
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                >
+                  Download
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

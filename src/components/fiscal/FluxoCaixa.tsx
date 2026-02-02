@@ -1011,13 +1011,19 @@ export function FluxoCaixa() {
                   const isEntrada =
                     transacao.tipo_movimento === "entrada";
                   const isSelected = selectedIds.has(transacao.id);
+                  const isPendente = transacao.status === "pendente";
                   const lineNumber = startIndex + idx + 1;
 
                   return (
                     <TableRow
                       key={transacao.id}
-                      className={`border-border/40 ${isSelected ? "bg-blue-900/20" : ""
-                        }`}
+                      className={`border-border/40 ${
+                        isSelected
+                          ? "bg-blue-900/20"
+                          : isEntrada && isPendente
+                          ? "bg-orange-900/20"
+                          : ""
+                      }`}
                     >
                       <TableCell className="text-center">
                         <Checkbox
