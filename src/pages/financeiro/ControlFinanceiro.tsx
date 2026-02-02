@@ -337,7 +337,7 @@ export default function ControlFinanceiro() {
                               {mov.tipo_movimento === "entrada" ? "Entrada" : "Saída"}
                             </Badge>
                           </TableCell>
-                          <TableCell className={`font-semibold ${mov.tipo_movimento === "entrada" ? "text-orange-600" : "text-red-600"}`}>
+                          <TableCell className={`font-semibold ${mov.tipo_movimento === "entrada" ? "text-green-600" : "text-red-600"}`}>
                             {mov.tipo_movimento === "entrada" ? "+" : "-"}R$ {parseFloat(mov.valor).toFixed(2)}
                           </TableCell>
                           <TableCell>
