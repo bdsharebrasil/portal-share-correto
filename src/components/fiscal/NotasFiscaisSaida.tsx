@@ -259,17 +259,20 @@ export function NotasFiscaisSaida() {
     try {
       const { data: clientsData } = await supabase
         .from("clients")
-        .select("id, company_name, cnpj")
+        .select("id, company_name, cnpj, proprietario")
         .order("company_name");
 
       const clientesList: Cliente[] = [];
 
       if (clientsData) {
         clientsData.forEach(client => {
-          if (client.company_name) {
+          // Use company_name if available, fallback to proprietario, or use cnpj as last resort
+          const nomeCliente = client.company_name || client.proprietario || client.cnpj || "Cliente";
+
+          if (nomeCliente && nomeCliente !== "Cliente") {
             clientesList.push({
               id: client.id,
-              nome: client.company_name,
+              nome: nomeCliente,
               documento: client.cnpj || ""
             });
           }
