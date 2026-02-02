@@ -1,24 +1,173 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Edit2, Trash2, Eye, FileUp, DollarSign, Search, X, Upload, FileText } from "lucide-react";
+import { Plus, Edit2, Trash2, FileUp, DollarSign, Search, X, Upload, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
+import { useCategoriasFinanceiro, useCategoriasConta } from "@/hooks/useCategoriasFinanceiro";
 import { useAeronaves } from "@/hooks/useAeronaves";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useCategoriasConta } from "@/hooks/useCategoriasFinanceiro";
 import { useAuth } from "@/contexts/AuthContext";
+// CORREÇÃO: Adicionado 'pdf' na importação abaixo
+import { Document, Page, Text, View, StyleSheet, Image, pdf } from '@react-pdf/renderer';
+
+// --- CONFIGURAÇÃO DO PDF ---
+
+const getLogoUrl = () => {
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/logo.share.png`;
+  }
+  return '/logo.share.png';
+};
+
+const logoUrl = getLogoUrl();
+
+// Estilos do PDF
+const styles = StyleSheet.create({
+  page: { padding: 40, fontSize: 10, fontFamily: 'Helvetica' },
+  
+  header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, alignItems: 'center' },
+  headerLeft: { flexDirection: 'column', justifyContent: 'center' },
+  
+  // Estilo da Logo no Cabeçalho
+  logoHeader: { 
+    width: 120,
+    height: 50, 
+    objectFit: 'contain',
+    marginBottom: 5 
+  },
+
+  reciboTitle: { fontSize: 16, fontWeight: 'bold', marginTop: 5 },
+  headerRight: { alignItems: 'flex-end' },
+  
+  label: { color: '#666', fontSize: 8, marginBottom: 2, textTransform: 'uppercase' },
+  
+  valueBox: { 
+    border: '1px solid #000', 
+    padding: 8, 
+    width: 150, 
+    alignItems: 'center', 
+    marginTop: 10,
+    alignSelf: 'flex-end'
+  },
+  valueText: { fontSize: 14, fontWeight: 'bold' },
+  
+  row: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 30, marginBottom: 20 },
+  column: { width: '48%' },
+  bold: { fontWeight: 'bold', fontSize: 10, marginBottom: 2 },
+  text: { fontSize: 9, marginBottom: 2, color: '#333' },
+  
+  sectionHeader: { 
+    backgroundColor: '#F3F4F6',
+    padding: 6, 
+    marginTop: 10,
+    marginBottom: 10,
+    fontWeight: 'bold',
+    fontSize: 9
+  },
+  
+  description: { fontSize: 9, lineHeight: 1.5, minHeight: 100 },
+  
+  footer: { marginTop: 40, borderTop: '1px solid #eee', paddingTop: 20 },
+  disclaimer: { fontSize: 8, color: '#888', fontStyle: 'italic', marginBottom: 30 },
+  
+  signatureArea: { marginTop: 40, alignItems: 'center' },
+  line: { width: 200, borderBottom: '1px solid #000', marginBottom: 5 },
+  signatureName: { fontWeight: 'bold' },
+  
+  // Estilo da Logo na Assinatura
+  logoSignature: {
+    width: 80,
+    height: 30,
+    objectFit: 'contain',
+    marginTop: 10,
+    opacity: 0.8
+  }
+});
+
+// Componente do Documento PDF
+const ReciboDocument = ({ data }: { data: any }) => (
+  <Document>
+    <Page size="A4" style={styles.page}>
+      {/* Cabeçalho */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          {/* Logo no canto esquerdo superior */}
+          <Image src={logoUrl} style={styles.logoHeader} />
+          <Text style={styles.reciboTitle}>RECIBO</Text>
+        </View>
+        <View style={styles.headerRight}>
+          <Text style={styles.label}>NÚMERO DO RECIBO</Text>
+          <Text style={{ fontSize: 12 }}>{data.numero_recibo}</Text>
+        </View>
+      </View>
+
+      {/* Valor */}
+      <View style={{ alignItems: 'flex-end' }}>
+        <Text style={styles.label}>VALOR TOTAL</Text>
+        <View style={styles.valueBox}>
+          <Text style={styles.valueText}>
+            R$ {parseFloat(data.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </Text>
+        </View>
+      </View>
+
+      {/* Dados das Partes */}
+      <View style={styles.row}>
+        <View style={styles.column}>
+          <Text style={styles.label}>EMISSOR (PRESTADOR)</Text>
+          <Text style={styles.bold}>SHARE BRASIL</Text>
+          <Text style={styles.text}>CNPJ: 30.898.549.0001/06</Text>
+          <Text style={styles.text}>(65) 93618-0312</Text>
+          <Text style={styles.text}>END: AV. PRESIDENTE ARTHUR BERNARDES, 1457 - VÁRZEA GRANDE - MT</Text>
+        </View>
+        <View style={styles.column}>
+          <Text style={styles.label}>PAGADOR (CLIENTE)</Text>
+          <Text style={styles.bold}>{data.cliente_nome}</Text>
+          <Text style={styles.text}>CPF/CNPJ: {data.cliente_cnpj || "Não informado"}</Text>
+        </View>
+      </View>
+
+      {/* Descrição */}
+      <View>
+        <Text style={styles.sectionHeader}>DESCRIÇÃO DO SERVIÇO</Text>
+        <Text style={styles.description}>
+          {data.descricao}
+          {data.aeronave_registro ? `\nReferente à aeronave: ${data.aeronave_registro}` : ''}
+        </Text>
+      </View>
+
+      {/* Rodapé e Assinatura */}
+      <View style={styles.footer}>
+        <Text style={styles.disclaimer}>
+          Este documento serve como comprovante de prestação de serviço e só terá validade após quitação do valor acima discriminado.
+        </Text>
+        
+        <View style={styles.signatureArea}>
+          <Text style={{ marginBottom: 40 }}>
+            {new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </Text>
+          <View style={styles.line} />
+          <Text style={styles.signatureName}>SHARE BRASIL</Text>
+          
+          {/* Logo na assinatura */}
+          <Image src={logoUrl} style={styles.logoSignature} />
+        </View>
+      </View>
+    </Page>
+  </Document>
+);
+
+// --- TIPAGENS ---
 
 interface NotaFiscalSaida {
   id: string;
@@ -42,6 +191,8 @@ interface Cliente {
   nome: string;
   documento: string;
 }
+
+// --- COMPONENTE PRINCIPAL ---
 
 export function NotasFiscaisSaida() {
   const { getCategoriasReceita } = useCategoriasFinanceiro();
@@ -207,7 +358,6 @@ export function NotasFiscaisSaida() {
 
         // Se status mudou para "recebido" durante a edição
         if (notaData.status === "recebido" && editingNota.status !== "recebido" && user) {
-          // ✅ CORRIGIDO: Usar data_vencimento em vez de data
           await supabase.from("controle_bancario").insert({
             descricao: `NF Saída ${notaData.numero} - ${notaData.cliente_nome}${formData.aeronave_registration ? ` (${formData.aeronave_registration})` : ""}`,
             valor: notaData.valor,
@@ -218,7 +368,6 @@ export function NotasFiscaisSaida() {
             status: "confirmado",
             numero_documento: notaData.numero,
             criado_por: user.id,
-            // ✅ REMOVIDO: campo 'referencia' não existe
           });
         }
 
@@ -256,7 +405,6 @@ export function NotasFiscaisSaida() {
 
         // Se criada com status "recebido"
         if (notaData.status === "recebido" && user && insertedNota) {
-          // ✅ CORRIGIDO: Usar data_vencimento
           await supabase.from("controle_bancario").insert({
             descricao: `NF Saída ${notaData.numero} - ${notaData.cliente_nome}${formData.aeronave_registration ? ` (${formData.aeronave_registration})` : ""}`,
             valor: notaData.valor,
@@ -505,7 +653,6 @@ export function NotasFiscaisSaida() {
       // Criar entrada no controle_bancario
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        // ✅ CORRIGIDO: Incluir data_vencimento
         const { error: fluxoError } = await supabase
           .from("controle_bancario")
           .insert({
@@ -517,7 +664,7 @@ export function NotasFiscaisSaida() {
             tipo_movimento: "entrada",
             status: "confirmado",
             numero_documento: nota.numero,
-            conta_banco: selectedBankForStatus, // ✅ Armazenar banco selecionado
+            conta_banco: selectedBankForStatus,
             criado_por: user.id
           });
 
@@ -550,34 +697,6 @@ export function NotasFiscaisSaida() {
     }
   };
 
-  // Carregar html2pdf dinamicamente do CDN
-  const loadHtml2Pdf = (): Promise<any> => {
-    return new Promise((resolve, reject) => {
-      if ((window as any).html2pdf) {
-        return resolve((window as any).html2pdf);
-      }
-
-      const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
-      script.type = 'text/javascript';
-      script.async = true;
-
-      script.onload = () => {
-        if ((window as any).html2pdf) {
-          resolve((window as any).html2pdf);
-        } else {
-          reject(new Error('html2pdf falhou ao carregar'));
-        }
-      };
-
-      script.onerror = () => {
-        reject(new Error('Erro ao carregar html2pdf do CDN'));
-      };
-
-      document.head.appendChild(script);
-    });
-  };
-
   const generateReciboNumber = async (clienteNome: string) => {
     // Extrair 3 primeiras letras do cliente em maiúsculas
     const clienteLetras = clienteNome.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '').padEnd(3, 'X');
@@ -585,7 +704,6 @@ export function NotasFiscaisSaida() {
     // Obter ano atual (últimos 2 dígitos)
     const ano = new Date().getFullYear().toString().slice(-2);
     
-    // ✅ CORRIGIDO: Buscar no controle_bancario em vez de contas_areceber
     const { data: existingRecibos, error } = await supabase
       .from("controle_bancario")
       .select("numero_documento", { count: "exact" })
@@ -608,99 +726,39 @@ export function NotasFiscaisSaida() {
   };
 
   const handleGenerarRecibo = async () => {
+    // 1. Validações Básicas
     if (!reciboData.cliente_nome || !reciboData.valor || !reciboData.data_vencimento) {
-      toast({
-        title: "Validação",
-        description: "Preencha cliente, valor e data de vencimento",
-        variant: "destructive",
-      });
+      toast({ title: "Validação", description: "Preencha cliente, valor e data de vencimento", variant: "destructive" });
       return;
     }
-
-    // ✅ Validar aeronave (campo obrigatório em contas_areceber)
     if (!reciboData.aeronave_registro) {
-      toast({
-        title: "Validação",
-        description: "Selecione uma aeronave",
-        variant: "destructive",
-      });
+      toast({ title: "Validação", description: "Selecione uma aeronave", variant: "destructive" });
       return;
     }
 
     try {
       setIsGeneratingRecibo(true);
 
-      // Gerar número do recibo
+      // 2. Gerar Número do Recibo
       const numeroRecibo = await generateReciboNumber(reciboData.cliente_nome);
 
-      // Buscar dados completos do cliente para o recibo
-      let clienteCompleto: any = {};
-      if (reciboData.cliente_id) {
-        const { data: clientData } = await supabase
-          .from("clients")
-          .select("company_name, cnpj, address, city, state")
-          .eq("id", reciboData.cliente_id)
-          .single();
-        if (clientData) {
-          clienteCompleto = clientData;
-        }
-      }
-
-      // Preparar dados para o servidor gerar o PDF
-      const receiptData = {
-        id: `recibo_${numeroRecibo}_${Date.now()}`,
-        receipt_number: numeroRecibo,
-        payer_name: reciboData.cliente_nome,
-        payer_document: reciboData.cliente_cnpj || "000.000.000-00",
-        payer_address: clienteCompleto.address || "",
-        payer_city: clienteCompleto.city || "",
-        payer_uf: clienteCompleto.state || "",
-        amount: parseFloat(reciboData.valor),
-        service_description: reciboData.descricao || "Prestação de serviços aeronáuticos",
-        receipt_type: "pagamento" as const,
-        issue_date: new Date().toISOString().split("T")[0],
-        max_payment_date: reciboData.data_vencimento,
+      // 3. Preparar dados para o PDF
+      const dadosParaPDF = {
+        numero_recibo: numeroRecibo,
+        valor: reciboData.valor,
+        cliente_nome: reciboData.cliente_nome,
+        cliente_cnpj: reciboData.cliente_cnpj,
+        descricao: reciboData.descricao || "Prestação de serviços aeronáuticos",
+        aeronave_registro: reciboData.aeronave_registro,
+        data_atual: new Date()
       };
 
-      // Chamar função do servidor para gerar o PDF
-      const { data: pdfResult, error: pdfError } = await supabase.functions.invoke("recibo-pdf", {
-        body: { receiptData },
-      });
+      // 4. GERAR O PDF LOCALMENTE (ECONOMIA DE TOKENS DE EXECUÇÃO)
+      // Aqui criamos o blob diretamente na memória do navegador usando o componente criado acima
+      const blob = await pdf(<ReciboDocument data={dadosParaPDF} />).toBlob();
 
-      if (pdfError) {
-        throw new Error(`Erro ao gerar PDF: ${pdfError.message}`);
-      }
-
-      if (!pdfResult?.html) {
-        throw new Error("HTML do recibo não foi retornado");
-      }
-
-      // Converter HTML para PDF no cliente
-      const html2pdf = await loadHtml2Pdf();
-      
-      const element = document.createElement('div');
-      element.innerHTML = pdfResult.html;
-      
-      const pdfBlob = await new Promise<Blob>((resolve, reject) => {
-        html2pdf()
-          .set({
-            margin: [5, 5, 5, 5],
-            filename: `${numeroRecibo}.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, allowTaint: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
-          })
-          .from(element)
-          .outputPdf('blob')
-          .then((blob: Blob) => resolve(blob))
-          .catch((err: any) => {
-            console.error("Erro ao gerar PDF:", err);
-            reject(err);
-          });
-      });
-
-      // Upload do PDF
-      const pdfFile = new File([pdfBlob], `${numeroRecibo}.pdf`, { type: "application/pdf" });
+      // 5. Upload do PDF para o Storage
+      const pdfFile = new File([blob], `${numeroRecibo}.pdf`, { type: "application/pdf" });
       const fileName = `recibo_${numeroRecibo}_${Date.now()}.pdf`;
       const filePath = `recibos/${fileName}`;
 
@@ -708,58 +766,38 @@ export function NotasFiscaisSaida() {
         .from("nfs-share-saida")
         .upload(filePath, pdfFile);
 
-      if (uploadError) {
-        throw new Error(`Erro no upload: ${uploadError.message}`);
-      }
+      if (uploadError) throw new Error(`Erro no upload: ${uploadError.message}`);
 
-      // Obter URL pública
+      // 6. Obter URL pública
       const { data: publicUrlData } = supabase.storage
         .from("nfs-share-saida")
         .getPublicUrl(filePath);
 
       const reciboUrl = publicUrlData.publicUrl;
 
-      // Obter usuário atual
+      // 7. Salvar no Banco de Dados
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) throw new Error("Usuário não autenticado");
 
       const CATEGORIA_ID = "2874b45b-a3bb-4bec-8f7e-74b328f8693c";
-
-      // Buscar client_id pelo nome
-      let clientId: string | null = null;
-      if (reciboData.cliente_id) {
-        clientId = reciboData.cliente_id;
-      } else {
-        const { data: clientData } = await supabase
-          .from("clients")
-          .select("id")
-          .eq("company_name", reciboData.cliente_nome)
-          .single();
+      
+      // Busca IDs auxiliares (Cliente, Aeronave, Categoria)
+      let clientId = reciboData.cliente_id || null;
+      if (!clientId) {
+        const { data: clientData } = await supabase.from("clients").select("id").eq("company_name", reciboData.cliente_nome).single();
         clientId = clientData?.id || null;
       }
 
-      // Buscar aeronave_id pelo registro
-      let aeronaveId: string | null = null;
-      if (reciboData.aeronave_id) {
-        aeronaveId = reciboData.aeronave_id;
-      } else {
-        const { data: aeroData } = await supabase
-          .from("aircraft")
-          .select("id")
-          .eq("registration", reciboData.aeronave_registro)
-          .single();
+      let aeronaveId = reciboData.aeronave_id || null;
+      if (!aeronaveId) {
+        const { data: aeroData } = await supabase.from("aircraft").select("id").eq("registration", reciboData.aeronave_registro).single();
         aeronaveId = aeroData?.id || null;
       }
 
-      // Buscar grupo_categoria pela categoria_id
-      const { data: categoriaData } = await supabase
-        .from("categorias_movimentacao")
-        .select("grupo_categoria")
-        .eq("id", CATEGORIA_ID)
-        .single();
+      const { data: categoriaData } = await supabase.from("categorias_movimentacao").select("grupo_categoria").eq("id", CATEGORIA_ID).single();
       const grupoCategoria = categoriaData?.grupo_categoria || null;
 
-      // 1. Inserir em controle_bancario com todos os campos
+      // Inserção no Controle Bancário
       const { error: controleBancarioError } = await supabase
         .from("controle_bancario")
         .insert({
@@ -773,7 +811,6 @@ export function NotasFiscaisSaida() {
           criado_por: currentUser.id,
           descricao: reciboData.descricao || "Recibo de Saída - Serviços",
           recibo_url: reciboUrl,
-          // ✅ NOVOS CAMPOS ADICIONADOS:
           client_id: clientId,
           client_name: reciboData.cliente_nome,
           aeronave_id: aeronaveId,
@@ -782,79 +819,61 @@ export function NotasFiscaisSaida() {
           colaborador_id: currentUser.id,
         });
 
-      if (controleBancarioError) {
-        throw new Error(`Erro ao inserir em controle_bancario: ${controleBancarioError.message}`);
-      }
+      if (controleBancarioError) throw new Error(`Erro controle_bancario: ${controleBancarioError.message}`);
 
-      // 2. ✅ CORRIGIDO: Inserir em contas_areceber com os campos corretos
-      const { error: contasAReceberError } = await supabase
-        .from("contas_areceber")
-        .insert({
-          numero: numeroRecibo, // Campo obrigatório
+      // Inserção em Contas a Receber
+      await supabase.from("contas_areceber").insert({
+          numero: numeroRecibo,
           cliente_nome: reciboData.cliente_nome,
-          cliente_cnpj: reciboData.cliente_cnpj || "000.000.000-00", // Campo obrigatório
-          data_criacao: new Date().toISOString().split("T")[0], // Campo obrigatório
+          cliente_cnpj: reciboData.cliente_cnpj || "000.000.000-00",
+          data_criacao: new Date().toISOString().split("T")[0],
           data_vencimento: reciboData.data_vencimento,
           valor: parseFloat(reciboData.valor),
-          categoria: "Recibo de Serviço", // Campo obrigatório
+          categoria: "Recibo de Serviço",
           descricao: reciboData.descricao || "Recibo de Serviço",
           status: "pendente",
-          aeronave: reciboData.aeronave_registro, // Campo obrigatório (FK para aircraft.registration)
+          aeronave: reciboData.aeronave_registro,
           criado_por: currentUser.id,
           arquivo_pdf_url: reciboUrl,
-        });
+      });
 
-      if (contasAReceberError) {
-        console.error("Erro ao criar contas_areceber:", contasAReceberError);
-        toast({
-          title: "Aviso",
-          description: `Recibo criado, mas houve erro ao registrar em contas a receber: ${contasAReceberError.message}`,
-          variant: "destructive",
-        });
-      }
-
-      // Exibir recibo no viewer dentro da aplicação
+      // 8. Finalização
       setReciboViewUrl(reciboUrl);
       setShowReciboViewer(true);
-
-      toast({
-        title: "Sucesso",
-        description: `Recibo ${numeroRecibo} gerado com sucesso!`,
-      });
-
-      // Fechar diálogo de entrada e resetar
+      
+      toast({ title: "Sucesso", description: `Recibo ${numeroRecibo} gerado com sucesso!` });
       setShowReciboDialog(false);
-      setReciboData({
-        cliente_id: "",
-        cliente_nome: "",
-        cliente_cnpj: "",
-        aeronave_id: "",
-        aeronave_registro: "",
-        valor: "",
-        data_vencimento: new Date().toISOString().split("T")[0],
-        descricao: "",
-      });
-
-      // Recarregar dados se necessário
+      resetReciboForm();
       loadNotas();
+
     } catch (error: any) {
       console.error("Erro ao gerar recibo:", error);
-      toast({
-        title: "Erro",
-        description: error.message || "Erro ao gerar recibo",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: error.message || "Erro ao gerar recibo", variant: "destructive" });
     } finally {
       setIsGeneratingRecibo(false);
     }
   };
+
+  // Helper para limpar form
+  const resetReciboForm = () => {
+    setReciboData({
+      cliente_id: "",
+      cliente_nome: "",
+      cliente_cnpj: "",
+      aeronave_id: "",
+      aeronave_registro: "",
+      valor: "",
+      data_vencimento: new Date().toISOString().split("T")[0],
+      descricao: "",
+    });
+  }
 
   const handleSelectCliente = (cliente: Cliente) => {
     setReciboData({
       ...reciboData,
       cliente_id: cliente.id,
       cliente_nome: cliente.nome,
-      cliente_cnpj: cliente.documento, // ✅ Incluir CNPJ do cliente
+      cliente_cnpj: cliente.documento,
     });
     setOpenClientePopover(false);
   };
