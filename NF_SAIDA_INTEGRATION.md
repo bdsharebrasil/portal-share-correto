@@ -225,6 +225,26 @@ Os triggers verificam se um registro já existe antes de criar:
 - Em controle_bancario: Verifica por `numero_documento` e `tipo_movimento`
 - Em bank_reconciliations: Verifica por `reference_type` = 'nf_saida' e `reference_id`
 
+## Casos de Uso
+
+### Caso 1: Sincronizar dados históricos
+Se você tem recibos antigos em `controle_bancario` e quer visualizá-los em `bank_reconciliations`:
+1. Execute: `sync_controle_bancario_to_bank_reconciliations.sql`
+2. Todos os registros de entrada serão sincronizados
+
+### Caso 2: Controle Bancário Automático
+Se um usuário inserir um registro manual em `controle_bancario` (entrada de receita):
+1. O registro será automaticamente criado em `bank_reconciliations`
+2. reference_type será definido como 'controle_bancario'
+3. Atualizações futuras serão sincronizadas
+
+### Caso 3: Notas Fiscais de Saída
+Uma nota fiscal de saída criada pelo usuário:
+1. É inserida em `notas_fiscais_saida`
+2. Cria automaticamente registro em `controle_bancario`
+3. Cria automaticamente registro em `bank_reconciliations`
+4. Cria automaticamente registro em `contas_areceber`
+
 ## Rollback (se necessário)
 
 Caso precise reverter os triggers:
