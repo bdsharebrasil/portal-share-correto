@@ -360,12 +360,28 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         console.error('Erro crítico ao carregar relatórios de viagem:', err);
       }
 
+      // Load bank reconciliations for the client
+      let bankReconData = null;
+      try {
+        const result = await supabase
+          .from('bank_reconciliations')
+          .select('*')
+          .eq('client_id', forClientId)
+          .order('date', { ascending: false })
+          .limit(100);
+        bankReconData = result.data;
+        if (result.error) console.warn('Erro ao carregar dados financeiros:', result.error);
+      } catch (err) {
+        console.error('Erro crítico ao carregar dados financeiros:', err);
+      }
+
       setFiles(filesData || []);
       setContracts(contractsData || []);
       setLogbookEntries(enrichedLogbookData || []);
       setFuelRecords(fuelData || []);
       setCtmTracking(ctmData || []);
       setTravelReports(reportsData || []);
+      setBankReconciliations(bankReconData || []);
     } catch (error) {
       console.error('Error loading client data:', error);
       // Fallback: set empty arrays to prevent UI from breaking
