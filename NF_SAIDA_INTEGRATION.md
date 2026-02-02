@@ -1,0 +1,148 @@
+# Integração de Notas Fiscais de Saída
+
+## Resumo das Alterações
+
+### 1. Código Frontend (NotasFiscaisSaida.tsx)
+
+O campo `aeronave_registration` (ex: "PR-GJM") agora é enviado para o banco de dados no campo `aeronave` da tabela `public.notas_fiscais_saida`.
+
+**Alterações:**
+- Mudança de `aircraft_id` para `aeronave` para armazenar o registro da aeronave
+- Tratamento de erros atualizado para o novo nome do campo
+- O campo `aeronave` é opcional
+
+### 2. Schema do Banco de Dados
+
+A tabela `public.notas_fiscais_saida` possui o campo:
+```sql
+aeronave text null
+```
+
+### 3. Triggers SQL Automáticos
+
+Foram criados 3 triggers que funcionam automaticamente:
+
+#### 3.1 Trigger de Criação em controle_bancario
+- **Evento**: Quando uma nota fiscal é INSERIDA
+- **Condição**: Status "pendente" ou "recebido"
+- **Ação**: Cria automaticamente um registro em `controle_bancario` com:
+  - Tipo de movimento: "entrada"
+  - Status: "pendente" (se NF pendente) ou "confirmado" (se NF recebido)
+  - Descrição: "NF Saída XXX - Cliente (Aeronave)"
+
+#### 3.2 Trigger de Criação em bank_reconciliations
+- **Evento**: Quando uma nota fiscal é INSERIDA
+- **Condição**: Status "pendente" ou "recebido"
+- **Ação**: Cria automaticamente um registro em `bank_reconciliations` com:
+  - Type: "cliente"
+  - Status: "pendente" ou "recebido"
+  - Descrição: "NF Saída XXX - Cliente (Aeronave)"
+  - reference_type: "nf_saida"
+  - reference_id: UUID da nota fiscal
+
+#### 3.3 Trigger de Atualização
+- **Evento**: Quando uma nota fiscal é ATUALIZADA
+- **Condição**: Mudança de status
+- **Ação**: Atualiza automaticamente os registros em ambas as tabelas com o novo status
+
+## Fluxo de Funcionamento
+
+```
+Usuario cria Nota Fiscal (status = "pendente" ou "recebido")
+        ↓
+1. Insere em notas_fiscais_saida (com campo aeronave)
+        ↓
+2. Trigger cria automaticamente em controle_bancario
+        ↓
+3. Trigger cria automaticamente em bank_reconciliations
+        ↓
+4. Sincronização mantida em atualizações de status
+```
+
+## Instruções de Implementação
+
+### Passo 1: Executar o SQL no Supabase
+
+1. Acesse o [Supabase Dashboard](https://app.supabase.com/)
+2. Vá para **SQL Editor** → **New Query**
+3. Copie e cole todo o conteúdo do arquivo `supabase/migrations/add_nf_saida_auto_triggers.sql`
+4. Clique em **Run**
+
+### Passo 2: Redeploy da Aplicação
+
+O código frontend já foi atualizado. Apenas faça redeploy da aplicação.
+
+## Campos Mapeados
+
+### notas_fiscais_saida → controle_bancario
+| NF Saída | Controle Bancário |
+|----------|------------------|
+| numero | numero_documento |
+| cliente_nome | client_name |
+| valor | valor |
+| data_vencimento | data_vencimento |
+| data_criacao | data (CURRENT_DATE no trigger) |
+| categoria | categoria_id (fixa: 2874b45b...) |
+| aeronave | (incluída na descricao) |
+| criado_por | criado_por |
+| status | status (pendente → pendente, recebido → confirmado) |
+
+### notas_fiscais_saida → bank_reconciliations
+| NF Saída | Bank Reconciliations |
+|----------|---------------------|
+| numero | doc |
+| cliente_nome | partner_name |
+| valor | amount |
+| data_vencimento | payment_term |
+| data_criacao | date |
+| categoria | category |
+| aeronave | (incluída na description) |
+| criado_por | created_by |
+| status | status |
+| id | reference_id |
+
+## Comportamento em Diferentes Cenários
+
+### Cenário 1: NF criada com status "pendente"
+- ✅ Insere em controle_bancario com status "pendente"
+- ✅ Insere em bank_reconciliations com status "pendente"
+- ✅ Aeronave é incluída na descrição
+
+### Cenário 2: NF criada com status "recebido"
+- ✅ Insere em controle_bancario com status "confirmado"
+- ✅ Insere em bank_reconciliations com status "recebido"
+- ✅ Aeronave é incluída na descrição
+
+### Cenário 3: NF criada com status "cancelado"
+- ❌ Não cria registros (como esperado)
+
+### Cenário 4: Status da NF alterado de "pendente" para "recebido"
+- ✅ Atualiza controle_bancario de "pendente" para "confirmado"
+- ✅ Atualiza bank_reconciliations de "pendente" para "recebido"
+
+## Prevenção de Duplicatas
+
+Os triggers verificam se um registro já existe antes de criar:
+- Em controle_bancario: Verifica por `numero_documento` e `tipo_movimento`
+- Em bank_reconciliations: Verifica por `reference_type` = 'nf_saida' e `reference_id`
+
+## Rollback (se necessário)
+
+Caso precise reverter os triggers:
+
+```sql
+DROP TRIGGER IF EXISTS trigger_create_controle_bancario_nf_saida ON public.notas_fiscais_saida;
+DROP TRIGGER IF EXISTS trigger_create_bank_reconciliation_nf_saida ON public.notas_fiscais_saida;
+DROP TRIGGER IF EXISTS trigger_update_controle_bancario_nf_saida ON public.notas_fiscais_saida;
+
+DROP FUNCTION IF EXISTS create_controle_bancario_from_nf_saida();
+DROP FUNCTION IF EXISTS create_bank_reconciliation_from_nf_saida();
+DROP FUNCTION IF EXISTS update_controle_bancario_from_nf_saida();
+```
+
+## Observações Importantes
+
+1. **Aeronave agora é persistida**: O valor `aeronave_registration` (ex: "PR-GJM") é salvo no banco no campo `aeronave`
+2. **Triggers são automáticos**: Não precisa de código adicional no frontend para criar registros em controle_bancario ou bank_reconciliations
+3. **Sincronização em atualização**: Se o status da NF for alterado, ambas as tabelas são atualizadas automaticamente
+4. **Categoria fixa**: A categoria usada é sempre "2874b45b-a3bb-4bec-8f7e-74b328f8693c" (RECEITAS OPERACIONAIS)
