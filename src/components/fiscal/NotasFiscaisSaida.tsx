@@ -753,20 +753,16 @@ export function NotasFiscaisSaida() {
         });
       }
 
-      // Download automático do PDF
-      const link = document.createElement("a");
-      link.href = reciboUrl;
-      link.download = `${numeroRecibo}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Exibir recibo no viewer dentro da aplicação
+      setReciboViewUrl(reciboUrl);
+      setShowReciboViewer(true);
 
       toast({
         title: "Sucesso",
-        description: `Recibo ${numeroRecibo} gerado e salvo com sucesso!`,
+        description: `Recibo ${numeroRecibo} gerado com sucesso!`,
       });
 
-      // Fechar diálogo e resetar
+      // Fechar diálogo de entrada e resetar
       setShowReciboDialog(false);
       setReciboData({
         cliente_id: "",
