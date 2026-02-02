@@ -633,12 +633,28 @@ export function NotasFiscaisSaida() {
       // Gerar número do recibo
       const numeroRecibo = await generateReciboNumber(reciboData.cliente_nome);
 
+      // Buscar dados completos do cliente para o recibo
+      let clienteCompleto: any = {};
+      if (reciboData.cliente_id) {
+        const { data: clientData } = await supabase
+          .from("clients")
+          .select("company_name, cnpj, address, city, state")
+          .eq("id", reciboData.cliente_id)
+          .single();
+        if (clientData) {
+          clienteCompleto = clientData;
+        }
+      }
+
       // Preparar dados para o servidor gerar o PDF
       const receiptData = {
         id: `recibo_${numeroRecibo}_${Date.now()}`,
         receipt_number: numeroRecibo,
         payer_name: reciboData.cliente_nome,
         payer_document: reciboData.cliente_cnpj || "000.000.000-00",
+        payer_address: clienteCompleto.address || "",
+        payer_city: clienteCompleto.city || "",
+        payer_uf: clienteCompleto.state || "",
         amount: parseFloat(reciboData.valor),
         service_description: reciboData.descricao || "Prestação de serviços aeronáuticos",
         receipt_type: "pagamento" as const,
