@@ -40,10 +40,25 @@ Foram criados 3 triggers que funcionam automaticamente:
   - reference_type: "nf_saida"
   - reference_id: UUID da nota fiscal
 
-#### 3.3 Trigger de Atualização
+#### 3.3 Trigger de Criação em contas_areceber
+- **Evento**: Quando uma nota fiscal é INSERIDA
+- **Condição**: Status "pendente" ou "recebido"
+- **Ação**: Cria automaticamente um registro em `contas_areceber` com:
+  - Número: mesmo da NF
+  - Cliente: cliente_nome e cliente_cnpj
+  - Valor: mesmo da NF
+  - Categoria: mesmo da NF
+  - Status: "pendente" ou "recebido"
+  - Aeronave: mesmo da NF
+  - PDF URL: arquivo_pdf_url da NF
+
+#### 3.4 Trigger de Atualização
 - **Evento**: Quando uma nota fiscal é ATUALIZADA
 - **Condição**: Mudança de status
-- **Ação**: Atualiza automaticamente os registros em ambas as tabelas com o novo status
+- **Ação**: Atualiza automaticamente os registros em TODAS as tabelas com o novo status:
+  - controle_bancario
+  - bank_reconciliations
+  - contas_areceber
 
 ## Fluxo de Funcionamento
 
