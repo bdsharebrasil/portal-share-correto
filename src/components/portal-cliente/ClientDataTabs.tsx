@@ -391,6 +391,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       setFuelRecords([]);
       setCtmTracking([]);
       setTravelReports([]);
+      setBankReconciliations([]);
 
       // Show user-friendly error message
       if (error instanceof Error) {
