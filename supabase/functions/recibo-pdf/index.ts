@@ -348,7 +348,7 @@ function generateReceiptHTML(data: ReceiptData): string {
         <!-- HEADER -->
         <div class="header">
           <div class="logo-section">
-            <img src="/logoshare.png" alt="Logo" class="logo">
+            <img src="${logoUrl}" alt="Logo" class="logo" style="max-width: 80px; max-height: 80px;">
           </div>
           <div class="header-center">
             <div class="header-title">RECIBO</div>
