@@ -341,7 +341,7 @@ export default function ControlFinanceiro() {
                             {mov.tipo_movimento === "entrada" ? "+" : "-"}R$ {parseFloat(mov.valor).toFixed(2)}
                           </TableCell>
                           <TableCell>
-                            <Badge className={getStatusColor(mov.status)}>
+                            <Badge className={getStatusColor(mov.status, mov.tipo_movimento)}>
                               {mov.status}
                             </Badge>
                           </TableCell>
