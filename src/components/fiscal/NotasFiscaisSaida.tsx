@@ -865,6 +865,37 @@ export function NotasFiscaisSaida() {
 
       if (controleBancarioError) throw new Error(`Erro controle_bancario: ${controleBancarioError.message}`);
 
+      // Inserção em Bank Reconciliations
+      const descricaoRecibo = reciboData.descricao || "Recibo de Saída - Serviços";
+      const bankRecResult = await insertReceiptToBankReconciliations(
+        {
+          descricao: descricaoRecibo,
+          valor: parseFloat(reciboData.valor),
+          data: new Date().toISOString().split("T")[0],
+          data_vencimento: reciboData.data_vencimento,
+          numero_documento: numeroRecibo,
+          status: "pendente",
+          client_id: clientId || undefined,
+          client_name: reciboData.cliente_nome,
+          aeronave_id: aeronaveId || undefined,
+          aeronave_registro: reciboData.aeronave_registro,
+          categoria_id: CATEGORIA_ID,
+          recibo_url: reciboUrl,
+          tipo: "recibo",
+        },
+        currentUser.id
+      );
+
+      if (!bankRecResult.success) {
+        console.error("Erro ao inserir em bank_reconciliations:", bankRecResult.error);
+        // Não lançar erro aqui, apenas avisar, pois o recibo já foi criado em controle_bancario
+        toast({
+          title: "Aviso",
+          description: "Recibo criado, mas houve um erro ao registrar na reconciliação bancária",
+          variant: "default",
+        });
+      }
+
       // Inserção em Contas a Receber
       await supabase.from("contas_areceber").insert({
           numero: numeroRecibo,
