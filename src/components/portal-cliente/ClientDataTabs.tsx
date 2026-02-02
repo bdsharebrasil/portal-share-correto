@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Fuel, Wrench, Plane, Download, Upload, FileCheck, Eye, Send, Trash, CheckCircle2 } from "lucide-react";
+import { FileText, Fuel, Wrench, Plane, Download, Upload, FileCheck, Eye, Send, Trash, CheckCircle2, DollarSign } from "lucide-react";
 import { previewPDFForPrint, TravelReport as TravelReportPDF, TravelExpense } from "@/lib/travelReportPDF";
 import { FileUploadDialog } from "./FileUploadDialog";
 import { ContractUploadDialog } from "./ContractUploadDialog";
@@ -62,6 +62,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
   const [fuelRecords, setFuelRecords] = useState<any[]>([]);
   const [ctmTracking, setCtmTracking] = useState<any[]>([]);
   const [travelReports, setTravelReports] = useState<TravelReport[]>([]);
+  const [bankReconciliations, setBankReconciliations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [partners, setPartners] = useState<any[]>([]);
   const [activeClientId, setActiveClientId] = useState<string>(clientId);
@@ -359,12 +360,28 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         console.error('Erro crítico ao carregar relatórios de viagem:', err);
       }
 
+      // Load bank reconciliations for the client
+      let bankReconData = null;
+      try {
+        const result = await supabase
+          .from('bank_reconciliations')
+          .select('*')
+          .eq('client_id', forClientId)
+          .order('date', { ascending: false })
+          .limit(100);
+        bankReconData = result.data;
+        if (result.error) console.warn('Erro ao carregar dados financeiros:', result.error);
+      } catch (err) {
+        console.error('Erro crítico ao carregar dados financeiros:', err);
+      }
+
       setFiles(filesData || []);
       setContracts(contractsData || []);
       setLogbookEntries(enrichedLogbookData || []);
       setFuelRecords(fuelData || []);
       setCtmTracking(ctmData || []);
       setTravelReports(reportsData || []);
+      setBankReconciliations(bankReconData || []);
     } catch (error) {
       console.error('Error loading client data:', error);
       // Fallback: set empty arrays to prevent UI from breaking
@@ -374,6 +391,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       setFuelRecords([]);
       setCtmTracking([]);
       setTravelReports([]);
+      setBankReconciliations([]);
 
       // Show user-friendly error message
       if (error instanceof Error) {
@@ -434,9 +452,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
 
   return (
     <>
-      <Tabs defaultValue="files" className="w-full">
+      <Tabs defaultValue="financeiro" className="w-full">
         <TabsList>
-          <TabsTrigger value="files">Arquivos</TabsTrigger>
+          <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
           <TabsTrigger value="contracts">Contratos</TabsTrigger>
           <TabsTrigger value="logbook">Diário de Bordo</TabsTrigger>
           <TabsTrigger value="fuel">Abastecimentos</TabsTrigger>
@@ -445,54 +463,56 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           <TabsTrigger value="envio-despesa">Envio de Despesa</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="files" className="space-y-4">
+        <TabsContent value="financeiro" className="space-y-4">
           <Card className="bg-gradient-card border-border">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-foreground">
-                <Upload className="h-5 w-5 text-primary" />
-                Upload de Arquivos
+                <DollarSign className="h-5 w-5 text-primary" />
+                Dados Financeiros
               </CardTitle>
               <CardDescription className="text-muted-foreground">
-                Envie seus arquivos para o portal
+                Histórico de movimentações financeiras
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button
-                onClick={() => setUploadDialogOpen(true)}
-                className="w-full"
-                size="lg"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Enviar Arquivos
-              </Button>
-
-              {files.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">Nenhum arquivo enviado ainda</p>
+              {bankReconciliations.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">Nenhum registro financeiro encontrado</p>
               ) : (
-                <div className="space-y-2">
-                  {files.map((file) => (
-                    <div
-                      key={file.id}
-                      className="p-4 bg-muted/50 rounded-lg border border-border flex justify-between items-center"
-                    >
-                      <div className="flex-1">
-                        <p className="font-medium text-foreground">{file.file_name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Enviado em: {new Date(file.created_at).toLocaleDateString('pt-BR')}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => downloadFile(file.file_path)}
-                        >
-                          <Download className="h-4 w-4" />
-                          Baixar
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Descrição</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Valor</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Categoria</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bankReconciliations.map((record: any) => (
+                        <tr key={record.id} className="border-b border-border/40 hover:bg-muted/50 transition-colors">
+                          <td className="py-3 px-4 text-foreground whitespace-nowrap">{new Date(record.date).toLocaleDateString('pt-BR')}</td>
+                          <td className="py-3 px-4 text-foreground">
+                            <Badge variant="outline" className="capitalize">
+                              {record.type}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-foreground">{record.description}</td>
+                          <td className="py-3 px-4 text-foreground font-medium">
+                            R$ {Number(record.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-3 px-4">
+                            <Badge variant="outline" className="capitalize">
+                              {record.status}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-4 text-foreground text-sm">{record.category || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </CardContent>

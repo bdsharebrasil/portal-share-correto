@@ -428,12 +428,17 @@ export function FluxoCaixa() {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string, tipoMovimento?: string) => {
+    if (tipoMovimento === "entrada" && status === "pendente") {
+      return "bg-orange-900/20 text-orange-400 border-orange-600";
+    }
     switch (status) {
       case "recebido":
         return "bg-purple-900/20 text-purple-400 border-purple-600";
       case "pago":
         return "bg-green-900/20 text-green-400 border-green-600";
+      case "pendente":
+        return "bg-yellow-900/20 text-yellow-400 border-yellow-600";
       case "cancelado":
         return "bg-red-900/20 text-red-400 border-red-600";
       default:
@@ -1062,14 +1067,14 @@ export function FluxoCaixa() {
                         }}>
                           <div className="flex items-center gap-2">
                             {isEntrada ? (
-                              <ArrowUpCircle className="w-4 h-4 text-green-400" />
+                              <ArrowUpCircle className={`w-4 h-4 ${isPendente ? "text-orange-400" : "text-green-400"}`} />
                             ) : (
                               <ArrowDownCircle className="w-4 h-4 text-red-400" />
                             )}
                             <span
                               className={
                                 isEntrada
-                                  ? "text-green-400"
+                                  ? (isPendente ? "text-orange-400" : "text-green-400")
                                   : "text-red-400"
                               }
                             >
@@ -1116,7 +1121,7 @@ export function FluxoCaixa() {
                       )}
                       {expandedColumns.has("valor") && (
                         <TableCell
-                          className={`font-semibold ${isEntrada ? "text-green-400" : "text-red-400"
+                          className={`font-semibold ${isEntrada ? (isPendente ? "text-orange-400" : "text-green-400") : "text-red-400"
                             }`}
                           style={{
                             width: `${columnWidths.valor}px`,
@@ -1249,7 +1254,7 @@ export function FluxoCaixa() {
                           {transacao.status ? (
                             <Badge
                               variant="outline"
-                              className={getStatusColor(transacao.status)}
+                              className={getStatusColor(transacao.status, transacao.tipo_movimento)}
                             >
                               {transacao.status}
                             </Badge>
