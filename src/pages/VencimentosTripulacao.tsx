@@ -160,16 +160,14 @@ export default function VencimentosTripulacao() {
           }
         }
 
-        // Adicionar tripulante com suas habilitações (só se houver habilitações)
-        if (habilitacoes.length > 0) {
-          vencimentosTemp.push({
-            tripulanteId: member.id,
-            tripulanteName: member.full_name,
-            tripulanteAvatar: member.avatar_url,
-            habilitacoes,
-            statusGeral,
-          });
-        }
+        // Adicionar tripulante com suas habilitações (mesmo sem habilitações)
+        vencimentosTemp.push({
+          tripulanteId: member.id,
+          tripulanteName: member.full_name,
+          tripulanteAvatar: member.avatar_url,
+          habilitacoes,
+          statusGeral: habilitacoes.length > 0 ? statusGeral : 'ok',
+        });
       }
 
       setVencimentos(vencimentosTemp);
