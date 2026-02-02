@@ -684,16 +684,19 @@ export function NotasFiscaisSaida() {
       const pdfBlob = await new Promise<Blob>((resolve, reject) => {
         html2pdf()
           .set({
-            margin: 10,
+            margin: [5, 5, 5, 5],
             filename: `${numeroRecibo}.pdf`,
             image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            html2canvas: { scale: 2, useCORS: true, allowTaint: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait', compress: true }
           })
           .from(element)
           .outputPdf('blob')
           .then((blob: Blob) => resolve(blob))
-          .catch((err: any) => reject(err));
+          .catch((err: any) => {
+            console.error("Erro ao gerar PDF:", err);
+            reject(err);
+          });
       });
 
       // Upload do PDF
