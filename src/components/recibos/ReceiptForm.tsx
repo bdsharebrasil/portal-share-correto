@@ -373,51 +373,28 @@ export function ReceiptForm({
             />
           </div>
 
-          {/* CLIENTE / AERONAVE */}
-          {isReembolso && (
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label>Cliente *</Label>
-                <Select
-                  value={formData.clienteId}
-                  onValueChange={(v) =>
-                    setFormData((p) => ({ ...p, clienteId: v }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clientesAtivos.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.company_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Aeronave *</Label>
-                <Select
-                  value={formData.aircraftId}
-                  disabled={!formData.clienteId}
-                  onValueChange={(v) =>
-                    setFormData((p) => ({ ...p, aircraftId: v }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a aeronave" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {aircrafts.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.registration} – {a.model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* AERONAVE - APENAS PARA REEMBOLSOS */}
+          {isReembolso && clienteSearchValue.clienteId && (
+            <div>
+              <Label>Aeronave *</Label>
+              <Select
+                value={formData.aircraftId}
+                disabled={!formData.clienteId}
+                onValueChange={(v) =>
+                  setFormData((p) => ({ ...p, aircraftId: v }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a aeronave" />
+                </SelectTrigger>
+                <SelectContent>
+                  {aircrafts.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.registration} – {a.model}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
