@@ -257,25 +257,37 @@ export function NotasFiscaisSaida() {
 
   const loadClientes = async () => {
     try {
-      const { data: clientsData } = await supabase
+      // First try to load with status filter (for active clients)
+      let { data: clientsData, error } = await supabase
         .from("clients")
-        .select("id, company_name, cnpj")
-        .order("company_name");
+        .select("id, company_name, cnpj, proprietario, status");
+
+      // Handle potential errors
+      if (error) {
+        console.error("Erro ao carregar clientes:", error);
+        clientsData = [];
+      }
 
       const clientesList: Cliente[] = [];
 
       if (clientsData) {
         clientsData.forEach(client => {
-          if (client.company_name) {
+          // Use company_name if available, fallback to proprietario, or use cnpj as last resort
+          const nomeCliente = client.company_name || client.proprietario || client.cnpj || "Cliente";
+
+          // Include client if it has a valid name/identifier
+          if (nomeCliente && nomeCliente !== "Cliente") {
             clientesList.push({
               id: client.id,
-              nome: client.company_name,
+              nome: nomeCliente,
               documento: client.cnpj || ""
             });
           }
         });
       }
 
+      // Sort by name for consistent display
+      clientesList.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
       setClientes(clientesList);
     } catch (error) {
       console.error("Erro ao carregar clientes:", error);
@@ -1015,25 +1027,27 @@ export function NotasFiscaisSaida() {
                             Nenhum cliente encontrado
                           </CommandEmpty>
                           <CommandGroup heading="Clientes" className="text-muted-foreground">
-                            {filteredClientes.slice(0, 10).map((c) => (
-                              <CommandItem
-                                key={c.id}
-                                onSelect={() => {
-                                  setFormData({ 
-                                    ...formData, 
-                                    cliente_nome: c.nome,
-                                    cliente_cnpj: c.documento 
-                                  });
-                                  setOpenClientePopover(false);
-                                }}
-                                className="cursor-pointer hover:bg-muted"
-                              >
-                                <div>
-                                  <p className="font-medium text-foreground">{c.nome}</p>
-                                  {c.documento && <p className="text-xs text-muted-foreground">{c.documento}</p>}
-                                </div>
-                              </CommandItem>
-                            ))}
+                            {filteredClientes.length > 0 ? (
+                              filteredClientes.slice(0, 50).map((c) => (
+                                <CommandItem
+                                  key={c.id}
+                                  onSelect={() => {
+                                    setFormData({
+                                      ...formData,
+                                      cliente_nome: c.nome,
+                                      cliente_cnpj: c.documento
+                                    });
+                                    setOpenClientePopover(false);
+                                  }}
+                                  className="cursor-pointer hover:bg-muted"
+                                >
+                                  <div>
+                                    <p className="font-medium text-foreground">{c.nome}</p>
+                                    {c.documento && <p className="text-xs text-muted-foreground">{c.documento}</p>}
+                                  </div>
+                                </CommandItem>
+                              ))
+                            ) : null}
                           </CommandGroup>
                         </CommandList>
                       </Command>
@@ -1352,18 +1366,20 @@ export function NotasFiscaisSaida() {
                             Nenhum cliente encontrado
                           </CommandEmpty>
                           <CommandGroup heading="Clientes" className="text-muted-foreground">
-                            {filteredClientes.slice(0, 10).map((c) => (
-                              <CommandItem
-                                key={c.id}
-                                onSelect={() => handleSelectCliente(c)}
-                                className="cursor-pointer hover:bg-muted"
-                              >
-                                <div>
-                                  <p className="font-medium text-foreground">{c.nome}</p>
-                                  {c.documento && <p className="text-xs text-muted-foreground">{c.documento}</p>}
-                                </div>
-                              </CommandItem>
-                            ))}
+                            {filteredClientes.length > 0 ? (
+                              filteredClientes.slice(0, 50).map((c) => (
+                                <CommandItem
+                                  key={c.id}
+                                  onSelect={() => handleSelectCliente(c)}
+                                  className="cursor-pointer hover:bg-muted"
+                                >
+                                  <div>
+                                    <p className="font-medium text-foreground">{c.nome}</p>
+                                    {c.documento && <p className="text-xs text-muted-foreground">{c.documento}</p>}
+                                  </div>
+                                </CommandItem>
+                              ))
+                            ) : null}
                           </CommandGroup>
                         </CommandList>
                       </Command>
