@@ -1254,7 +1254,7 @@ export function FluxoCaixa() {
                           {transacao.status ? (
                             <Badge
                               variant="outline"
-                              className={getStatusColor(transacao.status)}
+                              className={getStatusColor(transacao.status, transacao.tipo_movimento)}
                             >
                               {transacao.status}
                             </Badge>
