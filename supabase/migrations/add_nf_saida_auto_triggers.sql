@@ -296,3 +296,157 @@ CREATE TRIGGER trigger_update_contas_areceber_nf_saida
 AFTER UPDATE ON public.notas_fiscais_saida
 FOR EACH ROW
 EXECUTE FUNCTION update_contas_areceber_from_nf_saida();
+
+-- =====================================================
+-- TRIGGER: Sincronizar Controle Bancário com Bank Reconciliations
+-- =====================================================
+-- Quando um registro de entrada é criado em controle_bancario,
+-- sincroniza automaticamente para bank_reconciliations
+
+CREATE OR REPLACE FUNCTION create_bank_reconciliation_from_controle_bancario()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Apenas processar entradas (receitas)
+  IF NEW.tipo_movimento != 'entrada' THEN
+    RETURN NEW;
+  END IF;
+
+  -- Validar dados obrigatórios
+  IF NEW.valor IS NULL OR NEW.valor <= 0 OR NEW.numero_documento IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  -- Verificar se já existe registro em bank_reconciliations
+  IF NOT EXISTS (
+    SELECT 1 FROM public.bank_reconciliations
+    WHERE reference_type = 'controle_bancario'
+    AND reference_id = NEW.id::text
+  ) THEN
+    -- Buscar aircraft_id se houver aeronave_registro
+    DECLARE
+      v_aircraft_id uuid;
+    BEGIN
+      IF NEW.aeronave_registro IS NOT NULL THEN
+        SELECT id INTO v_aircraft_id
+        FROM public.aircraft
+        WHERE registration = NEW.aeronave_registro
+        LIMIT 1;
+      ELSIF NEW.aeronave_id IS NOT NULL THEN
+        v_aircraft_id := NEW.aeronave_id;
+      END IF;
+
+      -- Inserir em bank_reconciliations
+      INSERT INTO public.bank_reconciliations (
+        type,
+        date,
+        description,
+        amount,
+        status,
+        client_id,
+        aircraft_id,
+        categoria_movimentacao_id,
+        tipo_documento,
+        doc,
+        payment_term,
+        forma_pagamento,
+        afeta_caixa_empresa,
+        created_by,
+        partner_name,
+        recibo_url,
+        nf_url,
+        boleto_url,
+        reference_type,
+        reference_id,
+        created_at,
+        updated_at
+      ) VALUES (
+        'cliente',
+        NEW.data,
+        NEW.descricao,
+        NEW.valor,
+        CASE
+          WHEN NEW.status = 'confirmado' THEN 'recebido'
+          WHEN NEW.status = 'pendente' THEN 'pendente'
+          WHEN NEW.status = 'inadimplente' THEN 'pendente'
+          ELSE NEW.status
+        END,
+        NEW.client_id,
+        v_aircraft_id,
+        NEW.categoria_id,
+        'recibo',
+        NEW.numero_documento,
+        NEW.data_vencimento,
+        'empresa_paga',
+        true,
+        NEW.criado_por,
+        NEW.partner_name,
+        NEW.recibo_url,
+        NEW.nf_url,
+        NEW.boleto_url,
+        'controle_bancario',
+        NEW.id::text,
+        NEW.data_criacao,
+        CURRENT_TIMESTAMP
+      );
+    END;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Criar trigger na inserção em controle_bancario
+DROP TRIGGER IF EXISTS trigger_create_bank_reconciliation_from_controle_bancario ON public.controle_bancario;
+CREATE TRIGGER trigger_create_bank_reconciliation_from_controle_bancario
+AFTER INSERT ON public.controle_bancario
+FOR EACH ROW
+EXECUTE FUNCTION create_bank_reconciliation_from_controle_bancario();
+
+-- =====================================================
+-- TRIGGER: Atualizar Bank Reconciliations quando Controle Bancário é atualizado
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION update_bank_reconciliation_from_controle_bancario()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Apenas processar entradas
+  IF NEW.tipo_movimento != 'entrada' THEN
+    RETURN NEW;
+  END IF;
+
+  -- Apenas atualizar se o registro existe em bank_reconciliations
+  IF EXISTS (
+    SELECT 1 FROM public.bank_reconciliations
+    WHERE reference_type = 'controle_bancario'
+    AND reference_id = NEW.id::text
+  ) THEN
+    UPDATE public.bank_reconciliations
+    SET
+      description = NEW.descricao,
+      amount = NEW.valor,
+      status = CASE
+        WHEN NEW.status = 'confirmado' THEN 'recebido'
+        WHEN NEW.status = 'pendente' THEN 'pendente'
+        WHEN NEW.status = 'inadimplente' THEN 'pendente'
+        ELSE NEW.status
+      END,
+      payment_term = NEW.data_vencimento,
+      partner_name = NEW.partner_name,
+      recibo_url = NEW.recibo_url,
+      nf_url = NEW.nf_url,
+      boleto_url = NEW.boleto_url,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE reference_type = 'controle_bancario'
+    AND reference_id = NEW.id::text;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Criar trigger na atualização em controle_bancario
+DROP TRIGGER IF EXISTS trigger_update_bank_reconciliation_from_controle_bancario ON public.controle_bancario;
+CREATE TRIGGER trigger_update_bank_reconciliation_from_controle_bancario
+AFTER UPDATE ON public.controle_bancario
+FOR EACH ROW
+EXECUTE FUNCTION update_bank_reconciliation_from_controle_bancario();
