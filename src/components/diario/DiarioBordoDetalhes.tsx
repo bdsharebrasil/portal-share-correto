@@ -391,6 +391,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     client_id: '',
     borrower_client_id: '',
     partner_name: '',
+    borrower_partner_name: '', // Novo: partner do cliente que pega emprestado
     is_equal_split: false,
     is_loan: false,
     ac_time: '',
@@ -1119,6 +1120,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
           ? null
           : (newEntry.is_loan ? newEntry.borrower_client_id : newEntry.client_id),
         partner_name: newEntry.is_equal_split ? null : (newEntry.partner_name || null),
+        borrower_client_id: newEntry.is_loan ? newEntry.borrower_client_id : null,
+        borrower_partner_name: newEntry.is_loan ? (newEntry.borrower_partner_name || null) : null,
         is_equal_split: newEntry.is_equal_split,
         is_loan: newEntry.is_loan || false,
         total_time: newEntry.total_time,
@@ -1240,6 +1243,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         client_id: '',
         borrower_client_id: '',
         partner_name: '',
+        borrower_partner_name: '',
         is_equal_split: false,
         is_loan: false,
         ac_time: '',
@@ -1360,7 +1364,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         sic_canac: editingEntry.sic_canac || null,
         sic_name: editingEntry.sic_name || null,
         client_id: editingEntry.is_equal_split ? null : editingEntry.client_id,
+        partner_name: editingEntry.partner_name || null,
+        borrower_client_id: editingEntry.is_loan ? editingEntry.borrower_client_id : null,
+        borrower_partner_name: editingEntry.is_loan ? (editingEntry.borrower_partner_name || null) : null,
         is_equal_split: editingEntry.is_equal_split,
+        is_loan: editingEntry.is_loan || false,
         total_time: editingEntry.total_time,
         time: editingEntry.time,
         day_time: editingEntry.day_time,
@@ -2375,11 +2383,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                         </SelectTrigger>
                         <SelectContent>
                           {sortedClients.map(cl => {
+                            // Verificar se o cliente está vinculado à aeronave
+                            const isLinkedToAircraft = cl.client_aircraft?.some(ca => ca.aircraft_id === aircraftId);
                             // Verificar se o cliente tem sócio
                             const hasSocio = cl.partner_name || cl.partner_name2 || cl.partner_name3;
-                            // Se tem sócio, mostrar todos. Se não tem, mostrar apenas os vinculados à aeronave
-                            const isLinkedToAircraft = cl.client_aircraft?.some(ca => ca.aircraft_id === aircraftId);
-                            const shouldShow = hasSocio || isLinkedToAircraft;
+                            // Mostrar apenas clientes vinculados à aeronave (sócios)
+                            const shouldShow = isLinkedToAircraft;
 
                             return shouldShow ? (
                               <SelectItem key={cl.id} value={cl.id}>
@@ -2436,6 +2445,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                           setNewEntry({
                             ...newEntry,
                             borrower_client_id: v,
+                            borrower_partner_name: '', // Reset partner when borrower client changes
                           })
                         }
                       >
@@ -2451,6 +2461,39 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {/* Sócio/Cotista do cliente que pega emprestado (se houver) */}
+                    {(() => {
+                      const selectedBorrowerClient = clients.find(c => c.id === newEntry.borrower_client_id);
+                      const borrowerPartnerOptions = [];
+                      if (selectedBorrowerClient?.partner_name) borrowerPartnerOptions.push(selectedBorrowerClient.partner_name);
+                      if (selectedBorrowerClient?.partner_name2) borrowerPartnerOptions.push(selectedBorrowerClient.partner_name2);
+                      if (selectedBorrowerClient?.partner_name3) borrowerPartnerOptions.push(selectedBorrowerClient.partner_name3);
+
+                      if (borrowerPartnerOptions.length > 0) {
+                        return (
+                          <div className="space-y-1 mt-2">
+                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Cotista que Pega Emprestado *</Label>
+                            <Select value={newEntry.borrower_partner_name} onValueChange={v => setNewEntry({
+                              ...newEntry,
+                              borrower_partner_name: v
+                            })}>
+                              <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
+                                <SelectValue placeholder="Selecione o Cotista" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {borrowerPartnerOptions.map((partner, idx) => (
+                                  <SelectItem key={idx} value={partner}>
+                                    {partner}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
 
                   </div>
                 )}
