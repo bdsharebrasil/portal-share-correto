@@ -18,7 +18,15 @@ A tabela `public.notas_fiscais_saida` possui o campo:
 aeronave text null
 ```
 
-### 3. Triggers SQL Automáticos
+### 3. Scripts SQL
+
+#### 3.1 Triggers Automáticos (add_nf_saida_auto_triggers.sql)
+Cria sincronização automática entre tabelas
+
+#### 3.2 Script de Sincronização Histórica (sync_controle_bancario_to_bank_reconciliations.sql)
+Sincroniza dados existentes em controle_bancario para bank_reconciliations
+
+### 4. Triggers SQL Automáticos
 
 Foram criados 3 triggers que funcionam automaticamente:
 
