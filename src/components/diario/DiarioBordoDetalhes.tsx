@@ -27,6 +27,70 @@ const SPLIT_FLIGHT_TYPES = [
   { code: 'TN', label: 'TN - Teste (Manutenção/Teste)', description: 'Rateio igual entre sócios' }
 ];
 
+// ===================== INTERFACES =====================
+interface Entry {
+  id: string;
+  entry_date: string;
+  departure_aerodrome: string;
+  arrival_aerodrome: string;
+  client_id?: string;
+  partner_name?: string;
+  is_equal_split: boolean;
+  is_loan: boolean;
+  total_time: number;
+  pic_canac: string;
+  sic_canac?: string;
+  ac_time: string;
+  dep_time: string;
+  pou_time: string;
+  cor_time: string;
+  celula: number;
+  fuel_added: number;
+  fuel_liters: number;
+  day_time: number;
+  night_hours: number;
+  ifr_time: number;
+  pousos: number;
+  time: number;
+  distance_nm: number;
+  passengers: number;
+  cargo_kg: number;
+  flight_nature: string;
+  daily_rate?: number;
+  daily_quantity?: number;
+  created_at?: string;
+  [key: string]: any;
+}
+
+interface LogbookMonth {
+  id: string;
+  month: number;
+  year: number;
+  aircraft_id: string;
+  celula_anterior: number;
+  celula_atual: number;
+  celula_prox_revisao: number;
+  celula_disponivel: number;
+  base_aerodrome?: string;
+  has_daily_rate: boolean;
+  daily_rate?: number;
+  horimetro_inicio?: number;
+  horimetro_final?: number;
+  horimetro_ativo?: number;
+  fuel_consumption?: number;
+  is_closed: boolean;
+}
+
+interface Aircraft {
+  id: string;
+  registration: string;
+  model: string;
+  cell_hours_current: number;
+  celula_prox_revisao: number;
+  base?: string;
+  fuel_consumption?: number;
+}
+
 // ===================== FUNÇÕES AUXILIARES =====================
 const timeStringToMinutes = (timeStr: string): number => {
   if (!timeStr) return 0;
@@ -111,15 +175,10 @@ const shortenClientName = (fullName?: string): string => {
 };
 
 // ===================== EXPANDIR CLIENTES COM PARCEIROS =====================
-/**
- * Expande cada cliente em múltiplas opções (company + parceiros)
- * Retorna array com id, label e tipo (company ou partner)
- */
 const expandClientsWithPartners = (clients: any[]) => {
   const expanded: any[] = [];
   
   clients.forEach(client => {
-    // Adicionar company_name como opção principal
     if (client.company_name) {
       expanded.push({
         id: client.id,
@@ -129,7 +188,6 @@ const expandClientsWithPartners = (clients: any[]) => {
       });
     }
     
-    // Adicionar parceiros como opções
     if (client.partner_name) {
       expanded.push({
         id: `${client.id}_partner1`,
@@ -207,9 +265,9 @@ const calculateTimes = (entry: any) => {
 
 // ===================== CÁLCULO DE DIÁRIAS =====================
 const calculateDailyAllowanceForEntry = (
-  entry: any,
+  entry: Entry,
   baseAerodrome: string,
-  allEntries: any[]
+  allEntries: Entry[]
 ): number => {
   if (!baseAerodrome) return 0;
 
@@ -217,14 +275,13 @@ const calculateDailyAllowanceForEntry = (
   const destination = entry.arrival_aerodrome;
 
   // REGRA PRINCIPAL: Voos com rateio entre sócios NÃO cobram diária
-  // Quando é_rateio_igual (is_equal_split), não há cobrança de diária independente do tipo de voo
   if (entry.is_equal_split) {
-    return 0; // Sem cobrança de diária quando é rateio entre sócios
+    return 0;
   }
 
   // REGRA: Voos de empréstimo NÃO cobram diária
   if (entry.is_loan) {
-    return 0; // Sem cobrança de diária quando é empréstimo
+    return 0;
   }
 
   // REGRA 1: Saiu da base → 0 diárias
@@ -237,14 +294,12 @@ const calculateDailyAllowanceForEntry = (
     return 1;
   }
 
-  // REGRA 3: Continua fora da base (nem origem nem destino é a base)
+  // REGRA 3: Continua fora da base
   if (origin !== baseAerodrome && destination !== baseAerodrome) {
-    // Ordenar entradas por data
     const sortedEntries = [...allEntries].sort(
       (a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime()
     );
 
-    // Encontrar este voo na lista por ID ou por data+origem+destino
     const currentIndex = sortedEntries.findIndex(e =>
       e.id === entry.id ||
       (e.entry_date === entry.entry_date &&
@@ -253,18 +308,15 @@ const calculateDailyAllowanceForEntry = (
     );
 
     if (currentIndex === -1 || currentIndex === 0) {
-      // Se não encontrou ou é o primeiro voo, não conta
       return 0;
     }
 
-    // Verificar se o voo anterior foi no mesmo dia
     const currentEntry = sortedEntries[currentIndex];
     const previousEntry = sortedEntries[currentIndex - 1];
 
     const currentDate = new Date(currentEntry.entry_date);
     const previousDate = new Date(previousEntry.entry_date);
 
-    // Se é um dia diferente do anterior, conta 1 diária
     if (currentDate.toDateString() !== previousDate.toDateString()) {
       return 1;
     }
@@ -272,16 +324,19 @@ const calculateDailyAllowanceForEntry = (
     return 0;
   }
 
-  // REGRA 4: Origem e destino são a base → 0 diárias
   return 0;
 };
 
 // ===================== COMPONENTE PRINCIPAL =====================
-const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
-  // Verificar permissões do usuário
+interface DiarioBordoDetalhesProps {
+  aircraftId: string;
+  onBack: () => void;
+}
+
+const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, onBack }) => {
   const { isAdmin, isGestorMaster, isPilotoChefe, isCoordenadorVoo, isTripulante } = useUserRole();
 
-  // Estados de navegação e UI (declarados primeiro para uso no useEffect)
+  // Estados de navegação e UI
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -296,16 +351,16 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
 
   // Estados principais
   const [loading, setLoading] = useState(true);
-  const [entries, setEntries] = useState([]);
-  const [crew, setCrew] = useState([]);
-  const [aerodromes, setAerodromes] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [partners, setPartners] = useState([]);
-  const [aircraft, setAircraft] = useState(null);
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [crew, setCrew] = useState<any[]>([]);
+  const [aerodromes, setAerodromes] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
+  const [partners, setPartners] = useState<any[]>([]);
+  const [aircraft, setAircraft] = useState<Aircraft | null>(null);
   const [lastCelula, setLastCelula] = useState(0);
-  const [logbookMonth, setLogbookMonth] = useState(null);
+  const [logbookMonth, setLogbookMonth] = useState<LogbookMonth | null>(null);
 
-  // Estado para diárias contabilizadas (key: entryId_date, value: boolean)
+  // Estado para diárias contabilizadas
   const [markedDailies, setMarkedDailies] = useState<Record<string, boolean>>(() => {
     try {
       const saved = localStorage.getItem(`marked-dailies-${aircraftId}-${selectedMonth}-${selectedYear}`);
@@ -345,7 +400,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   });
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [resizeStart, setResizeStart] = useState(0);
-  const [editingEntry, setEditingEntry] = useState<any>(null);
+  const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
   const [editingMonthInfo, setEditingMonthInfo] = useState(false);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editFieldValue, setEditFieldValue] = useState<string>('');
@@ -354,7 +409,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   const [showCloseMonthDialog, setShowCloseMonthDialog] = useState(false);
   const [previousMonthData, setPreviousMonthData] = useState<any>(null);
 
-  // Estado para Banco de Horas (empréstimos)
+  // Estado para Banco de Horas
   const [loans, setLoans] = useState<any[]>([]);
 
   // Estado para Situação Técnica da Aeronave
@@ -378,7 +433,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   });
 
   // Estado do Novo Voo
-  const [flightType, setFlightType] = useState<'cliente' | 'rateio' | 'emprestimo'>('cliente'); // Novo: tipo de voo
+  const [flightType, setFlightType] = useState<'cliente' | 'rateio' | 'emprestimo'>('cliente');
   const [newEntry, setNewEntry] = useState({
     entry_date: format(new Date(), 'yyyy-MM-dd'),
     pic_canac: '',
@@ -390,7 +445,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     client_id: '',
     borrower_client_id: '',
     partner_name: '',
-    borrower_partner_name: '', // Novo: partner do cliente que pega emprestado
+    borrower_partner_name: '',
     is_equal_split: false,
     is_loan: false,
     ac_time: '',
@@ -417,12 +472,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     occurrences: '',
     discrepancies: '',
     corrective_actions: '',
-    daily_quantity: 0 // Novo: quantidade de diárias para este voo
+    daily_quantity: 0
   });
+
+  // Estado para controlar mês/ano do próximo diário
+  const [nextMonthTarget, setNextMonthTarget] = useState<{ month: number; year: number } | null>(null);
 
   // ===================== CÁLCULO DE DIÁRIAS =====================
   const calculatePerDiemInfo = useMemo(() => {
-    // Se a aeronave não possui diária configurada, retorna vazio
     if (!logbookMonth?.has_daily_rate || !logbookMonth?.base_aerodrome || !logbookMonth?.daily_rate) {
       return { count: 0, total: 0, details: [], byEntry: {} };
     }
@@ -448,25 +505,20 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       const origin = flight.departure_aerodrome;
       const destination = flight.arrival_aerodrome;
 
-      // IMPORTANTE: Voos com rateio entre sócios NÃO contam para diárias
       if (flight.is_equal_split) {
         byEntry[flight.id] = 0;
-        continue; // Ignora este voo no cálculo de diárias
+        continue;
       }
 
-      // Saiu da base
       if (!isAwayFromBase && origin === baseAerodrome && destination !== baseAerodrome) {
         isAwayFromBase = true;
         lastAwayDate = new Date(flightDate);
-        byEntry[flight.id] = 0; // Dia de saída não conta
-      }
-      // Voltou para base
-      else if (isAwayFromBase && destination === baseAerodrome) {
+        byEntry[flight.id] = 0;
+      } else if (isAwayFromBase && destination === baseAerodrome) {
         if (lastAwayDate) {
           let currentDate = new Date(lastAwayDate);
-          currentDate.setDate(currentDate.getDate() + 1); // Começa no dia seguinte
+          currentDate.setDate(currentDate.getDate() + 1);
 
-          // Conta os dias entre a saída e o retorno
           while (currentDate <= flightDate) {
             perDiems.push({
               date: currentDate.toLocaleDateString('pt-BR'),
@@ -474,7 +526,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
               entryId: flight.id
             });
 
-            // Se é o último dia (dia do retorno), atribui a este voo
             if (currentDate.toDateString() === flightDate.toDateString()) {
               byEntry[flight.id] = (byEntry[flight.id] || 0) + 1;
             }
@@ -484,12 +535,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         }
         isAwayFromBase = false;
         lastAwayDate = null;
-      }
-      // Continua fora da base
-      else if (isAwayFromBase && origin !== baseAerodrome && destination !== baseAerodrome) {
+      } else if (isAwayFromBase && origin !== baseAerodrome && destination !== baseAerodrome) {
         if (lastAwayDate) {
           const lastDate = new Date(lastAwayDate);
-          // Se é um novo dia, conta diária
           if (flightDate.toDateString() !== lastDate.toDateString()) {
             perDiems.push({
               date: flightDate.toLocaleDateString('pt-BR'),
@@ -502,9 +550,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
             byEntry[flight.id] = byEntry[flight.id] || 0;
           }
         }
-      }
-      // Não estava fora e não saiu (voos dentro da base)
-      else {
+      } else {
         byEntry[flight.id] = 0;
       }
     }
@@ -523,54 +569,52 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       setLoading(true);
       try {
         const [acRes, crewRes, aeroRes, clientRes, entriesRes, monthsRes, partnersRes] = await Promise.all([
-        supabase.from('aircraft').select('*').eq('id', aircraftId).single(),
-        supabase.from('crew_members').select('*'),
-        supabase.from('aerodromes').select('*').order('designativo'),
-        supabase.from('clients').select('id, company_name, cnpj, partner_name, partner_name2, partner_name3, client_aircraft(aircraft_id)').order('company_name'),
-        supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('entry_date', { ascending: false }).order('created_at', { ascending: false }),
-        supabase.from('logbook_months').select('month, year').eq('aircraft_id', aircraftId).eq('is_closed', false).order('year', { ascending: false }).order('month', { ascending: false }),
-        supabase.from('aircraft_partners').select('*, clients(id, company_name)').eq('aircraft_id', aircraftId)
-      ]);
+          supabase.from('aircraft').select('*').eq('id', aircraftId).single(),
+          supabase.from('crew_members').select('*'),
+          supabase.from('aerodromes').select('*').order('designativo'),
+          supabase.from('clients').select('id, company_name, cnpj, partner_name, partner_name2, partner_name3, client_aircraft(aircraft_id)').order('company_name'),
+          supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('entry_date', { ascending: false }).order('created_at', { ascending: false }),
+          supabase.from('logbook_months').select('month, year').eq('aircraft_id', aircraftId).eq('is_closed', false).order('year', { ascending: false }).order('month', { ascending: false }),
+          supabase.from('aircraft_partners').select('*, clients(id, company_name)').eq('aircraft_id', aircraftId)
+        ]);
 
-      if (acRes.data) {
-        setAircraft(acRes.data);
-        setLastCelula(acRes.data.cell_hours_current || 0);
-      }
-      if (crewRes.data) setCrew(crewRes.data || []);
-      if (aeroRes.data) setAerodromes(aeroRes.data || []);
-      if (clientRes.data) setClients(clientRes.data || []);
-      if (entriesRes.data) setEntries(entriesRes.data || []);
-      if (monthsRes.data) setAvailableMonths(monthsRes.data || []);
-      if (partnersRes.data) setPartners(partnersRes.data || []);
+        if (acRes.data) {
+          setAircraft(acRes.data);
+          setLastCelula(acRes.data.cell_hours_current || 0);
+        }
+        if (crewRes.data) setCrew(crewRes.data || []);
+        if (aeroRes.data) setAerodromes(aeroRes.data || []);
+        if (clientRes.data) setClients(clientRes.data || []);
+        if (entriesRes.data) setEntries(entriesRes.data || []);
+        if (monthsRes.data) setAvailableMonths(monthsRes.data || []);
+        if (partnersRes.data) setPartners(partnersRes.data || []);
 
-      // Carregar empréstimos de horas
-      const loansRes = await supabase
-        .from('aircraft_loans')
-        .select(`
-          *,
-          lender_client:lender_client_id (
-            id,
-            company_name
-          ),
-          borrower_client:borrower_client_id (
-            id,
-            company_name
-          ),
-          logbook_entry:logbook_entry_id (
-            id,
-            entry_date,
-            departure_aerodrome,
-            arrival_aerodrome,
-            fuel_liters,
-            fuel_added
-          )
-        `)
-        .eq('lender_aircraft_id', aircraftId)
-        .order('entry_date', { ascending: false });
+        const loansRes = await supabase
+          .from('aircraft_loans')
+          .select(`
+            *,
+            lender_client:lender_client_id (
+              id,
+              company_name
+            ),
+            borrower_client:borrower_client_id (
+              id,
+              company_name
+            ),
+            logbook_entry:logbook_entry_id (
+              id,
+              entry_date,
+              departure_aerodrome,
+              arrival_aerodrome,
+              fuel_liters,
+              fuel_added
+            )
+          `)
+          .eq('lender_aircraft_id', aircraftId)
+          .order('entry_date', { ascending: false });
 
-      if (loansRes.data) setLoans(loansRes.data || []);
+        if (loansRes.data) setLoans(loansRes.data || []);
 
-        // Buscar logbook_months para o período selecionado
         let { data: monthData } = await supabase
           .from('logbook_months')
           .select('*')
@@ -583,7 +627,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
           setLogbookMonth(monthData);
           setLastCelula(monthData.celula_anterior || 0);
         } else {
-          // Buscar o último mês para obter a célula anterior, mas NÃO criar automaticamente
           const { data: lastMonthData } = await supabase
             .from('logbook_months')
             .select('*')
@@ -598,8 +641,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
             celulaAnterior = lastMonthData.celula_atual;
           }
           setLastCelula(celulaAnterior);
-
-          // Não criar automaticamente - deixar vazio para o usuário criar manualmente
           setLogbookMonth(null);
         }
       } catch (error) {
@@ -613,7 +654,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     if (aircraftId) loadData();
   }, [aircraftId, selectedMonth, selectedYear]);
 
-  // Ajustar o mês selecionado se não estiver disponível
   useEffect(() => {
     if (availableMonths.length > 0) {
       const currentMonthAvailable = availableMonths.some(
@@ -625,16 +665,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         setSelectedYear(firstAvailable.year);
       }
     }
-  }, [availableMonths]);
+  }, [availableMonths, selectedMonth, selectedYear]);
 
-  // Sincronizar diárias marcadas com localStorage
   useEffect(() => {
     localStorage.setItem(`marked-dailies-${aircraftId}-${selectedMonth}-${selectedYear}`, JSON.stringify(markedDailies));
   }, [markedDailies, aircraftId, selectedMonth, selectedYear]);
 
   // ===================== AUTOMAÇÕES =====================
 
-  // AUTOMAÇÃO 1: Apresentação = Acionamento - 30 min
   useEffect(() => {
     if (newEntry.ac_time) {
       const acMin = timeStringToMinutes(newEntry.ac_time);
@@ -645,7 +683,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     }
   }, [newEntry.ac_time]);
 
-  // AUTOMAÇÃO 2: Origem = Último Destino
   useEffect(() => {
     if (showAddForm && entries.length > 0) {
       const lastEntry = entries[0];
@@ -653,24 +690,20 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         setNewEntry(prev => ({ ...prev, departure_aerodrome: lastEntry.arrival_aerodrome }));
       }
     }
-  }, [showAddForm, entries]);
+  }, [showAddForm, entries, newEntry.departure_aerodrome]);
 
-  // AUTOMAÇÃO 3: Resetar data quando mês/ano muda
   useEffect(() => {
     const firstDayOfMonth = new Date(selectedYear, selectedMonth - 1, 1);
     const isoDate = format(firstDayOfMonth, 'yyyy-MM-dd');
     setNewEntry(prev => ({ ...prev, entry_date: isoDate }));
   }, [selectedMonth, selectedYear]);
 
-  // AUTOMAÇÃO 3.5: Recalcular célula_atual sempre que entries mudam
-  // Isso garante que o card sempre mostra o valor correto dos voos lançados
   useEffect(() => {
     if (entries.length > 0 && logbookMonth) {
       updateCelulaAtual(entries);
     }
   }, [entries, logbookMonth?.id]);
 
-  // AUTOMAÇÃO 4: Cálculo automático de distância
   useEffect(() => {
     if (newEntry.departure_aerodrome && newEntry.arrival_aerodrome) {
       const dep = aerodromes.find(a => a.designativo === newEntry.departure_aerodrome);
@@ -688,44 +721,29 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     }
   }, [newEntry.departure_aerodrome, newEntry.arrival_aerodrome, aerodromes]);
 
-  // AUTOMAÇÃO 5: Cálculo consolidado de todos os tempos
   useEffect(() => {
     if (newEntry.ac_time?.trim() && newEntry.cor_time?.trim()) {
       try {
-        // 1. Calcular tempo total (AC até COR)
         const totalTime = calculateTimeDiff(newEntry.ac_time, newEntry.cor_time);
 
-        // 2. Calcular tempo de voo (DEP até POU)
         let flightTime = 0;
         if (newEntry.dep_time?.trim() && newEntry.pou_time?.trim()) {
           flightTime = calculateTimeDiff(newEntry.dep_time, newEntry.pou_time);
         }
 
-        // 3. Lógica de Acúmulo de Célula (CASCATA)
-        // Passo A: Começamos com a célula inicial do mês/aeronave (vindo do banco)
         let baseParaCalculo = lastCelula;
 
-        // Passo B: Verificamos se já existem voos lançados na lista carregada (entries)
         if (entries && entries.length > 0) {
-          // Extraímos todas as células dos voos existentes
           const celulasExistentes = entries.map(e => Number(e.celula) || 0);
-
-          // Pegamos o MAIOR valor encontrado.
-          // Isso garante que estamos somando sobre o último voo realizado,
-          // criando o efeito "cascata" de saldo acumulado.
           const ultimaCelulaRegistrada = Math.max(...celulasExistentes);
 
-          // Se o último voo registrado for maior que o saldo inicial, usamos ele como base
           if (ultimaCelulaRegistrada > baseParaCalculo) {
             baseParaCalculo = ultimaCelulaRegistrada;
           }
         }
 
-        // Passo C: Somamos a base + o tempo do voo atual
-        // toFixed(1) garante o formato "3227.1"
         const newCelula = parseFloat((baseParaCalculo + totalTime).toFixed(1));
 
-        // 4. Calcular tempos diurno/noturno automaticamente
         const calculated = calculateTimes({
           ...newEntry,
           total_time: totalTime,
@@ -734,7 +752,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
           pou_time: newEntry.pou_time
         });
 
-        // 5. Atualizar tudo de uma vez (evita loops)
         setNewEntry(prev => ({
           ...prev,
           total_time: totalTime,
@@ -747,7 +764,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         console.error("Erro ao calcular tempos:", error);
       }
     }
-  }, [newEntry.ac_time, newEntry.cor_time, newEntry.dep_time, newEntry.pou_time, lastCelula]);
+  }, [newEntry.ac_time, newEntry.cor_time, newEntry.dep_time, newEntry.pou_time, lastCelula, entries]);
 
   // ===================== FILTROS E ORDENAÇÃO =====================
   const filteredEntries = useMemo(() => {
@@ -771,11 +788,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     return filtered;
   }, [entries, selectedMonth, selectedYear, searchTerm, crew, sortDirection]);
 
-  // Ordenar clientes: vinculados à aeronave primeiro
   const sortedClients = useMemo(() => {
     if (!clients.length) return [];
-    const linkedClients = clients.filter(c => c.client_aircraft?.some(ca => ca.aircraft_id === aircraftId));
-    const otherClients = clients.filter(c => !c.client_aircraft?.some(ca => ca.aircraft_id === aircraftId));
+    const linkedClients = clients.filter(c => c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId));
+    const otherClients = clients.filter(c => !c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId));
     return [...linkedClients, ...otherClients];
   }, [clients, aircraftId]);
 
@@ -785,35 +801,26 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   };
 
   // ===================== CÁLCULO E ATUALIZAÇÃO DE CÉLULA =====================
-  // Calcula e atualiza a célula_atual do mês (célula_anterior + soma dos tempos de voo do mês)
-  const updateCelulaAtual = async (entriesData?: any[]) => {
+  const updateCelulaAtual = async (entriesData?: Entry[]) => {
     if (!logbookMonth) return;
 
     try {
-      // Usar entries passadas ou as do state
       const entriesToUse = entriesData || entries;
 
-      // Buscar todos os voos do mês
       const periodEntries = entriesToUse.filter(e => {
         const date = new Date(e.entry_date);
         return date.getUTCMonth() + 1 === selectedMonth &&
           date.getUTCFullYear() === selectedYear;
       });
 
-      // Calcular o tempo total de voo do mês
-      // Cada voo tem total_time que é o tempo de voo em horas decimais
       const totalFlightTimeThisMonth = periodEntries.reduce((sum, e) => {
         const flightTime = Number(e.total_time) || 0;
         return sum + flightTime;
       }, 0);
 
-      // A célula_atual é a célula anterior + tempo total de voos do mês
       const newCelulaAtual = parseFloat(((logbookMonth.celula_anterior ?? 0) + totalFlightTimeThisMonth).toFixed(2));
-
-      // Calcular célula_disponível (próxima revisão - célula atual)
       const newCelulaDisponivel = parseFloat(((logbookMonth.celula_prox_revisao ?? 0) - newCelulaAtual).toFixed(2));
 
-      // Atualizar no Supabase
       const { error } = await supabase
         .from('logbook_months')
         .update({
@@ -825,7 +832,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       if (error) {
         console.error('Erro ao atualizar célula_atual:', error);
       } else {
-        // Atualizar estado local
         setLogbookMonth({
           ...logbookMonth,
           celula_atual: newCelulaAtual,
@@ -833,7 +839,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         });
         console.log(`✅ Célula_Atual atualizada: ${Number(newCelulaAtual).toFixed(2)} | Disponível: ${newCelulaDisponivel.toFixed(2)}`);
 
-        // Atualizar horas de manutenção
         await updateMaintenanceHours(newCelulaAtual);
       }
     } catch (error) {
@@ -841,23 +846,16 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     }
   };
 
-  // Atualiza as horas_realizadas na manutenção de revisão
   const updateMaintenanceHours = async (celulaAtual: number) => {
     try {
-      // Primeiro tentar buscar manutenção ativa (não concluída)
       let manutencao = await fetchManutencaoRevisaoAtiva(aircraftId);
 
-      // Se não encontrar, tentar buscar por período específico
       if (!manutencao) {
         manutencao = await fetchManutencaoRevisao(aircraftId, selectedMonth, selectedYear);
       }
 
       if (manutencao && manutencao.id) {
-        // Calcular horas realizadas desde a célula anterior
-        // A célula_anterior é o ponto de partida para contabilizar horas da manutenção
         const horasRealizadas = celulaAtual - (logbookMonth?.celula_anterior ?? 0);
-
-        // Garantir que o valor não seja negativo
         const horasFinais = Math.max(0, horasRealizadas);
 
         await updateManutencaoHoras(manutencao.id, horasFinais);
@@ -866,7 +864,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       }
     } catch (error) {
       console.error('Erro ao atualizar horas de manutenção:', error);
-      // Não falha o fluxo se a manutenção não puder ser atualizada
     }
   };
 
@@ -907,7 +904,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
 
       if (error) throw error;
 
-      // Atualizar estado local
       setLogbookMonth({
         ...logbookMonth,
         [field]: value
@@ -929,14 +925,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   const handleSaveField = async () => {
     if (!editingField || editFieldValue === '') return;
 
-    // Verificar se o usuário tem permissão para editar este campo
     if ((editingField === 'celula_anterior' || editingField === 'celula_prox_revisao') && !canEditCelulaFields) {
       toast.error('Apenas admin, gestor master, piloto chefe e PIC podem editar célula anterior e próxima revisão');
       setEditingField(null);
       return;
     }
 
-    // Converter para número se for um campo numérico
     const fieldsToConvertToNumber = ['horimetro_inicio', 'horimetro_final', 'horimetro_ativo', 'daily_rate', 'celula_prox_revisao', 'celula_anterior'];
     const valueToSave = fieldsToConvertToNumber.includes(editingField)
       ? parseFloat(editFieldValue)
@@ -946,13 +940,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     setEditFieldValue('');
   };
 
-  // Estado para controlar mês/ano do próximo diário
-  const [nextMonthTarget, setNextMonthTarget] = useState<{ month: number; year: number } | null>(null);
-
-  // Abre o dialog para criar o PRÓXIMO mês (com dados herdados do mês atual)
   const handleOpenCreateNextMonthDialog = async () => {
     try {
-      // Calcular o próximo mês
       let nextMonth = selectedMonth + 1;
       let nextYear = selectedYear;
       if (nextMonth > 12) {
@@ -960,7 +949,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         nextYear += 1;
       }
 
-      // Verificar se o mês já existe
       const { data: existingMonth } = await supabase
         .from('logbook_months')
         .select('*')
@@ -974,10 +962,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         return;
       }
 
-      // Guardar o mês alvo para uso no dialog
       setNextMonthTarget({ month: nextMonth, year: nextYear });
 
-      // Usar dados do mês atual como base
       if (logbookMonth) {
         setPreviousMonthData({
           celula_atual: logbookMonth.celula_atual ?? 0,
@@ -1010,9 +996,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
 
   // ===================== FUNÇÕES DE CRUD =====================
 
-  // ===================== CALLBACK DE SUCESSO DO FORMULÁRIO =====================
   const handleFormSuccess = async () => {
-    // Recarregar entries
     const { data } = await supabase
       .from('logbook_entries')
       .select('*')
@@ -1022,15 +1006,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     setEntries(data || []);
   };
 
-  // SALVAR NOVO VOO (mantido para compatibilidade)
   const handleSaveFlight = async () => {
-    // Validação básica obrigatória
     if (!newEntry.pic_canac || !newEntry.departure_aerodrome || !newEntry.arrival_aerodrome) {
       toast.error('Preencha todos os campos obrigatórios: PIC, Origem e Destino');
       return;
     }
 
-    // Validação por tipo de voo
     if (flightType === 'cliente' && !newEntry.client_id) {
       toast.error('Selecione um cliente para este voo');
       return;
@@ -1057,32 +1038,25 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     }
 
     try {
-      // ====== INÍCIO DO CÁLCULO DE DIÁRIAS ======
-
-      // 1. Buscar TODOS os voos do período (para cálculo correto)
       const periodEntriesForCalc = entries.filter(e => {
         const date = new Date(e.entry_date);
         return date.getUTCMonth() + 1 === selectedMonth &&
           date.getUTCFullYear() === selectedYear;
       });
 
-      // 2. Criar entrada temporária com ID único
-      const tempEntry = {
+      const tempEntry: Entry = {
         ...newEntry,
         id: `temp-${Date.now()}`,
         departure_aerodrome: newEntry.departure_aerodrome,
         arrival_aerodrome: newEntry.arrival_aerodrome,
         entry_date: newEntry.entry_date
-      };
+      } as Entry;
 
-      // 3. Adicionar à lista para cálculo
       const allEntriesForCalc = [...periodEntriesForCalc, tempEntry];
 
-      // 4. Calcular diárias (automático ou manual)
       let dailyAllowance = 0;
 
       if (newEntry.daily_quantity > 0) {
-        // Se o usuário informou manualmente, usar esse valor
         dailyAllowance = newEntry.daily_quantity * (logbookMonth.daily_rate || 0);
         console.log('📋 Diárias (Manual):', {
           quantidade: newEntry.daily_quantity,
@@ -1090,7 +1064,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
           total: dailyAllowance
         });
       } else {
-        // Caso contrário, calcular automaticamente
         dailyAllowance = calculateDailyAllowanceForEntry(
           tempEntry,
           logbookMonth.base_aerodrome || '',
@@ -1106,10 +1079,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         });
       }
 
-      // ====== FIM DO CÁLCULO DE DIÁRIAS ======
-
-      // ✅ CORREÇÃO APLICADA: Removidas as colunas borrower_client_id e borrower_partner_name
-      // Essas colunas não existem na tabela logbook_entries
       const { error } = await supabase.from('logbook_entries').insert([{
         logbook_month_id: logbookMonth.id,
         aircraft_id: aircraftId,
@@ -1124,20 +1093,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         pic_canac: newEntry.pic_canac,
         sic_canac: newEntry.sic_canac || null,
         sic_name: newEntry.sic_name || null,
-        // ✅ CORRIGIDO: client_id aponta para quem USOU a aeronave
-        // No empréstimo: borrower_client_id (quem usou)
-        // Em voo normal: client_id (cliente que contratou)
         client_id: newEntry.is_equal_split
           ? null
           : (newEntry.is_loan ? newEntry.borrower_client_id : newEntry.client_id),
-        // ✅ CORRIGIDO: partner_name contém o nome do sócio que USOU
-        // No empréstimo: borrower_partner_name (sócio que usou)
-        // Em voo normal: partner_name (sócio do cliente)
         partner_name: newEntry.is_equal_split 
           ? null 
           : (newEntry.is_loan 
-              ? (newEntry.borrower_partner_name || null)  // Sócio de quem pegou emprestado
-              : (newEntry.partner_name || null)),          // Sócio normal
+              ? (newEntry.borrower_partner_name || null)
+              : (newEntry.partner_name || null)),
         is_equal_split: newEntry.is_equal_split,
         is_loan: newEntry.is_loan || false,
         total_time: newEntry.total_time,
@@ -1166,7 +1129,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
 
       if (error) throw error;
 
-      // Buscar o ID da entrada que foi inserida
       const { data: insertedEntry } = await supabase
         .from('logbook_entries')
         .select('id')
@@ -1178,15 +1140,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         .limit(1)
         .single();
 
-      // Se for empréstimo, registrar na tabela aircraft_loans e no banco de horas (hour_transactions)
       if (flightType === 'emprestimo' && insertedEntry?.id) {
-        // 1) Registrar empréstimo na tabela aircraft_loans
-        // Esta tabela mantém a relação completa: quem emprestou (lender) e quem pegou (borrower)
         const { error: loanError } = await supabase.from('aircraft_loans').insert([
           {
             lender_aircraft_id: aircraftId,
-            lender_client_id: newEntry.client_id, // Cotista que empresta
-            borrower_client_id: newEntry.borrower_client_id, // Cliente que usa
+            lender_client_id: newEntry.client_id,
+            borrower_client_id: newEntry.borrower_client_id,
             hours_borrowed: newEntry.total_time,
             entry_date: newEntry.entry_date,
             logbook_entry_id: insertedEntry.id,
@@ -1199,12 +1158,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
           console.error('Erro ao registrar empréstimo:', loanError);
         }
 
-        // 2) Registrar transação no banco de horas: crédito para quem emprestou
         const { error: transactionError } = await supabase.from('hour_transactions').insert([
           {
             aircraft_id: aircraftId,
-            from_partner_id: newEntry.borrower_client_id, // Quem usou (deve horas)
-            to_partner_id: newEntry.client_id, // Quem emprestou (recebe crédito)
+            from_partner_id: newEntry.borrower_client_id,
+            to_partner_id: newEntry.client_id,
             hours: newEntry.total_time,
             type: 'loan',
             description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome} - Cliente usou aeronave emprestada`,
@@ -1217,7 +1175,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         }
       }
 
-      // Atualizar horas de voo da tripulação (PIC e SIC)
       const entryDate = new Date(newEntry.entry_date);
       await updateCrewFlightHours({
         picId: newEntry.pic_canac,
@@ -1235,7 +1192,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       toast.success(`Voo registrado! ${dailyAllowance > 0 ? `${dailyAllowance} diária(s)` : 'Sem diárias'}`);
       setLastCelula(newEntry.celula);
 
-      // Recarregar entries para atualizar célula_atual
       const { data: updatedEntries } = await supabase
         .from('logbook_entries')
         .select('*')
@@ -1244,11 +1200,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         .order('created_at', { ascending: false });
       if (updatedEntries) {
         setEntries(updatedEntries);
-        // Atualizar célula_atual do mês com os dados mais recentes
         await updateCelulaAtual(updatedEntries);
       }
 
-      // Reset form
       setNewEntry({
         entry_date: format(new Date(), 'yyyy-MM-dd'),
         pic_canac: '',
@@ -1292,7 +1246,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       setFlightType('cliente');
       setShowAddForm(false);
 
-      // Recarregar entries
       const { data } = await supabase
         .from('logbook_entries')
         .select('*')
@@ -1300,14 +1253,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         .order('entry_date', { ascending: false })
         .order('created_at', { ascending: false });
       setEntries(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao salvar voo:", error);
       toast.error("Erro ao salvar voo: " + error.message);
     }
   };
 
-  // EDITAR ENTRADA
-  const handleEditEntry = (entry: any) => {
+  const handleEditEntry = (entry: Entry) => {
     setEditingEntry({ ...entry });
     setEditingEntryId(entry.id);
   };
@@ -1318,22 +1270,21 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
   };
 
   const handleSaveEditedEntry = async () => {
+    if (!editingEntry) return;
+
     if (!editingEntry.pic_canac || !editingEntry.departure_aerodrome || !editingEntry.arrival_aerodrome) {
       toast.error('Preencha todos os campos obrigatórios: PIC, Origem e Destino');
       return;
     }
 
-    // Validação por tipo de voo
     if (!editingEntry.is_equal_split && !editingEntry.is_loan && !editingEntry.client_id) {
       toast.error('Selecione um cliente para este voo ou marque como rateio/empréstimo');
       return;
     }
 
-    if (editingEntry.is_loan) {
-      if (!editingEntry.client_id) {
-        toast.error('Selecione o cotista que está emprestando a aeronave');
-        return;
-      }
+    if (editingEntry.is_loan && !editingEntry.client_id) {
+      toast.error('Selecione o cotista que está emprestando a aeronave');
+      return;
     }
 
     if (!editingEntry.ac_time || !editingEntry.cor_time) {
@@ -1342,10 +1293,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     }
 
     try {
-      // Buscar dados antigos da entrada para recalcular horas corretamente
       const oldEntry = entries.find(e => e.id === editingEntryId);
 
-      // Recalcular diária com a nova regra
       const periodEntriesForCalc = entries.filter(e => {
         const date = new Date(e.entry_date);
         return date.getUTCMonth() + 1 === selectedMonth &&
@@ -1362,13 +1311,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         allEntriesForCalc
       );
 
-      // Se o usuário definiu uma quantidade de diárias manualmente, usar esse valor
       let finalDailyRate = recalculatedDailyRate;
-      if (editingEntry.daily_quantity > 0) {
+      if (editingEntry.daily_quantity && editingEntry.daily_quantity > 0) {
         finalDailyRate = editingEntry.daily_quantity * (logbookMonth?.daily_rate || 0);
       }
 
-      // ✅ CORREÇÃO APLICADA: Mesma lógica do handleSaveFlight
       const { error } = await supabase.from('logbook_entries').update({
         entry_date: editingEntry.entry_date,
         departure_aerodrome: editingEntry.departure_aerodrome,
@@ -1411,13 +1358,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
 
       if (error) throw error;
 
-      // Recalcular horas de voo da tripulação
-      // Se houver mudanças em crew, datas ou valores de horas, atualizar crew_flight_hours
       if (oldEntry) {
         const oldDate = new Date(oldEntry.entry_date);
         const newDate = new Date(editingEntry.entry_date);
 
-        // Se a data, PIC, SIC, total_time, ifr_time ou night_hours mudou, recalcular
         const crewChanged = oldEntry.pic_canac !== editingEntry.pic_canac ||
                            oldEntry.sic_canac !== editingEntry.sic_canac;
         const dateChanged = oldDate.getMonth() !== newDate.getMonth() ||
@@ -1427,7 +1371,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                             oldEntry.night_hours !== editingEntry.night_hours;
 
         if (crewChanged || dateChanged || hoursChanged) {
-          // Remover horas antigas
           if (oldEntry) {
             await updateCrewFlightHours({
               picId: oldEntry.pic_canac,
@@ -1443,7 +1386,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
             });
           }
 
-          // Adicionar horas novas
           await updateCrewFlightHours({
             picId: editingEntry.pic_canac,
             sicId: editingEntry.sic_canac || null,
@@ -1469,18 +1411,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         .order('created_at', { ascending: false });
       if (data) {
         setEntries(data);
-        // Atualizar célula_atual do mês com os dados mais recentes
         await updateCelulaAtual(data);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao atualizar voo:", error);
       toast.error("Erro ao atualizar voo: " + error.message);
     }
   };
 
-  // DELETAR ENTRADA
   const handleDeleteEntry = async (id: string) => {
-    // Verificar permissão: apenas admin, gestor_master, coordenador_de_voo, piloto_chefe e tripulante podem deletar
     const canDeleteEntry = isAdmin || isGestorMaster || isPilotoChefe || isCoordenadorVoo || isTripulante;
 
     if (!canDeleteEntry) {
@@ -1493,7 +1432,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     }
 
     try {
-      // Buscar dados da entrada antes de deletar para poder remover as horas
       const { data: entryToDelete } = await supabase
         .from('logbook_entries')
         .select('*')
@@ -1504,8 +1442,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         throw new Error('Entrada não encontrada');
       }
 
-      // Deletar registros relacionados em cascade
-      // 1. Deletar aircraft_loans associadas a esta entrada
       if (entryToDelete.is_loan) {
         const { error: loansError } = await supabase
           .from('aircraft_loans')
@@ -1516,7 +1452,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
           console.error('Erro ao deletar aircraft_loans:', loansError);
         }
 
-        // 2. Deletar hour_transactions associadas a esta entrada
         const { error: transError } = await supabase
           .from('hour_transactions')
           .delete()
@@ -1527,11 +1462,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         }
       }
 
-      // 3. Deletar a entrada
       const { error } = await supabase.from('logbook_entries').delete().eq('id', id);
       if (error) throw error;
 
-      // 4. Remover as horas de voo da tripulação
       const entryDate = new Date(entryToDelete.entry_date);
       await updateCrewFlightHours({
         picId: entryToDelete.pic_canac,
@@ -1556,16 +1489,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         .order('created_at', { ascending: false });
       if (data) {
         setEntries(data);
-        // Atualizar célula_atual do mês com os dados mais recentes
         await updateCelulaAtual(data);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao deletar lançamento:", error);
       toast.error("Erro ao deletar lançamento: " + error.message);
     }
   };
 
-  // REDIMENSIONAMENTO DE COLUNAS
   const handleResizeMouseDown = (columnKey: string, e: React.MouseEvent) => {
     e.preventDefault();
     setResizingColumn(columnKey);
@@ -1597,10 +1528,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     };
   }, [resizingColumn, resizeStart]);
 
-  // ABRIR DIALOG PARA CRIAR MÊS
   const handleOpenCreateMonthDialog = async () => {
     try {
-      // Buscar o último mês para obter dados anteriores
       const { data: lastMonthData } = await supabase
         .from('logbook_months')
         .select('*')
@@ -1613,7 +1542,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       if (lastMonthData) {
         setPreviousMonthData(lastMonthData);
       } else {
-        // Se não há mês anterior, usar dados da aeronave
         setPreviousMonthData({
           celula_atual: aircraft?.cell_hours_current || 0,
           celula_prox_revisao: aircraft?.celula_prox_revisao || 0,
@@ -1628,7 +1556,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       setShowCreateMonthDialog(true);
     } catch (error) {
       console.error("Erro ao buscar dados do mês anterior:", error);
-      // Abrir dialog mesmo com erro
       setPreviousMonthData({
         celula_atual: aircraft?.cell_hours_current || 0,
         celula_prox_revisao: 0,
@@ -1637,16 +1564,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     }
   };
 
-  // CRIAR MÊS COM DADOS DO FORMULÁRIO
   const handleCreateMonthWithData = async (monthData: any) => {
     try {
       setCreatingMonth(true);
 
-      // Usa mês/ano do dialog (monthData pode ter mês/ano selecionado pelo usuário)
       const targetMonth = monthData.month || selectedMonth;
       const targetYear = monthData.year || selectedYear;
 
-      // Verificar se já existe um diário para este mês/ano
       const { data: existingMonth, error: checkError } = await supabase
         .from('logbook_months')
         .select('id, month, year')
@@ -1674,12 +1598,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       if (error) throw error;
 
       if (newMonth) {
-        // Atualiza o mês selecionado para o mês criado
         setSelectedMonth(targetMonth);
         setSelectedYear(targetYear);
         setLogbookMonth(newMonth);
 
-        // Criar/atualizar manutenção de revisão automaticamente se houver próxima revisão
         if (monthData.celula_prox_revisao && monthData.celula_prox_revisao > 0) {
           try {
             await ensureRevisionMaintenance(
@@ -1697,7 +1619,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
 
         toast.success(`Diário de ${MONTHS[targetMonth - 1]}/${targetYear} criado com sucesso!`);
         
-        // Atualizar lista de meses disponíveis
         setAvailableMonths(prev => [...prev, { month: targetMonth, year: targetYear }]);
       }
     } catch (error: any) {
@@ -1708,7 +1629,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       setCreatingMonth(false);
     }
   };
-
 
   // ===================== RENDERS CONDICIONAIS =====================
   if (loading) {
@@ -1721,21 +1641,197 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
     );
   }
 
-
-  if (!aircraft) return <Layout>
-    <div className="h-screen flex items-center justify-center bg-[#070910] text-white">
-      <div className="text-center">
-        <Plane size={48} className="mx-auto mb-4 text-slate-500" />
-        <p>Aeronave não encontrada</p>
-      </div>
-    </div>
-  </Layout>;
+  if (!aircraft) {
+    return (
+      <Layout>
+        <div className="h-screen flex items-center justify-center bg-[#070910] text-white">
+          <div className="text-center">
+            <Plane size={48} className="mx-auto mb-4 text-slate-500" />
+            <p>Aeronave não encontrada</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
   
   return (
-    <Layout children={''}>
-      {/* O resto do JSX continua igual... */}
-      {/* Por questões de espaço, mantive apenas a parte crítica corrigida acima */}
-      {/* O componente visual (return JSX) permanece exatamente como está no seu código original */}
+    <Layout>
+      <div className="min-h-screen bg-gradient-to-br from-[#070910] via-[#0a0f1c] to-[#070910] text-white p-6">
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onBack}
+              className="text-slate-400 hover:text-white hover:bg-slate-800"
+            >
+              <ArrowLeft size={20} />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-white">Diário de Bordo</h1>
+              <p className="text-slate-400">{aircraft.registration} - {aircraft.model}</p>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowExportDialog(true)}
+              className="border-slate-700 hover:bg-slate-800"
+            >
+              <Download size={16} className="mr-2" />
+              Exportar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAddForm(true)}
+              className="border-sky-500 text-sky-500 hover:bg-sky-500/10"
+            >
+              <Plus size={16} className="mr-2" />
+              Novo Voo
+            </Button>
+          </div>
+        </div>
+
+        {/* Month Navigation */}
+        <div className="mb-6 flex items-center justify-between bg-slate-900/50 rounded-lg p-4 border border-slate-800">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={goToPreviousMonth}
+            disabled={!isMonthAvailable(selectedMonth - 1, selectedYear)}
+            className="text-slate-400 hover:text-white hover:bg-slate-800"
+          >
+            <ChevronLeft size={20} />
+          </Button>
+
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-white">
+              {MONTHS[selectedMonth - 1]} {selectedYear}
+            </h2>
+            {logbookMonth && (
+              <div className="text-sm text-slate-400 mt-1">
+                Célula: {logbookMonth.celula_atual?.toFixed(1) || '0.0'}h
+              </div>
+            )}
+          </div>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={goToNextMonth}
+            disabled={!isMonthAvailable(selectedMonth + 1, selectedYear)}
+            className="text-slate-400 hover:text-white hover:bg-slate-800"
+          >
+            <ChevronRight size={20} />
+          </Button>
+        </div>
+
+        {/* Search */}
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Input
+              type="text"
+              placeholder="Buscar por aeródromo ou PIC..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500"
+            />
+          </div>
+        </div>
+
+        {/* Entries Table */}
+        <div className="bg-slate-900/50 rounded-lg border border-slate-800 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-slate-800 bg-slate-900/70">
+                  <th className="p-3 text-left text-sm font-medium text-slate-300">Data</th>
+                  <th className="p-3 text-left text-sm font-medium text-slate-300">De</th>
+                  <th className="p-3 text-left text-sm font-medium text-slate-300">Para</th>
+                  <th className="p-3 text-left text-sm font-medium text-slate-300">PIC</th>
+                  <th className="p-3 text-left text-sm font-medium text-slate-300">Total</th>
+                  <th className="p-3 text-left text-sm font-medium text-slate-300">Célula</th>
+                  <th className="p-3 text-left text-sm font-medium text-slate-300">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredEntries.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-slate-500">
+                      Nenhum voo registrado neste período
+                    </td>
+                  </tr>
+                ) : (
+                  filteredEntries.map((entry) => (
+                    <tr key={entry.id} className="border-b border-slate-800 hover:bg-slate-800/30">
+                      <td className="p-3 text-sm text-white">
+                        {formatDateFromISO(entry.entry_date)}
+                      </td>
+                      <td className="p-3 text-sm text-white">{entry.departure_aerodrome}</td>
+                      <td className="p-3 text-sm text-white">{entry.arrival_aerodrome}</td>
+                      <td className="p-3 text-sm text-white">
+                        {crew.find(c => c.id === entry.pic_canac)?.full_name || '-'}
+                      </td>
+                      <td className="p-3 text-sm text-white">
+                        {decimalToHHMM(entry.total_time)}
+                      </td>
+                      <td className="p-3 text-sm text-white">
+                        {entry.celula?.toFixed(1) || '-'}
+                      </td>
+                      <td className="p-3">
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditEntry(entry)}
+                            className="text-slate-400 hover:text-sky-500 hover:bg-sky-500/10"
+                          >
+                            <Edit size={16} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteEntry(entry.id)}
+                            className="text-slate-400 hover:text-red-500 hover:bg-red-500/10"
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Dialogs */}
+        {showCreateMonthDialog && (
+          <CreateMonthDialog
+            open={showCreateMonthDialog}
+            onOpenChange={setShowCreateMonthDialog}
+            aircraftId={aircraftId}
+            previousMonthData={previousMonthData}
+            onSuccess={handleCreateMonthWithData}
+          />
+        )}
+
+        {showExportDialog && (
+          <ExportLogbookDialog
+            open={showExportDialog}
+            onOpenChange={setShowExportDialog}
+            aircraftId={aircraftId}
+            month={selectedMonth}
+            year={selectedYear}
+          />
+        )}
+      </div>
     </Layout>
   );
 };
