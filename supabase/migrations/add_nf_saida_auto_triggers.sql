@@ -199,3 +199,100 @@ CREATE TRIGGER trigger_update_controle_bancario_nf_saida
 AFTER UPDATE ON public.notas_fiscais_saida
 FOR EACH ROW
 EXECUTE FUNCTION update_controle_bancario_from_nf_saida();
+
+-- =====================================================
+-- TRIGGER: Sincronizar Notas Fiscais de Saída com Contas a Receber
+-- =====================================================
+-- Quando uma nota fiscal de saída é criada com status "pendente" ou "recebido",
+-- cria automaticamente um registro em contas_areceber
+
+CREATE OR REPLACE FUNCTION create_contas_areceber_from_nf_saida()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Verificar se o status é válido (não criar para cancelado)
+  IF NEW.status = 'cancelado' THEN
+    RETURN NEW;
+  END IF;
+
+  -- Verificar se já existe registro em contas_areceber para esta NF
+  IF NOT EXISTS (
+    SELECT 1 FROM public.contas_areceber
+    WHERE numero = NEW.numero
+  ) THEN
+    -- Inserir entrada em contas_areceber
+    INSERT INTO public.contas_areceber (
+      numero,
+      cliente_nome,
+      cliente_cnpj,
+      data_criacao,
+      data_vencimento,
+      valor,
+      categoria,
+      descricao,
+      status,
+      aeronave,
+      criado_por,
+      arquivo_pdf_url
+    ) VALUES (
+      NEW.numero,
+      NEW.cliente_nome,
+      NEW.cliente_cnpj,
+      NEW.data_criacao,
+      NEW.data_vencimento,
+      NEW.valor,
+      NEW.categoria,
+      COALESCE(NEW.descricao, 'NF Saída - ' || NEW.numero),
+      CASE
+        WHEN NEW.status = 'recebido' THEN 'recebido'
+        WHEN NEW.status = 'pendente' THEN 'pendente'
+        ELSE NEW.status
+      END,
+      NEW.aeronave,
+      NEW.criado_por,
+      NEW.arquivo_pdf_url
+    );
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Criar trigger na inserção de notas fiscais de saída
+DROP TRIGGER IF EXISTS trigger_create_contas_areceber_nf_saida ON public.notas_fiscais_saida;
+CREATE TRIGGER trigger_create_contas_areceber_nf_saida
+AFTER INSERT ON public.notas_fiscais_saida
+FOR EACH ROW
+EXECUTE FUNCTION create_contas_areceber_from_nf_saida();
+
+-- =====================================================
+-- TRIGGER: Atualizar status em contas_areceber quando NF muda status
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION update_contas_areceber_from_nf_saida()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Apenas processar se o status foi alterado
+  IF OLD.status IS DISTINCT FROM NEW.status THEN
+    -- Atualizar registros em contas_areceber
+    UPDATE public.contas_areceber
+    SET
+      status = CASE
+        WHEN NEW.status = 'recebido' THEN 'recebido'
+        WHEN NEW.status = 'pendente' THEN 'pendente'
+        WHEN NEW.status = 'cancelado' THEN 'cancelado'
+        ELSE NEW.status
+      END,
+      atualizado_em = CURRENT_TIMESTAMP
+    WHERE numero = NEW.numero;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Criar trigger na atualização de notas fiscais de saída
+DROP TRIGGER IF EXISTS trigger_update_contas_areceber_nf_saida ON public.notas_fiscais_saida;
+CREATE TRIGGER trigger_update_contas_areceber_nf_saida
+AFTER UPDATE ON public.notas_fiscais_saida
+FOR EACH ROW
+EXECUTE FUNCTION update_contas_areceber_from_nf_saida();
