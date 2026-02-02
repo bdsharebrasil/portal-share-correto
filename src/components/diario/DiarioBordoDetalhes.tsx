@@ -3215,14 +3215,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                       Clique em "Novo Lançamento" para adicionar um voo
                     </div>
                   </td>
-                </tr> : filteredEntries.map(e => {
+                </tr> : filteredEntries.map((e, idx) => {
                   const picCrew = crew.find(c => c.id === e.pic_canac);
                   const sicCrew = crew.find(c => c.id === e.sic_canac);
                   const clientName = clients.find(c => c.id === e.client_id)?.company_name;
+                  const monthLineNumber = idx + 1;
                   return <tr key={e.id} className="hover:bg-slate-800/30 transition-colors group border-b border-slate-800/50">
                     <td className="p-2 whitespace-nowrap text-center text-xs" style={{ width: `${columnWidths.date}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <div className="flex items-center justify-center gap-1">
-                        <span className="text-slate-500 text-[10px]" title={`Número sequencial: ${e.sequential_number}`}>#{e.sequential_number}</span>
+                        <span className="text-slate-500 text-[10px]" title={`Número da linha do mês: ${monthLineNumber}`}>#{monthLineNumber}</span>
                         <span className="text-white font-bold">{formatDateFromISO(e.entry_date)}</span>
                       </div>
                     </td>
