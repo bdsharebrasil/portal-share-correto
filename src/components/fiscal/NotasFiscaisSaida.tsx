@@ -706,7 +706,41 @@ export function NotasFiscaisSaida() {
 
       const CATEGORIA_ID = "2874b45b-a3bb-4bec-8f7e-74b328f8693c";
 
-      // 1. Inserir em controle_bancario
+      // Buscar client_id pelo nome
+      let clientId: string | null = null;
+      if (reciboData.cliente_id) {
+        clientId = reciboData.cliente_id;
+      } else {
+        const { data: clientData } = await supabase
+          .from("clients")
+          .select("id")
+          .eq("company_name", reciboData.cliente_nome)
+          .single();
+        clientId = clientData?.id || null;
+      }
+
+      // Buscar aeronave_id pelo registro
+      let aeronaveId: string | null = null;
+      if (reciboData.aeronave_id) {
+        aeronaveId = reciboData.aeronave_id;
+      } else {
+        const { data: aeroData } = await supabase
+          .from("aircraft")
+          .select("id")
+          .eq("registration", reciboData.aeronave_registro)
+          .single();
+        aeronaveId = aeroData?.id || null;
+      }
+
+      // Buscar grupo_categoria pela categoria_id
+      const { data: categoriaData } = await supabase
+        .from("categorias_movimentacao")
+        .select("grupo_categoria")
+        .eq("id", CATEGORIA_ID)
+        .single();
+      const grupoCategoria = categoriaData?.grupo_categoria || null;
+
+      // 1. Inserir em controle_bancario com todos os campos
       const { error: controleBancarioError } = await supabase
         .from("controle_bancario")
         .insert({
@@ -719,7 +753,14 @@ export function NotasFiscaisSaida() {
           categoria_id: CATEGORIA_ID,
           criado_por: currentUser.id,
           descricao: reciboData.descricao || "Recibo de Saída - Serviços",
-          recibo_url: reciboUrl, // ✅ Armazenar URL do recibo
+          recibo_url: reciboUrl,
+          // ✅ NOVOS CAMPOS ADICIONADOS:
+          client_id: clientId,
+          client_name: reciboData.cliente_nome,
+          aeronave_id: aeronaveId,
+          aeronave_registro: reciboData.aeronave_registro,
+          grupo_categoria: grupoCategoria,
+          colaborador_id: currentUser.id,
         });
 
       if (controleBancarioError) {
