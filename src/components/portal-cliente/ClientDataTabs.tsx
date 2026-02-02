@@ -467,7 +467,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           <Card className="bg-gradient-card border-border">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-foreground">
-                <FileText className="h-5 w-5 text-primary" />
+                <DollarSign className="h-5 w-5 text-primary" />
                 Dados Financeiros
               </CardTitle>
               <CardDescription className="text-muted-foreground">
