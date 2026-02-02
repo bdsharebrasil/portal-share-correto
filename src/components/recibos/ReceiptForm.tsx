@@ -234,6 +234,12 @@ export function ReceiptForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validações gerais
+    if (!formData.pagadorNome?.trim()) {
+      alert("Por favor, preencha o nome do pagador");
+      return;
+    }
+
     // Validação específica por tipo
     if (isReembolso) {
       if (!formData.clienteId) {
@@ -246,12 +252,6 @@ export function ReceiptForm({
       }
       if (!formData.reembolsoCategoriaId) {
         alert("Por favor, selecione a categoria do reembolso");
-        return;
-      }
-    } else {
-      // Para pagamento, valida nome do pagador
-      if (!formData.pagadorNome?.trim()) {
-        alert("Por favor, preencha o nome do pagador");
         return;
       }
     }
