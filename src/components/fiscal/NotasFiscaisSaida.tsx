@@ -259,8 +259,7 @@ export function NotasFiscaisSaida() {
     try {
       const { data: clientsData } = await supabase
         .from("clients")
-        .select("id, company_name, cnpj, proprietario")
-        .order("company_name");
+        .select("id, company_name, cnpj, proprietario");
 
       const clientesList: Cliente[] = [];
 
@@ -269,6 +268,7 @@ export function NotasFiscaisSaida() {
           // Use company_name if available, fallback to proprietario, or use cnpj as last resort
           const nomeCliente = client.company_name || client.proprietario || client.cnpj || "Cliente";
 
+          // Include client if it has a valid name/identifier
           if (nomeCliente && nomeCliente !== "Cliente") {
             clientesList.push({
               id: client.id,
@@ -279,6 +279,8 @@ export function NotasFiscaisSaida() {
         });
       }
 
+      // Sort by name for consistent display
+      clientesList.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
       setClientes(clientesList);
     } catch (error) {
       console.error("Erro ao carregar clientes:", error);
