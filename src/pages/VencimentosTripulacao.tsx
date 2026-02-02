@@ -160,16 +160,14 @@ export default function VencimentosTripulacao() {
           }
         }
 
-        // Adicionar tripulante com suas habilitações (só se houver habilitações)
-        if (habilitacoes.length > 0) {
-          vencimentosTemp.push({
-            tripulanteId: member.id,
-            tripulanteName: member.full_name,
-            tripulanteAvatar: member.avatar_url,
-            habilitacoes,
-            statusGeral,
-          });
-        }
+        // Adicionar tripulante com suas habilitações (mesmo sem habilitações)
+        vencimentosTemp.push({
+          tripulanteId: member.id,
+          tripulanteName: member.full_name,
+          tripulanteAvatar: member.avatar_url,
+          habilitacoes,
+          statusGeral: habilitacoes.length > 0 ? statusGeral : 'ok',
+        });
       }
 
       setVencimentos(vencimentosTemp);
@@ -505,50 +503,58 @@ export default function VencimentosTripulacao() {
 
                       {/* Lista de Habilitações */}
                       <div className="space-y-3">
-                        {tripulante.habilitacoes.map((hab) => {
-                          const habStatusInfo = getStatusInfo(hab.status);
-                          return (
-                            <div key={hab.id} className={`rounded-lg px-3 py-2 border ${habStatusInfo.borderColor} ${habStatusInfo.bgColor}`}>
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex-1">
-                                  <p className="text-sm font-semibold text-white">{hab.habilitacao}</p>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <Calendar className="h-3 w-3 text-gray-500 flex-shrink-0" />
-                                    <span className="text-xs text-gray-400">
-                                      {new Date(hab.dataVencimento).toLocaleDateString('pt-BR')}
-                                    </span>
+                        {tripulante.habilitacoes.length === 0 ? (
+                          <div className="rounded-lg px-4 py-6 border border-dashed border-white/20 bg-white/5 flex flex-col items-center justify-center text-center">
+                            <Award className="h-8 w-8 text-gray-500 mb-2 opacity-50" />
+                            <p className="text-sm text-gray-400 font-medium">Sem habilitações cadastradas</p>
+                            <p className="text-xs text-gray-500 mt-1">Clique em "Nova Habilitação" no tripulante para adicionar</p>
+                          </div>
+                        ) : (
+                          tripulante.habilitacoes.map((hab) => {
+                            const habStatusInfo = getStatusInfo(hab.status);
+                            return (
+                              <div key={hab.id} className={`rounded-lg px-3 py-2 border ${habStatusInfo.borderColor} ${habStatusInfo.bgColor}`}>
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex-1">
+                                    <p className="text-sm font-semibold text-white">{hab.habilitacao}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <Calendar className="h-3 w-3 text-gray-500 flex-shrink-0" />
+                                      <span className="text-xs text-gray-400">
+                                        {new Date(hab.dataVencimento).toLocaleDateString('pt-BR')}
+                                      </span>
+                                    </div>
                                   </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 hover:bg-white/10"
+                                    onClick={() => {
+                                      setEditingHabilitacao({ habilitacao: hab, tripulanteName: tripulante.tripulanteName });
+                                      setNewDate(hab.dataVencimento);
+                                      setEditDialogOpen(true);
+                                    }}
+                                    title="Editar data de vencimento"
+                                  >
+                                    <Edit className="h-3 w-3" />
+                                  </Button>
                                 </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 w-7 p-0 hover:bg-white/10"
-                                  onClick={() => {
-                                    setEditingHabilitacao({ habilitacao: hab, tripulanteName: tripulante.tripulanteName });
-                                    setNewDate(hab.dataVencimento);
-                                    setEditDialogOpen(true);
-                                  }}
-                                  title="Editar data de vencimento"
-                                >
-                                  <Edit className="h-3 w-3" />
-                                </Button>
-                              </div>
 
-                              {/* Status Badge */}
-                              {hab.status === 'vencido' ? (
-                                <div className="bg-red-500/20 rounded px-2 py-1 border border-red-500/30 inline-block">
-                                  <p className="text-red-300 font-semibold text-xs">Vencido há {Math.abs(hab.diasRestantes)} dias</p>
-                                </div>
-                              ) : (
-                                <div className="inline-block">
-                                  <p className={`${habStatusInfo.textColor} font-semibold text-xs`}>
-                                    {hab.diasRestantes} dias restantes
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                                {/* Status Badge */}
+                                {hab.status === 'vencido' ? (
+                                  <div className="bg-red-500/20 rounded px-2 py-1 border border-red-500/30 inline-block">
+                                    <p className="text-red-300 font-semibold text-xs">Vencido há {Math.abs(hab.diasRestantes)} dias</p>
+                                  </div>
+                                ) : (
+                                  <div className="inline-block">
+                                    <p className={`${habStatusInfo.textColor} font-semibold text-xs`}>
+                                      {hab.diasRestantes} dias restantes
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
                       </div>
                     </div>
                   );
