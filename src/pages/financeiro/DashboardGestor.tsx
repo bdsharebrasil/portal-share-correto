@@ -236,9 +236,6 @@ export default function DashboardGestor() {
             <TabsTrigger value="despesas" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Despesas
             </TabsTrigger>
-            <TabsTrigger value="alertas" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Alertas
-            </TabsTrigger>
             <TabsTrigger value="relatorio-anual" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Relatório Anual
             </TabsTrigger>
