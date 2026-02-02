@@ -1067,14 +1067,14 @@ export function FluxoCaixa() {
                         }}>
                           <div className="flex items-center gap-2">
                             {isEntrada ? (
-                              <ArrowUpCircle className="w-4 h-4 text-orange-400" />
+                              <ArrowUpCircle className={`w-4 h-4 ${isPendente ? "text-orange-400" : "text-green-400"}`} />
                             ) : (
                               <ArrowDownCircle className="w-4 h-4 text-red-400" />
                             )}
                             <span
                               className={
                                 isEntrada
-                                  ? "text-orange-400"
+                                  ? (isPendente ? "text-orange-400" : "text-green-400")
                                   : "text-red-400"
                               }
                             >
@@ -1121,7 +1121,7 @@ export function FluxoCaixa() {
                       )}
                       {expandedColumns.has("valor") && (
                         <TableCell
-                          className={`font-semibold ${isEntrada ? "text-orange-400" : "text-red-400"
+                          className={`font-semibold ${isEntrada ? (isPendente ? "text-orange-400" : "text-green-400") : "text-red-400"
                             }`}
                           style={{
                             width: `${columnWidths.valor}px`,
