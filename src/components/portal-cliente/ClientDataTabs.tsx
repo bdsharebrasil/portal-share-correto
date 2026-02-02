@@ -62,6 +62,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
   const [fuelRecords, setFuelRecords] = useState<any[]>([]);
   const [ctmTracking, setCtmTracking] = useState<any[]>([]);
   const [travelReports, setTravelReports] = useState<TravelReport[]>([]);
+  const [bankReconciliations, setBankReconciliations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [partners, setPartners] = useState<any[]>([]);
   const [activeClientId, setActiveClientId] = useState<string>(clientId);
