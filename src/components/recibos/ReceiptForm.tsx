@@ -70,6 +70,16 @@ export function ReceiptForm({
     reembolsoNotaFiscalFile: null as File | null,
   });
 
+  const [clienteSearchValue, setClienteSearchValue] = useState({
+    clienteId: "",
+    nome: "",
+    documento: "",
+    endereco: "",
+    cidade: "",
+    uf: "",
+    useFromDatabase: false,
+  });
+
   const [aircrafts, setAircrafts] = useState<any[]>([]);
   const [categoriasAgrupadas, setCategoriasAgrupadas] = useState<
     Record<string, Categoria[]>
