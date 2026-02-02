@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useAuth } from "@/contexts/AuthContext";
 // CORREÇÃO: Adicionado 'pdf' na importação abaixo
 import { Document, Page, Text, View, StyleSheet, Image, pdf } from '@react-pdf/renderer';
+import { insertReceiptToBankReconciliations } from "@/services/receiptSubmitHandler";
 
 // --- CONFIGURAÇÃO DO PDF ---
 
@@ -340,9 +341,9 @@ export function NotasFiscaisSaida() {
         arquivo_pdf_url: pdfUrl || null,
       };
 
-      // Adicionar aircraft_id se selecionado
-      if (formData.aircraft_id) {
-        notaData.aircraft_id = formData.aircraft_id;
+      // Adicionar aeronave_registration se selecionada
+      if (formData.aeronave_registration) {
+        notaData.aeronave = formData.aeronave_registration;
       }
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -356,9 +357,9 @@ export function NotasFiscaisSaida() {
 
         error = updateError;
 
-        // Se tiver erro e contiver "aircraft_id", tenta atualizar sem o campo
-        if (error && error.message.includes("aircraft_id")) {
-          const { aircraft_id, ...dataWithoutAircraft } = notaData;
+        // Se tiver erro e contiver "aeronave", tenta atualizar sem o campo
+        if (error && error.message.includes("aeronave")) {
+          const { aeronave, ...dataWithoutAircraft } = notaData;
           const { error: retryError } = await supabase
             .from("notas_fiscais_saida")
             .update(dataWithoutAircraft)
@@ -400,9 +401,9 @@ export function NotasFiscaisSaida() {
         insertedNota = result;
         error = insertError;
 
-        // Se tiver erro e contiver "aircraft_id", tenta inserir sem o campo
-        if (error && error.message.includes("aircraft_id")) {
-          const { aircraft_id, ...dataWithoutAircraft } = notaData;
+        // Se tiver erro e contiver "aeronave", tenta inserir sem o campo
+        if (error && error.message.includes("aeronave")) {
+          const { aeronave, ...dataWithoutAircraft } = notaData;
           const { data: retryResult, error: retryError } = await supabase
             .from("notas_fiscais_saida")
             .insert([dataWithoutAircraft])
@@ -665,10 +666,12 @@ export function NotasFiscaisSaida() {
       // Criar entrada no controle_bancario
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        const descricao = `NF Saída ${nota.numero} - ${nota.cliente_nome}${nota.aeronave_registration ? ` (${nota.aeronave_registration})` : ""}`;
+
         const { error: fluxoError } = await supabase
           .from("controle_bancario")
           .insert({
-            descricao: `NF Saída ${nota.numero} - ${nota.cliente_nome}${nota.aeronave_registration ? ` (${nota.aeronave_registration})` : ""}`,
+            descricao: descricao,
             valor: nota.valor,
             data: new Date().toISOString().split("T")[0],
             data_vencimento: nota.data_vencimento,
@@ -687,6 +690,35 @@ export function NotasFiscaisSaida() {
             description: "Status atualizado, mas houve um erro ao registrar no fluxo de caixa",
             variant: "destructive",
           });
+        } else {
+          // Inserir também em bank_reconciliations
+          const bankRecResult = await insertReceiptToBankReconciliations(
+            {
+              descricao: descricao,
+              valor: nota.valor,
+              data: new Date().toISOString().split("T")[0],
+              data_vencimento: nota.data_vencimento,
+              numero_documento: nota.numero,
+              status: "pendente",
+              client_id: nota.client_id || undefined,
+              client_name: nota.cliente_nome,
+              aeronave_id: nota.aircraft_id || undefined,
+              aeronave_registro: nota.aeronave_registration || undefined,
+              categoria_id: "2874b45b-a3bb-4bec-8f7e-74b328f8693c",
+              nf_url: nota.arquivo_pdf_url || undefined,
+              tipo: "nf",
+            },
+            user.id
+          );
+
+          if (!bankRecResult.success) {
+            console.error("Erro ao inserir em bank_reconciliations:", bankRecResult.error);
+            toast({
+              title: "Aviso",
+              description: "NF registrada no fluxo, mas houve um erro ao registrar na reconciliação bancária",
+              variant: "default",
+            });
+          }
         }
       }
 
@@ -832,6 +864,37 @@ export function NotasFiscaisSaida() {
         });
 
       if (controleBancarioError) throw new Error(`Erro controle_bancario: ${controleBancarioError.message}`);
+
+      // Inserção em Bank Reconciliations
+      const descricaoRecibo = reciboData.descricao || "Recibo de Saída - Serviços";
+      const bankRecResult = await insertReceiptToBankReconciliations(
+        {
+          descricao: descricaoRecibo,
+          valor: parseFloat(reciboData.valor),
+          data: new Date().toISOString().split("T")[0],
+          data_vencimento: reciboData.data_vencimento,
+          numero_documento: numeroRecibo,
+          status: "pendente",
+          client_id: clientId || undefined,
+          client_name: reciboData.cliente_nome,
+          aeronave_id: aeronaveId || undefined,
+          aeronave_registro: reciboData.aeronave_registro,
+          categoria_id: CATEGORIA_ID,
+          recibo_url: reciboUrl,
+          tipo: "recibo",
+        },
+        currentUser.id
+      );
+
+      if (!bankRecResult.success) {
+        console.error("Erro ao inserir em bank_reconciliations:", bankRecResult.error);
+        // Não lançar erro aqui, apenas avisar, pois o recibo já foi criado em controle_bancario
+        toast({
+          title: "Aviso",
+          description: "Recibo criado, mas houve um erro ao registrar na reconciliação bancária",
+          variant: "default",
+        });
+      }
 
       // Inserção em Contas a Receber
       await supabase.from("contas_areceber").insert({
