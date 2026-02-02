@@ -275,21 +275,23 @@ function generateReceiptHTML(data: ReceiptData): string {
 
         /* ===== DESCRIÇÃO DO SERVIÇO (FULLWIDTH) ===== */
         .description-section {
-          margin: 20px 0;
+          margin: 25px 0;
           width: 100%;
         }
 
         .description-content {
           font-size: 11px;
-          line-height: 1.6;
+          line-height: 1.7;
           padding: 0;
         }
 
         .description-note {
           font-size: 10px;
           color: #555;
-          margin-top: 8px;
+          margin-top: 12px;
           font-style: italic;
+          border-left: 2px solid #e8e8e8;
+          padding-left: 10px;
         }
 
         /* ===== DATA ===== */
