@@ -150,6 +150,17 @@ export function ReceiptForm({
         reembolsoNotaFiscalFile: null,
       }));
       setAircrafts([]);
+    } else {
+      // Ao mudar para reembolso, limpa os campos do pagador
+      // pois serão preenchidos automaticamente ao selecionar cliente
+      setFormData((prev) => ({
+        ...prev,
+        pagadorNome: "",
+        pagadorDocumento: "",
+        pagadorEndereco: "",
+        pagadorCidade: "",
+        pagadorUF: "",
+      }));
     }
   }, [formData.receiptType]);
 
@@ -175,7 +186,7 @@ export function ReceiptForm({
         }));
       }
     }
-  }, [formData.clienteId, isReembolso]);
+  }, [formData.clienteId, isReembolso, clientesAtivos]);
 
   const loadAircrafts = async (clientId: string) => {
     const { data } = await supabase
@@ -191,6 +202,38 @@ export function ReceiptForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validação específica por tipo
+    if (isReembolso) {
+      if (!formData.clienteId) {
+        alert("Por favor, selecione o cliente para o reembolso");
+        return;
+      }
+      if (!formData.aircraftId) {
+        alert("Por favor, selecione a aeronave para o reembolso");
+        return;
+      }
+      if (!formData.reembolsoCategoriaId) {
+        alert("Por favor, selecione a categoria do reembolso");
+        return;
+      }
+    } else {
+      // Para pagamento, valida nome do pagador
+      if (!formData.pagadorNome?.trim()) {
+        alert("Por favor, preencha o nome do pagador");
+        return;
+      }
+    }
+
+    // Validações comuns
+    if (!formData.valor || Number(formData.valor) <= 0) {
+      alert("Por favor, preencha um valor válido");
+      return;
+    }
+    if (!formData.servicoDescricao?.trim()) {
+      alert("Por favor, preencha a descrição do serviço");
+      return;
+    }
+
     // Prepara os dados conforme a estrutura da tabela bank_reconciliations
     const submissionData = {
       // Dados básicos
@@ -201,9 +244,9 @@ export function ReceiptForm({
       status: "pendente",
 
       // IDs relacionados
-      client_id: formData.clienteId,
-      aircraft_id: formData.aircraftId,
-      categoria_movimentacao_id: formData.reembolsoCategoriaId,
+      client_id: formData.clienteId || null,
+      aircraft_id: formData.aircraftId || null,
+      categoria_movimentacao_id: formData.reembolsoCategoriaId || null,
 
       // Dados específicos de reembolso
       tipo_documento: formData.reembolsoRateado ? "rateio" : "recibo",
@@ -284,6 +327,74 @@ export function ReceiptForm({
               </SelectContent>
             </Select>
           </div>
+
+          {/* CAMPOS DO PAGADOR - Para tipo PAGAMENTO */}
+          {!isReembolso && (
+            <div className="space-y-4 p-4 border border-border rounded-lg bg-muted/30">
+              <h3 className="font-semibold text-sm">Dados do Pagador</h3>
+              
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Nome do Pagador *</Label>
+                  <Input
+                    value={formData.pagadorNome}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, pagadorNome: e.target.value }))
+                    }
+                    placeholder="Nome completo ou razão social"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <Label>CPF/CNPJ</Label>
+                  <Input
+                    value={formData.pagadorDocumento}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, pagadorDocumento: e.target.value }))
+                    }
+                    placeholder="Documento do pagador"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label>Endereço</Label>
+                <Input
+                  value={formData.pagadorEndereco}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, pagadorEndereco: e.target.value }))
+                  }
+                  placeholder="Endereço completo"
+                />
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Cidade</Label>
+                  <Input
+                    value={formData.pagadorCidade}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, pagadorCidade: e.target.value }))
+                    }
+                    placeholder="Cidade"
+                  />
+                </div>
+
+                <div>
+                  <Label>UF</Label>
+                  <Input
+                    value={formData.pagadorUF}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, pagadorUF: e.target.value }))
+                    }
+                    placeholder="UF"
+                    maxLength={2}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* CLIENTE / AERONAVE */}
           {isReembolso && (

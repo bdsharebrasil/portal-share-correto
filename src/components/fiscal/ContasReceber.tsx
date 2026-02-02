@@ -945,9 +945,9 @@ export function ContasReceber() {
         </CardHeader>
         <CardContent className="space-y-6 pt-6 px-6">
           {/* Período - Destaque */}
-          <div className="flex flex-col lg:flex-row lg:items-center gap-4 p-5 bg-muted/40 rounded-lg border border-border/50">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-center lg:justify-start gap-4 p-5 bg-muted/40 rounded-lg border border-border/50">
             <span className="text-sm font-semibold text-foreground whitespace-nowrap">Período:</span>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 justify-center lg:justify-start">
               <Button
                 variant={filters.periodo === "mes" ? "default" : "outline"}
                 size="sm"
@@ -955,32 +955,39 @@ export function ContasReceber() {
               >
                 Mensal
               </Button>
-              <Button
-                variant={filters.periodo === "ano" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setFilters(prev => ({ ...prev, periodo: "ano" }))}
-              >
-                Anual
-              </Button>
-            </div>
-            {filters.periodo === "mes" ? (
-              <Input
-                type="month"
-                value={filters.mes}
-                onChange={(e) => setFilters(prev => ({ ...prev, mes: e.target.value }))}
-                className="w-[180px] bg-background"
-              />
-            ) : (
-              <Select value={filters.ano} onValueChange={(value) => setFilters(prev => ({ ...prev, ano: value }))}>
-                <SelectTrigger className="w-[120px] bg-background">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[2020, 2021, 2022, 2023, 2024, 2025, 2026].map(year => (
-                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <Button
+            variant={filters.periodo === "ano" ? "default" : "outline"}
+            size="sm"
+              onClick={() => setFilters(prev => ({ ...prev, periodo: "ano" }))}
+            className="min-w-[90px]"
+                          >
+                 Ano
+                  </Button>
+                 </div>
+             
+                   {filters.periodo === "mes" ? (
+                           <Input
+                             type="month"
+                             value={filters.mes}
+                             onChange={(e) => setFilters(prev => ({ ...prev, mes: e.target.value }))}
+                             className="bg-background w-full lg:w-auto lg:min-w-[200px] h-10"
+                           />
+                         ) : (
+                           <Select value={filters.ano} onValueChange={(value) => setFilters(prev => ({ ...prev, ano: value }))}>
+                             <SelectTrigger className="bg-background w-full lg:w-[160px] h-10">
+                               <SelectValue placeholder="Ano" />
+                             </SelectTrigger>
+                             <SelectContent>
+                {Array.from({ length: 5 }, (_, i) => {
+                                    const year = new Date().getFullYear() - i;
+                                    return (
+                                      <SelectItem key={year} value={year.toString()}>
+                                        {year}
+                                      </SelectItem>
+                                    );
+                                  })}
+                                </SelectContent>
+                              </Select>
             )}
           </div>
 

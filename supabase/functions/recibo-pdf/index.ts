@@ -146,167 +146,190 @@ function generateReceiptHTML(data: ReceiptData): string {
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
-          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-          background: #f5f5f5; 
-          padding: 20px;
+          font-family: 'Arial', sans-serif; 
+          background: white; 
+          padding: 40px;
+          color: #333;
         }
         .receipt { 
-          max-width: 800px; 
+          max-width: 900px; 
           margin: 0 auto; 
-          background: white; 
-          border: 2px solid #333;
-          padding: 40px;
+          background: white;
         }
-        .header { 
-          text-align: center; 
-          border-bottom: 2px solid #333; 
-          padding-bottom: 20px; 
-          margin-bottom: 30px; 
-        }
-        .header h1 { 
-          font-size: 28px; 
-          color: #1a365d; 
-          margin-bottom: 10px;
-        }
-        .receipt-number { 
-          font-size: 18px; 
-          color: #666; 
-          font-weight: bold;
-        }
-        .amount-section { 
-          background: #f0f4f8; 
-          padding: 20px; 
-          border-radius: 8px; 
+        .header-top {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
           margin-bottom: 30px;
-          text-align: center;
+          border-bottom: 2px solid #333;
+          padding-bottom: 20px;
         }
-        .amount { 
-          font-size: 36px; 
-          font-weight: bold; 
-          color: #2d3748;
+        .logo-section {
+          display: flex;
+          align-items: center;
+          gap: 15px;
         }
-        .amount-words { 
-          font-size: 14px; 
-          color: #666; 
-          margin-top: 5px;
-          font-style: italic;
+        .logo {
+          width: 80px;
+          height: 80px;
         }
-        .info-section { 
-          margin-bottom: 25px; 
-        }
-        .info-section h3 { 
-          font-size: 14px; 
-          color: #666; 
-          text-transform: uppercase; 
-          margin-bottom: 8px;
-          border-bottom: 1px solid #e2e8f0;
-          padding-bottom: 5px;
-        }
-        .info-section p { 
-          font-size: 16px; 
-          color: #2d3748; 
-          line-height: 1.6;
-        }
-        .reembolso-card {
-          background: #fff3cd;
-          border: 2px solid #ffc107;
-          border-radius: 8px;
-          padding: 20px;
-          margin-bottom: 25px;
-          text-align: center;
-        }
-        .reembolso-card p {
-          color: #856404;
+        .company-info {
           font-weight: bold;
-          font-size: 14px;
-          line-height: 1.8;
+          font-size: 18px;
         }
-        .signature-section { 
-          margin-top: 60px; 
-          text-align: center; 
+        .receipt-title {
+          text-align: center;
+          font-size: 24px;
+          font-weight: bold;
+          color: #333;
         }
-        .signature-line { 
-          border-top: 1px solid #333; 
-          width: 300px; 
-          margin: 0 auto 10px;
+        .receipt-number-box {
+          text-align: right;
+          font-size: 12px;
+          color: #666;
         }
-        .footer { 
-          margin-top: 40px; 
-          text-align: center; 
-          font-size: 12px; 
-          color: #999;
+        .amount-box {
+          border: 2px solid #333;
+          padding: 15px;
+          text-align: center;
+          margin: 20px 0;
+          background: #f9f9f9;
         }
-        .grid-2 {
+        .amount {
+          font-size: 28px;
+          font-weight: bold;
+          color: #333;
+        }
+        .content-section {
+          margin: 20px 0;
+        }
+        .section-title {
+          font-weight: bold;
+          font-size: 12px;
+          background: #f0f0f0;
+          padding: 8px 10px;
+          margin-bottom: 10px;
+          text-transform: uppercase;
+        }
+        .section-content {
+          font-size: 12px;
+          line-height: 1.6;
+          padding: 0 10px;
+          margin-bottom: 15px;
+        }
+        .two-column {
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 20px;
+          margin: 20px 0;
         }
-        @media print {
-          body { background: white; padding: 0; }
-          .receipt { border: none; }
+        .date-section {
+          margin: 20px 0;
+          text-align: center;
+        }
+        .date-section p {
+          font-size: 13px;
+          margin: 5px 0;
+        }
+        .footer {
+          margin-top: 40px;
+          text-align: center;
+          border-top: 2px solid #333;
+          padding-top: 20px;
+        }
+        .footer-logo {
+          width: 60px;
+          height: 60px;
+          margin-bottom: 10px;
+          display: inline-block;
+        }
+        .footer-text {
+          font-size: 11px;
+          font-weight: bold;
+          color: #666;
+        }
+        .signature-section {
+          margin-top: 40px;
+          text-align: center;
+        }
+        .signature-line {
+          border-top: 1px solid #333;
+          width: 300px;
+          margin: 20px auto 5px;
+        }
+        .signature-name {
+          font-size: 12px;
+          margin-top: 10px;
         }
       </style>
     </head>
     <body>
       <div class="receipt">
-        <div class="header">
-          <h1>RECIBO DE ${isReembolso ? "REEMBOLSO" : "PAGAMENTO"}</h1>
-          <div class="receipt-number">Nº ${data.receipt_number}</div>
+        <!-- Header com Logo e Título -->
+        <div class="header-top">
+          <div class="logo-section">
+            <img src="/logoshare.png" alt="Logo" class="logo" style="max-width: 80px;">
+            <div class="company-info">RECIBO</div>
+          </div>
+          <div class="receipt-title">RECIBO</div>
+          <div class="receipt-number-box">
+            <strong>NÚMERO DO RECIBO</strong><br>
+            ${data.receipt_number}
+          </div>
         </div>
 
-        ${isReembolso ? `
-        <div class="reembolso-card">
-          <p>${reembolsoCardText}</p>
-        </div>
-        ` : ''}
-
-        <div class="amount-section">
+        <!-- Valor em Destaque -->
+        <div class="amount-box">
           <div class="amount">${formatCurrency(data.amount)}</div>
-          <div class="amount-words">(${valorExtenso})</div>
         </div>
 
-        <div class="info-section">
-          <h3>Pagador</h3>
-          <p>
+        <!-- Seção Emissor (Share Brasil) -->
+        <div class="content-section">
+          <div class="section-title">Emissor</div>
+          <div class="section-content">
+            <strong>SHARE BRASIL SERVIÇOS AERONÁUTICOS</strong><br>
+            CNPJ: 01.234.567/0001-89<br>
+            (65) 99818-0312<br>
+            AV. PRESIDENTE ARTHUR BERNARDES, 1437<br>
+            VÁRZEA GRANDE/MT - CEP 78125-100
+          </div>
+        </div>
+
+        <!-- Seção Pagador -->
+        <div class="content-section">
+          <div class="section-title">Pagador</div>
+          <div class="section-content">
             <strong>${data.payer_name}</strong><br>
             ${data.payer_document ? `CPF/CNPJ: ${data.payer_document}<br>` : ''}
             ${data.payer_address ? `${data.payer_address}<br>` : ''}
-            ${data.payer_city || data.payer_uf ? `${data.payer_city || ''}${data.payer_city && data.payer_uf ? ' - ' : ''}${data.payer_uf || ''}` : ''}
-          </p>
-        </div>
-
-        <div class="info-section">
-          <h3>Referente a</h3>
-          <p>${data.service_description}</p>
-        </div>
-
-        <div class="grid-2">
-          <div class="info-section">
-            <h3>Data de Emissão</h3>
-            <p>${formatDateExtended(data.issue_date)}</p>
+            ${data.payer_city || data.payer_uf ? `${data.payer_city || ''}${data.payer_city && data.payer_uf ? ' - ' : ''}${data.payer_uf || ''}<br>` : ''}
           </div>
-          ${data.max_payment_date ? `
-          <div class="info-section">
-            <h3>Prazo Máximo de Quitação</h3>
-            <p>${formatDateExtended(data.max_payment_date)}</p>
+        </div>
+
+        <!-- Descrição do Serviço -->
+        <div class="content-section">
+          <div class="section-title">Descrição do Serviço</div>
+          <div class="section-content">
+            ${data.service_description}
+            <br><em>Obs.: Este documento somerá em validade após a efetiva quitação do valor indicado, mediante comprovação do pagamento.</em>
           </div>
-          ` : ''}
         </div>
 
-        ${data.payment_method ? `
-        <div class="info-section">
-          <h3>Forma de Pagamento</h3>
-          <p>${data.payment_method}</p>
+        <!-- Data -->
+        <div class="date-section">
+          <p><strong>${formatDateExtended(data.issue_date)}</strong></p>
         </div>
-        ` : ''}
 
+        <!-- Assinatura -->
         <div class="signature-section">
           <div class="signature-line"></div>
-          <p>Assinatura do Recebedor</p>
+          <div class="signature-name">SHARE BRASIL SERVIÇOS AERONÁUTICOS</div>
         </div>
 
+        <!-- Rodapé com Logo -->
         <div class="footer">
-          <p>Documento gerado eletronicamente em ${formatDateExtended(new Date().toISOString().split('T')[0])}</p>
+          <img src="/logoshare.png" alt="Logo" class="footer-logo" style="max-width: 60px;">
+          <div class="footer-text">SHARE BRASIL SERVIÇOS AERONÁUTICOS</div>
         </div>
       </div>
     </body>
@@ -328,20 +351,20 @@ Deno.serve(async (req) => {
 
     const html = generateReceiptHTML(receiptData);
 
-    // Para uma implementação completa, você precisaria de um serviço de geração de PDF
-    // Por enquanto, retornamos o HTML que pode ser convertido em PDF no cliente
-    // ou usar um serviço externo como Puppeteer, html-pdf, etc.
-
-    // Aqui estamos simulando a geração - em produção, integrar com serviço de PDF
+    // Usar uma API externa para converter HTML para PDF (htmltopdf.com ou similar)
+    // Ou usar a biblioteca de conversão disponível
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Salvar HTML como arquivo temporário (em produção, converter para PDF)
+    // Tentar usar puppeteer/chromium via API externa ou salvar como HTML
+    // Por enquanto, vamos retornar o HTML que será convertido em PDF no cliente via html2pdf
     const fileName = `recibos/${receiptData.id}_${Date.now()}.html`;
+    
+    const htmlBlob = new Blob([html], { type: "text/html" });
     const { error: uploadError } = await supabase.storage
       .from("receipts")
-      .upload(fileName, html, {
+      .upload(fileName, htmlBlob, {
         contentType: "text/html",
         upsert: true,
       });
@@ -353,11 +376,13 @@ Deno.serve(async (req) => {
 
     const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(fileName);
 
+    // Retornar dados para conversão em PDF no cliente
     return new Response(
       JSON.stringify({ 
         success: true, 
         url: urlData.publicUrl,
-        html: html 
+        html: html,
+        receiptNumber: receiptData.receipt_number
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

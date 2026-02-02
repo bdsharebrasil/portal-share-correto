@@ -95,12 +95,25 @@ export default function EmissaoRecibo() {
     setIsGeneratingPdf(false);
 
     try {
-      // Validação básica
-      if (!formData.pagadorNome?.trim()) throw new Error("Nome do pagador é obrigatório");
-      if (!formData.valor || Number(formData.valor) <= 0) throw new Error("Valor deve ser maior que zero");
-      if (!formData.servicoDescricao?.trim()) throw new Error("Descrição do serviço é obrigatória");
+      // Validação básica - as validações específicas já foram feitas no formulário
+      const isReembolso = formData.receiptType === "reembolso";
+      
+      // Para reembolso, o nome do pagador é preenchido automaticamente do cliente
+      const nomePagador = isReembolso 
+        ? formData.originalFormData?.pagadorNome || formData.pagadorNome
+        : formData.pagadorNome;
 
-      const receiptNumber = generateReceiptNumber(formData.clienteId ? formData.pagadorNome : "");
+      if (!nomePagador?.trim()) {
+        throw new Error("Nome do pagador não foi preenchido corretamente");
+      }
+      if (!formData.valor || Number(formData.valor) <= 0) {
+        throw new Error("Valor deve ser maior que zero");
+      }
+      if (!formData.servicoDescricao?.trim()) {
+        throw new Error("Descrição do serviço é obrigatória");
+      }
+
+      const receiptNumber = generateReceiptNumber(formData.clienteId ? nomePagador : "");
       console.log("Número de recibo:", receiptNumber);
 
       // ===================== UPLOAD DE ARQUIVOS =====================
@@ -128,13 +141,13 @@ export default function EmissaoRecibo() {
       // ===================== INSERIR RECIBO =====================
       // Para reembolso, adiciona número do documento na descrição
       let finalDescription = formData.servicoDescricao.trim();
-      if (formData.receiptType === "reembolso" && formData.reembolsoNumeroDocumento?.trim()) {
+      if (isReembolso && formData.reembolsoNumeroDocumento?.trim()) {
         finalDescription = `${finalDescription} - Documento: ${formData.reembolsoNumeroDocumento.trim()}`;
       }
 
       const receiptPayload = {
         user_id: userId,
-        payer_name: formData.pagadorNome.trim(),
+        payer_name: nomePagador.trim(),
         payer_document: formData.pagadorDocumento?.trim() || "",
         payer_address: formData.pagadorEndereco?.trim() || null,
         payer_city: formData.pagadorCidade?.trim() || null,
@@ -162,7 +175,7 @@ export default function EmissaoRecibo() {
       console.log("Recibo inserido:", receiptData);
 
       // ===================== PROCESSAR REEMBOLSO (bank_reconciliations + rateio) =====================
-      if (formData.receiptType === "reembolso" && formData.clienteId) {
+      if (isReembolso && formData.clienteId) {
         try {
           console.log("📨 Processando reembolso com submissão de recibo...");
 

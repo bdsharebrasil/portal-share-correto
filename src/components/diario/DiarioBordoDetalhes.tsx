@@ -527,7 +527,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         supabase.from('crew_members').select('*'),
         supabase.from('aerodromes').select('*').order('designativo'),
         supabase.from('clients').select('id, company_name, cnpj, partner_name, partner_name2, partner_name3, client_aircraft(aircraft_id)').order('company_name'),
-        supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('entry_date', { ascending: false }),
+        supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('entry_date', { ascending: false }).order('created_at', { ascending: false }),
         supabase.from('logbook_months').select('month, year').eq('aircraft_id', aircraftId).eq('is_closed', false).order('year', { ascending: false }).order('month', { ascending: false }),
         supabase.from('aircraft_partners').select('*, clients(id, company_name)').eq('aircraft_id', aircraftId)
       ]);
@@ -1009,7 +1009,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
       .from('logbook_entries')
       .select('*')
       .eq('aircraft_id', aircraftId)
-      .order('entry_date', { ascending: false });
+      .order('entry_date', { ascending: false })
+      .order('created_at', { ascending: false });
     setEntries(data || []);
   };
 
@@ -1219,7 +1220,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         .from('logbook_entries')
         .select('*')
         .eq('aircraft_id', aircraftId)
-        .order('entry_date', { ascending: false });
+        .order('entry_date', { ascending: false })
+        .order('created_at', { ascending: false });
       if (updatedEntries) {
         setEntries(updatedEntries);
         // Atualizar célula_atual do mês com os dados mais recentes
@@ -1274,7 +1276,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         .from('logbook_entries')
         .select('*')
         .eq('aircraft_id', aircraftId)
-        .order('entry_date', { ascending: false });
+        .order('entry_date', { ascending: false })
+        .order('created_at', { ascending: false });
       setEntries(data || []);
     } catch (error) {
       console.error("Erro ao salvar voo:", error);
@@ -1338,6 +1341,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         allEntriesForCalc
       );
 
+      // Se o usuário definiu uma quantidade de diárias manualmente, usar esse valor
+      let finalDailyRate = recalculatedDailyRate;
+      if (editingEntry.daily_quantity > 0) {
+        finalDailyRate = editingEntry.daily_quantity * (logbookMonth?.daily_rate || 0);
+      }
+
       const { error } = await supabase.from('logbook_entries').update({
         entry_date: editingEntry.entry_date,
         departure_aerodrome: editingEntry.departure_aerodrome,
@@ -1369,7 +1378,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         passengers: editingEntry.passengers,
         cargo_kg: editingEntry.cargo_kg,
         flight_nature: editingEntry.flight_nature,
-        daily_rate: recalculatedDailyRate,
+        daily_quantity: editingEntry.daily_quantity,
+        daily_rate: finalDailyRate,
         occurrences: editingEntry.occurrences || null,
         discrepancies: editingEntry.discrepancies || null,
         corrective_actions: editingEntry.corrective_actions || null
@@ -1427,12 +1437,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
 
       toast.success("Voo atualizado com sucesso!");
       handleCancelEdit();
-
       const { data } = await supabase
         .from('logbook_entries')
         .select('*')
         .eq('aircraft_id', aircraftId)
-        .order('entry_date', { ascending: false });
+        .order('entry_date', { ascending: false })
+        .order('created_at', { ascending: false });
       if (data) {
         setEntries(data);
         // Atualizar célula_atual do mês com os dados mais recentes
@@ -1518,7 +1528,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         .from('logbook_entries')
         .select('*')
         .eq('aircraft_id', aircraftId)
-        .order('entry_date', { ascending: false });
+        .order('entry_date', { ascending: false })
+        .order('created_at', { ascending: false });
       if (data) {
         setEntries(data);
         // Atualizar célula_atual do mês com os dados mais recentes
@@ -3456,33 +3467,33 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
         </div>}
 
         {/* MODAL DE EDIÇÃO DE LANÇAMENTO */}
-        {editingEntry && <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 text-white max-w-2xl w-full rounded-3xl p-6 shadow-2xl my-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-black uppercase tracking-tight">Editar Lançamento</h2>
+        {editingEntry && <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-800 text-white max-w-4xl w-full rounded-3xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-3xl font-black uppercase tracking-tight">Editar Lançamento</h2>
               <button onClick={handleCancelEdit} className="p-2 hover:bg-slate-800 rounded-xl transition-colors">
-                <X size={20} />
+                <X size={24} />
               </button>
             </div>
 
-            <div className="space-y-6 max-h-96 overflow-y-auto pr-2">
+            <div className="space-y-8">
               {/* SEÇÃO 1: DATA E TRIPULAÇÃO */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-blue-500 mb-2">
-                  <Calendar size={16} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">1. Data e Tripulação</span>
+              <div className="space-y-6 bg-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
+                <div className="flex items-center gap-2 text-blue-500 mb-4">
+                  <Calendar size={18} />
+                  <span className="text-sm font-black uppercase tracking-widest">1. Data e Tripulação</span>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Data *</Label>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Data *</Label>
                     <Input type="date" value={editingEntry.entry_date} onChange={e => setEditingEntry({
                       ...editingEntry,
                       entry_date: e.target.value
-                    })} className="bg-slate-950 border-slate-800 text-white" />
+                    })} className="bg-slate-900 border border-slate-700 text-white h-10" />
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2">
+                  <div className="flex items-center gap-3 pt-2 pb-4 border-b border-slate-700">
                     <input
                       type="checkbox"
                       id="split-toggle-edit"
@@ -3492,23 +3503,23 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                         is_equal_split: e.target.checked,
                         client_id: e.target.checked ? '' : editingEntry.client_id
                       })}
-                      className="w-4 h-4 rounded cursor-pointer accent-emerald-500"
+                      className="w-5 h-5 rounded cursor-pointer accent-emerald-500"
                     />
-                    <Label htmlFor="split-toggle-edit" className="text-[9px] uppercase text-slate-400 cursor-pointer">
+                    <Label htmlFor="split-toggle-edit" className="text-sm uppercase text-slate-300 cursor-pointer font-semibold">
                       Rateio Igual (Sócios)
                     </Label>
                   </div>
 
                   {editingEntry.is_equal_split ? (
-                    <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3">
-                      <p className="text-[9px] text-emerald-400 uppercase font-bold tracking-widest mb-2">
+                    <div className="bg-emerald-500/15 border border-emerald-500/40 rounded-xl p-4 space-y-3">
+                      <p className="text-xs text-emerald-400 uppercase font-bold tracking-widest">
                         Tipo de Voo para Rateio
                       </p>
                       <Select value={editingEntry.flight_nature} onValueChange={v => setEditingEntry({
                         ...editingEntry,
                         flight_nature: v
                       })}>
-                        <SelectTrigger className="bg-slate-950 border border-emerald-500/30 text-emerald-400">
+                        <SelectTrigger className="bg-slate-900 border border-emerald-500/50 text-emerald-300 h-10">
                           <SelectValue placeholder="Selecione o tipo" />
                         </SelectTrigger>
                         <SelectContent>
@@ -3521,13 +3532,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                       </Select>
                     </div>
                   ) : (
-                    <div className="space-y-1">
-                      <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Cliente *</Label>
+                    <div className="space-y-2">
+                      <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Cliente *</Label>
                       <Select value={editingEntry.client_id} onValueChange={v => setEditingEntry({
                         ...editingEntry,
                         client_id: v
                       })}>
-                        <SelectTrigger className="bg-slate-950 border-slate-800 text-white">
+                        <SelectTrigger className="bg-slate-900 border border-slate-700 text-white h-10">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -3538,14 +3549,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">PIC *</Label>
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">PIC *</Label>
                     <Select value={editingEntry.pic_canac} onValueChange={v => setEditingEntry({
                       ...editingEntry,
                       pic_canac: v
                     })}>
-                      <SelectTrigger className="bg-slate-950 border-slate-800 text-white">
+                      <SelectTrigger className="bg-slate-900 border border-slate-700 text-white h-10">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -3553,16 +3564,17 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">SIC (Opcional)</Label>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">SIC (Opcional)</Label>
                     <Select value={editingEntry.sic_canac || '__none__'} onValueChange={v => setEditingEntry({
                       ...editingEntry,
                       sic_canac: v === '__none__' ? null : v
                     })}>
-                      <SelectTrigger className="bg-slate-950 border-slate-800 text-white">
+                      <SelectTrigger className="bg-slate-900 border border-slate-700 text-white h-10">
                         <SelectValue placeholder="Selecione ou deixe em branco" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="__none__">— Nenhum —</SelectItem>
                         {crew.map(c => <SelectItem key={c.id} value={c.id}>{c.full_name} ({c.canac})</SelectItem>)}
                       </SelectContent>
                     </Select>
@@ -3571,20 +3583,20 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
               </div>
 
               {/* SEÇÃO 2: AERÓDROMOS */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-green-500 mb-2">
-                  <Navigation size={16} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">2. Aeródromos</span>
+              <div className="space-y-6 bg-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
+                <div className="flex items-center gap-2 text-green-500 mb-4">
+                  <Navigation size={18} />
+                  <span className="text-sm font-black uppercase tracking-widest">2. Aeródromos</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Origem *</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Origem *</Label>
                     <Select value={editingEntry.departure_aerodrome} onValueChange={v => setEditingEntry({
                       ...editingEntry,
                       departure_aerodrome: v
                     })}>
-                      <SelectTrigger className="bg-slate-950 border-slate-800 text-white">
+                      <SelectTrigger className="bg-slate-900 border border-slate-700 text-white h-10">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -3592,13 +3604,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Destino *</Label>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Destino *</Label>
                     <Select value={editingEntry.arrival_aerodrome} onValueChange={v => setEditingEntry({
                       ...editingEntry,
                       arrival_aerodrome: v
                     })}>
-                      <SelectTrigger className="bg-slate-950 border-slate-800 text-white">
+                      <SelectTrigger className="bg-slate-900 border border-slate-700 text-white h-10">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -3610,169 +3622,202 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }) => {
               </div>
 
               {/* SEÇÃO 3: HORÁRIOS */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-cyan-500 mb-2">
-                  <Clock size={16} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">3. Horários</span>
+              <div className="space-y-6 bg-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
+                <div className="flex items-center gap-2 text-cyan-500 mb-4">
+                  <Clock size={18} />
+                  <span className="text-sm font-black uppercase tracking-widest">3. Horários</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Acionamento *</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Acionamento *</Label>
                     <Input type="time" step="60" value={editingEntry.ac_time} onChange={e => setEditingEntry({
                       ...editingEntry,
                       ac_time: e.target.value
                     })} style={{
                       accentColor: 'white',
                       colorScheme: 'dark'
-                    }} className="bg-slate-950 border-slate-800 text-white" />
+                    }} className="bg-slate-900 border border-slate-700 text-white h-10" />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Corte *</Label>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Corte *</Label>
                     <Input type="time" step="60" value={editingEntry.cor_time} onChange={e => setEditingEntry({
                       ...editingEntry,
                       cor_time: e.target.value
                     })} style={{
                       accentColor: 'white',
                       colorScheme: 'dark'
-                    }} className="bg-slate-950 border-slate-800 text-white" />
+                    }} className="bg-slate-900 border border-slate-700 text-white h-10" />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Decolagem</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Decolagem</Label>
                     <Input type="time" step="60" value={editingEntry.dep_time} onChange={e => setEditingEntry({
                       ...editingEntry,
                       dep_time: e.target.value
                     })} style={{
                       accentColor: 'white',
                       colorScheme: 'dark'
-                    }} className="bg-slate-950 border-slate-800 text-white" />
+                    }} className="bg-slate-900 border border-slate-700 text-white h-10" />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Pouso</Label>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Pouso</Label>
                     <Input type="time" step="60" value={editingEntry.pou_time} onChange={e => setEditingEntry({
                       ...editingEntry,
                       pou_time: e.target.value
                     })} style={{
                       accentColor: 'white',
                       colorScheme: 'dark'
-                    }} className="bg-slate-950 border-slate-800 text-white" />
+                    }} className="bg-slate-900 border border-slate-700 text-white h-10" />
                   </div>
                 </div>
               </div>
 
               {/* SEÇÃO 4: COMBUSTÍVEL */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-orange-500 mb-2">
-                  <Fuel size={16} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">4. Combustível</span>
+              <div className="space-y-6 bg-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
+                <div className="flex items-center gap-2 text-orange-500 mb-4">
+                  <Fuel size={18} />
+                  <span className="text-sm font-black uppercase tracking-widest">4. Combustível</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Combustível Inicial (L)</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Combustível Inicial (L)</Label>
                     <Input type="number" step="0.1" value={editingEntry.fuel_liters} onChange={e => setEditingEntry({
                       ...editingEntry,
                       fuel_liters: parseFloat(e.target.value) || 0
-                    })} className="bg-slate-950 border-slate-800 text-orange-400" />
+                    })} className="bg-slate-900 border border-slate-700 text-orange-400 h-10" />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Combustível Consumido (L)</Label>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Combustível Consumido (L)</Label>
                     <Input type="number" step="0.1" value={editingEntry.fuel_consu} onChange={e => setEditingEntry({
                       ...editingEntry,
                       fuel_consu: parseFloat(e.target.value) || 0
-                    })} className="bg-slate-950 border-slate-800 text-orange-300" />
+                    })} className="bg-slate-900 border border-slate-700 text-orange-300 h-10" />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Preço/L (R$)</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Preço/L (R$)</Label>
                     <Input type="number" step="0.01" value={editingEntry.fuel_price_per_liter} onChange={e => setEditingEntry({
                       ...editingEntry,
                       fuel_price_per_liter: parseFloat(e.target.value) || 0
-                    })} className="bg-slate-950 border-slate-800 text-orange-400" />
+                    })} className="bg-slate-900 border border-slate-700 text-orange-400 h-10" />
                   </div>
                 </div>
               </div>
 
               {/* SEÇÃO 5: TEMPOS */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-purple-500 mb-2">
-                  <TrendingUp size={16} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">5. Tempos</span>
+              <div className="space-y-6 bg-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
+                <div className="flex items-center gap-2 text-purple-500 mb-4">
+                  <TrendingUp size={18} />
+                  <span className="text-sm font-black uppercase tracking-widest">5. Tempos</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Tempo Diurno</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Tempo Diurno</Label>
                     <Input type="time" step="60" value={decimalToTimeString(editingEntry.day_time)} onChange={e => setEditingEntry({
                       ...editingEntry,
                       day_time: timeStringToDecimal(e.target.value)
                     })} style={{
                       accentColor: 'white',
                       colorScheme: 'dark'
-                    }} className="bg-slate-950 border-slate-800 text-emerald-400" />
+                    }} className="bg-slate-900 border border-slate-700 text-emerald-400 h-10" />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Tempo Noturno</Label>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Tempo Noturno</Label>
                     <Input type="time" step="60" value={decimalToTimeString(editingEntry.night_hours)} onChange={e => setEditingEntry({
                       ...editingEntry,
                       night_hours: timeStringToDecimal(e.target.value)
                     })} style={{
                       accentColor: 'white',
                       colorScheme: 'dark'
-                    }} className="bg-slate-950 border-slate-800 text-sky-400" />
+                    }} className="bg-slate-900 border border-slate-700 text-sky-400 h-10" />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">IFR</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">IFR</Label>
                     <Input type="time" step="60" value={decimalToTimeString(editingEntry.ifr_time)} onChange={e => setEditingEntry({
                       ...editingEntry,
                       ifr_time: timeStringToDecimal(e.target.value)
                     })} style={{
                       accentColor: 'white',
                       colorScheme: 'dark'
-                    }} className="bg-slate-950 border-slate-800 text-white" />
+                    }} className="bg-slate-900 border border-slate-700 text-white h-10" />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Pousos</Label>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Pousos</Label>
                     <Input type="number" value={editingEntry.pousos} onChange={e => setEditingEntry({
                       ...editingEntry,
                       pousos: parseInt(e.target.value) || 1
-                    })} className="bg-slate-950 border-slate-800 text-white" />
+                    })} className="bg-slate-900 border border-slate-700 text-white h-10" />
                   </div>
                 </div>
               </div>
 
               {/* SEÇÃO 6: PERFORMANCE & CÉLULA */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-pink-500 mb-2">
-                  <Fuel size={16} />
-                  <span className="text-[10px] font-black uppercase tracking-widest">6. Performance & Célula</span>
+              <div className="space-y-6 bg-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
+                <div className="flex items-center gap-2 text-pink-500 mb-4">
+                  <Fuel size={18} />
+                  <span className="text-sm font-black uppercase tracking-widest">6. Performance & Célula</span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">POB (Pessoas)</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">POB (Pessoas)</Label>
                     <Input type="number" value={editingEntry.passengers} onChange={e => setEditingEntry({
                       ...editingEntry,
                       passengers: parseInt(e.target.value) || 0
-                    })} className="bg-slate-950 border-slate-800 text-sky-400" />
+                    })} className="bg-slate-900 border border-slate-700 text-sky-400 h-10" />
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Carga (kg)</Label>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Carga (kg)</Label>
                     <Input type="number" step="0.1" value={editingEntry.cargo_kg} onChange={e => setEditingEntry({
                       ...editingEntry,
                       cargo_kg: parseFloat(e.target.value) || 0
-                    })} className="bg-slate-950 border-slate-800 text-emerald-400" />
+                    })} className="bg-slate-900 border border-slate-700 text-emerald-400 h-10" />
                   </div>
                 </div>
               </div>
+
+              {/* SEÇÃO 7: DIÁRIAS */}
+              {logbookMonth?.has_daily_rate && (
+                <div className="space-y-6 bg-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
+                  <div className="flex items-center gap-2 text-amber-500 mb-4">
+                    <DollarSign size={18} />
+                    <span className="text-sm font-black uppercase tracking-widest">7. Diárias</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Quantidade de Diárias</Label>
+                      <Input type="number" step="0.1" value={editingEntry.daily_quantity ?? 0} onChange={e => setEditingEntry({
+                        ...editingEntry,
+                        daily_quantity: parseFloat(e.target.value) || 0
+                      })} className="bg-slate-900 border border-slate-700 text-amber-400 h-10" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Valor Unitário (R$)</Label>
+                      <div className="bg-slate-950 border border-slate-700 rounded-lg px-3 h-10 flex items-center text-amber-400 font-semibold">
+                        R$ {logbookMonth?.daily_rate?.toFixed(2) || '0.00'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-800/30 border border-slate-700/30 rounded-lg p-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs uppercase text-slate-400 font-bold">Total de Diárias</span>
+                      <span className="text-lg font-black text-amber-400">R$ {((editingEntry.daily_quantity || 0) * (logbookMonth?.daily_rate || 0)).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
             </div>
 

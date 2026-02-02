@@ -1007,10 +1007,11 @@ export function FluxoCaixa() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedTransacoes.map((transacao: any) => {
+                {paginatedTransacoes.map((transacao: any, idx: number) => {
                   const isEntrada =
                     transacao.tipo_movimento === "entrada";
                   const isSelected = selectedIds.has(transacao.id);
+                  const lineNumber = startIndex + idx + 1;
 
                   return (
                     <TableRow
@@ -1031,15 +1032,20 @@ export function FluxoCaixa() {
                           minWidth: `${columnWidths.data}px`,
                           maxWidth: `${columnWidths.data}px`,
                         }}>
-                          {(() => {
-                            const dateStr = transacao.data;
-                            if (dateStr && dateStr.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-                              const [year, month, day] = dateStr.split('-').map(Number);
-                              const date = new Date(year, month - 1, day);
-                              return format(date, "dd/MM/yyyy", { locale: ptBR });
-                            }
-                            return format(new Date(transacao.data), "dd/MM/yyyy", { locale: ptBR });
-                          })()}
+                          <div className="flex items-center gap-1">
+                            <span className="text-foreground/50 text-xs font-semibold">#{lineNumber}</span>
+                            <span>
+                              {(() => {
+                                const dateStr = transacao.data;
+                                if (dateStr && dateStr.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                                  const [year, month, day] = dateStr.split('-').map(Number);
+                                  const date = new Date(year, month - 1, day);
+                                  return format(date, "dd/MM/yyyy", { locale: ptBR });
+                                }
+                                return format(new Date(transacao.data), "dd/MM/yyyy", { locale: ptBR });
+                              })()}
+                            </span>
+                          </div>
                         </TableCell>
                       )}
                       {expandedColumns.has("tipo") && (

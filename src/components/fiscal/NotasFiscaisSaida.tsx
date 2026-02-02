@@ -18,6 +18,7 @@ import { ptBR } from "date-fns/locale";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useCategoriasConta } from "@/hooks/useCategoriasFinanceiro";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface NotaFiscalSaida {
   id: string;
@@ -63,9 +64,22 @@ export function NotasFiscaisSaida() {
   const [showBankDialog, setShowBankDialog] = useState(false);
   const [selectedBankForStatus, setSelectedBankForStatus] = useState<string>("");
   const [notaBeingStatusChanged, setNotaBeingStatusChanged] = useState<NotaFiscalSaida | null>(null);
+  const [showReciboDialog, setShowReciboDialog] = useState(false);
+  const [reciboData, setReciboData] = useState({
+    cliente_id: "",
+    cliente_nome: "",
+    cliente_cnpj: "",
+    aeronave_id: "",
+    aeronave_registro: "",
+    valor: "",
+    data_vencimento: new Date().toISOString().split("T")[0],
+    descricao: "",
+  });
+  const [isGeneratingRecibo, setIsGeneratingRecibo] = useState(false);
   const { contas } = useCategoriasConta();
   const bancos = Array.from(new Set(contas.map(c => c.banco).filter(Boolean))) as string[];
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const defaultCategoria = categoriasReceita.length > 0 ? categoriasReceita[0].nome : "";
 
@@ -189,20 +203,20 @@ export function NotasFiscaisSaida() {
 
         if (error) throw error;
 
-        // Se status mudou para "pago" ou "pendente" durante a edição
-        if ((notaData.status === "pago" || notaData.status === "pendente") &&
-            (editingNota.status !== "pago" && editingNota.status !== "pendente") && user) {
-          const contaBancariaStatus = notaData.status === "pago" ? "confirmado" : "pendente";
-          await (supabase.from("controle_bancario") as any).insert({
+        // Se status mudou para "recebido" durante a edição
+        if (notaData.status === "recebido" && editingNota.status !== "recebido" && user) {
+          // ✅ CORRIGIDO: Usar data_vencimento em vez de data
+          await supabase.from("controle_bancario").insert({
             descricao: `NF Saída ${notaData.numero} - ${notaData.cliente_nome}${formData.aeronave_registration ? ` (${formData.aeronave_registration})` : ""}`,
             valor: notaData.valor,
-            data: new Date().toISOString().split("T")[0],
+            data_vencimento: notaData.data_vencimento,
+            data: new Date().toISOString().split("T")[0], // Data do lançamento
             tipo_movimento: "entrada",
-            categoria: notaData.categoria || "Receita de Serviço",
-            status: contaBancariaStatus,
+            categoria_id: "2874b45b-a3bb-4bec-8f7e-74b328f8693c",
+            status: "confirmado",
             numero_documento: notaData.numero,
-            referencia: `nf_saida_${editingNota.id}`,
-            criado_por: user.id
+            criado_por: user.id,
+            // ✅ REMOVIDO: campo 'referencia' não existe
           });
         }
 
@@ -238,19 +252,19 @@ export function NotasFiscaisSaida() {
 
         if (error) throw error;
 
-        // Se criada com status "pago" ou "pendente"
-        if ((notaData.status === "pago" || notaData.status === "pendente") && user && insertedNota) {
-          const contaBancariaStatus = notaData.status === "pago" ? "confirmado" : "pendente";
-          await (supabase.from("controle_bancario") as any).insert({
+        // Se criada com status "recebido"
+        if (notaData.status === "recebido" && user && insertedNota) {
+          // ✅ CORRIGIDO: Usar data_vencimento
+          await supabase.from("controle_bancario").insert({
             descricao: `NF Saída ${notaData.numero} - ${notaData.cliente_nome}${formData.aeronave_registration ? ` (${formData.aeronave_registration})` : ""}`,
             valor: notaData.valor,
+            data_vencimento: notaData.data_vencimento,
             data: new Date().toISOString().split("T")[0],
             tipo_movimento: "entrada",
-            categoria: notaData.categoria || "Receita de Serviço",
-            status: contaBancariaStatus,
+            categoria_id: "2874b45b-a3bb-4bec-8f7e-74b328f8693c",
+            status: "confirmado",
             numero_documento: notaData.numero,
-            referencia: `nf_saida_${insertedNota.id}`,
-            criado_por: user.id
+            criado_por: user.id,
           });
         }
 
@@ -489,19 +503,20 @@ export function NotasFiscaisSaida() {
       // Criar entrada no controle_bancario
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { error: fluxoError } = await (supabase
-          .from("controle_bancario") as any)
+        // ✅ CORRIGIDO: Incluir data_vencimento
+        const { error: fluxoError } = await supabase
+          .from("controle_bancario")
           .insert({
             descricao: `NF Saída ${nota.numero} - ${nota.cliente_nome}${nota.aeronave_registration ? ` (${nota.aeronave_registration})` : ""}`,
             valor: nota.valor,
             data: new Date().toISOString().split("T")[0],
+            data_vencimento: nota.data_vencimento,
+            categoria_id: "2874b45b-a3bb-4bec-8f7e-74b328f8693c",
             tipo_movimento: "entrada",
-            categoria: nota.categoria || "Receita de Serviço",
-            status: "recebido",
+            status: "confirmado",
             numero_documento: nota.numero,
-            referencia: `nf_saida_${nota.id}`,
-            criado_por: user.id,
-            conta_banco: selectedBankForStatus,
+            conta_banco: selectedBankForStatus, // ✅ Armazenar banco selecionado
+            criado_por: user.id
           });
 
         if (fluxoError) {
@@ -533,14 +548,257 @@ export function NotasFiscaisSaida() {
     }
   };
 
+  // Carregar html2pdf dinamicamente do CDN
+  const loadHtml2Pdf = (): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      if ((window as any).html2pdf) {
+        return resolve((window as any).html2pdf);
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      script.type = 'text/javascript';
+      script.async = true;
+
+      script.onload = () => {
+        if ((window as any).html2pdf) {
+          resolve((window as any).html2pdf);
+        } else {
+          reject(new Error('html2pdf falhou ao carregar'));
+        }
+      };
+
+      script.onerror = () => {
+        reject(new Error('Erro ao carregar html2pdf do CDN'));
+      };
+
+      document.head.appendChild(script);
+    });
+  };
+
+  const generateReciboNumber = async (clienteNome: string) => {
+    // Extrair 3 primeiras letras do cliente em maiúsculas
+    const clienteLetras = clienteNome.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '').padEnd(3, 'X');
+    
+    // Obter ano atual (últimos 2 dígitos)
+    const ano = new Date().getFullYear().toString().slice(-2);
+    
+    // ✅ CORRIGIDO: Buscar no controle_bancario em vez de contas_areceber
+    const { data: existingRecibos, error } = await supabase
+      .from("controle_bancario")
+      .select("numero_documento", { count: "exact" })
+      .like("numero_documento", `REC-${clienteLetras}%/${ano}`)
+      .eq("tipo_movimento", "entrada")
+      .order("numero_documento", { ascending: false });
+    
+    let numero = 1;
+    if (existingRecibos && existingRecibos.length > 0) {
+      // Extrair o número sequencial do recibo existente
+      const ultimoRecibo = existingRecibos[0];
+      const match = ultimoRecibo.numero_documento.match(/REC-[A-Z]{3}(\d+)\/\d{2}/);
+      if (match) {
+        numero = parseInt(match[1]) + 1;
+      }
+    }
+    
+    const numeroFormatado = numero.toString().padStart(3, "0");
+    return `REC-${clienteLetras}${numeroFormatado}/${ano}`;
+  };
+
+  const handleGenerarRecibo = async () => {
+    if (!reciboData.cliente_nome || !reciboData.valor || !reciboData.data_vencimento) {
+      toast({
+        title: "Validação",
+        description: "Preencha cliente, valor e data de vencimento",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // ✅ Validar aeronave (campo obrigatório em contas_areceber)
+    if (!reciboData.aeronave_registro) {
+      toast({
+        title: "Validação",
+        description: "Selecione uma aeronave",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsGeneratingRecibo(true);
+
+      // Gerar número do recibo
+      const numeroRecibo = await generateReciboNumber(reciboData.cliente_nome);
+
+      // Preparar dados para o servidor gerar o PDF
+      const receiptData = {
+        id: `recibo_${numeroRecibo}_${Date.now()}`,
+        receipt_number: numeroRecibo,
+        payer_name: reciboData.cliente_nome,
+        payer_document: reciboData.cliente_cnpj || "000.000.000-00",
+        amount: parseFloat(reciboData.valor),
+        service_description: reciboData.descricao || "Prestação de serviços aeronáuticos",
+        receipt_type: "pagamento" as const,
+        issue_date: new Date().toISOString().split("T")[0],
+        max_payment_date: reciboData.data_vencimento,
+      };
+
+      // Chamar função do servidor para gerar o PDF
+      const { data: pdfResult, error: pdfError } = await supabase.functions.invoke("recibo-pdf", {
+        body: { receiptData },
+      });
+
+      if (pdfError) {
+        throw new Error(`Erro ao gerar PDF: ${pdfError.message}`);
+      }
+
+      if (!pdfResult?.html) {
+        throw new Error("HTML do recibo não foi retornado");
+      }
+
+      // Converter HTML para PDF no cliente
+      const html2pdf = await loadHtml2Pdf();
+      
+      const element = document.createElement('div');
+      element.innerHTML = pdfResult.html;
+      
+      const pdfBlob = await new Promise<Blob>((resolve, reject) => {
+        html2pdf()
+          .set({
+            margin: 10,
+            filename: `${numeroRecibo}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          })
+          .from(element)
+          .outputPdf('blob')
+          .then((blob: Blob) => resolve(blob))
+          .catch((err: any) => reject(err));
+      });
+
+      // Upload do PDF
+      const pdfFile = new File([pdfBlob], `${numeroRecibo}.pdf`, { type: "application/pdf" });
+      const fileName = `recibo_${numeroRecibo}_${Date.now()}.pdf`;
+      const filePath = `recibos/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("nfs-share-saida")
+        .upload(filePath, pdfFile);
+
+      if (uploadError) {
+        throw new Error(`Erro no upload: ${uploadError.message}`);
+      }
+
+      // Obter URL pública
+      const { data: publicUrlData } = supabase.storage
+        .from("nfs-share-saida")
+        .getPublicUrl(filePath);
+
+      const reciboUrl = publicUrlData.publicUrl;
+
+      // Obter usuário atual
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) throw new Error("Usuário não autenticado");
+
+      const CATEGORIA_ID = "2874b45b-a3bb-4bec-8f7e-74b328f8693c";
+
+      // 1. Inserir em controle_bancario
+      const { error: controleBancarioError } = await supabase
+        .from("controle_bancario")
+        .insert({
+          data: new Date().toISOString().split("T")[0],
+          data_vencimento: reciboData.data_vencimento,
+          tipo_movimento: "entrada",
+          status: "pendente",
+          numero_documento: numeroRecibo,
+          valor: parseFloat(reciboData.valor),
+          categoria_id: CATEGORIA_ID,
+          criado_por: currentUser.id,
+          descricao: reciboData.descricao || "Recibo de Saída - Serviços",
+          recibo_url: reciboUrl, // ✅ Armazenar URL do recibo
+        });
+
+      if (controleBancarioError) {
+        throw new Error(`Erro ao inserir em controle_bancario: ${controleBancarioError.message}`);
+      }
+
+      // 2. ✅ CORRIGIDO: Inserir em contas_areceber com os campos corretos
+      const { error: contasAReceberError } = await supabase
+        .from("contas_areceber")
+        .insert({
+          numero: numeroRecibo, // Campo obrigatório
+          cliente_nome: reciboData.cliente_nome,
+          cliente_cnpj: reciboData.cliente_cnpj || "000.000.000-00", // Campo obrigatório
+          data_criacao: new Date().toISOString().split("T")[0], // Campo obrigatório
+          data_vencimento: reciboData.data_vencimento,
+          valor: parseFloat(reciboData.valor),
+          categoria: "Recibo de Serviço", // Campo obrigatório
+          descricao: reciboData.descricao || "Recibo de Serviço",
+          status: "pendente",
+          aeronave: reciboData.aeronave_registro, // Campo obrigatório (FK para aircraft.registration)
+          criado_por: currentUser.id,
+          arquivo_pdf_url: reciboUrl,
+        });
+
+      if (contasAReceberError) {
+        console.error("Erro ao criar contas_areceber:", contasAReceberError);
+        toast({
+          title: "Aviso",
+          description: `Recibo criado, mas houve erro ao registrar em contas a receber: ${contasAReceberError.message}`,
+          variant: "destructive",
+        });
+      }
+
+      // Download automático do PDF
+      const link = document.createElement("a");
+      link.href = reciboUrl;
+      link.download = `${numeroRecibo}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Sucesso",
+        description: `Recibo ${numeroRecibo} gerado e salvo com sucesso!`,
+      });
+
+      // Fechar diálogo e resetar
+      setShowReciboDialog(false);
+      setReciboData({
+        cliente_id: "",
+        cliente_nome: "",
+        cliente_cnpj: "",
+        aeronave_id: "",
+        aeronave_registro: "",
+        valor: "",
+        data_vencimento: new Date().toISOString().split("T")[0],
+        descricao: "",
+      });
+
+      // Recarregar dados se necessário
+      loadNotas();
+    } catch (error: any) {
+      console.error("Erro ao gerar recibo:", error);
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao gerar recibo",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingRecibo(false);
+    }
+  };
+
   const handleSelectCliente = (cliente: Cliente) => {
-    setFormData({
-      ...formData,
+    setReciboData({
+      ...reciboData,
+      cliente_id: cliente.id,
       cliente_nome: cliente.nome,
-      cliente_cnpj: cliente.documento
+      cliente_cnpj: cliente.documento, // ✅ Incluir CNPJ do cliente
     });
     setOpenClientePopover(false);
-    setClienteSearch("");
   };
 
   const filteredClientes = clientes.filter(c =>
@@ -553,7 +811,7 @@ export function NotasFiscaisSaida() {
     .reduce((acc, n) => acc + n.valor, 0);
 
   const totalPago = notas
-    .filter((n) => n.status === "pago")
+    .filter((n) => n.status === "pago" || n.status === "recebido")
     .reduce((acc, n) => acc + n.valor, 0);
 
   return (
@@ -594,7 +852,7 @@ export function NotasFiscaisSaida() {
           <CardContent className="p-6">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-muted-foreground text-sm font-medium">Total Pago</p>
+                <p className="text-muted-foreground text-sm font-medium">Total Recebido</p>
                 <div className="p-2.5 rounded-lg bg-green-500/20 border border-green-500/30">
                   <DollarSign className="w-5 h-5 text-green-500" />
                 </div>
@@ -648,8 +906,8 @@ export function NotasFiscaisSaida() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label className="text-foreground">Cliente/Empresa *</Label>
+                <div>
+                  <Label className="text-foreground">Cliente/Empresa *</Label>
                   <Popover open={openClientePopover} onOpenChange={setOpenClientePopover}>
                     <PopoverTrigger asChild>
                       <div className="relative">
@@ -683,7 +941,14 @@ export function NotasFiscaisSaida() {
                             {filteredClientes.slice(0, 10).map((c) => (
                               <CommandItem
                                 key={c.id}
-                                onSelect={() => handleSelectCliente(c)}
+                                onSelect={() => {
+                                  setFormData({ 
+                                    ...formData, 
+                                    cliente_nome: c.nome,
+                                    cliente_cnpj: c.documento 
+                                  });
+                                  setOpenClientePopover(false);
+                                }}
                                 className="cursor-pointer hover:bg-muted"
                               >
                                 <div>
@@ -801,11 +1066,11 @@ export function NotasFiscaisSaida() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label className="text-foreground">Data de Vencimento</Label>
-                <Input
-                  type="date"
-                  value={formData.data_vencimento}
+                <div>
+                  <Label className="text-foreground">Data de Vencimento</Label>
+                  <Input
+                    type="date"
+                    value={formData.data_vencimento}
                     onChange={(e) => setFormData({ ...formData, data_vencimento: e.target.value })}
                     className="bg-background border-border"
                   />
@@ -824,13 +1089,13 @@ export function NotasFiscaisSaida() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label className="text-foreground">Categoria</Label>
-                <Select value={formData.categoria} onValueChange={(value) => setFormData({ ...formData, categoria: value })}>
-                  <SelectTrigger className="w-full bg-background border-border">
-                    <SelectValue placeholder="Selecione uma categoria" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border" align="start">
+                <div>
+                  <Label className="text-foreground">Categoria</Label>
+                  <Select value={formData.categoria} onValueChange={(value) => setFormData({ ...formData, categoria: value })}>
+                    <SelectTrigger className="w-full bg-background border-border">
+                      <SelectValue placeholder="Selecione uma categoria" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border" align="start">
                       {categoriasReceita.map((cat) => (
                         <SelectItem key={cat.id} value={cat.nome}>
                           {cat.nome}
@@ -845,13 +1110,13 @@ export function NotasFiscaisSaida() {
                   </Select>
                 </div>
                 <div>
-                <Label className="text-foreground">Status</Label>
-                <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as any })}>
-                  <SelectTrigger className="w-full bg-background border-border">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border" align="start">
-                    <SelectItem value="pendente">Pendente</SelectItem>
+                  <Label className="text-foreground">Status</Label>
+                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as any })}>
+                    <SelectTrigger className="w-full bg-background border-border">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border" align="start">
+                      <SelectItem value="pendente">Pendente</SelectItem>
                       <SelectItem value="recebido">Recebido</SelectItem>
                       <SelectItem value="cancelado">Cancelado</SelectItem>
                     </SelectContent>
@@ -929,12 +1194,260 @@ export function NotasFiscaisSaida() {
         </Card>
       )}
 
-      {/* Botão para Nova Nota Fiscal */}
-      {!openDialog && (
-        <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/30 flex items-center gap-2 font-medium mb-6" onClick={() => setOpenDialog(true)}>
-          <Plus className="w-4 h-4" />
-          Nova Nota Fiscal de Saída
-        </Button>
+      {/* Botões de Ação */}
+      {!openDialog && !showReciboDialog && (
+        <div className="flex gap-3 mb-6">
+          <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/30 flex items-center gap-2 font-medium" onClick={() => setOpenDialog(true)}>
+            <Plus className="w-4 h-4" />
+            Nova Nota Fiscal de Saída
+          </Button>
+          <Button className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 shadow-lg shadow-emerald-500/30 flex items-center gap-2 font-medium" onClick={() => setShowReciboDialog(true)}>
+            <Plus className="w-4 h-4" />
+            Novo Recibo Saída
+          </Button>
+        </div>
+      )}
+
+      {/* Formulário para Novo Recibo - Renderizado Inline */}
+      {showReciboDialog && (
+        <Card className="bg-gradient-to-br from-emerald-600/10 to-card border-emerald-500/30 shadow-lg mb-6">
+          <CardHeader className="border-b border-border/40 pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-foreground">Novo Recibo Saída</CardTitle>
+              <Button
+                variant="ghost"
+                onClick={() => { 
+                  setShowReciboDialog(false);
+                  setReciboData({
+                    cliente_id: "",
+                    cliente_nome: "",
+                    cliente_cnpj: "",
+                    aeronave_id: "",
+                    aeronave_registro: "",
+                    valor: "",
+                    data_vencimento: new Date().toISOString().split("T")[0],
+                    descricao: "",
+                  });
+                  setClienteSearch("");
+                  setAeronaveSearch("");
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                ✕
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Cliente */}
+                <div>
+                  <Label className="text-foreground font-medium mb-2 block">Cliente/Empresa *</Label>
+                  <Popover open={openClientePopover} onOpenChange={setOpenClientePopover}>
+                    <PopoverTrigger asChild>
+                      <div className="relative">
+                        <Input
+                          value={reciboData.cliente_nome}
+                          onChange={(e) => {
+                            setReciboData({ ...reciboData, cliente_nome: e.target.value });
+                            setClienteSearch(e.target.value);
+                            if (!openClientePopover) setOpenClientePopover(true);
+                          }}
+                          onFocus={() => setOpenClientePopover(true)}
+                          placeholder="Buscar cliente..."
+                          className="bg-background border-border pr-10"
+                          autoComplete="off"
+                        />
+                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0 bg-card border-border" align="start">
+                      <Command className="bg-card">
+                        <CommandInput
+                          placeholder="Buscar..."
+                          value={clienteSearch}
+                          onValueChange={setClienteSearch}
+                          className="bg-background"
+                          autoComplete="off"
+                        />
+                        <CommandList>
+                          <CommandEmpty className="text-muted-foreground py-3 text-center text-sm">
+                            Nenhum cliente encontrado
+                          </CommandEmpty>
+                          <CommandGroup heading="Clientes" className="text-muted-foreground">
+                            {filteredClientes.slice(0, 10).map((c) => (
+                              <CommandItem
+                                key={c.id}
+                                onSelect={() => handleSelectCliente(c)}
+                                className="cursor-pointer hover:bg-muted"
+                              >
+                                <div>
+                                  <p className="font-medium text-foreground">{c.nome}</p>
+                                  {c.documento && <p className="text-xs text-muted-foreground">{c.documento}</p>}
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Aeronave */}
+                <div>
+                  <Label className="text-foreground font-medium mb-2 block">Aeronave * (Obrigatório)</Label>
+                  <Popover open={openAeronavePopover} onOpenChange={setOpenAeronavePopover}>
+                    <PopoverTrigger asChild>
+                      <div className="relative">
+                        <Input
+                          value={reciboData.aeronave_registro}
+                          onChange={(e) => {
+                            setAeronaveSearch(e.target.value);
+                            if (!openAeronavePopover) setOpenAeronavePopover(true);
+                          }}
+                          onFocus={() => setOpenAeronavePopover(true)}
+                          placeholder="Buscar aeronave..."
+                          className="bg-background border-border pr-10"
+                          autoComplete="off"
+                        />
+                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[300px] p-0 bg-card border-border" align="start">
+                      <Command className="bg-card">
+                        <CommandInput
+                          placeholder="Buscar por prefixo, modelo..."
+                          value={aeronaveSearch}
+                          onValueChange={setAeronaveSearch}
+                          className="bg-background"
+                          autoComplete="off"
+                        />
+                        <CommandList>
+                          {isLoadingAeronaves ? (
+                            <div className="text-center py-3 text-muted-foreground text-sm">
+                              Carregando aeronaves...
+                            </div>
+                          ) : (
+                            <>
+                              <CommandEmpty className="text-muted-foreground py-3 text-center text-sm">
+                                Nenhuma aeronave encontrada
+                              </CommandEmpty>
+                              <CommandGroup heading="Aeronaves" className="text-muted-foreground">
+                                {(Array.isArray(aeronaves) ? aeronaves : []).filter(a =>
+                                  a.registration.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
+                                  a.model.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
+                                  a.manufacturer.toLowerCase().includes(aeronaveSearch.toLowerCase())
+                                ).slice(0, 10).map((aero) => (
+                                  <CommandItem
+                                    key={aero.id}
+                                    onSelect={() => {
+                                      setReciboData({
+                                        ...reciboData,
+                                        aeronave_id: aero.id,
+                                        aeronave_registro: aero.registration,
+                                      });
+                                      setOpenAeronavePopover(false);
+                                      setAeronaveSearch("");
+                                    }}
+                                    className="cursor-pointer hover:bg-muted"
+                                  >
+                                    <div>
+                                      <p className="font-medium text-foreground">{aero.registration}</p>
+                                      <p className="text-xs text-muted-foreground">{aero.manufacturer} {aero.model}</p>
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </>
+                          )}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Valor */}
+                <div>
+                  <Label className="text-foreground font-medium mb-2 block">Valor (R$) *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={reciboData.valor}
+                    onChange={(e) => setReciboData({ ...reciboData, valor: e.target.value })}
+                    placeholder="0.00"
+                    className="bg-background border-border"
+                  />
+                </div>
+
+                {/* Data de Vencimento */}
+                <div>
+                  <Label className="text-foreground font-medium mb-2 block">Data de Vencimento *</Label>
+                  <Input
+                    type="date"
+                    value={reciboData.data_vencimento}
+                    onChange={(e) => setReciboData({ ...reciboData, data_vencimento: e.target.value })}
+                    className="bg-background border-border"
+                  />
+                </div>
+              </div>
+
+              {/* Descrição */}
+              <div>
+                <Label className="text-foreground font-medium mb-2 block">Descrição do Serviço</Label>
+                <Textarea
+                  value={reciboData.descricao}
+                  onChange={(e) => setReciboData({ ...reciboData, descricao: e.target.value })}
+                  placeholder="Ex: Prestação de serviços de administração e pilotagem"
+                  className="bg-background border-border resize-none"
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowReciboDialog(false);
+                    setReciboData({
+                      cliente_id: "",
+                      cliente_nome: "",
+                      cliente_cnpj: "",
+                      aeronave_id: "",
+                      aeronave_registro: "",
+                      valor: "",
+                      data_vencimento: new Date().toISOString().split("T")[0],
+                      descricao: "",
+                    });
+                    setClienteSearch("");
+                    setAeronaveSearch("");
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                  onClick={handleGenerarRecibo}
+                  disabled={isGeneratingRecibo}
+                >
+                  {isGeneratingRecibo ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                      Gerando...
+                    </>
+                  ) : (
+                    <>
+                      <FileUp className="w-4 h-4 mr-2" />
+                      Gerar Recibo
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Tabela de Notas */}
