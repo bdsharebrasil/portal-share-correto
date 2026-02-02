@@ -139,19 +139,27 @@ O código frontend já foi atualizado. Apenas faça redeploy da aplicação.
 ### Cenário 1: NF criada com status "pendente"
 - ✅ Insere em controle_bancario com status "pendente"
 - ✅ Insere em bank_reconciliations com status "pendente"
+- ✅ Insere em contas_areceber com status "pendente"
 - ✅ Aeronave é incluída na descrição
 
 ### Cenário 2: NF criada com status "recebido"
 - ✅ Insere em controle_bancario com status "confirmado"
 - ✅ Insere em bank_reconciliations com status "recebido"
+- ✅ Insere em contas_areceber com status "recebido"
 - ✅ Aeronave é incluída na descrição
 
 ### Cenário 3: NF criada com status "cancelado"
-- ❌ Não cria registros (como esperado)
+- ❌ Não cria registros em nenhuma tabela (como esperado)
 
 ### Cenário 4: Status da NF alterado de "pendente" para "recebido"
 - ✅ Atualiza controle_bancario de "pendente" para "confirmado"
 - ✅ Atualiza bank_reconciliations de "pendente" para "recebido"
+- ✅ Atualiza contas_areceber de "pendente" para "recebido"
+
+### Cenário 5: Status da NF alterado para "cancelado"
+- ✅ Atualiza controle_bancario para "cancelado"
+- ✅ Atualiza bank_reconciliations para "cancelado"
+- ✅ Atualiza contas_areceber para "cancelado"
 
 ## Prevenção de Duplicatas
 
