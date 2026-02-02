@@ -175,10 +175,14 @@ Caso precise reverter os triggers:
 DROP TRIGGER IF EXISTS trigger_create_controle_bancario_nf_saida ON public.notas_fiscais_saida;
 DROP TRIGGER IF EXISTS trigger_create_bank_reconciliation_nf_saida ON public.notas_fiscais_saida;
 DROP TRIGGER IF EXISTS trigger_update_controle_bancario_nf_saida ON public.notas_fiscais_saida;
+DROP TRIGGER IF EXISTS trigger_create_contas_areceber_nf_saida ON public.notas_fiscais_saida;
+DROP TRIGGER IF EXISTS trigger_update_contas_areceber_nf_saida ON public.notas_fiscais_saida;
 
 DROP FUNCTION IF EXISTS create_controle_bancario_from_nf_saida();
 DROP FUNCTION IF EXISTS create_bank_reconciliation_from_nf_saida();
 DROP FUNCTION IF EXISTS update_controle_bancario_from_nf_saida();
+DROP FUNCTION IF EXISTS create_contas_areceber_from_nf_saida();
+DROP FUNCTION IF EXISTS update_contas_areceber_from_nf_saida();
 ```
 
 ## Observações Importantes
