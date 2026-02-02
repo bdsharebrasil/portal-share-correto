@@ -1027,25 +1027,27 @@ export function NotasFiscaisSaida() {
                             Nenhum cliente encontrado
                           </CommandEmpty>
                           <CommandGroup heading="Clientes" className="text-muted-foreground">
-                            {filteredClientes.slice(0, 10).map((c) => (
-                              <CommandItem
-                                key={c.id}
-                                onSelect={() => {
-                                  setFormData({ 
-                                    ...formData, 
-                                    cliente_nome: c.nome,
-                                    cliente_cnpj: c.documento 
-                                  });
-                                  setOpenClientePopover(false);
-                                }}
-                                className="cursor-pointer hover:bg-muted"
-                              >
-                                <div>
-                                  <p className="font-medium text-foreground">{c.nome}</p>
-                                  {c.documento && <p className="text-xs text-muted-foreground">{c.documento}</p>}
-                                </div>
-                              </CommandItem>
-                            ))}
+                            {filteredClientes.length > 0 ? (
+                              filteredClientes.slice(0, 50).map((c) => (
+                                <CommandItem
+                                  key={c.id}
+                                  onSelect={() => {
+                                    setFormData({
+                                      ...formData,
+                                      cliente_nome: c.nome,
+                                      cliente_cnpj: c.documento
+                                    });
+                                    setOpenClientePopover(false);
+                                  }}
+                                  className="cursor-pointer hover:bg-muted"
+                                >
+                                  <div>
+                                    <p className="font-medium text-foreground">{c.nome}</p>
+                                    {c.documento && <p className="text-xs text-muted-foreground">{c.documento}</p>}
+                                  </div>
+                                </CommandItem>
+                              ))
+                            ) : null}
                           </CommandGroup>
                         </CommandList>
                       </Command>
