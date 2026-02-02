@@ -196,7 +196,7 @@ export function ReceiptForm({
     }
   };
 
-  // Cliente / Aeronave
+  // Carrega aeronaves quando cliente é selecionado
   useEffect(() => {
     if (!formData.clienteId) {
       setAircrafts([]);
@@ -204,21 +204,7 @@ export function ReceiptForm({
     }
 
     loadAircrafts(formData.clienteId);
-
-    if (isReembolso) {
-      const client = clientesAtivos.find((c) => c.id === formData.clienteId);
-      if (client) {
-        setFormData((prev) => ({
-          ...prev,
-          pagadorNome: client.company_name || "",
-          pagadorDocumento: client.cnpj || "",
-          pagadorEndereco: client.address || "",
-          pagadorCidade: client.city || "",
-          pagadorUF: client.uf || "",
-        }));
-      }
-    }
-  }, [formData.clienteId, isReembolso, clientesAtivos]);
+  }, [formData.clienteId]);
 
   const loadAircrafts = async (clientId: string) => {
     const { data } = await supabase
