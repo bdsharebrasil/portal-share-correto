@@ -1641,6 +1641,48 @@ export function NotasFiscaisSaida() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog para Visualizar Recibo */}
+      <Dialog open={showReciboViewer} onOpenChange={setShowReciboViewer}>
+        <DialogContent className="bg-card border-border max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Recibo Gerado</DialogTitle>
+          </DialogHeader>
+          {reciboViewUrl && (
+            <div className="space-y-4">
+              <div className="w-full h-[600px] border border-border rounded-lg overflow-hidden bg-background">
+                <iframe
+                  src={reciboViewUrl}
+                  className="w-full h-full"
+                  title="Visualizar Recibo"
+                  allow="fullscreen"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowReciboViewer(false)}
+                >
+                  Fechar
+                </Button>
+                <Button
+                  className="bg-primary hover:bg-primary/90"
+                  onClick={() => {
+                    const link = document.createElement("a");
+                    link.href = reciboViewUrl;
+                    link.download = "recibo.pdf";
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                >
+                  Download
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
