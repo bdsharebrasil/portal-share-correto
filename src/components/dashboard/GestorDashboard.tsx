@@ -45,7 +45,6 @@ export function GestorDashboard() {
 
   const allQuickTools = [
     { icon: FileText, label: "Gestão Fiscal", route: "/financeiro/gestao-fiscal", color: "from-green-500 to-green-600", grid: 1 },
-    { icon: FileCheck, label: "Controle de Vencimentos", route: "/vencimentos", color: "from-purple-500 to-purple-600", grid: 1 },
     { icon: Users, label: "Gestão de Funcionários", route: "/gestao-funcionarios", color: "from-blue-500 to-blue-600", grid: 1 },
     { icon: Plane, label: "Controle de Aeronaves", route: "/aeronaves", textColor: "text-cyan-400", grid: 2 },
     { icon: PieChart, label: "Balanço Clientes", route: "/financeiro/balanco-cliente", textColor: "text-indigo-400", grid: 2 },
