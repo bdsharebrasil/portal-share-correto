@@ -341,9 +341,9 @@ export function NotasFiscaisSaida() {
         arquivo_pdf_url: pdfUrl || null,
       };
 
-      // Adicionar aircraft_id se selecionado
-      if (formData.aircraft_id) {
-        notaData.aircraft_id = formData.aircraft_id;
+      // Adicionar aeronave_registration se selecionada
+      if (formData.aeronave_registration) {
+        notaData.aeronave = formData.aeronave_registration;
       }
 
       const { data: { user } } = await supabase.auth.getUser();
