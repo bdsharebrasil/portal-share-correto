@@ -65,6 +65,8 @@ export function NotasFiscaisSaida() {
   const [selectedBankForStatus, setSelectedBankForStatus] = useState<string>("");
   const [notaBeingStatusChanged, setNotaBeingStatusChanged] = useState<NotaFiscalSaida | null>(null);
   const [showReciboDialog, setShowReciboDialog] = useState(false);
+  const [showReciboViewer, setShowReciboViewer] = useState(false);
+  const [reciboViewUrl, setReciboViewUrl] = useState<string>("");
   const [reciboData, setReciboData] = useState({
     cliente_id: "",
     cliente_nome: "",
