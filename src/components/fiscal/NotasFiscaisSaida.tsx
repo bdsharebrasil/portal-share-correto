@@ -257,9 +257,16 @@ export function NotasFiscaisSaida() {
 
   const loadClientes = async () => {
     try {
-      const { data: clientsData } = await supabase
+      // First try to load with status filter (for active clients)
+      let { data: clientsData, error } = await supabase
         .from("clients")
-        .select("id, company_name, cnpj, proprietario");
+        .select("id, company_name, cnpj, proprietario, status");
+
+      // Handle potential errors
+      if (error) {
+        console.error("Erro ao carregar clientes:", error);
+        clientsData = [];
+      }
 
       const clientesList: Cliente[] = [];
 
