@@ -27,70 +27,6 @@ const SPLIT_FLIGHT_TYPES = [
   { code: 'TN', label: 'TN - Teste (Manutenção/Teste)', description: 'Rateio igual entre sócios' }
 ];
 
-// ===================== INTERFACES =====================
-interface Entry {
-  id: string;
-  entry_date: string;
-  departure_aerodrome: string;
-  arrival_aerodrome: string;
-  client_id?: string;
-  partner_name?: string;
-  is_equal_split: boolean;
-  is_loan: boolean;
-  total_time: number;
-  pic_canac: string;
-  sic_canac?: string;
-  ac_time: string;
-  dep_time: string;
-  pou_time: string;
-  cor_time: string;
-  celula: number;
-  fuel_added: number;
-  fuel_liters: number;
-  day_time: number;
-  night_hours: number;
-  ifr_time: number;
-  pousos: number;
-  time: number;
-  distance_nm: number;
-  passengers: number;
-  cargo_kg: number;
-  flight_nature: string;
-  daily_rate?: number;
-  daily_quantity?: number;
-  created_at?: string;
-  [key: string]: any;
-}
-
-interface LogbookMonth {
-  id: string;
-  month: number;
-  year: number;
-  aircraft_id: string;
-  celula_anterior: number;
-  celula_atual: number;
-  celula_prox_revisao: number;
-  celula_disponivel: number;
-  base_aerodrome?: string;
-  has_daily_rate: boolean;
-  daily_rate?: number;
-  horimetro_inicio?: number;
-  horimetro_final?: number;
-  horimetro_ativo?: number;
-  fuel_consumption?: number;
-  is_closed: boolean;
-}
-
-interface Aircraft {
-  id: string;
-  registration: string;
-  model: string;
-  cell_hours_current: number;
-  celula_prox_revisao: number;
-  base?: string;
-  fuel_consumption?: number;
-}
-
 // ===================== FUNÇÕES AUXILIARES =====================
 const timeStringToMinutes = (timeStr: string): number => {
   if (!timeStr) return 0;
@@ -265,36 +201,31 @@ const calculateTimes = (entry: any) => {
 
 // ===================== CÁLCULO DE DIÁRIAS =====================
 const calculateDailyAllowanceForEntry = (
-  entry: Entry,
+  entry: any,
   baseAerodrome: string,
-  allEntries: Entry[]
+  allEntries: any[]
 ): number => {
   if (!baseAerodrome) return 0;
 
   const origin = entry.departure_aerodrome;
   const destination = entry.arrival_aerodrome;
 
-  // REGRA PRINCIPAL: Voos com rateio entre sócios NÃO cobram diária
   if (entry.is_equal_split) {
     return 0;
   }
 
-  // REGRA: Voos de empréstimo NÃO cobram diária
   if (entry.is_loan) {
     return 0;
   }
 
-  // REGRA 1: Saiu da base → 0 diárias
   if (origin === baseAerodrome && destination !== baseAerodrome) {
     return 0;
   }
 
-  // REGRA 2: Voltou para base → 1 diária
   if (destination === baseAerodrome && origin !== baseAerodrome) {
     return 1;
   }
 
-  // REGRA 3: Continua fora da base
   if (origin !== baseAerodrome && destination !== baseAerodrome) {
     const sortedEntries = [...allEntries].sort(
       (a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime()
@@ -328,15 +259,9 @@ const calculateDailyAllowanceForEntry = (
 };
 
 // ===================== COMPONENTE PRINCIPAL =====================
-interface DiarioBordoDetalhesProps {
-  aircraftId: string;
-  onBack: () => void;
-}
-
-const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, onBack }) => {
+const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   const { isAdmin, isGestorMaster, isPilotoChefe, isCoordenadorVoo, isTripulante } = useUserRole();
 
-  // Estados de navegação e UI
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -349,18 +274,16 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
 
   const canEditCelulaFields = isAdmin || isGestorMaster || isPilotoChefe;
 
-  // Estados principais
   const [loading, setLoading] = useState(true);
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const [entries, setEntries] = useState<any[]>([]);
   const [crew, setCrew] = useState<any[]>([]);
   const [aerodromes, setAerodromes] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [partners, setPartners] = useState<any[]>([]);
-  const [aircraft, setAircraft] = useState<Aircraft | null>(null);
+  const [aircraft, setAircraft] = useState<any>(null);
   const [lastCelula, setLastCelula] = useState(0);
-  const [logbookMonth, setLogbookMonth] = useState<LogbookMonth | null>(null);
+  const [logbookMonth, setLogbookMonth] = useState<any>(null);
 
-  // Estado para diárias contabilizadas
   const [markedDailies, setMarkedDailies] = useState<Record<string, boolean>>(() => {
     try {
       const saved = localStorage.getItem(`marked-dailies-${aircraftId}-${selectedMonth}-${selectedYear}`);
@@ -370,10 +293,8 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
     }
   });
 
-  // Estados de edição
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
 
-  // Estados para redimensionamento de colunas
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({
     date: 70,
     from: 60,
@@ -400,7 +321,7 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
   });
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [resizeStart, setResizeStart] = useState(0);
-  const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
+  const [editingEntry, setEditingEntry] = useState<any>(null);
   const [editingMonthInfo, setEditingMonthInfo] = useState(false);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editFieldValue, setEditFieldValue] = useState<string>('');
@@ -409,10 +330,8 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
   const [showCloseMonthDialog, setShowCloseMonthDialog] = useState(false);
   const [previousMonthData, setPreviousMonthData] = useState<any>(null);
 
-  // Estado para Banco de Horas
   const [loans, setLoans] = useState<any[]>([]);
 
-  // Estado para Situação Técnica da Aeronave
   const [technicalStatus, setTechnicalStatus] = useState({
     last_maintenance_type: '',
     airframe_hours_next_maintenance: '',
@@ -432,7 +351,6 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
     }]
   });
 
-  // Estado do Novo Voo
   const [flightType, setFlightType] = useState<'cliente' | 'rateio' | 'emprestimo'>('cliente');
   const [newEntry, setNewEntry] = useState({
     entry_date: format(new Date(), 'yyyy-MM-dd'),
@@ -475,10 +393,6 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
     daily_quantity: 0
   });
 
-  // Estado para controlar mês/ano do próximo diário
-  const [nextMonthTarget, setNextMonthTarget] = useState<{ month: number; year: number } | null>(null);
-
-  // ===================== CÁLCULO DE DIÁRIAS =====================
   const calculatePerDiemInfo = useMemo(() => {
     if (!logbookMonth?.has_daily_rate || !logbookMonth?.base_aerodrome || !logbookMonth?.daily_rate) {
       return { count: 0, total: 0, details: [], byEntry: {} };
@@ -488,11 +402,11 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
     const dailyRate = logbookMonth.daily_rate;
 
     const periodEntries = entries
-      .filter(e => {
+      .filter((e: any) => {
         const date = new Date(e.entry_date);
         return date.getUTCMonth() + 1 === selectedMonth && date.getUTCFullYear() === selectedYear;
       })
-      .sort((a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime());
+      .sort((a: any, b: any) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime());
 
     const perDiems: Array<{ date: string; location: string; entryId: string }> = [];
     const byEntry: Record<string, number> = {};
@@ -563,7 +477,6 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
     };
   }, [entries, selectedMonth, selectedYear, logbookMonth]);
 
-  // ===================== CARGA DE DADOS =====================
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -671,8 +584,6 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
     localStorage.setItem(`marked-dailies-${aircraftId}-${selectedMonth}-${selectedYear}`, JSON.stringify(markedDailies));
   }, [markedDailies, aircraftId, selectedMonth, selectedYear]);
 
-  // ===================== AUTOMAÇÕES =====================
-
   useEffect(() => {
     if (newEntry.ac_time) {
       const acMin = timeStringToMinutes(newEntry.ac_time);
@@ -706,8 +617,8 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
 
   useEffect(() => {
     if (newEntry.departure_aerodrome && newEntry.arrival_aerodrome) {
-      const dep = aerodromes.find(a => a.designativo === newEntry.departure_aerodrome);
-      const arr = aerodromes.find(a => a.designativo === newEntry.arrival_aerodrome);
+      const dep = aerodromes.find((a: any) => a.designativo === newEntry.departure_aerodrome);
+      const arr = aerodromes.find((a: any) => a.designativo === newEntry.arrival_aerodrome);
       if (dep?.coordenadas && arr?.coordenadas) {
         try {
           const [lat1, lon1] = dep.coordenadas.split(',').map(Number);
@@ -734,7 +645,7 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
         let baseParaCalculo = lastCelula;
 
         if (entries && entries.length > 0) {
-          const celulasExistentes = entries.map(e => Number(e.celula) || 0);
+          const celulasExistentes = entries.map((e: any) => Number(e.celula) || 0);
           const ultimaCelulaRegistrada = Math.max(...celulasExistentes);
 
           if (ultimaCelulaRegistrada > baseParaCalculo) {
@@ -766,20 +677,19 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
     }
   }, [newEntry.ac_time, newEntry.cor_time, newEntry.dep_time, newEntry.pou_time, lastCelula, entries]);
 
-  // ===================== FILTROS E ORDENAÇÃO =====================
   const filteredEntries = useMemo(() => {
-    let filtered = entries.filter(e => {
+    let filtered = entries.filter((e: any) => {
       const date = new Date(e.entry_date);
       const matchesPeriod = date.getUTCMonth() + 1 === selectedMonth && date.getUTCFullYear() === selectedYear;
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch =
         e.departure_aerodrome?.toLowerCase().includes(searchLower) ||
         e.arrival_aerodrome?.toLowerCase().includes(searchLower) ||
-        crew.find(c => c.id === e.pic_canac)?.full_name.toLowerCase().includes(searchLower);
+        crew.find((c: any) => c.id === e.pic_canac)?.full_name.toLowerCase().includes(searchLower);
       return matchesPeriod && matchesSearch;
     });
 
-    filtered.sort((a, b) => {
+    filtered.sort((a: any, b: any) => {
       const dateA = new Date(a.entry_date).getTime();
       const dateB = new Date(b.entry_date).getTime();
       return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
@@ -790,30 +700,28 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
 
   const sortedClients = useMemo(() => {
     if (!clients.length) return [];
-    const linkedClients = clients.filter(c => c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId));
-    const otherClients = clients.filter(c => !c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId));
+    const linkedClients = clients.filter((c: any) => c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId));
+    const otherClients = clients.filter((c: any) => !c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId));
     return [...linkedClients, ...otherClients];
   }, [clients, aircraftId]);
 
-  // ===================== FUNÇÕES DE NAVEGAÇÃO =====================
   const isMonthAvailable = (month: number, year: number): boolean => {
     return availableMonths.some(m => m.month === month && m.year === year);
   };
 
-  // ===================== CÁLCULO E ATUALIZAÇÃO DE CÉLULA =====================
-  const updateCelulaAtual = async (entriesData?: Entry[]) => {
+  const updateCelulaAtual = async (entriesData?: any[]) => {
     if (!logbookMonth) return;
 
     try {
       const entriesToUse = entriesData || entries;
 
-      const periodEntries = entriesToUse.filter(e => {
+      const periodEntries = entriesToUse.filter((e: any) => {
         const date = new Date(e.entry_date);
         return date.getUTCMonth() + 1 === selectedMonth &&
           date.getUTCFullYear() === selectedYear;
       });
 
-      const totalFlightTimeThisMonth = periodEntries.reduce((sum, e) => {
+      const totalFlightTimeThisMonth = periodEntries.reduce((sum: number, e: any) => {
         const flightTime = Number(e.total_time) || 0;
         return sum + flightTime;
       }, 0);
@@ -940,6 +848,8 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
     setEditFieldValue('');
   };
 
+  const [nextMonthTarget, setNextMonthTarget] = useState<{ month: number; year: number } | null>(null);
+
   const handleOpenCreateNextMonthDialog = async () => {
     try {
       let nextMonth = selectedMonth + 1;
@@ -994,8 +904,6 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
     }
   };
 
-  // ===================== FUNÇÕES DE CRUD =====================
-
   const handleFormSuccess = async () => {
     const { data } = await supabase
       .from('logbook_entries')
@@ -1038,19 +946,19 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
     }
 
     try {
-      const periodEntriesForCalc = entries.filter(e => {
+      const periodEntriesForCalc = entries.filter((e: any) => {
         const date = new Date(e.entry_date);
         return date.getUTCMonth() + 1 === selectedMonth &&
           date.getUTCFullYear() === selectedYear;
       });
 
-      const tempEntry: Entry = {
+      const tempEntry = {
         ...newEntry,
         id: `temp-${Date.now()}`,
         departure_aerodrome: newEntry.departure_aerodrome,
         arrival_aerodrome: newEntry.arrival_aerodrome,
         entry_date: newEntry.entry_date
-      } as Entry;
+      };
 
       const allEntriesForCalc = [...periodEntriesForCalc, tempEntry];
 
@@ -1079,6 +987,7 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
         });
       }
 
+      // ✅ CORREÇÃO: Lógica corrigida para empréstimos com sócios
       const { error } = await supabase.from('logbook_entries').insert([{
         logbook_month_id: logbookMonth.id,
         aircraft_id: aircraftId,
@@ -1093,14 +1002,16 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
         pic_canac: newEntry.pic_canac,
         sic_canac: newEntry.sic_canac || null,
         sic_name: newEntry.sic_name || null,
+        // ✅ CORREÇÃO: client_id sempre aponta para quem USOU a aeronave
         client_id: newEntry.is_equal_split
           ? null
           : (newEntry.is_loan ? newEntry.borrower_client_id : newEntry.client_id),
+        // ✅ CORREÇÃO: partner_name contém o sócio que USOU
         partner_name: newEntry.is_equal_split 
           ? null 
           : (newEntry.is_loan 
-              ? (newEntry.borrower_partner_name || null)
-              : (newEntry.partner_name || null)),
+              ? (newEntry.borrower_partner_name || null)  // Sócio de quem pegou emprestado
+              : (newEntry.partner_name || null)),          // Sócio normal
         is_equal_split: newEntry.is_equal_split,
         is_loan: newEntry.is_loan || false,
         total_time: newEntry.total_time,
@@ -1141,16 +1052,17 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
         .single();
 
       if (flightType === 'emprestimo' && insertedEntry?.id) {
+        // ✅ CORREÇÃO: Registrar corretamente na tabela aircraft_loans
         const { error: loanError } = await supabase.from('aircraft_loans').insert([
           {
             lender_aircraft_id: aircraftId,
-            lender_client_id: newEntry.client_id,
-            borrower_client_id: newEntry.borrower_client_id,
+            lender_client_id: newEntry.client_id, // Cotista que empresta
+            borrower_client_id: newEntry.borrower_client_id, // Cliente que usa
             hours_borrowed: newEntry.total_time,
             entry_date: newEntry.entry_date,
             logbook_entry_id: insertedEntry.id,
             status: 'active',
-            notes: `Empréstimo registrado via diário de bordo - ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
+            notes: `Empréstimo registrado via diário de bordo - ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}${newEntry.partner_name ? ` | Cotista: ${newEntry.partner_name}` : ''}${newEntry.borrower_partner_name ? ` | Usado por: ${newEntry.borrower_partner_name}` : ''}`,
           },
         ]);
 
@@ -1161,11 +1073,11 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
         const { error: transactionError } = await supabase.from('hour_transactions').insert([
           {
             aircraft_id: aircraftId,
-            from_partner_id: newEntry.borrower_client_id,
-            to_partner_id: newEntry.client_id,
+            from_partner_id: newEntry.borrower_client_id, // Quem usou (deve horas)
+            to_partner_id: newEntry.client_id, // Quem emprestou (recebe crédito)
             hours: newEntry.total_time,
             type: 'loan',
-            description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome} - Cliente usou aeronave emprestada`,
+            description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}${newEntry.partner_name ? ` | Cotista: ${newEntry.partner_name}` : ''}${newEntry.borrower_partner_name ? ` | Usado por: ${newEntry.borrower_partner_name}` : ''}`,
             logbook_entry_id: insertedEntry.id,
           },
         ]);
@@ -1255,11 +1167,11 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
       setEntries(data || []);
     } catch (error: any) {
       console.error("Erro ao salvar voo:", error);
-      toast.error("Erro ao salvar voo: " + error.message);
+      toast.error("Erro ao salvar voo: " + (error.message || 'Erro desconhecido'));
     }
   };
 
-  const handleEditEntry = (entry: Entry) => {
+  const handleEditEntry = (entry: any) => {
     setEditingEntry({ ...entry });
     setEditingEntryId(entry.id);
   };
@@ -1270,8 +1182,6 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
   };
 
   const handleSaveEditedEntry = async () => {
-    if (!editingEntry) return;
-
     if (!editingEntry.pic_canac || !editingEntry.departure_aerodrome || !editingEntry.arrival_aerodrome) {
       toast.error('Preencha todos os campos obrigatórios: PIC, Origem e Destino');
       return;
@@ -1293,15 +1203,15 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
     }
 
     try {
-      const oldEntry = entries.find(e => e.id === editingEntryId);
+      const oldEntry = entries.find((e: any) => e.id === editingEntryId);
 
-      const periodEntriesForCalc = entries.filter(e => {
+      const periodEntriesForCalc = entries.filter((e: any) => {
         const date = new Date(e.entry_date);
         return date.getUTCMonth() + 1 === selectedMonth &&
           date.getUTCFullYear() === selectedYear;
       });
 
-      const allEntriesForCalc = periodEntriesForCalc.map(e =>
+      const allEntriesForCalc = periodEntriesForCalc.map((e: any) =>
         e.id === editingEntryId ? editingEntry : e
       );
 
@@ -1312,10 +1222,11 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
       );
 
       let finalDailyRate = recalculatedDailyRate;
-      if (editingEntry.daily_quantity && editingEntry.daily_quantity > 0) {
+      if (editingEntry.daily_quantity > 0) {
         finalDailyRate = editingEntry.daily_quantity * (logbookMonth?.daily_rate || 0);
       }
 
+      // ✅ CORREÇÃO: Mesma lógica aplicada na edição
       const { error } = await supabase.from('logbook_entries').update({
         entry_date: editingEntry.entry_date,
         departure_aerodrome: editingEntry.departure_aerodrome,
@@ -1415,7 +1326,7 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
       }
     } catch (error: any) {
       console.error("Erro ao atualizar voo:", error);
-      toast.error("Erro ao atualizar voo: " + error.message);
+      toast.error("Erro ao atualizar voo: " + (error.message || 'Erro desconhecido'));
     }
   };
 
@@ -1493,7 +1404,7 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
       }
     } catch (error: any) {
       console.error("Erro ao deletar lançamento:", error);
-      toast.error("Erro ao deletar lançamento: " + error.message);
+      toast.error("Erro ao deletar lançamento: " + (error.message || 'Erro desconhecido'));
     }
   };
 
@@ -1623,14 +1534,13 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
       }
     } catch (error: any) {
       console.error("Erro ao criar mês:", error);
-      toast.error("Erro ao criar diário do mês: " + error.message);
+      toast.error("Erro ao criar diário do mês: " + (error.message || 'Erro desconhecido'));
       throw error;
     } finally {
       setCreatingMonth(false);
     }
   };
 
-  // ===================== RENDERS CONDICIONAIS =====================
   if (loading) {
     return (
       <Layout>
@@ -1641,199 +1551,2151 @@ const DiarioBordoDetalhes: React.FC<DiarioBordoDetalhesProps> = ({ aircraftId, o
     );
   }
 
-  if (!aircraft) {
-    return (
-      <Layout>
-        <div className="h-screen flex items-center justify-center bg-[#070910] text-white">
-          <div className="text-center">
-            <Plane size={48} className="mx-auto mb-4 text-slate-500" />
-            <p>Aeronave não encontrada</p>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-  
-  return (
-    <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-[#070910] via-[#0a0f1c] to-[#070910] text-white p-6">
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onBack}
-              className="text-slate-400 hover:text-white hover:bg-slate-800"
-            >
-              <ArrowLeft size={20} />
-            </Button>
+  if (!aircraft) return <Layout>
+    <div className="h-screen flex items-center justify-center bg-[#070910] text-white">
+      <div className="text-center">
+        <Plane size={48} className="mx-auto mb-4 text-slate-500" />
+       <p>Aeronave não encontrada</p>
+      </div>
+    </div>
+  </Layout>;
+  return <Layout>
+    <div className="min-h-screen bg-[#070910] text-white">
+      <div className="max-w-[1800px] mx-auto p-6 space-y-6">
+
+        {/* HEADER */}
+        <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl flex flex-wrap items-center justify-between gap-6 shadow-2xl">
+          <div className="flex items-center gap-6">
+            <button onClick={onBack} className="p-3 bg-slate-950 hover:bg-slate-800 rounded-2xl border border-slate-800 transition-all">
+              <ArrowLeft size={20} className="text-slate-400" />
+            </button>
             <div>
-              <h1 className="text-2xl font-bold text-white">Diário de Bordo</h1>
-              <p className="text-slate-400">{aircraft.registration} - {aircraft.model}</p>
+              <h1 className="text-3xl font-black text-white tracking-tighter">{aircraft?.registration}</h1>
+              <p className="text-[10px] font-bold text-sky-500 uppercase tracking-[0.2em] py-[7px]">{aircraft?.model}</p>
+
             </div>
           </div>
 
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowExportDialog(true)}
-              className="border-slate-700 hover:bg-slate-800"
-            >
-              <Download size={16} className="mr-2" />
-              Exportar
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowAddForm(true)}
-              className="border-sky-500 text-sky-500 hover:bg-sky-500/10"
-            >
-              <Plus size={16} className="mr-2" />
-              Novo Voo
-            </Button>
-          </div>
-        </div>
+          <div className="flex items-center gap-4">
+            {/* Navegação de Mês */}
+            <div className="flex items-center bg-slate-950 p-1 rounded-2xl border border-slate-800">
+              <button onClick={goToPreviousMonth} disabled={!isMonthAvailable(selectedMonth === 1 ? 12 : selectedMonth - 1, selectedMonth === 1 ? selectedYear - 1 : selectedYear)} className="p-2 hover:bg-slate-800 rounded-xl text-slate-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                <ChevronLeft size={20} />
+              </button>
 
-        {/* Month Navigation */}
-        <div className="mb-6 flex items-center justify-between bg-slate-900/50 rounded-lg p-4 border border-slate-800">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={goToPreviousMonth}
-            disabled={!isMonthAvailable(selectedMonth - 1, selectedYear)}
-            className="text-slate-400 hover:text-white hover:bg-slate-800"
-          >
-            <ChevronLeft size={20} />
-          </Button>
+              <button onClick={() => setShowMonthPicker(true)} className="px-6 py-2 text-sm font-black text-white uppercase hover:text-sky-500 transition-colors">
+                {MONTHS[selectedMonth - 1]} {selectedYear}
+              </button>
 
-          <div className="text-center">
-            <h2 className="text-xl font-semibold text-white">
-              {MONTHS[selectedMonth - 1]} {selectedYear}
-            </h2>
+              <button onClick={goToNextMonth} disabled={!isMonthAvailable(selectedMonth === 12 ? 1 : selectedMonth + 1, selectedMonth === 12 ? selectedYear + 1 : selectedYear)} className="p-2 hover:bg-slate-800 rounded-xl text-slate-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                <ChevronRight size={20} />
+              </button>
+            </div>
+
+            <button onClick={() => setShowTechnicalStatus(!showTechnicalStatus)} className={`${showTechnicalStatus ? 'bg-slate-800 text-slate-400' : 'bg-emerald-600 text-white'} rounded-2xl px-6 font-black uppercase text-xs h-12 shadow-lg transition-all`}>
+              {showTechnicalStatus ? <X className="mr-2" size={16} /> : <Plus className="mr-2" size={16} />}
+              {showTechnicalStatus ? "Cancelar" : "Situação Técnica"}
+            </button>
+
             {logbookMonth && (
-              <div className="text-sm text-slate-400 mt-1">
-                Célula: {logbookMonth.celula_atual?.toFixed(1) || '0.0'}h
-              </div>
+              <button
+                onClick={() => setShowExportDialog(true)}
+                className="px-6 h-12 bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/30 rounded-2xl text-sky-400 font-black uppercase text-xs transition-all"
+              >
+                <Download className="inline mr-2" size={16} />
+                Exportar PDF
+              </button>
+            )}
+
+            {logbookMonth && (
+              <button
+                onClick={() => setShowCloseMonthDialog(true)}
+                className="px-6 h-12 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-2xl text-red-400 font-black uppercase text-xs transition-all"
+              >
+                <X className="inline mr-2" size={16} />
+                Fechar Diário
+              </button>
             )}
           </div>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={goToNextMonth}
-            disabled={!isMonthAvailable(selectedMonth + 1, selectedYear)}
-            className="text-slate-400 hover:text-white hover:bg-slate-800"
-          >
-            <ChevronRight size={20} />
-          </Button>
         </div>
 
-        {/* Search */}
-        <div className="mb-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <Input
-              type="text"
-              placeholder="Buscar por aeródromo ou PIC..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500"
-            />
+        {/* MENSAGEM QUANDO DIÁRIO NÃO EXISTE */}
+        {!logbookMonth && (
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center shadow-2xl">
+            <Calendar size={48} className="mx-auto mb-6 text-slate-500" />
+            <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">Diário de {MONTHS[selectedMonth - 1]} não existe</h2>
+            <p className="text-slate-400 text-sm mb-8">Configure e crie um novo diário para começar a registrar voos neste período.</p>
+            <button
+              onClick={handleOpenCreateMonthDialog}
+              disabled={creatingMonth}
+              className="px-8 py-3 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-700 text-white font-black uppercase text-sm rounded-xl transition-all shadow-lg"
+            >
+              {creatingMonth ? (
+                <>
+                  <Loader2 className="inline mr-2 animate-spin" size={16} />
+                  Criando...
+                </>
+              ) : (
+                <>
+                  <Plus className="inline mr-2" size={16} />
+                  Configurar Diário de {MONTHS[selectedMonth - 1]}
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
+        {/* Dialog para criar mês */}
+        <CreateMonthDialog
+          open={showCreateMonthDialog}
+          onOpenChange={setShowCreateMonthDialog}
+          aircraftId={aircraftId}
+          aircraftRegistration={aircraft?.registration || ''}
+          month={selectedMonth}
+          year={selectedYear}
+          previousMonthData={previousMonthData}
+          onCreate={handleCreateMonthWithData}
+        />
+
+        {/* Dialog para fechar mês */}
+        <CloseMonthDialog
+          open={showCloseMonthDialog}
+          onOpenChange={setShowCloseMonthDialog}
+          aircraftId={aircraftId}
+          month={selectedMonth - 1}
+          year={selectedYear}
+          totalHours={entries.reduce((sum, e) => sum + (Number(e.total_time) || 0), 0)}
+          totalLandings={entries.reduce((sum, e) => sum + (Number(e.pousos) || 0), 0)}
+          totalFuelAdded={entries.reduce((sum, e) => sum + (Number(e.combustivel_adicionado) || 0), 0)}
+          onSuccess={() => { setShowCloseMonthDialog(false); onBack(); }}
+        />
+
+        {/* Dialog para exportar diário em PDF */}
+        <ExportLogbookDialog
+          open={showExportDialog}
+          onOpenChange={setShowExportDialog}
+          aircraftId={aircraftId}
+          aircraftRegistration={aircraft?.registration || ''}
+          aircraftModel={aircraft?.model || ''}
+          clientName={''}
+          availableMonths={availableMonths}
+          entries={entries}
+          currentMonth={selectedMonth}
+          currentYear={selectedYear}
+        />
+
+        {/* INFORMAÇÕES TÉCNICAS DO PERÍODO */}
+        {logbookMonth && <div className="space-y-6">
+          {/* MÉTRICAS PRINCIPAIS DESTACADAS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 my-0 px-[28px]">
+            {/* CÉLULA ANTERIOR */}
+            <div className="group relative bg-slate-900 border rounded-2xl p-6 shadow-xl transition-all border-violet-400 overflow-visible">
+              {canEditCelulaFields && (
+                <button
+                  onClick={() => openEditModal('celula_anterior', logbookMonth.celula_anterior?.toString() || '0.00')}
+                  className="absolute top-2 right-2 p-2 rounded-lg bg-violet-500/40 hover:bg-violet-500/60 text-violet-200 hover:text-violet-100 transition-all duration-200 z-10 shadow-lg"
+                  title="Editar Célula Anterior"
+                >
+                  <Edit size={20} />
+                </button>
+              )}
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <p className="text-[9px] uppercase font-bold tracking-widest mb-1 text-violet-400">Célula Anterior</p>
+                  <p className="text-3xl font-black text-violet-400">{logbookMonth.celula_anterior?.toFixed(2) || '0.00'}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">horas</p>
+                </div>
+              </div>
+              <div className="h-1 bg-gradient-to-r from-sky-600 to-sky-400 rounded-full text-violet-400"></div>
+            </div>
+
+            {/* CÉLULA ATUAL */}
+            <div className="bg-slate-900 border border-emerald-500/30 rounded-2xl p-6 shadow-xl hover:border-emerald-500/50 transition-all">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <p className="text-[9px] text-emerald-500 uppercase font-bold tracking-widest mb-1">Célula Atual</p>
+                  <p className="text-3xl font-black text-emerald-400">{logbookMonth.celula_atual?.toFixed(2) || lastCelula.toFixed(2)}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">horas</p>
+                </div>
+              </div>
+              <div className="h-1 bg-gradient-to-r from-emerald-600 to-emerald-400 rounded-full"></div>
+            </div>
+
+            {/* PRÓXIMA REVISÃO */}
+            <div className="group relative bg-slate-900 border border-orange-500/30 rounded-2xl p-6 shadow-xl hover:border-orange-500/50 transition-all overflow-visible">
+              {canEditCelulaFields && (
+                <button
+                  onClick={() => openEditModal('celula_prox_revisao', logbookMonth.celula_prox_revisao?.toString() || '0.00')}
+                  className="absolute top-2 right-2 p-2 rounded-lg bg-orange-500/40 hover:bg-orange-500/60 text-orange-200 hover:text-orange-100 transition-all duration-200 z-10 shadow-lg"
+                  title="Editar Próxima Revisão"
+                >
+                  <Edit size={20} />
+                </button>
+              )}
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <p className="text-[9px] text-orange-500 uppercase font-bold tracking-widest mb-1">Próx. Revisão</p>
+                  <p className="text-3xl font-black text-orange-400">{logbookMonth.celula_prox_revisao?.toFixed(2) || '-'}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">horas</p>
+                </div>
+              </div>
+              <div className="h-1 bg-gradient-to-r from-orange-600 to-orange-400 rounded-full"></div>
+            </div>
+
+            {/* DISPONÍVEL */}
+            <div className={`bg-slate-900 rounded-2xl p-6 shadow-xl transition-all ${(logbookMonth.celula_disponivel || 0) < 0 ? 'border-2 border-red-500 hover:border-red-400 shadow-lg shadow-red-500/20' : 'border border-blue-500/30 hover:border-blue-500/50'}`}>
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <p className={`text-[9px] uppercase font-bold tracking-widest mb-1 ${(logbookMonth.celula_disponivel || 0) < 0 ? 'text-red-500' : 'text-blue-500'}`}>Disponível</p>
+                  <p className={`text-3xl font-black ${(logbookMonth.celula_disponivel || 0) < 0 ? 'text-red-400' : 'text-blue-400'}`}>{logbookMonth.celula_disponivel?.toFixed(2) || '0.00'}</p>
+                  <p className="text-[10px] text-slate-500 mt-1">horas</p>
+                </div>
+              </div>
+              <div className={`h-1 rounded-full ${(logbookMonth.celula_disponivel || 0) < 0 ? 'bg-gradient-to-r from-red-600 to-red-400' : 'bg-gradient-to-r from-blue-600 to-blue-400'}`}></div>
+            </div>
+          </div>
+
+          {/* INFORMAÇÕES ADICIONAIS */}
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl py-[5px] px-[13px]">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-black text-slate-500 uppercase tracking-widest">Informações Técnicas Adicionais</h2>
+
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {/* Base Aeródromo */}
+              <div className="group relative bg-slate-950 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-all">
+                <button
+                  onClick={() => openEditModal('base_aerodrome', logbookMonth.base_aerodrome || '')}
+                  className="absolute top-2 right-2 p-2 rounded-lg bg-sky-500/20 hover:bg-sky-500/40 text-sky-400 hover:text-sky-300 transition-all duration-200"
+                  title="Editar Base Aeródromo"
+                >
+                  <Edit size={18} />
+                </button>
+                <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Base Aeródromo</p>
+                <p className="text-lg font-black text-white">{logbookMonth.base_aerodrome || '-'}</p>
+              </div>
+
+              {/* Horimetro Início */}
+              <div className="group relative bg-slate-950 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-all">
+                <button
+                  onClick={() => openEditModal('horimetro_inicio', logbookMonth.horimetro_inicio?.toString() || '0.0')}
+                  className="absolute top-2 right-2 p-2 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 hover:text-cyan-300 transition-all duration-200"
+                  title="Editar Horimetro Início"
+                >
+                  <Edit size={18} />
+                </button>
+                <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Horimetro Início</p>
+                <p className="text-xl font-black text-blue-400">{logbookMonth.horimetro_inicio?.toFixed(1) || '0.0'}h</p>
+              </div>
+
+              {/* Horimetro Final */}
+              <div className="group relative bg-slate-950 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-all">
+                <button
+                  onClick={() => openEditModal('horimetro_final', logbookMonth.horimetro_final?.toString() || '0.0')}
+                  className="absolute top-2 right-2 p-2 rounded-lg bg-orange-500/20 hover:bg-orange-500/40 text-orange-400 hover:text-orange-300 transition-all duration-200"
+                  title="Editar Horimetro Final"
+                >
+                  <Edit size={18} />
+                </button>
+                <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Horimetro Final</p>
+                <p className="text-xl font-black text-orange-400">{logbookMonth.horimetro_final?.toFixed(1) || '0.0'}h</p>
+              </div>
+
+              {/* Horimetro Ativo */}
+              <div className="group relative bg-slate-950 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-all">
+                <button
+                  onClick={() => openEditModal('horimetro_ativo', logbookMonth.horimetro_ativo?.toString() || '0.0')}
+                  className="absolute top-2 right-2 p-2 rounded-lg bg-pink-500/20 hover:bg-pink-500/40 text-pink-400 hover:text-pink-300 transition-all duration-200"
+                  title="Editar Horimetro Ativo"
+                >
+                  <Edit size={18} />
+                </button>
+                <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Horimetro Ativo</p>
+                <p className="text-xl font-black text-pink-400">{logbookMonth.horimetro_ativo?.toFixed(1) || '0.0'}h</p>
+              </div>
+
+              {/* Valor Diária - Só mostra quando tem diária marcada */}
+              {logbookMonth?.has_daily_rate && (
+                <div className="group relative bg-slate-950 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-all">
+                  <button
+                    onClick={() => openEditModal('daily_rate', logbookMonth.daily_rate?.toString() || '0.00')}
+                    className="absolute top-2 right-2 p-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-400 hover:text-emerald-300 transition-all duration-200"
+                    title="Editar Valor Diária"
+                  >
+                    <Edit size={18} />
+                  </button>
+                  <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Valor Diária</p>
+                  <p className="text-lg font-black text-green-400">R$ {logbookMonth.daily_rate?.toFixed(2) || '0.00'}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>}
+
+        {/* BUSCA */}
+        {!showAddForm && <div className="relative max-w-xl">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
+          <input placeholder="Pesquisar por ICAO de origem, destino ou piloto..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-12 h-14 bg-slate-900/50 border border-slate-800 rounded-2xl text-white placeholder:text-slate-600 focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+        </div>}
+
+        {/* FORMULÁRIO DE NOVO LANÇAMENTO */}
+        {showAddForm && <div className="bg-slate-900 border-2 border-sky-500/20 rounded-[2.5rem] p-8 shadow-3xl space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+
+            {/* SEÇÃO 1: TRIPULAÇÃO & DATA */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sky-500 mb-2">
+                <Users size={16} />
+                <span className="text-[10px] font-black uppercase tracking-widest">1. Tripulação </span>
+              </div>
+
+              <Input type="date" value={newEntry.entry_date} onChange={e => {
+                const selectedDate = new Date(e.target.value);
+                const selectedDateMonth = selectedDate.getUTCMonth() + 1;
+                const selectedDateYear = selectedDate.getUTCFullYear();
+                if (selectedDateMonth !== selectedMonth || selectedDateYear !== selectedYear) {
+                  toast.error(`A data deve estar no mês selecionado: ${MONTHS[selectedMonth - 1]} de ${selectedYear}`);
+                  return;
+                }
+                setNewEntry({
+                  ...newEntry,
+                  entry_date: e.target.value
+                });
+              }} className="bg-slate-950 border-slate-800 text-white" />
+
+              <div className="space-y-1">
+                <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Comandante (PIC) *</Label>
+                <Select value={newEntry.pic_canac} onValueChange={v => setNewEntry({
+                  ...newEntry,
+                  pic_canac: v
+                })}>
+                  <SelectTrigger className="bg-slate-950 border-slate-800 text-white">
+                    <SelectValue placeholder="Selecione o PIC" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {crew.map(c => <SelectItem key={c.id} value={c.id}>{c.full_name} ({c.canac})</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Copiloto (SIC)</Label>
+                <Select value={newEntry.sic_canac || '__none__'} onValueChange={v => setNewEntry({
+                  ...newEntry,
+                  sic_canac: v === '__none__' ? '' : v
+                })}>
+                  <SelectTrigger className="bg-slate-950 border-slate-800 text-white">
+                    <SelectValue placeholder="Opcional - Nenhum" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Nenhum (SIC Opcional)</SelectItem>
+                    {crew.map(c => <SelectItem key={c.id} value={c.id}>{c.full_name} ({c.canac})</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* SEÇÃO 2: NAVEGAÇÃO & CLIENTE */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-emerald-500 mb-2">
+                <Navigation size={16} />
+                <span className="text-[10px] font-black uppercase tracking-widest">2. Navegação & Cliente</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Origem *</Label>
+                  <Input placeholder="SBCY" value={newEntry.departure_aerodrome} onChange={e => setNewEntry({
+                    ...newEntry,
+                    departure_aerodrome: e.target.value.toUpperCase()
+                  })} className="bg-slate-950 border-slate-800 text-white uppercase" list="aerodromes-list" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Destino *</Label>
+                  <Input placeholder="SBMT" value={newEntry.arrival_aerodrome} onChange={e => setNewEntry({
+                    ...newEntry,
+                    arrival_aerodrome: e.target.value.toUpperCase()
+                  })} className="bg-slate-950 border-slate-800 text-white uppercase" list="aerodromes-list" />
+                </div>
+              </div>
+
+              <datalist id="aerodromes-list">
+                {aerodromes.map(a => <option key={a.id} value={a.designativo}>{a.name}</option>)}
+              </datalist>
+
+              {newEntry.distance_nm > 0 && <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-center">
+                <div className="text-[9px] uppercase text-slate-500 font-black">Distância</div>
+                <div className="text-2xl font-black text-sky-500">{newEntry.distance_nm} <span className="text-xs">NM</span></div>
+              </div>}
+
+              <div className="space-y-3">
+                {/* Seleção do Tipo de Voo: Cliente | Rateio | Empréstimo */}
+                <div className="space-y-2">
+                  <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Responsável pelos Custos</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={flightType === 'cliente' ? 'default' : 'outline'}
+                      className="flex-1 h-10 text-xs font-semibold"
+                      onClick={() => {
+                        setFlightType('cliente');
+                        setNewEntry({
+                          ...newEntry,
+                          is_equal_split: false,
+                          is_loan: false,
+                          client_id: '',
+                          borrower_client_id: '',
+                          partner_name: '',
+                        });
+                      }}
+                    >
+                      Cliente
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={flightType === 'rateio' ? 'default' : 'outline'}
+                      className="flex-1 h-10 text-xs font-semibold"
+                      onClick={() => {
+                        setFlightType('rateio');
+                        setNewEntry({
+                          ...newEntry,
+                          is_equal_split: true,
+                          is_loan: false,
+                          client_id: '',
+                          borrower_client_id: '',
+                          partner_name: '',
+                        });
+                      }}
+                    >
+                      Rateio
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={flightType === 'emprestimo' ? 'default' : 'outline'}
+                      className="flex-1 h-10 text-xs font-semibold bg-amber-600/20 border-amber-500/30 hover:bg-amber-600/30"
+                      onClick={() => {
+                        setFlightType('emprestimo');
+                        setNewEntry({
+                          ...newEntry,
+                          is_equal_split: false,
+                          is_loan: true,
+                          flight_nature: 'PV - Privado',
+                          partner_name: '',
+                          borrower_client_id: '',
+                        });
+                      }}
+                    >
+                      Empréstimo
+                    </Button>
+                  </div>
+                </div>
+
+                {/* SEÇÃO: Tipo Cliente */}
+                {flightType === 'cliente' && (
+                  <div className="space-y-3 animate-in slide-in-from-top-2 p-3 bg-slate-950/50 border border-slate-800 rounded-lg">
+                    <div className="space-y-1">
+                      <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Cliente / Cotista *</Label>
+                      <Select value={newEntry.client_id} onValueChange={v => {
+                        const selectedClient = clients.find(c => c.id === v);
+                        setNewEntry({
+                          ...newEntry,
+                          client_id: v,
+                          partner_name: '' // Reset partner when client changes
+                        });
+                      }}>
+                        <SelectTrigger className="bg-slate-950 border-slate-800 text-white">
+                          <SelectValue placeholder="Selecione o Cliente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sortedClients
+                            .filter(cl => cl.client_aircraft?.some(ca => ca.aircraft_id === aircraftId))
+                            .map(cl => (
+                              <SelectItem key={cl.id} value={cl.id}>
+                                {cl.company_name}
+                                <span className="text-emerald-400"> ✓</span>
+                              </SelectItem>
+                            ))
+                          }
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Seleção de Sócio/Partner */}
+                    {(() => {
+                      const selectedClient = clients.find(c => c.id === newEntry.client_id);
+                      const partnerOptions = [];
+                      if (selectedClient?.partner_name) partnerOptions.push(selectedClient.partner_name);
+                      if (selectedClient?.partner_name2) partnerOptions.push(selectedClient.partner_name2);
+                      if (selectedClient?.partner_name3) partnerOptions.push(selectedClient.partner_name3);
+                      
+                      if (partnerOptions.length > 0) {
+                        return (
+                          <div className="space-y-1 mt-2">
+                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Sócio Responsável pelo Voo</Label>
+                            <Select value={newEntry.partner_name} onValueChange={v => setNewEntry({
+                              ...newEntry,
+                              partner_name: v
+                            })}>
+                              <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
+                                <SelectValue placeholder="Selecione o Sócio" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {partnerOptions.map((partner, idx) => (
+                                  <SelectItem key={idx} value={partner}>
+                                    {partner}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {selectedClient?.cnpj && (
+                              <p className="text-[8px] text-slate-500 mt-1">
+                                CNPJ: {selectedClient.cnpj}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
+                )}
+
+                {/* SEÇÃO: Tipo Rateio */}
+                {flightType === 'rateio' && (
+                  <div className="space-y-3 animate-in slide-in-from-top-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                    <p className="text-[9px] text-emerald-400 uppercase font-bold tracking-widest">
+                      Tipo de Voo para Rateio
+                    </p>
+                    <Select value={newEntry.flight_nature} onValueChange={v => setNewEntry({
+                      ...newEntry,
+                      flight_nature: v
+                    })}>
+                      <SelectTrigger className="bg-slate-950 border border-emerald-500/30 text-emerald-400">
+                        <SelectValue placeholder="Selecione o tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SPLIT_FLIGHT_TYPES.map(type => (
+                          <SelectItem key={type.code} value={type.code}>
+                            {type.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[8px] text-slate-400 mt-2 italic">
+                      💡 Custos serão divididos igualmente entre todos os sócios
+                    </p>
+                  </div>
+                )}
+
+                {/* SEÇÃO: Tipo Empréstimo */}
+                {flightType === 'emprestimo' && (
+                  <div className="space-y-3 animate-in slide-in-from-top-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                    <p className="text-[9px] text-amber-400 uppercase font-bold tracking-widest mb-3">
+                      Configurar Empréstimo
+                    </p>
+
+                    {/* Cliente que está emprestando */}
+                    <div className="space-y-1">
+                      <Label className="text-[9px] uppercase text-amber-400 ml-1 block">Cliente que Empresta a Aeronave *</Label>
+                      <Select value={newEntry.client_id} onValueChange={v => {
+                        setNewEntry({
+                          ...newEntry,
+                          client_id: v,
+                          partner_name: '' // Reset partner when client changes
+                        });
+                      }}>
+                        <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
+                          <SelectValue placeholder="Selecione o Cliente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sortedClients.map(cl => {
+                            // Verificar se o cliente está vinculado à aeronave
+                            const isLinkedToAircraft = cl.client_aircraft?.some(ca => ca.aircraft_id === aircraftId);
+                            // Verificar se o cliente tem sócio
+                            const hasSocio = cl.partner_name || cl.partner_name2 || cl.partner_name3;
+                            // Mostrar apenas clientes vinculados à aeronave (sócios)
+                            const shouldShow = isLinkedToAircraft;
+
+                            return shouldShow ? (
+                              <SelectItem key={cl.id} value={cl.id}>
+                                {cl.company_name}
+                                {hasSocio && <span className="text-emerald-400"> (com sócio)</span>}
+                              </SelectItem>
+                            ) : null;
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Sócio/Cotista responsável pelo empréstimo */}
+                    {(() => {
+                      const selectedClient = clients.find(c => c.id === newEntry.client_id);
+                      const partnerOptions = [];
+                      if (selectedClient?.partner_name) partnerOptions.push(selectedClient.partner_name);
+                      if (selectedClient?.partner_name2) partnerOptions.push(selectedClient.partner_name2);
+                      if (selectedClient?.partner_name3) partnerOptions.push(selectedClient.partner_name3);
+
+                      if (partnerOptions.length > 0) {
+                        return (
+                          <div className="space-y-1 mt-2">
+                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Cotista Responsável (Aeronave) *</Label>
+                            <Select value={newEntry.partner_name} onValueChange={v => setNewEntry({
+                              ...newEntry,
+                              partner_name: v
+                            })}>
+                              <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
+                                <SelectValue placeholder="Selecione o Cotista" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {partnerOptions.map((partner, idx) => (
+                                  <SelectItem key={idx} value={partner}>
+                                    {partner}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
+                    {/* Cliente que está usando a aeronave emprestada (deve aparecer TODOS os clientes) */}
+                    <div className="space-y-1 mt-2">
+                      <Label className="text-[9px] uppercase text-amber-500 ml-1 block">
+                        Cliente que Pega Emprestado (Usa a Aeronave) *
+                      </Label>
+                      <Select
+                        value={newEntry.borrower_client_id}
+                        onValueChange={(v) =>
+                          setNewEntry({
+                            ...newEntry,
+                            borrower_client_id: v,
+                            borrower_partner_name: '', // Reset partner when borrower client changes
+                          })
+                        }
+                      >
+                        <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
+                          <SelectValue placeholder="Selecione o cliente que está usando" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clients.map((cl) => (
+                            <SelectItem key={cl.id} value={cl.id}>
+                              {cl.company_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Sócio/Cotista do cliente que pega emprestado (se houver) */}
+                    {(() => {
+                      const selectedBorrowerClient = clients.find(c => c.id === newEntry.borrower_client_id);
+                      const borrowerPartnerOptions = [];
+                      if (selectedBorrowerClient?.partner_name) borrowerPartnerOptions.push(selectedBorrowerClient.partner_name);
+                      if (selectedBorrowerClient?.partner_name2) borrowerPartnerOptions.push(selectedBorrowerClient.partner_name2);
+                      if (selectedBorrowerClient?.partner_name3) borrowerPartnerOptions.push(selectedBorrowerClient.partner_name3);
+
+                      if (borrowerPartnerOptions.length > 0) {
+                        return (
+                          <div className="space-y-1 mt-2">
+                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Cotista que Pega Emprestado *</Label>
+                            <Select value={newEntry.borrower_partner_name} onValueChange={v => setNewEntry({
+                              ...newEntry,
+                              borrower_partner_name: v
+                            })}>
+                              <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
+                                <SelectValue placeholder="Selecione o Cotista" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {borrowerPartnerOptions.map((partner, idx) => (
+                                  <SelectItem key={idx} value={partner}>
+                                    {partner}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* SEÇÃO 3: TEMPOS OPERACIONAIS */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-amber-500 mb-2">
+                <Clock size={16} />
+                <span className="text-[10px] font-black uppercase tracking-widest">3. Tempos Operacionais</span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[9px] uppercase text-sky-500 font-bold ml-1 block">Apresentação</Label>
+                  <Input value={newEntry.crew_checkin_time} disabled className="bg-slate-800 border-transparent text-slate-500" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Acionamento *</Label>
+                  <Input type="time" step="60" value={newEntry.ac_time} onChange={e => setNewEntry({
+                    ...newEntry,
+                    ac_time: e.target.value
+                  })} style={{
+                    accentColor: 'white',
+                    colorScheme: 'dark'
+                  }} className="bg-slate-950 border-slate-800 text-white" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Decolagem *</Label>
+                  <Input type="time" step="60" value={newEntry.dep_time} onChange={e => setNewEntry({
+                    ...newEntry,
+                    dep_time: e.target.value
+                  })} style={{
+                    accentColor: 'white',
+                    colorScheme: 'dark'
+                  }} className="bg-slate-950 border-slate-800 text-white" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 border-t border-slate-800/50 pt-4">
+                <div className="space-y-1">
+                  <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Pouso *</Label>
+                  <Input type="time" step="60" value={newEntry.pou_time} onChange={e => setNewEntry({
+                    ...newEntry,
+                    pou_time: e.target.value
+                  })} style={{
+                    accentColor: 'white',
+                    colorScheme: 'dark'
+                  }} className="bg-slate-950 border-slate-800 text-white" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Corte *</Label>
+                  <Input type="time" step="60" value={newEntry.cor_time} onChange={e => setNewEntry({
+                    ...newEntry,
+                    cor_time: e.target.value
+                  })} style={{
+                    accentColor: 'white',
+                    colorScheme: 'dark'
+                  }} className="bg-slate-950 border-slate-800 text-white" />
+                </div>
+              </div>
+
+            </div>
+
+            {/* SEÇÃO 4: TEMPOS (Resumo de Cálculos) */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-purple-500 mb-2">
+                <TrendingUp size={16} />
+                <span className="text-[10px] font-black uppercase tracking-widest">4. Tempos</span>
+              </div>
+
+              {newEntry.total_time > 0 ? <div className="space-y-2">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[9px] uppercase text-orange-500 font-bold">T. VOO</Label>
+                    <div className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-black text-sm min-w-24 text-center">
+                      {decimalToHHMM(newEntry.time)}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[9px] uppercase text-emerald-500 font-bold">T. DIA</Label>
+                    <Input type="time" step="60" value={decimalToTimeString(newEntry.day_time)} onChange={e => setNewEntry({
+                      ...newEntry,
+                      day_time: timeStringToDecimal(e.target.value)
+                    })} style={{
+                      accentColor: 'white',
+                      colorScheme: 'dark'
+                    }} className="bg-slate-950 border-slate-800 text-emerald-400 font-bold text-sm w-24 text-center" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[9px] uppercase text-sky-500 font-bold">T. NOITE</Label>
+                    <Input type="time" step="60" value={decimalToTimeString(newEntry.night_hours)} onChange={e => setNewEntry({
+                      ...newEntry,
+                      night_hours: timeStringToDecimal(e.target.value)
+                    })} style={{
+                      accentColor: 'white',
+                      colorScheme: 'dark'
+                    }} className="bg-slate-950 border-slate-800 text-sky-400 font-bold text-sm w-24 text-center" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[9px] uppercase text-white font-bold">TOTAL</Label>
+                    <div className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-black text-sm min-w-24 text-center">
+                      {decimalToHHMM(newEntry.total_time)}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[9px] uppercase text-purple-500 font-bold">IFR</Label>
+                    <Input type="time" step="60" value={decimalToTimeString(newEntry.ifr_time)} onChange={e => setNewEntry({
+                      ...newEntry,
+                      ifr_time: timeStringToDecimal(e.target.value)
+                    })} style={{
+                      accentColor: 'white',
+                      colorScheme: 'dark'
+                    }} className="bg-slate-950 border-slate-800 text-purple-400 font-bold text-sm w-24 text-center" />
+                  </div>
+                </div>
+              </div> : <div className="bg-slate-950/50 border border-slate-800/50 rounded-xl p-4 text-center">
+                <span className="text-slate-600 text-xs uppercase font-bold">Preencha acionamento e corte para ver cálculos</span>
+              </div>}
+            </div>
+
+            {/* SEÇÃO 5: PERFORMANCE & CÉLULA */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-pink-500 mb-2">
+                <Fuel size={16} />
+                <span className="text-[10px] font-black uppercase tracking-widest">5. Performance & Célula</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Pousos</Label>
+                  <Input type="number" value={newEntry.pousos} onChange={e => setNewEntry({
+                    ...newEntry,
+                    pousos: parseInt(e.target.value) || 1
+                  })} className="bg-slate-950 border-slate-800 text-white" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Combustível Inicial (L)</Label>
+                  <Input type="number" step="0.1" placeholder="0" value={newEntry.fuel_liters} onChange={e => setNewEntry({
+                    ...newEntry,
+                    fuel_liters: parseFloat(e.target.value) || 0
+                  })} className="bg-slate-950 border-slate-800 text-orange-400" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Combustível Abastecido (L)</Label>
+                  <Input type="number" step="0.1" placeholder="0" value={newEntry.fuel_added} onChange={e => setNewEntry({
+                    ...newEntry,
+                    fuel_added: parseFloat(e.target.value) || 0
+                  })} className="bg-slate-950 border-slate-800 text-orange-300" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[9px] uppercase text-slate-500 ml-1 block">POB (Pessoas)</Label>
+                  <Input type="number" value={newEntry.passengers} onChange={e => setNewEntry({
+                    ...newEntry,
+                    passengers: parseInt(e.target.value) || 0
+                  })} className="bg-slate-950 border-slate-800 text-sky-400" />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Carga (kg)</Label>
+                <Input type="number" step="0.1" placeholder="0" value={newEntry.cargo_kg} onChange={e => setNewEntry({
+                  ...newEntry,
+                  cargo_kg: parseFloat(e.target.value) || 0
+                })} className="bg-slate-950 border-slate-800 text-emerald-400" />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Natureza do Voo *</Label>
+                <Select value={newEntry.flight_nature} onValueChange={v => setNewEntry({
+                  ...newEntry,
+                  flight_nature: v
+                })}>
+                  <SelectTrigger className="bg-slate-950 border-slate-800 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FLIGHT_NATURE.map(fn => <SelectItem key={fn} value={fn}>{fn}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {logbookMonth?.has_daily_rate && (
+                <div className="space-y-1 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                  <Label className="text-[9px] uppercase text-yellow-500 font-bold ml-1 block">
+                    Quantidade de Diárias
+                  </Label>
+                  <div className="flex gap-2 items-end">
+                    <Input
+                      type="number"
+                      min="0"
+                      value={newEntry.daily_quantity}
+                      onChange={e => setNewEntry({
+                        ...newEntry,
+                        daily_quantity: parseInt(e.target.value) || 0
+                      })}
+                      className="bg-slate-950 border-yellow-500/30 text-yellow-400 font-bold text-center flex-1"
+                      placeholder="0"
+                    />
+                    <div className="text-sm font-bold text-yellow-400">
+                      × R$ {(logbookMonth?.daily_rate || 0).toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-yellow-500/20 text-right">
+                    <div className="text-[9px] uppercase text-yellow-500 font-bold">Total de Diárias</div>
+                    <div className="text-lg font-black text-yellow-400">
+                      R$ {((newEntry.daily_quantity || 0) * (logbookMonth?.daily_rate || 0)).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <Button onClick={handleSaveFlight} className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 h-14 font-black uppercase text-sm rounded-2xl">
+                <Save size={18} className="mr-2" />
+                Salvar Voo
+              </Button>
+            </div>
+
+            {/* SEÇÃO 6: OBSERVAÇÕES & MANUTENÇÃO */}
+            <div className="space-y-4 lg:col-span-2">
+              <div className="flex items-center gap-2 text-yellow-500 mb-2">
+                <AlertCircle size={16} />
+                <span className="text-[10px] font-black uppercase tracking-widest">6. Observações & Manutenção</span>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Ocorrência(s):</Label>
+                <textarea placeholder="Descreva qualquer ocorrência durante o voo..." value={newEntry.occurrences} onChange={e => setNewEntry({
+                  ...newEntry,
+                  occurrences: e.target.value
+                })} className="w-full h-20 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white text-xs resize-none focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+              </div>
+            </div>
+          </div>
+          {logbookMonth?.has_daily_rate && (
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
+              <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Diárias do Período</p>
+              <p className="text-lg font-black text-yellow-400">{calculatePerDiemInfo.count} diárias</p>
+              <p className="text-xs text-emerald-400 mt-1">R$ {(calculatePerDiemInfo.total || 0).toFixed(2)}</p>
+            </div>
+          )}
+          {logbookMonth?.has_daily_rate && calculatePerDiemInfo.count > 0 && (
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl">
+              <div className="flex items-center gap-2 mb-4">
+                <MapPin className="text-yellow-500" size={18} />
+                <h2 className="text-sm font-black text-slate-500 uppercase tracking-widest">
+                  Detalhamento de Diárias (Clique para marcar como contabilizada)
+                </h2>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                {calculatePerDiemInfo.details.map((pd, idx) => {
+                  const uniqueKey = pd.entryId ? `${pd.entryId}_${pd.date}` : `${idx}`;
+                  const isMarked = markedDailies[uniqueKey] || false;
+                  return (
+                    <div
+                      key={idx}
+                      className={`border rounded-lg p-3 transition-all cursor-pointer ${
+                        isMarked
+                          ? 'bg-sky-500/20 border-sky-500/50'
+                          : 'bg-slate-950 border-yellow-500/30'
+                      }`}
+                      onClick={() => {
+                        const newMarked = {...markedDailies};
+                        newMarked[uniqueKey] = !isMarked;
+                        setMarkedDailies(newMarked);
+                      }}
+                    >
+                      <div className="flex items-start gap-2">
+                        <input
+                          type="checkbox"
+                          checked={isMarked}
+                          onChange={() => {}}
+                          className="w-4 h-4 mt-0.5 accent-sky-500 cursor-pointer"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-[9px] uppercase font-bold mb-1 ${
+                            isMarked ? 'text-sky-400' : 'text-yellow-500'
+                          }`}>
+                            {pd.date}
+                          </p>
+                          <p className="text-xs text-slate-400 truncate">{pd.location}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-4 pt-4 border-t border-slate-800 text-right">
+                <p className="text-sm text-slate-400">
+                  Total: <span className="text-2xl font-black text-yellow-400">
+                    {calculatePerDiemInfo.count} × R$ {(logbookMonth.daily_rate || 0).toFixed(2)} =
+                    R$ {(calculatePerDiemInfo.total || 0).toFixed(2)}
+                  </span>
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Alertas e Informações */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+            <div className="bg-sky-500/10 border border-sky-500/30 rounded-2xl p-4 flex items-start gap-3">
+              <Info className="text-sky-400 flex-shrink-0 mt-0.5" size={18} />
+              <div className="text-xs text-sky-200">
+                <strong>Cálculo Automático:</strong> A apresentação é calculada 30min antes do acionamento. Os tempos são calculados automaticamente.
+              </div>
+            </div>
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 flex items-start gap-3">
+              <Info className="text-emerald-400 flex-shrink-0 mt-0.5" size={18} />
+              <div className="text-xs text-emerald-200">
+                <strong>Sistema Dual:</strong> Selecione "Rateio Igual" para dividir custos entre sócios ou escolha um cliente específico. Tipos de rateio: Cheque (CQ), Traslado (TR) e Teste (TN).
+              </div>
+            </div>
           </div>
         </div>
+        }
 
-        {/* Entries Table */}
-        <div className="bg-slate-900/50 rounded-lg border border-slate-800 overflow-hidden">
+        {/* MODAL SITUAÇÃO TÉCNICA DA AERONAVE */}
+        {showTechnicalStatus && <div className="bg-slate-900 border-2 border-emerald-500/20 rounded-[2.5rem] p-8 shadow-3xl space-y-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-black text-white uppercase tracking-tight">Situação Técnica da Aeronave</h2>
+            <button onClick={() => setShowTechnicalStatus(false)} className="text-slate-500 hover:text-white transition-colors">
+              <X size={24} />
+            </button>
+          </div>
+
+          {/* SEÇÃO 1: DADOS DE MANUTENÇÃO */}
+          <div className="space-y-4 pb-6 border-b border-slate-800">
+            <div className="flex items-center gap-2 text-emerald-500 mb-4">
+              <AlertCircle size={16} />
+              <span className="text-[10px] font-black uppercase tracking-widest">Histórico de Manutenção</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Tipo da última intervenção de manutenção</Label>
+                <input type="text" value={technicalStatus.last_maintenance_type} onChange={e => setTechnicalStatus({
+                  ...technicalStatus,
+                  last_maintenance_type: e.target.value
+                })} className="w-full h-10 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="Ex: Revisão completa, Manutenção preventiva..." />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Horas de célula para próxima intervenção</Label>
+                <input type="number" step="0.01" value={technicalStatus.airframe_hours_next_maintenance} onChange={e => setTechnicalStatus({
+                  ...technicalStatus,
+                  airframe_hours_next_maintenance: e.target.value
+                })} className="w-full h-10 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="Ex: 50.00" />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Tipo da próxima intervenção de manutenção</Label>
+                <input type="text" value={technicalStatus.next_maintenance_type} onChange={e => setTechnicalStatus({
+                  ...technicalStatus,
+                  next_maintenance_type: e.target.value
+                })} className="w-full h-10 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="Ex: Manutenção programada..." />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[9px] uppercase text-slate-500 ml-1 block">CANAC e Rubrica PIC</Label>
+                <input type="text" value={technicalStatus.maintenance_approval_responsible} onChange={e => setTechnicalStatus({
+                  ...technicalStatus,
+                  maintenance_approval_responsible: e.target.value
+                })} className="w-full h-10 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="Ex: 001234 / Rubrica" />
+              </div>
+            </div>
+          </div>
+
+          {/* SEÇÃO 2: REGISTROS DA TRIPULAÇÃO */}
+          <div className="space-y-4 pb-6 border-b border-slate-800">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-blue-500">
+                <Users size={16} />
+                <span className="text-[10px] font-black uppercase tracking-widest">Registros da Tripulação</span>
+              </div>
+              <button onClick={() => setTechnicalStatus({
+                ...technicalStatus,
+                crew_records: [...technicalStatus.crew_records, {
+                  date: '',
+                  system: '',
+                  discrepancy: '',
+                  canac: ''
+                }]
+              })} className="px-3 h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg font-bold uppercase transition-all">
+                <Plus size={14} className="inline mr-1" /> Adicionar Registro
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-800/50 text-[9px] font-black uppercase text-slate-500 tracking-widest border-b border-slate-800">
+                    <th className="p-2 text-center">Data</th>
+                    <th className="p-2 text-center">Sist.</th>
+                    <th className="p-2 text-center">Discrepância</th>
+                    <th className="p-2 text-center">CANAC</th>
+                    <th className="p-2 text-center">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {technicalStatus.crew_records.map((record, idx) => <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
+                    <td className="p-2 text-center">
+                      <input type="date" value={record.date} onChange={e => {
+                        const newRecords = [...technicalStatus.crew_records];
+                        newRecords[idx].date = e.target.value;
+                        setTechnicalStatus({
+                          ...technicalStatus,
+                          crew_records: newRecords
+                        });
+                      }} className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+                    </td>
+                    <td className="p-2 text-center">
+                      <input type="text" value={record.system} onChange={e => {
+                        const newRecords = [...technicalStatus.crew_records];
+                        newRecords[idx].system = e.target.value;
+                        setTechnicalStatus({
+                          ...technicalStatus,
+                          crew_records: newRecords
+                        });
+                      }} className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Sistema" />
+                    </td>
+                    <td className="p-2 text-center">
+                      <input type="text" value={record.discrepancy} onChange={e => {
+                        const newRecords = [...technicalStatus.crew_records];
+                        newRecords[idx].discrepancy = e.target.value;
+                        setTechnicalStatus({
+                          ...technicalStatus,
+                          crew_records: newRecords
+                        });
+                      }} className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Discrepância" />
+                    </td>
+                    <td className="p-2 text-center">
+                      <input type="text" value={record.canac} onChange={e => {
+                        const newRecords = [...technicalStatus.crew_records];
+                        newRecords[idx].canac = e.target.value;
+                        setTechnicalStatus({
+                          ...technicalStatus,
+                          crew_records: newRecords
+                        });
+                      }} className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="CANAC" />
+                    </td>
+                    <td className="p-2 text-center">
+                      <button onClick={() => setTechnicalStatus({
+                        ...technicalStatus,
+                        crew_records: technicalStatus.crew_records.filter((_, i) => i !== idx)
+                      })} className="p-1 hover:bg-red-600/30 text-red-400 rounded transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>)}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* SEÇÃO 3: APROVAÇÃO DE RETORNO AO SERVIÇO */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-amber-500">
+                <CheckCircle size={16} />
+                <span className="text-[10px] font-black uppercase tracking-widest">Aprovação de Retorno ao Serviço</span>
+              </div>
+              <button onClick={() => setTechnicalStatus({
+                ...technicalStatus,
+                service_return: [...technicalStatus.service_return, {
+                  date: '',
+                  corrective_action: '',
+                  responsible_canac: '',
+                  pic_canac: ''
+                }]
+              })} className="px-3 h-8 bg-amber-600 hover:bg-amber-700 text-white text-xs rounded-lg font-bold uppercase transition-all">
+                <Plus size={14} className="inline mr-1" /> Adicionar Registro
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-800/50 text-[9px] font-black uppercase text-slate-500 tracking-widest border-b border-slate-800">
+                    <th className="p-2 text-center">Data</th>
+                    <th className="p-2 text-center">Ação Corretiva</th>
+                    <th className="p-2 text-center">CANAC Responsável</th>
+                    <th className="p-2 text-center">CANAC PIC</th>
+                    <th className="p-2 text-center">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {technicalStatus.service_return.map((record, idx) => <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
+                    <td className="p-2 text-center">
+                      <input type="date" value={record.date} onChange={e => {
+                        const newRecords = [...technicalStatus.service_return];
+                        newRecords[idx].date = e.target.value;
+                        setTechnicalStatus({
+                          ...technicalStatus,
+                          service_return: newRecords
+                        });
+                      }} className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-white text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+                    </td>
+                    <td className="p-2 text-center">
+                      <input type="text" value={record.corrective_action} onChange={e => {
+                        const newRecords = [...technicalStatus.service_return];
+                        newRecords[idx].corrective_action = e.target.value;
+                        setTechnicalStatus({
+                          ...technicalStatus,
+                          service_return: newRecords
+                        });
+                      }} className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-white text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none" placeholder="Ação corretiva" />
+                    </td>
+                    <td className="p-2 text-center">
+                      <input type="text" value={record.responsible_canac} onChange={e => {
+                        const newRecords = [...technicalStatus.service_return];
+                        newRecords[idx].responsible_canac = e.target.value;
+                        setTechnicalStatus({
+                          ...technicalStatus,
+                          service_return: newRecords
+                        });
+                      }} className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-white text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none" placeholder="CANAC" />
+                    </td>
+                    <td className="p-2 text-center">
+                      <input type="text" value={record.pic_canac} onChange={e => {
+                        const newRecords = [...technicalStatus.service_return];
+                        newRecords[idx].pic_canac = e.target.value;
+                        setTechnicalStatus({
+                          ...technicalStatus,
+                          service_return: newRecords
+                        });
+                      }} className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-white text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none" placeholder="CANAC PIC" />
+                    </td>
+                    <td className="p-2 text-center">
+                      <button onClick={() => setTechnicalStatus({
+                        ...technicalStatus,
+                        service_return: technicalStatus.service_return.filter((_, i) => i !== idx)
+                      })} className="p-1 hover:bg-red-600/30 text-red-400 rounded transition-colors">
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>)}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* BOTÕES DE AÇÃO */}
+          <div className="flex gap-3 pt-6 border-t border-slate-800">
+            <button onClick={() => {
+              setShowTechnicalStatus(false);
+              setTechnicalStatus({
+                last_maintenance_type: '',
+                airframe_hours_next_maintenance: '',
+                next_maintenance_type: '',
+                maintenance_approval_responsible: '',
+                crew_records: [{
+                  date: '',
+                  system: '',
+                  discrepancy: '',
+                  canac: ''
+                }],
+                service_return: [{
+                  date: '',
+                  corrective_action: '',
+                  responsible_canac: '',
+                  pic_canac: ''
+                }]
+              });
+            }} className="flex-1 bg-slate-800 hover:bg-slate-700 h-12 font-black uppercase text-sm rounded-2xl transition-colors flex items-center justify-center">
+              <X size={18} className="mr-2" />
+              Cancelar
+            </button>
+            <button onClick={async () => {
+              try {
+                // Parse celula_prox_revisao from airframe_hours_next_maintenance
+                const celulaProxRevisao = technicalStatus.airframe_hours_next_maintenance
+                  ? parseFloat(technicalStatus.airframe_hours_next_maintenance)
+                  : logbookMonth.celula_prox_revisao;
+
+                // Atualizar logbook_months com celula_prox_revisao e recalcular disponivel
+                const celulaDisponivel = parseFloat(((celulaProxRevisao ?? 0) - (logbookMonth.celula_atual ?? 0)).toFixed(2));
+                const { error: monthError } = await supabase
+                  .from('logbook_months')
+                  .update({
+                    celula_prox_revisao: celulaProxRevisao,
+                    celula_disponivel: celulaDisponivel
+                  })
+                  .eq('id', logbookMonth.id);
+
+                if (monthError) throw monthError;
+
+                // Salvar os dados da situação técnica para cada entrada de log do mês atual
+                const {
+                  error
+                } = await (supabase as any).from('logbook_entries').update({
+                  last_maintenance_type: technicalStatus.last_maintenance_type || null,
+                  airframe_hours_next_maintenance: technicalStatus.airframe_hours_next_maintenance ? parseFloat(technicalStatus.airframe_hours_next_maintenance) : null,
+                  next_maintenance_type: technicalStatus.next_maintenance_type || null,
+                  maintenance_approval_responsible: technicalStatus.maintenance_approval_responsible || null,
+                  pilot_signature_date: new Date().toISOString()
+                }).eq('aircraft_id', aircraftId).eq('entry_month', selectedMonth).eq('entry_year', selectedYear);
+                if (error) throw error;
+
+                // Atualizar estado local
+                setLogbookMonth({
+                  ...logbookMonth,
+                  celula_prox_revisao: celulaProxRevisao,
+                  celula_disponivel: celulaDisponivel
+                });
+
+                toast.success("Situação técnica salva com sucesso!");
+                setShowTechnicalStatus(false);
+
+                // Recarregar entries
+                const {
+                  data
+                } = await supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('entry_date', {
+                  ascending: false
+                });
+                setEntries(data || []);
+                setTechnicalStatus({
+                  last_maintenance_type: '',
+                  airframe_hours_next_maintenance: '',
+                  next_maintenance_type: '',
+                  maintenance_approval_responsible: '',
+                  crew_records: [{
+                    date: '',
+                    system: '',
+                    discrepancy: '',
+                    canac: ''
+                  }],
+                  service_return: [{
+                    date: '',
+                    corrective_action: '',
+                    responsible_canac: '',
+                    pic_canac: ''
+                  }]
+                });
+              } catch (error) {
+                console.error("Erro ao salvar situação técnica:", error);
+                toast.error("Erro ao salvar: " + error.message);
+              }
+            }} className="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 h-12 font-black uppercase text-sm rounded-2xl transition-all flex items-center justify-center shadow-xl">
+              <Save size={18} className="mr-2" />
+              Salvar Situação Técnica
+            </button>
+          </div>
+        </div>}
+
+        {/* BOTÃO NOVO LANÇAMENTO */}
+        <div className="mb-6 flex items-start justify-end px-[11px] bg-transparent">
+          <button onClick={() => setShowAddForm(!showAddForm)} className={`${showAddForm ? 'bg-slate-700 text-slate-400' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700/90'} rounded-2xl px-6 font-black uppercase text-xs h-12 shadow-lg transition-all border border-slate-700/50`}>
+            {showAddForm ? <X className="mr-2 inline" size={16} /> : <Plus className="mr-2 inline" size={16} />}
+            {showAddForm ? "Cancelar" : "Novo lançamento"}
+          </button>
+        </div>{'}'}
+
+        {/* TABELA DE REGISTROS */}
+        <div className="bg-slate-900 border border-slate-800 overflow-hidden shadow-2xl rounded">
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-slate-800 bg-slate-900/70">
-                  <th className="p-3 text-left text-sm font-medium text-slate-300">Data</th>
-                  <th className="p-3 text-left text-sm font-medium text-slate-300">De</th>
-                  <th className="p-3 text-left text-sm font-medium text-slate-300">Para</th>
-                  <th className="p-3 text-left text-sm font-medium text-slate-300">PIC</th>
-                  <th className="p-3 text-left text-sm font-medium text-slate-300">Total</th>
-                  <th className="p-3 text-left text-sm font-medium text-slate-300">Célula</th>
-                  <th className="p-3 text-left text-sm font-medium text-slate-300">Ações</th>
+                <tr className="bg-slate-800/50 text-[9px] font-black uppercase text-slate-500 tracking-widest border-b border-slate-800">
+                  <th onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')} className="p-2 text-center cursor-pointer hover:text-sky-400 transition-colors group px-[7px] relative select-none" style={{ width: `${columnWidths.date}px` }}>
+                    <div className="flex items-center justify-center gap-1">
+                      <span>Data</span>
+                      <span className="text-[7px] opacity-60 group-hover:opacity-100 transition-opacity font-extrabold bg-transparent text-primary-glow px-[4px]">
+                        {sortDirection === 'asc' ? '↑' : '↓'}
+                      </span>
+                    </div>
+                    <div onMouseDown={(e) => handleResizeMouseDown('date', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.from}px` }}>
+                    De
+                    <div onMouseDown={(e) => handleResizeMouseDown('from', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.to}px` }}>
+                    Para
+                    <div onMouseDown={(e) => handleResizeMouseDown('to', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.ac}px` }}>
+                    Ac
+                    <div onMouseDown={(e) => handleResizeMouseDown('ac', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.dep}px` }}>
+                    Dep
+                    <div onMouseDown={(e) => handleResizeMouseDown('dep', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.pou}px` }}>
+                    Pou
+                    <div onMouseDown={(e) => handleResizeMouseDown('pou', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.cor}px` }}>
+                    Cor
+                    <div onMouseDown={(e) => handleResizeMouseDown('cor', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.tvoo}px` }}>
+                    T.Voo
+                    <div onMouseDown={(e) => handleResizeMouseDown('tvoo', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.dia}px` }}>
+                    Dia
+                    <div onMouseDown={(e) => handleResizeMouseDown('dia', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.noite}px` }}>
+                    Noite
+                    <div onMouseDown={(e) => handleResizeMouseDown('noite', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.ifr}px` }}>
+                    IFR
+                    <div onMouseDown={(e) => handleResizeMouseDown('ifr', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.pousos}px` }}>
+                    Pousos
+                    <div onMouseDown={(e) => handleResizeMouseDown('pousos', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.fuel_add}px` }}>
+                    Abas+
+                    <div onMouseDown={(e) => handleResizeMouseDown('fuel_add', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.celula}px` }}>
+                    FUEL
+                    <div onMouseDown={(e) => handleResizeMouseDown('fuel_liters', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.celula}px` }}>
+                    Célula
+                    <div onMouseDown={(e) => handleResizeMouseDown('celula', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.pic}px` }}>
+                    Pic
+                    <div onMouseDown={(e) => handleResizeMouseDown('pic', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.canac_pic}px` }}>
+                    Canac
+                    <div onMouseDown={(e) => handleResizeMouseDown('canac_pic', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.sic}px` }}>
+                    Sic
+                    <div onMouseDown={(e) => handleResizeMouseDown('sic', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.canac_sic}px` }}>
+                    Canac Sic
+                    <div onMouseDown={(e) => handleResizeMouseDown('canac_sic', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  {logbookMonth?.has_daily_rate && <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.diarias}px` }}>
+                    Diárias
+                    <div onMouseDown={(e) => handleResizeMouseDown('diarias', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>}
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.voo_para}px` }}>
+                    Voo Para
+                    <div onMouseDown={(e) => handleResizeMouseDown('voo_para', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.check}px` }}>
+                    ✓
+                    <div onMouseDown={(e) => handleResizeMouseDown('check', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.acoes}px` }}>
+                    Ações
+                    <div onMouseDown={(e) => handleResizeMouseDown('acoes', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
                 </tr>
               </thead>
-              <tbody>
-                {filteredEntries.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="p-8 text-center text-slate-500">
-                      Nenhum voo registrado neste período
+              <tbody className="divide-y divide-slate-800">
+                {filteredEntries.length === 0 ? <tr>
+                  <td colSpan={18} className="p-20 text-center">
+                    <Plane className="mx-auto mb-4 text-slate-700" size={48} />
+                    <div className="text-slate-600 uppercase font-black text-xs tracking-widest">
+                      Nenhum registro encontrado para este período
+                    </div>
+                    <div className="text-slate-700 text-xs mt-2">
+                      Clique em "Novo Lançamento" para adicionar um voo
+                    </div>
+                  </td>
+                </tr> : filteredEntries.map((e, idx) => {
+                  const picCrew = crew.find(c => c.id === e.pic_canac);
+                  const sicCrew = crew.find(c => c.id === e.sic_canac);
+                  const clientName = clients.find(c => c.id === e.client_id)?.company_name;
+                  const monthLineNumber = idx + 1;
+                  return <tr key={e.id} className="hover:bg-slate-800/30 transition-colors group border-b border-slate-800/50">
+                    <td className="p-2 whitespace-nowrap text-center text-xs" style={{ width: `${columnWidths.date}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="text-slate-500 text-[10px]" title={`Número da linha do mês: ${monthLineNumber}`}>#{monthLineNumber}</span>
+                        <span className="text-white font-bold">{formatDateFromISO(e.entry_date)}</span>
+                      </div>
                     </td>
-                  </tr>
-                ) : (
-                  filteredEntries.map((entry) => (
-                    <tr key={entry.id} className="border-b border-slate-800 hover:bg-slate-800/30">
-                      <td className="p-3 text-sm text-white">
-                        {formatDateFromISO(entry.entry_date)}
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.from}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-sky-400 font-bold text-xs">{e.departure_aerodrome}</span>
+                    </td>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.to}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-emerald-400 font-bold text-xs">{e.arrival_aerodrome}</span>
+                    </td>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.ac}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-white font-bold text-xs">{formatTimeFromTimestamp(e.ac_time)}</span>
+                    </td>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.dep}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-slate-300 text-xs">{formatTimeFromTimestamp(e.dep_time)}</span>
+                    </td>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.pou}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-slate-300 text-xs">{formatTimeFromTimestamp(e.pou_time)}</span>
+                    </td>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.cor}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-white font-bold text-xs">{formatTimeFromTimestamp(e.cor_time)}</span>
+                    </td>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.tvoo}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-white font-bold text-sm">{decimalToHHMM(e.time)}</span>
+                    </td>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.dia}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {e.day_time > 0 ? <span className="text-emerald-400 font-bold text-sm">{decimalToHHMM(e.day_time)}</span> : <span className="text-slate-600">-</span>}
+                    </td>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.noite}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {e.night_hours > 0 ? <span className="text-sky-400 font-bold text-sm">{decimalToHHMM(e.night_hours)}</span> : <span className="text-slate-600">-</span>}
+                    </td>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.ifr}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {e.ifr_time > 0 ? <span className="text-purple-400 font-bold text-sm">{decimalToHHMM(e.ifr_time)}</span> : <span className="text-slate-600">-</span>}
+                    </td>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.pousos}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-slate-300 text-xs">{e.pousos || '-'}</span>
+                    </td>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.fuel_add}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-slate-300 text-xs">{e.fuel_added > 0 ? e.fuel_added?.toFixed(1) : '-'}</span>
+                    </td>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.celula}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-orange-400 font-bold text-sm">{Math.round(e.fuel_liters || 0)}L</span>
+                    </td>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.celula}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-purple-400 font-bold text-xs">{e.celula?.toFixed(1)}</span>
+                    </td>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.pic}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-white text-xs">{picCrew?.full_name.split(' ')[0] || '-'}</span>
+                    </td>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.canac_pic}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-slate-400 text-xs font-bold">{picCrew?.canac || '-'}</span>
+                    </td>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.sic}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-white text-xs">{sicCrew?.full_name.split(' ')[0] || '-'}</span>
+                    </td>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.canac_sic}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span className="text-slate-400 text-xs font-bold">{sicCrew?.canac || '-'}</span>
+                    </td>
+                    {logbookMonth?.has_daily_rate && (
+                      <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.diarias}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {e.daily_rate > 0 ? (
+                          <span className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-lg font-bold text-sm">
+                            {e.daily_rate}
+                          </span>
+                        ) : (
+                          <span className="text-slate-600">-</span>
+                        )}
                       </td>
-                      <td className="p-3 text-sm text-white">{entry.departure_aerodrome}</td>
-                      <td className="p-3 text-sm text-white">{entry.arrival_aerodrome}</td>
-                      <td className="p-3 text-sm text-white">
-                        {crew.find(c => c.id === entry.pic_canac)?.full_name || '-'}
-                      </td>
-                      <td className="p-3 text-sm text-white">
-                        {decimalToHHMM(entry.total_time)}
-                      </td>
-                      <td className="p-3 text-sm text-white">
-                        {entry.celula?.toFixed(1) || '-'}
-                      </td>
-                      <td className="p-3">
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEditEntry(entry)}
-                            className="text-slate-400 hover:text-sky-500 hover:bg-sky-500/10"
-                          >
-                            <Edit size={16} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteEntry(entry.id)}
-                            className="text-slate-400 hover:text-red-500 hover:bg-red-500/10"
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                    )}
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.voo_para}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {e.is_equal_split ? (
+                        <span className="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded text-xs font-bold uppercase">
+                          Rateio
+                        </span>
+                      ) : (
+                        <span className="text-cyan-400 text-xs font-semibold">{shortenClientName(clientName)}</span>
+                      )}
+                    </td>
+                    <td className="p-2 text-center" style={{ width: `${columnWidths.check}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${e.confirmed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800/50 text-slate-600'}`}>
+                        <CheckCircle size={14} />
+                      </div>
+                    </td>
+                    <td className="p-2 text-center" style={{ width: `${columnWidths.acoes}px`, overflow: 'hidden' }}>
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => handleEditEntry(e)} className="p-2 hover:bg-sky-500/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 text-sky-400 hover:text-sky-300" title="Editar lançamento">
+                          <Edit size={16} />
+                        </button>
+                        <button onClick={() => handleDeleteEntry(e.id)} className="p-2 hover:bg-rose-500/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 text-rose-400 hover:text-rose-300" title="Deletar lançamento">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>;
+                })}
               </tbody>
             </table>
           </div>
-        </div>
 
-        {/* Dialogs */}
-        {showCreateMonthDialog && (
-          <CreateMonthDialog
-            open={showCreateMonthDialog}
-            onOpenChange={setShowCreateMonthDialog}
-            aircraftId={aircraftId}
-            previousMonthData={previousMonthData}
-            onSuccess={handleCreateMonthWithData}
-          />
+          {/* Totalizador */}
+          {filteredEntries.length > 0 && (() => {
+            // Calcular totais por cliente
+            const clientTotals: Record<string, { hours: number; dailyRates: number; name: string }> = {};
+            // Calcular totais por sócio/partner
+            const partnerTotals: Record<string, { hours: number; dailyRates: number; voos: number }> = {};
+            let splitHours = 0;
+
+            filteredEntries.forEach(e => {
+              if (e.is_equal_split) {
+                splitHours += (e.time || 0);
+              } else if (e.partner_name) {
+                // Se houver partner, adiciona aos totais do partner
+                if (!partnerTotals[e.partner_name]) {
+                  partnerTotals[e.partner_name] = { hours: 0, dailyRates: 0, voos: 0 };
+                }
+                partnerTotals[e.partner_name].hours += (e.time || 0);
+                partnerTotals[e.partner_name].dailyRates += (e.daily_rate || 0);
+                partnerTotals[e.partner_name].voos += 1;
+              } else if (e.client_id) {
+                const clientName = clients.find(c => c.id === e.client_id)?.company_name || 'Outros';
+                if (!clientTotals[e.client_id]) {
+                  clientTotals[e.client_id] = { hours: 0, dailyRates: 0, name: clientName };
+                }
+                clientTotals[e.client_id].hours += (e.time || 0);
+                clientTotals[e.client_id].dailyRates += (e.daily_rate || 0);
+              }
+            });
+
+            const totalDistance = filteredEntries.reduce((sum, e) => sum + (parseFloat(e.distance_nm) || 0), 0);
+            const dailyRateValue = logbookMonth?.daily_rate || 0;
+            const hasPartners = Object.keys(partnerTotals).length > 0;
+
+            return (
+              <div className="border-t border-slate-800 bg-slate-950/50 p-4 space-y-3">
+                <div className="grid grid-cols-8 gap-3 text-center text-xs">
+                  <div>
+                    <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Voos</div>
+                    <div className="text-lg font-black text-white">{filteredEntries.length}</div>
+                  </div>
+                  <div>
+                    <div className="text-[8px] uppercase text-slate-500 font-black mb-1">T.Voo</div>
+                    <div className="text-lg font-black text-orange-400">
+                      {decimalToHHMM(filteredEntries.reduce((sum, e) => sum + (e.time || 0), 0))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Dia</div>
+                    <div className="text-lg font-black text-emerald-400">
+                      {decimalToHHMM(filteredEntries.reduce((sum, e) => sum + (e.day_time || 0), 0))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Noite</div>
+                    <div className="text-lg font-black text-sky-400">
+                      {decimalToHHMM(filteredEntries.reduce((sum, e) => sum + (e.night_hours || 0), 0))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[8px] uppercase text-slate-500 font-black mb-1">T.Total</div>
+                    <div className="text-lg font-black text-pink-400">
+                      {decimalToHHMM(filteredEntries.reduce((sum, e) => sum + (e.total_time || 0), 0))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Comb.Add</div>
+                    <div className="text-lg font-black text-red-400">
+                      {filteredEntries.reduce((sum, e) => sum + (e.fuel_added || 0), 0).toFixed(1)}
+                    </div>
+                  </div>
+                                  
+                  <div>
+                    <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Dist.</div>
+                    <div className="text-lg font-black text-cyan-400">
+                      {totalDistance.toFixed(0)}NM
+                    </div>
+                  </div>
+                  {logbookMonth?.has_daily_rate && (
+                    <div>
+                      <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Diárias</div>
+                      <div className="text-lg font-black text-yellow-400">
+                        {filteredEntries.reduce((sum, e) => sum + (e.daily_rate || 0), 0)}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Horas por sócio (quando houver partners) */}
+                {hasPartners && (
+                  <div className="pt-2 border-t border-slate-800/50">
+                    <div className="text-[9px] font-bold text-slate-500 uppercase mb-2">Horas por Sócio</div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                      {Object.entries(partnerTotals).map(([partnerName, pt], idx) => (
+                        <div key={idx} className="bg-slate-900/50 rounded-lg p-2.5 border border-slate-800/50">
+                          <div className="text-[9px] font-semibold text-slate-400 uppercase mb-1 truncate">{partnerName}</div>
+                          <div className="text-sm font-black text-orange-400 mb-0.5">{decimalToHHMM(pt.hours)}</div>
+                          <div className="text-[8px] text-slate-500">{pt.voos} voo{pt.voos > 1 ? 's' : ''}</div>
+                          {logbookMonth?.has_daily_rate && pt.dailyRates > 0 && (
+                            <div className="text-[8px] text-yellow-400 font-semibold mt-1">{pt.dailyRates} diária{pt.dailyRates > 1 ? 's' : ''}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Horas por cliente (apenas quando não houver partners) */}
+                {!hasPartners && (
+                  <div className="pt-2 border-t border-slate-800/50">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-400">
+                      {Object.values(clientTotals).map((ct, idx) => (
+                        <span key={idx}>
+                          <span className="text-cyan-400 font-semibold">{ct.name.split(' ')[0]}</span>
+                          {' '}{decimalToHHMM(ct.hours)}h
+                          {logbookMonth?.has_daily_rate && ct.dailyRates > 0 && (
+                            <span className="text-yellow-400"> • {ct.dailyRates} diária{ct.dailyRates > 1 ? 's' : ''}</span>
+                          )}
+                        </span>
+                      ))}
+                      {splitHours > 0 && (
+                        <span>
+                          <span className="text-emerald-400 font-semibold">Traslado/Rateio</span>
+                          {' '}{decimalToHHMM(splitHours)}h
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </div>{'}'}
+
+        {/* MODAL DE EDIÇÃO DE LANÇAMENTO */}
+        {editingEntry && <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-800 text-white max-w-4xl w-full rounded-3xl p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-3xl font-black uppercase tracking-tight">Editar Lançamento</h2>
+              <button onClick={handleCancelEdit} className="p-2 hover:bg-slate-800 rounded-xl transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-8">
+              {/* SEÇÃO 1: DATA E TRIPULAÇÃO */}
+              <div className="space-y-6 bg-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
+                <div className="flex items-center gap-2 text-blue-500 mb-4">
+                  <Calendar size={18} />
+                  <span className="text-sm font-black uppercase tracking-widest">1. Data e Tripulação</span>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Data *</Label>
+                    <Input type="date" value={editingEntry.entry_date} onChange={e => setEditingEntry({
+                      ...editingEntry,
+                      entry_date: e.target.value
+                    })} className="bg-slate-900 border border-slate-700 text-white h-10" />
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-2 pb-4 border-b border-slate-700">
+                    <input
+                      type="checkbox"
+                      id="split-toggle-edit"
+                      checked={editingEntry.is_equal_split}
+                      onChange={e => setEditingEntry({
+                        ...editingEntry,
+                        is_equal_split: e.target.checked,
+                        client_id: e.target.checked ? '' : editingEntry.client_id
+                      })}
+                      className="w-5 h-5 rounded cursor-pointer accent-emerald-500"
+                    />
+                    <Label htmlFor="split-toggle-edit" className="text-sm uppercase text-slate-300 cursor-pointer font-semibold">
+                      Rateio Igual (Sócios)
+                    </Label>
+                  </div>
+
+                  {editingEntry.is_equal_split ? (
+                    <div className="bg-emerald-500/15 border border-emerald-500/40 rounded-xl p-4 space-y-3">
+                      <p className="text-xs text-emerald-400 uppercase font-bold tracking-widest">
+                        Tipo de Voo para Rateio
+                      </p>
+                      <Select value={editingEntry.flight_nature} onValueChange={v => setEditingEntry({
+                        ...editingEntry,
+                        flight_nature: v
+                      })}>
+                        <SelectTrigger className="bg-slate-900 border border-emerald-500/50 text-emerald-300 h-10">
+                          <SelectValue placeholder="Selecione o tipo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SPLIT_FLIGHT_TYPES.map(type => (
+                            <SelectItem key={type.code} value={type.code}>
+                              {type.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Cliente *</Label>
+                      <Select value={editingEntry.client_id} onValueChange={v => setEditingEntry({
+                        ...editingEntry,
+                        client_id: v
+                      })}>
+                        <SelectTrigger className="bg-slate-900 border border-slate-700 text-white h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.company_name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">PIC *</Label>
+                    <Select value={editingEntry.pic_canac} onValueChange={v => setEditingEntry({
+                      ...editingEntry,
+                      pic_canac: v
+                    })}>
+                      <SelectTrigger className="bg-slate-900 border border-slate-700 text-white h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {crew.map(c => <SelectItem key={c.id} value={c.id}>{c.full_name} ({c.canac})</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">SIC (Opcional)</Label>
+                    <Select value={editingEntry.sic_canac || '__none__'} onValueChange={v => setEditingEntry({
+                      ...editingEntry,
+                      sic_canac: v === '__none__' ? null : v
+                    })}>
+                      <SelectTrigger className="bg-slate-900 border border-slate-700 text-white h-10">
+                        <SelectValue placeholder="Selecione ou deixe em branco" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— Nenhum —</SelectItem>
+                        {crew.map(c => <SelectItem key={c.id} value={c.id}>{c.full_name} ({c.canac})</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* SEÇÃO 2: AERÓDROMOS */}
+              <div className="space-y-6 bg-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
+                <div className="flex items-center gap-2 text-green-500 mb-4">
+                  <Navigation size={18} />
+                  <span className="text-sm font-black uppercase tracking-widest">2. Aeródromos</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Origem *</Label>
+                    <Select value={editingEntry.departure_aerodrome} onValueChange={v => setEditingEntry({
+                      ...editingEntry,
+                      departure_aerodrome: v
+                    })}>
+                      <SelectTrigger className="bg-slate-900 border border-slate-700 text-white h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {aerodromes.map(a => <SelectItem key={a.id} value={a.designativo}>{a.designativo} - {a.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Destino *</Label>
+                    <Select value={editingEntry.arrival_aerodrome} onValueChange={v => setEditingEntry({
+                      ...editingEntry,
+                      arrival_aerodrome: v
+                    })}>
+                      <SelectTrigger className="bg-slate-900 border border-slate-700 text-white h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {aerodromes.map(a => <SelectItem key={a.id} value={a.designativo}>{a.designativo} - {a.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              {/* SEÇÃO 3: HORÁRIOS */}
+              <div className="space-y-6 bg-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
+                <div className="flex items-center gap-2 text-cyan-500 mb-4">
+                  <Clock size={18} />
+                  <span className="text-sm font-black uppercase tracking-widest">3. Horários</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Acionamento *</Label>
+                    <Input type="time" step="60" value={editingEntry.ac_time} onChange={e => setEditingEntry({
+                      ...editingEntry,
+                      ac_time: e.target.value
+                    })} style={{
+                      accentColor: 'white',
+                      colorScheme: 'dark'
+                    }} className="bg-slate-900 border border-slate-700 text-white h-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Corte *</Label>
+                    <Input type="time" step="60" value={editingEntry.cor_time} onChange={e => setEditingEntry({
+                      ...editingEntry,
+                      cor_time: e.target.value
+                    })} style={{
+                      accentColor: 'white',
+                      colorScheme: 'dark'
+                    }} className="bg-slate-900 border border-slate-700 text-white h-10" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Decolagem</Label>
+                    <Input type="time" step="60" value={editingEntry.dep_time} onChange={e => setEditingEntry({
+                      ...editingEntry,
+                      dep_time: e.target.value
+                    })} style={{
+                      accentColor: 'white',
+                      colorScheme: 'dark'
+                    }} className="bg-slate-900 border border-slate-700 text-white h-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Pouso</Label>
+                    <Input type="time" step="60" value={editingEntry.pou_time} onChange={e => setEditingEntry({
+                      ...editingEntry,
+                      pou_time: e.target.value
+                    })} style={{
+                      accentColor: 'white',
+                      colorScheme: 'dark'
+                    }} className="bg-slate-900 border border-slate-700 text-white h-10" />
+                  </div>
+                </div>
+              </div>
+
+              {/* SEÇÃO 4: COMBUSTÍVEL */}
+              <div className="space-y-6 bg-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
+                <div className="flex items-center gap-2 text-orange-500 mb-4">
+                  <Fuel size={18} />
+                  <span className="text-sm font-black uppercase tracking-widest">4. Combustível</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Combustível Inicial (L)</Label>
+                    <Input type="number" step="0.1" value={editingEntry.fuel_liters} onChange={e => setEditingEntry({
+                      ...editingEntry,
+                      fuel_liters: parseFloat(e.target.value) || 0
+                    })} className="bg-slate-900 border border-slate-700 text-orange-400 h-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Combustível Consumido (L)</Label>
+                    <Input type="number" step="0.1" value={editingEntry.fuel_consu} onChange={e => setEditingEntry({
+                      ...editingEntry,
+                      fuel_consu: parseFloat(e.target.value) || 0
+                    })} className="bg-slate-900 border border-slate-700 text-orange-300 h-10" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Preço/L (R$)</Label>
+                    <Input type="number" step="0.01" value={editingEntry.fuel_price_per_liter} onChange={e => setEditingEntry({
+                      ...editingEntry,
+                      fuel_price_per_liter: parseFloat(e.target.value) || 0
+                    })} className="bg-slate-900 border border-slate-700 text-orange-400 h-10" />
+                  </div>
+                </div>
+              </div>
+
+              {/* SEÇÃO 5: TEMPOS */}
+              <div className="space-y-6 bg-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
+                <div className="flex items-center gap-2 text-purple-500 mb-4">
+                  <TrendingUp size={18} />
+                  <span className="text-sm font-black uppercase tracking-widest">5. Tempos</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Tempo Diurno</Label>
+                    <Input type="time" step="60" value={decimalToTimeString(editingEntry.day_time)} onChange={e => setEditingEntry({
+                      ...editingEntry,
+                      day_time: timeStringToDecimal(e.target.value)
+                    })} style={{
+                      accentColor: 'white',
+                      colorScheme: 'dark'
+                    }} className="bg-slate-900 border border-slate-700 text-emerald-400 h-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Tempo Noturno</Label>
+                    <Input type="time" step="60" value={decimalToTimeString(editingEntry.night_hours)} onChange={e => setEditingEntry({
+                      ...editingEntry,
+                      night_hours: timeStringToDecimal(e.target.value)
+                    })} style={{
+                      accentColor: 'white',
+                      colorScheme: 'dark'
+                    }} className="bg-slate-900 border border-slate-700 text-sky-400 h-10" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">IFR</Label>
+                    <Input type="time" step="60" value={decimalToTimeString(editingEntry.ifr_time)} onChange={e => setEditingEntry({
+                      ...editingEntry,
+                      ifr_time: timeStringToDecimal(e.target.value)
+                    })} style={{
+                      accentColor: 'white',
+                      colorScheme: 'dark'
+                    }} className="bg-slate-900 border border-slate-700 text-white h-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Pousos</Label>
+                    <Input type="number" value={editingEntry.pousos} onChange={e => setEditingEntry({
+                      ...editingEntry,
+                      pousos: parseInt(e.target.value) || 1
+                    })} className="bg-slate-900 border border-slate-700 text-white h-10" />
+                  </div>
+                </div>
+              </div>
+
+              {/* SEÇÃO 6: PERFORMANCE & CÉLULA */}
+              <div className="space-y-6 bg-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
+                <div className="flex items-center gap-2 text-pink-500 mb-4">
+                  <Fuel size={18} />
+                  <span className="text-sm font-black uppercase tracking-widest">6. Performance & Célula</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">POB (Pessoas)</Label>
+                    <Input type="number" value={editingEntry.passengers} onChange={e => setEditingEntry({
+                      ...editingEntry,
+                      passengers: parseInt(e.target.value) || 0
+                    })} className="bg-slate-900 border border-slate-700 text-sky-400 h-10" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Carga (kg)</Label>
+                    <Input type="number" step="0.1" value={editingEntry.cargo_kg} onChange={e => setEditingEntry({
+                      ...editingEntry,
+                      cargo_kg: parseFloat(e.target.value) || 0
+                    })} className="bg-slate-900 border border-slate-700 text-emerald-400 h-10" />
+                  </div>
+                </div>
+              </div>
+
+              {/* SEÇÃO 7: DIÁRIAS */}
+              {logbookMonth?.has_daily_rate && (
+                <div className="space-y-6 bg-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
+                  <div className="flex items-center gap-2 text-amber-500 mb-4">
+                    <DollarSign size={18} />
+                    <span className="text-sm font-black uppercase tracking-widest">7. Diárias</span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Quantidade de Diárias</Label>
+                      <Input type="number" step="0.1" value={editingEntry.daily_quantity ?? 0} onChange={e => setEditingEntry({
+                        ...editingEntry,
+                        daily_quantity: parseFloat(e.target.value) || 0
+                      })} className="bg-slate-900 border border-slate-700 text-amber-400 h-10" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Valor Unitário (R$)</Label>
+                      <div className="bg-slate-950 border border-slate-700 rounded-lg px-3 h-10 flex items-center text-amber-400 font-semibold">
+                        R$ {logbookMonth?.daily_rate?.toFixed(2) || '0.00'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-800/30 border border-slate-700/30 rounded-lg p-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs uppercase text-slate-400 font-bold">Total de Diárias</span>
+                      <span className="text-lg font-black text-amber-400">R$ {((editingEntry.daily_quantity || 0) * (logbookMonth?.daily_rate || 0)).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* BOTÕES DE AÇÃO */}
+            <div className="flex gap-3 mt-6 pt-6 border-t border-slate-800">
+              <Button onClick={handleCancelEdit} className="flex-1 bg-slate-800 hover:bg-slate-700 h-12 font-black uppercase text-sm rounded-2xl">
+                <X size={18} className="mr-2" />
+                Cancelar
+              </Button>
+              <Button onClick={handleSaveEditedEntry} className="flex-1 bg-gradient-to-r from-sky-600 to-sky-700 hover:from-sky-700 hover:to-sky-800 h-12 font-black uppercase text-sm rounded-2xl shadow-xl">
+                <Save size={18} className="mr-2" />
+                Salvar Alterações
+              </Button>
+            </div>
+          </div>
+        </div>}
+
+        {/* MODAL DE EDIÇÃO DE INFORMAÇÕES TÉCNICAS */}
+        {editingField && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-900 border border-slate-800 text-white max-w-sm w-full rounded-3xl p-6 shadow-2xl">
+              <h2 className="text-xl font-black uppercase tracking-tight mb-6">Editar {editingField === 'base_aerodrome' ? 'Base Aeródromo' : editingField === 'horimetro_inicio' ? 'Horímetro Início' : editingField === 'horimetro_final' ? 'Horímetro Final' : editingField === 'horimetro_ativo' ? 'Horímetro Ativo' : editingField === 'daily_rate' ? 'Valor Diária' : editingField === 'celula_prox_revisao' ? 'Próxima Revisão' : editingField}</h2>
+
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-[9px] uppercase text-slate-500 ml-1 block mb-2">Novo Valor *</Label>
+                  <Input
+                    type={['horimetro_inicio', 'horimetro_final', 'horimetro_ativo', 'daily_rate', 'celula_prox_revisao'].includes(editingField) ? 'number' : 'text'}
+                    step={['horimetro_inicio', 'horimetro_final', 'horimetro_ativo', 'daily_rate', 'celula_prox_revisao'].includes(editingField) ? '0.1' : undefined}
+                    value={editFieldValue}
+                    onChange={(e) => setEditFieldValue(e.target.value)}
+                    className="bg-slate-950 border-slate-800 text-white"
+                    placeholder="Digite o novo valor"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4 border-t border-slate-800">
+                  <Button
+                    onClick={() => {
+                      setEditingField(null);
+                      setEditFieldValue('');
+                    }}
+                    className="flex-1 bg-slate-800 hover:bg-slate-700 h-10 font-black uppercase text-xs rounded-lg"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleSaveField}
+                    className="flex-1 bg-gradient-to-r from-sky-600 to-sky-700 hover:from-sky-700 hover:to-sky-800 h-10 font-black uppercase text-xs rounded-lg shadow-lg"
+                  >
+                    <Save size={14} className="mr-2" />
+                    Salvar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
-        {showExportDialog && (
-          <ExportLogbookDialog
-            open={showExportDialog}
-            onOpenChange={setShowExportDialog}
-            aircraftId={aircraftId}
-            month={selectedMonth}
-            year={selectedYear}
-          />
-        )}
+        {/* MODAL SELETOR DE MÊS/ANO */}
+        {showMonthPicker && <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-800 text-white max-w-sm w-full rounded-3xl p-6 shadow-2xl">
+            <div className="text-center uppercase font-black tracking-widest mb-6">Selecionar Período</div>
+
+            <div className="grid grid-cols-3 gap-2 py-6">
+              {MONTHS.map((m, i) => {
+                const monthNum = i + 1;
+                const isAvailable = availableMonths.some(am => am.month === monthNum && am.year === selectedYear);
+                if (!isAvailable) return null;
+                return <button key={m} onClick={() => {
+                  setSelectedMonth(monthNum);
+                  setShowMonthPicker(false);
+                }} className={`py-3 rounded-xl text-[10px] font-black uppercase transition-all ${selectedMonth === monthNum ? 'bg-sky-600 text-white shadow-lg' : 'bg-slate-950 text-slate-500 hover:bg-slate-800'}`}>
+                  {m.substring(0, 3)}
+                </button>;
+              })}
+            </div>
+
+            <div className="flex items-center justify-between border-t border-slate-800 pt-6 px-4">
+              <button onClick={() => setSelectedYear(y => y - 1)} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
+                <ChevronLeft />
+              </button>
+              <span className="text-2xl font-black">{selectedYear}</span>
+              <button onClick={() => setSelectedYear(y => y + 1)} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
+                <ChevronRight />
+              </button>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={handleOpenCreateNextMonthDialog}
+                disabled={loading}
+                className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 disabled:from-slate-700 disabled:to-slate-600 h-12 rounded-2xl font-bold uppercase text-xs transition-colors text-white shadow-lg"
+              >
+                {loading ? 'Criando...' : 'Criar Próximo Mês'}
+              </button>
+              <button
+                onClick={() => setShowMonthPicker(false)}
+                disabled={loading}
+                className="flex-1 bg-slate-800 hover:bg-slate-700 disabled:bg-slate-800 h-12 rounded-2xl font-bold uppercase text-xs transition-colors"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>}
       </div>
-    </Layout>
-  );
+    </div>
+  </Layout>;
 };
-
 export default DiarioBordoDetalhes;
