@@ -401,9 +401,9 @@ export function NotasFiscaisSaida() {
         insertedNota = result;
         error = insertError;
 
-        // Se tiver erro e contiver "aircraft_id", tenta inserir sem o campo
-        if (error && error.message.includes("aircraft_id")) {
-          const { aircraft_id, ...dataWithoutAircraft } = notaData;
+        // Se tiver erro e contiver "aeronave", tenta inserir sem o campo
+        if (error && error.message.includes("aeronave")) {
+          const { aeronave, ...dataWithoutAircraft } = notaData;
           const { data: retryResult, error: retryError } = await supabase
             .from("notas_fiscais_saida")
             .insert([dataWithoutAircraft])
