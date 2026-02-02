@@ -100,14 +100,23 @@ Usuario cria Nota Fiscal (status = "pendente" ou "recebido")
 
 ## Instruções de Implementação
 
-### Passo 1: Executar o SQL no Supabase
+### Passo 1: Executar os Triggers Automáticos
 
 1. Acesse o [Supabase Dashboard](https://app.supabase.com/)
 2. Vá para **SQL Editor** → **New Query**
 3. Copie e cole todo o conteúdo do arquivo `supabase/migrations/add_nf_saida_auto_triggers.sql`
 4. Clique em **Run**
 
-### Passo 2: Redeploy da Aplicação
+### Passo 2: Sincronizar Dados Históricos (Opcional)
+
+Se você já tem registros em `controle_bancario` e quer sincronizá-los com `bank_reconciliations`:
+
+1. Acesse **SQL Editor** → **New Query**
+2. Copie e cole o conteúdo do arquivo `supabase/migrations/sync_controle_bancario_to_bank_reconciliations.sql`
+3. Clique em **Run**
+4. Execute as queries de verificação no final do script para confirmar a sincronização
+
+### Passo 3: Redeploy da Aplicação
 
 O código frontend já foi atualizado. Apenas faça redeploy da aplicação.
 
