@@ -60,13 +60,27 @@ Foram criados 3 triggers que funcionam automaticamente:
   - Aeronave: mesmo da NF
   - PDF URL: arquivo_pdf_url da NF
 
-#### 3.4 Trigger de Atualização
+#### 3.4 Trigger de Atualização em Notas Fiscais
 - **Evento**: Quando uma nota fiscal é ATUALIZADA
 - **Condição**: Mudança de status
 - **Ação**: Atualiza automaticamente os registros em TODAS as tabelas com o novo status:
   - controle_bancario
   - bank_reconciliations
   - contas_areceber
+
+#### 3.5 Trigger de Sincronização Controle Bancário → Bank Reconciliations
+- **Evento**: Quando um registro de ENTRADA é criado em controle_bancario
+- **Condição**: tipo_movimento = 'entrada' e valor > 0
+- **Ação**: Cria automaticamente um registro em `bank_reconciliations` com:
+  - Mapeamento direto dos campos
+  - reference_type = 'controle_bancario'
+  - reference_id = UUID do controle_bancario
+  - Status convertido (confirmado → recebido, pendente → pendente)
+
+#### 3.6 Trigger de Atualização Controle Bancário → Bank Reconciliations
+- **Evento**: Quando um registro de ENTRADA em controle_bancario é ATUALIZADO
+- **Condição**: tipo_movimento = 'entrada'
+- **Ação**: Atualiza automaticamente o registro relacionado em `bank_reconciliations`
 
 ## Fluxo de Funcionamento
 
