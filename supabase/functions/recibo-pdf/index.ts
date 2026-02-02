@@ -124,17 +124,6 @@ function numberToWords(num: number): string {
 function generateReceiptHTML(data: ReceiptData): string {
   const isReembolso = data.receipt_type === "reembolso";
   const valorExtenso = numberToWords(data.amount);
-  
-  // Construir texto do card de reembolso com prazo e número do documento
-  let reembolsoCardText = "RECIBO EMITIDO ANTECIPADAMENTE A TÍTULO DE SOLICITAÇÃO DE REEMBOLSO";
-  
-  if (data.numero_documento) {
-    reembolsoCardText += `<br><strong>Documento: ${data.numero_documento}</strong>`;
-  }
-  
-  if (data.max_payment_date) {
-    reembolsoCardText += `<br><strong>Prazo máximo de quitação: ${formatDate(data.max_payment_date)}</strong>`;
-  }
 
   return `
     <!DOCTYPE html>
@@ -145,190 +134,281 @@ function generateReceiptHTML(data: ReceiptData): string {
       <title>Recibo ${data.receipt_number}</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-          font-family: 'Arial', sans-serif; 
-          background: white; 
-          padding: 40px;
+        html, body {
+          width: 100%;
+          height: 100%;
+          margin: 0;
+          padding: 0;
+        }
+        body {
+          font-family: 'Arial', sans-serif;
+          background: white;
           color: #333;
         }
-        .receipt { 
-          max-width: 900px; 
-          margin: 0 auto; 
+        .receipt {
+          width: 210mm;
+          height: 297mm;
+          margin: 0 auto;
           background: white;
+          padding: 30px;
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
         }
-        .header-top {
+
+        /* ===== HEADER ===== */
+        .header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          margin-bottom: 30px;
+          margin-bottom: 25px;
+          padding-bottom: 15px;
           border-bottom: 2px solid #333;
-          padding-bottom: 20px;
         }
+
         .logo-section {
+          flex: 0 0 auto;
+        }
+
+        .logo {
+          width: 70px;
+          height: 70px;
+          object-fit: contain;
+        }
+
+        .header-center {
+          flex: 1;
+          text-align: center;
           display: flex;
           align-items: center;
-          gap: 15px;
+          justify-content: center;
         }
-        .logo {
-          width: 80px;
-          height: 80px;
-        }
-        .company-info {
+
+        .header-title {
+          font-size: 28px;
           font-weight: bold;
-          font-size: 18px;
+          letter-spacing: 2px;
         }
-        .receipt-title {
-          text-align: center;
-          font-size: 24px;
-          font-weight: bold;
-          color: #333;
-        }
-        .receipt-number-box {
+
+        .header-right {
+          flex: 0 0 auto;
           text-align: right;
-          font-size: 12px;
-          color: #666;
+          font-size: 11px;
         }
+
+        .receipt-number-label {
+          font-weight: bold;
+          margin-bottom: 3px;
+        }
+
+        .receipt-number {
+          font-weight: bold;
+          font-size: 13px;
+        }
+
+        /* ===== VALOR EM DESTAQUE ===== */
         .amount-box {
           border: 2px solid #333;
           padding: 15px;
-          text-align: center;
+          text-align: right;
           margin: 20px 0;
-          background: #f9f9f9;
+          background: #fafafa;
         }
+
+        .amount-label {
+          font-size: 10px;
+          color: #666;
+          margin-bottom: 5px;
+        }
+
         .amount {
-          font-size: 28px;
+          font-size: 32px;
           font-weight: bold;
           color: #333;
         }
-        .content-section {
-          margin: 20px 0;
-        }
-        .section-title {
-          font-weight: bold;
-          font-size: 12px;
-          background: #f0f0f0;
-          padding: 8px 10px;
-          margin-bottom: 10px;
-          text-transform: uppercase;
-        }
-        .section-content {
-          font-size: 12px;
-          line-height: 1.6;
-          padding: 0 10px;
-          margin-bottom: 15px;
-        }
+
+        /* ===== SEÇÕES DE CONTEÚDO ===== */
         .two-column {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 20px;
-          margin: 20px 0;
+          gap: 30px;
+          margin: 25px 0;
         }
-        .date-section {
-          margin: 20px 0;
-          text-align: center;
+
+        .content-section {
+          margin: 0;
         }
-        .date-section p {
-          font-size: 13px;
-          margin: 5px 0;
-        }
-        .footer {
-          margin-top: 40px;
-          text-align: center;
-          border-top: 2px solid #333;
-          padding-top: 20px;
-        }
-        .footer-logo {
-          width: 60px;
-          height: 60px;
-          margin-bottom: 10px;
-          display: inline-block;
-        }
-        .footer-text {
-          font-size: 11px;
+
+        .section-title {
           font-weight: bold;
-          color: #666;
+          font-size: 11px;
+          background: #e8e8e8;
+          padding: 7px 10px;
+          margin-bottom: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
-        .signature-section {
-          margin-top: 40px;
+
+        .section-content {
+          font-size: 11px;
+          line-height: 1.7;
+          padding: 0;
+        }
+
+        .section-content strong {
+          display: block;
+          margin-bottom: 4px;
+          font-weight: bold;
+        }
+
+        .section-content br {
+          display: block;
+          content: "";
+          margin: 2px 0;
+        }
+
+        /* ===== DESCRIÇÃO DO SERVIÇO (FULLWIDTH) ===== */
+        .description-section {
+          margin: 20px 0;
+          width: 100%;
+        }
+
+        .description-content {
+          font-size: 11px;
+          line-height: 1.6;
+          padding: 0;
+        }
+
+        .description-note {
+          font-size: 10px;
+          color: #555;
+          margin-top: 8px;
+          font-style: italic;
+        }
+
+        /* ===== DATA ===== */
+        .date-section {
           text-align: center;
+          margin: 25px 0;
+          font-size: 12px;
+          padding: 10px 0;
         }
+
+        /* ===== ASSINATURA ===== */
+        .signature-section {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
+          text-align: center;
+          margin: 20px 0;
+        }
+
         .signature-line {
           border-top: 1px solid #333;
-          width: 300px;
-          margin: 20px auto 5px;
+          width: 200px;
+          margin: 0 auto 8px;
         }
+
         .signature-name {
-          font-size: 12px;
-          margin-top: 10px;
+          font-size: 11px;
+          font-weight: bold;
+        }
+
+        /* ===== RODAPÉ ===== */
+        .footer {
+          border-top: 2px solid #333;
+          padding-top: 15px;
+          text-align: center;
+          margin-top: auto;
+        }
+
+        .footer-logo {
+          width: 50px;
+          height: 50px;
+          margin-bottom: 8px;
+          object-fit: contain;
+        }
+
+        .footer-text {
+          font-size: 10px;
+          font-weight: bold;
+          color: #333;
         }
       </style>
     </head>
     <body>
       <div class="receipt">
-        <!-- Header com Logo e Título -->
-        <div class="header-top">
+        <!-- HEADER -->
+        <div class="header">
           <div class="logo-section">
-            <img src="/logoshare.png" alt="Logo" class="logo" style="max-width: 80px;">
-            <div class="company-info">RECIBO</div>
+            <img src="/logoshare.png" alt="Logo" class="logo">
           </div>
-          <div class="receipt-title">RECIBO</div>
-          <div class="receipt-number-box">
-            <strong>NÚMERO DO RECIBO</strong><br>
-            ${data.receipt_number}
+          <div class="header-center">
+            <div class="header-title">RECIBO</div>
+          </div>
+          <div class="header-right">
+            <div class="receipt-number-label">NÚMERO DO RECIBO</div>
+            <div class="receipt-number">${data.receipt_number}</div>
           </div>
         </div>
 
-        <!-- Valor em Destaque -->
+        <!-- VALOR EM DESTAQUE -->
         <div class="amount-box">
           <div class="amount">${formatCurrency(data.amount)}</div>
         </div>
 
-        <!-- Seção Emissor (Share Brasil) -->
-        <div class="content-section">
-          <div class="section-title">Emissor</div>
-          <div class="section-content">
-            <strong>SHARE BRASIL SERVIÇOS AERONÁUTICOS</strong><br>
-            CNPJ: 01.234.567/0001-89<br>
-            (65) 99818-0312<br>
-            AV. PRESIDENTE ARTHUR BERNARDES, 1437<br>
-            VÁRZEA GRANDE/MT - CEP 78125-100
+        <!-- EMISSOR E PAGADOR (2 COLUNAS) -->
+        <div class="two-column">
+          <!-- Seção Emissor -->
+          <div class="content-section">
+            <div class="section-title">Emissor</div>
+            <div class="section-content">
+              <strong>SHARE BRASIL SERVIÇOS AERONÁUTICOS</strong>
+              CNPJ: 01.234.567/0001-89<br>
+              (65) 99818-0312<br>
+              AV. PRESIDENTE ARTHUR BERNARDES, 1437<br>
+              VÁRZEA GRANDE/MT - CEP 78125-100
+            </div>
+          </div>
+
+          <!-- Seção Pagador -->
+          <div class="content-section">
+            <div class="section-title">Pagador</div>
+            <div class="section-content">
+              <strong>${data.payer_name}</strong>
+              ${data.payer_document ? `CPF/CNPJ: ${data.payer_document}<br>` : ''}
+              ${data.payer_address ? `${data.payer_address}<br>` : ''}
+              ${data.payer_city || data.payer_uf ? `${data.payer_city || ''}${data.payer_city && data.payer_uf ? ' - ' : ''}${data.payer_uf || ''}` : ''}
+            </div>
           </div>
         </div>
 
-        <!-- Seção Pagador -->
-        <div class="content-section">
-          <div class="section-title">Pagador</div>
-          <div class="section-content">
-            <strong>${data.payer_name}</strong><br>
-            ${data.payer_document ? `CPF/CNPJ: ${data.payer_document}<br>` : ''}
-            ${data.payer_address ? `${data.payer_address}<br>` : ''}
-            ${data.payer_city || data.payer_uf ? `${data.payer_city || ''}${data.payer_city && data.payer_uf ? ' - ' : ''}${data.payer_uf || ''}<br>` : ''}
-          </div>
-        </div>
-
-        <!-- Descrição do Serviço -->
-        <div class="content-section">
+        <!-- DESCRIÇÃO DO SERVIÇO -->
+        <div class="description-section">
           <div class="section-title">Descrição do Serviço</div>
-          <div class="section-content">
+          <div class="description-content">
             ${data.service_description}
-            <br><em>Obs.: Este documento somerá em validade após a efetiva quitação do valor indicado, mediante comprovação do pagamento.</em>
+            <div class="description-note">
+              Obs.: Este documento somará em validade após a efetiva quitação do valor indicado, mediante comprovação do pagamento.
+            </div>
           </div>
         </div>
 
-        <!-- Data -->
+        <!-- DATA -->
         <div class="date-section">
-          <p><strong>${formatDateExtended(data.issue_date)}</strong></p>
+          <strong>${formatDateExtended(data.issue_date)}</strong>
         </div>
 
-        <!-- Assinatura -->
+        <!-- ASSINATURA -->
         <div class="signature-section">
           <div class="signature-line"></div>
           <div class="signature-name">SHARE BRASIL SERVIÇOS AERONÁUTICOS</div>
         </div>
 
-        <!-- Rodapé com Logo -->
+        <!-- RODAPÉ -->
         <div class="footer">
-          <img src="/logoshare.png" alt="Logo" class="footer-logo" style="max-width: 60px;">
+          <img src="/logoshare.png" alt="Logo" class="footer-logo">
           <div class="footer-text">SHARE BRASIL SERVIÇOS AERONÁUTICOS</div>
         </div>
       </div>
