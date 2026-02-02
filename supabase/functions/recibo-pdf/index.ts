@@ -124,6 +124,7 @@ function numberToWords(num: number): string {
 function generateReceiptHTML(data: ReceiptData): string {
   const isReembolso = data.receipt_type === "reembolso";
   const valorExtenso = numberToWords(data.amount);
+  const logoUrl = "https://cdn.jsdelivr.net/gh/your-repo/logo.share.png"; // Substituir com URL correta
 
   return `
     <!DOCTYPE html>
@@ -144,36 +145,40 @@ function generateReceiptHTML(data: ReceiptData): string {
           font-family: 'Arial', sans-serif;
           background: white;
           color: #333;
+          line-height: 1.4;
         }
         .receipt {
           width: 210mm;
           height: 297mm;
           margin: 0 auto;
           background: white;
-          padding: 30px;
+          padding: 25px 30px;
           box-sizing: border-box;
           display: flex;
           flex-direction: column;
+          position: relative;
         }
 
         /* ===== HEADER ===== */
         .header {
           display: flex;
           justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 25px;
-          padding-bottom: 15px;
+          align-items: center;
+          margin-bottom: 30px;
+          padding-bottom: 20px;
           border-bottom: 2px solid #333;
+          gap: 20px;
         }
 
         .logo-section {
-          flex: 0 0 auto;
+          flex: 0 0 80px;
         }
 
         .logo {
-          width: 70px;
-          height: 70px;
+          width: 80px;
+          height: 80px;
           object-fit: contain;
+          background: white;
         }
 
         .header-center {
@@ -185,9 +190,10 @@ function generateReceiptHTML(data: ReceiptData): string {
         }
 
         .header-title {
-          font-size: 28px;
+          font-size: 32px;
           font-weight: bold;
-          letter-spacing: 2px;
+          letter-spacing: 3px;
+          color: #000;
         }
 
         .header-right {
@@ -198,31 +204,31 @@ function generateReceiptHTML(data: ReceiptData): string {
 
         .receipt-number-label {
           font-weight: bold;
-          margin-bottom: 3px;
+          margin-bottom: 5px;
+          text-transform: uppercase;
+          font-size: 9px;
         }
 
         .receipt-number {
           font-weight: bold;
-          font-size: 13px;
+          font-size: 14px;
+          border: 1px solid #333;
+          padding: 8px 12px;
+          display: inline-block;
+          background: #fff;
         }
 
         /* ===== VALOR EM DESTAQUE ===== */
         .amount-box {
           border: 2px solid #333;
-          padding: 15px;
+          padding: 20px 15px;
           text-align: right;
-          margin: 20px 0;
-          background: #fafafa;
-        }
-
-        .amount-label {
-          font-size: 10px;
-          color: #666;
-          margin-bottom: 5px;
+          margin: 25px 0;
+          background: #f5f5f5;
         }
 
         .amount {
-          font-size: 32px;
+          font-size: 36px;
           font-weight: bold;
           color: #333;
         }
