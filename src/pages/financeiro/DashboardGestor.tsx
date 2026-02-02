@@ -27,8 +27,6 @@ import {
 } from "recharts";
 import {
   CheckCircle,
-  Clock,
-  AlertTriangle,
   DollarSign,
   TrendingUp,
   TrendingDown,
@@ -235,9 +233,6 @@ export default function DashboardGestor() {
             </TabsTrigger>
             <TabsTrigger value="despesas" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Despesas
-            </TabsTrigger>
-            <TabsTrigger value="alertas" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Alertas
             </TabsTrigger>
             <TabsTrigger value="relatorio-anual" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Relatório Anual
@@ -531,157 +526,6 @@ export default function DashboardGestor() {
             </Card>
           </TabsContent>
 
-          {/* Alertas */}
-          <TabsContent value="alertas" className="space-y-6">
-            {/* Resumo de Alertas */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Card className="bg-destructive/10 border-destructive/30 overflow-hidden">
-                <CardContent className="p-4 sm:p-5">
-                  <p className="text-destructive text-xs sm:text-sm font-medium uppercase tracking-wide">Pagamentos Vencidos</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-destructive mt-2">{stats.contasVencidas}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Contas não pagas</p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-destructive/10 border-destructive/30 overflow-hidden">
-                <CardContent className="p-4 sm:p-5">
-                  <p className="text-destructive text-xs sm:text-sm font-medium uppercase tracking-wide">Despesas Pendentes</p>
-                  <p className="text-2xl sm:text-3xl font-bold text-destructive mt-2">{formatCurrency(stats.despesasPendentes)}</p>
-                  <p className="text-xs text-muted-foreground mt-1">A conferir</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Pagamentos Vencidos */}
-            <Card className="bg-card/80 border-border overflow-hidden">
-              <CardHeader>
-                <CardTitle className="text-foreground flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 text-destructive" />
-                  Pagamentos Vencidos
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0 sm:p-4">
-                <div className="overflow-x-auto -mx-4 sm:mx-0">
-                  <Table className="w-full">
-                    <TableHeader>
-                      <TableRow className="border-border">
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Data</TableHead>
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Descrição</TableHead>
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Valor</TableHead>
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {contasPagar
-                        .filter((conta: any) => {
-                          const dataVenc = conta.data_vencimento
-                            ? (typeof conta.data_vencimento === 'string' ? parseISO(conta.data_vencimento) : new Date(conta.data_vencimento))
-                            : (conta.data ? (typeof conta.data === 'string' ? parseISO(conta.data) : new Date(conta.data)) : null);
-                            return dataVenc && dataVenc < new Date() && conta.status !== "confirmado" && conta.status !== "pago" && conta.status !== "recebido" && conta.status !== "reembolsado";
-                        })
-                        .sort((a: any, b: any) => {
-                          const dateA = typeof a.data === 'string' ? parseISO(a.data) : new Date(a.data);
-                          const dateB = typeof b.data === 'string' ? parseISO(b.data) : new Date(b.data);
-                          return dateA.getTime() - dateB.getTime();
-                        })
-                        .slice(0, 50)
-                        .map((conta: any) => {
-                          const statusConfig = getStatusBadgeConfig(conta.status);
-                          return (
-                            <TableRow key={conta.id} className="border-border hover:bg-muted/50">
-                              <TableCell className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">
-                                {conta.data ? format(typeof conta.data === 'string' ? parseISO(conta.data) : new Date(conta.data), "dd/MM/yyyy") : "-"}
-                              </TableCell>
-                              <TableCell className="text-foreground font-medium text-xs sm:text-sm px-3 sm:px-4">{conta.descricao || "Sem descrição"}</TableCell>
-                              <TableCell className="text-destructive font-semibold text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
-                                {formatCurrency(Math.abs(Number(conta.valor || 0)))}
-                              </TableCell>
-                              <TableCell className="text-xs sm:text-sm px-3 sm:px-4">
-                                <Badge variant={statusConfig.variant} className="text-xs sm:text-sm">
-                                  {statusConfig.label}
-                                </Badge>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      {contasPagar.filter((conta: any) => {
-                        const dataVenc = conta.data_vencimento
-                          ? (typeof conta.data_vencimento === 'string' ? parseISO(conta.data_vencimento) : new Date(conta.data_vencimento))
-                          : (conta.data ? (typeof conta.data === 'string' ? parseISO(conta.data) : new Date(conta.data)) : null);
-                          return dataVenc && dataVenc < new Date() && conta.status !== "confirmado" && conta.status !== "pago" && conta.status !== "recebido" && conta.status !== "reembolsado";
-                      }).length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center text-muted-foreground py-8 text-sm">
-                            Nenhum pagamento vencido 🎉
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Despesas Pendentes */}
-            <Card className="bg-card/80 border-border overflow-hidden">
-              <CardHeader>
-                <CardTitle className="text-foreground flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-destructive" />
-                  Despesas Pendentes
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-0 sm:p-4">
-                <div className="overflow-x-auto -mx-4 sm:mx-0">
-                  <Table className="w-full">
-                    <TableHeader>
-                      <TableRow className="border-border">
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Data</TableHead>
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Descrição</TableHead>
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Valor</TableHead>
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {contasPagar
-                        .filter((conta: any) => conta.status === "pendente")
-                        .sort((a: any, b: any) => {
-                          const dateA = typeof a.data === 'string' ? parseISO(a.data) : new Date(a.data);
-                          const dateB = typeof b.data === 'string' ? parseISO(b.data) : new Date(b.data);
-                          return dateB.getTime() - dateA.getTime();
-                        })
-                        .slice(0, 50)
-                        .map((conta: any) => {
-                          const statusConfig = getStatusBadgeConfig(conta.status);
-                          return (
-                            <TableRow key={conta.id} className="border-border hover:bg-muted/50">
-                              <TableCell className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">
-                                {conta.data ? format(typeof conta.data === 'string' ? parseISO(conta.data) : new Date(conta.data), "dd/MM/yyyy") : "-"}
-                              </TableCell>
-                              <TableCell className="text-foreground font-medium text-xs sm:text-sm px-3 sm:px-4">{conta.descricao || "Sem descrição"}</TableCell>
-                              <TableCell className="text-destructive font-semibold text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
-                                {formatCurrency(Math.abs(Number(conta.valor || 0)))}
-                              </TableCell>
-                              <TableCell className="text-xs sm:text-sm px-3 sm:px-4">
-                                <Badge variant={statusConfig.variant} className="text-xs sm:text-sm">
-                                  {statusConfig.label}
-                                </Badge>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      {contasPagar.filter((conta: any) => conta.status === "pendente").length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center text-muted-foreground py-8 text-sm">
-                            Nenhuma despesa pendente 🎉
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           {/* Relatório Anual */}
           <TabsContent value="relatorio-anual" className="space-y-6">

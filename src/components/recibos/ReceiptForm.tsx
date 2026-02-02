@@ -15,6 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FileText, Star } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
+import { ClienteSearchInput } from "./ClienteSearchInput";
 
 interface ReceiptFormProps {
   clientesAtivos: any[];
@@ -67,6 +68,16 @@ export function ReceiptForm({
     reembolsoRateado: false,
     reembolsoBoletoFile: null as File | null,
     reembolsoNotaFiscalFile: null as File | null,
+  });
+
+  const [clienteSearchValue, setClienteSearchValue] = useState({
+    clienteId: "",
+    nome: "",
+    documento: "",
+    endereco: "",
+    cidade: "",
+    uf: "",
+    useFromDatabase: false,
   });
 
   const [aircrafts, setAircrafts] = useState<any[]>([]);
@@ -164,7 +175,28 @@ export function ReceiptForm({
     }
   }, [formData.receiptType]);
 
-  // Cliente / Aeronave
+  // Sincroniza a seleção de cliente com o formData
+  const handleClienteSearchChange = (searchValue: typeof clienteSearchValue) => {
+    setClienteSearchValue(searchValue);
+
+    // Atualiza os dados do pagador no formulário
+    setFormData((prev) => ({
+      ...prev,
+      clienteId: searchValue.clienteId || "",
+      pagadorNome: searchValue.nome || "",
+      pagadorDocumento: searchValue.documento || "",
+      pagadorEndereco: searchValue.endereco || "",
+      pagadorCidade: searchValue.cidade || "",
+      pagadorUF: searchValue.uf || "",
+    }));
+
+    // Se é reembolso e foi selecionado um cliente, carrega as aeronaves
+    if (formData.receiptType === "reembolso" && searchValue.clienteId) {
+      loadAircrafts(searchValue.clienteId);
+    }
+  };
+
+  // Carrega aeronaves quando cliente é selecionado
   useEffect(() => {
     if (!formData.clienteId) {
       setAircrafts([]);
@@ -172,21 +204,7 @@ export function ReceiptForm({
     }
 
     loadAircrafts(formData.clienteId);
-
-    if (isReembolso) {
-      const client = clientesAtivos.find((c) => c.id === formData.clienteId);
-      if (client) {
-        setFormData((prev) => ({
-          ...prev,
-          pagadorNome: client.company_name || "",
-          pagadorDocumento: client.cnpj || "",
-          pagadorEndereco: client.address || "",
-          pagadorCidade: client.city || "",
-          pagadorUF: client.uf || "",
-        }));
-      }
-    }
-  }, [formData.clienteId, isReembolso, clientesAtivos]);
+  }, [formData.clienteId]);
 
   const loadAircrafts = async (clientId: string) => {
     const { data } = await supabase
@@ -202,6 +220,12 @@ export function ReceiptForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Validações gerais
+    if (!formData.pagadorNome?.trim()) {
+      alert("Por favor, preencha o nome do pagador");
+      return;
+    }
+
     // Validação específica por tipo
     if (isReembolso) {
       if (!formData.clienteId) {
@@ -214,12 +238,6 @@ export function ReceiptForm({
       }
       if (!formData.reembolsoCategoriaId) {
         alert("Por favor, selecione a categoria do reembolso");
-        return;
-      }
-    } else {
-      // Para pagamento, valida nome do pagador
-      if (!formData.pagadorNome?.trim()) {
-        alert("Por favor, preencha o nome do pagador");
         return;
       }
     }
@@ -328,119 +346,41 @@ export function ReceiptForm({
             </Select>
           </div>
 
-          {/* CAMPOS DO PAGADOR - Para tipo PAGAMENTO */}
-          {!isReembolso && (
-            <div className="space-y-4 p-4 border border-border rounded-lg bg-muted/30">
-              <h3 className="font-semibold text-sm">Dados do Pagador</h3>
-              
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Nome do Pagador *</Label>
-                  <Input
-                    value={formData.pagadorNome}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, pagadorNome: e.target.value }))
-                    }
-                    placeholder="Nome completo ou razão social"
-                    required
-                  />
-                </div>
+          {/* BUSCA DE CLIENTE / PAGADOR - Para ambos os tipos */}
+          <div className="p-4 border border-border rounded-lg bg-muted/30">
+            <h3 className="font-semibold text-sm mb-4">
+              {isReembolso ? "Dados do Cliente (Reembolso)" : "Dados do Pagador"}
+            </h3>
+            <ClienteSearchInput
+              value={clienteSearchValue}
+              onChange={handleClienteSearchChange}
+              required={true}
+              disabled={false}
+            />
+          </div>
 
-                <div>
-                  <Label>CPF/CNPJ</Label>
-                  <Input
-                    value={formData.pagadorDocumento}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, pagadorDocumento: e.target.value }))
-                    }
-                    placeholder="Documento do pagador"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label>Endereço</Label>
-                <Input
-                  value={formData.pagadorEndereco}
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, pagadorEndereco: e.target.value }))
-                  }
-                  placeholder="Endereço completo"
-                />
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Cidade</Label>
-                  <Input
-                    value={formData.pagadorCidade}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, pagadorCidade: e.target.value }))
-                    }
-                    placeholder="Cidade"
-                  />
-                </div>
-
-                <div>
-                  <Label>UF</Label>
-                  <Input
-                    value={formData.pagadorUF}
-                    onChange={(e) =>
-                      setFormData((p) => ({ ...p, pagadorUF: e.target.value }))
-                    }
-                    placeholder="UF"
-                    maxLength={2}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* CLIENTE / AERONAVE */}
-          {isReembolso && (
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label>Cliente *</Label>
-                <Select
-                  value={formData.clienteId}
-                  onValueChange={(v) =>
-                    setFormData((p) => ({ ...p, clienteId: v }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clientesAtivos.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.company_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Aeronave *</Label>
-                <Select
-                  value={formData.aircraftId}
-                  disabled={!formData.clienteId}
-                  onValueChange={(v) =>
-                    setFormData((p) => ({ ...p, aircraftId: v }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a aeronave" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {aircrafts.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.registration} – {a.model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* AERONAVE - APENAS PARA REEMBOLSOS */}
+          {isReembolso && clienteSearchValue.clienteId && (
+            <div>
+              <Label>Aeronave *</Label>
+              <Select
+                value={formData.aircraftId}
+                disabled={!formData.clienteId}
+                onValueChange={(v) =>
+                  setFormData((p) => ({ ...p, aircraftId: v }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a aeronave" />
+                </SelectTrigger>
+                <SelectContent>
+                  {aircrafts.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.registration} – {a.model}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           )}
 
