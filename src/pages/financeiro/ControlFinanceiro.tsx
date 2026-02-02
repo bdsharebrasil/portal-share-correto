@@ -199,7 +199,7 @@ export default function ControlFinanceiro() {
               <TrendingUp className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-orange-600">
+              <div className="text-2xl font-bold text-green-600">
                 R$ {totals.entradas.toFixed(2)}
               </div>
             </CardContent>
