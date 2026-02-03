@@ -1715,6 +1715,53 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           currentYear={selectedYear}
         />
 
+        {/* Modal para seleção de parceiro */}
+        {(() => {
+          const selectedClient = clients.find(c => c.id === pendingClientId);
+          const partners = getPartnersFromClient(selectedClient);
+
+          // Determina qual field está sendo preenchido
+          const isLoanFlow = flightType === 'emprestimo';
+          const currentPartnerName = isLoanFlow &&
+            (pendingClientId === newEntry.borrower_client_id ? newEntry.borrower_partner_name : newEntry.partner_name) ||
+            (!isLoanFlow ? newEntry.partner_name : '');
+
+          return (
+            <PartnerSelectModal
+              open={showPartnerModal}
+              onOpenChange={setShowPartnerModal}
+              clientName={selectedClient?.company_name || ''}
+              partners={partners}
+              selectedPartner={currentPartnerName}
+              onSelectPartner={(partnerName) => {
+                // Verifica qual fluxo está ativo
+                if (flightType === 'emprestimo') {
+                  if (pendingClientId === newEntry.client_id) {
+                    // Selecionando parceiro do cliente que empresta
+                    setNewEntry({
+                      ...newEntry,
+                      partner_name: partnerName
+                    });
+                  } else if (pendingClientId === newEntry.borrower_client_id) {
+                    // Selecionando parceiro do cliente que pega emprestado
+                    setNewEntry({
+                      ...newEntry,
+                      borrower_partner_name: partnerName
+                    });
+                  }
+                } else {
+                  // Fluxo de cliente normal
+                  setNewEntry({
+                    ...newEntry,
+                    partner_name: partnerName
+                  });
+                }
+                setShowPartnerModal(false);
+              }}
+            />
+          );
+        })()}
+
         {/* INFORMAÇÕES TÉCNICAS DO PERÍODO */}
         {logbookMonth && <div className="space-y-6">
           {/* MÉTRICAS PRINCIPAIS DESTACADAS */}
