@@ -192,7 +192,7 @@ export function ConciliationCard({ reconciliations, loading }: ConciliationCardP
                       className={`hover:bg-muted/30 transition-colors ${isReembolso ? 'bg-purple-500/5' : ''}`}
                     >
                       <td className="px-6 py-4 text-sm text-foreground font-medium whitespace-nowrap">
-                        {new Date(item.date + 'T12:00:00').toLocaleDateString("pt-BR")}
+                        {formatDateCorrectly(item.date)}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-1">
