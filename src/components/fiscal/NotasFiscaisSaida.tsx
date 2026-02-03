@@ -1134,7 +1134,6 @@ export function NotasFiscaisSaida() {
                     cliente_id: "",
                     cliente_nome: "",
                     cliente_cnpj: "",
-                    aeronave_id: "",
                     aeronave_registro: "",
                     valor: "",
                     data_vencimento: new Date().toISOString().split("T")[0],
@@ -1325,17 +1324,16 @@ export function NotasFiscaisSaida() {
                   onClick={() => {
                     setShowReciboDialog(false);
                     setReciboData({
-                      cliente_id: "",
-                      cliente_nome: "",
-                      cliente_cnpj: "",
-                      aeronave_id: "",
-                      aeronave_registro: "",
-                      valor: "",
-                      data_vencimento: new Date().toISOString().split("T")[0],
-                      descricao: "",
-                    });
-                    setClienteSearch("");
-                    setAeronaveSearch("");
+                    cliente_id: "",
+                    cliente_nome: "",
+                    cliente_cnpj: "",
+                    aeronave_registro: "",
+                    valor: "",
+                    data_vencimento: new Date().toISOString().split("T")[0],
+                    descricao: "",
+                  });
+                  setClienteSearch("");
+                  setAeronaveSearch("");
                   }}
                 >
                   Cancelar
