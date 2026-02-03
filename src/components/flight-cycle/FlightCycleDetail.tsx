@@ -97,6 +97,8 @@ export function FlightCycleDetail({
         origin_icao: editData.origin_icao,
         destination_icao: editData.destination_icao,
         flight_duration_hours: editData.flight_duration_hours ? parseFloat(editData.flight_duration_hours) : null,
+        pic_name: editData.pic_name || null,
+        sic_name: editData.sic_name || null,
       });
       setIsEditing(false);
     } finally {
