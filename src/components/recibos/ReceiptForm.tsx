@@ -235,6 +235,13 @@ export function ReceiptForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Debug: log dos dados antes do submit
+    console.log("=== SUBMIT DEBUG ===");
+    console.log("formData.pagadorNome:", formData.pagadorNome);
+    console.log("clienteSearchValue.nome:", clienteSearchValue.nome);
+    console.log("clienteSearchValue:", clienteSearchValue);
+    console.log("formData:", formData);
+
     // Sincroniza dados do cliente se vindo de busca
     let finalPagadorNome = formData.pagadorNome;
     let finalPagadorDocumento = formData.pagadorDocumento;
@@ -250,6 +257,8 @@ export function ReceiptForm({
       finalPagadorCidade = clienteSearchValue.cidade;
       finalPagadorUF = clienteSearchValue.uf;
     }
+
+    console.log("finalPagadorNome:", finalPagadorNome);
 
     // Validações gerais
     if (!finalPagadorNome?.trim()) {
