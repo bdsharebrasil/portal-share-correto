@@ -227,8 +227,6 @@ export function NotasFiscaisSaida() {
     descricao: "",
   });
   const [isGeneratingRecibo, setIsGeneratingRecibo] = useState(false);
-  const { contas } = useCategoriasConta();
-  const bancos = Array.from(new Set(contas.map(c => c.banco).filter(Boolean))) as string[];
   const { toast } = useToast();
   const { user } = useAuth();
 
