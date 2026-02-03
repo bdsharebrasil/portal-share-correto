@@ -894,7 +894,7 @@ export function NotasFiscaisSaida() {
                     <PopoverTrigger asChild>
                       <div className="relative">
                         <Input
-                          value={formData.aeronave_registration}
+                          value={formData.aeronave}
                           onChange={(e) => {
                             setAeronaveSearch(e.target.value);
                             setOpenAeronavePopover(true);
