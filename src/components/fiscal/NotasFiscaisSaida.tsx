@@ -483,7 +483,7 @@ export function NotasFiscaisSaida() {
       categoria: defaultCategoria,
       descricao: "",
       status: "pendente",
-      aeronave_registration: "",
+      aeronave: "",
     });
     setEditingNota(null);
     setArquivo(null);
