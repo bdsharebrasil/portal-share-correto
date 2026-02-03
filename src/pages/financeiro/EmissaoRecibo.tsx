@@ -95,25 +95,29 @@ export default function EmissaoRecibo() {
     setIsGeneratingPdf(false);
 
     try {
-      // Validação básica - as validações específicas já foram feitas no formulário
-      const isReembolso = formData.receiptType === "reembolso";
-      
-      // Para reembolso, o nome do pagador é preenchido automaticamente do cliente
-      const nomePagador = isReembolso 
-        ? formData.originalFormData?.pagadorNome || formData.pagadorNome
-        : formData.pagadorNome;
+      // Extrai dados do submissionData que chegou do formulário
+      const originalForm = formData.originalFormData || {};
+      const isReembolso = originalForm.receiptType === "reembolso";
 
-      if (!nomePagador?.trim()) {
-        throw new Error("Nome do pagador não foi preenchido corretamente");
+      // Pega o nome do pagador do originalFormData
+      const nomePagador = originalForm.pagadorNome?.trim();
+
+      if (!nomePagador) {
+        console.error("Dados recebidos:", {
+          formData,
+          originalForm,
+          pagadorNome: originalForm.pagadorNome
+        });
+        throw new Error("Nome do pagador não foi preenchido corretamente. Por favor, preencha os dados do pagador.");
       }
-      if (!formData.valor || Number(formData.valor) <= 0) {
+      if (!formData.amount || Number(formData.amount) <= 0) {
         throw new Error("Valor deve ser maior que zero");
       }
-      if (!formData.servicoDescricao?.trim()) {
+      if (!formData.description?.trim()) {
         throw new Error("Descrição do serviço é obrigatória");
       }
 
-      const receiptNumber = generateReceiptNumber(formData.clienteId ? nomePagador : "");
+      const receiptNumber = generateReceiptNumber(originalForm.clienteId ? nomePagador : "");
       console.log("Número de recibo:", receiptNumber);
 
       // ===================== UPLOAD DE ARQUIVOS =====================
