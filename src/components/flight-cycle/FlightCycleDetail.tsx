@@ -272,6 +272,46 @@ export function FlightCycleDetail({
                 />
               </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>PIC (Pilot in Command)</Label>
+                <Select
+                  value={editData.pic_name}
+                  onValueChange={(v) => setEditData(prev => ({ ...prev, pic_name: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o PIC" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {crewMembers.map(member => (
+                      <SelectItem key={member.id} value={member.full_name}>
+                        {member.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>SIC (Second in Command)</Label>
+                <Select
+                  value={editData.sic_name}
+                  onValueChange={(v) => setEditData(prev => ({ ...prev, sic_name: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o SIC" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {crewMembers.map(member => (
+                      <SelectItem key={member.id} value={member.full_name}>
+                        {member.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
         )}
 
