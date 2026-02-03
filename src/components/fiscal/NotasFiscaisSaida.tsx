@@ -196,8 +196,8 @@ interface Cliente {
 // --- COMPONENTE PRINCIPAL ---
 
 export function NotasFiscaisSaida() {
-  const { getCategoriasReceita } = useCategoriasFinanceiro();
-  const categoriasReceita = getCategoriasReceita();
+  const { getCategoriasEntrada } = useCategoriasFinanceiro();
+  const categoriasReceita = getCategoriasEntrada();
   const { aeronaves, isLoadingAeronaves } = useAeronaves();
 
   const [notas, setNotas] = useState<NotaFiscalSaida[]>([]);
