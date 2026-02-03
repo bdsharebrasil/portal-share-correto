@@ -91,6 +91,12 @@ const decimalToHHMM = (decimal?: number | null): string => {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 };
 
+const decimalToHoursOnly = (decimal?: number | null): string => {
+  if (!decimal || decimal === 0) return '00:00';
+  const hours = Math.round(decimal);
+  return `${hours.toString().padStart(2, '0')}:00`;
+};
+
 const decimalToTimeString = (decimal: number): string => {
   if (!decimal || decimal === 0) return '00:00';
   const totalMinutes = Math.round(decimal * 60);
