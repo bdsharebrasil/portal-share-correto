@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,8 @@ import { generateReceiptNumber, GeneratedReceipt, ReceiptType } from "@/lib/rece
 import { handleReceiptSubmit } from "@/services/receiptSubmitHandler";
 import { toast } from "@/hooks/use-toast";
 import { FileText, Clock, Star } from "lucide-react";
+import { pdf } from "@react-pdf/renderer";
+import { ReciboDocument } from "@/lib/reciboGenerator";
 
 interface Cliente {
   id: string;
