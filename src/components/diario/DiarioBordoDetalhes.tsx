@@ -2132,11 +2132,20 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     <div className="space-y-1">
                       <Label className="text-[9px] uppercase text-amber-400 ml-1 block">Cliente que Empresta a Aeronave *</Label>
                       <Select value={newEntry.client_id} onValueChange={v => {
+                        const selectedClient = clients.find(c => c.id === v);
+                        const partners = getPartnersFromClient(selectedClient);
+
                         setNewEntry({
                           ...newEntry,
                           client_id: v,
-                          partner_name: '' // Reset partner when client changes
+                          partner_name: ''
                         });
+
+                        // Se o cliente tem parceiros, abre o modal
+                        if (partners.length > 0) {
+                          setPendingClientId(v);
+                          setShowPartnerModal(true);
+                        }
                       }}>
                         <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
                           <SelectValue placeholder="Selecione o Cliente" />
@@ -2162,32 +2171,27 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     </div>
 
                     {/* Sócio/Cotista responsável pelo empréstimo */}
-                    {(() => {
+                    {newEntry.client_id && (() => {
                       const selectedClient = clients.find(c => c.id === newEntry.client_id);
-                      const partnerOptions = [];
-                      if (selectedClient?.partner_name) partnerOptions.push(selectedClient.partner_name);
-                      if (selectedClient?.partner_name2) partnerOptions.push(selectedClient.partner_name2);
-                      if (selectedClient?.partner_name3) partnerOptions.push(selectedClient.partner_name3);
+                      const partners = getPartnersFromClient(selectedClient);
 
-                      if (partnerOptions.length > 0) {
+                      if (newEntry.partner_name && partners.length > 0) {
                         return (
-                          <div className="space-y-1 mt-2">
-                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Cotista Responsável (Aeronave) *</Label>
-                            <Select value={newEntry.partner_name} onValueChange={v => setNewEntry({
-                              ...newEntry,
-                              partner_name: v
-                            })}>
-                              <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
-                                <SelectValue placeholder="Selecione o Cotista" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {partnerOptions.map((partner, idx) => (
-                                  <SelectItem key={idx} value={partner}>
-                                    {partner}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                          <div className="space-y-1 mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Cotista Responsável (Aeronave)</Label>
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-bold text-amber-400">{newEntry.partner_name}</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPendingClientId(newEntry.client_id);
+                                  setShowPartnerModal(true);
+                                }}
+                                className="text-xs px-2 py-1 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/50 text-amber-400 rounded transition-all"
+                              >
+                                Alterar
+                              </button>
+                            </div>
                           </div>
                         );
                       }
