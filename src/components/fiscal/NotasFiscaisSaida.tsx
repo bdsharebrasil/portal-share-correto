@@ -321,6 +321,8 @@ export function NotasFiscaisSaida() {
     }
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+
       const notaData: any = {
         numero: formData.numero,
         cliente_nome: formData.cliente_nome,
@@ -332,10 +334,9 @@ export function NotasFiscaisSaida() {
         descricao: formData.descricao || null,
         status: formData.status,
         arquivo_pdf_url: pdfUrl || null,
-        aeronave: formData.aeronave_registration || null,
+        aeronave: formData.aeronave || null,
+        criado_por: user?.id || null,
       };
-
-      const { data: { user } } = await supabase.auth.getUser();
 
       if (editingNota) {
         const { error } = await supabase
