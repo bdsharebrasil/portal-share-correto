@@ -367,6 +367,41 @@ export function ReceiptForm({
               required={true}
               disabled={false}
             />
+
+            {/* Exibição dos dados preenchidos para confirmar */}
+            {formData.pagadorNome && (
+              <div className="mt-4 p-4 border border-green-500/30 bg-green-500/5 rounded-lg">
+                <h4 className="font-semibold text-sm text-green-600 mb-3">Dados Preenchidos:</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-muted-foreground block text-xs mb-1">Empresa/Pessoa</span>
+                    <span className="font-medium text-foreground">{formData.pagadorNome}</span>
+                  </div>
+                  {formData.pagadorDocumento && (
+                    <div>
+                      <span className="text-muted-foreground block text-xs mb-1">Documento</span>
+                      <span className="font-medium text-foreground">{formData.pagadorDocumento}</span>
+                    </div>
+                  )}
+                  {formData.pagadorEndereco && (
+                    <div>
+                      <span className="text-muted-foreground block text-xs mb-1">Endereço</span>
+                      <span className="font-medium text-foreground">{formData.pagadorEndereco}</span>
+                    </div>
+                  )}
+                  {(formData.pagadorCidade || formData.pagadorUF) && (
+                    <div>
+                      <span className="text-muted-foreground block text-xs mb-1">Cidade/UF</span>
+                      <span className="font-medium text-foreground">
+                        {formData.pagadorCidade}
+                        {formData.pagadorCidade && formData.pagadorUF ? ", " : ""}
+                        {formData.pagadorUF}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* AERONAVE - APENAS PARA REEMBOLSOS */}
