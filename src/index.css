@@ -4,196 +4,92 @@
 @tailwind components;
 @tailwind utilities;
 
-@custom-variant dark (&:is(.dark *));
+/* Portal Share Brasil Design System - Modern Dark Aviation Theme */
 
-:root {
-  --font-size: 16px;
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
-  --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
-  --secondary: #d8dce5;
-  --secondary-foreground: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #b8bfd4;
-  --accent-foreground: #030213;
-  --destructive: #d4183d;
-  --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
-  --input: transparent;
-  --input-background: #f3f3f5;
-  --switch-background: #cbced4;
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #030213;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: #d8dce5;
-  --sidebar-accent-foreground: #030213;
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
+@layer base {
+  :root {
+    /* Dark theme base colors */
+    --background: 222 25% 8%;
+    --foreground: 210 40% 98%;
 
-.dark {
-  --background: #111d26;
-  --foreground: #e8f4f8;
-  --card: #1a2f3f;
-  --card-foreground: #e8f4f8;
-  --popover: #1a2f3f;
-  --popover-foreground: #e8f4f8;
-  --primary: #2ab3d4;
-  --primary-foreground: #ffffff;
-  --secondary: #3a5a75;
-  --secondary-foreground: #e8f4f8;
-  --muted: #2a4050;
-  --muted-foreground: #9bb5c8;
-  --accent: #3d95b8;
-  --accent-foreground: #e8f4f8;
-  --destructive: #ff6b6b;
-  --destructive-foreground: #ffffff;
-  --border: #2a4050;
-  --input: #1a2f3f;
-  --input-background: #2a4050;
-  --switch-background: #3a5a75;
-  --ring: #2ab3d4;
-  --font-weight-medium: 500;
-  --font-weight-normal: 400;
-  --chart-1: #2ab3d4;
-  --chart-2: #4dd9f7;
-  --chart-3: #99dd33;
-  --chart-4: #cc99ff;
-  --chart-5: #ffb84d;
-  --sidebar: #111d26;
-  --sidebar-foreground: #e8f4f8;
-  --sidebar-primary: #2ab3d4;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #3a5a75;
-  --sidebar-accent-foreground: #e8f4f8;
-  --sidebar-border: #2a4050;
-  --sidebar-ring: #2ab3d4;
-}
+    /* Card backgrounds with subtle variations */
+    --card: 222 25% 9%;
+    --card-foreground: 210 40% 98%;
+    --card-secondary: 222 25% 11%;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-input-background: var(--input-background);
-  --color-switch-background: var(--switch-background);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+    --popover: 222 25% 12%;
+    --popover-foreground: 210 40% 98%;
+
+    /* Cyan primary brand color - more subtle */
+    --primary: 192 70% 50%;
+    --primary-foreground: 222 25% 8%;
+    --primary-glow: 192 65% 55%;
+    --primary-dark: 192 70% 40%;
+
+    /* Custom dark cyan accent color */
+    --custom-cyan: 192 60% 30%;
+
+    /* Secondary grays */
+    --secondary: 222 20% 18%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 222 20% 15%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 222 20% 20%;
+    --accent-foreground: 210 40% 98%;
+
+    /* Status colors */
+    --destructive: 0 75% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --success: 142 60% 45%;
+    --warning: 45 100% 55%;
+
+    /* Borders and inputs */
+    --border: 222 20% 22%;
+    --input: 222 20% 18%;
+    --ring: 192 70% 50%;
+
+    /* Gradients - mais sutis */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-dark)));
+    --gradient-card: linear-gradient(145deg, hsl(var(--card)), hsl(var(--card-secondary)));
+    --gradient-subtle: linear-gradient(180deg, hsl(var(--background)), hsl(222 25% 10%));
+
+    /* Shadows - menos intensas */
+    --shadow-primary: 0 4px 15px -4px hsl(var(--primary) / 0.15);
+    --shadow-card: 0 2px 10px -2px hsl(222 25% 5% / 0.3);
+    --shadow-elevated: 0 8px 25px -8px hsl(222 25% 5% / 0.4);
+
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    --radius: 0.75rem;
+
+    /* Sidebar colors for aviation theme */
+    --sidebar-background: 222 25% 10%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 192 70% 50%;
+    --sidebar-primary-foreground: 222 25% 8%;
+    --sidebar-accent: 222 20% 18%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 222 20% 20%;
+    --sidebar-ring: 192 70% 50%;
+
+    /* Folder colors */
+    --folder-back: 35 80% 45%;
+    --folder-tab: 35 90% 55%;
+    --folder-front: 25 85% 50%;
+  }
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
 
   body {
     @apply bg-background text-foreground;
-  }
-
-  /**
-  * Default typography styles for HTML elements (h1-h4, p, label, button, input).
-  * These are in @layer base, so Tailwind utility classes (like text-sm, text-lg) automatically override them.
-  */
-
-  html {
-    font-size: var(--font-size);
-    font-family: 'Noto Sans', sans-serif;
-  }
-
-  h1 {
-    font-size: 1.5rem;
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-  }
-
-  h2 {
-    font-size: 1.25rem;
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-  }
-
-  h3 {
-    font-size: 1.125rem;
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-  }
-
-  h4 {
-    font-size: 1rem;
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-  }
-
-  label {
-    font-size: 1rem;
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-  }
-
-  button {
-    font-size: 1rem;
-    font-weight: var(--font-weight-medium);
-    line-height: 1.5;
-  }
-
-  input {
-    font-size: 1rem;
-    font-weight: var(--font-weight-normal);
-    line-height: 1.5;
-  }
-
-  .font-display {
-    font-family: 'Space Grotesk', sans-serif;
-  }
-
-  .font-body {
-    font-family: 'Noto Sans', sans-serif;
   }
 }
 
@@ -281,6 +177,7 @@
     box-shadow: 0 0 30px -5px rgba(59, 130, 246, 0.25);
   }
 
+
   /* Scrollbar styling - Transparent by default, visible on hover */
   ::-webkit-scrollbar {
     width: 6px;
@@ -312,6 +209,7 @@
   }
 
   @keyframes plane-drift-left {
+
     0%,
     100% {
       transform: translate3d(0, 0, 0) rotate(-12deg);
@@ -335,6 +233,7 @@
   }
 
   @keyframes plane-drift-right {
+
     0%,
     100% {
       transform: translate3d(0, 0, 0) rotate(15deg);
@@ -358,6 +257,7 @@
   }
 
   @keyframes plane-pulse {
+
     0%,
     100% {
       opacity: 0.15;
@@ -464,5 +364,17 @@
 
   .animate-route-dash {
     animation: dash 60s linear infinite;
+  }
+
+  html {
+    font-family: 'Noto Sans', sans-serif;
+  }
+
+  .font-display {
+    font-family: 'Space Grotesk', sans-serif;
+  }
+
+  .font-body {
+    font-family: 'Noto Sans', sans-serif;
   }
 }
