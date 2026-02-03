@@ -40,16 +40,72 @@ export function FlightCycleDetail({
   onUpdateExpenseStatus,
   onUpdateCycleStatus,
   onAddExpense,
+  onUpdateCycle,
 }: FlightCycleDetailProps) {
   const [expandedExpense, setExpandedExpense] = useState<string | null>(null);
   const [addExpenseOpen, setAddExpenseOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [aircraft, setAircraft] = useState<Aircraft[]>([]);
+  const [editData, setEditData] = useState({
+    client_id: cycle.client_id || '',
+    origin_icao: cycle.origin_icao,
+    destination_icao: cycle.destination_icao,
+    flight_duration_hours: cycle.flight_duration_hours?.toString() || '',
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
+
   const statusConfig = FLIGHT_STATUS_CONFIG[cycle.status];
-  
+
   const expenses = cycle.expenses || [];
   const completedExpenses = expenses.filter(e => ['paga', 'nao_aplicavel'].includes(e.status)).length;
-  const completionPercentage = expenses.length > 0 
-    ? Math.round((completedExpenses / expenses.length) * 100) 
+  const completionPercentage = expenses.length > 0
+    ? Math.round((completedExpenses / expenses.length) * 100)
     : 0;
+
+  // Load clients and aircraft when edit mode is activated
+  useEffect(() => {
+    if (isEditing) {
+      loadEditData();
+    }
+  }, [isEditing]);
+
+  const loadEditData = async () => {
+    const [clientsRes, aircraftRes] = await Promise.all([
+      supabase.from('clients').select('id, company_name, proprietario').order('company_name'),
+      supabase.from('aircraft').select('id, registration, model').order('registration'),
+    ]);
+
+    if (clientsRes.data) setClients(clientsRes.data);
+    if (aircraftRes.data) setAircraft(aircraftRes.data);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!onUpdateCycle) return;
+
+    setSavingEdit(true);
+    try {
+      await onUpdateCycle(cycle.id, {
+        client_id: editData.client_id || null,
+        origin_icao: editData.origin_icao,
+        destination_icao: editData.destination_icao,
+        flight_duration_hours: editData.flight_duration_hours ? parseFloat(editData.flight_duration_hours) : null,
+      });
+      setIsEditing(false);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditData({
+      client_id: cycle.client_id || '',
+      origin_icao: cycle.origin_icao,
+      destination_icao: cycle.destination_icao,
+      flight_duration_hours: cycle.flight_duration_hours?.toString() || '',
+    });
+    setIsEditing(false);
+  };
 
   const getExpenseAlertLevel = (expense: FlightExpense): 'none' | 'yellow' | 'red' | 'purple' => {
     if (!expense.expected_date || expense.status === 'paga' || expense.status === 'nao_aplicavel') {
