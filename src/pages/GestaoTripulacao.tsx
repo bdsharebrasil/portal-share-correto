@@ -192,12 +192,7 @@ export default function GestaoDeTripulacao() {
     }
   };
   const saveLicense = async (licenseData: Partial<CrewLicense>) => {
-    if (!selectedCrew || !canEditHabilitacoes) {
-      toast({
-        title: "Sem permissão",
-        description: "Você não tem permissão para editar habilitações.",
-        variant: "destructive"
-      });
+    if (!selectedCrew) {
       return;
     }
     const payload = {
