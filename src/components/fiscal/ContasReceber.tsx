@@ -1336,11 +1336,11 @@ export function ContasReceber() {
                   />
                 </div>
                 <div className="flex items-center justify-between pr-0 group">
-                  <span>Referência</span>
+                  <span>Categoria</span>
                   <div
-                    onMouseDown={(e) => handleColumnResizeStart(e, "referencia")}
+                    onMouseDown={(e) => handleColumnResizeStart(e, "categoria")}
                     className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                      resizingColumn === "referencia" ? "bg-primary" : ""
+                      resizingColumn === "categoria" ? "bg-primary" : ""
                     }`}
                     title="Arraste para redimensionar"
                   />
