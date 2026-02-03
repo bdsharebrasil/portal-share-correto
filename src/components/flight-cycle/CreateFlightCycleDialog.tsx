@@ -77,8 +77,10 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
         flight_duration_hours: formData.flight_duration_hours ? parseFloat(formData.flight_duration_hours) : null,
         return_date: formData.return_date || null,
         status: 'confirmado',
+        pic_name: formData.pic_name || null,
+        sic_name: formData.sic_name || null,
       });
-      
+
       // Reset form
       setFormData({
         client_id: '',
@@ -92,6 +94,8 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
         is_controlled_airport: false,
         has_private_hangar: false,
         flight_duration_hours: '',
+        pic_name: '',
+        sic_name: '',
       });
       onOpenChange(false);
     } finally {
