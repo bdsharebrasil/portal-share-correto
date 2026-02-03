@@ -258,19 +258,114 @@ export default function EmissaoRecibo() {
         });
         if (pdfError) throw pdfError;
 
-        if (pdfResult?.url) {
+        if (!pdfResult) throw new Error("Nenhum resultado retornado");
+
+        // Se o servidor retornou HTML, precisamos converter no cliente
+        if (pdfResult.html) {
+          try {
+            // Abrir o HTML em uma nova aba para visualização/impressão
+            const htmlBlob = new Blob([pdfResult.html], { type: 'text/html; charset=utf-8' });
+            const htmlUrl = URL.createObjectURL(htmlBlob);
+
+            // Armazenar URL temporária para visualização
+            setViewPdfUrl(htmlUrl);
+
+            // Tentar converter para PDF usando a biblioteca html2pdf
+            // Carrega html2pdf dinamicamente
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+            script.onload = async () => {
+              try {
+                const element = document.createElement('div');
+                element.innerHTML = pdfResult.html;
+                element.style.padding = '0';
+                element.style.margin = '0';
+
+                const opt = {
+                  margin: 0,
+                  filename: `${pdfResult.receiptNumber.replace(/\//g, '-')}.pdf`,
+                  image: { type: 'jpeg', quality: 0.98 },
+                  html2canvas: { scale: 2 },
+                  jsPDF: { format: 'a4', orientation: 'portrait' },
+                };
+
+                // @ts-ignore
+                const pdf = html2pdf().set(opt).from(element);
+
+                // Obter o PDF como blob
+                pdf.toPdf().get('pdf').then(async (pdfDoc: any) => {
+                  const pdfBlob = pdfDoc.output('blob');
+
+                  // Upload do PDF para o Storage
+                  const pdfFileName = `recibos/${receiptData.id}_${Date.now()}.pdf`;
+                  const { error: uploadError } = await supabase.storage
+                    .from("receipts")
+                    .upload(pdfFileName, pdfBlob, {
+                      contentType: "application/pdf",
+                      upsert: true,
+                    });
+
+                  if (uploadError) throw uploadError;
+
+                  const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(pdfFileName);
+
+                  // Atualizar no banco de dados
+                  const { error: updateError } = await supabase
+                    .from("receipts")
+                    .update({ pdf_url: urlData.publicUrl })
+                    .eq("id", receiptData.id);
+
+                  if (updateError) throw updateError;
+
+                  URL.revokeObjectURL(htmlUrl);
+                  await loadRecentReceipts(userId);
+
+                  const attachmentInfo = uploadedFiles.length > 0
+                    ? `Anexos: ${uploadedFiles.map(f => f.type === 'boleto' ? 'Boleto' : 'Nota Fiscal').join(' e ')}.`
+                    : '';
+                  toast({
+                    title: "✅ Sucesso!",
+                    description: `Recibo ${receiptNumber} gerado com sucesso! ${attachmentInfo}`
+                  });
+                }).catch((err: any) => {
+                  console.warn("Erro ao gerar PDF, usando HTML:", err);
+                  URL.revokeObjectURL(htmlUrl);
+                });
+              } catch (err) {
+                console.error("Erro ao processar PDF:", err);
+                URL.revokeObjectURL(htmlUrl);
+              }
+            };
+            document.head.appendChild(script);
+          } catch (err) {
+            console.error("Erro ao processar HTML:", err);
+            toast({
+              title: "Recibo criado",
+              description: `Recibo ${receiptNumber} criado. PDF disponível em breve.`,
+              variant: "default"
+            });
+          }
+        } else if (pdfResult.url) {
+          // Se o servidor retornou URL de PDF direto
           const { error: updateError } = await supabase.from("receipts").update({ pdf_url: pdfResult.url }).eq("id", receiptData.id);
           if (updateError) throw updateError;
-        }
 
-        await loadRecentReceipts(userId);
-        const attachmentInfo = uploadedFiles.length > 0
-          ? `Anexos: ${uploadedFiles.map(f => f.type === 'boleto' ? 'Boleto' : 'Nota Fiscal').join(' e ')}.`
-          : '';
-        toast({ title: "✅ Sucesso!", description: `Recibo ${receiptNumber} gerado com sucesso! ${attachmentInfo}` });
+          await loadRecentReceipts(userId);
+          const attachmentInfo = uploadedFiles.length > 0
+            ? `Anexos: ${uploadedFiles.map(f => f.type === 'boleto' ? 'Boleto' : 'Nota Fiscal').join(' e ')}.`
+            : '';
+          toast({
+            title: "✅ Sucesso!",
+            description: `Recibo ${receiptNumber} gerado com sucesso! ${attachmentInfo}`
+          });
+        }
       } catch (pdfErr) {
         console.error("Erro PDF:", pdfErr);
-        toast({ title: "Recibo criado, PDF pendente", description: `Recibo ${receiptNumber} criado, mas o PDF falhou.`, variant: "default" });
+        toast({
+          title: "Recibo criado",
+          description: `Recibo ${receiptNumber} criado. PDF pode ser gerado manualmente.`,
+          variant: "default"
+        });
       }
 
     } catch (err) {
