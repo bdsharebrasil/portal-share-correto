@@ -13,12 +13,25 @@ import { cn } from "@/lib/utils";
 import { AddExpenseDialog } from "./AddExpenseDialog";
 import { supabase } from "@/integrations/supabase/client";
 
+interface Client {
+  id: string;
+  company_name: string | null;
+  proprietario: string | null;
+}
+
+interface Aircraft {
+  id: string;
+  registration: string;
+  model: string;
+}
+
 interface FlightCycleDetailProps {
   cycle: FlightCycle;
   onBack: () => void;
   onUpdateExpenseStatus: (expenseId: string, status: ExpenseStatus, additionalData?: Partial<FlightExpense>) => void;
   onUpdateCycleStatus: (cycleId: string, status: FlightCycle['status']) => void;
   onAddExpense: (cycleId: string, expense: Partial<FlightExpense>) => void;
+  onUpdateCycle?: (cycleId: string, updates: Partial<FlightCycle>) => Promise<void>;
 }
 
 export function FlightCycleDetail({
