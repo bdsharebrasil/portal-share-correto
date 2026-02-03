@@ -227,6 +227,12 @@ export function useWeather() {
 
         if (!response.ok) {
           console.error(`[METAR] ❌ HTTP Error: ${response.status} ${response.statusText}`);
+
+          // For 503/504 errors, these are often transient - will be retried by the outer loop
+          if (response.status === 503 || response.status === 504) {
+            throw new Error(`API error: ${response.status} (transient)`);
+          }
+
           throw new Error(`API error: ${response.status}`);
         }
 
