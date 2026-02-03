@@ -122,7 +122,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       {/* Icon-only sidebar (always visible) */}
       <aside className="fixed left-0 top-16 w-20 h-[calc(100vh-4rem)] bg-gradient-to-b from-slate-900/95 via-slate-950/95 to-slate-950/95 backdrop-blur-sm border-r border-slate-800/50 z-50 flex flex-col items-center py-6 gap-4">
         {/* Main navigation icons */}
-        <nav className="flex flex-col gap-3 w-full px-2">
+        <nav className="flex flex-col w-full px-3.5" style={{ gap: '22px', margin: '59px 0' }}>
           {filteredMenuGroups.flatMap((group) =>
             group.items.map((item) => (
               <motion.div
