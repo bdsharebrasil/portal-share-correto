@@ -175,6 +175,27 @@ export function AddLicenseDialog({
                   className="bg-transparent border-[#1d1d72] text-white"
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm text-white">
+                  Tipo Sanguíneo (FS/RH) *
+                </Label>
+                <Select value={fsRh} onValueChange={setFsRh}>
+                  <SelectTrigger className="bg-transparent border-[#1d1d72] text-white">
+                    <SelectValue placeholder="Selecione o tipo sanguíneo" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#080220] border-[#1d1d72] text-white">
+                    <SelectItem value="A+">A+</SelectItem>
+                    <SelectItem value="A-">A-</SelectItem>
+                    <SelectItem value="B+">B+</SelectItem>
+                    <SelectItem value="B-">B-</SelectItem>
+                    <SelectItem value="AB+">AB+</SelectItem>
+                    <SelectItem value="AB-">AB-</SelectItem>
+                    <SelectItem value="O+">O+</SelectItem>
+                    <SelectItem value="O-">O-</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </>
           )}
 
