@@ -69,30 +69,30 @@ export function SaldosDevedoresResume({ clienteId }: SaldosDevedoresResumeProps)
       </div>
 
       {/* Cards de Saldos */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* Reembolsos Pendentes */}
-        <Card className="border border-white/10 bg-gradient-to-br from-yellow-500/10 to-orange-500/10 backdrop-blur-sm hover:border-white/20 transition-colors">
-          <CardHeader className="pb-3">
+        <Card className="border border-white/5 bg-gradient-to-br from-yellow-500/5 to-orange-500/5 backdrop-blur-sm hover:border-white/10 transition-colors">
+          <CardHeader className="pb-2 pt-4 px-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold text-foreground">
+              <CardTitle className="text-xs font-semibold text-foreground">
                 {saldos.reembolsos.descricao}
               </CardTitle>
-              <div className="p-2 rounded-full bg-yellow-500/20">
-                <TrendingDown className="h-4 w-4 text-yellow-500" />
+              <div className="p-1.5 rounded-full bg-yellow-500/10">
+                <TrendingDown className="h-3 w-3 text-yellow-600" />
               </div>
             </div>
-            <CardDescription className="text-xs text-muted-foreground mt-1">
+            <CardDescription className="text-xs text-muted-foreground mt-0.5">
               {saldos.reembolsos.quantidade_registros} registro{saldos.reembolsos.quantidade_registros !== 1 ? 's' : ''}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <p className="text-3xl font-bold text-yellow-400">
+          <CardContent className="px-4 py-2">
+            <div className="space-y-1">
+              <p className="text-xl font-semibold text-yellow-500">
                 {formatCurrency(saldos.reembolsos.saldo)}
               </p>
               {saldos.reembolsos.saldo > 0 && (
-                <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30 w-fit">
-                  Aguardando Reembolso
+                <Badge variant="secondary" className="bg-yellow-500/15 text-yellow-600 border-yellow-500/20 w-fit text-xs">
+                  Aguardando
                 </Badge>
               )}
             </div>
@@ -100,28 +100,28 @@ export function SaldosDevedoresResume({ clienteId }: SaldosDevedoresResumeProps)
         </Card>
 
         {/* Pagamento Direto */}
-        <Card className="border border-white/10 bg-gradient-to-br from-blue-500/10 to-cyan-500/10 backdrop-blur-sm hover:border-white/20 transition-colors">
-          <CardHeader className="pb-3">
+        <Card className="border border-white/5 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 backdrop-blur-sm hover:border-white/10 transition-colors">
+          <CardHeader className="pb-2 pt-4 px-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold text-foreground">
+              <CardTitle className="text-xs font-semibold text-foreground">
                 {saldos.pagamento_direto.descricao}
               </CardTitle>
-              <div className="p-2 rounded-full bg-blue-500/20">
-                <CreditCard className="h-4 w-4 text-blue-500" />
+              <div className="p-1.5 rounded-full bg-blue-500/10">
+                <CreditCard className="h-3 w-3 text-blue-600" />
               </div>
             </div>
-            <CardDescription className="text-xs text-muted-foreground mt-1">
+            <CardDescription className="text-xs text-muted-foreground mt-0.5">
               {saldos.pagamento_direto.quantidade_registros} registro{saldos.pagamento_direto.quantidade_registros !== 1 ? 's' : ''}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <p className="text-3xl font-bold text-blue-400">
+          <CardContent className="px-4 py-2">
+            <div className="space-y-1">
+              <p className="text-xl font-semibold text-blue-500">
                 {formatCurrency(saldos.pagamento_direto.saldo)}
               </p>
               {saldos.pagamento_direto.saldo > 0 && (
-                <Badge variant="secondary" className="bg-blue-500/20 text-blue-300 border-blue-500/30 w-fit">
-                  Pagamento Pendente
+                <Badge variant="secondary" className="bg-blue-500/15 text-blue-600 border-blue-500/20 w-fit text-xs">
+                  Pendente
                 </Badge>
               )}
             </div>
@@ -129,27 +129,27 @@ export function SaldosDevedoresResume({ clienteId }: SaldosDevedoresResumeProps)
         </Card>
 
         {/* Combustível */}
-        <Card className="border border-white/10 bg-gradient-to-br from-green-500/10 to-emerald-500/10 backdrop-blur-sm hover:border-white/20 transition-colors">
-          <CardHeader className="pb-3">
+        <Card className="border border-white/5 bg-gradient-to-br from-green-500/5 to-emerald-500/5 backdrop-blur-sm hover:border-white/10 transition-colors">
+          <CardHeader className="pb-2 pt-4 px-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold text-foreground">
+              <CardTitle className="text-xs font-semibold text-foreground">
                 {saldos.combustivel.descricao}
               </CardTitle>
-              <div className="p-2 rounded-full bg-green-500/20">
-                <Fuel className="h-4 w-4 text-green-500" />
+              <div className="p-1.5 rounded-full bg-green-500/10">
+                <Fuel className="h-3 w-3 text-green-600" />
               </div>
             </div>
-            <CardDescription className="text-xs text-muted-foreground mt-1">
+            <CardDescription className="text-xs text-muted-foreground mt-0.5">
               {saldos.combustivel.quantidade_registros} registro{saldos.combustivel.quantidade_registros !== 1 ? 's' : ''}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <p className="text-3xl font-bold text-green-400">
+          <CardContent className="px-4 py-2">
+            <div className="space-y-1">
+              <p className="text-xl font-semibold text-green-500">
                 {formatCurrency(saldos.combustivel.saldo)}
               </p>
               {saldos.combustivel.saldo > 0 && (
-                <Badge variant="secondary" className="bg-green-500/20 text-green-300 border-green-500/30 w-fit">
+                <Badge variant="secondary" className="bg-green-500/15 text-green-600 border-green-500/20 w-fit text-xs">
                   Pendente
                 </Badge>
               )}
