@@ -200,10 +200,5 @@ export default {
 			}
 		}
 	},
-	plugins: [
-		require("tailwindcss-animate"),
-		plugin(function ({ addVariant }) {
-			addVariant('dark', '&:is(.dark *)');
-		})
-	],
+	plugins: [require("tailwindcss-animate")],
 } satisfies Config;
