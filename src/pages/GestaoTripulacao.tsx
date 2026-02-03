@@ -81,7 +81,7 @@ export default function GestaoDeTripulacao() {
   const { hasRole, userRoles, isLoading: rolesLoading } = useUserRole();
 
   const canEditProfile = hasRole('piloto_chefe') || hasRole('admin') || hasRole('gestor_master') || hasRole('financeiro_master');
-  const canEditHabilitacoes = hasRole('admin') || hasRole('gestor_master') || hasRole('piloto_chefe') || hasRole('coordenador_voo');
+  const canEditHabilitacoes = true; // Todos os colaboradores podem criar habilitações
   useEffect(() => {
     loadCrewMembers();
   }, [statusFilter]);
