@@ -14,6 +14,7 @@ import { MaintenanceStatusAlert } from './MaintenanceStatusAlert';
 import { CreateMonthDialog } from './CreateMonthDialog';
 import { CloseMonthDialog } from './CloseMonthDialog';
 import { ExportLogbookDialog } from './ExportLogbookDialog';
+import { PartnerSelectModal } from './PartnerSelectModal';
 import { useUserRole } from '@/hooks/useUserRole';
 
 // ===================== CONSTANTES =====================
