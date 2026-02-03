@@ -267,28 +267,28 @@ export function ContaRecorrenteForm({
 
             <div>
               <Label htmlFor="categoria">Categoria</Label>
-              <Select defaultValue="" onValueChange={(value) => setValue("categoria", value)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecione uma categoria" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px] w-full">
-                  {categoriaNomes.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
+              <GroupedSelect value={watch("categoria") || ""} onValueChange={(value) => setValue("categoria", value)}>
+                <GroupedSelectTrigger className="w-full">
+                  <GroupedSelectValue placeholder="Selecione uma categoria" />
+                </GroupedSelectTrigger>
+                <GroupedSelectContent className="max-h-[300px] w-full">
+                  {groupedCategories.map((group) => (
+                    <SelectGroup key={group.grupo}>
+                      <SelectLabel className="text-xs font-bold uppercase tracking-wider">{group.grupo}</SelectLabel>
+                      {group.categorias.map((cat) => (
+                        <GroupedSelectItem key={cat.id} value={cat.nome}>
+                          {cat.nome}
+                        </GroupedSelectItem>
+                      ))}
+                    </SelectGroup>
                   ))}
-                  {categoriaNomes.length === 0 && (
-                    <div className="text-center py-3 text-muted-foreground text-sm">
-                      Nenhuma categoria disponível
-                    </div>
-                  )}
-                </SelectContent>
-              </Select>
+                </GroupedSelectContent>
+              </GroupedSelect>
             </div>
 
             <div>
               <Label htmlFor="status">Status</Label>
-              <Select defaultValue="agendado" onValueChange={(value) => setValue("status", value)}>
+              <RegularSelect defaultValue="agendado" onValueChange={(value) => setValue("status", value)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -296,7 +296,7 @@ export function ContaRecorrenteForm({
                   <SelectItem value="agendado">Ativo</SelectItem>
                   <SelectItem value="cancelado">Inativo</SelectItem>
                 </SelectContent>
-              </Select>
+              </RegularSelect>
             </div>
           </div>
 
