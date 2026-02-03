@@ -196,8 +196,8 @@ interface Cliente {
 // --- COMPONENTE PRINCIPAL ---
 
 export function NotasFiscaisSaida() {
-  const { getCategoriasReceita } = useCategoriasFinanceiro();
-  const categoriasReceita = getCategoriasReceita();
+  const { getCategoriasEntrada } = useCategoriasFinanceiro();
+  const categoriasReceita = getCategoriasEntrada();
   const { aeronaves, isLoadingAeronaves } = useAeronaves();
 
   const [notas, setNotas] = useState<NotaFiscalSaida[]>([]);
@@ -241,7 +241,7 @@ export function NotasFiscaisSaida() {
     categoria: defaultCategoria,
     descricao: "",
     status: "pendente",
-    aeronave_registration: "",
+    aeronave: "",
   });
 
   useEffect(() => {
@@ -321,6 +321,8 @@ export function NotasFiscaisSaida() {
     }
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+
       const notaData: any = {
         numero: formData.numero,
         cliente_nome: formData.cliente_nome,
@@ -332,10 +334,9 @@ export function NotasFiscaisSaida() {
         descricao: formData.descricao || null,
         status: formData.status,
         arquivo_pdf_url: pdfUrl || null,
-        aeronave: formData.aeronave_registration || null,
+        aeronave: formData.aeronave || null,
+        criado_por: user?.id || null,
       };
-
-      const { data: { user } } = await supabase.auth.getUser();
 
       if (editingNota) {
         const { error } = await supabase
@@ -414,7 +415,7 @@ export function NotasFiscaisSaida() {
       categoria: nota.categoria,
       descricao: nota.descricao || "",
       status: nota.status,
-      aeronave_registration: nota.aeronave || "",
+      aeronave: nota.aeronave || "",
     });
     setPdfUrl(nota.arquivo_pdf_url || "");
     setOpenDialog(true);
@@ -482,7 +483,7 @@ export function NotasFiscaisSaida() {
       categoria: defaultCategoria,
       descricao: "",
       status: "pendente",
-      aeronave_registration: "",
+      aeronave: "",
     });
     setEditingNota(null);
     setArquivo(null);
@@ -893,7 +894,7 @@ export function NotasFiscaisSaida() {
                     <PopoverTrigger asChild>
                       <div className="relative">
                         <Input
-                          value={formData.aeronave_registration}
+                          value={formData.aeronave}
                           onChange={(e) => {
                             setAeronaveSearch(e.target.value);
                             setOpenAeronavePopover(true);
@@ -934,8 +935,7 @@ export function NotasFiscaisSaida() {
                                     onSelect={() => {
                                       setFormData({
                                         ...formData,
-                                        aircraft_id: aero.id,
-                                        aeronave_registration: aero.registration
+                                        aeronave: aero.registration
                                       });
                                       setOpenAeronavePopover(false);
                                       setAeronaveSearch("");
@@ -957,15 +957,14 @@ export function NotasFiscaisSaida() {
                   </Popover>
                 </div>
                 <div className="flex items-end">
-                  {formData.aircraft_id && (
+                  {formData.aeronave && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => {
                         setFormData({
                           ...formData,
-                          aircraft_id: "",
-                          aeronave_registration: ""
+                          aeronave: ""
                         });
                       }}
                       className="w-full h-10"
@@ -1400,7 +1399,7 @@ export function NotasFiscaisSaida() {
                       <TableCell className="font-semibold text-foreground px-4 py-3">{nota.numero}</TableCell>
                       <TableCell className="text-foreground px-4 py-3">{nota.cliente_nome}</TableCell>
                       <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                        {nota.aeronave || nota.aeronave_registration || "-"}
+                        {nota.aeronave || "-"}
                       </TableCell>
                       <TableCell className="text-muted-foreground px-4 py-3 text-sm">
                         {format(new Date(nota.data_criacao + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
