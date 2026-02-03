@@ -322,18 +322,30 @@ export function useWeather() {
     let isMounted = true;
     let isFetching = false;
 
-    // Função auxiliar para evitar requisições simultâneas
-    const safeFetch = async () => {
+    // Função auxiliar para evitar requisições simultâneas com retry para erros transientes
+    const safeFetch = async (retryCount = 0, maxRetries = 3) => {
       if (isFetching || !isMounted) return;
       isFetching = true;
       try {
         await fetchWeatherFromAvwx('SBGR');
       } catch (error) {
-        // Erro já foi tratado dentro de fetchWeatherFromAvwx
-        // Este catch é apenas para garantir que nenhuma promessa seja rejeitada
-        console.log('[METAR] ✅ Erro tratado internamente, usando fallback');
-      } finally {
-        isFetching = false;
+        // Check if this is a transient error that should be retried
+        if (error instanceof Error && (error.message.includes('503') || error.message.includes('504')) && retryCount < maxRetries) {
+          isFetching = false; // Allow retry
+          const delayMs = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff
+          console.log(`[METAR] ⏳ Retentando em ${delayMs}ms... (${retryCount + 1}/${maxRetries})`);
+          setTimeout(() => {
+            if (isMounted) {
+              safeFetch(retryCount + 1, maxRetries).catch(() => {
+                // Final catch to prevent unhandled rejection
+              });
+            }
+          }, delayMs);
+        } else {
+          // Erro já foi tratado dentro de fetchWeatherFromAvwx ou máximo de retentativas alcançado
+          console.log('[METAR] ✅ Erro tratado internamente, usando fallback');
+          isFetching = false;
+        }
       }
     };
 
