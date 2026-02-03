@@ -957,15 +957,14 @@ export function NotasFiscaisSaida() {
                   </Popover>
                 </div>
                 <div className="flex items-end">
-                  {formData.aircraft_id && (
+                  {formData.aeronave && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => {
                         setFormData({
                           ...formData,
-                          aircraft_id: "",
-                          aeronave_registration: ""
+                          aeronave: ""
                         });
                       }}
                       className="w-full h-10"
