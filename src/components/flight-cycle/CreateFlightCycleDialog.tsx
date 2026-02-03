@@ -194,10 +194,10 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Tipo de Voo</Label>
-              <Select 
-                value={formData.flight_type} 
-                onValueChange={(v) => setFormData(prev => ({ 
-                  ...prev, 
+              <Select
+                value={formData.flight_type}
+                onValueChange={(v) => setFormData(prev => ({
+                  ...prev,
                   flight_type: v as 'ida' | 'ida_volta' | 'pernoite',
                   has_overnight: v === 'pernoite'
                 }))}
@@ -221,6 +221,46 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
                 onChange={(e) => setFormData(prev => ({ ...prev, flight_duration_hours: e.target.value }))}
                 placeholder="2.5"
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>PIC (Pilot in Command)</Label>
+              <Select
+                value={formData.pic_name}
+                onValueChange={(v) => setFormData(prev => ({ ...prev, pic_name: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o PIC" />
+                </SelectTrigger>
+                <SelectContent>
+                  {crewMembers.map(member => (
+                    <SelectItem key={member.id} value={member.full_name}>
+                      {member.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>SIC (Second in Command)</Label>
+              <Select
+                value={formData.sic_name}
+                onValueChange={(v) => setFormData(prev => ({ ...prev, sic_name: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o SIC" />
+                </SelectTrigger>
+                <SelectContent>
+                  {crewMembers.map(member => (
+                    <SelectItem key={member.id} value={member.full_name}>
+                      {member.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
