@@ -87,17 +87,47 @@ export function ContasPagar() {
 
   const loadFornecedorProfiles = async () => {
     try {
-      const { data, error } = await supabase
+      // Buscar colaboradores (user_profiles)
+      const { data: userProfiles, error: userError } = await supabase
         .from("user_profiles")
         .select("id, full_name, cpf, email")
         .order("full_name", { ascending: true });
 
-      if (error) {
-        console.error("Erro ao carregar fornecedores:", error);
-        return;
+      if (userError) {
+        console.error("Erro ao carregar colaboradores:", userError);
       }
 
-      setFornecedorUserProfiles(data || []);
+      // Buscar fornecedores favoritos
+      const { data: fornecedoresFavoritos, error: fornecError } = await supabase
+        .from("fornecedores_favoritos")
+        .select("id, nome_completo, documento, categoria, apelido")
+        .order("nome_completo", { ascending: true });
+
+      if (fornecError) {
+        console.error("Erro ao carregar fornecedores favoritos:", fornecError);
+      }
+
+      // Combinar dados: colaboradores + fornecedores favoritos
+      const combinedData = [
+        ...(userProfiles || []).map(profile => ({
+          id: profile.id,
+          full_name: profile.full_name,
+          cpf: profile.cpf,
+          email: profile.email,
+          type: "colaborador"
+        })),
+        ...(fornecedoresFavoritos || []).map(fornecedor => ({
+          id: fornecedor.id,
+          full_name: fornecedor.nome_completo,
+          cpf: fornecedor.documento,
+          email: null,
+          type: "fornecedor",
+          categoria: fornecedor.categoria,
+          apelido: fornecedor.apelido
+        }))
+      ];
+
+      setFornecedorUserProfiles(combinedData);
     } catch (error: any) {
       console.error("Erro ao carregar fornecedores:", error.message);
     }
