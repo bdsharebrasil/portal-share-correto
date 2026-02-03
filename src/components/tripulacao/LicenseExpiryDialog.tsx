@@ -114,35 +114,94 @@ export function LicenseExpiryDialog({
     if (newOpen && license) {
       const date = isCMA ? license.validade_cma : license.expiry_date;
       setExpiryDate(date || "");
+      if (isCMA) {
+        setCmaClass(license?.CMA || "");
+        setFsRh(license?.FS_RH || "");
+      }
     }
     onOpenChange(newOpen);
   };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className={isCMA ? "sm:max-w-md" : "sm:max-w-md"}>
         <DialogHeader>
           <DialogTitle>
-            Atualizar Validade - {isCMA ? "CMA" : license?.license_type}
+            {isCMA ? "Editar CMA" : `Atualizar Validade - ${license?.license_type}`}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="expiry-date">Nova Data de Validade</Label>
-            <Input
-              id="expiry-date"
-              type="date"
-              value={expiryDate}
-              onChange={(e) => setExpiryDate(e.target.value)}
-              className="w-full"
-            />
-          </div>
+          {isCMA ? (
+            <>
+              <div className="space-y-2">
+                <Label>Classe CMA</Label>
+                <Select value={cmaClass} onValueChange={setCmaClass}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecione a classe" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1º classe">1º Classe</SelectItem>
+                    <SelectItem value="2º classe">2º Classe</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {currentDate && (
-            <p className="text-sm text-muted-foreground">
-              Data atual: {format(new Date(currentDate + "T00:00:00"), "dd/MM/yyyy")}
-            </p>
+              <div className="space-y-2">
+                <Label>Tipo Sanguíneo (FS/RH)</Label>
+                <Select value={fsRh} onValueChange={setFsRh}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecione o tipo sanguíneo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="A+">A+</SelectItem>
+                    <SelectItem value="A-">A-</SelectItem>
+                    <SelectItem value="B+">B+</SelectItem>
+                    <SelectItem value="B-">B-</SelectItem>
+                    <SelectItem value="AB+">AB+</SelectItem>
+                    <SelectItem value="AB-">AB-</SelectItem>
+                    <SelectItem value="O+">O+</SelectItem>
+                    <SelectItem value="O-">O-</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="expiry-date">Validade do CMA</Label>
+                <Input
+                  id="expiry-date"
+                  type="date"
+                  value={expiryDate}
+                  onChange={(e) => setExpiryDate(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+
+              {currentDate && (
+                <p className="text-sm text-muted-foreground">
+                  Data atual: {format(new Date(currentDate + "T00:00:00"), "dd/MM/yyyy")}
+                </p>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="expiry-date">Nova Data de Validade</Label>
+                <Input
+                  id="expiry-date"
+                  type="date"
+                  value={expiryDate}
+                  onChange={(e) => setExpiryDate(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+
+              {currentDate && (
+                <p className="text-sm text-muted-foreground">
+                  Data atual: {format(new Date(currentDate + "T00:00:00"), "dd/MM/yyyy")}
+                </p>
+              )}
+            </>
           )}
         </div>
 
