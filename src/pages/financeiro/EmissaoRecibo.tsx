@@ -139,34 +139,35 @@ export default function EmissaoRecibo() {
         return publicUrlData.publicUrl;
       };
 
-      if (formData.reembolsoBoletoFile instanceof File) boletoUrl = await uploadFile(formData.reembolsoBoletoFile, "boleto", "n.f-boletos-clients");
-      if (formData.reembolsoNotaFiscalFile instanceof File) notaFiscalUrl = await uploadFile(formData.reembolsoNotaFiscalFile, "nf", "n.f-boletos-clients");
+      // Extrai arquivos de formData
+      if (formData.files?.boleto instanceof File) boletoUrl = await uploadFile(formData.files.boleto, "boleto", "n.f-boletos-clients");
+      if (formData.files?.notaFiscal instanceof File) notaFiscalUrl = await uploadFile(formData.files.notaFiscal, "nf", "n.f-boletos-clients");
 
       // ===================== INSERIR RECIBO =====================
       // Para reembolso, adiciona número do documento na descrição
-      let finalDescription = formData.servicoDescricao.trim();
-      if (isReembolso && formData.reembolsoNumeroDocumento?.trim()) {
-        finalDescription = `${finalDescription} - Documento: ${formData.reembolsoNumeroDocumento.trim()}`;
+      let finalDescription = formData.description?.trim() || "";
+      if (isReembolso && originalForm.reembolsoNumeroDocumento?.trim()) {
+        finalDescription = `${finalDescription} - Documento: ${originalForm.reembolsoNumeroDocumento.trim()}`;
       }
 
       const receiptPayload = {
         user_id: userId,
-        payer_name: nomePagador.trim(),
-        payer_document: formData.pagadorDocumento?.trim() || "",
-        payer_address: formData.pagadorEndereco?.trim() || null,
-        payer_city: formData.pagadorCidade?.trim() || null,
-        payer_uf: formData.pagadorUF?.trim() || null,
-        amount: Number(formData.valor),
+        payer_name: nomePagador,
+        payer_document: originalForm.pagadorDocumento?.trim() || "",
+        payer_address: originalForm.pagadorEndereco?.trim() || null,
+        payer_city: originalForm.pagadorCidade?.trim() || null,
+        payer_uf: originalForm.pagadorUF?.trim() || null,
+        amount: Number(formData.amount),
         service_description: finalDescription,
-        receipt_type: formData.receiptType || "pagamento",
-        issue_date: formData.dataEmissao || new Date().toISOString().split("T")[0],
+        receipt_type: originalForm.receiptType || "pagamento",
+        issue_date: originalForm.dataEmissao || new Date().toISOString().split("T")[0],
         receipt_number: receiptNumber,
-        max_payment_date: formData.prazoMaximoQuitacao || null,
-        payment_method: formData.formaPagamento?.trim() || null,
-        client_id: formData.clienteId?.trim() ? formData.clienteId : null,
+        max_payment_date: originalForm.prazoMaximoQuitacao || null,
+        payment_method: originalForm.formaPagamento?.trim() || null,
+        client_id: originalForm.clienteId?.trim() ? originalForm.clienteId : null,
         boleto_url: boletoUrl,
         nf_url: notaFiscalUrl,
-        doc_number: formData.reembolsoNumeroDocumento?.trim() || null,
+        doc_number: originalForm.reembolsoNumeroDocumento?.trim() || null,
       };
 
       // Evita duplicidade: verifica se já existe o receipt_number
