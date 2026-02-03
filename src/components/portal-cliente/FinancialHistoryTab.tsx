@@ -230,11 +230,11 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      📅 {new Date(record.date + 'T12:00:00').toLocaleDateString("pt-BR")}
+                      📅 {formatDateCorrectly(record.date)}
                     </p>
                     {record.payment_term && (
                       <p className="text-sm text-amber-400 mt-1">
-                        ⏰ Prazo: {new Date(record.payment_term + 'T12:00:00').toLocaleDateString("pt-BR")}
+                        ⏰ Prazo: {formatDateCorrectly(record.payment_term)}
                       </p>
                     )}
                   </div>
