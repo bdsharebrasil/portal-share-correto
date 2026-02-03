@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FlightCycle } from "@/types/flightCycle";
+import { FlightCycle, CrewMember } from "@/types/flightCycle";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { useCrewMembers } from "@/hooks/useCrewMembers";
 
 interface CreateFlightCycleDialogProps {
   open: boolean;
