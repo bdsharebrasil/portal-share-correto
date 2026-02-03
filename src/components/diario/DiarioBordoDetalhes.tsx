@@ -2205,13 +2205,22 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       </Label>
                       <Select
                         value={newEntry.borrower_client_id}
-                        onValueChange={(v) =>
+                        onValueChange={(v) => {
+                          const selectedBorrowerClient = clients.find(c => c.id === v);
+                          const borrowerPartners = getPartnersFromClient(selectedBorrowerClient);
+
                           setNewEntry({
                             ...newEntry,
                             borrower_client_id: v,
-                            borrower_partner_name: '', // Reset partner when borrower client changes
-                          })
-                        }
+                            borrower_partner_name: '',
+                          });
+
+                          // Se o cliente tem parceiros, abre o modal para seleção de parceiro do cliente que pega emprestado
+                          if (borrowerPartners.length > 0) {
+                            setPendingClientId(v);
+                            setShowPartnerModal(true);
+                          }
+                        }}
                       >
                         <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
                           <SelectValue placeholder="Selecione o cliente que está usando" />
@@ -2227,32 +2236,27 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     </div>
 
                     {/* Sócio/Cotista do cliente que pega emprestado (se houver) */}
-                    {(() => {
+                    {newEntry.borrower_client_id && (() => {
                       const selectedBorrowerClient = clients.find(c => c.id === newEntry.borrower_client_id);
-                      const borrowerPartnerOptions = [];
-                      if (selectedBorrowerClient?.partner_name) borrowerPartnerOptions.push(selectedBorrowerClient.partner_name);
-                      if (selectedBorrowerClient?.partner_name2) borrowerPartnerOptions.push(selectedBorrowerClient.partner_name2);
-                      if (selectedBorrowerClient?.partner_name3) borrowerPartnerOptions.push(selectedBorrowerClient.partner_name3);
+                      const borrowerPartners = getPartnersFromClient(selectedBorrowerClient);
 
-                      if (borrowerPartnerOptions.length > 0) {
+                      if (newEntry.borrower_partner_name && borrowerPartners.length > 0) {
                         return (
-                          <div className="space-y-1 mt-2">
-                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Cotista que Pega Emprestado *</Label>
-                            <Select value={newEntry.borrower_partner_name} onValueChange={v => setNewEntry({
-                              ...newEntry,
-                              borrower_partner_name: v
-                            })}>
-                              <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
-                                <SelectValue placeholder="Selecione o Cotista" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {borrowerPartnerOptions.map((partner, idx) => (
-                                  <SelectItem key={idx} value={partner}>
-                                    {partner}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                          <div className="space-y-1 mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Cotista que Pega Emprestado</Label>
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-bold text-amber-400">{newEntry.borrower_partner_name}</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPendingClientId(newEntry.borrower_client_id);
+                                  setShowPartnerModal(true);
+                                }}
+                                className="text-xs px-2 py-1 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/50 text-amber-400 rounded transition-all"
+                              >
+                                Alterar
+                              </button>
+                            </div>
                           </div>
                         );
                       }
