@@ -234,7 +234,7 @@ export function useWeather() {
 
         // The backend returns the METAR data in the 'data' field
         const metarObj = responseData.data;
-        const metar = metarObj?.rawOb || metarObj?.raw_text || metarObj?.raw;
+        const metar = metarObj?.rawText || metarObj?.rawOb || metarObj?.raw_text || metarObj?.raw;
 
         if (!metar) {
           console.error('[METAR] ❌ Sem texto METAR na resposta');
