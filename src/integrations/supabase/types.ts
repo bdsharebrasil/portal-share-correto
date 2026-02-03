@@ -7584,6 +7584,7 @@ export type Database = {
           numero: string
           status: string
           valor: number
+          aeronave: string | null
         }
         Insert: {
           arquivo_pdf_url?: string | null
@@ -7600,6 +7601,7 @@ export type Database = {
           numero: string
           status: string
           valor: number
+          aeronave?: string | null
         }
         Update: {
           arquivo_pdf_url?: string | null
@@ -7616,6 +7618,7 @@ export type Database = {
           numero?: string
           status?: string
           valor?: number
+          aeronave?: string | null
         }
         Relationships: []
       }

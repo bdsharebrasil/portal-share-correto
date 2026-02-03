@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Plus, Edit2, Trash2, FileUp, DollarSign, Search, X, Upload, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useCategoriasFinanceiro, useCategoriasConta } from "@/hooks/useCategoriasFinanceiro";
+import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
 import { useAeronaves } from "@/hooks/useAeronaves";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -19,7 +19,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useAuth } from "@/contexts/AuthContext";
 // CORREÇÃO: Adicionado 'pdf' na importação abaixo
 import { Document, Page, Text, View, StyleSheet, Image, pdf } from '@react-pdf/renderer';
-import { insertReceiptToBankReconciliations } from "@/services/receiptSubmitHandler";
 
 // --- CONFIGURAÇÃO DO PDF ---
 
@@ -179,12 +178,13 @@ interface NotaFiscalSaida {
   data_vencimento: string;
   valor: number;
   categoria: string;
-  descricao: string;
+  descricao: string | null;
   status: string;
-  arquivo_pdf_url?: string;
-  criado_em?: string;
-  aircraft_id?: string;
-  aeronave_registration?: string;
+  arquivo_pdf_url: string | null;
+  criado_em: string | null;
+  atualizado_em: string | null;
+  criado_por: string | null;
+  aeronave: string | null;
 }
 
 interface Cliente {
@@ -213,9 +213,6 @@ export function NotasFiscaisSaida() {
   const [openAeronavePopover, setOpenAeronavePopover] = useState(false);
   const [isUploadingPDF, setIsUploadingPDF] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string>("");
-  const [showBankDialog, setShowBankDialog] = useState(false);
-  const [selectedBankForStatus, setSelectedBankForStatus] = useState<string>("");
-  const [notaBeingStatusChanged, setNotaBeingStatusChanged] = useState<NotaFiscalSaida | null>(null);
   const [showReciboDialog, setShowReciboDialog] = useState(false);
   const [showReciboViewer, setShowReciboViewer] = useState(false);
   const [reciboViewUrl, setReciboViewUrl] = useState<string>("");
@@ -223,15 +220,12 @@ export function NotasFiscaisSaida() {
     cliente_id: "",
     cliente_nome: "",
     cliente_cnpj: "",
-    aeronave_id: "",
     aeronave_registro: "",
     valor: "",
     data_vencimento: new Date().toISOString().split("T")[0],
     descricao: "",
   });
   const [isGeneratingRecibo, setIsGeneratingRecibo] = useState(false);
-  const { contas } = useCategoriasConta();
-  const bancos = Array.from(new Set(contas.map(c => c.banco).filter(Boolean))) as string[];
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -247,7 +241,6 @@ export function NotasFiscaisSaida() {
     categoria: defaultCategoria,
     descricao: "",
     status: "pendente",
-    aircraft_id: "",
     aeronave_registration: "",
   });
 
@@ -336,100 +329,33 @@ export function NotasFiscaisSaida() {
         data_vencimento: formData.data_vencimento || formData.data_criacao,
         valor: parseFloat(formData.valor),
         categoria: formData.categoria || "Serviços",
-        descricao: formData.descricao || "",
+        descricao: formData.descricao || null,
         status: formData.status,
         arquivo_pdf_url: pdfUrl || null,
+        aeronave: formData.aeronave_registration || null,
       };
-
-      // Adicionar aeronave_registration se selecionada
-      if (formData.aeronave_registration) {
-        notaData.aeronave = formData.aeronave_registration;
-      }
 
       const { data: { user } } = await supabase.auth.getUser();
 
       if (editingNota) {
-        let error = null;
-        const { error: updateError } = await supabase
+        const { error } = await supabase
           .from("notas_fiscais_saida")
           .update(notaData)
           .eq("id", editingNota.id);
 
-        error = updateError;
-
-        // Se tiver erro e contiver "aeronave", tenta atualizar sem o campo
-        if (error && error.message.includes("aeronave")) {
-          const { aeronave, ...dataWithoutAircraft } = notaData;
-          const { error: retryError } = await supabase
-            .from("notas_fiscais_saida")
-            .update(dataWithoutAircraft)
-            .eq("id", editingNota.id);
-          error = retryError;
-        }
-
         if (error) throw error;
-
-        // Se status mudou para "recebido" durante a edição
-        if (notaData.status === "recebido" && editingNota.status !== "recebido" && user) {
-          await supabase.from("controle_bancario").insert({
-            descricao: `NF Saída ${notaData.numero} - ${notaData.cliente_nome}${formData.aeronave_registration ? ` (${formData.aeronave_registration})` : ""}`,
-            valor: notaData.valor,
-            data_vencimento: notaData.data_vencimento,
-            data: new Date().toISOString().split("T")[0], // Data do lançamento
-            tipo_movimento: "entrada",
-            categoria_id: "2874b45b-a3bb-4bec-8f7e-74b328f8693c",
-            status: "confirmado",
-            numero_documento: notaData.numero,
-            criado_por: user.id,
-          });
-        }
 
         toast({
           title: "Sucesso",
           description: "Nota fiscal atualizada com sucesso",
         });
       } else {
-        let insertedNota = null;
-        let error = null;
-
-        const { data: result, error: insertError } = await supabase
+        const { error } = await supabase
           .from("notas_fiscais_saida")
           .insert([notaData])
-          .select()
-          .single();
-
-        insertedNota = result;
-        error = insertError;
-
-        // Se tiver erro e contiver "aeronave", tenta inserir sem o campo
-        if (error && error.message.includes("aeronave")) {
-          const { aeronave, ...dataWithoutAircraft } = notaData;
-          const { data: retryResult, error: retryError } = await supabase
-            .from("notas_fiscais_saida")
-            .insert([dataWithoutAircraft])
-            .select()
-            .single();
-
-          insertedNota = retryResult;
-          error = retryError;
-        }
+          .select();
 
         if (error) throw error;
-
-        // Se criada com status "recebido"
-        if (notaData.status === "recebido" && user && insertedNota) {
-          await supabase.from("controle_bancario").insert({
-            descricao: `NF Saída ${notaData.numero} - ${notaData.cliente_nome}${formData.aeronave_registration ? ` (${formData.aeronave_registration})` : ""}`,
-            valor: notaData.valor,
-            data_vencimento: notaData.data_vencimento,
-            data: new Date().toISOString().split("T")[0],
-            tipo_movimento: "entrada",
-            categoria_id: "2874b45b-a3bb-4bec-8f7e-74b328f8693c",
-            status: "confirmado",
-            numero_documento: notaData.numero,
-            criado_por: user.id,
-          });
-        }
 
         toast({
           title: "Sucesso",
@@ -486,10 +412,9 @@ export function NotasFiscaisSaida() {
       data_vencimento: nota.data_vencimento,
       valor: nota.valor.toString(),
       categoria: nota.categoria,
-      descricao: nota.descricao,
+      descricao: nota.descricao || "",
       status: nota.status,
-      aircraft_id: nota.aircraft_id || "",
-      aeronave_registration: nota.aeronave_registration || "",
+      aeronave_registration: nota.aeronave || "",
     });
     setPdfUrl(nota.arquivo_pdf_url || "");
     setOpenDialog(true);
@@ -557,7 +482,6 @@ export function NotasFiscaisSaida() {
       categoria: defaultCategoria,
       descricao: "",
       status: "pendente",
-      aircraft_id: "",
       aeronave_registration: "",
     });
     setEditingNota(null);
@@ -585,17 +509,6 @@ export function NotasFiscaisSaida() {
       const nota = notas.find(n => n.id === notaId);
       if (!nota) return;
 
-      const previousStatus = nota.status;
-
-      // Se mudando para "recebido", mostrar diálogo de seleção de banco
-      if (newStatus === "recebido") {
-        setNotaBeingStatusChanged(nota);
-        setSelectedBankForStatus("");
-        setShowBankDialog(true);
-        return;
-      }
-
-      // Para outros status, atualizar diretamente
       const { error } = await supabase
         .from("notas_fiscais_saida")
         .update({ status: newStatus })
@@ -603,133 +516,11 @@ export function NotasFiscaisSaida() {
 
       if (error) throw error;
 
-      // ESTORNO: Se estava "recebido" e mudou para outro status, deletar do controle_bancario
-      if (previousStatus === "recebido" && (newStatus === "pendente" || newStatus === "cancelado")) {
-        const { error: deleteError } = await supabase
-          .from("controle_bancario")
-          .delete()
-          .eq("numero_documento", nota.numero)
-          .eq("tipo_movimento", "entrada");
-
-        if (deleteError) {
-          console.error("Erro ao remover do fluxo de caixa:", deleteError);
-          toast({
-            title: "Aviso",
-            description: "Status atualizado, mas houve erro ao remover do fluxo de caixa",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Sucesso",
-            description: `Status atualizado para ${newStatus === "pendente" ? "Pendente" : "Cancelado"} e entrada removida do fluxo de caixa`,
-          });
-        }
-      } else {
-        toast({
-          title: "Sucesso",
-          description: newStatus === "pendente" ? "Status atualizado para Pendente" : "Nota fiscal cancelada",
-        });
-      }
-
-      loadNotas();
-    } catch (error) {
-      console.error("Erro ao atualizar status:", error);
-      toast({
-        title: "Erro",
-        description: "Erro ao atualizar status",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleConfirmBankSelection = async () => {
-    if (!selectedBankForStatus || !notaBeingStatusChanged) {
-      toast({
-        title: "Erro",
-        description: "Por favor, selecione um banco",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const nota = notaBeingStatusChanged;
-
-      // Atualizar status para "recebido"
-      const { error: updateError } = await supabase
-        .from("notas_fiscais_saida")
-        .update({ status: "recebido" })
-        .eq("id", nota.id);
-
-      if (updateError) throw updateError;
-
-      // Criar entrada no controle_bancario
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const descricao = `NF Saída ${nota.numero} - ${nota.cliente_nome}${nota.aeronave_registration ? ` (${nota.aeronave_registration})` : ""}`;
-
-        const { error: fluxoError } = await supabase
-          .from("controle_bancario")
-          .insert({
-            descricao: descricao,
-            valor: nota.valor,
-            data: new Date().toISOString().split("T")[0],
-            data_vencimento: nota.data_vencimento,
-            categoria_id: "2874b45b-a3bb-4bec-8f7e-74b328f8693c",
-            tipo_movimento: "entrada",
-            status: "confirmado",
-            numero_documento: nota.numero,
-            conta_banco: selectedBankForStatus,
-            criado_por: user.id
-          });
-
-        if (fluxoError) {
-          console.error("Erro ao criar entrada no controle:", fluxoError);
-          toast({
-            title: "Aviso",
-            description: "Status atualizado, mas houve um erro ao registrar no fluxo de caixa",
-            variant: "destructive",
-          });
-        } else {
-          // Inserir também em bank_reconciliations
-          const bankRecResult = await insertReceiptToBankReconciliations(
-            {
-              descricao: descricao,
-              valor: nota.valor,
-              data: new Date().toISOString().split("T")[0],
-              data_vencimento: nota.data_vencimento,
-              numero_documento: nota.numero,
-              status: "pendente",
-              client_id: nota.client_id || undefined,
-              client_name: nota.cliente_nome,
-              aeronave_id: nota.aircraft_id || undefined,
-              aeronave_registro: nota.aeronave_registration || undefined,
-              categoria_id: "2874b45b-a3bb-4bec-8f7e-74b328f8693c",
-              nf_url: nota.arquivo_pdf_url || undefined,
-              tipo: "nf",
-            },
-            user.id
-          );
-
-          if (!bankRecResult.success) {
-            console.error("Erro ao inserir em bank_reconciliations:", bankRecResult.error);
-            toast({
-              title: "Aviso",
-              description: "NF registrada no fluxo, mas houve um erro ao registrar na reconciliação bancária",
-              variant: "default",
-            });
-          }
-        }
-      }
-
       toast({
         title: "Sucesso",
-        description: "Nota fiscal marcada como recebida e registrada no fluxo bancário",
+        description: "Status atualizado com sucesso",
       });
 
-      setShowBankDialog(false);
-      setNotaBeingStatusChanged(null);
-      setSelectedBankForStatus("");
       loadNotas();
     } catch (error) {
       console.error("Erro ao atualizar status:", error);
@@ -740,6 +531,7 @@ export function NotasFiscaisSaida() {
       });
     }
   };
+
 
   const generateReciboNumber = async (clienteNome: string) => {
     // Extrair 3 primeiras letras do cliente em maiúsculas
@@ -832,11 +624,9 @@ export function NotasFiscaisSaida() {
         clientId = clientData?.id || null;
       }
 
-      let aeronaveId = reciboData.aeronave_id || null;
-      if (!aeronaveId) {
-        const { data: aeroData } = await supabase.from("aircraft").select("id").eq("registration", reciboData.aeronave_registro).single();
-        aeronaveId = aeroData?.id || null;
-      }
+      let aeronaveId = null;
+      const { data: aeroData } = await supabase.from("aircraft").select("id").eq("registration", reciboData.aeronave_registro).single();
+      aeronaveId = aeroData?.id || null;
 
       const { data: categoriaData } = await supabase.from("categorias_movimentacao").select("grupo_categoria").eq("id", CATEGORIA_ID).single();
       const grupoCategoria = categoriaData?.grupo_categoria || null;
@@ -864,37 +654,6 @@ export function NotasFiscaisSaida() {
         });
 
       if (controleBancarioError) throw new Error(`Erro controle_bancario: ${controleBancarioError.message}`);
-
-      // Inserção em Bank Reconciliations
-      const descricaoRecibo = reciboData.descricao || "Recibo de Saída - Serviços";
-      const bankRecResult = await insertReceiptToBankReconciliations(
-        {
-          descricao: descricaoRecibo,
-          valor: parseFloat(reciboData.valor),
-          data: new Date().toISOString().split("T")[0],
-          data_vencimento: reciboData.data_vencimento,
-          numero_documento: numeroRecibo,
-          status: "pendente",
-          client_id: clientId || undefined,
-          client_name: reciboData.cliente_nome,
-          aeronave_id: aeronaveId || undefined,
-          aeronave_registro: reciboData.aeronave_registro,
-          categoria_id: CATEGORIA_ID,
-          recibo_url: reciboUrl,
-          tipo: "recibo",
-        },
-        currentUser.id
-      );
-
-      if (!bankRecResult.success) {
-        console.error("Erro ao inserir em bank_reconciliations:", bankRecResult.error);
-        // Não lançar erro aqui, apenas avisar, pois o recibo já foi criado em controle_bancario
-        toast({
-          title: "Aviso",
-          description: "Recibo criado, mas houve um erro ao registrar na reconciliação bancária",
-          variant: "default",
-        });
-      }
 
       // Inserção em Contas a Receber
       await supabase.from("contas_areceber").insert({
@@ -935,7 +694,6 @@ export function NotasFiscaisSaida() {
       cliente_id: "",
       cliente_nome: "",
       cliente_cnpj: "",
-      aeronave_id: "",
       aeronave_registro: "",
       valor: "",
       data_vencimento: new Date().toISOString().split("T")[0],
@@ -1376,7 +1134,6 @@ export function NotasFiscaisSaida() {
                     cliente_id: "",
                     cliente_nome: "",
                     cliente_cnpj: "",
-                    aeronave_id: "",
                     aeronave_registro: "",
                     valor: "",
                     data_vencimento: new Date().toISOString().split("T")[0],
@@ -1500,7 +1257,6 @@ export function NotasFiscaisSaida() {
                                     onSelect={() => {
                                       setReciboData({
                                         ...reciboData,
-                                        aeronave_id: aero.id,
                                         aeronave_registro: aero.registration,
                                       });
                                       setOpenAeronavePopover(false);
@@ -1568,17 +1324,16 @@ export function NotasFiscaisSaida() {
                   onClick={() => {
                     setShowReciboDialog(false);
                     setReciboData({
-                      cliente_id: "",
-                      cliente_nome: "",
-                      cliente_cnpj: "",
-                      aeronave_id: "",
-                      aeronave_registro: "",
-                      valor: "",
-                      data_vencimento: new Date().toISOString().split("T")[0],
-                      descricao: "",
-                    });
-                    setClienteSearch("");
-                    setAeronaveSearch("");
+                    cliente_id: "",
+                    cliente_nome: "",
+                    cliente_cnpj: "",
+                    aeronave_registro: "",
+                    valor: "",
+                    data_vencimento: new Date().toISOString().split("T")[0],
+                    descricao: "",
+                  });
+                  setClienteSearch("");
+                  setAeronaveSearch("");
                   }}
                 >
                   Cancelar
@@ -1645,7 +1400,7 @@ export function NotasFiscaisSaida() {
                       <TableCell className="font-semibold text-foreground px-4 py-3">{nota.numero}</TableCell>
                       <TableCell className="text-foreground px-4 py-3">{nota.cliente_nome}</TableCell>
                       <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                        {nota.aeronave_registration || "-"}
+                        {nota.aeronave || nota.aeronave_registration || "-"}
                       </TableCell>
                       <TableCell className="text-muted-foreground px-4 py-3 text-sm">
                         {format(new Date(nota.data_criacao + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
@@ -1736,69 +1491,6 @@ export function NotasFiscaisSaida() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Seleção de Banco para Recebido */}
-      <Dialog open={showBankDialog} onOpenChange={setShowBankDialog}>
-        <DialogContent className="bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Selecionar Banco</DialogTitle>
-          </DialogHeader>
-          {notaBeingStatusChanged && (
-            <div className="space-y-4 py-4">
-              <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
-                <p className="text-sm text-muted-foreground mb-1">Nota Fiscal</p>
-                <p className="font-semibold text-foreground">{notaBeingStatusChanged.numero}</p>
-                <p className="text-sm text-muted-foreground mt-2">{notaBeingStatusChanged.cliente_nome}</p>
-                <p className="text-sm text-foreground font-semibold mt-2">
-                  R$ {notaBeingStatusChanged.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-
-              <div>
-                <Label className="text-foreground font-semibold mb-2 block">
-                  Selecione o Banco de Recebimento *
-                </Label>
-                <Select value={selectedBankForStatus} onValueChange={setSelectedBankForStatus}>
-                  <SelectTrigger className="bg-background border-border">
-                    <SelectValue placeholder="Selecione um banco" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    {bancos.length > 0 ? (
-                      bancos.map((banco) => (
-                        <SelectItem key={banco} value={banco}>
-                          {banco}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                        Nenhum banco disponível
-                      </div>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-
-          <div className="flex gap-2 justify-end mt-4">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowBankDialog(false);
-                setNotaBeingStatusChanged(null);
-                setSelectedBankForStatus("");
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              className="bg-green-600 hover:bg-green-700"
-              onClick={handleConfirmBankSelection}
-            >
-              Confirmar Recebimento
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Dialog para Visualizar Recibo */}
       <Dialog open={showReciboViewer} onOpenChange={setShowReciboViewer}>
