@@ -935,8 +935,7 @@ export function NotasFiscaisSaida() {
                                     onSelect={() => {
                                       setFormData({
                                         ...formData,
-                                        aircraft_id: aero.id,
-                                        aeronave_registration: aero.registration
+                                        aeronave: aero.registration
                                       });
                                       setOpenAeronavePopover(false);
                                       setAeronaveSearch("");
