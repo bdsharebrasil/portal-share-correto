@@ -18,6 +18,11 @@ interface AircraftLoan {
   entry_date: string;
   status: string;
   logbook_entry_id: string | null;
+  departure_aerodrome?: string | null;
+  arrival_aerodrome?: string | null;
+  trecho?: string | null;
+  fuel_added?: number | null;
+  pic_name?: string | null;
   lender_client?: {
     id: string;
     company_name: string;
@@ -25,13 +30,6 @@ interface AircraftLoan {
   borrower_client?: {
     id: string;
     company_name: string;
-  };
-  logbook_entry?: {
-    id: string;
-    departure_aerodrome: string;
-    arrival_aerodrome: string;
-    fuel_added: number | null;
-    pic_name: string | null;
   };
 }
 
