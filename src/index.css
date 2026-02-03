@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -363,9 +365,6 @@
   .animate-route-dash {
     animation: dash 60s linear infinite;
   }
-
-  /* Font imports for modern look */
-  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap');
 
   html {
     font-family: 'Noto Sans', sans-serif;

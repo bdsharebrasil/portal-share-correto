@@ -431,21 +431,18 @@ Deno.serve(async (req) => {
 
     const html = generateReceiptHTML(receiptData);
 
-    // Usar uma API externa para converter HTML para PDF (htmltopdf.com ou similar)
-    // Ou usar a biblioteca de conversão disponível
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Tentar usar puppeteer/chromium via API externa ou salvar como HTML
-    // Por enquanto, vamos retornar o HTML que será convertido em PDF no cliente via html2pdf
+    // Salvar HTML para conversão no cliente (fallback mais confiável)
     const fileName = `recibos/${receiptData.id}_${Date.now()}.html`;
-    
-    const htmlBlob = new Blob([html], { type: "text/html" });
+
+    const htmlBlob = new TextEncoder().encode(html);
     const { error: uploadError } = await supabase.storage
       .from("receipts")
       .upload(fileName, htmlBlob, {
-        contentType: "text/html",
+        contentType: "text/html; charset=utf-8",
         upsert: true,
       });
 
@@ -456,25 +453,26 @@ Deno.serve(async (req) => {
 
     const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(fileName);
 
-    // Retornar dados para conversão em PDF no cliente
+    // Retornar HTML para conversão no cliente
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        url: urlData.publicUrl,
+      JSON.stringify({
+        success: true,
         html: html,
-        receiptNumber: receiptData.receipt_number
+        htmlUrl: urlData.publicUrl,
+        receiptNumber: receiptData.receipt_number,
+        receiptId: receiptData.id
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("Erro na função recibo-pdf:", error);
     return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : "Erro desconhecido" 
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Erro desconhecido"
       }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
     );
   }

@@ -258,19 +258,114 @@ export default function EmissaoRecibo() {
         });
         if (pdfError) throw pdfError;
 
-        if (pdfResult?.url) {
+        if (!pdfResult) throw new Error("Nenhum resultado retornado");
+
+        // Se o servidor retornou HTML, precisamos converter no cliente
+        if (pdfResult.html) {
+          try {
+            // Abrir o HTML em uma nova aba para visualização/impressão
+            const htmlBlob = new Blob([pdfResult.html], { type: 'text/html; charset=utf-8' });
+            const htmlUrl = URL.createObjectURL(htmlBlob);
+
+            // Armazenar URL temporária para visualização
+            setViewPdfUrl(htmlUrl);
+
+            // Tentar converter para PDF usando a biblioteca html2pdf
+            // Carrega html2pdf dinamicamente
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+            script.onload = async () => {
+              try {
+                const element = document.createElement('div');
+                element.innerHTML = pdfResult.html;
+                element.style.padding = '0';
+                element.style.margin = '0';
+
+                const opt = {
+                  margin: 0,
+                  filename: `${pdfResult.receiptNumber.replace(/\//g, '-')}.pdf`,
+                  image: { type: 'jpeg', quality: 0.98 },
+                  html2canvas: { scale: 2 },
+                  jsPDF: { format: 'a4', orientation: 'portrait' },
+                };
+
+                // @ts-ignore
+                const pdf = html2pdf().set(opt).from(element);
+
+                // Obter o PDF como blob
+                pdf.toPdf().get('pdf').then(async (pdfDoc: any) => {
+                  const pdfBlob = pdfDoc.output('blob');
+
+                  // Upload do PDF para o Storage
+                  const pdfFileName = `recibos/${receiptData.id}_${Date.now()}.pdf`;
+                  const { error: uploadError } = await supabase.storage
+                    .from("receipts")
+                    .upload(pdfFileName, pdfBlob, {
+                      contentType: "application/pdf",
+                      upsert: true,
+                    });
+
+                  if (uploadError) throw uploadError;
+
+                  const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(pdfFileName);
+
+                  // Atualizar no banco de dados
+                  const { error: updateError } = await supabase
+                    .from("receipts")
+                    .update({ pdf_url: urlData.publicUrl })
+                    .eq("id", receiptData.id);
+
+                  if (updateError) throw updateError;
+
+                  URL.revokeObjectURL(htmlUrl);
+                  await loadRecentReceipts(userId);
+
+                  const attachmentInfo = uploadedFiles.length > 0
+                    ? `Anexos: ${uploadedFiles.map(f => f.type === 'boleto' ? 'Boleto' : 'Nota Fiscal').join(' e ')}.`
+                    : '';
+                  toast({
+                    title: "✅ Sucesso!",
+                    description: `Recibo ${receiptNumber} gerado com sucesso! ${attachmentInfo}`
+                  });
+                }).catch((err: any) => {
+                  console.warn("Erro ao gerar PDF, usando HTML:", err);
+                  URL.revokeObjectURL(htmlUrl);
+                });
+              } catch (err) {
+                console.error("Erro ao processar PDF:", err);
+                URL.revokeObjectURL(htmlUrl);
+              }
+            };
+            document.head.appendChild(script);
+          } catch (err) {
+            console.error("Erro ao processar HTML:", err);
+            toast({
+              title: "Recibo criado",
+              description: `Recibo ${receiptNumber} criado. PDF disponível em breve.`,
+              variant: "default"
+            });
+          }
+        } else if (pdfResult.url) {
+          // Se o servidor retornou URL de PDF direto
           const { error: updateError } = await supabase.from("receipts").update({ pdf_url: pdfResult.url }).eq("id", receiptData.id);
           if (updateError) throw updateError;
-        }
 
-        await loadRecentReceipts(userId);
-        const attachmentInfo = uploadedFiles.length > 0
-          ? `Anexos: ${uploadedFiles.map(f => f.type === 'boleto' ? 'Boleto' : 'Nota Fiscal').join(' e ')}.`
-          : '';
-        toast({ title: "✅ Sucesso!", description: `Recibo ${receiptNumber} gerado com sucesso! ${attachmentInfo}` });
+          await loadRecentReceipts(userId);
+          const attachmentInfo = uploadedFiles.length > 0
+            ? `Anexos: ${uploadedFiles.map(f => f.type === 'boleto' ? 'Boleto' : 'Nota Fiscal').join(' e ')}.`
+            : '';
+          toast({
+            title: "✅ Sucesso!",
+            description: `Recibo ${receiptNumber} gerado com sucesso! ${attachmentInfo}`
+          });
+        }
       } catch (pdfErr) {
         console.error("Erro PDF:", pdfErr);
-        toast({ title: "Recibo criado, PDF pendente", description: `Recibo ${receiptNumber} criado, mas o PDF falhou.`, variant: "default" });
+        toast({
+          title: "Recibo criado",
+          description: `Recibo ${receiptNumber} criado. PDF pode ser gerado manualmente.`,
+          variant: "default"
+        });
       }
 
     } catch (err) {
@@ -350,50 +445,137 @@ export default function EmissaoRecibo() {
   // ===================== RENDER =====================
   return (
     <Layout>
-      <div className="min-h-screen p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
-          <div>
-            <h1 className="text-4xl font-extrabold text-white">Emissão de Recibos</h1>
-            <p className="text-slate-400 mt-2">Gerar e gerenciar recibos PDF</p>
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-card/30 p-4 md:p-8 rounded-[13px] overflow-hidden">
+        <div className="max-w-7xl mx-auto space-y-8">
+          {/* Header Section */}
+          <div className="space-y-2">
+            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
+              Emissão de Recibos
+            </h1>
+            <p className="text-muted-foreground text-lg">Gerar e gerenciar recibos PDF de forma simples e segura</p>
           </div>
 
           <Tabs defaultValue="emitir" className="w-full">
-            <TabsList className="flex gap-3 bg-transparent p-0 border-0 max-w-lg">
-              <TabsTrigger value="emitir">Emitir</TabsTrigger>
-              <TabsTrigger value="historico">Histórico</TabsTrigger>
-              <TabsTrigger value="descricoes">
-                <Star className="h-4 w-4 mr-1" />
-                Descrições Favoritas
-              </TabsTrigger>
-            </TabsList>
+            {/* Tab Navigation */}
+            <div className="overflow-x-auto">
+              <TabsList className="flex gap-2 bg-card/50 backdrop-blur-sm p-1.5 rounded-xl border border-border/50 w-fit md:w-auto">
+                <TabsTrigger value="emitir" className="px-4 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-lg transition-all">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Emitir
+                </TabsTrigger>
+                <TabsTrigger value="historico" className="px-4 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-lg transition-all">
+                  <Clock className="h-4 w-4 mr-2" />
+                  Histórico
+                </TabsTrigger>
+                <TabsTrigger value="descricoes" className="px-4 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-lg transition-all">
+                  <Star className="h-4 w-4 mr-2" />
+                  Descrições Favoritas
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-            <TabsContent value="emitir">
-              <ReceiptForm
-                clientesAtivos={clientesAtivos}
-                favoritePayers={favoritePayers}
-                isGenerating={isGenerating}
-                onSubmit={handleGenerateReceipt}
-              />
-            </TabsContent>
-
-            <TabsContent value="historico">
-              <div className="space-y-2">
-                {recentReceipts.map((r) => (
-                  <div key={r.id} className="flex justify-between items-center p-2 border rounded">
-                    <span>{r.receipt_number} - {r.payer_name}</span>
-                    <div className="space-x-2">
-                      <button onClick={() => handleViewReceipt(r.id)}>Visualizar</button>
-                      <button onClick={() => handleDownloadReceipt(r.id)}>Baixar</button>
-                      <button onClick={() => handleDeleteReceipt(r.id)}>Excluir</button>
-                    </div>
-                  </div>
-                ))}
-                <button onClick={handleClearHistory}>Limpar Histórico</button>
+            {/* Tab Content - Emitir */}
+            <TabsContent value="emitir" className="mt-6">
+              <div className="rounded-[19px] bg-card/30 backdrop-blur-sm border border-border/50 p-6 md:p-8 shadow-lg hover:shadow-xl transition-shadow overflow-hidden">
+                <ReceiptForm
+                  clientesAtivos={clientesAtivos}
+                  favoritePayers={favoritePayers}
+                  isGenerating={isGenerating}
+                  onSubmit={handleGenerateReceipt}
+                />
               </div>
             </TabsContent>
 
-            <TabsContent value="descricoes">
-              <DescriptionManager />
+            {/* Tab Content - Histórico */}
+            <TabsContent value="historico" className="mt-6">
+              <div className="space-y-4">
+                {/* Clear History Button */}
+                <div className="flex justify-end">
+                  <button
+                    onClick={handleClearHistory}
+                    className="px-4 py-2 bg-destructive/20 hover:bg-destructive/30 text-destructive rounded-lg transition-colors text-sm font-medium"
+                  >
+                    Limpar Histórico
+                  </button>
+                </div>
+
+                {/* Receipts Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {recentReceipts.length > 0 ? (
+                    recentReceipts.map((r) => (
+                      <div
+                        key={r.id}
+                        className="rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 p-5 hover:border-primary/50 hover:shadow-lg transition-all duration-300 group"
+                      >
+                        {/* Receipt Header */}
+                        <div className="space-y-3 mb-4">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-muted-foreground">Recibo</p>
+                              <p className="text-primary font-bold truncate group-hover:text-primary/80">{r.receipt_number}</p>
+                            </div>
+                            <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full whitespace-nowrap">
+                              {r.receipt_type === 'reembolso' ? 'Reembolso' : 'Pagamento'}
+                            </span>
+                          </div>
+
+                          <div>
+                            <p className="text-sm text-muted-foreground mb-1">Pagador</p>
+                            <p className="font-medium text-foreground truncate">{r.payer_name}</p>
+                          </div>
+
+                          {r.payer_document && (
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">Documento</p>
+                              <p className="text-sm font-mono text-foreground">{r.payer_document}</p>
+                            </div>
+                          )}
+
+                          <div className="pt-2 border-t border-border/30">
+                            <p className="text-sm text-muted-foreground mb-1">Valor</p>
+                            <p className="text-lg font-bold text-primary">R$ {r.amount?.toFixed(2).replace('.', ',') || '0,00'}</p>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleViewReceipt(r.id)}
+                            disabled={isLoadingPdf}
+                            className="flex-1 px-3 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
+                          >
+                            Visualizar
+                          </button>
+                          <button
+                            onClick={() => handleDownloadReceipt(r.id)}
+                            className="flex-1 px-3 py-2 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg transition-colors text-sm font-medium"
+                          >
+                            Baixar
+                          </button>
+                          <button
+                            onClick={() => handleDeleteReceipt(r.id)}
+                            className="flex-1 px-3 py-2 bg-destructive/20 hover:bg-destructive/30 text-destructive rounded-lg transition-colors text-sm font-medium"
+                          >
+                            Excluir
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-full rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 p-12 text-center">
+                      <Clock className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
+                      <p className="text-muted-foreground">Nenhum recibo gerado ainda</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* Tab Content - Descrições Favoritas */}
+            <TabsContent value="descricoes" className="mt-6">
+              <div className="rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 p-6 md:p-8 shadow-lg">
+                <DescriptionManager />
+              </div>
             </TabsContent>
           </Tabs>
         </div>

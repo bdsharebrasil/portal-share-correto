@@ -470,13 +470,6 @@ export function FinanceiroDashboard() {
           </div>
         </div>
 
-        {/* Placeholder for additional cards in right column */}
-        <div className="rounded-2xl bg-card/60 border border-border/50 p-5 backdrop-blur-sm min-h-[200px] flex items-center justify-center">
-          <div className="text-center text-muted-foreground">
-            <DollarSign className="h-10 w-10 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">Resumo financeiro em breve</p>
-          </div>
-        </div>
       </div>
     </div>
 

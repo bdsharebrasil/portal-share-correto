@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+
 export default {
 	darkMode: ["class"],
 	content: [
@@ -24,17 +25,11 @@ export default {
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				primary: {
-					DEFAULT: '#135bec',
+					DEFAULT: 'hsl(var(--primary))',
 					foreground: 'hsl(var(--primary-foreground))',
 					glow: 'hsl(var(--primary-glow))',
 					dark: 'hsl(var(--primary-dark))'
 				},
-				'background-light': '#f6f6f8',
-				'background-dark': '#111722',
-				'surface-dark': '#192233',
-				'border-dark': '#232f48',
-				'text-secondary': '#92a4c9',
-				'custom-cyan': 'hsl(var(--custom-cyan))',
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
 					foreground: 'hsl(var(--secondary-foreground))'
