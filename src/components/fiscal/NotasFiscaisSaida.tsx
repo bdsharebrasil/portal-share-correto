@@ -337,36 +337,19 @@ export function NotasFiscaisSaida() {
         data_vencimento: formData.data_vencimento || formData.data_criacao,
         valor: parseFloat(formData.valor),
         categoria: formData.categoria || "Serviços",
-        descricao: formData.descricao || "",
+        descricao: formData.descricao || null,
         status: formData.status,
         arquivo_pdf_url: pdfUrl || null,
+        aeronave: formData.aeronave_registration || null,
       };
-
-      // Adicionar aeronave se selecionada
-      if (formData.aeronave_registration) {
-        notaData.aeronave = formData.aeronave_registration;
-      }
 
       const { data: { user } } = await supabase.auth.getUser();
 
       if (editingNota) {
-        let error = null;
-        const { error: updateError } = await supabase
+        const { error } = await supabase
           .from("notas_fiscais_saida")
           .update(notaData)
           .eq("id", editingNota.id);
-
-        error = updateError;
-
-        // Se tiver erro com campo aeronave, tenta sem ele
-        if (error && error.message.includes("aeronave")) {
-          const { aeronave, ...dataWithoutAircraft } = notaData;
-          const { error: retryError } = await supabase
-            .from("notas_fiscais_saida")
-            .update(dataWithoutAircraft)
-            .eq("id", editingNota.id);
-          error = retryError;
-        }
 
         if (error) throw error;
 
