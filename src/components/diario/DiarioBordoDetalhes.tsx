@@ -2395,7 +2395,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   <div className="flex items-center justify-between">
                     <Label className="text-[9px] uppercase text-orange-500 font-bold">T. VOO</Label>
                     <div className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-black text-sm min-w-24 text-center">
-                      {decimalToHHMM(newEntry.time)}
+                      {decimalToHoursOnly(newEntry.time)}
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
