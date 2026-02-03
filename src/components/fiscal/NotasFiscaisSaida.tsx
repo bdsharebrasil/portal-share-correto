@@ -624,11 +624,9 @@ export function NotasFiscaisSaida() {
         clientId = clientData?.id || null;
       }
 
-      let aeronaveId = reciboData.aeronave_id || null;
-      if (!aeronaveId) {
-        const { data: aeroData } = await supabase.from("aircraft").select("id").eq("registration", reciboData.aeronave_registro).single();
-        aeronaveId = aeroData?.id || null;
-      }
+      let aeronaveId = null;
+      const { data: aeroData } = await supabase.from("aircraft").select("id").eq("registration", reciboData.aeronave_registro).single();
+      aeronaveId = aeroData?.id || null;
 
       const { data: categoriaData } = await supabase.from("categorias_movimentacao").select("grupo_categoria").eq("id", CATEGORIA_ID).single();
       const grupoCategoria = categoriaData?.grupo_categoria || null;
