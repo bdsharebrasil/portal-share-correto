@@ -544,7 +544,7 @@ export default function GestaoDeTripulacao() {
                     </CardTitle>
                     <Dialog open={isLicenseDialogOpen} onOpenChange={setIsLicenseDialogOpen}>
                       <DialogTrigger asChild>
-                        <Button onClick={() => setEditingLicense(null)} disabled={!canEditHabilitacoes}>
+                        <Button onClick={() => setEditingLicense(null)}>
                           <Plus className="mr-2" size={16} />
                           Nova Habilitação
                         </Button>
