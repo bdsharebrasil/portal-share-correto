@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, ArrowLeft, UploadCloud, AlertTriangle, Clock, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserRole } from "@/hooks/useUserRole";
 import CrewFlightHoursTable from "@/components/tripulacao/CrewFlightHoursTable";
 import { formatBirthDateWithAge, formatDateToBR, formatMonthShort } from "@/lib/date-utils";
 import { CrewMemberNav } from "@/components/tripulacao/CrewMemberNav";
