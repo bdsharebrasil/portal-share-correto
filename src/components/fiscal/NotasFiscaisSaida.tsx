@@ -519,17 +519,6 @@ export function NotasFiscaisSaida() {
       const nota = notas.find(n => n.id === notaId);
       if (!nota) return;
 
-      const previousStatus = nota.status;
-
-      // Se mudando para "recebido", mostrar diálogo de seleção de banco
-      if (newStatus === "recebido") {
-        setNotaBeingStatusChanged(nota);
-        setSelectedBankForStatus("");
-        setShowBankDialog(true);
-        return;
-      }
-
-      // Para outros status, atualizar diretamente
       const { error } = await supabase
         .from("notas_fiscais_saida")
         .update({ status: newStatus })
@@ -537,33 +526,10 @@ export function NotasFiscaisSaida() {
 
       if (error) throw error;
 
-      // ESTORNO: Se estava "recebido" e mudou para outro status, deletar do controle_bancario
-      if (previousStatus === "recebido" && (newStatus === "pendente" || newStatus === "cancelado")) {
-        const { error: deleteError } = await supabase
-          .from("controle_bancario")
-          .delete()
-          .eq("numero_documento", nota.numero)
-          .eq("tipo_movimento", "entrada");
-
-        if (deleteError) {
-          console.error("Erro ao remover do fluxo de caixa:", deleteError);
-          toast({
-            title: "Aviso",
-            description: "Status atualizado, mas houve erro ao remover do fluxo de caixa",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Sucesso",
-            description: `Status atualizado para ${newStatus === "pendente" ? "Pendente" : "Cancelado"} e entrada removida do fluxo de caixa`,
-          });
-        }
-      } else {
-        toast({
-          title: "Sucesso",
-          description: newStatus === "pendente" ? "Status atualizado para Pendente" : "Nota fiscal cancelada",
-        });
-      }
+      toast({
+        title: "Sucesso",
+        description: "Status atualizado com sucesso",
+      });
 
       loadNotas();
     } catch (error) {
