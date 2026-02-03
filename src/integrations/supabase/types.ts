@@ -7585,9 +7585,6 @@ export type Database = {
           status: string
           valor: number
           aeronave: string | null
-          aircraft_id?: string | null
-          aeronave_registration?: string | null
-          aeronave_id?: string | null
         }
         Insert: {
           arquivo_pdf_url?: string | null
@@ -7605,9 +7602,6 @@ export type Database = {
           status: string
           valor: number
           aeronave?: string | null
-          aircraft_id?: string | null
-          aeronave_registration?: string | null
-          aeronave_id?: string | null
         }
         Update: {
           arquivo_pdf_url?: string | null
@@ -7625,9 +7619,6 @@ export type Database = {
           status?: string
           valor?: number
           aeronave?: string | null
-          aircraft_id?: string | null
-          aeronave_registration?: string | null
-          aeronave_id?: string | null
         }
         Relationships: []
       }
