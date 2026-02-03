@@ -32,6 +32,7 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
   const [clients, setClients] = useState<Client[]>([]);
   const [aircraft, setAircraft] = useState<Aircraft[]>([]);
   const [loading, setLoading] = useState(false);
+  const { crewMembers, fetchCrewMembers } = useCrewMembers();
 
   const [formData, setFormData] = useState({
     client_id: '',
@@ -45,6 +46,8 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
     is_controlled_airport: false,
     has_private_hangar: false,
     flight_duration_hours: '',
+    pic_name: '',
+    sic_name: '',
   });
 
   useEffect(() => {
