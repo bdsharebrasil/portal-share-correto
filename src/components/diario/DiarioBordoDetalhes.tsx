@@ -331,6 +331,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   const [showCloseMonthDialog, setShowCloseMonthDialog] = useState(false);
   const [previousMonthData, setPreviousMonthData] = useState<any>(null);
 
+  const [showPartnerModal, setShowPartnerModal] = useState(false);
+  const [pendingClientId, setPendingClientId] = useState<string>('');
+
   const [loans, setLoans] = useState<any[]>([]);
 
   const [technicalStatus, setTechnicalStatus] = useState({
