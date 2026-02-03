@@ -162,18 +162,28 @@ export function ReceiptForm({
       }));
       setAircrafts([]);
     } else {
-      // Ao mudar para reembolso, limpa os campos do pagador
-      // pois serão preenchidos automaticamente ao selecionar cliente
-      setFormData((prev) => ({
-        ...prev,
-        pagadorNome: "",
-        pagadorDocumento: "",
-        pagadorEndereco: "",
-        pagadorCidade: "",
-        pagadorUF: "",
-      }));
+      // Ao mudar para reembolso, NÃO limpa os campos do pagador
+      // pois eles já estão sincronizados via clienteSearchValue
+      // Se cliente não está selecionado, limpa apenas os campos específicos de reembolso
+      if (!clienteSearchValue.clienteId) {
+        setFormData((prev) => ({
+          ...prev,
+          pagadorNome: "",
+          pagadorDocumento: "",
+          pagadorEndereco: "",
+          pagadorCidade: "",
+          pagadorUF: "",
+          reembolsoValorTotal: "",
+          reembolsoPorcentagem: "",
+          reembolsoCategoriaId: "",
+          reembolsoNumeroDocumento: "",
+          reembolsoRateado: false,
+          reembolsoBoletoFile: null,
+          reembolsoNotaFiscalFile: null,
+        }));
+      }
     }
-  }, [formData.receiptType]);
+  }, [formData.receiptType, clienteSearchValue.clienteId]);
 
   // Sincroniza a seleção de cliente com o formData
   const handleClienteSearchChange = (searchValue: typeof clienteSearchValue) => {
