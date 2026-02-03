@@ -303,6 +303,13 @@ export function useWeather() {
         setDefaultWeather(aerodrome);
       }
     } catch (error) {
+      // Check if this is a transient error that should be retried
+      if (error instanceof Error && (error.message.includes('503') || error.message.includes('504'))) {
+        // This is a transient error - don't set error state yet
+        console.warn(`[METAR] ⚠️ Erro transiente (${error.message}) - será retentado`);
+        throw error; // Re-throw to outer handler
+      }
+
       console.warn('[METAR] ⚠️ Usando dados locais como fallback (outer)');
       setDefaultWeather(aerodrome);
     } finally {
