@@ -9,6 +9,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -21,6 +28,8 @@ interface LicenseExpiryDialogProps {
     license_type: string;
     expiry_date?: string | null;
     validade_cma?: string | null;
+    CMA?: string | null;
+    FS_RH?: string | null;
   } | null;
   isCMA?: boolean;
   onSuccess: () => void;
@@ -36,6 +45,8 @@ export function LicenseExpiryDialog({
 
   const currentDate = isCMA ? license?.validade_cma : license?.expiry_date;
   const [expiryDate, setExpiryDate] = useState(currentDate || "");
+  const [cmaClass, setCmaClass] = useState(license?.CMA || "");
+  const [fsRh, setFsRh] = useState(license?.FS_RH || "");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSave = async () => {
