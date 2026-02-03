@@ -183,9 +183,9 @@ interface NotaFiscalSaida {
   status: string;
   arquivo_pdf_url?: string;
   criado_em?: string;
+  aeronave?: string;
   aircraft_id?: string;
   aeronave_registration?: string;
-  aeronave?: string;
   aeronave_id?: string;
 }
 
