@@ -627,34 +627,43 @@ export function ContasPagar() {
             <div className="space-y-4 pb-4 border-b border-border/50">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Dados do Fornecedor</h3>
               <div>
-                <label className="text-sm font-semibold text-foreground mb-2 block">Fornecedor *</label>
-                <AutocompleteInput
-                  value={formData.fornecedor_nome}
-                  onChange={(value) => {
-                    setFormData(prev => ({ ...prev, fornecedor_nome: value }));
-                    const fornecedor = fornecedorUserProfiles.find(f => f.full_name === value);
-                    if (fornecedor) {
-                      setFormData(prev => ({ ...prev, fornecedor_cnpj: fornecedor.cpf || "" }));
-                    } else {
-                      setFormData(prev => ({ ...prev, fornecedor_cnpj: "" }));
-                    }
-                  }}
-                  onSelect={(option) => {
-                    const fornecedor = fornecedorUserProfiles.find(f => f.id === option.id);
-                    if (fornecedor) {
-                      setFormData(prev => ({
-                        ...prev,
-                        fornecedor_nome: fornecedor.full_name,
-                        fornecedor_cnpj: fornecedor.cpf || ""
-                      }));
-                    }
-                  }}
-                  options={fornecedorUserProfiles.map(f => ({
-                    id: f.id,
-                    label: f.full_name
-                  }))}
-                  placeholder="Buscar ou digite um fornecedor"
-                />
+                  <label className="text-sm font-semibold text-foreground mb-2 block">Fornecedor *</label>
+                  <AutocompleteInput
+                    value={formData.fornecedor_nome}
+                    onChange={(value) => {
+                      setFormData(prev => ({ ...prev, fornecedor_nome: value }));
+                      const fornecedor = fornecedorUserProfiles.find(f => f.full_name === value);
+                      if (fornecedor) {
+                        setFormData(prev => ({ ...prev, fornecedor_cnpj: fornecedor.cpf || "" }));
+                      } else {
+                        setFormData(prev => ({ ...prev, fornecedor_cnpj: "" }));
+                      }
+                    }}
+                    onSelect={(option) => {
+                      const fornecedor = fornecedorUserProfiles.find(f => f.id === option.id);
+                      if (fornecedor) {
+                        setFormData(prev => ({
+                          ...prev,
+                          fornecedor_nome: fornecedor.full_name,
+                          fornecedor_cnpj: fornecedor.cpf || ""
+                        }));
+                      }
+                    }}
+                    options={fornecedorUserProfiles.map(f => {
+                      // Adicionar apelido ou tipo na label para diferenciar
+                      let label = f.full_name;
+                      if (f.type === "fornecedor" && f.apelido) {
+                        label = `${f.full_name} (${f.apelido})`;
+                      } else if (f.type === "colaborador") {
+                        label = `${f.full_name} (Colaborador)`;
+                      }
+                      return {
+                        id: f.id,
+                        label
+                      };
+                    })}
+                    placeholder="Buscar ou digite um fornecedor"
+                  />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
