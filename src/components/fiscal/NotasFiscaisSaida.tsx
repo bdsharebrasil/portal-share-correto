@@ -185,6 +185,8 @@ interface NotaFiscalSaida {
   criado_em?: string;
   aircraft_id?: string;
   aeronave_registration?: string;
+  aeronave?: string;
+  aeronave_id?: string;
 }
 
 interface Cliente {
