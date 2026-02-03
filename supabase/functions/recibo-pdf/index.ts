@@ -435,43 +435,14 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Gerar PDF usando html2pdf.com API (conversão na nuvem)
-    const conversionResponse = await fetch("https://htmltopdf.com/api/", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        html: html,
-        options: {
-          format: "A4",
-          margin: 0,
-          printBackground: true,
-        },
-      }),
-    });
+    // Salvar HTML para conversão no cliente (fallback mais confiável)
+    const fileName = `recibos/${receiptData.id}_${Date.now()}.html`;
 
-    if (!conversionResponse.ok) {
-      // Fallback: retornar HTML para conversão no cliente
-      console.warn("API de conversão PDF indisponível, usando conversão no cliente");
-      return new Response(
-        JSON.stringify({
-          success: true,
-          html: html,
-          receiptNumber: receiptData.receipt_number,
-          clientConversion: true
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const pdfBuffer = await conversionResponse.arrayBuffer();
-    const fileName = `recibos/${receiptData.id}_${Date.now()}.pdf`;
-
+    const htmlBlob = new TextEncoder().encode(html);
     const { error: uploadError } = await supabase.storage
       .from("receipts")
-      .upload(fileName, pdfBuffer, {
-        contentType: "application/pdf",
+      .upload(fileName, htmlBlob, {
+        contentType: "text/html; charset=utf-8",
         upsert: true,
       });
 
@@ -482,11 +453,14 @@ Deno.serve(async (req) => {
 
     const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(fileName);
 
+    // Retornar HTML para conversão no cliente
     return new Response(
       JSON.stringify({
         success: true,
-        url: urlData.publicUrl,
-        receiptNumber: receiptData.receipt_number
+        html: html,
+        htmlUrl: urlData.publicUrl,
+        receiptNumber: receiptData.receipt_number,
+        receiptId: receiptData.id
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
