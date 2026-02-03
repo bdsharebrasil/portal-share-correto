@@ -343,9 +343,10 @@ export function NotasFiscaisSaida() {
         arquivo_pdf_url: pdfUrl || null,
       };
 
-      // Adicionar aeronave_registration se selecionada
+      // Adicionar aeronave_registration ou aeronave_id se selecionada
       if (formData.aeronave_registration) {
-        notaData.aeronave = formData.aeronave_registration;
+        notaData.aeronave_registration = formData.aeronave_registration;
+        notaData.aircraft_id = formData.aircraft_id || null;
       }
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -359,9 +360,9 @@ export function NotasFiscaisSaida() {
 
         error = updateError;
 
-        // Se tiver erro e contiver "aeronave", tenta atualizar sem o campo
-        if (error && error.message.includes("aeronave")) {
-          const { aeronave, ...dataWithoutAircraft } = notaData;
+        // Se tiver erro com campos de aeronave, tenta sem eles
+        if (error && (error.message.includes("aeronave") || error.message.includes("aircraft"))) {
+          const { aeronave, aircraft_id, aeronave_registration, aeronave_id, ...dataWithoutAircraft } = notaData;
           const { error: retryError } = await supabase
             .from("notas_fiscais_saida")
             .update(dataWithoutAircraft)
