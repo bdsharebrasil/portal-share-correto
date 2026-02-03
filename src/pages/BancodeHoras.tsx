@@ -302,7 +302,6 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
                     <th className="px-4 py-4 text-center">Devolvido</th>
                     <th className="px-4 py-4 text-center">Fuel (L)</th>
                     <th className="px-4 py-4 text-left">PIC</th>
-                    <th className="px-4 py-4 text-center">Saldo</th>
                     <th className="px-4 py-4 text-center">Status</th>
                   </tr>
                 </thead>
@@ -331,9 +330,6 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
                         <td className="px-4 py-4 text-center text-rose-500 font-mono whitespace-nowrap">{decimalToHM(hoursPaidBack)}</td>
                         <td className="px-4 py-4 text-center text-slate-300 font-mono whitespace-nowrap">{fuelAdded}</td>
                         <td className="px-4 py-4 text-slate-300 truncate text-xs">{picName}</td>
-                        <td className={`px-4 py-4 text-center font-black font-mono whitespace-nowrap ${isPending ? 'text-amber-500' : 'text-emerald-500'}`}>
-                          {decimalToHM(balance)}
-                        </td>
                         <td className="px-4 py-4 text-center">
                           <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[8px] font-black uppercase border whitespace-nowrap ${isPending ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
                             {isPending ? '⏳ Pendente' : '✓ Quitado'}
