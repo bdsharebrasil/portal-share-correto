@@ -241,7 +241,7 @@ export function NotasFiscaisSaida() {
     categoria: defaultCategoria,
     descricao: "",
     status: "pendente",
-    aeronave_registration: "",
+    aeronave: "",
   });
 
   useEffect(() => {
