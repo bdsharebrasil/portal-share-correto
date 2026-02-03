@@ -17,6 +17,7 @@ interface AircraftLoan {
   hours_paid_back: number | null;
   entry_date: string;
   status: string;
+  logbook_entry_id: string | null;
   lender_client?: {
     id: string;
     company_name: string;
@@ -24,6 +25,13 @@ interface AircraftLoan {
   borrower_client?: {
     id: string;
     company_name: string;
+  };
+  logbook_entry?: {
+    id: string;
+    departure_aerodrome: string;
+    arrival_aerodrome: string;
+    fuel_added: number | null;
+    pic_name: string | null;
   };
 }
 
