@@ -241,7 +241,6 @@ export function NotasFiscaisSaida() {
     categoria: defaultCategoria,
     descricao: "",
     status: "pendente",
-    aircraft_id: "",
     aeronave_registration: "",
   });
 
