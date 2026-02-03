@@ -529,7 +529,7 @@ export default function PortalCliente() {
 
                   {aircraft && (
                     <div className="lg:col-span-3">
-                      <Card className="border border-white/10 bg-slate-800/30 backdrop-blur-sm h-full">
+                      <Card className="border border-white/10 bg-white/5 backdrop-blur-sm h-full">
                         <CardHeader className="pb-4 border-b border-white/10">
                           <div className="flex items-center justify-between gap-3">
                             <div>
