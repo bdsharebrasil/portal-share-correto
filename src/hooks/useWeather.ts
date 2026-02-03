@@ -292,6 +292,9 @@ export function useWeather() {
             console.warn('[METAR]   1. Sem conexão de internet');
             console.warn('[METAR]   2. Backend temporariamente indisponível');
             console.warn('[METAR]   3. Problema de rede');
+          } else if (fetchError.message.includes('503') || fetchError.message.includes('504')) {
+            // Transient error - will retry via retry wrapper
+            throw fetchError;
           } else {
             console.warn('[METAR] ❌ Erro ao buscar METAR:', fetchError.message);
           }
