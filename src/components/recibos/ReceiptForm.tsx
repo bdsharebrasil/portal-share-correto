@@ -230,15 +230,31 @@ export function ReceiptForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Sincroniza dados do cliente se vindo de busca
+    let finalPagadorNome = formData.pagadorNome;
+    let finalPagadorDocumento = formData.pagadorDocumento;
+    let finalPagadorEndereco = formData.pagadorEndereco;
+    let finalPagadorCidade = formData.pagadorCidade;
+    let finalPagadorUF = formData.pagadorUF;
+
+    // Se tem dados no clienteSearchValue, usa eles como fallback
+    if (!finalPagadorNome && clienteSearchValue.nome) {
+      finalPagadorNome = clienteSearchValue.nome;
+      finalPagadorDocumento = clienteSearchValue.documento;
+      finalPagadorEndereco = clienteSearchValue.endereco;
+      finalPagadorCidade = clienteSearchValue.cidade;
+      finalPagadorUF = clienteSearchValue.uf;
+    }
+
     // Validações gerais
-    if (!formData.pagadorNome?.trim()) {
-      alert("Por favor, preencha o nome do pagador");
+    if (!finalPagadorNome?.trim()) {
+      alert("Por favor, preencha o nome do pagador ou selecione um cliente");
       return;
     }
 
     // Validação específica por tipo
     if (isReembolso) {
-      if (!formData.clienteId) {
+      if (!clienteSearchValue.clienteId && !formData.clienteId) {
         alert("Por favor, selecione o cliente para o reembolso");
         return;
       }
