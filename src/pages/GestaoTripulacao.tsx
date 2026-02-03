@@ -591,11 +591,9 @@ export default function GestaoDeTripulacao() {
                           {license.observacao && <p className="text-sm text-muted-foreground">{license.observacao}</p>}
                         </div>
                         <div className="flex gap-2 ml-4">
-                          {canEditHabilitacoes && (
-                            <Button variant="ghost" size="sm" onClick={() => deleteLicense(license.id)}>
-                              <Trash2 size={16} />
-                            </Button>
-                          )}
+                          <Button variant="ghost" size="sm" onClick={() => deleteLicense(license.id)}>
+                            <Trash2 size={16} />
+                          </Button>
                         </div>
                       </div>
                     </div>)}
