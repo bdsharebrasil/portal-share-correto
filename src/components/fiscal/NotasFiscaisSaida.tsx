@@ -359,9 +359,9 @@ export function NotasFiscaisSaida() {
 
         error = updateError;
 
-        // Se tiver erro com campos de aeronave, tenta sem eles
-        if (error && (error.message.includes("aeronave") || error.message.includes("aircraft"))) {
-          const { aeronave, aircraft_id, aeronave_registration, aeronave_id, ...dataWithoutAircraft } = notaData;
+        // Se tiver erro com campo aeronave, tenta sem ele
+        if (error && error.message.includes("aeronave")) {
+          const { aeronave, ...dataWithoutAircraft } = notaData;
           const { error: retryError } = await supabase
             .from("notas_fiscais_saida")
             .update(dataWithoutAircraft)
