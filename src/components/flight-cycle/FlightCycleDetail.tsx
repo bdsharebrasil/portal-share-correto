@@ -265,33 +265,66 @@ export function FlightCycleDetail({
         )}
 
         {/* Status Actions */}
-        <div className="flex gap-2 mt-4 pt-4 border-t border-border/50">
-          {cycle.status === 'confirmado' && (
-            <Button 
-              size="sm" 
-              onClick={() => onUpdateCycleStatus(cycle.id, 'em_execucao')}
-              className="bg-amber-500 hover:bg-amber-600"
-            >
-              Iniciar Voo
-            </Button>
-          )}
-          {cycle.status === 'em_execucao' && (
-            <Button 
-              size="sm" 
-              onClick={() => onUpdateCycleStatus(cycle.id, 'aguardando_despesas')}
-              className="bg-cyan-500 hover:bg-cyan-600"
-            >
-              Concluir Voo
-            </Button>
-          )}
-          {['aguardando_despesas', 'em_cobranca'].includes(cycle.status) && completionPercentage === 100 && (
-            <Button 
-              size="sm" 
-              onClick={() => onUpdateCycleStatus(cycle.id, 'finalizado')}
-              className="bg-emerald-500 hover:bg-emerald-600"
-            >
-              Finalizar Ciclo
-            </Button>
+        <div className="flex gap-2 mt-4 pt-4 border-t border-border/50 flex-wrap">
+          {!isEditing ? (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsEditing(true)}
+                className="gap-2"
+              >
+                <Edit2 className="h-4 w-4" />
+                Editar
+              </Button>
+
+              {cycle.status === 'confirmado' && (
+                <Button
+                  size="sm"
+                  onClick={() => onUpdateCycleStatus(cycle.id, 'em_execucao')}
+                  className="bg-amber-500 hover:bg-amber-600"
+                >
+                  Iniciar Voo
+                </Button>
+              )}
+              {cycle.status === 'em_execucao' && (
+                <Button
+                  size="sm"
+                  onClick={() => onUpdateCycleStatus(cycle.id, 'aguardando_despesas')}
+                  className="bg-cyan-500 hover:bg-cyan-600"
+                >
+                  Concluir Voo
+                </Button>
+              )}
+              {['aguardando_despesas', 'em_cobranca'].includes(cycle.status) && completionPercentage === 100 && (
+                <Button
+                  size="sm"
+                  onClick={() => onUpdateCycleStatus(cycle.id, 'finalizado')}
+                  className="bg-emerald-500 hover:bg-emerald-600"
+                >
+                  Finalizar Ciclo
+                </Button>
+              )}
+            </>
+          ) : (
+            <>
+              <Button
+                size="sm"
+                onClick={handleSaveEdit}
+                disabled={savingEdit}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                Salvar
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCancelEdit}
+                disabled={savingEdit}
+              >
+                Cancelar
+              </Button>
+            </>
           )}
         </div>
       </div>
