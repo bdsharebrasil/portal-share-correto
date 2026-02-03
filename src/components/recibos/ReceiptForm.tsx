@@ -288,7 +288,7 @@ export function ReceiptForm({
       status: "pendente",
 
       // IDs relacionados
-      client_id: formData.clienteId || null,
+      client_id: clienteSearchValue.clienteId || formData.clienteId || null,
       aircraft_id: formData.aircraftId || null,
       categoria_movimentacao_id: formData.reembolsoCategoriaId || null,
 
@@ -304,14 +304,14 @@ export function ReceiptForm({
       forma_pagamento: formData.reembolsoRateado ? "rateio_direto" : "empresa_paga",
       afeta_caixa_empresa: true,
 
-      // Dados do fornecedor (para recibos de reembolso)
-      fornecedor_nome: formData.pagadorNome || null,
-      fornecedor_dados: formData.pagadorNome ? {
-        nome: formData.pagadorNome,
-        documento: formData.pagadorDocumento,
-        endereco: formData.pagadorEndereco,
-        cidade: formData.pagadorCidade,
-        uf: formData.pagadorUF
+      // Dados do fornecedor (para recibos de reembolso) - usa dados sincronizados
+      fornecedor_nome: finalPagadorNome || null,
+      fornecedor_dados: finalPagadorNome ? {
+        nome: finalPagadorNome,
+        documento: finalPagadorDocumento,
+        endereco: finalPagadorEndereco,
+        cidade: finalPagadorCidade,
+        uf: finalPagadorUF
       } : null,
 
       // Arquivos (URLs serão preenchidas após upload)
