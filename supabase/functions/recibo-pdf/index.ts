@@ -431,21 +431,47 @@ Deno.serve(async (req) => {
 
     const html = generateReceiptHTML(receiptData);
 
-    // Usar uma API externa para converter HTML para PDF (htmltopdf.com ou similar)
-    // Ou usar a biblioteca de conversão disponível
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Tentar usar puppeteer/chromium via API externa ou salvar como HTML
-    // Por enquanto, vamos retornar o HTML que será convertido em PDF no cliente via html2pdf
-    const fileName = `recibos/${receiptData.id}_${Date.now()}.html`;
-    
-    const htmlBlob = new Blob([html], { type: "text/html" });
+    // Gerar PDF usando html2pdf.com API (conversão na nuvem)
+    const conversionResponse = await fetch("https://htmltopdf.com/api/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        html: html,
+        options: {
+          format: "A4",
+          margin: 0,
+          printBackground: true,
+        },
+      }),
+    });
+
+    if (!conversionResponse.ok) {
+      // Fallback: retornar HTML para conversão no cliente
+      console.warn("API de conversão PDF indisponível, usando conversão no cliente");
+      return new Response(
+        JSON.stringify({
+          success: true,
+          html: html,
+          receiptNumber: receiptData.receipt_number,
+          clientConversion: true
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const pdfBuffer = await conversionResponse.arrayBuffer();
+    const fileName = `recibos/${receiptData.id}_${Date.now()}.pdf`;
+
     const { error: uploadError } = await supabase.storage
       .from("receipts")
-      .upload(fileName, htmlBlob, {
-        contentType: "text/html",
+      .upload(fileName, pdfBuffer, {
+        contentType: "application/pdf",
         upsert: true,
       });
 
@@ -456,12 +482,10 @@ Deno.serve(async (req) => {
 
     const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(fileName);
 
-    // Retornar dados para conversão em PDF no cliente
     return new Response(
-      JSON.stringify({ 
-        success: true, 
+      JSON.stringify({
+        success: true,
         url: urlData.publicUrl,
-        html: html,
         receiptNumber: receiptData.receipt_number
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -469,12 +493,12 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("Erro na função recibo-pdf:", error);
     return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : "Erro desconhecido" 
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Erro desconhecido"
       }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
       }
     );
   }
