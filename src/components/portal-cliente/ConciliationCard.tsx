@@ -240,7 +240,7 @@ export function ConciliationCard({ reconciliations, loading }: ConciliationCardP
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground whitespace-nowrap">
                         {item.payment_term
-                          ? new Date(item.payment_term + 'T12:00:00').toLocaleDateString("pt-BR")
+                          ? formatDateCorrectly(item.payment_term)
                           : "—"}
                       </td>
                       <td className="px-6 py-4">
