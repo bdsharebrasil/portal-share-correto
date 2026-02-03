@@ -11,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, ArrowLeft, UploadCloud, AlertTriangle, Clock, Plus } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserRole } from "@/hooks/useUserRole";
 import CrewFlightHoursTable from "@/components/tripulacao/CrewFlightHoursTable";
 import { formatBirthDateWithAge, formatDateToBR, formatMonthShort } from "@/lib/date-utils";
 import { CrewMemberNav } from "@/components/tripulacao/CrewMemberNav";
@@ -39,9 +38,6 @@ export default function TripulanteDetalhes() {
   // State for add license dialog
   const [addLicenseDialogOpen, setAddLicenseDialogOpen] = useState(false);
 
-  // Verificação de permissões
-  const { hasRole } = useUserRole();
-  const canEditHabilitacoes = hasRole('admin') || hasRole('gestor_master') || hasRole('piloto_chefe') || hasRole('coordenador_voo');
 
   const { data: member, isLoading, refetch } = useQuery({
     queryKey: ["crew_member", id],
@@ -95,10 +91,6 @@ export default function TripulanteDetalhes() {
   });
 
   const handleEditLicense = (lic: any, isCMA: boolean = false) => {
-    if (!canEditHabilitacoes) {
-      alert('Você não tem permissão para editar habilitações');
-      return;
-    }
     setSelectedLicense(lic);
     setIsCMAEdit(isCMA);
     setEditDialogOpen(true);
@@ -409,14 +401,12 @@ export default function TripulanteDetalhes() {
 
               <TabsContent value="habilitacoes" className="mt-6 space-y-6">
                 {/* Add License Button */}
-                {canEditHabilitacoes && (
-                  <div className="flex justify-end">
-                    <Button onClick={() => setAddLicenseDialogOpen(true)}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Nova Habilitação
-                    </Button>
-                  </div>
-                )}
+                <div className="flex justify-end">
+                  <Button onClick={() => setAddLicenseDialogOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nova Habilitação
+                  </Button>
+                </div>
                 
                 {isLicensesLoading ? (
                   <div className="text-center py-8">
@@ -444,7 +434,7 @@ export default function TripulanteDetalhes() {
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className={`font-semibold ${typeColorClass.labelText}`}>{lic.license_type}</div>
-                              {getLicenseStatusBadge(lic, false, canEditHabilitacoes ? () => handleEditLicense(lic, false) : undefined)}
+                              {getLicenseStatusBadge(lic, false, () => handleEditLicense(lic, false))}
                             </div>
 
                             <div className="space-y-2 text-sm">
@@ -505,7 +495,7 @@ export default function TripulanteDetalhes() {
                                   Certificado Médico Aeronáutico
                                 </p>
                               </div>
-                              {getLicenseStatusBadge(lic, true, canEditHabilitacoes ? () => handleEditLicense(lic, true) : undefined)}
+                              {getLicenseStatusBadge(lic, true, () => handleEditLicense(lic, true))}
                             </div>
 
                             <div className="space-y-2 text-sm">

@@ -81,7 +81,7 @@ export default function GestaoDeTripulacao() {
   const { hasRole, userRoles, isLoading: rolesLoading } = useUserRole();
 
   const canEditProfile = hasRole('piloto_chefe') || hasRole('admin') || hasRole('gestor_master') || hasRole('financeiro_master');
-  const canEditHabilitacoes = hasRole('admin') || hasRole('gestor_master') || hasRole('piloto_chefe') || hasRole('coordenador_voo');
+  const canEditHabilitacoes = true; // Todos os colaboradores podem criar habilitações
   useEffect(() => {
     loadCrewMembers();
   }, [statusFilter]);
@@ -192,12 +192,7 @@ export default function GestaoDeTripulacao() {
     }
   };
   const saveLicense = async (licenseData: Partial<CrewLicense>) => {
-    if (!selectedCrew || !canEditHabilitacoes) {
-      toast({
-        title: "Sem permissão",
-        description: "Você não tem permissão para editar habilitações.",
-        variant: "destructive"
-      });
+    if (!selectedCrew) {
       return;
     }
     const payload = {
@@ -255,14 +250,6 @@ export default function GestaoDeTripulacao() {
     }
   };
   const deleteLicense = async (licenseId: string) => {
-    if (!canEditHabilitacoes) {
-      toast({
-        title: "Sem permissão",
-        description: "Você não tem permissão para deletar habilitações.",
-        variant: "destructive"
-      });
-      return;
-    }
     if (!confirm('Deseja realmente excluir esta licença?')) return;
 
     try {
@@ -557,7 +544,7 @@ export default function GestaoDeTripulacao() {
                     </CardTitle>
                     <Dialog open={isLicenseDialogOpen} onOpenChange={setIsLicenseDialogOpen}>
                       <DialogTrigger asChild>
-                        <Button onClick={() => setEditingLicense(null)} disabled={!canEditHabilitacoes}>
+                        <Button onClick={() => setEditingLicense(null)}>
                           <Plus className="mr-2" size={16} />
                           Nova Habilitação
                         </Button>
@@ -604,11 +591,9 @@ export default function GestaoDeTripulacao() {
                           {license.observacao && <p className="text-sm text-muted-foreground">{license.observacao}</p>}
                         </div>
                         <div className="flex gap-2 ml-4">
-                          {canEditHabilitacoes && (
-                            <Button variant="ghost" size="sm" onClick={() => deleteLicense(license.id)}>
-                              <Trash2 size={16} />
-                            </Button>
-                          )}
+                          <Button variant="ghost" size="sm" onClick={() => deleteLicense(license.id)}>
+                            <Trash2 size={16} />
+                          </Button>
                         </div>
                       </div>
                     </div>)}
