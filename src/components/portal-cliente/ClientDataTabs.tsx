@@ -483,22 +483,18 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                     <thead>
                       <tr className="border-b border-border">
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Descrição</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Valor</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Categoria</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Prazo Pagamento</th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Aeronave</th>
                       </tr>
                     </thead>
                     <tbody>
                       {bankReconciliations.map((record: any) => (
                         <tr key={record.id} className="border-b border-border/40 hover:bg-muted/50 transition-colors">
                           <td className="py-3 px-4 text-foreground whitespace-nowrap">{new Date(record.date).toLocaleDateString('pt-BR')}</td>
-                          <td className="py-3 px-4 text-foreground">
-                            <Badge variant="outline" className="capitalize">
-                              {record.type}
-                            </Badge>
-                          </td>
                           <td className="py-3 px-4 text-foreground">{record.description}</td>
                           <td className="py-3 px-4 text-foreground font-medium">
                             R$ {Number(record.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -509,6 +505,10 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                             </Badge>
                           </td>
                           <td className="py-3 px-4 text-foreground text-sm">{record.category || '-'}</td>
+                          <td className="py-3 px-4 text-foreground whitespace-nowrap">
+                            {record.prazo_pagamento ? new Date(record.prazo_pagamento).toLocaleDateString('pt-BR') : '-'}
+                          </td>
+                          <td className="py-3 px-4 text-foreground text-sm">{record.aircraft_id ? '✓' : '-'}</td>
                         </tr>
                       ))}
                     </tbody>
