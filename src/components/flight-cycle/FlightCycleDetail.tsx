@@ -156,51 +156,113 @@ export function FlightCycleDetail({
 
       {/* Flight Info Card */}
       <div className="rounded-xl border bg-card/50 backdrop-blur-sm p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-primary/10">
-              <Plane className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <div className="flex items-center gap-3">
-                <h2 className="text-2xl font-bold text-foreground">
-                  {cycle.aircraft?.registration || 'N/A'}
-                </h2>
-                <Badge 
-                  variant="outline" 
-                  className={cn("border-0", statusConfig.bgColor, statusConfig.color)}
-                >
-                  {statusConfig.label}
-                </Badge>
+        {!isEditing ? (
+          <>
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-primary/10">
+                  <Plane className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-2xl font-bold text-foreground">
+                      {cycle.aircraft?.registration || 'N/A'}
+                    </h2>
+                    <Badge
+                      variant="outline"
+                      className={cn("border-0", statusConfig.bgColor, statusConfig.color)}
+                    >
+                      {statusConfig.label}
+                    </Badge>
+                  </div>
+                  <p className="text-muted-foreground">
+                    {cycle.client?.company_name || cycle.client?.proprietario || 'Cliente não definido'}
+                  </p>
+                </div>
               </div>
-              <p className="text-muted-foreground">
-                {cycle.client?.company_name || cycle.client?.proprietario || 'Cliente não definido'}
-              </p>
-            </div>
-          </div>
-          
-          <div className="text-right">
-            <p className="text-4xl font-bold text-foreground">{completionPercentage}%</p>
-            <p className="text-sm text-muted-foreground">Conclusão</p>
-          </div>
-        </div>
 
-        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4" />
-            <span className="font-mono">{cycle.origin_icao} → {cycle.destination_icao}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            <span>{format(new Date(cycle.flight_date), "dd/MM/yyyy", { locale: ptBR })}</span>
-          </div>
-          {cycle.flight_duration_hours && (
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
-              <span>{cycle.flight_duration_hours}h de voo</span>
+              <div className="text-right">
+                <p className="text-4xl font-bold text-foreground">{completionPercentage}%</p>
+                <p className="text-sm text-muted-foreground">Conclusão</p>
+              </div>
             </div>
-          )}
-        </div>
+
+            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                <span className="font-mono">{cycle.origin_icao} → {cycle.destination_icao}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                <span>{format(new Date(cycle.flight_date), "dd/MM/yyyy", { locale: ptBR })}</span>
+              </div>
+              {cycle.flight_duration_hours && (
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  <span>{cycle.flight_duration_hours}h de voo</span>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          /* Edit Mode */
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-foreground">Editar Ciclo de Voo</h3>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Cliente</Label>
+                <Select
+                  value={editData.client_id}
+                  onValueChange={(v) => setEditData(prev => ({ ...prev, client_id: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients.map(client => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.company_name || client.proprietario || 'Sem nome'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Duração do Voo (horas)</Label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  value={editData.flight_duration_hours}
+                  onChange={(e) => setEditData(prev => ({ ...prev, flight_duration_hours: e.target.value }))}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Origem (ICAO)</Label>
+                <Input
+                  value={editData.origin_icao}
+                  onChange={(e) => setEditData(prev => ({ ...prev, origin_icao: e.target.value.toUpperCase() }))}
+                  placeholder="SBSP"
+                  maxLength={4}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Destino (ICAO)</Label>
+                <Input
+                  value={editData.destination_icao}
+                  onChange={(e) => setEditData(prev => ({ ...prev, destination_icao: e.target.value.toUpperCase() }))}
+                  placeholder="SBBR"
+                  maxLength={4}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Status Actions */}
         <div className="flex gap-2 mt-4 pt-4 border-t border-border/50">
