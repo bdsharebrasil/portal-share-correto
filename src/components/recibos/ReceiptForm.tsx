@@ -16,6 +16,7 @@ import { FileText, Star } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { ClienteSearchInput } from "./ClienteSearchInput";
+import { ClientDataDisplay } from "./ClientDataDisplay";
 
 interface ReceiptFormProps {
   clientesAtivos: any[];
