@@ -29,7 +29,7 @@ export function ContasReceber() {
 
   const defaultColumnWidths = {
     doc: 80,
-    referencia: 120,
+    categoria: 140,
     cliente: 140,
     descricao: 180,
     vencimento: 110,
@@ -877,7 +877,7 @@ export function ContasReceber() {
   };
 
   const getGridTemplate = () => {
-    return `${columnWidths.doc}px ${columnWidths.referencia}px minmax(${columnWidths.cliente}px, 1fr) minmax(${columnWidths.descricao}px, 1.5fr) ${columnWidths.vencimento}px ${columnWidths.valor}px ${columnWidths.status}px ${columnWidths.acoes}px`;
+    return `${columnWidths.doc}px ${columnWidths.categoria}px minmax(${columnWidths.cliente}px, 1fr) minmax(${columnWidths.descricao}px, 1.5fr) ${columnWidths.vencimento}px ${columnWidths.valor}px ${columnWidths.status}px ${columnWidths.acoes}px`;
   };
 
   return (
