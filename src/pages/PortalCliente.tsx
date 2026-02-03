@@ -510,7 +510,7 @@ export default function PortalCliente() {
                 {/* Informações Adicionais e Aeronave */}
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
                   <div className="lg:col-span-2">
-                    <Card className="border border-white/10 bg-slate-800/30 backdrop-blur-sm h-full">
+                    <Card className="border border-white/10 bg-white/5 backdrop-blur-sm h-full">
                       <CardHeader className="pb-4 border-b border-white/10">
                         <CardTitle className="text-foreground text-lg">Mais Informações</CardTitle>
                       </CardHeader>
