@@ -3182,10 +3182,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     </td>
                     <td className="p-2 text-center" style={{ width: `${columnWidths.acoes}px`, overflow: 'hidden' }}>
                       <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => handleEditEntry(e)} className="p-2 hover:bg-sky-500/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 text-sky-400 hover:text-sky-300" title="Editar lançamento">
+                        <button onClick={() => handleEditEntry(e)} className="p-2 hover:bg-sky-500/20 rounded-lg transition-all text-sky-400 hover:text-sky-300 hover:scale-110" title="Editar lançamento">
                           <Edit size={16} />
                         </button>
-                        <button onClick={() => handleDeleteEntry(e.id)} className="p-2 hover:bg-rose-500/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 text-rose-400 hover:text-rose-300" title="Deletar lançamento">
+                        <button onClick={() => handleDeleteEntry(e.id)} className="p-2 hover:bg-rose-500/20 rounded-lg transition-all text-rose-400 hover:text-rose-300 hover:scale-110" title="Deletar lançamento">
                           <Trash2 size={16} />
                         </button>
                       </div>
