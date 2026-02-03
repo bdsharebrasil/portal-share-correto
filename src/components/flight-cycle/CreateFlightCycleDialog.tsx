@@ -5,9 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FlightCycle } from "@/types/flightCycle";
+import { FlightCycle, CrewMember } from "@/types/flightCycle";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { useCrewMembers } from "@/hooks/useCrewMembers";
 
 interface CreateFlightCycleDialogProps {
   open: boolean;
@@ -31,6 +32,7 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
   const [clients, setClients] = useState<Client[]>([]);
   const [aircraft, setAircraft] = useState<Aircraft[]>([]);
   const [loading, setLoading] = useState(false);
+  const { crewMembers, fetchCrewMembers } = useCrewMembers();
 
   const [formData, setFormData] = useState({
     client_id: '',
@@ -44,6 +46,8 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
     is_controlled_airport: false,
     has_private_hangar: false,
     flight_duration_hours: '',
+    pic_name: '',
+    sic_name: '',
   });
 
   useEffect(() => {
@@ -57,9 +61,12 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
       supabase.from('clients').select('id, company_name, proprietario').order('company_name'),
       supabase.from('aircraft').select('id, registration, model').order('registration'),
     ]);
-    
+
     if (clientsRes.data) setClients(clientsRes.data);
     if (aircraftRes.data) setAircraft(aircraftRes.data);
+
+    // Fetch crew members
+    await fetchCrewMembers();
   };
 
   const handleSubmit = async () => {
@@ -70,8 +77,10 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
         flight_duration_hours: formData.flight_duration_hours ? parseFloat(formData.flight_duration_hours) : null,
         return_date: formData.return_date || null,
         status: 'confirmado',
+        pic_name: formData.pic_name || null,
+        sic_name: formData.sic_name || null,
       });
-      
+
       // Reset form
       setFormData({
         client_id: '',
@@ -85,6 +94,8 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
         is_controlled_airport: false,
         has_private_hangar: false,
         flight_duration_hours: '',
+        pic_name: '',
+        sic_name: '',
       });
       onOpenChange(false);
     } finally {
@@ -183,10 +194,10 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Tipo de Voo</Label>
-              <Select 
-                value={formData.flight_type} 
-                onValueChange={(v) => setFormData(prev => ({ 
-                  ...prev, 
+              <Select
+                value={formData.flight_type}
+                onValueChange={(v) => setFormData(prev => ({
+                  ...prev,
                   flight_type: v as 'ida' | 'ida_volta' | 'pernoite',
                   has_overnight: v === 'pernoite'
                 }))}
@@ -210,6 +221,46 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
                 onChange={(e) => setFormData(prev => ({ ...prev, flight_duration_hours: e.target.value }))}
                 placeholder="2.5"
               />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>PIC (Pilot in Command)</Label>
+              <Select
+                value={formData.pic_name}
+                onValueChange={(v) => setFormData(prev => ({ ...prev, pic_name: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o PIC" />
+                </SelectTrigger>
+                <SelectContent>
+                  {crewMembers.map(member => (
+                    <SelectItem key={member.id} value={member.full_name}>
+                      {member.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>SIC (Second in Command)</Label>
+              <Select
+                value={formData.sic_name}
+                onValueChange={(v) => setFormData(prev => ({ ...prev, sic_name: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o SIC" />
+                </SelectTrigger>
+                <SelectContent>
+                  {crewMembers.map(member => (
+                    <SelectItem key={member.id} value={member.full_name}>
+                      {member.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

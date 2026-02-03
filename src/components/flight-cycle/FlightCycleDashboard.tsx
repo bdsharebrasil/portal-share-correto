@@ -12,14 +12,15 @@ import { FlightCycle, FlightCycleStatus, FLIGHT_STATUS_CONFIG } from "@/types/fl
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function FlightCycleDashboard() {
-  const { 
-    cycles, 
-    loading, 
-    createCycle, 
-    updateCycleStatus, 
-    updateExpenseStatus, 
+  const {
+    cycles,
+    loading,
+    createCycle,
+    updateCycle,
+    updateCycleStatus,
+    updateExpenseStatus,
     addManualExpense,
-    getStatistics 
+    getStatistics
   } = useFlightCycles();
   
   const [selectedCycle, setSelectedCycle] = useState<FlightCycle | null>(null);
@@ -52,6 +53,7 @@ export function FlightCycleDashboard() {
         onUpdateExpenseStatus={updateExpenseStatus}
         onUpdateCycleStatus={updateCycleStatus}
         onAddExpense={addManualExpense}
+        onUpdateCycle={updateCycle}
       />
     );
   }

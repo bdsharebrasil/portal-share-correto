@@ -208,6 +208,23 @@ export function useFlightCycles() {
     }
   };
 
+  const updateCycle = async (cycleId: string, updates: Partial<FlightCycle>) => {
+    try {
+      const { error } = await supabase
+        .from('flight_cycles')
+        .update(updates)
+        .eq('id', cycleId);
+
+      if (error) throw error;
+
+      toast.success('Ciclo atualizado com sucesso!');
+      await fetchCycles();
+    } catch (err: any) {
+      toast.error('Erro ao atualizar ciclo');
+      throw err;
+    }
+  };
+
   const deleteCycle = async (cycleId: string) => {
     try {
       const { error } = await supabase
@@ -216,7 +233,7 @@ export function useFlightCycles() {
         .eq('id', cycleId);
 
       if (error) throw error;
-      
+
       toast.success('Ciclo excluído!');
       await fetchCycles();
     } catch (err: any) {
@@ -248,6 +265,7 @@ export function useFlightCycles() {
     error,
     fetchCycles,
     createCycle,
+    updateCycle,
     updateCycleStatus,
     updateExpenseStatus,
     addManualExpense,

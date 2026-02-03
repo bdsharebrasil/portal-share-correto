@@ -7,12 +7,23 @@ export type FlightCycleStatus =
   | 'em_cobranca' 
   | 'finalizado';
 
-export type ExpenseStatus = 
-  | 'aguardando' 
-  | 'recebida' 
-  | 'enviada' 
-  | 'paga' 
-  | 'atrasada' 
+export interface CrewMember {
+  id: string;
+  user_id: string | null;
+  canac: string;
+  full_name: string;
+  birth_date: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  status: string;
+}
+
+export type ExpenseStatus =
+  | 'aguardando'
+  | 'recebida'
+  | 'enviada'
+  | 'paga'
+  | 'atrasada'
   | 'nao_aplicavel';
 
 export type ExpenseCategory = 'imediata' | 'regulatoria' | 'variavel';
@@ -33,6 +44,8 @@ export interface FlightCycle {
   status: FlightCycleStatus;
   responsible_user_id: string | null;
   observations: string | null;
+  pic_name: string | null;
+  sic_name: string | null;
   created_at: string;
   updated_at: string;
   started_at: string | null;
