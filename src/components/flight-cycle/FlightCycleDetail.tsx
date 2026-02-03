@@ -198,7 +198,7 @@ export function FlightCycleDetail({
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-4">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
                 <span className="font-mono">{cycle.origin_icao} → {cycle.destination_icao}</span>
@@ -211,6 +211,22 @@ export function FlightCycleDetail({
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4" />
                   <span>{cycle.flight_duration_hours}h de voo</span>
+                </div>
+              )}
+            </div>
+
+            {/* Tripulação */}
+            <div className="flex flex-wrap gap-4 text-sm">
+              {cycle.pic_name && (
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-primary" />
+                  <span><span className="text-muted-foreground">PIC:</span> {cycle.pic_name}</span>
+                </div>
+              )}
+              {cycle.sic_name && (
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-primary" />
+                  <span><span className="text-muted-foreground">SIC:</span> {cycle.sic_name}</span>
                 </div>
               )}
             </div>
