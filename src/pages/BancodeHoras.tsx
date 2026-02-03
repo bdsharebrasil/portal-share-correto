@@ -93,13 +93,6 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
           borrower_client:clients!aircraft_loans_borrower_client_id_fkey (
             id,
             company_name
-          ),
-          logbook_entry:logbook_entries!aircraft_loans_logbook_entry_id_fkey (
-            id,
-            departure_aerodrome,
-            arrival_aerodrome,
-            fuel_added,
-            pic_name
           )
         `)
         .eq('lender_aircraft_id', aircraftId)
