@@ -12,6 +12,7 @@ import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { AddExpenseDialog } from "./AddExpenseDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { useCrewMembers } from "@/hooks/useCrewMembers";
 
 interface Client {
   id: string;
