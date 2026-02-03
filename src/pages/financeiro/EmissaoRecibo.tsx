@@ -180,31 +180,31 @@ export default function EmissaoRecibo() {
       console.log("Recibo inserido:", receiptData);
 
       // ===================== PROCESSAR REEMBOLSO (bank_reconciliations + rateio) =====================
-      if (isReembolso && formData.clienteId) {
+      if (isReembolso && (originalForm.clienteId || formData.client_id)) {
         try {
           console.log("📨 Processando reembolso com submissão de recibo...");
 
           // Determina o valor total e percentual corretamente
-          const isRateado = formData.reembolsoRateado === true;
-          const valorRecibo = Number(formData.valor); // valor que o cliente vai pagar
-          const valorTotalDespesa = isRateado ? Number(formData.reembolsoValorTotal) : valorRecibo;
-          const percentual = isRateado ? formData.reembolsoPorcentagem : "100";
+          const isRateado = originalForm.reembolsoRateado === true;
+          const valorRecibo = Number(formData.amount); // valor que o cliente vai pagar
+          const valorTotalDespesa = isRateado ? Number(originalForm.reembolsoValorTotal) : valorRecibo;
+          const percentual = isRateado ? originalForm.reembolsoPorcentagem : "100";
 
           // Preparar payload para o novo serviço
           const submissionPayload = {
             type: "cliente" as const,
-            date: formData.prazoMaximoQuitacao || formData.dataEmissao,
-            description: `Reembolso - ${formData.servicoDescricao.trim()}${
-              formData.reembolsoNumeroDocumento ? ` (Doc: ${formData.reembolsoNumeroDocumento})` : ""
+            date: originalForm.prazoMaximoQuitacao || originalForm.dataEmissao,
+            description: `Reembolso - ${formData.description?.trim()}${
+              originalForm.reembolsoNumeroDocumento ? ` (Doc: ${originalForm.reembolsoNumeroDocumento})` : ""
             }`,
             amount: valorRecibo,
             status: "pendente",
-            client_id: formData.clienteId,
-            aircraft_id: formData.aircraftId || null,
-            categoria_movimentacao_id: formData.reembolsoCategoriaId || null,
+            client_id: originalForm.clienteId || formData.client_id,
+            aircraft_id: originalForm.aircraftId || formData.aircraft_id || null,
+            categoria_movimentacao_id: originalForm.reembolsoCategoriaId || formData.categoria_movimentacao_id || null,
             tipo_documento: isRateado ? "rateio" as const : "recibo" as const,
-            doc: formData.reembolsoNumeroDocumento || null,
-            payment_term: formData.prazoMaximoQuitacao || null,
+            doc: originalForm.reembolsoNumeroDocumento || null,
+            payment_term: originalForm.prazoMaximoQuitacao || null,
             percentual: percentual,
             forma_pagamento: isRateado ? "rateio_direto" : "empresa_paga",
             afeta_caixa_empresa: true,
