@@ -62,9 +62,15 @@ export function LicenseExpiryDialog({
         return;
       }
 
-      const updateData = isCMA
+      const updateData: any = isCMA
         ? { validade_cma: expiryDate }
         : { expiry_date: expiryDate };
+
+      // Add CMA-specific fields if editing CMA
+      if (isCMA) {
+        updateData.CMA = cmaClass || null;
+        updateData.FS_RH = fsRh || null;
+      }
 
       console.log("[License] Attempting to update:", { id: license.id, ...updateData });
 
@@ -83,13 +89,13 @@ export function LicenseExpiryDialog({
         throw new Error(errorMessage);
       }
 
-      toast.success("Validade atualizada com sucesso!");
+      toast.success("Habilitação atualizada com sucesso!");
       onSuccess();
       onOpenChange(false);
     } catch (error) {
       console.error("Error updating license:", error);
 
-      let errorMessage = "Erro ao atualizar validade";
+      let errorMessage = "Erro ao atualizar habilitação";
       if (error instanceof Error) {
         errorMessage = error.message;
         if (errorMessage.includes("RLS")) {
