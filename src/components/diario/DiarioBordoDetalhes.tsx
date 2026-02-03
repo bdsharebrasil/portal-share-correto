@@ -157,6 +157,33 @@ const expandClientsWithPartners = (clients: any[]) => {
   return expanded;
 };
 
+// ===================== EXTRAIR PARCEIROS DE UM CLIENTE =====================
+const getPartnersFromClient = (client: any) => {
+  const partners = [];
+  if (client?.partner_name) {
+    partners.push({
+      name: client.partner_name,
+      cpf: client.partner_cpf,
+      index: 1
+    });
+  }
+  if (client?.partner_name2) {
+    partners.push({
+      name: client.partner_name2,
+      cpf: client.partner_cpf2,
+      index: 2
+    });
+  }
+  if (client?.partner_name3) {
+    partners.push({
+      name: client.partner_name3,
+      cpf: client.partner_cpf3,
+      index: 3
+    });
+  }
+  return partners;
+};
+
 // ===================== CÁLCULO DE CUSTO COM RATEIO =====================
 const calculateCostPerPartner = (
   totalCost: number,
