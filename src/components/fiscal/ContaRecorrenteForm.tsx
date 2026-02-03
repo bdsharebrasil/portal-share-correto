@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
+import { useGroupedCategories } from "@/hooks/useGroupedCategories";
 import { format } from "date-fns";
 import { X, Save } from "lucide-react";
 
