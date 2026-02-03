@@ -221,11 +221,31 @@ export function ContaRecorrenteForm({
 
             <div>
               <Label htmlFor="fornecedor">Fornecedor/Beneficiário *</Label>
-              <Input
-                id="fornecedor"
-                placeholder="Nome do fornecedor"
-                {...register("fornecedor", { required: "Fornecedor é obrigatório" })}
-                className={errors.fornecedor ? "border-destructive" : ""}
+              <AutocompleteInput
+                value={watch("fornecedor") || ""}
+                onChange={(value) => {
+                  setValue("fornecedor", value);
+                }}
+                onSelect={(option) => {
+                  const fornecedor = fornecedorProfiles.find(f => f.id === option.id);
+                  if (fornecedor) {
+                    setValue("fornecedor", fornecedor.full_name);
+                  }
+                }}
+                options={fornecedorProfiles.map(f => {
+                  // Adicionar apelido ou tipo na label para diferenciar
+                  let label = f.full_name;
+                  if (f.type === "fornecedor" && f.apelido) {
+                    label = `${f.full_name} (${f.apelido})`;
+                  } else if (f.type === "colaborador") {
+                    label = `${f.full_name} (Colaborador)`;
+                  }
+                  return {
+                    id: f.id,
+                    label
+                  };
+                })}
+                placeholder="Buscar ou digite um fornecedor"
               />
               {errors.fornecedor && <span className="text-xs text-destructive">{errors.fornecedor.message}</span>}
             </div>
