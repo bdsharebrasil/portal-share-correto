@@ -358,47 +358,12 @@ export function NotasFiscaisSaida() {
           description: "Nota fiscal atualizada com sucesso",
         });
       } else {
-        let insertedNota = null;
-        let error = null;
-
-        const { data: result, error: insertError } = await supabase
+        const { error } = await supabase
           .from("notas_fiscais_saida")
           .insert([notaData])
-          .select()
-          .single();
-
-        insertedNota = result;
-        error = insertError;
-
-        // Se tiver erro com campo aeronave, tenta sem ele
-        if (error && error.message.includes("aeronave")) {
-          const { aeronave, ...dataWithoutAircraft } = notaData;
-          const { data: retryResult, error: retryError } = await supabase
-            .from("notas_fiscais_saida")
-            .insert([dataWithoutAircraft])
-            .select()
-            .single();
-
-          insertedNota = retryResult;
-          error = retryError;
-        }
+          .select();
 
         if (error) throw error;
-
-        // Se criada com status "recebido"
-        if (notaData.status === "recebido" && user && insertedNota) {
-          await supabase.from("controle_bancario").insert({
-            descricao: `NF Saída ${notaData.numero} - ${notaData.cliente_nome}${formData.aeronave_registration ? ` (${formData.aeronave_registration})` : ""}`,
-            valor: notaData.valor,
-            data_vencimento: notaData.data_vencimento,
-            data: new Date().toISOString().split("T")[0],
-            tipo_movimento: "entrada",
-            categoria_id: "2874b45b-a3bb-4bec-8f7e-74b328f8693c",
-            status: "confirmado",
-            numero_documento: notaData.numero,
-            criado_por: user.id,
-          });
-        }
 
         toast({
           title: "Sucesso",
