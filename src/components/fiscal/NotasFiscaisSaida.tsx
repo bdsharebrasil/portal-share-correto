@@ -179,14 +179,13 @@ interface NotaFiscalSaida {
   data_vencimento: string;
   valor: number;
   categoria: string;
-  descricao: string;
+  descricao: string | null;
   status: string;
-  arquivo_pdf_url?: string;
-  criado_em?: string;
-  aeronave?: string;
-  aircraft_id?: string;
-  aeronave_registration?: string;
-  aeronave_id?: string;
+  arquivo_pdf_url: string | null;
+  criado_em: string | null;
+  atualizado_em: string | null;
+  criado_por: string | null;
+  aeronave: string | null;
 }
 
 interface Cliente {
