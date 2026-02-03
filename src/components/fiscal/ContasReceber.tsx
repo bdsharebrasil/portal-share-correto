@@ -1459,14 +1459,15 @@ export function ContasReceber() {
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <a
-                                    href={conta.arquivo_pdf_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                  <button
+                                    onClick={() => {
+                                      setPdfViewerUrl(conta.arquivo_pdf_url);
+                                      setShowPdfViewerDialog(true);
+                                    }}
                                     className="text-muted-foreground hover:text-primary transition-colors p-1"
                                   >
                                     <FileText className="w-4 h-4" />
-                                  </a>
+                                  </button>
                                 </TooltipTrigger>
                                 <TooltipContent>Ver PDF</TooltipContent>
                               </Tooltip>
