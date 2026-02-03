@@ -19,7 +19,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useAuth } from "@/contexts/AuthContext";
 // CORREÇÃO: Adicionado 'pdf' na importação abaixo
 import { Document, Page, Text, View, StyleSheet, Image, pdf } from '@react-pdf/renderer';
-import { insertReceiptToBankReconciliations } from "@/services/receiptSubmitHandler";
 
 // --- CONFIGURAÇÃO DO PDF ---
 
