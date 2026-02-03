@@ -126,11 +126,11 @@ export function ClienteSearchInput({
     <div className="space-y-4">
       <Tabs defaultValue="search" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="search" className="rounded-[10px] overflow-hidden mx-12 border border-blue-600/90">
+          <TabsTrigger value="search" className="rounded-[10px] overflow-hidden mx-12 border-[0.8px] border-blue-500/38">
             <Search className="h-4 w-4 mr-2" />
             Buscar Cliente
           </TabsTrigger>
-          <TabsTrigger value="manual" className="rounded-[9px] overflow-hidden mx-12 gap-1 border border-blue-600/90">
+          <TabsTrigger value="manual" className="rounded-[9px] overflow-hidden mx-12 gap-1 border-[0.8px] border-blue-500/41">
             <Edit className="h-4 w-4 mr-2" />
             Entrada Manual
           </TabsTrigger>
@@ -198,40 +198,6 @@ export function ClienteSearchInput({
             </div>
           )}
 
-          {/* Cliente selecionado */}
-          {isClienteSelected && (
-            <div className="border border-green-500/30 bg-green-500/5 rounded-lg p-3">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center gap-2">
-                    <Check className="h-4 w-4 text-green-600" />
-                    <span className="font-medium text-sm">{value.nome}</span>
-                  </div>
-                  {value.documento && (
-                    <div className="text-xs text-muted-foreground">
-                      Documento: {value.documento}
-                    </div>
-                  )}
-                  {value.cidade && (
-                    <div className="text-xs text-muted-foreground">
-                      {value.cidade}
-                      {value.cidade && value.uf ? ", " : ""}
-                      {value.uf}
-                    </div>
-                  )}
-                </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleClear}
-                  className="text-xs"
-                >
-                  Alterar
-                </Button>
-              </div>
-            </div>
-          )}
         </TabsContent>
 
         {/* TAB: ENTRADA MANUAL */}
