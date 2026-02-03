@@ -478,41 +478,100 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
               {bankReconciliations.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">Nenhum registro financeiro encontrado</p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Data</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tipo</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Descrição</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Valor</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Categoria</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {bankReconciliations.map((record: any) => (
-                        <tr key={record.id} className="border-b border-border/40 hover:bg-muted/50 transition-colors">
-                          <td className="py-3 px-4 text-foreground whitespace-nowrap">{new Date(record.date).toLocaleDateString('pt-BR')}</td>
-                          <td className="py-3 px-4 text-foreground">
-                            <Badge variant="outline" className="capitalize">
-                              {record.type}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4 text-foreground">{record.description}</td>
-                          <td className="py-3 px-4 text-foreground font-medium">
-                            R$ {Number(record.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </td>
-                          <td className="py-3 px-4">
-                            <Badge variant="outline" className="capitalize">
-                              {record.status}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-4 text-foreground text-sm">{record.category || '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="space-y-3">
+                  {bankReconciliations.map((record: any) => {
+                    const statusColorMap: any = {
+                      'enviado': 'bg-blue-500/10 border-blue-500/30 text-blue-300',
+                      'pendente': 'bg-yellow-500/10 border-yellow-500/30 text-yellow-300',
+                      'pago': 'bg-green-500/10 border-green-500/30 text-green-300',
+                      'recebido': 'bg-green-500/10 border-green-500/30 text-green-300',
+                      'cancelado': 'bg-red-500/10 border-red-500/30 text-red-300',
+                    };
+                    const statusColor = statusColorMap[record.status?.toLowerCase()] || 'bg-gray-500/10 border-gray-500/30 text-gray-300';
+
+                    const categoryEmoji: any = {
+                      'ADM SHARE': '📋',
+                      'COMBUSTÍVEL': '⛽',
+                      'MANUTENÇÃO': '🔧',
+                      'HOTEL': '🏨',
+                      'ALIMENTAÇÃO': '🍽️',
+                      'TRANSPORTE': '🚗',
+                    };
+                    const emoji = Object.keys(categoryEmoji).find(key => record.category?.includes(key))
+                      ? categoryEmoji[Object.keys(categoryEmoji).find(key => record.category?.includes(key))!]
+                      : '💳';
+
+                    return (
+                      <div
+                        key={record.id}
+                        className="p-4 rounded-lg border border-border/50 bg-gradient-to-r from-slate-900/40 to-slate-800/40 hover:border-border hover:bg-slate-900/60 transition-all duration-300 backdrop-blur-sm"
+                      >
+                        <div className="flex items-start gap-4">
+                          {/* Ícone/Emoji da Categoria */}
+                          <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-blue-500/20 border border-primary/30 flex items-center justify-center text-xl">
+                            {emoji}
+                          </div>
+
+                          {/* Informações Principais */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-semibold text-foreground truncate">
+                                {record.description}
+                              </h3>
+                              <Badge className={`shrink-0 border ${statusColor} capitalize text-xs`}>
+                                {record.status}
+                              </Badge>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-0.5">Data</p>
+                                <p className="text-foreground font-medium">
+                                  {new Date(record.date).toLocaleDateString('pt-BR')}
+                                </p>
+                              </div>
+
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-0.5">Categoria</p>
+                                <p className="text-foreground font-medium text-sm">
+                                  {record.category || '—'}
+                                </p>
+                              </div>
+
+                              {record.prazo_pagamento && (
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-0.5">Prazo Pagamento</p>
+                                  <p className="text-foreground font-medium">
+                                    {new Date(record.prazo_pagamento).toLocaleDateString('pt-BR')}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Valor e Ações */}
+                          <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                            <div className="text-right">
+                              <p className="text-xs text-muted-foreground mb-1">Valor</p>
+                              <p className="text-lg font-bold text-emerald-400">
+                                R$ {Number(record.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10.5 1.5H9.5V3h1V1.5zM4 10.5H2.5v1H4v-1zm12.5 0H15v1h1.5v-1zM10.5 15H9.5v1.5h1V15z"/>
+                                <path d="M10 3a7 7 0 100 14 7 7 0 000-14zm0 12.5a5.5 5.5 0 110-11 5.5 5.5 0 0111 0z"/>
+                              </svg>
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

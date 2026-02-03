@@ -227,6 +227,12 @@ export function useWeather() {
 
         if (!response.ok) {
           console.error(`[METAR] ❌ HTTP Error: ${response.status} ${response.statusText}`);
+
+          // For 503/504 errors, these are often transient - will be retried by the outer loop
+          if (response.status === 503 || response.status === 504) {
+            throw new Error(`API error: ${response.status} (transient)`);
+          }
+
           throw new Error(`API error: ${response.status}`);
         }
 
@@ -234,7 +240,7 @@ export function useWeather() {
 
         // The backend returns the METAR data in the 'data' field
         const metarObj = responseData.data;
-        const metar = metarObj?.rawOb || metarObj?.raw_text || metarObj?.raw;
+        const metar = metarObj?.rawText || metarObj?.rawOb || metarObj?.raw_text || metarObj?.raw;
 
         if (!metar) {
           console.error('[METAR] ❌ Sem texto METAR na resposta');
@@ -286,6 +292,9 @@ export function useWeather() {
             console.warn('[METAR]   1. Sem conexão de internet');
             console.warn('[METAR]   2. Backend temporariamente indisponível');
             console.warn('[METAR]   3. Problema de rede');
+          } else if (fetchError.message.includes('503') || fetchError.message.includes('504')) {
+            // Transient error - will retry via retry wrapper
+            throw fetchError;
           } else {
             console.warn('[METAR] ❌ Erro ao buscar METAR:', fetchError.message);
           }
@@ -294,6 +303,13 @@ export function useWeather() {
         setDefaultWeather(aerodrome);
       }
     } catch (error) {
+      // Check if this is a transient error that should be retried
+      if (error instanceof Error && (error.message.includes('503') || error.message.includes('504'))) {
+        // This is a transient error - don't set error state yet
+        console.warn(`[METAR] ⚠️ Erro transiente (${error.message}) - será retentado`);
+        throw error; // Re-throw to outer handler
+      }
+
       console.warn('[METAR] ⚠️ Usando dados locais como fallback (outer)');
       setDefaultWeather(aerodrome);
     } finally {
@@ -306,18 +322,31 @@ export function useWeather() {
     let isMounted = true;
     let isFetching = false;
 
-    // Função auxiliar para evitar requisições simultâneas
-    const safeFetch = async () => {
+    // Função auxiliar para evitar requisições simultâneas com retry para erros transientes
+    const safeFetch = async (retryCount = 0, maxRetries = 3) => {
       if (isFetching || !isMounted) return;
       isFetching = true;
       try {
         await fetchWeatherFromAvwx('SBGR');
+        isFetching = false; // Reset flag on success
       } catch (error) {
-        // Erro já foi tratado dentro de fetchWeatherFromAvwx
-        // Este catch é apenas para garantir que nenhuma promessa seja rejeitada
-        console.log('[METAR] ✅ Erro tratado internamente, usando fallback');
-      } finally {
-        isFetching = false;
+        // Check if this is a transient error that should be retried
+        if (error instanceof Error && (error.message.includes('503') || error.message.includes('504')) && retryCount < maxRetries) {
+          isFetching = false; // Allow retry
+          const delayMs = Math.min(1000 * Math.pow(2, retryCount), 10000); // Exponential backoff
+          console.log(`[METAR] ⏳ Retentando em ${delayMs}ms... (${retryCount + 1}/${maxRetries})`);
+          setTimeout(() => {
+            if (isMounted) {
+              safeFetch(retryCount + 1, maxRetries).catch(() => {
+                // Final catch to prevent unhandled rejection
+              });
+            }
+          }, delayMs);
+        } else {
+          // Erro já foi tratado dentro de fetchWeatherFromAvwx ou máximo de retentativas alcançado
+          console.log('[METAR] ✅ Erro tratado internamente, usando fallback');
+          isFetching = false;
+        }
       }
     };
 

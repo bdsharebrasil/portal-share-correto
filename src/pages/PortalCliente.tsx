@@ -375,7 +375,7 @@ export default function PortalCliente() {
           }
 
           .portal-cliente-container {
-            background-color: rgba(11, 11, 23, 1);
+            background-color: rgb(15, 18, 26);
             border-radius: 26px;
             overflow: hidden;
           }
@@ -455,7 +455,7 @@ export default function PortalCliente() {
                 onSelect={handleAircraftChange}
               >
                 {/* Dados da Empresa ou Sócio */}
-                <Card className="border border-white/10 bg-slate-800/30 backdrop-blur-sm mb-8">
+                <Card className="border border-white/10 bg-white/5 backdrop-blur-sm mb-8">
                   <CardHeader className="pb-4 border-b border-white/10">
                     <CardTitle className="flex items-center gap-2 text-foreground text-lg">
                       <Building className="h-5 w-5 text-blue-400" />
@@ -510,7 +510,7 @@ export default function PortalCliente() {
                 {/* Informações Adicionais e Aeronave */}
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-8">
                   <div className="lg:col-span-2">
-                    <Card className="border border-white/10 bg-slate-800/30 backdrop-blur-sm h-full">
+                    <Card className="border border-white/10 bg-white/5 backdrop-blur-sm h-full">
                       <CardHeader className="pb-4 border-b border-white/10">
                         <CardTitle className="text-foreground text-lg">Mais Informações</CardTitle>
                       </CardHeader>
@@ -529,7 +529,7 @@ export default function PortalCliente() {
 
                   {aircraft && (
                     <div className="lg:col-span-3">
-                      <Card className="border border-white/10 bg-slate-800/30 backdrop-blur-sm h-full">
+                      <Card className="border border-white/10 bg-white/5 backdrop-blur-sm h-full">
                         <CardHeader className="pb-4 border-b border-white/10">
                           <div className="flex items-center justify-between gap-3">
                             <div>
