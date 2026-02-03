@@ -333,8 +333,16 @@ export function ReceiptForm({
         notaFiscal: formData.reembolsoNotaFiscalFile
       },
 
-      // Dados originais do formulário (para compatibilidade)
-      originalFormData: formData
+      // Dados originais do formulário (para compatibilidade) - com dados sincronizados
+      originalFormData: {
+        ...formData,
+        pagadorNome: finalPagadorNome,
+        pagadorDocumento: finalPagadorDocumento,
+        pagadorEndereco: finalPagadorEndereco,
+        pagadorCidade: finalPagadorCidade,
+        pagadorUF: finalPagadorUF,
+        clienteId: clienteSearchValue.clienteId || formData.clienteId
+      }
     };
 
     onSubmit(submissionData);
