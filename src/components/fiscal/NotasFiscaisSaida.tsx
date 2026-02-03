@@ -415,7 +415,7 @@ export function NotasFiscaisSaida() {
       categoria: nota.categoria,
       descricao: nota.descricao || "",
       status: nota.status,
-      aeronave_registration: nota.aeronave || "",
+      aeronave: nota.aeronave || "",
     });
     setPdfUrl(nota.arquivo_pdf_url || "");
     setOpenDialog(true);
