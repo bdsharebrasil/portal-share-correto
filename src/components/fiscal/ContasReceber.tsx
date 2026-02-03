@@ -61,6 +61,8 @@ export function ContasReceber() {
   const [comprovanteFile, setComprovanteFile] = useState<File | null>(null);
   const [isUploadingComprovante, setIsUploadingComprovante] = useState(false);
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const [showPdfViewerDialog, setShowPdfViewerDialog] = useState(false);
+  const [pdfViewerUrl, setPdfViewerUrl] = useState<string>("");
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
 
