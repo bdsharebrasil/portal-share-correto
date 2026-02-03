@@ -29,7 +29,7 @@ export function ContasReceber() {
 
   const defaultColumnWidths = {
     doc: 80,
-    referencia: 120,
+    categoria: 140,
     cliente: 140,
     descricao: 180,
     vencimento: 110,
@@ -61,6 +61,8 @@ export function ContasReceber() {
   const [comprovanteFile, setComprovanteFile] = useState<File | null>(null);
   const [isUploadingComprovante, setIsUploadingComprovante] = useState(false);
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+  const [showPdfViewerDialog, setShowPdfViewerDialog] = useState(false);
+  const [pdfViewerUrl, setPdfViewerUrl] = useState<string>("");
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
 
@@ -877,7 +879,7 @@ export function ContasReceber() {
   };
 
   const getGridTemplate = () => {
-    return `${columnWidths.doc}px ${columnWidths.referencia}px minmax(${columnWidths.cliente}px, 1fr) minmax(${columnWidths.descricao}px, 1.5fr) ${columnWidths.vencimento}px ${columnWidths.valor}px ${columnWidths.status}px ${columnWidths.acoes}px`;
+    return `${columnWidths.doc}px ${columnWidths.categoria}px minmax(${columnWidths.cliente}px, 1fr) minmax(${columnWidths.descricao}px, 1.5fr) ${columnWidths.vencimento}px ${columnWidths.valor}px ${columnWidths.status}px ${columnWidths.acoes}px`;
   };
 
   return (
@@ -1303,6 +1305,44 @@ export function ContasReceber() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog Visualizador de PDF */}
+      <Dialog open={showPdfViewerDialog} onOpenChange={setShowPdfViewerDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Visualizar PDF</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto bg-gray-900 rounded-lg">
+            {pdfViewerUrl && (
+              <iframe
+                src={pdfViewerUrl}
+                className="w-full h-full border-0 rounded-lg"
+                title="PDF Viewer"
+              />
+            )}
+          </div>
+          <div className="flex gap-2 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowPdfViewerDialog(false)}
+            >
+              Fechar
+            </Button>
+            {pdfViewerUrl && (
+              <a
+                href={pdfViewerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1"
+              >
+                <Button className="w-full bg-primary hover:bg-primary/90">
+                  Abrir em Nova Aba
+                </Button>
+              </a>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Tabela de Contas a Receber */}
       <Card className="bg-card border-border/50">
         <CardHeader className="pb-4 pt-6 px-6 border-b border-border/50">
@@ -1336,11 +1376,11 @@ export function ContasReceber() {
                   />
                 </div>
                 <div className="flex items-center justify-between pr-0 group">
-                  <span>Referência</span>
+                  <span>Categoria</span>
                   <div
-                    onMouseDown={(e) => handleColumnResizeStart(e, "referencia")}
+                    onMouseDown={(e) => handleColumnResizeStart(e, "categoria")}
                     className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                      resizingColumn === "referencia" ? "bg-primary" : ""
+                      resizingColumn === "categoria" ? "bg-primary" : ""
                     }`}
                     title="Arraste para redimensionar"
                   />
@@ -1424,8 +1464,8 @@ export function ContasReceber() {
                         <div className={`font-medium truncate ${isFromFluxoCaixa ? 'text-blue-400' : 'text-orange-500'}`} title={conta.numero}>
                           {conta.numero}
                         </div>
-                        <div className="text-muted-foreground truncate" title={conta.referencia || "-"}>
-                          {conta.referencia || "-"}
+                        <div className="text-muted-foreground truncate" title={conta.categoria || "-"}>
+                          {conta.categoria || "-"}
                         </div>
                         <div className="font-semibold text-foreground truncate" title={conta.cliente_nome}>
                           {conta.cliente_nome}
@@ -1457,14 +1497,15 @@ export function ContasReceber() {
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <a
-                                    href={conta.arquivo_pdf_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                  <button
+                                    onClick={() => {
+                                      setPdfViewerUrl(conta.arquivo_pdf_url);
+                                      setShowPdfViewerDialog(true);
+                                    }}
                                     className="text-muted-foreground hover:text-primary transition-colors p-1"
                                   >
                                     <FileText className="w-4 h-4" />
-                                  </a>
+                                  </button>
                                 </TooltipTrigger>
                                 <TooltipContent>Ver PDF</TooltipContent>
                               </Tooltip>
