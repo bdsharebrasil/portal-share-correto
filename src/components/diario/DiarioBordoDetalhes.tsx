@@ -1318,8 +1318,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         .from('logbook_entries')
         .select('*')
         .eq('aircraft_id', aircraftId)
-        .order('entry_date', { ascending: false })
-        .order('created_at', { ascending: false });
+        .order('logbook_month_id', { ascending: false })
+        .order('sequential_number', { ascending: true });
       if (data) {
         setEntries(data);
         await updateCelulaAtual(data);
