@@ -126,11 +126,11 @@ export function ClienteSearchInput({
     <div className="space-y-4">
       <Tabs defaultValue="search" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="search">
+          <TabsTrigger value="search" className="rounded-[10px] overflow-hidden mx-12 border border-blue-600/90">
             <Search className="h-4 w-4 mr-2" />
             Buscar Cliente
           </TabsTrigger>
-          <TabsTrigger value="manual">
+          <TabsTrigger value="manual" className="rounded-[9px] overflow-hidden mx-12 gap-1 border border-blue-600/90">
             <Edit className="h-4 w-4 mr-2" />
             Entrada Manual
           </TabsTrigger>

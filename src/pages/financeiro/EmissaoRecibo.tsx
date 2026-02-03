@@ -445,7 +445,7 @@ export default function EmissaoRecibo() {
   // ===================== RENDER =====================
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-card/30 p-4 md:p-8">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-card/30 p-4 md:p-8 rounded-[13px] overflow-hidden">
         <div className="max-w-7xl mx-auto space-y-8">
           {/* Header Section */}
           <div className="space-y-2">
@@ -476,7 +476,7 @@ export default function EmissaoRecibo() {
 
             {/* Tab Content - Emitir */}
             <TabsContent value="emitir" className="mt-6">
-              <div className="rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 p-6 md:p-8 shadow-lg hover:shadow-xl transition-shadow">
+              <div className="rounded-[19px] bg-card/30 backdrop-blur-sm border border-border/50 p-6 md:p-8 shadow-lg hover:shadow-xl transition-shadow overflow-hidden">
                 <ReceiptForm
                   clientesAtivos={clientesAtivos}
                   favoritePayers={favoritePayers}
