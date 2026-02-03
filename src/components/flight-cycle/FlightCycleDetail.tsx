@@ -1,15 +1,17 @@
-import { useState } from "react";
-import { ArrowLeft, Plane, MapPin, Calendar, Clock, User, ChevronDown, ChevronUp, Plus, FileText } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, Plane, MapPin, Calendar, Clock, User, ChevronDown, ChevronUp, Plus, FileText, Edit2, X } from "lucide-react";
 import { FlightCycle, FlightExpense, FLIGHT_STATUS_CONFIG, EXPENSE_STATUS_CONFIG, ExpenseStatus } from "@/types/flightCycle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { format, differenceInDays, isPast, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { AddExpenseDialog } from "./AddExpenseDialog";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FlightCycleDetailProps {
   cycle: FlightCycle;
