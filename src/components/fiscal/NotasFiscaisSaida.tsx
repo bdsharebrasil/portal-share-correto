@@ -353,21 +353,6 @@ export function NotasFiscaisSaida() {
 
         if (error) throw error;
 
-        // Se status mudou para "recebido" durante a edição
-        if (notaData.status === "recebido" && editingNota.status !== "recebido" && user) {
-          await supabase.from("controle_bancario").insert({
-            descricao: `NF Saída ${notaData.numero} - ${notaData.cliente_nome}${formData.aeronave_registration ? ` (${formData.aeronave_registration})` : ""}`,
-            valor: notaData.valor,
-            data_vencimento: notaData.data_vencimento,
-            data: new Date().toISOString().split("T")[0], // Data do lançamento
-            tipo_movimento: "entrada",
-            categoria_id: "2874b45b-a3bb-4bec-8f7e-74b328f8693c",
-            status: "confirmado",
-            numero_documento: notaData.numero,
-            criado_por: user.id,
-          });
-        }
-
         toast({
           title: "Sucesso",
           description: "Nota fiscal atualizada com sucesso",
