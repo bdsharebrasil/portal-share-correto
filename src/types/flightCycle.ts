@@ -33,6 +33,8 @@ export interface FlightCycle {
   status: FlightCycleStatus;
   responsible_user_id: string | null;
   observations: string | null;
+  pic_name: string | null;
+  sic_name: string | null;
   created_at: string;
   updated_at: string;
   started_at: string | null;
