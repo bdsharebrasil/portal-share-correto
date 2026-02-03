@@ -315,11 +315,11 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
                     const balance = hoursBorrowed - hoursPaidBack;
                     const isPending = balance > 0;
                     const formattedDate = new Date(loan.entry_date).toLocaleDateString('pt-BR');
-                    const trecho = loan.logbook_entry
-                      ? `${loan.logbook_entry.departure_aerodrome || '-'} → ${loan.logbook_entry.arrival_aerodrome || '-'}`
-                      : '-';
-                    const fuelAdded = loan.logbook_entry?.fuel_added ? loan.logbook_entry.fuel_added.toFixed(1) : '-';
-                    const picName = loan.logbook_entry?.pic_name || '-';
+                    const trecho = loan.departure_aerodrome && loan.arrival_aerodrome
+                      ? `${loan.departure_aerodrome.trim()} → ${loan.arrival_aerodrome.trim()}`
+                      : loan.trecho || '-';
+                    const fuelAdded = loan.fuel_added ? loan.fuel_added.toFixed(1) : '-';
+                    const picName = loan.pic_name || '-';
 
                     return (
                       <tr key={loan.id} className="hover:bg-slate-800/20 transition-colors">
