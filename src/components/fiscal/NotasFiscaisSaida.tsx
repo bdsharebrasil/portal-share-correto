@@ -1534,69 +1534,6 @@ export function NotasFiscaisSaida() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de Seleção de Banco para Recebido */}
-      <Dialog open={showBankDialog} onOpenChange={setShowBankDialog}>
-        <DialogContent className="bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Selecionar Banco</DialogTitle>
-          </DialogHeader>
-          {notaBeingStatusChanged && (
-            <div className="space-y-4 py-4">
-              <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
-                <p className="text-sm text-muted-foreground mb-1">Nota Fiscal</p>
-                <p className="font-semibold text-foreground">{notaBeingStatusChanged.numero}</p>
-                <p className="text-sm text-muted-foreground mt-2">{notaBeingStatusChanged.cliente_nome}</p>
-                <p className="text-sm text-foreground font-semibold mt-2">
-                  R$ {notaBeingStatusChanged.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-
-              <div>
-                <Label className="text-foreground font-semibold mb-2 block">
-                  Selecione o Banco de Recebimento *
-                </Label>
-                <Select value={selectedBankForStatus} onValueChange={setSelectedBankForStatus}>
-                  <SelectTrigger className="bg-background border-border">
-                    <SelectValue placeholder="Selecione um banco" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    {bancos.length > 0 ? (
-                      bancos.map((banco) => (
-                        <SelectItem key={banco} value={banco}>
-                          {banco}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                        Nenhum banco disponível
-                      </div>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-
-          <div className="flex gap-2 justify-end mt-4">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowBankDialog(false);
-                setNotaBeingStatusChanged(null);
-                setSelectedBankForStatus("");
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              className="bg-green-600 hover:bg-green-700"
-              onClick={handleConfirmBankSelection}
-            >
-              Confirmar Recebimento
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Dialog para Visualizar Recibo */}
       <Dialog open={showReciboViewer} onOpenChange={setShowReciboViewer}>
