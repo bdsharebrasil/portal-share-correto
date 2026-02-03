@@ -213,9 +213,6 @@ export function NotasFiscaisSaida() {
   const [openAeronavePopover, setOpenAeronavePopover] = useState(false);
   const [isUploadingPDF, setIsUploadingPDF] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string>("");
-  const [showBankDialog, setShowBankDialog] = useState(false);
-  const [selectedBankForStatus, setSelectedBankForStatus] = useState<string>("");
-  const [notaBeingStatusChanged, setNotaBeingStatusChanged] = useState<NotaFiscalSaida | null>(null);
   const [showReciboDialog, setShowReciboDialog] = useState(false);
   const [showReciboViewer, setShowReciboViewer] = useState(false);
   const [reciboViewUrl, setReciboViewUrl] = useState<string>("");
