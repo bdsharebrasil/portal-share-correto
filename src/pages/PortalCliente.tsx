@@ -375,7 +375,7 @@ export default function PortalCliente() {
           }
 
           .portal-cliente-container {
-            background-color: rgba(11, 11, 23, 1);
+            background-color: rgb(15, 18, 26);
             border-radius: 26px;
             overflow: hidden;
           }
