@@ -187,18 +187,23 @@ export function ReceiptForm({
 
   // Sincroniza a seleção de cliente com o formData
   const handleClienteSearchChange = (searchValue: typeof clienteSearchValue) => {
+    console.log("Client search changed:", searchValue);
     setClienteSearchValue(searchValue);
 
-    // Atualiza os dados do pagador no formulário
-    setFormData((prev) => ({
-      ...prev,
-      clienteId: searchValue.clienteId || "",
-      pagadorNome: searchValue.nome || "",
-      pagadorDocumento: searchValue.documento || "",
-      pagadorEndereco: searchValue.endereco || "",
-      pagadorCidade: searchValue.cidade || "",
-      pagadorUF: searchValue.uf || "",
-    }));
+    // Atualiza os dados do pagador no formulário - SEMPRE sincroniza
+    setFormData((prev) => {
+      const updated = {
+        ...prev,
+        clienteId: searchValue.clienteId || "",
+        pagadorNome: searchValue.nome || prev.pagadorNome || "",
+        pagadorDocumento: searchValue.documento || prev.pagadorDocumento || "",
+        pagadorEndereco: searchValue.endereco || prev.pagadorEndereco || "",
+        pagadorCidade: searchValue.cidade || prev.pagadorCidade || "",
+        pagadorUF: searchValue.uf || prev.pagadorUF || "",
+      };
+      console.log("FormData updated:", updated);
+      return updated;
+    });
 
     // Se é reembolso e foi selecionado um cliente, carrega as aeronaves
     if (formData.receiptType === "reembolso" && searchValue.clienteId) {
