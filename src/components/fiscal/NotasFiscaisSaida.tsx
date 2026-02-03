@@ -420,10 +420,10 @@ export function NotasFiscaisSaida() {
       data_vencimento: nota.data_vencimento,
       valor: nota.valor.toString(),
       categoria: nota.categoria,
-      descricao: nota.descricao,
+      descricao: nota.descricao || "",
       status: nota.status,
-      aircraft_id: nota.aircraft_id || "",
-      aeronave_registration: nota.aeronave || nota.aeronave_registration || "",
+      aircraft_id: "",
+      aeronave_registration: nota.aeronave || "",
     });
     setPdfUrl(nota.arquivo_pdf_url || "");
     setOpenDialog(true);
