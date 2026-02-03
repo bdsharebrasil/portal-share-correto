@@ -170,6 +170,10 @@ export function useCategoriasFinanceiro() {
     return categorias.filter(cat => cat.tipo === "despesa");
   }, [categorias]);
 
+  const getCategoriasEntrada = useCallback(() => {
+    return categorias.filter(cat => cat.tipo === "entrada");
+  }, [categorias]);
+
   const getCategoriaNomes = useCallback(() => {
     return categorias.map(cat => cat.nome);
   }, [categorias]);
@@ -182,6 +186,7 @@ export function useCategoriasFinanceiro() {
     deleteCategoria,
     getCategoriasReceita,
     getCategoriasDespesa,
+    getCategoriasEntrada,
     getCategoriaNomes,
     refetch: loadCategorias
   };
