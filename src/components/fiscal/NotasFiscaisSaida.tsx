@@ -1260,7 +1260,6 @@ export function NotasFiscaisSaida() {
                                     onSelect={() => {
                                       setReciboData({
                                         ...reciboData,
-                                        aeronave_id: aero.id,
                                         aeronave_registro: aero.registration,
                                       });
                                       setOpenAeronavePopover(false);
