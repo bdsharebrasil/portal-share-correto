@@ -82,6 +82,9 @@ export function FlightCycleDetail({
 
     if (clientsRes.data) setClients(clientsRes.data);
     if (aircraftRes.data) setAircraft(aircraftRes.data);
+
+    // Fetch crew members
+    await fetchCrewMembers();
   };
 
   const handleSaveEdit = async () => {
