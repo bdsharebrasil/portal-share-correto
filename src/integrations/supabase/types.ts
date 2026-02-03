@@ -7584,7 +7584,7 @@ export type Database = {
           numero: string
           status: string
           valor: number
-          aeronave?: string | null
+          aeronave: string | null
           aircraft_id?: string | null
           aeronave_registration?: string | null
           aeronave_id?: string | null
