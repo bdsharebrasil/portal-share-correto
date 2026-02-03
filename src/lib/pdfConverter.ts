@@ -2,47 +2,29 @@
  * Utilitário para conversão de HTML para PDF no cliente
  */
 
-export async function convertHtmlToPdf(
-  htmlContent: string,
-  fileName: string
-): Promise<Blob> {
-  // Importar html2pdf dinamicamente para evitar bundle size
-  const { default: html2pdf } = await import(
-    "https://esm.sh/html2pdf.js@0.10.1"
-  );
-
-  return new Promise((resolve, reject) => {
-    try {
-      const element = document.createElement("div");
-      element.innerHTML = htmlContent;
-      element.style.display = "none";
-      document.body.appendChild(element);
-
-      const opt = {
-        margin: 0,
-        filename: fileName,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { format: "a4", orientation: "portrait" },
-      };
-
-      html2pdf()
-        .set(opt)
-        .from(element)
-        .toPdf()
-        .get("blob")
-        .then((blob: Blob) => {
-          document.body.removeChild(element);
-          resolve(blob);
-        })
-        .catch((err: Error) => {
-          document.body.removeChild(element);
-          reject(err);
-        });
-    } catch (error) {
-      reject(error);
-    }
+export async function convertHtmlToPdfViaApi(htmlContent: string): Promise<Blob> {
+  // Usar uma API free de conversão HTML to PDF
+  const response = await fetch("https://pdflayer.com/api/convert", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams({
+      api_key: "free",
+      html: htmlContent,
+      format: "A4",
+      margin_bottom: "0",
+      margin_top: "0",
+      margin_left: "0",
+      margin_right: "0",
+    }).toString(),
   });
+
+  if (!response.ok) {
+    throw new Error(`Erro ao converter PDF: ${response.statusText}`);
+  }
+
+  return await response.blob();
 }
 
 export async function uploadPdfToStorage(
