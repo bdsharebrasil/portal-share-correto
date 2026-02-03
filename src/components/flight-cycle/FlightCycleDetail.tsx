@@ -112,6 +112,8 @@ export function FlightCycleDetail({
       origin_icao: cycle.origin_icao,
       destination_icao: cycle.destination_icao,
       flight_duration_hours: cycle.flight_duration_hours?.toString() || '',
+      pic_name: cycle.pic_name || '',
+      sic_name: cycle.sic_name || '',
     });
     setIsEditing(false);
   };
