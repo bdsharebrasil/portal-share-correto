@@ -328,6 +328,7 @@ export function useWeather() {
       isFetching = true;
       try {
         await fetchWeatherFromAvwx('SBGR');
+        isFetching = false; // Reset flag on success
       } catch (error) {
         // Check if this is a transient error that should be retried
         if (error instanceof Error && (error.message.includes('503') || error.message.includes('504')) && retryCount < maxRetries) {
