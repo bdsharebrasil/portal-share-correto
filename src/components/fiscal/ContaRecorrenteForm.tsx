@@ -1,16 +1,19 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select as RegularSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select as GroupedSelect, SelectContent as GroupedSelectContent, SelectItem as GroupedSelectItem, SelectLabel, SelectTrigger as GroupedSelectTrigger, SelectValue as GroupedSelectValue, SelectGroup } from "@/components/ui/grouped-select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AutocompleteInput, type AutocompleteOption } from "@/components/ui/autocomplete-input";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
+import { useGroupedCategories } from "@/hooks/useGroupedCategories";
 import { format } from "date-fns";
 import { X, Save } from "lucide-react";
 
@@ -35,8 +38,60 @@ export function ContaRecorrenteForm({
   onCancel
 }: ContaRecorrenteFormProps) {
   const { user } = useAuth();
-  const { categorias: allCategorias } = useCategoriasFinanceiro();
-  const categoriaNomes = allCategorias.map(c => c.nome);
+  const groupedCategories = useGroupedCategories("despesa");
+  const [fornecedorProfiles, setFornecedorProfiles] = useState<any[]>([]);
+
+  useEffect(() => {
+    loadFornecedorProfiles();
+  }, []);
+
+  const loadFornecedorProfiles = async () => {
+    try {
+      // Buscar colaboradores (user_profiles)
+      const { data: userProfiles, error: userError } = await supabase
+        .from("user_profiles")
+        .select("id, full_name, cpf, email")
+        .order("full_name", { ascending: true });
+
+      if (userError) {
+        console.error("Erro ao carregar colaboradores:", userError);
+      }
+
+      // Buscar fornecedores favoritos
+      const { data: fornecedoresFavoritos, error: fornecError } = await supabase
+        .from("fornecedores_favoritos")
+        .select("id, nome_completo, documento, categoria, apelido")
+        .order("nome_completo", { ascending: true });
+
+      if (fornecError) {
+        console.error("Erro ao carregar fornecedores favoritos:", fornecError);
+      }
+
+      // Combinar dados: colaboradores + fornecedores favoritos
+      const combinedData = [
+        ...(userProfiles || []).map(profile => ({
+          id: profile.id,
+          full_name: profile.full_name,
+          cpf: profile.cpf,
+          email: profile.email,
+          type: "colaborador"
+        })),
+        ...(fornecedoresFavoritos || []).map(fornecedor => ({
+          id: fornecedor.id,
+          full_name: fornecedor.nome_completo,
+          cpf: fornecedor.documento,
+          email: null,
+          type: "fornecedor",
+          categoria: fornecedor.categoria,
+          apelido: fornecedor.apelido
+        }))
+      ];
+
+      setFornecedorProfiles(combinedData);
+    } catch (error: any) {
+      console.error("Erro ao carregar fornecedores:", error.message);
+    }
+  };
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm({
     defaultValues: {
@@ -167,11 +222,31 @@ export function ContaRecorrenteForm({
 
             <div>
               <Label htmlFor="fornecedor">Fornecedor/Beneficiário *</Label>
-              <Input
-                id="fornecedor"
-                placeholder="Nome do fornecedor"
-                {...register("fornecedor", { required: "Fornecedor é obrigatório" })}
-                className={errors.fornecedor ? "border-destructive" : ""}
+              <AutocompleteInput
+                value={watch("fornecedor") || ""}
+                onChange={(value) => {
+                  setValue("fornecedor", value);
+                }}
+                onSelect={(option) => {
+                  const fornecedor = fornecedorProfiles.find(f => f.id === option.id);
+                  if (fornecedor) {
+                    setValue("fornecedor", fornecedor.full_name);
+                  }
+                }}
+                options={fornecedorProfiles.map(f => {
+                  // Adicionar apelido ou tipo na label para diferenciar
+                  let label = f.full_name;
+                  if (f.type === "fornecedor" && f.apelido) {
+                    label = `${f.full_name} (${f.apelido})`;
+                  } else if (f.type === "colaborador") {
+                    label = `${f.full_name} (Colaborador)`;
+                  }
+                  return {
+                    id: f.id,
+                    label
+                  };
+                })}
+                placeholder="Buscar ou digite um fornecedor"
               />
               {errors.fornecedor && <span className="text-xs text-destructive">{errors.fornecedor.message}</span>}
             </div>
@@ -192,28 +267,28 @@ export function ContaRecorrenteForm({
 
             <div>
               <Label htmlFor="categoria">Categoria</Label>
-              <Select defaultValue="" onValueChange={(value) => setValue("categoria", value)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecione uma categoria" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px] w-full">
-                  {categoriaNomes.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
+              <GroupedSelect value={watch("categoria") || ""} onValueChange={(value) => setValue("categoria", value)}>
+                <GroupedSelectTrigger className="w-full">
+                  <GroupedSelectValue placeholder="Selecione uma categoria" />
+                </GroupedSelectTrigger>
+                <GroupedSelectContent className="max-h-[300px] w-full">
+                  {groupedCategories.map((group) => (
+                    <SelectGroup key={group.grupo}>
+                      <SelectLabel className="text-xs font-bold uppercase tracking-wider">{group.grupo}</SelectLabel>
+                      {group.categorias.map((cat) => (
+                        <GroupedSelectItem key={cat.id} value={cat.nome}>
+                          {cat.nome}
+                        </GroupedSelectItem>
+                      ))}
+                    </SelectGroup>
                   ))}
-                  {categoriaNomes.length === 0 && (
-                    <div className="text-center py-3 text-muted-foreground text-sm">
-                      Nenhuma categoria disponível
-                    </div>
-                  )}
-                </SelectContent>
-              </Select>
+                </GroupedSelectContent>
+              </GroupedSelect>
             </div>
 
             <div>
               <Label htmlFor="status">Status</Label>
-              <Select defaultValue="agendado" onValueChange={(value) => setValue("status", value)}>
+              <RegularSelect defaultValue="agendado" onValueChange={(value) => setValue("status", value)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -221,7 +296,7 @@ export function ContaRecorrenteForm({
                   <SelectItem value="agendado">Ativo</SelectItem>
                   <SelectItem value="cancelado">Inativo</SelectItem>
                 </SelectContent>
-              </Select>
+              </RegularSelect>
             </div>
           </div>
 
@@ -232,7 +307,7 @@ export function ContaRecorrenteForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-border">
               <div>
                 <Label htmlFor="frequencia_recorrencia">Frequência de Pagamento *</Label>
-                <Select onValueChange={(value) => setValue("frequencia_recorrencia", value)}>
+                <RegularSelect onValueChange={(value) => setValue("frequencia_recorrencia", value)}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -243,12 +318,12 @@ export function ContaRecorrenteForm({
                       </SelectItem>
                     ))}
                   </SelectContent>
-                </Select>
+                </RegularSelect>
               </div>
 
               <div>
                 <Label htmlFor="dia_recorrencia">Dia do Mês para Vencimento *</Label>
-                <Select onValueChange={(value) => setValue("dia_recorrencia", value)}>
+                <RegularSelect onValueChange={(value) => setValue("dia_recorrencia", value)}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -259,7 +334,7 @@ export function ContaRecorrenteForm({
                       </SelectItem>
                     ))}
                   </SelectContent>
-                </Select>
+                </RegularSelect>
                 <p className="text-xs text-muted-foreground mt-1">
                   Esta conta vence todo dia <strong>{watch("dia_recorrencia") || "?"}</strong> do mês
                 </p>

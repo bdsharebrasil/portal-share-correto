@@ -162,33 +162,48 @@ export function ReceiptForm({
       }));
       setAircrafts([]);
     } else {
-      // Ao mudar para reembolso, limpa os campos do pagador
-      // pois serão preenchidos automaticamente ao selecionar cliente
-      setFormData((prev) => ({
-        ...prev,
-        pagadorNome: "",
-        pagadorDocumento: "",
-        pagadorEndereco: "",
-        pagadorCidade: "",
-        pagadorUF: "",
-      }));
+      // Ao mudar para reembolso, NÃO limpa os campos do pagador
+      // pois eles já estão sincronizados via clienteSearchValue
+      // Se cliente não está selecionado, limpa apenas os campos específicos de reembolso
+      if (!clienteSearchValue.clienteId) {
+        setFormData((prev) => ({
+          ...prev,
+          pagadorNome: "",
+          pagadorDocumento: "",
+          pagadorEndereco: "",
+          pagadorCidade: "",
+          pagadorUF: "",
+          reembolsoValorTotal: "",
+          reembolsoPorcentagem: "",
+          reembolsoCategoriaId: "",
+          reembolsoNumeroDocumento: "",
+          reembolsoRateado: false,
+          reembolsoBoletoFile: null,
+          reembolsoNotaFiscalFile: null,
+        }));
+      }
     }
-  }, [formData.receiptType]);
+  }, [formData.receiptType, clienteSearchValue.clienteId]);
 
   // Sincroniza a seleção de cliente com o formData
   const handleClienteSearchChange = (searchValue: typeof clienteSearchValue) => {
+    console.log("Client search changed:", searchValue);
     setClienteSearchValue(searchValue);
 
-    // Atualiza os dados do pagador no formulário
-    setFormData((prev) => ({
-      ...prev,
-      clienteId: searchValue.clienteId || "",
-      pagadorNome: searchValue.nome || "",
-      pagadorDocumento: searchValue.documento || "",
-      pagadorEndereco: searchValue.endereco || "",
-      pagadorCidade: searchValue.cidade || "",
-      pagadorUF: searchValue.uf || "",
-    }));
+    // Atualiza os dados do pagador no formulário - SEMPRE sincroniza
+    setFormData((prev) => {
+      const updated = {
+        ...prev,
+        clienteId: searchValue.clienteId || "",
+        pagadorNome: searchValue.nome || prev.pagadorNome || "",
+        pagadorDocumento: searchValue.documento || prev.pagadorDocumento || "",
+        pagadorEndereco: searchValue.endereco || prev.pagadorEndereco || "",
+        pagadorCidade: searchValue.cidade || prev.pagadorCidade || "",
+        pagadorUF: searchValue.uf || prev.pagadorUF || "",
+      };
+      console.log("FormData updated:", updated);
+      return updated;
+    });
 
     // Se é reembolso e foi selecionado um cliente, carrega as aeronaves
     if (formData.receiptType === "reembolso" && searchValue.clienteId) {
@@ -220,15 +235,40 @@ export function ReceiptForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Debug: log dos dados antes do submit
+    console.log("=== SUBMIT DEBUG ===");
+    console.log("formData.pagadorNome:", formData.pagadorNome);
+    console.log("clienteSearchValue.nome:", clienteSearchValue.nome);
+    console.log("clienteSearchValue:", clienteSearchValue);
+    console.log("formData:", formData);
+
+    // Sincroniza dados do cliente se vindo de busca
+    let finalPagadorNome = formData.pagadorNome;
+    let finalPagadorDocumento = formData.pagadorDocumento;
+    let finalPagadorEndereco = formData.pagadorEndereco;
+    let finalPagadorCidade = formData.pagadorCidade;
+    let finalPagadorUF = formData.pagadorUF;
+
+    // Se tem dados no clienteSearchValue, usa eles como fallback
+    if (!finalPagadorNome && clienteSearchValue.nome) {
+      finalPagadorNome = clienteSearchValue.nome;
+      finalPagadorDocumento = clienteSearchValue.documento;
+      finalPagadorEndereco = clienteSearchValue.endereco;
+      finalPagadorCidade = clienteSearchValue.cidade;
+      finalPagadorUF = clienteSearchValue.uf;
+    }
+
+    console.log("finalPagadorNome:", finalPagadorNome);
+
     // Validações gerais
-    if (!formData.pagadorNome?.trim()) {
-      alert("Por favor, preencha o nome do pagador");
+    if (!finalPagadorNome?.trim()) {
+      alert("Por favor, preencha o nome do pagador ou selecione um cliente");
       return;
     }
 
     // Validação específica por tipo
     if (isReembolso) {
-      if (!formData.clienteId) {
+      if (!clienteSearchValue.clienteId && !formData.clienteId) {
         alert("Por favor, selecione o cliente para o reembolso");
         return;
       }
@@ -262,7 +302,7 @@ export function ReceiptForm({
       status: "pendente",
 
       // IDs relacionados
-      client_id: formData.clienteId || null,
+      client_id: clienteSearchValue.clienteId || formData.clienteId || null,
       aircraft_id: formData.aircraftId || null,
       categoria_movimentacao_id: formData.reembolsoCategoriaId || null,
 
@@ -278,14 +318,14 @@ export function ReceiptForm({
       forma_pagamento: formData.reembolsoRateado ? "rateio_direto" : "empresa_paga",
       afeta_caixa_empresa: true,
 
-      // Dados do fornecedor (para recibos de reembolso)
-      fornecedor_nome: formData.pagadorNome || null,
-      fornecedor_dados: formData.pagadorNome ? {
-        nome: formData.pagadorNome,
-        documento: formData.pagadorDocumento,
-        endereco: formData.pagadorEndereco,
-        cidade: formData.pagadorCidade,
-        uf: formData.pagadorUF
+      // Dados do fornecedor (para recibos de reembolso) - usa dados sincronizados
+      fornecedor_nome: finalPagadorNome || null,
+      fornecedor_dados: finalPagadorNome ? {
+        nome: finalPagadorNome,
+        documento: finalPagadorDocumento,
+        endereco: finalPagadorEndereco,
+        cidade: finalPagadorCidade,
+        uf: finalPagadorUF
       } : null,
 
       // Arquivos (URLs serão preenchidas após upload)
@@ -307,8 +347,16 @@ export function ReceiptForm({
         notaFiscal: formData.reembolsoNotaFiscalFile
       },
 
-      // Dados originais do formulário (para compatibilidade)
-      originalFormData: formData
+      // Dados originais do formulário (para compatibilidade) - com dados sincronizados
+      originalFormData: {
+        ...formData,
+        pagadorNome: finalPagadorNome,
+        pagadorDocumento: finalPagadorDocumento,
+        pagadorEndereco: finalPagadorEndereco,
+        pagadorCidade: finalPagadorCidade,
+        pagadorUF: finalPagadorUF,
+        clienteId: clienteSearchValue.clienteId || formData.clienteId
+      }
     };
 
     onSubmit(submissionData);
@@ -357,6 +405,41 @@ export function ReceiptForm({
               required={true}
               disabled={false}
             />
+
+            {/* Exibição dos dados preenchidos para confirmar */}
+            {formData.pagadorNome && (
+              <div className="mt-4 p-4 border border-green-500/30 bg-green-500/5 rounded-lg">
+                <h4 className="font-semibold text-sm text-green-600 mb-3">Dados Preenchidos:</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-muted-foreground block text-xs mb-1">Empresa/Pessoa</span>
+                    <span className="font-medium text-foreground">{formData.pagadorNome}</span>
+                  </div>
+                  {formData.pagadorDocumento && (
+                    <div>
+                      <span className="text-muted-foreground block text-xs mb-1">Documento</span>
+                      <span className="font-medium text-foreground">{formData.pagadorDocumento}</span>
+                    </div>
+                  )}
+                  {formData.pagadorEndereco && (
+                    <div>
+                      <span className="text-muted-foreground block text-xs mb-1">Endereço</span>
+                      <span className="font-medium text-foreground">{formData.pagadorEndereco}</span>
+                    </div>
+                  )}
+                  {(formData.pagadorCidade || formData.pagadorUF) && (
+                    <div>
+                      <span className="text-muted-foreground block text-xs mb-1">Cidade/UF</span>
+                      <span className="font-medium text-foreground">
+                        {formData.pagadorCidade}
+                        {formData.pagadorCidade && formData.pagadorUF ? ", " : ""}
+                        {formData.pagadorUF}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* AERONAVE - APENAS PARA REEMBOLSOS */}

@@ -364,7 +364,7 @@ export default function PortalCliente() {
     <Layout>
       <style>{`
         .portal-cliente-outer {
-          background-color: rgb(15, 18, 26);
+          background-color: rgba(15, 18, 26, 0.03);
           min-height: 545px;
         }
 

@@ -95,25 +95,29 @@ export default function EmissaoRecibo() {
     setIsGeneratingPdf(false);
 
     try {
-      // Validação básica - as validações específicas já foram feitas no formulário
-      const isReembolso = formData.receiptType === "reembolso";
-      
-      // Para reembolso, o nome do pagador é preenchido automaticamente do cliente
-      const nomePagador = isReembolso 
-        ? formData.originalFormData?.pagadorNome || formData.pagadorNome
-        : formData.pagadorNome;
+      // Extrai dados do submissionData que chegou do formulário
+      const originalForm = formData.originalFormData || {};
+      const isReembolso = originalForm.receiptType === "reembolso";
 
-      if (!nomePagador?.trim()) {
-        throw new Error("Nome do pagador não foi preenchido corretamente");
+      // Pega o nome do pagador do originalFormData
+      const nomePagador = originalForm.pagadorNome?.trim();
+
+      if (!nomePagador) {
+        console.error("Dados recebidos:", {
+          formData,
+          originalForm,
+          pagadorNome: originalForm.pagadorNome
+        });
+        throw new Error("Nome do pagador não foi preenchido corretamente. Por favor, preencha os dados do pagador.");
       }
-      if (!formData.valor || Number(formData.valor) <= 0) {
+      if (!formData.amount || Number(formData.amount) <= 0) {
         throw new Error("Valor deve ser maior que zero");
       }
-      if (!formData.servicoDescricao?.trim()) {
+      if (!formData.description?.trim()) {
         throw new Error("Descrição do serviço é obrigatória");
       }
 
-      const receiptNumber = generateReceiptNumber(formData.clienteId ? nomePagador : "");
+      const receiptNumber = generateReceiptNumber(originalForm.clienteId ? nomePagador : "");
       console.log("Número de recibo:", receiptNumber);
 
       // ===================== UPLOAD DE ARQUIVOS =====================
@@ -135,34 +139,35 @@ export default function EmissaoRecibo() {
         return publicUrlData.publicUrl;
       };
 
-      if (formData.reembolsoBoletoFile instanceof File) boletoUrl = await uploadFile(formData.reembolsoBoletoFile, "boleto", "n.f-boletos-clients");
-      if (formData.reembolsoNotaFiscalFile instanceof File) notaFiscalUrl = await uploadFile(formData.reembolsoNotaFiscalFile, "nf", "n.f-boletos-clients");
+      // Extrai arquivos de formData
+      if (formData.files?.boleto instanceof File) boletoUrl = await uploadFile(formData.files.boleto, "boleto", "n.f-boletos-clients");
+      if (formData.files?.notaFiscal instanceof File) notaFiscalUrl = await uploadFile(formData.files.notaFiscal, "nf", "n.f-boletos-clients");
 
       // ===================== INSERIR RECIBO =====================
       // Para reembolso, adiciona número do documento na descrição
-      let finalDescription = formData.servicoDescricao.trim();
-      if (isReembolso && formData.reembolsoNumeroDocumento?.trim()) {
-        finalDescription = `${finalDescription} - Documento: ${formData.reembolsoNumeroDocumento.trim()}`;
+      let finalDescription = formData.description?.trim() || "";
+      if (isReembolso && originalForm.reembolsoNumeroDocumento?.trim()) {
+        finalDescription = `${finalDescription} - Documento: ${originalForm.reembolsoNumeroDocumento.trim()}`;
       }
 
       const receiptPayload = {
         user_id: userId,
-        payer_name: nomePagador.trim(),
-        payer_document: formData.pagadorDocumento?.trim() || "",
-        payer_address: formData.pagadorEndereco?.trim() || null,
-        payer_city: formData.pagadorCidade?.trim() || null,
-        payer_uf: formData.pagadorUF?.trim() || null,
-        amount: Number(formData.valor),
+        payer_name: nomePagador,
+        payer_document: originalForm.pagadorDocumento?.trim() || "",
+        payer_address: originalForm.pagadorEndereco?.trim() || null,
+        payer_city: originalForm.pagadorCidade?.trim() || null,
+        payer_uf: originalForm.pagadorUF?.trim() || null,
+        amount: Number(formData.amount),
         service_description: finalDescription,
-        receipt_type: formData.receiptType || "pagamento",
-        issue_date: formData.dataEmissao || new Date().toISOString().split("T")[0],
+        receipt_type: originalForm.receiptType || "pagamento",
+        issue_date: originalForm.dataEmissao || new Date().toISOString().split("T")[0],
         receipt_number: receiptNumber,
-        max_payment_date: formData.prazoMaximoQuitacao || null,
-        payment_method: formData.formaPagamento?.trim() || null,
-        client_id: formData.clienteId?.trim() ? formData.clienteId : null,
+        max_payment_date: originalForm.prazoMaximoQuitacao || null,
+        payment_method: originalForm.formaPagamento?.trim() || null,
+        client_id: originalForm.clienteId?.trim() ? originalForm.clienteId : null,
         boleto_url: boletoUrl,
         nf_url: notaFiscalUrl,
-        doc_number: formData.reembolsoNumeroDocumento?.trim() || null,
+        doc_number: originalForm.reembolsoNumeroDocumento?.trim() || null,
       };
 
       // Evita duplicidade: verifica se já existe o receipt_number
@@ -175,31 +180,31 @@ export default function EmissaoRecibo() {
       console.log("Recibo inserido:", receiptData);
 
       // ===================== PROCESSAR REEMBOLSO (bank_reconciliations + rateio) =====================
-      if (isReembolso && formData.clienteId) {
+      if (isReembolso && (originalForm.clienteId || formData.client_id)) {
         try {
           console.log("📨 Processando reembolso com submissão de recibo...");
 
           // Determina o valor total e percentual corretamente
-          const isRateado = formData.reembolsoRateado === true;
-          const valorRecibo = Number(formData.valor); // valor que o cliente vai pagar
-          const valorTotalDespesa = isRateado ? Number(formData.reembolsoValorTotal) : valorRecibo;
-          const percentual = isRateado ? formData.reembolsoPorcentagem : "100";
+          const isRateado = originalForm.reembolsoRateado === true;
+          const valorRecibo = Number(formData.amount); // valor que o cliente vai pagar
+          const valorTotalDespesa = isRateado ? Number(originalForm.reembolsoValorTotal) : valorRecibo;
+          const percentual = isRateado ? originalForm.reembolsoPorcentagem : "100";
 
           // Preparar payload para o novo serviço
           const submissionPayload = {
             type: "cliente" as const,
-            date: formData.prazoMaximoQuitacao || formData.dataEmissao,
-            description: `Reembolso - ${formData.servicoDescricao.trim()}${
-              formData.reembolsoNumeroDocumento ? ` (Doc: ${formData.reembolsoNumeroDocumento})` : ""
+            date: originalForm.prazoMaximoQuitacao || originalForm.dataEmissao,
+            description: `Reembolso - ${formData.description?.trim()}${
+              originalForm.reembolsoNumeroDocumento ? ` (Doc: ${originalForm.reembolsoNumeroDocumento})` : ""
             }`,
             amount: valorRecibo,
             status: "pendente",
-            client_id: formData.clienteId,
-            aircraft_id: formData.aircraftId || null,
-            categoria_movimentacao_id: formData.reembolsoCategoriaId || null,
+            client_id: originalForm.clienteId || formData.client_id,
+            aircraft_id: originalForm.aircraftId || formData.aircraft_id || null,
+            categoria_movimentacao_id: originalForm.reembolsoCategoriaId || formData.categoria_movimentacao_id || null,
             tipo_documento: isRateado ? "rateio" as const : "recibo" as const,
-            doc: formData.reembolsoNumeroDocumento || null,
-            payment_term: formData.prazoMaximoQuitacao || null,
+            doc: originalForm.reembolsoNumeroDocumento || null,
+            payment_term: originalForm.prazoMaximoQuitacao || null,
             percentual: percentual,
             forma_pagamento: isRateado ? "rateio_direto" : "empresa_paga",
             afeta_caixa_empresa: true,
