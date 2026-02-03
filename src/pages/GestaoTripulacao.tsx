@@ -250,14 +250,6 @@ export default function GestaoDeTripulacao() {
     }
   };
   const deleteLicense = async (licenseId: string) => {
-    if (!canEditHabilitacoes) {
-      toast({
-        title: "Sem permissão",
-        description: "Você não tem permissão para deletar habilitações.",
-        variant: "destructive"
-      });
-      return;
-    }
     if (!confirm('Deseja realmente excluir esta licença?')) return;
 
     try {
