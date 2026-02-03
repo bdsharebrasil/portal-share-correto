@@ -2028,11 +2028,19 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Cliente / Cotista *</Label>
                       <Select value={newEntry.client_id} onValueChange={v => {
                         const selectedClient = clients.find(c => c.id === v);
+                        const partners = getPartnersFromClient(selectedClient);
+
                         setNewEntry({
                           ...newEntry,
                           client_id: v,
-                          partner_name: '' // Reset partner when client changes
+                          partner_name: ''
                         });
+
+                        // Se o cliente tem parceiros, abre o modal
+                        if (partners.length > 0) {
+                          setPendingClientId(v);
+                          setShowPartnerModal(true);
+                        }
                       }}>
                         <SelectTrigger className="bg-slate-950 border-slate-800 text-white">
                           <SelectValue placeholder="Selecione o Cliente" />
@@ -2051,33 +2059,28 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       </Select>
                     </div>
 
-                    {/* Seleção de Sócio/Partner */}
-                    {(() => {
+                    {/* Seleção de Sócio/Partner - mostra apenas se foi selecionado */}
+                    {newEntry.client_id && (() => {
                       const selectedClient = clients.find(c => c.id === newEntry.client_id);
-                      const partnerOptions = [];
-                      if (selectedClient?.partner_name) partnerOptions.push(selectedClient.partner_name);
-                      if (selectedClient?.partner_name2) partnerOptions.push(selectedClient.partner_name2);
-                      if (selectedClient?.partner_name3) partnerOptions.push(selectedClient.partner_name3);
-                      
-                      if (partnerOptions.length > 0) {
+                      const partners = getPartnersFromClient(selectedClient);
+
+                      if (newEntry.partner_name && partners.length > 0) {
                         return (
-                          <div className="space-y-1 mt-2">
-                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Sócio Responsável pelo Voo</Label>
-                            <Select value={newEntry.partner_name} onValueChange={v => setNewEntry({
-                              ...newEntry,
-                              partner_name: v
-                            })}>
-                              <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
-                                <SelectValue placeholder="Selecione o Sócio" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {partnerOptions.map((partner, idx) => (
-                                  <SelectItem key={idx} value={partner}>
-                                    {partner}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                          <div className="space-y-1 mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Sócio Selecionado</Label>
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-bold text-amber-400">{newEntry.partner_name}</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPendingClientId(newEntry.client_id);
+                                  setShowPartnerModal(true);
+                                }}
+                                className="text-xs px-2 py-1 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/50 text-amber-400 rounded transition-all"
+                              >
+                                Alterar
+                              </button>
+                            </div>
                             {selectedClient?.cnpj && (
                               <p className="text-[8px] text-slate-500 mt-1">
                                 CNPJ: {selectedClient.cnpj}
