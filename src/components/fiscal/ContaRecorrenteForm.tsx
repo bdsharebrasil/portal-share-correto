@@ -307,7 +307,7 @@ export function ContaRecorrenteForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-border">
               <div>
                 <Label htmlFor="frequencia_recorrencia">Frequência de Pagamento *</Label>
-                <Select onValueChange={(value) => setValue("frequencia_recorrencia", value)}>
+                <RegularSelect onValueChange={(value) => setValue("frequencia_recorrencia", value)}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -318,12 +318,12 @@ export function ContaRecorrenteForm({
                       </SelectItem>
                     ))}
                   </SelectContent>
-                </Select>
+                </RegularSelect>
               </div>
 
               <div>
                 <Label htmlFor="dia_recorrencia">Dia do Mês para Vencimento *</Label>
-                <Select onValueChange={(value) => setValue("dia_recorrencia", value)}>
+                <RegularSelect onValueChange={(value) => setValue("dia_recorrencia", value)}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -334,7 +334,7 @@ export function ContaRecorrenteForm({
                       </SelectItem>
                     ))}
                   </SelectContent>
-                </Select>
+                </RegularSelect>
                 <p className="text-xs text-muted-foreground mt-1">
                   Esta conta vence todo dia <strong>{watch("dia_recorrencia") || "?"}</strong> do mês
                 </p>
