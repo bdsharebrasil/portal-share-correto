@@ -38,6 +38,59 @@ export function ContaRecorrenteForm({
   const { user } = useAuth();
   const { categorias: allCategorias } = useCategoriasFinanceiro();
   const categoriaNomes = allCategorias.map(c => c.nome);
+  const [fornecedorProfiles, setFornecedorProfiles] = useState<any[]>([]);
+
+  useEffect(() => {
+    loadFornecedorProfiles();
+  }, []);
+
+  const loadFornecedorProfiles = async () => {
+    try {
+      // Buscar colaboradores (user_profiles)
+      const { data: userProfiles, error: userError } = await supabase
+        .from("user_profiles")
+        .select("id, full_name, cpf, email")
+        .order("full_name", { ascending: true });
+
+      if (userError) {
+        console.error("Erro ao carregar colaboradores:", userError);
+      }
+
+      // Buscar fornecedores favoritos
+      const { data: fornecedoresFavoritos, error: fornecError } = await supabase
+        .from("fornecedores_favoritos")
+        .select("id, nome_completo, documento, categoria, apelido")
+        .order("nome_completo", { ascending: true });
+
+      if (fornecError) {
+        console.error("Erro ao carregar fornecedores favoritos:", fornecError);
+      }
+
+      // Combinar dados: colaboradores + fornecedores favoritos
+      const combinedData = [
+        ...(userProfiles || []).map(profile => ({
+          id: profile.id,
+          full_name: profile.full_name,
+          cpf: profile.cpf,
+          email: profile.email,
+          type: "colaborador"
+        })),
+        ...(fornecedoresFavoritos || []).map(fornecedor => ({
+          id: fornecedor.id,
+          full_name: fornecedor.nome_completo,
+          cpf: fornecedor.documento,
+          email: null,
+          type: "fornecedor",
+          categoria: fornecedor.categoria,
+          apelido: fornecedor.apelido
+        }))
+      ];
+
+      setFornecedorProfiles(combinedData);
+    } catch (error: any) {
+      console.error("Erro ao carregar fornecedores:", error.message);
+    }
+  };
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm({
     defaultValues: {
