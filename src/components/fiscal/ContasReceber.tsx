@@ -1424,8 +1424,8 @@ export function ContasReceber() {
                         <div className={`font-medium truncate ${isFromFluxoCaixa ? 'text-blue-400' : 'text-orange-500'}`} title={conta.numero}>
                           {conta.numero}
                         </div>
-                        <div className="text-muted-foreground truncate" title={conta.referencia || "-"}>
-                          {conta.referencia || "-"}
+                        <div className="text-muted-foreground truncate" title={conta.categoria || "-"}>
+                          {conta.categoria || "-"}
                         </div>
                         <div className="font-semibold text-foreground truncate" title={conta.cliente_nome}>
                           {conta.cliente_nome}
