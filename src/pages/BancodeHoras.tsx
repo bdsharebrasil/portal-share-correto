@@ -300,37 +300,51 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
               <h3 className="text-lg font-black text-white uppercase">Histórico de Empréstimos</h3>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-[11px] font-bold uppercase">
+              <table className="w-full border-collapse text-[10px] font-bold uppercase">
                 <thead>
                   <tr className="bg-slate-800/50 text-slate-400">
-                    <th className="px-6 py-4 text-left">Data</th>
-                    <th className="px-6 py-4 text-left">Cliente Mutuário</th>
-                    <th className="px-6 py-4 text-center">Emprestado</th>
-                    <th className="px-6 py-4 text-center">Devolvido</th>
-                    <th className="px-6 py-4 text-center">Saldo</th>
-                    <th className="px-6 py-4 text-center">Status</th>
+                    <th className="px-4 py-4 text-left">Data</th>
+                    <th className="px-4 py-4 text-left">Trecho</th>
+                    <th className="px-4 py-4 text-left">Emprestador</th>
+                    <th className="px-4 py-4 text-left">Tomador</th>
+                    <th className="px-4 py-4 text-center">Horas</th>
+                    <th className="px-4 py-4 text-center">Devolvido</th>
+                    <th className="px-4 py-4 text-center">Fuel (L)</th>
+                    <th className="px-4 py-4 text-left">PIC</th>
+                    <th className="px-4 py-4 text-center">Saldo</th>
+                    <th className="px-4 py-4 text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/30">
                   {loans.map(loan => {
                     const borrowerName = loan.borrower_client?.company_name || 'Cliente desconhecido';
+                    const lenderName = loan.lender_client?.company_name || 'Cliente desconhecido';
                     const hoursBorrowed = loan.hours_borrowed || 0;
                     const hoursPaidBack = loan.hours_paid_back || 0;
                     const balance = hoursBorrowed - hoursPaidBack;
                     const isPending = balance > 0;
                     const formattedDate = new Date(loan.entry_date).toLocaleDateString('pt-BR');
+                    const trecho = loan.logbook_entry
+                      ? `${loan.logbook_entry.departure_aerodrome || '-'} → ${loan.logbook_entry.arrival_aerodrome || '-'}`
+                      : '-';
+                    const fuelAdded = loan.logbook_entry?.fuel_added ? loan.logbook_entry.fuel_added.toFixed(1) : '-';
+                    const picName = loan.logbook_entry?.pic_name || '-';
 
                     return (
                       <tr key={loan.id} className="hover:bg-slate-800/20 transition-colors">
-                        <td className="px-6 py-4 text-slate-300">{formattedDate}</td>
-                        <td className="px-6 py-4 text-slate-300">{borrowerName}</td>
-                        <td className="px-6 py-4 text-center text-sky-500 font-mono">{decimalToHM(hoursBorrowed)}</td>
-                        <td className="px-6 py-4 text-center text-rose-500 font-mono">{decimalToHM(hoursPaidBack)}</td>
-                        <td className={`px-6 py-4 text-center font-black font-mono ${isPending ? 'text-amber-500' : 'text-emerald-500'}`}>
+                        <td className="px-4 py-4 text-slate-300 whitespace-nowrap">{formattedDate}</td>
+                        <td className="px-4 py-4 text-slate-300 font-mono">{trecho}</td>
+                        <td className="px-4 py-4 text-slate-300 truncate text-xs">{lenderName}</td>
+                        <td className="px-4 py-4 text-slate-300 truncate text-xs">{borrowerName}</td>
+                        <td className="px-4 py-4 text-center text-sky-500 font-mono whitespace-nowrap">{decimalToHM(hoursBorrowed)}</td>
+                        <td className="px-4 py-4 text-center text-rose-500 font-mono whitespace-nowrap">{decimalToHM(hoursPaidBack)}</td>
+                        <td className="px-4 py-4 text-center text-slate-300 font-mono whitespace-nowrap">{fuelAdded}</td>
+                        <td className="px-4 py-4 text-slate-300 truncate text-xs">{picName}</td>
+                        <td className={`px-4 py-4 text-center font-black font-mono whitespace-nowrap ${isPending ? 'text-amber-500' : 'text-emerald-500'}`}>
                           {decimalToHM(balance)}
                         </td>
-                        <td className="px-6 py-4 text-center">
-                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-lg text-[9px] font-black uppercase border ${isPending ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
+                        <td className="px-4 py-4 text-center">
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[8px] font-black uppercase border whitespace-nowrap ${isPending ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'}`}>
                             {isPending ? '⏳ Pendente' : '✓ Quitado'}
                           </span>
                         </td>
