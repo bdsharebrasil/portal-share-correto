@@ -22,14 +22,14 @@ export default {
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
-				'input-background': 'hsl(var(--input-background))',
-				'switch-background': 'hsl(var(--switch-background))',
 				ring: 'hsl(var(--ring))',
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
 					foreground: 'hsl(var(--primary-foreground))',
+					glow: 'hsl(var(--primary-glow))',
+					dark: 'hsl(var(--primary-dark))'
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
@@ -54,9 +54,10 @@ export default {
 				card: {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))',
+					secondary: 'hsl(var(--card-secondary))'
 				},
 				sidebar: {
-					DEFAULT: 'hsl(var(--sidebar))',
+					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
 					primary: 'hsl(var(--sidebar-primary))',
 					'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
@@ -65,13 +66,11 @@ export default {
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
 				},
-				chart: {
-					'1': 'hsl(var(--chart-1))',
-					'2': 'hsl(var(--chart-2))',
-					'3': 'hsl(var(--chart-3))',
-					'4': 'hsl(var(--chart-4))',
-					'5': 'hsl(var(--chart-5))',
-				},
+				'folder-back': 'hsl(var(--folder-back))',
+				'folder-tab': 'hsl(var(--folder-tab))',
+				'folder-front': 'hsl(var(--folder-front))',
+				success: 'hsl(var(--success))',
+				warning: 'hsl(var(--warning))'
 			},
 			fontFamily: {
 				display: ['Space Grotesk', 'sans-serif'],
