@@ -455,7 +455,7 @@ export default function PortalCliente() {
                 onSelect={handleAircraftChange}
               >
                 {/* Dados da Empresa ou Sócio */}
-                <Card className="border border-white/10 bg-slate-800/30 backdrop-blur-sm mb-8">
+                <Card className="border border-white/10 bg-white/5 backdrop-blur-sm mb-8">
                   <CardHeader className="pb-4 border-b border-white/10">
                     <CardTitle className="flex items-center gap-2 text-foreground text-lg">
                       <Building className="h-5 w-5 text-blue-400" />
