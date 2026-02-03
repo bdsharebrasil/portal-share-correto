@@ -61,9 +61,12 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
       supabase.from('clients').select('id, company_name, proprietario').order('company_name'),
       supabase.from('aircraft').select('id, registration, model').order('registration'),
     ]);
-    
+
     if (clientsRes.data) setClients(clientsRes.data);
     if (aircraftRes.data) setAircraft(aircraftRes.data);
+
+    // Fetch crew members
+    await fetchCrewMembers();
   };
 
   const handleSubmit = async () => {
