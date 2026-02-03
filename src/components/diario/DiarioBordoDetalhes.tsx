@@ -14,6 +14,7 @@ import { MaintenanceStatusAlert } from './MaintenanceStatusAlert';
 import { CreateMonthDialog } from './CreateMonthDialog';
 import { CloseMonthDialog } from './CloseMonthDialog';
 import { ExportLogbookDialog } from './ExportLogbookDialog';
+import { PartnerSelectModal } from './PartnerSelectModal';
 import { useUserRole } from '@/hooks/useUserRole';
 
 // ===================== CONSTANTES =====================
@@ -90,6 +91,12 @@ const decimalToHHMM = (decimal?: number | null): string => {
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
 };
 
+const decimalToHoursOnly = (decimal?: number | null): string => {
+  if (!decimal || decimal === 0) return '00:00';
+  const hours = Math.round(decimal);
+  return `${hours.toString().padStart(2, '0')}:00`;
+};
+
 const decimalToTimeString = (decimal: number): string => {
   if (!decimal || decimal === 0) return '00:00';
   const totalMinutes = Math.round(decimal * 60);
@@ -154,6 +161,33 @@ const expandClientsWithPartners = (clients: any[]) => {
   });
   
   return expanded;
+};
+
+// ===================== EXTRAIR PARCEIROS DE UM CLIENTE =====================
+const getPartnersFromClient = (client: any) => {
+  const partners = [];
+  if (client?.partner_name) {
+    partners.push({
+      name: client.partner_name,
+      cpf: client.partner_cpf,
+      index: 1
+    });
+  }
+  if (client?.partner_name2) {
+    partners.push({
+      name: client.partner_name2,
+      cpf: client.partner_cpf2,
+      index: 2
+    });
+  }
+  if (client?.partner_name3) {
+    partners.push({
+      name: client.partner_name3,
+      cpf: client.partner_cpf3,
+      index: 3
+    });
+  }
+  return partners;
 };
 
 // ===================== CÁLCULO DE CUSTO COM RATEIO =====================
@@ -329,6 +363,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   const [showCreateMonthDialog, setShowCreateMonthDialog] = useState(false);
   const [showCloseMonthDialog, setShowCloseMonthDialog] = useState(false);
   const [previousMonthData, setPreviousMonthData] = useState<any>(null);
+
+  const [showPartnerModal, setShowPartnerModal] = useState(false);
+  const [pendingClientId, setPendingClientId] = useState<string>('');
 
   const [loans, setLoans] = useState<any[]>([]);
 
@@ -1684,6 +1721,53 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           currentYear={selectedYear}
         />
 
+        {/* Modal para seleção de parceiro */}
+        {(() => {
+          const selectedClient = clients.find(c => c.id === pendingClientId);
+          const partners = getPartnersFromClient(selectedClient);
+
+          // Determina qual field está sendo preenchido
+          const isLoanFlow = flightType === 'emprestimo';
+          const currentPartnerName = isLoanFlow &&
+            (pendingClientId === newEntry.borrower_client_id ? newEntry.borrower_partner_name : newEntry.partner_name) ||
+            (!isLoanFlow ? newEntry.partner_name : '');
+
+          return (
+            <PartnerSelectModal
+              open={showPartnerModal}
+              onOpenChange={setShowPartnerModal}
+              clientName={selectedClient?.company_name || ''}
+              partners={partners}
+              selectedPartner={currentPartnerName}
+              onSelectPartner={(partnerName) => {
+                // Verifica qual fluxo está ativo
+                if (flightType === 'emprestimo') {
+                  if (pendingClientId === newEntry.client_id) {
+                    // Selecionando parceiro do cliente que empresta
+                    setNewEntry({
+                      ...newEntry,
+                      partner_name: partnerName
+                    });
+                  } else if (pendingClientId === newEntry.borrower_client_id) {
+                    // Selecionando parceiro do cliente que pega emprestado
+                    setNewEntry({
+                      ...newEntry,
+                      borrower_partner_name: partnerName
+                    });
+                  }
+                } else {
+                  // Fluxo de cliente normal
+                  setNewEntry({
+                    ...newEntry,
+                    partner_name: partnerName
+                  });
+                }
+                setShowPartnerModal(false);
+              }}
+            />
+          );
+        })()}
+
         {/* INFORMAÇÕES TÉCNICAS DO PERÍODO */}
         {logbookMonth && <div className="space-y-6">
           {/* MÉTRICAS PRINCIPAIS DESTACADAS */}
@@ -1997,11 +2081,19 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Cliente / Cotista *</Label>
                       <Select value={newEntry.client_id} onValueChange={v => {
                         const selectedClient = clients.find(c => c.id === v);
+                        const partners = getPartnersFromClient(selectedClient);
+
                         setNewEntry({
                           ...newEntry,
                           client_id: v,
-                          partner_name: '' // Reset partner when client changes
+                          partner_name: ''
                         });
+
+                        // Se o cliente tem parceiros, abre o modal
+                        if (partners.length > 0) {
+                          setPendingClientId(v);
+                          setShowPartnerModal(true);
+                        }
                       }}>
                         <SelectTrigger className="bg-slate-950 border-slate-800 text-white">
                           <SelectValue placeholder="Selecione o Cliente" />
@@ -2020,33 +2112,28 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       </Select>
                     </div>
 
-                    {/* Seleção de Sócio/Partner */}
-                    {(() => {
+                    {/* Seleção de Sócio/Partner - mostra apenas se foi selecionado */}
+                    {newEntry.client_id && (() => {
                       const selectedClient = clients.find(c => c.id === newEntry.client_id);
-                      const partnerOptions = [];
-                      if (selectedClient?.partner_name) partnerOptions.push(selectedClient.partner_name);
-                      if (selectedClient?.partner_name2) partnerOptions.push(selectedClient.partner_name2);
-                      if (selectedClient?.partner_name3) partnerOptions.push(selectedClient.partner_name3);
-                      
-                      if (partnerOptions.length > 0) {
+                      const partners = getPartnersFromClient(selectedClient);
+
+                      if (newEntry.partner_name && partners.length > 0) {
                         return (
-                          <div className="space-y-1 mt-2">
-                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Sócio Responsável pelo Voo</Label>
-                            <Select value={newEntry.partner_name} onValueChange={v => setNewEntry({
-                              ...newEntry,
-                              partner_name: v
-                            })}>
-                              <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
-                                <SelectValue placeholder="Selecione o Sócio" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {partnerOptions.map((partner, idx) => (
-                                  <SelectItem key={idx} value={partner}>
-                                    {partner}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                          <div className="space-y-1 mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Sócio Selecionado</Label>
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-bold text-amber-400">{newEntry.partner_name}</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPendingClientId(newEntry.client_id);
+                                  setShowPartnerModal(true);
+                                }}
+                                className="text-xs px-2 py-1 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/50 text-amber-400 rounded transition-all"
+                              >
+                                Alterar
+                              </button>
+                            </div>
                             {selectedClient?.cnpj && (
                               <p className="text-[8px] text-slate-500 mt-1">
                                 CNPJ: {selectedClient.cnpj}
@@ -2098,11 +2185,20 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     <div className="space-y-1">
                       <Label className="text-[9px] uppercase text-amber-400 ml-1 block">Cliente que Empresta a Aeronave *</Label>
                       <Select value={newEntry.client_id} onValueChange={v => {
+                        const selectedClient = clients.find(c => c.id === v);
+                        const partners = getPartnersFromClient(selectedClient);
+
                         setNewEntry({
                           ...newEntry,
                           client_id: v,
-                          partner_name: '' // Reset partner when client changes
+                          partner_name: ''
                         });
+
+                        // Se o cliente tem parceiros, abre o modal
+                        if (partners.length > 0) {
+                          setPendingClientId(v);
+                          setShowPartnerModal(true);
+                        }
                       }}>
                         <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
                           <SelectValue placeholder="Selecione o Cliente" />
@@ -2128,32 +2224,27 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     </div>
 
                     {/* Sócio/Cotista responsável pelo empréstimo */}
-                    {(() => {
+                    {newEntry.client_id && (() => {
                       const selectedClient = clients.find(c => c.id === newEntry.client_id);
-                      const partnerOptions = [];
-                      if (selectedClient?.partner_name) partnerOptions.push(selectedClient.partner_name);
-                      if (selectedClient?.partner_name2) partnerOptions.push(selectedClient.partner_name2);
-                      if (selectedClient?.partner_name3) partnerOptions.push(selectedClient.partner_name3);
+                      const partners = getPartnersFromClient(selectedClient);
 
-                      if (partnerOptions.length > 0) {
+                      if (newEntry.partner_name && partners.length > 0) {
                         return (
-                          <div className="space-y-1 mt-2">
-                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Cotista Responsável (Aeronave) *</Label>
-                            <Select value={newEntry.partner_name} onValueChange={v => setNewEntry({
-                              ...newEntry,
-                              partner_name: v
-                            })}>
-                              <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
-                                <SelectValue placeholder="Selecione o Cotista" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {partnerOptions.map((partner, idx) => (
-                                  <SelectItem key={idx} value={partner}>
-                                    {partner}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                          <div className="space-y-1 mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Cotista Responsável (Aeronave)</Label>
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-bold text-amber-400">{newEntry.partner_name}</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPendingClientId(newEntry.client_id);
+                                  setShowPartnerModal(true);
+                                }}
+                                className="text-xs px-2 py-1 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/50 text-amber-400 rounded transition-all"
+                              >
+                                Alterar
+                              </button>
+                            </div>
                           </div>
                         );
                       }
@@ -2167,13 +2258,22 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       </Label>
                       <Select
                         value={newEntry.borrower_client_id}
-                        onValueChange={(v) =>
+                        onValueChange={(v) => {
+                          const selectedBorrowerClient = clients.find(c => c.id === v);
+                          const borrowerPartners = getPartnersFromClient(selectedBorrowerClient);
+
                           setNewEntry({
                             ...newEntry,
                             borrower_client_id: v,
-                            borrower_partner_name: '', // Reset partner when borrower client changes
-                          })
-                        }
+                            borrower_partner_name: '',
+                          });
+
+                          // Se o cliente tem parceiros, abre o modal para seleção de parceiro do cliente que pega emprestado
+                          if (borrowerPartners.length > 0) {
+                            setPendingClientId(v);
+                            setShowPartnerModal(true);
+                          }
+                        }}
                       >
                         <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
                           <SelectValue placeholder="Selecione o cliente que está usando" />
@@ -2189,32 +2289,27 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     </div>
 
                     {/* Sócio/Cotista do cliente que pega emprestado (se houver) */}
-                    {(() => {
+                    {newEntry.borrower_client_id && (() => {
                       const selectedBorrowerClient = clients.find(c => c.id === newEntry.borrower_client_id);
-                      const borrowerPartnerOptions = [];
-                      if (selectedBorrowerClient?.partner_name) borrowerPartnerOptions.push(selectedBorrowerClient.partner_name);
-                      if (selectedBorrowerClient?.partner_name2) borrowerPartnerOptions.push(selectedBorrowerClient.partner_name2);
-                      if (selectedBorrowerClient?.partner_name3) borrowerPartnerOptions.push(selectedBorrowerClient.partner_name3);
+                      const borrowerPartners = getPartnersFromClient(selectedBorrowerClient);
 
-                      if (borrowerPartnerOptions.length > 0) {
+                      if (newEntry.borrower_partner_name && borrowerPartners.length > 0) {
                         return (
-                          <div className="space-y-1 mt-2">
-                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Cotista que Pega Emprestado *</Label>
-                            <Select value={newEntry.borrower_partner_name} onValueChange={v => setNewEntry({
-                              ...newEntry,
-                              borrower_partner_name: v
-                            })}>
-                              <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
-                                <SelectValue placeholder="Selecione o Cotista" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {borrowerPartnerOptions.map((partner, idx) => (
-                                  <SelectItem key={idx} value={partner}>
-                                    {partner}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                          <div className="space-y-1 mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Cotista que Pega Emprestado</Label>
+                            <div className="flex items-center justify-between">
+                              <p className="text-sm font-bold text-amber-400">{newEntry.borrower_partner_name}</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPendingClientId(newEntry.borrower_client_id);
+                                  setShowPartnerModal(true);
+                                }}
+                                className="text-xs px-2 py-1 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/50 text-amber-400 rounded transition-all"
+                              >
+                                Alterar
+                              </button>
+                            </div>
                           </div>
                         );
                       }
@@ -2300,7 +2395,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   <div className="flex items-center justify-between">
                     <Label className="text-[9px] uppercase text-orange-500 font-bold">T. VOO</Label>
                     <div className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white font-black text-sm min-w-24 text-center">
-                      {decimalToHHMM(newEntry.time)}
+                      {decimalToHoursOnly(newEntry.time)}
                     </div>
                   </div>
                   <div className="flex items-center justify-between">
@@ -3087,10 +3182,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     </td>
                     <td className="p-2 text-center" style={{ width: `${columnWidths.acoes}px`, overflow: 'hidden' }}>
                       <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => handleEditEntry(e)} className="p-2 hover:bg-sky-500/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 text-sky-400 hover:text-sky-300" title="Editar lançamento">
+                        <button onClick={() => handleEditEntry(e)} className="p-2 hover:bg-sky-500/20 rounded-lg transition-all text-sky-400 hover:text-sky-300 hover:scale-110" title="Editar lançamento">
                           <Edit size={16} />
                         </button>
-                        <button onClick={() => handleDeleteEntry(e.id)} className="p-2 hover:bg-rose-500/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 text-rose-400 hover:text-rose-300" title="Deletar lançamento">
+                        <button onClick={() => handleDeleteEntry(e.id)} className="p-2 hover:bg-rose-500/20 rounded-lg transition-all text-rose-400 hover:text-rose-300 hover:scale-110" title="Deletar lançamento">
                           <Trash2 size={16} />
                         </button>
                       </div>

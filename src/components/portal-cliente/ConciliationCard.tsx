@@ -37,6 +37,19 @@ interface ConciliationCardProps {
   loading?: boolean;
 }
 
+// Função corrigida para converter data sem problemas de timezone
+const formatDateCorrectly = (dateString: string): string => {
+  if (!dateString) return "";
+  try {
+    // Parse apenas a data sem adicionar horário
+    const [year, month, day] = dateString.split('T')[0].split('-');
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    return date.toLocaleDateString("pt-BR");
+  } catch {
+    return dateString;
+  }
+};
+
 const getStatusColor = (status: string) => {
   const s = status?.toLowerCase() || "";
   if (s === "pago" || s === "recebido" || s === "conferido") {
@@ -179,7 +192,7 @@ export function ConciliationCard({ reconciliations, loading }: ConciliationCardP
                       className={`hover:bg-muted/30 transition-colors ${isReembolso ? 'bg-purple-500/5' : ''}`}
                     >
                       <td className="px-6 py-4 text-sm text-foreground font-medium whitespace-nowrap">
-                        {new Date(item.date + 'T12:00:00').toLocaleDateString("pt-BR")}
+                        {formatDateCorrectly(item.date)}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-1">
@@ -227,7 +240,7 @@ export function ConciliationCard({ reconciliations, loading }: ConciliationCardP
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground whitespace-nowrap">
                         {item.payment_term
-                          ? new Date(item.payment_term + 'T12:00:00').toLocaleDateString("pt-BR")
+                          ? formatDateCorrectly(item.payment_term)
                           : "—"}
                       </td>
                       <td className="px-6 py-4">

@@ -27,6 +27,19 @@ interface FinancialHistoryTabProps {
   aircraftId: string;
 }
 
+// Função corrigida para converter data sem problemas de timezone
+const formatDateCorrectly = (dateString: string): string => {
+  if (!dateString) return "";
+  try {
+    // Parse apenas a data sem adicionar horário
+    const [year, month, day] = dateString.split('T')[0].split('-');
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    return date.toLocaleDateString("pt-BR");
+  } catch {
+    return dateString;
+  }
+};
+
 export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTabProps) {
   const [records, setRecords] = useState<ReembolsoRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -217,11 +230,11 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      📅 {new Date(record.date + 'T12:00:00').toLocaleDateString("pt-BR")}
+                      📅 {formatDateCorrectly(record.date)}
                     </p>
                     {record.payment_term && (
                       <p className="text-sm text-amber-400 mt-1">
-                        ⏰ Prazo: {new Date(record.payment_term + 'T12:00:00').toLocaleDateString("pt-BR")}
+                        ⏰ Prazo: {formatDateCorrectly(record.payment_term)}
                       </p>
                     )}
                   </div>
