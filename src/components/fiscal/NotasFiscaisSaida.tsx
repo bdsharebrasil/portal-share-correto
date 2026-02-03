@@ -1648,7 +1648,7 @@ export function NotasFiscaisSaida() {
                       <TableCell className="font-semibold text-foreground px-4 py-3">{nota.numero}</TableCell>
                       <TableCell className="text-foreground px-4 py-3">{nota.cliente_nome}</TableCell>
                       <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                        {nota.aeronave_registration || "-"}
+                        {nota.aeronave_registration || nota.aeronave || "-"}
                       </TableCell>
                       <TableCell className="text-muted-foreground px-4 py-3 text-sm">
                         {format(new Date(nota.data_criacao + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
