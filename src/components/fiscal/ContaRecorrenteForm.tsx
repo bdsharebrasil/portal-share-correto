@@ -38,8 +38,7 @@ export function ContaRecorrenteForm({
   onCancel
 }: ContaRecorrenteFormProps) {
   const { user } = useAuth();
-  const { categorias: allCategorias } = useCategoriasFinanceiro();
-  const categoriaNomes = allCategorias.map(c => c.nome);
+  const groupedCategories = useGroupedCategories("despesa");
   const [fornecedorProfiles, setFornecedorProfiles] = useState<any[]>([]);
 
   useEffect(() => {
