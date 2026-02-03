@@ -37,6 +37,19 @@ interface ConciliationCardProps {
   loading?: boolean;
 }
 
+// Função corrigida para converter data sem problemas de timezone
+const formatDateCorrectly = (dateString: string): string => {
+  if (!dateString) return "";
+  try {
+    // Parse apenas a data sem adicionar horário
+    const [year, month, day] = dateString.split('T')[0].split('-');
+    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+    return date.toLocaleDateString("pt-BR");
+  } catch {
+    return dateString;
+  }
+};
+
 const getStatusColor = (status: string) => {
   const s = status?.toLowerCase() || "";
   if (s === "pago" || s === "recebido" || s === "conferido") {
