@@ -1305,6 +1305,44 @@ export function ContasReceber() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog Visualizador de PDF */}
+      <Dialog open={showPdfViewerDialog} onOpenChange={setShowPdfViewerDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Visualizar PDF</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto bg-gray-900 rounded-lg">
+            {pdfViewerUrl && (
+              <iframe
+                src={pdfViewerUrl}
+                className="w-full h-full border-0 rounded-lg"
+                title="PDF Viewer"
+              />
+            )}
+          </div>
+          <div className="flex gap-2 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowPdfViewerDialog(false)}
+            >
+              Fechar
+            </Button>
+            {pdfViewerUrl && (
+              <a
+                href={pdfViewerUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1"
+              >
+                <Button className="w-full bg-primary hover:bg-primary/90">
+                  Abrir em Nova Aba
+                </Button>
+              </a>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Tabela de Contas a Receber */}
       <Card className="bg-card border-border/50">
         <CardHeader className="pb-4 pt-6 px-6 border-b border-border/50">
