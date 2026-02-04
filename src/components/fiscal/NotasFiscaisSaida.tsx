@@ -196,9 +196,22 @@ interface Cliente {
 // --- COMPONENTE PRINCIPAL ---
 
 export function NotasFiscaisSaida() {
-  const { getCategoriasEntrada } = useCategoriasFinanceiro();
-  const categoriasReceita = getCategoriasEntrada();
+  const { getCategoriasReceita } = useCategoriasFinanceiro();
+  let categoriasReceita = getCategoriasReceita();
   const { aeronaves, isLoadingAeronaves } = useAeronaves();
+
+  // Filtrar apenas as categorias especificadas para NF de Saída
+  const categoriasNFSaidaIds = [
+    'b5143aad-88ed-4649-9f17-3ff15904bda2', // N.F DIARIAS DE VOO
+    'd95ca1cc-a6c9-4d07-97a6-eb18f542a333', // RESSARCIMENTOS gerais
+    'a7555994-103d-4739-96a5-001c3bec1424', // REEMBOLSO RELATORIO DE DESPESA DE VIAGENS recebido
+    '2874b45b-a3bb-4bec-8f7e-74b328f8693c', // ADM E PILOTAGEM - RECIBO
+    '352095f3-a97a-4539-ad1a-b1471e577583', // N.F ADM - Somente adm de aeronaves
+    '643fd58f-ae2f-4269-9d5a-93345d613fb9', // ADM E PILOTAGEM - N.F
+    '73355581-c479-4a5d-b90b-90b3332f198e', // ADM SHARE - RECIBO
+  ];
+
+  categoriasReceita = categoriasReceita.filter(cat => categoriasNFSaidaIds.includes(cat.id));
 
   const [notas, setNotas] = useState<NotaFiscalSaida[]>([]);
   const [isLoading, setIsLoading] = useState(true);
