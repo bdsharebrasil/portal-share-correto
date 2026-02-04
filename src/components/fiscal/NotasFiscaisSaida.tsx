@@ -196,8 +196,8 @@ interface Cliente {
 // --- COMPONENTE PRINCIPAL ---
 
 export function NotasFiscaisSaida() {
-  const { getCategoriasEntrada } = useCategoriasFinanceiro();
-  let categoriasReceita = getCategoriasEntrada();
+  const { getCategoriasReceita } = useCategoriasFinanceiro();
+  let categoriasReceita = getCategoriasReceita();
   const { aeronaves, isLoadingAeronaves } = useAeronaves();
 
   // Filtrar apenas as categorias especificadas para NF de Saída
