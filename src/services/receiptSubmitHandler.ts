@@ -16,7 +16,7 @@ interface ReceiptSubmissionData {
   // Dados específicos de documento
   tipo_documento: "rateio" | "recibo";
   doc?: string | null;
-  payment_term?: string | null;
+  prazo_pagamento?: string | null;
 
   // Dados de rateio
   percentual?: string | number | null;
@@ -300,7 +300,7 @@ export async function handleReceiptSubmit(
       categoria_movimentacao_id: submissionData.categoria_movimentacao_id || null,
       tipo_documento: submissionData.tipo_documento,
       doc: submissionData.doc || null,
-      payment_term: submissionData.payment_term || null,
+      prazo_pagamento: submissionData.prazo_pagamento || null,
       percentual: submissionData.percentual || null,
       forma_pagamento: submissionData.forma_pagamento || null,
       afeta_caixa_empresa: submissionData.afeta_caixa_empresa ?? true,
@@ -340,7 +340,7 @@ export async function handleReceiptSubmit(
           valor_rateado: submissionData.amount,
           valor: submissionData.rateio_data.valor_total,
           status: submissionData.status || "pendente",
-          data_vencimento: submissionData.payment_term || submissionData.date,
+          data_vencimento: submissionData.prazo_pagamento || submissionData.date,
           categoria_id: submissionData.categoria_movimentacao_id || null,
           boleto: boleto_url,
           nota_fiscal: nf_url,
@@ -464,11 +464,11 @@ export async function insertReceiptToBankReconciliations(
       categoria_movimentacao_id: categoria_movimentacao_id,
       tipo_documento: data.tipo === "recibo" ? "recibo" : "recibo",
       doc: data.numero_documento || null,
-      payment_term: data.data_vencimento || null,
+      prazo_pagamento: data.data_vencimento || null,
       forma_pagamento: "empresa_paga" as const,
       afeta_caixa_empresa: true,
       created_by: userId,
-      recibo_url: data.recibo_url || null,
+      comprovante_url: data.recibo_url || null,
       nf_url: data.nf_url || null,
       partner_name: data.client_name || null,
       reference_type: "controle_bancario",

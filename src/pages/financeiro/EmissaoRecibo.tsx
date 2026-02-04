@@ -206,7 +206,7 @@ export default function EmissaoRecibo() {
             categoria_movimentacao_id: originalForm.reembolsoCategoriaId || formData.categoria_movimentacao_id || null,
             tipo_documento: isRateado ? "rateio" as const : "recibo" as const,
             doc: originalForm.reembolsoNumeroDocumento || null,
-            payment_term: originalForm.prazoMaximoQuitacao || null,
+            prazo_pagamento: originalForm.prazoMaximoQuitacao || null,
             percentual: percentual,
             forma_pagamento: isRateado ? "rateio_direto" : "empresa_paga",
             afeta_caixa_empresa: true,

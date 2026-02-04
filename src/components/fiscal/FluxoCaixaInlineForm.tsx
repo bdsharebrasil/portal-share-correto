@@ -478,7 +478,7 @@ export function FluxoCaixaInlineForm({
         atualizado_por: user.id,
         comprovante_url: comprovanteUrl,
         nf_url: nfUrl,
-        recibo_url: reciboUrl,
+        comprovante_url: reciboUrl,
         boleto_url: boletoUrl,
       };
 

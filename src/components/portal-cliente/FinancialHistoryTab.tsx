@@ -17,7 +17,7 @@ interface ReembolsoRecord {
   boleto_url?: string;
   nf_url?: string;
   pdf_url?: string;
-  payment_term?: string;
+  prazo_pagamento?: string;
   receipt_number?: string;
   tem_rateio?: boolean;
 }
@@ -81,7 +81,7 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
             boleto_url: record.boleto_url,
             nf_url: record.nf_url,
             pdf_url: record.comprovante_url,
-            payment_term: record.payment_term,
+            prazo_pagamento: record.prazo_pagamento,
             receipt_number: undefined,
             percentual: record.percentual ? parseFloat(record.percentual) : undefined,
             tem_rateio: !!record.percentual,
@@ -119,7 +119,7 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
             boleto_url: record.boleto_url,
             nf_url: record.nf_url,
             pdf_url: record.pdf_url,
-            payment_term: record.max_payment_date,
+            prazo_pagamento: record.max_payment_date,
             receipt_number: record.receipt_number,
             percentual: record.percentage,
             tem_rateio: record.is_shared,
@@ -232,9 +232,9 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
                     <p className="text-sm text-muted-foreground">
                       📅 {formatDateCorrectly(record.date)}
                     </p>
-                    {record.payment_term && (
+                    {record.prazo_pagamento && (
                       <p className="text-sm text-amber-400 mt-1">
-                        ⏰ Prazo: {formatDateCorrectly(record.payment_term)}
+                        ⏰ Prazo: {formatDateCorrectly(record.prazo_pagamento)}
                       </p>
                     )}
                   </div>

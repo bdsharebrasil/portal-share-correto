@@ -28,7 +28,7 @@ interface TravelReport {
   created_at: string;
   observations?: string;
   total_amount?: number;
-  payment_term?: string;
+  prazo_pagamento?: string;
   status?: string;
   client_name?: string;
   aircraft_registration?: string;
@@ -1021,7 +1021,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">Prazo de Pagamento</p>
                             <p className="text-sm text-foreground">
-                              {report.payment_term ? new Date(report.payment_term).toLocaleDateString('pt-BR') : 'Não definido'}
+                              {report.prazo_pagamento ? new Date(report.prazo_pagamento).toLocaleDateString('pt-BR') : 'Não definido'}
                             </p>
                           </div>
 

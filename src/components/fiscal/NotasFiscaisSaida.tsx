@@ -658,7 +658,7 @@ export function NotasFiscaisSaida() {
           categoria_id: CATEGORIA_ID,
           criado_por: currentUser.id,
           descricao: reciboData.descricao || "Recibo de Saída - Serviços",
-          recibo_url: reciboUrl,
+          comprovante_url: reciboUrl,
           client_id: clientId,
           client_name: reciboData.cliente_nome,
           aeronave_id: aeronaveId,

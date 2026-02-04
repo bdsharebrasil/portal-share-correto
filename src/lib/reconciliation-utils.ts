@@ -10,7 +10,7 @@ interface ReconciliationData {
   client_id?: string | null;
   receiver_id?: string | null;
   aircraft_id?: string | null;
-  payment_term?: string | null;
+  prazo_pagamento?: string | null;
   forma_pagamento?: string | null;
   afeta_caixa_empresa?: boolean;
   saldo_pendente?: number | null;
@@ -108,8 +108,8 @@ export async function createContaAReceber(
 
     const numero = `CR-${String(nextNumber).padStart(4, '0')}/${yearShort}`;
     
-    // Data de vencimento: usar payment_term ou data + 30 dias
-    const dataVencimento = reconciliation.payment_term || reconciliation.date;
+    // Data de vencimento: usar prazo_pagamento ou data + 30 dias
+    const dataVencimento = reconciliation.prazo_pagamento || reconciliation.date;
     
     // Valor: usar saldo_pendente se disponível, senão amount
     const valor = Math.abs(reconciliation.saldo_pendente ?? reconciliation.amount ?? 0);
@@ -220,7 +220,7 @@ export async function createContaAPagar(
     }
 
     const numero = `CP-${String(nextNumber).padStart(4, '0')}/${yearShort}`;
-    const dataVencimento = reconciliation.payment_term || reconciliation.date;
+    const dataVencimento = reconciliation.prazo_pagamento || reconciliation.date;
 
     // Criar conta a pagar
     const { data: newConta, error } = await supabase
@@ -353,7 +353,7 @@ export async function createFluxoCaixaEntry(
       .from('controle_bancario')
       .insert({
         data: new Date().toISOString().split('T')[0],
-        data_vencimento: reconciliation.payment_term || null,
+        data_vencimento: reconciliation.prazo_pagamento || null,
         tipo_movimento: tipoMovimento,
         categoria: reconciliation.category || (tipoMovimento === 'entrada' ? 'Receita de Reembolso' : 'Despesa'),
         grupo_categoria: tipoMovimento === 'entrada' ? 'RECEITAS' : 'DESPESAS',

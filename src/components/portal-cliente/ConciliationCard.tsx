@@ -14,7 +14,7 @@ interface BankReconciliation {
   category: string | null;
   client_id: string | null;
   aircraft_id: string | null;
-  payment_term: string | null;
+  prazo_pagamento: string | null;
   boleto_url?: string;
   nf_url?: string;
   pdf_url?: string;
@@ -239,8 +239,8 @@ export function ConciliationCard({ reconciliations, loading }: ConciliationCardP
                         )}
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground whitespace-nowrap">
-                        {item.payment_term
-                          ? formatDateCorrectly(item.payment_term)
+                        {item.prazo_pagamento
+                          ? formatDateCorrectly(item.prazo_pagamento)
                           : "—"}
                       </td>
                       <td className="px-6 py-4">

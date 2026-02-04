@@ -4,6 +4,13 @@
 -- Este script sincroniza registros existentes em controle_bancario
 -- para bank_reconciliations, especialmente para entradas (receitas)
 
+```sql
+-- =====================================================
+-- SCRIPT: Sincronizar Controle Bancário com Bank Reconciliations
+-- =====================================================
+-- Este script sincroniza registros existentes em controle_bancario
+-- para bank_reconciliations, especialmente para entradas (receitas)
+
 -- 1. Buscar IDs de aeronaves para mapeamento
 -- CREATE TEMP TABLE IF NOT EXISTS temp_aircraft_ids AS
 -- SELECT id, registration FROM public.aircraft;
@@ -22,12 +29,12 @@ INSERT INTO public.bank_reconciliations (
   categoria_movimentacao_id,
   tipo_documento,
   doc,
-  payment_term,
+  prazo_pagamento,
   forma_pagamento,
   afeta_caixa_empresa,
   created_by,
   partner_name,
-  recibo_url,
+  comprovante_url,
   nf_url,
   boleto_url,
   reference_type,
@@ -56,16 +63,16 @@ SELECT
   cb.categoria_id as categoria_movimentacao_id,
   'recibo' as tipo_documento,
   cb.numero_documento as doc,
-  cb.data_vencimento as payment_term,
+  cb.data_vencimento as prazo_pagamento,
   'empresa_paga' as forma_pagamento,
   true as afeta_caixa_empresa,
   cb.criado_por as created_by,
   cb.partner_name as partner_name,
-  cb.recibo_url as recibo_url,
+  cb.recibo_url as comprovante_url,
   cb.nf_url as nf_url,
   cb.boleto_url as boleto_url,
   'controle_bancario' as reference_type,
-  cb.id::text as reference_id,
+  cb.id as reference_id,
   cb.data_criacao as created_at,
   CURRENT_TIMESTAMP as updated_at
 FROM public.controle_bancario cb
@@ -76,7 +83,7 @@ WHERE
   AND NOT EXISTS (
     SELECT 1 FROM public.bank_reconciliations br
     WHERE br.reference_type = 'controle_bancario'
-    AND br.reference_id = cb.id::text
+    AND br.reference_id = cb.id
   )
   -- Apenas registros com numero_documento preenchido (recibos/NFs)
   AND cb.numero_documento IS NOT NULL
@@ -98,12 +105,12 @@ ON CONFLICT DO NOTHING;
 -- - valor → amount
 -- - status → status (confirmado→recebido, pendente→pendente, inadimplente→pendente)
 -- - numero_documento → doc
--- - data_vencimento → payment_term
+-- - data_vencimento → prazo_pagamento
 -- - categoria_id → categoria_movimentacao_id
 -- - client_id → client_id
 -- - aeronave_id/aeronave_registro → aircraft_id
 -- - partner_name → partner_name
--- - recibo_url → recibo_url
+-- - recibo_url → comprovante_url
 -- - nf_url → nf_url
 -- - boleto_url → boleto_url
 -- - criado_por → created_by
@@ -124,6 +131,8 @@ ON CONFLICT DO NOTHING;
 -- AND EXISTS (
 --   SELECT 1 FROM public.bank_reconciliations br
 --   WHERE br.reference_type = 'controle_bancario'
---   AND br.reference_id = cb.id::text
+--   AND br.reference_id = cb.id
 -- )
 -- ORDER BY cb.data DESC;
+
+```

@@ -396,7 +396,7 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
             client_id: formData.cotista,
             aircraft_id: formData.aeronave,
             status: 'pendente',
-            payment_term: null,
+            prazo_pagamento: null,
             created_by: null
           }]);
 

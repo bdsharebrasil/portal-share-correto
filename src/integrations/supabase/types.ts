@@ -1326,7 +1326,7 @@ export type Database = {
           id: string
           nf_url: string | null
           partner_name: string | null
-          payment_term: string | null
+          prazo_pagamento: string | null
           percentual: string | null
           receiver_id: string | null
           reference_id: string | null
@@ -1360,7 +1360,7 @@ export type Database = {
           id?: string
           nf_url?: string | null
           partner_name?: string | null
-          payment_term?: string | null
+          prazo_pagamento?: string | null
           percentual?: string | null
           receiver_id?: string | null
           reference_id?: string | null
@@ -1394,7 +1394,7 @@ export type Database = {
           id?: string
           nf_url?: string | null
           partner_name?: string | null
-          payment_term?: string | null
+          prazo_pagamento?: string | null
           percentual?: string | null
           receiver_id?: string | null
           reference_id?: string | null

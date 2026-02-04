@@ -110,7 +110,7 @@ BEGIN
       created_by,
       tipo_documento,
       doc,
-      payment_term,
+      prazo_pagamento,
       forma_pagamento,
       afeta_caixa_empresa,
       categoria_movimentacao_id,
@@ -134,7 +134,7 @@ BEGIN
       true,
       v_categoria_id,
       'nf_saida',
-      NEW.id::text,
+      NEW.id,
       NEW.arquivo_pdf_url
     );
   END IF;
@@ -318,9 +318,9 @@ BEGIN
 
   -- Verificar se já existe registro em bank_reconciliations
   IF NOT EXISTS (
-    SELECT 1 FROM public.bank_reconciliations
+    SELECT 1 FROM public.bank_reconciliations 
     WHERE reference_type = 'controle_bancario'
-    AND reference_id = NEW.id::text
+    AND reference_id = NEW.id
   ) THEN
     -- Buscar aircraft_id se houver aeronave_registro
     DECLARE
@@ -347,12 +347,12 @@ BEGIN
         categoria_movimentacao_id,
         tipo_documento,
         doc,
-        payment_term,
+        prazo_pagamento,
         forma_pagamento,
         afeta_caixa_empresa,
         created_by,
         partner_name,
-        recibo_url,
+        comprovante_url,
         nf_url,
         boleto_url,
         reference_type,
@@ -380,11 +380,11 @@ BEGIN
         true,
         NEW.criado_por,
         NEW.partner_name,
-        NEW.recibo_url,
+        NEW.comprovante_url,
         NEW.nf_url,
         NEW.boleto_url,
         'controle_bancario',
-        NEW.id::text,
+        NEW.id,
         NEW.data_criacao,
         CURRENT_TIMESTAMP
       );
@@ -418,7 +418,7 @@ BEGIN
   IF EXISTS (
     SELECT 1 FROM public.bank_reconciliations
     WHERE reference_type = 'controle_bancario'
-    AND reference_id = NEW.id::text
+    AND reference_id = NEW.id
   ) THEN
     UPDATE public.bank_reconciliations
     SET
@@ -430,14 +430,14 @@ BEGIN
         WHEN NEW.status = 'inadimplente' THEN 'pendente'
         ELSE NEW.status
       END,
-      payment_term = NEW.data_vencimento,
+      prazo_pagamento = NEW.data_vencimento,
       partner_name = NEW.partner_name,
-      recibo_url = NEW.recibo_url,
+      comprovante_url = NEW.comprovante_url,
       nf_url = NEW.nf_url,
       boleto_url = NEW.boleto_url,
       updated_at = CURRENT_TIMESTAMP
     WHERE reference_type = 'controle_bancario'
-    AND reference_id = NEW.id::text;
+    AND reference_id = NEW.id;
   END IF;
 
   RETURN NEW;

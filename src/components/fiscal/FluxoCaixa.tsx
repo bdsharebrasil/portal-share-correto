@@ -1204,11 +1204,11 @@ export function FluxoCaixa() {
                                   </TooltipContent>
                                 </Tooltip>
                               )}
-                              {transacao.recibo_url && (
+                              {transacao.comprovante_url && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <a
-                                      href={transacao.recibo_url}
+                                      href={transacao.comprovante_url}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="p-1 rounded hover:bg-muted/50 transition-colors"
@@ -1238,7 +1238,7 @@ export function FluxoCaixa() {
                                   </TooltipContent>
                                 </Tooltip>
                               )}
-                              {!transacao.comprovante_url && !transacao.nf_url && !transacao.recibo_url && !transacao.boleto_url && (
+                              {!transacao.comprovante_url && !transacao.nf_url && !transacao.boleto_url && (
                                 <span className="text-muted-foreground">-</span>
                               )}
                             </div>

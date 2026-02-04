@@ -119,7 +119,7 @@ export async function syncBankReconciliationToFinancial(
             cliente_nome: (rec.clients as any)?.company_name || "Cliente",
             cliente_cnpj: (rec.clients as any)?.cnpj || "",
             data_criacao: rec.date,
-            data_vencimento: rec.payment_term || rec.date,
+            data_vencimento: rec.prazo_pagamento || rec.date,
             valor: rec.amount,
             categoria: rec.category || "Reembolso de Despesa",
             descricao: rec.description,

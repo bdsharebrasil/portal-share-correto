@@ -310,7 +310,7 @@ export function ReceiptForm({
       // Dados específicos de reembolso
       tipo_documento: formData.reembolsoRateado ? "rateio" : "recibo",
       doc: formData.reembolsoNumeroDocumento || null,
-      payment_term: formData.prazoMaximoQuitacao || null,
+      prazo_pagamento: formData.prazoMaximoQuitacao || null,
 
       // Dados de rateio
       percentual: formData.reembolsoRateado ? formData.reembolsoPorcentagem : null,
