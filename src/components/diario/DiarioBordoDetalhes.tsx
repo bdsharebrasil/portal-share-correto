@@ -3439,8 +3439,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     crew={crew}
                     onChange={(sicCanac, sicName) => setEditingEntry({
                       ...editingEntry,
-                      sic_canac: sicCanac ?? null,
-                      sic_name: sicName ?? null
+                      sic_canac: sicCanac,  // deixar como null/undefined quando é manual
+                      sic_name: sicName
                     })}
                     label="SIC (Opcional)"
                     placeholder="Selecione ou digite"
