@@ -43,16 +43,16 @@ export function SICComboBoxManual({
 
   // Sincronizar estados com props quando mudam
   useEffect(() => {
-    if (sicName && !value) {
+    if (normalizedSicName && !normalizedValue) {
       setManualMode(true);
-      setManualInput(sicName);
+      setManualInput(normalizedSicName);
     } else {
       setManualMode(false);
-      if (!value && !sicName) {
+      if (!normalizedValue && !normalizedSicName) {
         setManualInput('');
       }
     }
-  }, [value, sicName]);
+  }, [normalizedValue, normalizedSicName]);
 
   // Filtrar crew members baseado na busca
   const filteredCrew = useMemo(() => {
