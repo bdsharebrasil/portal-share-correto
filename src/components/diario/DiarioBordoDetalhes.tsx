@@ -3426,13 +3426,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     </Select>
                   </div>
                   <SICComboBoxManual
-                    value={editingEntry.sic_canac || null}
-                    sicName={editingEntry.sic_name || null}
+                    value={editingEntry.sic_canac ?? ''}
+                    sicName={editingEntry.sic_name ?? ''}
                     crew={crew}
                     onChange={(sicCanac, sicName) => setEditingEntry({
                       ...editingEntry,
-                      sic_canac: sicCanac || null,
-                      sic_name: sicName || null
+                      sic_canac: sicCanac ?? null,
+                      sic_name: sicName ?? null
                     })}
                     label="SIC (Opcional)"
                     placeholder="Selecione ou digite"
