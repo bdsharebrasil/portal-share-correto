@@ -15,6 +15,7 @@ import { CreateMonthDialog } from './CreateMonthDialog';
 import { CloseMonthDialog } from './CloseMonthDialog';
 import { ExportLogbookDialog } from './ExportLogbookDialog';
 import { PartnerSelectModal } from './PartnerSelectModal';
+import { SICComboBoxManual } from './SICComboBoxManual';
 import { useUserRole } from '@/hooks/useUserRole';
 
 // ===================== CONSTANTES =====================
