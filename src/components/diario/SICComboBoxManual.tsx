@@ -36,7 +36,7 @@ export function SICComboBoxManual({
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [manualMode, setManualMode] = useState(!!sicName && !value);
-  const [manualInput, setManualInput] = useState(sicName || '');
+  const [manualInput, setManualInput] = useState(sicName ?? '');
 
   // Filtrar crew members baseado na busca
   const filteredCrew = useMemo(() => {
