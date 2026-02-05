@@ -1969,8 +1969,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 crew={crew}
                 onChange={(sicCanac, sicName) => setNewEntry({
                   ...newEntry,
-                  sic_canac: sicCanac ?? '',
-                  sic_name: sicName ?? ''
+                  sic_canac: sicCanac,  // deixar como null/undefined, não converter para string vazia
+                  sic_name: sicName
                 })}
                 label="Copiloto (SIC)"
                 placeholder="Opcional - Selecione ou digite"
