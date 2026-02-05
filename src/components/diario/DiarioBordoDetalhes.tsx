@@ -3149,14 +3149,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     </td>
                     <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.sic}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {e.sic_name ? (
-                        <span className="text-amber-300 text-xs font-semibold" title={e.sic_name}>Manual</span>
+                        <span className="text-amber-300 text-xs font-semibold" title={e.sic_name}>{e.sic_name.split('-')[0].trim()}</span>
                       ) : (
                         <span className="text-white text-xs">{sicCrew?.full_name.split(' ')[0] || '-'}</span>
                       )}
                     </td>
                     <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.canac_sic}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {e.sic_name ? (
-                        <span className="text-amber-300 text-xs font-bold">{e.sic_name}</span>
+                        <span className="text-amber-300 text-xs font-bold">{e.sic_name.split('-')[1]?.trim() || e.sic_name}</span>
                       ) : (
                         <span className="text-slate-400 text-xs font-bold">{sicCrew?.canac || '-'}</span>
                       )}
