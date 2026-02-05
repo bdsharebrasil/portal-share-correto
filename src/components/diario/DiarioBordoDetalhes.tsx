@@ -1964,13 +1964,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               </div>
 
               <SICComboBoxManual
-                value={newEntry.sic_canac || null}
-                sicName={newEntry.sic_name || null}
+                value={newEntry.sic_canac ?? ''}
+                sicName={newEntry.sic_name ?? ''}
                 crew={crew}
                 onChange={(sicCanac, sicName) => setNewEntry({
                   ...newEntry,
-                  sic_canac: sicCanac || '',
-                  sic_name: sicName || ''
+                  sic_canac: sicCanac ?? '',
+                  sic_name: sicName ?? ''
                 })}
                 label="Copiloto (SIC)"
                 placeholder="Opcional - Selecione ou digite"
