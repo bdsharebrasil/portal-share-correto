@@ -1963,21 +1963,18 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 </Select>
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Copiloto (SIC)</Label>
-                <Select value={newEntry.sic_canac || '__none__'} onValueChange={v => setNewEntry({
+              <SICComboBoxManual
+                value={newEntry.sic_canac || null}
+                sicName={newEntry.sic_name || null}
+                crew={crew}
+                onChange={(sicCanac, sicName) => setNewEntry({
                   ...newEntry,
-                  sic_canac: v === '__none__' ? '' : v
-                })}>
-                  <SelectTrigger className="bg-slate-950 border-slate-800 text-white">
-                    <SelectValue placeholder="Opcional - Nenhum" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Nenhum (SIC Opcional)</SelectItem>
-                    {crew.map(c => <SelectItem key={c.id} value={c.id}>{c.full_name} ({c.canac})</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+                  sic_canac: sicCanac || '',
+                  sic_name: sicName || ''
+                })}
+                label="Copiloto (SIC)"
+                placeholder="Opcional - Selecione ou digite"
+              />
             </div>
 
             {/* SEÇÃO 2: NAVEGAÇÃO & CLIENTE */}
