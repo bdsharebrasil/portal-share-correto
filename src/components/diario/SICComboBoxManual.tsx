@@ -224,7 +224,7 @@ export function SICComboBoxManual({
 
               <Input
                 placeholder="Ex: João Silva"
-                value={manualInput}
+                value={manualInput ?? ''}
                 onChange={handleManualInputChange}
                 className="bg-slate-900 border-slate-800 text-white placeholder:text-slate-600 h-9"
                 autoFocus
