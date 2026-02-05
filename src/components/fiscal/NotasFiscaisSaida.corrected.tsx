@@ -718,7 +718,9 @@ export function NotasFiscaisSaida() {
 
       if (controleBancarioError) throw new Error(`Erro controle_bancario: ${controleBancarioError.message}`);
 
-      await supabase.from("contas_areceber").insert({
+      // CORREÇÃO: Apenas inserir em contas_areceber se aeronave estiver presente (campo obrigatório nessa tabela)
+      if (reciboData.aeronave_registro) {
+        const { error: contasAreceberError } = await supabase.from("contas_areceber").insert({
           numero: numeroRecibo,
           cliente_nome: reciboData.cliente_nome,
           cliente_cnpj: reciboData.cliente_cnpj || "000.000.000-00",
@@ -731,7 +733,12 @@ export function NotasFiscaisSaida() {
           aeronave: reciboData.aeronave_registro,
           criado_por: currentUser.id,
           arquivo_pdf_url: reciboUrl,
-      });
+        });
+
+        if (contasAreceberError) {
+          console.warn("Aviso ao inserir em contas_areceber:", contasAreceberError.message);
+        }
+      }
 
       setReciboViewUrl(reciboUrl);
       setShowReciboViewer(true);
