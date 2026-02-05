@@ -229,7 +229,7 @@ export function SICComboBoxManual({
               </CommandList>
             </Command>
           ) : (
-            // Manual input mode
+            // Manual input mode - two separate fields
             <div className="p-3 space-y-3 bg-slate-950 border-slate-800">
               <div>
                 <p className="text-xs font-semibold text-orange-400 mb-2">Preenchimento Manual</p>
@@ -238,17 +238,35 @@ export function SICComboBoxManual({
                 </p>
               </div>
 
-              <Input
-                placeholder="Ex: João Silva"
-                value={manualInput ?? ''}
-                onChange={handleManualInputChange}
-                className="bg-slate-900 border-slate-800 text-white placeholder:text-slate-600 h-9"
-                autoFocus
-              />
+              <div className="space-y-2">
+                <div>
+                  <label className="text-[8px] uppercase text-slate-500 font-bold">Nome Completo *</label>
+                  <Input
+                    placeholder="Ex: João Silva"
+                    value={manualInput.split(' - ')[0] || ''}
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      const canac = manualInput.split(' - ')[1] || '';
+                      setManualInput(canac ? `${name} - ${canac}` : name);
+                    }}
+                    className="bg-slate-900 border-slate-800 text-white placeholder:text-slate-600 h-9 text-sm"
+                    autoFocus
+                  />
+                </div>
 
-              <div className="text-xs text-slate-500">
-                <p>Formato sugerido: Nome Completo - CANAC</p>
-                <p>Ex: João Silva - ABC1234</p>
+                <div>
+                  <label className="text-[8px] uppercase text-slate-500 font-bold">CANAC *</label>
+                  <Input
+                    placeholder="Ex: ABC1234"
+                    value={manualInput.split(' - ')[1] || ''}
+                    onChange={(e) => {
+                      const canac = e.target.value.toUpperCase();
+                      const name = manualInput.split(' - ')[0] || '';
+                      setManualInput(name ? `${name} - ${canac}` : canac);
+                    }}
+                    className="bg-slate-900 border-slate-800 text-white placeholder:text-slate-600 h-9 text-sm uppercase"
+                  />
+                </div>
               </div>
 
               <div className="flex gap-2">
@@ -263,8 +281,8 @@ export function SICComboBoxManual({
                 <Button
                   size="sm"
                   onClick={handleSaveManual}
-                  disabled={!manualInput.trim()}
-                  className="flex-1 h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white"
+                  disabled={!manualInput.trim() || !manualInput.includes(' - ')}
+                  className="flex-1 h-8 text-xs bg-orange-600 hover:bg-orange-700 text-white disabled:opacity-50"
                 >
                   Confirmar
                 </Button>
