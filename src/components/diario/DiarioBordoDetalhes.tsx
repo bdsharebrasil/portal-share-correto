@@ -1969,8 +1969,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 crew={crew}
                 onChange={(sicCanac, sicName) => setNewEntry({
                   ...newEntry,
-                  sic_canac: sicCanac ?? '',
-                  sic_name: sicName ?? ''
+                  sic_canac: sicCanac,  // deixar como null/undefined, não converter para string vazia
+                  sic_name: sicName
                 })}
                 label="Copiloto (SIC)"
                 placeholder="Opcional - Selecione ou digite"
@@ -3148,10 +3148,18 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       <span className="text-slate-400 text-xs font-bold">{picCrew?.canac || '-'}</span>
                     </td>
                     <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.sic}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      <span className="text-white text-xs">{sicCrew?.full_name.split(' ')[0] || '-'}</span>
+                      {e.sic_name ? (
+                        <span className="text-amber-300 text-xs font-semibold" title={e.sic_name}>{e.sic_name}</span>
+                      ) : (
+                        <span className="text-white text-xs">{sicCrew?.full_name.split(' ')[0] || '-'}</span>
+                      )}
                     </td>
                     <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.canac_sic}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      <span className="text-slate-400 text-xs font-bold">{sicCrew?.canac || '-'}</span>
+                      {e.sic_name ? (
+                        <span className="text-slate-600">-</span>
+                      ) : (
+                        <span className="text-slate-400 text-xs font-bold">{sicCrew?.canac || '-'}</span>
+                      )}
                     </td>
                     {logbookMonth?.has_daily_rate && (
                       <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.diarias}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -3431,8 +3439,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     crew={crew}
                     onChange={(sicCanac, sicName) => setEditingEntry({
                       ...editingEntry,
-                      sic_canac: sicCanac ?? null,
-                      sic_name: sicName ?? null
+                      sic_canac: sicCanac,  // deixar como null/undefined quando é manual
+                      sic_name: sicName
                     })}
                     label="SIC (Opcional)"
                     placeholder="Selecione ou digite"
