@@ -3489,7 +3489,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Acionamento *</Label>
-                    <Input type="time" step="60" value={editingEntry.ac_time} onChange={e => setEditingEntry({
+                    <Input type="time" step="60" value={editingEntry.ac_time ?? ''} onChange={e => setEditingEntry({
                       ...editingEntry,
                       ac_time: e.target.value
                     })} style={{
@@ -3499,7 +3499,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Corte *</Label>
-                    <Input type="time" step="60" value={editingEntry.cor_time} onChange={e => setEditingEntry({
+                    <Input type="time" step="60" value={editingEntry.cor_time ?? ''} onChange={e => setEditingEntry({
                       ...editingEntry,
                       cor_time: e.target.value
                     })} style={{
@@ -3512,7 +3512,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Decolagem</Label>
-                    <Input type="time" step="60" value={editingEntry.dep_time} onChange={e => setEditingEntry({
+                    <Input type="time" step="60" value={editingEntry.dep_time ?? ''} onChange={e => setEditingEntry({
                       ...editingEntry,
                       dep_time: e.target.value
                     })} style={{
@@ -3522,7 +3522,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Pouso</Label>
-                    <Input type="time" step="60" value={editingEntry.pou_time} onChange={e => setEditingEntry({
+                    <Input type="time" step="60" value={editingEntry.pou_time ?? ''} onChange={e => setEditingEntry({
                       ...editingEntry,
                       pou_time: e.target.value
                     })} style={{
@@ -3543,14 +3543,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Combustível Inicial (L)</Label>
-                    <Input type="number" step="0.1" value={editingEntry.fuel_liters} onChange={e => setEditingEntry({
+                    <Input type="number" step="0.1" value={editingEntry.fuel_liters ?? 0} onChange={e => setEditingEntry({
                       ...editingEntry,
                       fuel_liters: parseFloat(e.target.value) || 0
                     })} className="bg-slate-900 border border-slate-700 text-orange-400 h-10" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Combustível Consumido (L)</Label>
-                    <Input type="number" step="0.1" value={editingEntry.fuel_consu} onChange={e => setEditingEntry({
+                    <Input type="number" step="0.1" value={editingEntry.fuel_consu ?? 0} onChange={e => setEditingEntry({
                       ...editingEntry,
                       fuel_consu: parseFloat(e.target.value) || 0
                     })} className="bg-slate-900 border border-slate-700 text-orange-300 h-10" />
@@ -3560,7 +3560,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Preço/L (R$)</Label>
-                    <Input type="number" step="0.01" value={editingEntry.fuel_price_per_liter} onChange={e => setEditingEntry({
+                    <Input type="number" step="0.01" value={editingEntry.fuel_price_per_liter ?? 0} onChange={e => setEditingEntry({
                       ...editingEntry,
                       fuel_price_per_liter: parseFloat(e.target.value) || 0
                     })} className="bg-slate-900 border border-slate-700 text-orange-400 h-10" />
