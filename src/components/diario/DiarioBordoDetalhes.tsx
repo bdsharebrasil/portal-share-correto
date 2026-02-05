@@ -3636,7 +3636,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Carga (kg)</Label>
-                    <Input type="number" step="0.1" value={editingEntry.cargo_kg} onChange={e => setEditingEntry({
+                    <Input type="number" step="0.1" value={editingEntry.cargo_kg ?? 0} onChange={e => setEditingEntry({
                       ...editingEntry,
                       cargo_kg: parseFloat(e.target.value) || 0
                     })} className="bg-slate-900 border border-slate-700 text-emerald-400 h-10" />
