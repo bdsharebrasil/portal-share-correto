@@ -68,12 +68,12 @@ export function SICComboBoxManual({
     if (manualMode && manualInput) {
       return manualInput;
     }
-    if (value) {
-      const selected = crew.find(c => c.id === value);
+    if (normalizedValue) {
+      const selected = crew.find(c => c.id === normalizedValue);
       return selected ? `${selected.full_name} (${selected.canac})` : placeholder;
     }
     return placeholder;
-  }, [value, manualMode, manualInput, crew, placeholder]);
+  }, [normalizedValue, manualMode, manualInput, crew, placeholder]);
 
   // Determinar o tipo de badge
   const badgeType = useMemo(() => {
