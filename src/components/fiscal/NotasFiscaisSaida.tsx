@@ -244,7 +244,7 @@ const validarNotaFiscal = (formData: any): string | null => {
 
 export function NotasFiscaisSaida() {
   const { getCategoriasReceita } = useCategoriasFinanceiro();
-  let categoriasReceita = getCategoriasFinanceiro();
+  let categoriasReceita = getCategoriasReceita();
   const { aeronaves, isLoadingAeronaves } = useAeronaves();
 
   // Filtrar apenas as categorias especificadas para NF de Saída
