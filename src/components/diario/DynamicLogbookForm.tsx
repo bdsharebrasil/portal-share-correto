@@ -1095,12 +1095,12 @@ export function DynamicLogbookForm({
 
               {/* SIC (opcional) */}
               <SICComboBoxManual
-                value={selectedSic || null}
-                sicName={sicName || null}
+                value={selectedSic ?? ''}
+                sicName={sicName ?? ''}
                 crew={tripulantes}
                 onChange={(sicCanac, sicNameValue) => {
-                  setSelectedSic(sicCanac || '');
-                  setSicName(sicNameValue || '');
+                  setSelectedSic(sicCanac ?? '');
+                  setSicName(sicNameValue ?? '');
                 }}
                 label="SIC (Segundo Piloto)"
                 placeholder="Selecione ou digite o SIC..."
