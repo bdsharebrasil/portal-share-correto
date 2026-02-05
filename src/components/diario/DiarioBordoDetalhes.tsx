@@ -15,6 +15,7 @@ import { CreateMonthDialog } from './CreateMonthDialog';
 import { CloseMonthDialog } from './CloseMonthDialog';
 import { ExportLogbookDialog } from './ExportLogbookDialog';
 import { PartnerSelectModal } from './PartnerSelectModal';
+import { SICComboBoxManual } from './SICComboBoxManual';
 import { useUserRole } from '@/hooks/useUserRole';
 
 // ===================== CONSTANTES =====================
@@ -1962,21 +1963,18 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 </Select>
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Copiloto (SIC)</Label>
-                <Select value={newEntry.sic_canac || '__none__'} onValueChange={v => setNewEntry({
+              <SICComboBoxManual
+                value={newEntry.sic_canac ?? ''}
+                sicName={newEntry.sic_name ?? ''}
+                crew={crew}
+                onChange={(sicCanac, sicName) => setNewEntry({
                   ...newEntry,
-                  sic_canac: v === '__none__' ? '' : v
-                })}>
-                  <SelectTrigger className="bg-slate-950 border-slate-800 text-white">
-                    <SelectValue placeholder="Opcional - Nenhum" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Nenhum (SIC Opcional)</SelectItem>
-                    {crew.map(c => <SelectItem key={c.id} value={c.id}>{c.full_name} ({c.canac})</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+                  sic_canac: sicCanac ?? '',
+                  sic_name: sicName ?? ''
+                })}
+                label="Copiloto (SIC)"
+                placeholder="Opcional - Selecione ou digite"
+              />
             </div>
 
             {/* SEÇÃO 2: NAVEGAÇÃO & CLIENTE */}
@@ -3350,7 +3348,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Data *</Label>
-                    <Input type="date" value={editingEntry.entry_date} onChange={e => setEditingEntry({
+                    <Input type="date" value={editingEntry.entry_date ?? ''} onChange={e => setEditingEntry({
                       ...editingEntry,
                       entry_date: e.target.value
                     })} className="bg-slate-900 border border-slate-700 text-white h-10" />
@@ -3427,21 +3425,18 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">SIC (Opcional)</Label>
-                    <Select value={editingEntry.sic_canac || '__none__'} onValueChange={v => setEditingEntry({
+                  <SICComboBoxManual
+                    value={editingEntry.sic_canac ?? ''}
+                    sicName={editingEntry.sic_name ?? ''}
+                    crew={crew}
+                    onChange={(sicCanac, sicName) => setEditingEntry({
                       ...editingEntry,
-                      sic_canac: v === '__none__' ? null : v
-                    })}>
-                      <SelectTrigger className="bg-slate-900 border border-slate-700 text-white h-10">
-                        <SelectValue placeholder="Selecione ou deixe em branco" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">— Nenhum —</SelectItem>
-                        {crew.map(c => <SelectItem key={c.id} value={c.id}>{c.full_name} ({c.canac})</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                      sic_canac: sicCanac ?? null,
+                      sic_name: sicName ?? null
+                    })}
+                    label="SIC (Opcional)"
+                    placeholder="Selecione ou digite"
+                  />
                 </div>
               </div>
 
@@ -3494,7 +3489,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Acionamento *</Label>
-                    <Input type="time" step="60" value={editingEntry.ac_time} onChange={e => setEditingEntry({
+                    <Input type="time" step="60" value={editingEntry.ac_time ?? ''} onChange={e => setEditingEntry({
                       ...editingEntry,
                       ac_time: e.target.value
                     })} style={{
@@ -3504,7 +3499,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Corte *</Label>
-                    <Input type="time" step="60" value={editingEntry.cor_time} onChange={e => setEditingEntry({
+                    <Input type="time" step="60" value={editingEntry.cor_time ?? ''} onChange={e => setEditingEntry({
                       ...editingEntry,
                       cor_time: e.target.value
                     })} style={{
@@ -3517,7 +3512,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Decolagem</Label>
-                    <Input type="time" step="60" value={editingEntry.dep_time} onChange={e => setEditingEntry({
+                    <Input type="time" step="60" value={editingEntry.dep_time ?? ''} onChange={e => setEditingEntry({
                       ...editingEntry,
                       dep_time: e.target.value
                     })} style={{
@@ -3527,7 +3522,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Pouso</Label>
-                    <Input type="time" step="60" value={editingEntry.pou_time} onChange={e => setEditingEntry({
+                    <Input type="time" step="60" value={editingEntry.pou_time ?? ''} onChange={e => setEditingEntry({
                       ...editingEntry,
                       pou_time: e.target.value
                     })} style={{
@@ -3548,14 +3543,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Combustível Inicial (L)</Label>
-                    <Input type="number" step="0.1" value={editingEntry.fuel_liters} onChange={e => setEditingEntry({
+                    <Input type="number" step="0.1" value={editingEntry.fuel_liters ?? 0} onChange={e => setEditingEntry({
                       ...editingEntry,
                       fuel_liters: parseFloat(e.target.value) || 0
                     })} className="bg-slate-900 border border-slate-700 text-orange-400 h-10" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Combustível Consumido (L)</Label>
-                    <Input type="number" step="0.1" value={editingEntry.fuel_consu} onChange={e => setEditingEntry({
+                    <Input type="number" step="0.1" value={editingEntry.fuel_consu ?? 0} onChange={e => setEditingEntry({
                       ...editingEntry,
                       fuel_consu: parseFloat(e.target.value) || 0
                     })} className="bg-slate-900 border border-slate-700 text-orange-300 h-10" />
@@ -3565,7 +3560,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Preço/L (R$)</Label>
-                    <Input type="number" step="0.01" value={editingEntry.fuel_price_per_liter} onChange={e => setEditingEntry({
+                    <Input type="number" step="0.01" value={editingEntry.fuel_price_per_liter ?? 0} onChange={e => setEditingEntry({
                       ...editingEntry,
                       fuel_price_per_liter: parseFloat(e.target.value) || 0
                     })} className="bg-slate-900 border border-slate-700 text-orange-400 h-10" />
@@ -3616,7 +3611,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Pousos</Label>
-                    <Input type="number" value={editingEntry.pousos} onChange={e => setEditingEntry({
+                    <Input type="number" value={editingEntry.pousos ?? 1} onChange={e => setEditingEntry({
                       ...editingEntry,
                       pousos: parseInt(e.target.value) || 1
                     })} className="bg-slate-900 border border-slate-700 text-white h-10" />
@@ -3634,14 +3629,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">POB (Pessoas)</Label>
-                    <Input type="number" value={editingEntry.passengers} onChange={e => setEditingEntry({
+                    <Input type="number" value={editingEntry.passengers ?? 0} onChange={e => setEditingEntry({
                       ...editingEntry,
                       passengers: parseInt(e.target.value) || 0
                     })} className="bg-slate-900 border border-slate-700 text-sky-400 h-10" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Carga (kg)</Label>
-                    <Input type="number" step="0.1" value={editingEntry.cargo_kg} onChange={e => setEditingEntry({
+                    <Input type="number" step="0.1" value={editingEntry.cargo_kg ?? 0} onChange={e => setEditingEntry({
                       ...editingEntry,
                       cargo_kg: parseFloat(e.target.value) || 0
                     })} className="bg-slate-900 border border-slate-700 text-emerald-400 h-10" />
