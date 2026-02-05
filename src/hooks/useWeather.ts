@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { METAR_MOCK_DATA } from '@/data/metarMockData';
+import { apiClient } from '@/lib/api-client';
 
 export interface MetarInfo {
   temperature: number;
@@ -201,45 +202,16 @@ export function useWeather() {
   }, []);
 
   const fetchWeatherFromAvwx = useCallback(async (aerodrome: string = 'SBGR') => {
-    let abortController: AbortController | null = null;
     try {
       setLoading(true);
 
-      // Fetch from backend API endpoint (which handles CORS properly)
-      const apiUrl = `/api/weather/metar?icao=${aerodrome.toUpperCase()}`;
-
       console.log('[METAR] 🌐 Buscando dados via backend:', aerodrome);
 
-      // Usar AbortController em vez de timeout
-      abortController = new AbortController();
-      const timeoutId = setTimeout(() => abortController?.abort(), 10000);
-
       try {
-        const response = await fetch(apiUrl, {
-          signal: abortController.signal,
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-          }
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          console.error(`[METAR] ❌ HTTP Error: ${response.status} ${response.statusText}`);
-
-          // For 503/504 errors, these are often transient - will be retried by the outer loop
-          if (response.status === 503 || response.status === 504) {
-            throw new Error(`API error: ${response.status} (transient)`);
-          }
-
-          throw new Error(`API error: ${response.status}`);
-        }
-
-        const responseData: any = await response.json();
+        const responseData: any = await apiClient.getWeather(aerodrome);
 
         // The backend returns the METAR data in the 'data' field
-        const metarObj = responseData.data;
+        const metarObj = responseData.data || responseData;
         const metar = metarObj?.rawText || metarObj?.rawOb || metarObj?.raw_text || metarObj?.raw;
 
         if (!metar) {
@@ -281,12 +253,8 @@ export function useWeather() {
         console.log('[METAR] ✅ Clima atualizado com sucesso!', weatherData);
         setWeather(weatherData);
       } catch (fetchError) {
-        clearTimeout(timeoutId);
-
         if (fetchError instanceof Error) {
-          if (fetchError.name === 'AbortError') {
-            console.warn('[METAR] ⏱️ Timeout na requisição (10s)');
-          } else if (fetchError.message.includes('Failed to fetch')) {
+          if (fetchError.message.includes('Failed to fetch')) {
             console.warn('[METAR] ❌ Falha ao conectar com backend de clima');
             console.warn('[METAR] 💡 Possíveis causas:');
             console.warn('[METAR]   1. Sem conexão de internet');
@@ -314,7 +282,6 @@ export function useWeather() {
       setDefaultWeather(aerodrome);
     } finally {
       setLoading(false);
-      abortController = null;
     }
   }, [setDefaultWeather]);
 
