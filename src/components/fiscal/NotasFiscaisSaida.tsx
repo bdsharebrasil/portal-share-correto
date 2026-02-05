@@ -17,7 +17,6 @@ import { ptBR } from "date-fns/locale";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useAuth } from "@/contexts/AuthContext";
-// CORREÇÃO: Adicionado 'pdf' na importação abaixo
 import { Document, Page, Text, View, StyleSheet, Image, pdf } from '@react-pdf/renderer';
 
 // --- CONFIGURAÇÃO DO PDF ---
@@ -38,7 +37,6 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, alignItems: 'center' },
   headerLeft: { flexDirection: 'column', justifyContent: 'center' },
   
-  // Estilo da Logo no Cabeçalho
   logoHeader: { 
     width: 120,
     height: 50, 
@@ -84,7 +82,6 @@ const styles = StyleSheet.create({
   line: { width: 200, borderBottom: '1px solid #000', marginBottom: 5 },
   signatureName: { fontWeight: 'bold' },
   
-  // Estilo da Logo na Assinatura
   logoSignature: {
     width: 80,
     height: 30,
@@ -101,7 +98,6 @@ const ReciboDocument = ({ data }: { data: any }) => (
       {/* Cabeçalho */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          {/* Logo no canto esquerdo superior */}
           <Image src={logoUrl} style={styles.logoHeader} />
           <Text style={styles.reciboTitle}>RECIBO</Text>
         </View>
@@ -159,7 +155,6 @@ const ReciboDocument = ({ data }: { data: any }) => (
           <View style={styles.line} />
           <Text style={styles.signatureName}>SHARE BRASIL</Text>
           
-          {/* Logo na assinatura */}
           <Image src={logoUrl} style={styles.logoSignature} />
         </View>
       </View>
@@ -193,11 +188,63 @@ interface Cliente {
   documento: string;
 }
 
+// --- FUNÇÕES DE VALIDAÇÃO ---
+
+const validarNotaFiscal = (formData: any): string | null => {
+  // Validar número da NF
+  if (!formData.numero || formData.numero.trim() === "") {
+    return "Número da nota fiscal é obrigatório";
+  }
+
+  // Validar cliente
+  if (!formData.cliente_nome || formData.cliente_nome.trim() === "") {
+    return "Cliente/Empresa é obrigatório";
+  }
+
+  // Validar CNPJ/CPF (obrigatório na tabela)
+  if (!formData.cliente_cnpj || formData.cliente_cnpj.trim() === "") {
+    return "CNPJ/CPF do cliente é obrigatório";
+  }
+
+  // Validar valor
+  if (!formData.valor || formData.valor.trim() === "") {
+    return "Valor é obrigatório";
+  }
+
+  const valorNumerico = parseFloat(formData.valor);
+  if (isNaN(valorNumerico) || valorNumerico <= 0) {
+    return "Valor deve ser um número maior que zero";
+  }
+
+  // Validar data de criação
+  if (!formData.data_criacao || formData.data_criacao.trim() === "") {
+    return "Data de criação é obrigatória";
+  }
+
+  // Validar data de vencimento (obrigatória na tabela)
+  if (!formData.data_vencimento || formData.data_vencimento.trim() === "") {
+    return "Data de vencimento é obrigatória";
+  }
+
+  // Validar categoria (obrigatória na tabela)
+  if (!formData.categoria || formData.categoria.trim() === "") {
+    return "Categoria é obrigatória";
+  }
+
+  // Validar status (apenas pendente, recebido, cancelado)
+  const statusValidos = ["pendente", "recebido", "cancelado"];
+  if (!statusValidos.includes(formData.status)) {
+    return "Status inválido. Valores permitidos: pendente, recebido, cancelado";
+  }
+
+  return null;
+};
+
 // --- COMPONENTE PRINCIPAL ---
 
 export function NotasFiscaisSaida() {
   const { getCategoriasReceita } = useCategoriasFinanceiro();
-  let categoriasReceita = getCategoriasReceita();
+  let categoriasReceita = getCategoriasFinanceiro();
   const { aeronaves, isLoadingAeronaves } = useAeronaves();
 
   // Filtrar apenas as categorias especificadas para NF de Saída
@@ -264,12 +311,10 @@ export function NotasFiscaisSaida() {
 
   const loadClientes = async () => {
     try {
-      // First try to load with status filter (for active clients)
       let { data: clientsData, error } = await supabase
         .from("clients")
         .select("id, company_name, cnpj, proprietario, status");
 
-      // Handle potential errors
       if (error) {
         console.error("Erro ao carregar clientes:", error);
         clientsData = [];
@@ -279,10 +324,8 @@ export function NotasFiscaisSaida() {
 
       if (clientsData) {
         clientsData.forEach(client => {
-          // Use company_name if available, fallback to proprietario, or use cnpj as last resort
           const nomeCliente = client.company_name || client.proprietario || client.cnpj || "Cliente";
 
-          // Include client if it has a valid name/identifier
           if (nomeCliente && nomeCliente !== "Cliente") {
             clientesList.push({
               id: client.id,
@@ -293,7 +336,6 @@ export function NotasFiscaisSaida() {
         });
       }
 
-      // Sort by name for consistent display
       clientesList.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
       setClientes(clientesList);
     } catch (error) {
@@ -324,10 +366,12 @@ export function NotasFiscaisSaida() {
   };
 
   const handleSave = async () => {
-    if (!formData.numero || !formData.cliente_nome || !formData.valor) {
+    // VALIDAÇÃO COMPLETA
+    const erroValidacao = validarNotaFiscal(formData);
+    if (erroValidacao) {
       toast({
         title: "Validação",
-        description: "Preencha todos os campos obrigatórios",
+        description: erroValidacao,
         variant: "destructive",
       });
       return;
@@ -336,25 +380,31 @@ export function NotasFiscaisSaida() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
+      // Preparar dados com todos os campos obrigatórios
       const notaData: any = {
-        numero: formData.numero,
-        cliente_nome: formData.cliente_nome,
-        cliente_cnpj: formData.cliente_cnpj || "",
+        numero: formData.numero.trim(),
+        cliente_nome: formData.cliente_nome.trim(),
+        cliente_cnpj: formData.cliente_cnpj.trim(),
         data_criacao: formData.data_criacao,
-        data_vencimento: formData.data_vencimento || formData.data_criacao,
+        data_vencimento: formData.data_vencimento, // OBRIGATÓRIO
         valor: parseFloat(formData.valor),
-        categoria: formData.categoria || "Serviços",
+        categoria: formData.categoria,
         descricao: formData.descricao || null,
         status: formData.status,
         arquivo_pdf_url: pdfUrl || null,
         aeronave: formData.aeronave || null,
         criado_por: user?.id || null,
+        criado_em: new Date().toISOString(), // ADICIONAR TIMESTAMP
+        atualizado_em: new Date().toISOString(), // ADICIONAR TIMESTAMP
       };
 
       if (editingNota) {
         const { error } = await supabase
           .from("notas_fiscais_saida")
-          .update(notaData)
+          .update({
+            ...notaData,
+            atualizado_em: new Date().toISOString(), // ATUALIZAR TIMESTAMP
+          })
           .eq("id", editingNota.id);
 
         if (error) throw error;
@@ -519,13 +569,27 @@ export function NotasFiscaisSaida() {
   };
 
   const handleChangeStatus = async (notaId: string, newStatus: string) => {
+    // Validar que o novo status é válido
+    const statusValidos = ["pendente", "recebido", "cancelado"];
+    if (!statusValidos.includes(newStatus)) {
+      toast({
+        title: "Erro",
+        description: "Status inválido",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const nota = notas.find(n => n.id === notaId);
       if (!nota) return;
 
       const { error } = await supabase
         .from("notas_fiscais_saida")
-        .update({ status: newStatus })
+        .update({
+          status: newStatus,
+          atualizado_em: new Date().toISOString(), // ATUALIZAR TIMESTAMP
+        })
         .eq("id", notaId);
 
       if (error) throw error;
@@ -546,12 +610,8 @@ export function NotasFiscaisSaida() {
     }
   };
 
-
   const generateReciboNumber = async (clienteNome: string) => {
-    // Extrair 3 primeiras letras do cliente em maiúsculas
     const clienteLetras = clienteNome.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '').padEnd(3, 'X');
-    
-    // Obter ano atual (últimos 2 dígitos)
     const ano = new Date().getFullYear().toString().slice(-2);
     
     const { data: existingRecibos, error } = await supabase
@@ -563,7 +623,6 @@ export function NotasFiscaisSaida() {
     
     let numero = 1;
     if (existingRecibos && existingRecibos.length > 0) {
-      // Extrair o número sequencial do recibo existente
       const ultimoRecibo = existingRecibos[0];
       const match = ultimoRecibo.numero_documento.match(/REC-[A-Z]{3}(\d+)\/\d{2}/);
       if (match) {
@@ -576,7 +635,6 @@ export function NotasFiscaisSaida() {
   };
 
   const handleGenerarRecibo = async () => {
-    // 1. Validações Básicas
     if (!reciboData.cliente_nome || !reciboData.valor || !reciboData.data_vencimento) {
       toast({ title: "Validação", description: "Preencha cliente, valor e data de vencimento", variant: "destructive" });
       return;
@@ -589,10 +647,8 @@ export function NotasFiscaisSaida() {
     try {
       setIsGeneratingRecibo(true);
 
-      // 2. Gerar Número do Recibo
       const numeroRecibo = await generateReciboNumber(reciboData.cliente_nome);
 
-      // 3. Preparar dados para o PDF
       const dadosParaPDF = {
         numero_recibo: numeroRecibo,
         valor: reciboData.valor,
@@ -603,11 +659,8 @@ export function NotasFiscaisSaida() {
         data_atual: new Date()
       };
 
-      // 4. GERAR O PDF LOCALMENTE (ECONOMIA DE TOKENS DE EXECUÇÃO)
-      // Aqui criamos o blob diretamente na memória do navegador usando o componente criado acima
       const blob = await pdf(<ReciboDocument data={dadosParaPDF} />).toBlob();
 
-      // 5. Upload do PDF para o Storage
       const pdfFile = new File([blob], `${numeroRecibo}.pdf`, { type: "application/pdf" });
       const fileName = `recibo_${numeroRecibo}_${Date.now()}.pdf`;
       const filePath = `recibos/${fileName}`;
@@ -618,20 +671,17 @@ export function NotasFiscaisSaida() {
 
       if (uploadError) throw new Error(`Erro no upload: ${uploadError.message}`);
 
-      // 6. Obter URL pública
       const { data: publicUrlData } = supabase.storage
         .from("nfs-share-saida")
         .getPublicUrl(filePath);
 
       const reciboUrl = publicUrlData.publicUrl;
 
-      // 7. Salvar no Banco de Dados
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) throw new Error("Usuário não autenticado");
 
       const CATEGORIA_ID = "2874b45b-a3bb-4bec-8f7e-74b328f8693c";
       
-      // Busca IDs auxiliares (Cliente, Aeronave, Categoria)
       let clientId = reciboData.cliente_id || null;
       if (!clientId) {
         const { data: clientData } = await supabase.from("clients").select("id").eq("company_name", reciboData.cliente_nome).single();
@@ -645,7 +695,6 @@ export function NotasFiscaisSaida() {
       const { data: categoriaData } = await supabase.from("categorias_movimentacao").select("grupo_categoria").eq("id", CATEGORIA_ID).single();
       const grupoCategoria = categoriaData?.grupo_categoria || null;
 
-      // Inserção no Controle Bancário
       const { error: controleBancarioError } = await supabase
         .from("controle_bancario")
         .insert({
@@ -669,8 +718,9 @@ export function NotasFiscaisSaida() {
 
       if (controleBancarioError) throw new Error(`Erro controle_bancario: ${controleBancarioError.message}`);
 
-      // Inserção em Contas a Receber
-      await supabase.from("contas_areceber").insert({
+      // CORREÇÃO: Apenas inserir em contas_areceber se aeronave estiver presente (campo obrigatório nessa tabela)
+      if (reciboData.aeronave_registro) {
+        const { error: contasAreceberError } = await supabase.from("contas_areceber").insert({
           numero: numeroRecibo,
           cliente_nome: reciboData.cliente_nome,
           cliente_cnpj: reciboData.cliente_cnpj || "000.000.000-00",
@@ -683,9 +733,13 @@ export function NotasFiscaisSaida() {
           aeronave: reciboData.aeronave_registro,
           criado_por: currentUser.id,
           arquivo_pdf_url: reciboUrl,
-      });
+        });
 
-      // 8. Finalização
+        if (contasAreceberError) {
+          console.warn("Aviso ao inserir em contas_areceber:", contasAreceberError.message);
+        }
+      }
+
       setReciboViewUrl(reciboUrl);
       setShowReciboViewer(true);
       
@@ -702,7 +756,6 @@ export function NotasFiscaisSaida() {
     }
   };
 
-  // Helper para limpar form
   const resetReciboForm = () => {
     setReciboData({
       cliente_id: "",
@@ -730,12 +783,13 @@ export function NotasFiscaisSaida() {
     c.documento.includes(clienteSearch)
   );
 
+  // CORRIGIR: Usar apenas 'recebido' em vez de 'pago'
   const totalPendente = notas
     .filter((n) => n.status === "pendente")
     .reduce((acc, n) => acc + n.valor, 0);
 
-  const totalPago = notas
-    .filter((n) => n.status === "pago" || n.status === "recebido")
+  const totalRecebido = notas
+    .filter((n) => n.status === "recebido") // CORREÇÃO: usar apenas 'recebido'
     .reduce((acc, n) => acc + n.valor, 0);
 
   return (
@@ -782,7 +836,7 @@ export function NotasFiscaisSaida() {
                 </div>
               </div>
               <p className="text-2xl font-bold text-green-500">
-                R$ {totalPago.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                R$ {totalRecebido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
               </p>
             </div>
           </CardContent>
@@ -819,7 +873,7 @@ export function NotasFiscaisSaida() {
                   />
                 </div>
                 <div>
-                  <Label className="text-foreground">Data de Criação</Label>
+                  <Label className="text-foreground">Data de Criação *</Label>
                   <Input
                     type="date"
                     value={formData.data_criacao}
@@ -890,7 +944,7 @@ export function NotasFiscaisSaida() {
                   </Popover>
                 </div>
                 <div>
-                  <Label className="text-foreground">CNPJ/CPF</Label>
+                  <Label className="text-foreground">CNPJ/CPF *</Label>
                   <Input
                     value={formData.cliente_cnpj}
                     onChange={(e) => setFormData({ ...formData, cliente_cnpj: e.target.value })}
@@ -991,7 +1045,7 @@ export function NotasFiscaisSaida() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-foreground">Data de Vencimento</Label>
+                  <Label className="text-foreground">Data de Vencimento *</Label>
                   <Input
                     type="date"
                     value={formData.data_vencimento}
@@ -1014,7 +1068,7 @@ export function NotasFiscaisSaida() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-foreground">Categoria</Label>
+                  <Label className="text-foreground">Categoria *</Label>
                   <Select value={formData.categoria} onValueChange={(value) => setFormData({ ...formData, categoria: value })}>
                     <SelectTrigger className="w-full bg-background border-border">
                       <SelectValue placeholder="Selecione uma categoria" />
@@ -1034,7 +1088,7 @@ export function NotasFiscaisSaida() {
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-foreground">Status</Label>
+                  <Label className="text-foreground">Status *</Label>
                   <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as any })}>
                     <SelectTrigger className="w-full bg-background border-border">
                       <SelectValue />
@@ -1163,7 +1217,6 @@ export function NotasFiscaisSaida() {
           <CardContent className="p-6">
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Cliente */}
                 <div>
                   <Label className="text-foreground font-medium mb-2 block">Cliente/Empresa *</Label>
                   <Popover open={openClientePopover} onOpenChange={setOpenClientePopover}>
@@ -1219,7 +1272,6 @@ export function NotasFiscaisSaida() {
                   </Popover>
                 </div>
 
-                {/* Aeronave */}
                 <div>
                   <Label className="text-foreground font-medium mb-2 block">Aeronave * (Obrigatório)</Label>
                   <Popover open={openAeronavePopover} onOpenChange={setOpenAeronavePopover}>
@@ -1293,7 +1345,6 @@ export function NotasFiscaisSaida() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Valor */}
                 <div>
                   <Label className="text-foreground font-medium mb-2 block">Valor (R$) *</Label>
                   <Input
@@ -1306,7 +1357,6 @@ export function NotasFiscaisSaida() {
                   />
                 </div>
 
-                {/* Data de Vencimento */}
                 <div>
                   <Label className="text-foreground font-medium mb-2 block">Data de Vencimento *</Label>
                   <Input
@@ -1318,7 +1368,6 @@ export function NotasFiscaisSaida() {
                 </div>
               </div>
 
-              {/* Descrição */}
               <div>
                 <Label className="text-foreground font-medium mb-2 block">Descrição do Serviço</Label>
                 <Textarea
@@ -1502,7 +1551,6 @@ export function NotasFiscaisSaida() {
           </div>
         </DialogContent>
       </Dialog>
-
 
       {/* Dialog para Visualizar Recibo */}
       <Dialog open={showReciboViewer} onOpenChange={setShowReciboViewer}>
