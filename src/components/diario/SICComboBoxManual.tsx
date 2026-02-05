@@ -277,7 +277,7 @@ export function SICComboBoxManual({
       <p className="text-xs text-slate-600 ml-1">
         {manualMode && manualInput
           ? "SIC será inserido manualmente (não vinculado a crew)"
-          : value
+          : normalizedValue
             ? "SIC vinculado ao cadastro de pilotos"
             : "Campo opcional - deixe em branco se não houver SIC"}
       </p>
