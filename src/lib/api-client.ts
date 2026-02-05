@@ -120,14 +120,6 @@ class ApiClient {
     return this.get('/api/flights/active/now');
   }
 
-  async createFlight(data: any) {
-    return this.post('/api/flights', data);
-  }
-
-  async updateFlight(id: string, data: any) {
-    return this.put(`/api/flights/${id}`, data);
-  }
-
   // ========== CLIENTS ==========
   async getClients() {
     return this.get('/api/clients');
@@ -139,14 +131,6 @@ class ApiClient {
 
   async getClientContracts(id: string) {
     return this.get(`/api/clients/${id}/contracts`);
-  }
-
-  async createClient(data: any) {
-    return this.post('/api/clients', data);
-  }
-
-  async updateClient(id: string, data: any) {
-    return this.put(`/api/clients/${id}`, data);
   }
 
   // ========== AIRCRAFT ==========
@@ -162,14 +146,6 @@ class ApiClient {
     return this.get(`/api/aircraft/${id}/availability`);
   }
 
-  async createAircraft(data: any) {
-    return this.post('/api/aircraft', data);
-  }
-
-  async updateAircraft(id: string, data: any) {
-    return this.put(`/api/aircraft/${id}`, data);
-  }
-
   // ========== AERODROMES ==========
   async getAerodromes() {
     return this.get('/api/aerodromes');
@@ -177,6 +153,10 @@ class ApiClient {
 
   async getAerodromeDetails() {
     return this.get('/api/aerodromes/details');
+  }
+
+  async getAerodrome(icao: string) {
+    return this.get(`/api/aerodromes/${icao}`);
   }
 
   // ========== CATEGORIES ==========
@@ -190,15 +170,11 @@ class ApiClient {
 
   // ========== MAINTENANCE ==========
   async createMaintenance(payload: any) {
-    return this.post('/api/maintenances', payload);
+    return this.post('/api/maintenance', payload);
   }
 
   async updateMaintenance(id: string, payload: any) {
-    return this.patch(`/api/maintenances/${id}`, payload);
-  }
-
-  async deleteMaintenance(id: string) {
-    return this.delete(`/api/maintenances/${id}`);
+    return this.put(`/api/maintenance/${id}`, payload);
   }
 
   // ========== FLIGHT DOCUMENTS ==========
@@ -208,10 +184,6 @@ class ApiClient {
 
   async getFlightDocuments(flightId: string) {
     return this.get(`/api/flight-documents?flight_id=${flightId}`);
-  }
-
-  async deleteFlightDocument(id: string) {
-    return this.delete(`/api/flight-documents/${id}`);
   }
 
   // ========== WEATHER ==========
@@ -233,9 +205,96 @@ class ApiClient {
     return this.post('/api/cache/clear', { pattern });
   }
 
-  // ========== PDF LOGS ==========
-  async sendPdfLogs(logs: any) {
-    return this.post('/api/pdf-logs', logs);
+  // ========== LOGBOOK ==========
+  async getLogbook(filters?: { aircraft_id?: string; month?: number; year?: number }) {
+    const params = new URLSearchParams();
+    if (filters?.aircraft_id) params.append('aircraft_id', filters.aircraft_id);
+    if (filters?.month) params.append('month', filters.month.toString());
+    if (filters?.year) params.append('year', filters.year.toString());
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.get(`/api/logbook${query}`);
+  }
+
+  async getLogbookEntry(id: string) {
+    return this.get(`/api/logbook/${id}`);
+  }
+
+  async createLogbookEntry(payload: any) {
+    return this.post('/api/logbook', payload);
+  }
+
+  // ========== CONSOLIDATION ==========
+  async consolidateRateio(payload: any) {
+    return this.post('/api/consolidacao/consolidar-rateio', payload);
+  }
+
+  async consolidateMonthlyHours(payload: any) {
+    return this.post('/api/consolidacao/consolidar-horas-mensais', payload);
+  }
+
+  async getClientExtract(clientId: string, filters?: { data_inicio?: string; data_fim?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.data_inicio) params.append('data_inicio', filters.data_inicio);
+    if (filters?.data_fim) params.append('data_fim', filters.data_fim);
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.get(`/api/consolidacao/extrato-cliente/${clientId}${query}`);
+  }
+
+  async getClientMonthlySummary(clientId: string, ano: number, mes: number) {
+    return this.get(`/api/consolidacao/resumo-mensal-cliente/${clientId}?ano=${ano}&mes=${mes}`);
+  }
+
+  async getAircraftUsageComparison(aircraftId: string, ano: number, mes: number) {
+    return this.get(`/api/consolidacao/comparativo-uso/${aircraftId}?ano=${ano}&mes=${mes}`);
+  }
+
+  async getClientPendencias(clientId: string) {
+    return this.get(`/api/consolidacao/pendencias-cliente/${clientId}`);
+  }
+
+  async getClientAnnualAnalysis(clientId: string, ano?: number) {
+    const query = ano ? `?ano=${ano}` : '';
+    return this.get(`/api/consolidacao/analise-anual/${clientId}${query}`);
+  }
+
+  async getReconciliationStatus() {
+    return this.get('/api/consolidacao/status-conciliacao');
+  }
+
+  async getPendingReimbursements() {
+    return this.get('/api/consolidacao/reembolsos-pendentes');
+  }
+
+  // ========== FUEL ==========
+  async getFuel(filters: { client_id: string; date_start: string; date_end: string; aircraft_id?: string }) {
+    const params = new URLSearchParams();
+    params.append('client_id', filters.client_id);
+    params.append('date_start', filters.date_start);
+    params.append('date_end', filters.date_end);
+    if (filters.aircraft_id) params.append('aircraft_id', filters.aircraft_id);
+
+    return this.get(`/api/fuel?${params.toString()}`);
+  }
+
+  // ========== AIRPORTS ==========
+  async getAirport(icao: string) {
+    return this.get(`/api/airports/${icao}`);
+  }
+
+  async searchAirports(q: string) {
+    return this.get(`/api/airports/search?q=${encodeURIComponent(q)}`);
+  }
+
+  // ========== FINANCIAL ==========
+  // This is a router endpoint - implement specific financial endpoints as needed
+  async getFinancial(endpoint: string, params?: Record<string, string>) {
+    return this.get(`/api/financial${endpoint}`, params);
+  }
+
+  async postFinancial(endpoint: string, data?: any) {
+    return this.post(`/api/financial${endpoint}`, data);
   }
 }
 
