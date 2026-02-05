@@ -85,6 +85,7 @@ export function DynamicLogbookForm({
   // Tripulação
   const [selectedPic, setSelectedPic] = useState<string>('');
   const [selectedSic, setSelectedSic] = useState<string>('');
+  const [sicName, setSicName] = useState<string>('');
   const [picOpen, setPicOpen] = useState(false);
   const [sicOpen, setSicOpen] = useState(false);
 
