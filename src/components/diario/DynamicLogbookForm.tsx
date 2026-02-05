@@ -452,6 +452,7 @@ export function DynamicLogbookForm({
           is_loan: flightCategory === 'emprestimo',
           pic_canac: selectedPic,
           sic_canac: selectedSic || null,
+          sic_name: sicName || null,
           ac_time: formData.ac_time,
           dep_time: formData.departure_time,
           pou_time: formData.pou_time,
