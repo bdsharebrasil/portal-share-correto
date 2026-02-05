@@ -90,7 +90,7 @@ class ApiClient {
 }
 
 // Instância única da API
-export const api = new ApiClient(API_BASE_URL);
+export const apiClient = new ApiClient(API_BASE_URL);
 
 // Helper para tratamento de erros
 export function handleApiError(error: any): string {
