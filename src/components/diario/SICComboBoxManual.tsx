@@ -78,9 +78,9 @@ export function SICComboBoxManual({
   // Determinar o tipo de badge
   const badgeType = useMemo(() => {
     if (manualMode && manualInput) return 'manual';
-    if (value) return 'selected';
+    if (normalizedValue) return 'selected';
     return null;
-  }, [value, manualMode, manualInput]);
+  }, [normalizedValue, manualMode, manualInput]);
 
   const handleSelectCrew = (crewId: string) => {
     onChange(crewId, null);
