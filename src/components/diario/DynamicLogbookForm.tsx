@@ -571,6 +571,7 @@ export function DynamicLogbookForm({
         setSelectedBorrowerClient('');
         setSelectedPic('');
         setSelectedSic('');
+        setSicName('');
         setPassengers('');
         setCargoKg('');
         setOccurrences('');
@@ -663,6 +664,7 @@ export function DynamicLogbookForm({
                 setSelectedBorrowerClient('');
                 setSelectedPic('');
                 setSelectedSic('');
+                setSicName('');
                 setPassengers('');
                 setCargoKg('');
                 setOccurrences('');
@@ -1677,6 +1679,7 @@ export function DynamicLogbookForm({
                 setSelectedClient('');
                 setSelectedPic('');
                 setSelectedSic('');
+                setSicName('');
                 setPassengers('');
                 setCargoKg('');
                 setOccurrences('');
