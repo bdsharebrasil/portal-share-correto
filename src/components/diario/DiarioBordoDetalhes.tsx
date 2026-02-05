@@ -3629,7 +3629,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">POB (Pessoas)</Label>
-                    <Input type="number" value={editingEntry.passengers} onChange={e => setEditingEntry({
+                    <Input type="number" value={editingEntry.passengers ?? 0} onChange={e => setEditingEntry({
                       ...editingEntry,
                       passengers: parseInt(e.target.value) || 0
                     })} className="bg-slate-900 border border-slate-700 text-sky-400 h-10" />
