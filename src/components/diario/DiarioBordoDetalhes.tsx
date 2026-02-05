@@ -3348,7 +3348,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Data *</Label>
-                    <Input type="date" value={editingEntry.entry_date} onChange={e => setEditingEntry({
+                    <Input type="date" value={editingEntry.entry_date ?? ''} onChange={e => setEditingEntry({
                       ...editingEntry,
                       entry_date: e.target.value
                     })} className="bg-slate-900 border border-slate-700 text-white h-10" />
