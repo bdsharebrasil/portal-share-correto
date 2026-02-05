@@ -15,8 +15,8 @@ interface CrewMember {
 }
 
 interface SICComboBoxManualProps {
-  value?: string | null;           // sic_canac (UUID) or null
-  sicName?: string | null;         // sic_name (manual text) or null
+  value?: string;           // sic_canac (UUID) or empty string
+  sicName?: string;         // sic_name (manual text) or empty string
   crew: CrewMember[];
   onChange: (sicCanac: string | null, sicName?: string | null) => void;
   placeholder?: string;
