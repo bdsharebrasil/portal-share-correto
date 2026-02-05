@@ -1094,66 +1094,17 @@ export function DynamicLogbookForm({
               </div>
 
               {/* SIC (opcional) */}
-              <div className="space-y-2">
-                <Label className="text-sm text-muted-foreground">SIC (Segundo Piloto)</Label>
-                <Popover open={sicOpen} onOpenChange={setSicOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      className="w-full justify-between h-11 font-normal"
-                    >
-                      {selectedSic
-                        ? tripulantes.find(t => t.id === selectedSic)?.full_name || 'SIC selecionado'
-                        : 'Selecione o SIC (opt.)...'
-                      }
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Buscar piloto..." />
-                      <CommandList>
-                        <CommandEmpty>Nenhum piloto encontrado.</CommandEmpty>
-                        <CommandGroup>
-                          <CommandItem
-                            value="none"
-                            onSelect={() => {
-                              setSelectedSic('');
-                              setSicOpen(false);
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                !selectedSic ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            <span className="text-muted-foreground">Sem SIC</span>
-                          </CommandItem>
-                          {tripulantes.map((tripulante) => (
-                            <CommandItem
-                              key={tripulante.id}
-                              value={tripulante.full_name}
-                              onSelect={() => {
-                                setSelectedSic(tripulante.id);
-                                setSicOpen(false);
-                              }}
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  selectedSic === tripulante.id ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              <span>{tripulante.full_name}</span>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-              </div>
+              <SICComboBoxManual
+                value={selectedSic || null}
+                sicName={sicName || null}
+                crew={tripulantes}
+                onChange={(sicCanac, sicNameValue) => {
+                  setSelectedSic(sicCanac || '');
+                  setSicName(sicNameValue || '');
+                }}
+                label="SIC (Segundo Piloto)"
+                placeholder="Selecione ou digite o SIC..."
+              />
             </div>
           </div>
 
