@@ -25,14 +25,17 @@ interface SICComboBoxManualProps {
 }
 
 export function SICComboBoxManual({
-  value,
-  sicName,
+  value = '',
+  sicName = '',
   crew,
   onChange,
   placeholder = "Selecione ou digite SIC...",
   disabled = false,
   label = "Copiloto (SIC)"
 }: SICComboBoxManualProps) {
+  // Normalizar valores para garantir que nunca sejam null/undefined
+  const normalizedValue = value ?? '';
+  const normalizedSicName = sicName ?? '';
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [manualMode, setManualMode] = useState(!!sicName && !value);
