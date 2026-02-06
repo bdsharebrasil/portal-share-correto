@@ -761,6 +761,7 @@ export function NotasFiscaisSaida() {
           aeronave_id: aeronaveId,
           aeronave_registro: reciboData.aeronave_registro,
           grupo_categoria: grupoCategoria,
+          criado_por: currentUser.id,
         });
 
       if (controleBancarioError) throw new Error(`Erro controle_bancario: ${controleBancarioError.message}`);
