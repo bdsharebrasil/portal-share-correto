@@ -909,11 +909,12 @@ export function NotasFiscaisSaida() {
 
       setDeleteReciboId(null);
       loadRecibos();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao deletar recibo:", error);
+      const errorMsg = error?.message || "Erro ao deletar recibo";
       toast({
         title: "Erro",
-        description: "Erro ao deletar recibo",
+        description: errorMsg,
         variant: "destructive",
       });
     }
