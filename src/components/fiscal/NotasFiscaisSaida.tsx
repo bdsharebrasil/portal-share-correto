@@ -1619,10 +1619,10 @@ export function NotasFiscaisSaida() {
                         {nota.aeronave || "-"}
                       </TableCell>
                       <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                        {format(new Date(nota.data_criacao + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
+                        {formatDateSafe(nota.data_criacao)}
                       </TableCell>
                       <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                        {nota.data_vencimento && format(new Date(nota.data_vencimento + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
+                        {formatDateSafe(nota.data_vencimento)}
                       </TableCell>
                       <TableCell className="text-foreground font-semibold px-4 py-3 text-right text-emerald-500">
                         R$ {nota.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
