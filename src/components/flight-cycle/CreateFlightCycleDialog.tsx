@@ -143,8 +143,8 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Cliente *</Label>
-              <Select 
-                value={formData.client_id} 
+              <Select
+                value={formData.client_id}
                 onValueChange={(v) => setFormData(prev => ({ ...prev, client_id: v }))}
               >
                 <SelectTrigger>
@@ -162,8 +162,8 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
 
             <div className="space-y-2">
               <Label>Aeronave *</Label>
-              <Select 
-                value={formData.aircraft_id} 
+              <Select
+                value={formData.aircraft_id}
                 onValueChange={(v) => setFormData(prev => ({ ...prev, aircraft_id: v }))}
               >
                 <SelectTrigger>
@@ -179,6 +179,29 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
               </Select>
             </div>
           </div>
+
+          {partners.length > 0 && (
+            <div className="space-y-2">
+              <Label>Partner *</Label>
+              <Select
+                value={formData.partner_id}
+                onValueChange={(v) =>
+                  setFormData(prev => ({ ...prev, partner_id: v }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o partner" />
+                </SelectTrigger>
+                <SelectContent>
+                  {partners.map(partner => (
+                    <SelectItem key={partner.id} value={partner.id}>
+                      {partner.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
