@@ -744,7 +744,6 @@ export function NotasFiscaisSaida() {
           numero_documento: numeroRecibo,
           valor: parseFloat(reciboData.valor),
           categoria_id: CATEGORIA_ID,
-          criado_por: currentUser.id,
           descricao: reciboData.descricao || "Recibo de Saída - Serviços",
           comprovante_url: reciboUrl,
           client_id: clientId,
@@ -752,7 +751,6 @@ export function NotasFiscaisSaida() {
           aeronave_id: aeronaveId,
           aeronave_registro: reciboData.aeronave_registro,
           grupo_categoria: grupoCategoria,
-          colaborador_id: currentUser.id,
         });
 
       if (controleBancarioError) throw new Error(`Erro controle_bancario: ${controleBancarioError.message}`);
