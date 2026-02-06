@@ -112,6 +112,7 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
       // Reset form
       setFormData({
         client_id: '',
+        partner_id: '',
         aircraft_id: '',
         origin_icao: '',
         destination_icao: '',
