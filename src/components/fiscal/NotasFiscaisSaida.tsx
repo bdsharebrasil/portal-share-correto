@@ -1219,7 +1219,7 @@ export function NotasFiscaisSaida() {
                     </SelectTrigger>
                     <SelectContent className="bg-card border-border" align="start">
                       {categoriasReceita.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.nome}>
+                        <SelectItem key={cat.id} value={cat.id}>
                           {cat.nome}
                         </SelectItem>
                       ))}
