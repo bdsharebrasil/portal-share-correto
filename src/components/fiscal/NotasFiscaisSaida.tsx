@@ -228,7 +228,7 @@ export function NotasFiscaisSaida() {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const defaultCategoria = categoriasReceita.length > 0 ? categoriasReceita[0].nome : "";
+  const defaultCategoria = categoriasReceita.length > 0 ? categoriasReceita[0].id : "";
 
   const [formData, setFormData] = useState({
     numero: "",
