@@ -527,7 +527,8 @@ export function NotasFiscaisSaida() {
       categoria: defaultCategoria,
       descricao: "",
       status: "pendente",
-      aeronave: "",
+      aeronave_id: "",
+      aeronave_registro: "",
     });
     setEditingNota(null);
     setClienteSearch("");
