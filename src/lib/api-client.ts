@@ -1,4 +1,11 @@
 // Configuração para comunicação com o backend na Vercel
+//
+// NOTA: Este cliente API implementa fallback automático para Supabase quando o backend está offline.
+// Erros "Failed to fetch" são esperados e tratados graciosamente:
+// - useWeather.ts: Usa dados locais em mock data quando backend falha
+// - useAeronaves.ts: Faz fallback direto para Supabase quando backend falha
+//
+// Esses erros não afetam a funcionalidade da aplicação, apenas reduzem cache/proxy.
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
