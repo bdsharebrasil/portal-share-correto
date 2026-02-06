@@ -469,11 +469,12 @@ export function NotasFiscaisSaida() {
       setOpenDialog(false);
       resetForm();
       loadNotas();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao salvar nota:", error);
+      const errorMsg = error?.message || "Erro ao salvar nota fiscal";
       toast({
         title: "Erro",
-        description: "Erro ao salvar nota fiscal",
+        description: errorMsg,
         variant: "destructive",
       });
     }
