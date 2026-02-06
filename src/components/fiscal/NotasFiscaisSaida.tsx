@@ -859,13 +859,13 @@ export function NotasFiscaisSaida() {
 
     try {
       const { error } = await supabase
-        .from("receipts")
+        .from("bank_reconciliations")
         .update({
           amount: parseFloat(reciboEditData.amount),
-          service_description: reciboEditData.service_description,
-          max_payment_date: reciboEditData.max_payment_date || null,
+          description: reciboEditData.service_description,
+          prazo_pagamento: reciboEditData.max_payment_date || null,
           status: reciboEditData.status,
-          category_name: reciboEditData.category_name,
+          category: reciboEditData.category_name,
           updated_at: new Date().toISOString(),
         })
         .eq("id", editingRecibo.id);
