@@ -63,6 +63,27 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
     }
   }, [open]);
 
+  useEffect(() => {
+    const loadPartners = async () => {
+      if (!formData.client_id) {
+        setPartners([]);
+        setFormData(prev => ({ ...prev, partner_id: '' }));
+        return;
+      }
+
+      const { data } = await supabase
+        .from('client_partners')
+        .select('id, name')
+        .eq('client_id', formData.client_id)
+        .order('name');
+
+      setPartners(data || []);
+      setFormData(prev => ({ ...prev, partner_id: '' }));
+    };
+
+    loadPartners();
+  }, [formData.client_id]);
+
   const loadData = async () => {
     const [clientsRes, aircraftRes] = await Promise.all([
       supabase.from('clients').select('id, company_name, proprietario').order('company_name'),
