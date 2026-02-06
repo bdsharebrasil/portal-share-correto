@@ -890,13 +890,13 @@ export function NotasFiscaisSaida() {
       if (generatePdf) {
         setIsGeneratingPdfEdit(true);
 
-        // Preparar dados para o PDF
+        // Preparar dados para o PDF - mantendo o mesmo pagador do recibo anterior
         const dadosParaPDF = {
           numero_recibo: editingRecibo.doc,
-          cliente_nome: pendingReciboUpdate.description.split(' ')[0], // Extrair do description
-          cliente_cnpj: editingRecibo.client_id || "Não informado",
+          cliente_nome: editingRecibo.clients?.company_name || "Não informado",
+          cliente_cnpj: editingRecibo.clients?.cnpj || "Não informado",
           descricao: pendingReciboUpdate.description,
-          aeronave_registro: editingRecibo.aircraft_id || "",
+          aeronave_registro: editingRecibo.aircraft?.registration || "",
           valor: pendingReciboUpdate.amount,
         };
 
