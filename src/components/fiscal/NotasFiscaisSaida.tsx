@@ -862,28 +862,96 @@ export function NotasFiscaisSaida() {
   const handleSaveReciboEdit = async () => {
     if (!editingRecibo) return;
 
+    // Armazenar dados para atualização posterior
+    setPendingReciboUpdate({
+      id: editingRecibo.id,
+      amount: parseFloat(reciboEditData.amount),
+      description: reciboEditData.service_description,
+      prazo_pagamento: reciboEditData.max_payment_date || null,
+      status: reciboEditData.status,
+      category: reciboEditData.category_name,
+    });
+
+    // Mostrar dialog de confirmação de PDF
+    setShowPdfConfirmDialog(true);
+  };
+
+  const handleGenerateNewPdf = async (generatePdf: boolean) => {
+    if (!pendingReciboUpdate) return;
+
     try {
+      let nfUrl = editingRecibo.nf_url; // Manter URL atual se não gerar novo PDF
+
+      // Gerar novo PDF se confirmado
+      if (generatePdf) {
+        setIsGeneratingPdfEdit(true);
+
+        // Preparar dados para o PDF
+        const dadosParaPDF = {
+          numero_recibo: editingRecibo.doc,
+          cliente_nome: pendingReciboUpdate.description.split(' ')[0], // Extrair do description
+          cliente_cnpj: editingRecibo.client_id || "Não informado",
+          descricao: pendingReciboUpdate.description,
+          aeronave_registro: editingRecibo.aircraft_id || "",
+          valor: pendingReciboUpdate.amount,
+        };
+
+        // Gerar PDF
+        const blob = await pdf(<ReciboDocument data={dadosParaPDF} />).toBlob();
+
+        // Upload do novo PDF
+        const timestamp = Date.now();
+        const pdfFileName = `nfs-share-saida/recibos/recibo_${pendingReciboUpdate.id}/${timestamp}.pdf`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("nfs-share-saida")
+          .upload(pdfFileName, blob, {
+            contentType: "application/pdf",
+            upsert: true,
+          });
+
+        if (uploadError) throw uploadError;
+
+        // Obter URL pública do novo PDF
+        const { data: urlData } = supabase.storage
+          .from("nfs-share-saida")
+          .getPublicUrl(pdfFileName);
+
+        if (urlData?.publicUrl) {
+          nfUrl = urlData.publicUrl;
+        }
+
+        setIsGeneratingPdfEdit(false);
+      }
+
+      // Atualizar recibo no banco de dados
       const { error } = await supabase
         .from("bank_reconciliations")
         .update({
-          amount: parseFloat(reciboEditData.amount),
-          description: reciboEditData.service_description,
-          prazo_pagamento: reciboEditData.max_payment_date || null,
-          status: reciboEditData.status,
-          category: reciboEditData.category_name,
+          amount: pendingReciboUpdate.amount,
+          description: pendingReciboUpdate.description,
+          prazo_pagamento: pendingReciboUpdate.prazo_pagamento,
+          status: pendingReciboUpdate.status,
+          category: pendingReciboUpdate.category,
+          nf_url: nfUrl,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", editingRecibo.id);
+        .eq("id", pendingReciboUpdate.id);
 
       if (error) throw error;
 
       toast({
         title: "Sucesso",
-        description: "Recibo atualizado com sucesso",
+        description: generatePdf
+          ? "Recibo atualizado e novo PDF gerado com sucesso"
+          : "Recibo atualizado com sucesso",
       });
 
+      // Fechar dialogs
       setShowReciboEditDialog(false);
+      setShowPdfConfirmDialog(false);
       setEditingRecibo(null);
+      setPendingReciboUpdate(null);
       loadRecibos();
     } catch (error: any) {
       console.error("Erro ao atualizar recibo:", error);
@@ -893,6 +961,7 @@ export function NotasFiscaisSaida() {
         description: errorMsg,
         variant: "destructive",
       });
+      setIsGeneratingPdfEdit(false);
     }
   };
 
