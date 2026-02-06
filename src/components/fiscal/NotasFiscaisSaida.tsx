@@ -928,8 +928,17 @@ export function NotasFiscaisSaida() {
 
   return (
     <div className="space-y-6">
-      {/* Cards de Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Tabs */}
+      <Tabs defaultValue="notas-fiscais" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2 bg-card/50 backdrop-blur-sm border border-border/50 p-1 rounded-lg">
+          <TabsTrigger value="notas-fiscais" className="rounded-md">Notas Fiscais de Saída</TabsTrigger>
+          <TabsTrigger value="recibos-saida" className="rounded-md">Histórico de Recibos</TabsTrigger>
+        </TabsList>
+
+        {/* TAB 1: Notas Fiscais de Saída */}
+        <TabsContent value="notas-fiscais" className="space-y-6 mt-6">
+          {/* Cards de Resumo */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-gradient-to-br from-blue-500/10 via-card to-card border-blue-500/20 shadow-lg shadow-blue-500/5 hover:shadow-lg hover:shadow-blue-500/10 transition-shadow duration-300">
           <CardContent className="p-6">
             <div className="space-y-3">
@@ -1725,6 +1734,223 @@ export function NotasFiscaisSaida() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+        </TabsContent>
+
+        {/* TAB 2: Histórico de Recibos de Saída */}
+        <TabsContent value="recibos-saida" className="space-y-6 mt-6">
+          {/* Tabela de Recibos de Saída */}
+          <Card className="bg-gradient-to-br from-card/80 to-card/40 border-border/60 shadow-lg">
+            <CardHeader className="border-b border-border/40 pb-4">
+              <CardTitle className="text-lg font-semibold text-foreground">Histórico de Recibos de Saída</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              {isLoadingRecibos ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3"></div>
+                  Carregando recibos...
+                </div>
+              ) : recibos.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <FileUp className="w-12 h-12 opacity-20 mx-auto mb-3" />
+                  Nenhum recibo de saída criado
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-border/40">
+                  <Table>
+                    <TableHeader className="bg-muted/30 border-b border-border/40">
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Número</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Cliente</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Aeronave</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Data de Criação</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Vencimento</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-right">Valor</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Categoria</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Status</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-center">PDF</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {recibos.map((recibo, idx) => (
+                        <TableRow key={recibo.id} className={`border-b border-border/30 hover:bg-muted/40 transition-colors ${idx % 2 === 0 ? 'bg-muted/10' : ''}`}>
+                          <TableCell className="font-semibold text-foreground px-4 py-3">{recibo.receipt_number}</TableCell>
+                          <TableCell className="text-foreground px-4 py-3">{recibo.payer_name}</TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">
+                            {recibo.aircraft_id ? "Vinculada" : "-"}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">
+                            {format(new Date(recibo.created_at + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">
+                            {recibo.max_payment_date ? format(new Date(recibo.max_payment_date + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR }) : "-"}
+                          </TableCell>
+                          <TableCell className="text-foreground font-semibold px-4 py-3 text-right text-emerald-500">
+                            R$ {recibo.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">{recibo.category_name || "-"}</TableCell>
+                          <TableCell className="px-4 py-3">
+                            <Select
+                              value={recibo.status || "pendente"}
+                              onValueChange={() => {}}
+                            >
+                              <SelectTrigger className={`w-[130px] h-8 text-xs font-medium border rounded-lg ${
+                                recibo.status === "pagamento" ? "bg-green-500/10 text-green-600 border-green-500/30" :
+                                recibo.status === "pendente" ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/30" :
+                                "bg-red-500/10 text-red-600 border-red-500/30"
+                              }`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-card border-border">
+                                <SelectItem value="pagamento">Pagamento</SelectItem>
+                                <SelectItem value="reembolso">Reembolso</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-center">
+                            {recibo.pdf_url ? (
+                              <a
+                                href={recibo.pdf_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-primary hover:bg-primary/10 transition-colors"
+                                title="Ver PDF"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </a>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="px-4 py-3">
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditRecibo(recibo)}
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors"
+                                title="Editar"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg transition-colors"
+                                onClick={() => setDeleteReciboId(recibo.id)}
+                                title="Deletar"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Dialog de Edição de Recibo */}
+      <Dialog open={showReciboEditDialog} onOpenChange={setShowReciboEditDialog}>
+        <DialogContent className="bg-card border-border max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Editar Recibo</DialogTitle>
+          </DialogHeader>
+          {editingRecibo && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-foreground mb-2 block">Valor (R$) *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={reciboEditData.amount}
+                    onChange={(e) => setReciboEditData({ ...reciboEditData, amount: e.target.value })}
+                    className="bg-background border-border"
+                  />
+                </div>
+                <div>
+                  <Label className="text-foreground mb-2 block">Data de Vencimento</Label>
+                  <Input
+                    type="date"
+                    value={reciboEditData.max_payment_date}
+                    onChange={(e) => setReciboEditData({ ...reciboEditData, max_payment_date: e.target.value })}
+                    className="bg-background border-border"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-foreground mb-2 block">Descrição do Serviço *</Label>
+                <Textarea
+                  value={reciboEditData.service_description}
+                  onChange={(e) => setReciboEditData({ ...reciboEditData, service_description: e.target.value })}
+                  className="bg-background border-border resize-none"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <Label className="text-foreground mb-2 block">Categoria</Label>
+                <Input
+                  value={reciboEditData.category_name}
+                  onChange={(e) => setReciboEditData({ ...reciboEditData, category_name: e.target.value })}
+                  placeholder="Categoria"
+                  className="bg-background border-border"
+                />
+              </div>
+              <div>
+                <Label className="text-foreground mb-2 block">Status</Label>
+                <Select value={reciboEditData.status} onValueChange={(value) => setReciboEditData({ ...reciboEditData, status: value })}>
+                  <SelectTrigger className="bg-background border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="pendente">Pendente</SelectItem>
+                    <SelectItem value="pagamento">Pagamento</SelectItem>
+                    <SelectItem value="reembolso">Reembolso</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2 justify-end mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowReciboEditDialog(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                  onClick={handleSaveReciboEdit}
+                >
+                  Salvar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Confirmação de Exclusão de Recibo */}
+      <Dialog open={!!deleteReciboId} onOpenChange={() => setDeleteReciboId(null)}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Confirmar Exclusão</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">Tem certeza que deseja excluir este recibo?</p>
+          <div className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setDeleteReciboId(null)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteRecibo}>
+              Excluir
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
