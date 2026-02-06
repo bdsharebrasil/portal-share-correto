@@ -837,6 +837,18 @@ export function NotasFiscaisSaida() {
     .filter((n) => n.status === "recebido") // CORREÇÃO: usar apenas 'recebido'
     .reduce((acc, n) => acc + n.valor, 0);
 
+  // Função auxiliar para formatar datas com segurança
+  const formatDateSafe = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return "-";
+    try {
+      const date = new Date(dateStr + "T12:00:00");
+      if (isNaN(date.getTime())) return "-";
+      return format(date, "dd/MM/yyyy", { locale: ptBR });
+    } catch (error) {
+      return "-";
+    }
+  };
+
   // Funções para Histórico de Recibos
   const handleEditRecibo = (recibo: any) => {
     setEditingRecibo(recibo);
