@@ -846,10 +846,10 @@ export function NotasFiscaisSaida() {
     setEditingRecibo(recibo);
     setReciboEditData({
       amount: recibo.amount.toString(),
-      service_description: recibo.service_description,
-      max_payment_date: recibo.max_payment_date || "",
-      status: recibo.status || "pendente",
-      category_name: recibo.category_name || "",
+      service_description: recibo.description,
+      max_payment_date: recibo.prazo_pagamento || "",
+      status: recibo.status || "enviado",
+      category_name: recibo.category || "",
     });
     setShowReciboEditDialog(true);
   };
@@ -1782,43 +1782,44 @@ export function NotasFiscaisSaida() {
                     <TableBody>
                       {recibos.map((recibo, idx) => (
                         <TableRow key={recibo.id} className={`border-b border-border/30 hover:bg-muted/40 transition-colors ${idx % 2 === 0 ? 'bg-muted/10' : ''}`}>
-                          <TableCell className="font-semibold text-foreground px-4 py-3">{recibo.receipt_number}</TableCell>
-                          <TableCell className="text-foreground px-4 py-3">{recibo.payer_name}</TableCell>
+                          <TableCell className="font-semibold text-foreground px-4 py-3">{recibo.doc}</TableCell>
+                          <TableCell className="text-foreground px-4 py-3">{recibo.description}</TableCell>
                           <TableCell className="text-muted-foreground px-4 py-3 text-sm">
                             {recibo.aircraft_id ? "Vinculada" : "-"}
                           </TableCell>
                           <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                            {formatDateSafe(recibo.created_at)}
+                            {formatDateSafe(recibo.date)}
                           </TableCell>
                           <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                            {formatDateSafe(recibo.max_payment_date)}
+                            {formatDateSafe(recibo.prazo_pagamento)}
                           </TableCell>
                           <TableCell className="text-foreground font-semibold px-4 py-3 text-right text-emerald-500">
-                            R$ {recibo.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                            R$ {parseFloat(recibo.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </TableCell>
-                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">{recibo.category_name || "-"}</TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">{recibo.category || "-"}</TableCell>
                           <TableCell className="px-4 py-3">
                             <Select
-                              value={recibo.status || "pendente"}
+                              value={recibo.status || "enviado"}
                               onValueChange={() => {}}
                             >
                               <SelectTrigger className={`w-[130px] h-8 text-xs font-medium border rounded-lg ${
-                                recibo.status === "pagamento" ? "bg-green-500/10 text-green-600 border-green-500/30" :
+                                recibo.status === "enviado" ? "bg-green-500/10 text-green-600 border-green-500/30" :
                                 recibo.status === "pendente" ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/30" :
                                 "bg-red-500/10 text-red-600 border-red-500/30"
                               }`}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent className="bg-card border-border">
-                                <SelectItem value="pagamento">Pagamento</SelectItem>
-                                <SelectItem value="reembolso">Reembolso</SelectItem>
+                                <SelectItem value="enviado">Enviado</SelectItem>
+                                <SelectItem value="pendente">Pendente</SelectItem>
+                                <SelectItem value="recebido">Recebido</SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>
                           <TableCell className="px-4 py-3 text-center">
-                            {recibo.pdf_url ? (
+                            {recibo.boleto_url ? (
                               <a
-                                href={recibo.pdf_url}
+                                href={recibo.boleto_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-primary hover:bg-primary/10 transition-colors"
