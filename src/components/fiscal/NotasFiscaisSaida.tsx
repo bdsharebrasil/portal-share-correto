@@ -324,6 +324,7 @@ export function NotasFiscaisSaida() {
   useEffect(() => {
     loadNotas();
     loadClientes();
+    loadRecibos();
   }, []);
 
   const loadClientes = async () => {
