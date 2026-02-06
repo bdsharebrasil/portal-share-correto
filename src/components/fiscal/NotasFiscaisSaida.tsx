@@ -2034,6 +2034,41 @@ export function NotasFiscaisSaida() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de Confirmação de Geração de PDF */}
+      <Dialog open={showPdfConfirmDialog} onOpenChange={setShowPdfConfirmDialog}>
+        <DialogContent className="bg-card border-border max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Gerar Novo PDF do Recibo?</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">
+            Deseja gerar um novo PDF do recibo com as informações atualizadas? O PDF anterior será substituído.
+          </p>
+          <div className="flex gap-2 justify-end mt-6">
+            <Button
+              variant="outline"
+              onClick={() => handleGenerateNewPdf(false)}
+              disabled={isGeneratingPdfEdit}
+            >
+              Não
+            </Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => handleGenerateNewPdf(true)}
+              disabled={isGeneratingPdfEdit}
+            >
+              {isGeneratingPdfEdit ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Gerando...
+                </>
+              ) : (
+                "Sim, Gerar PDF"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
