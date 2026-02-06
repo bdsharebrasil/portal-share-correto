@@ -28,6 +28,11 @@ interface Aircraft {
   model: string;
 }
 
+interface ClientPartner {
+  id: string;
+  name: string;
+}
+
 export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: CreateFlightCycleDialogProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [aircraft, setAircraft] = useState<Aircraft[]>([]);
