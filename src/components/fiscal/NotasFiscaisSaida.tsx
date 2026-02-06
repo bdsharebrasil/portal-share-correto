@@ -921,7 +921,7 @@ export function NotasFiscaisSaida() {
   };
 
   const handleViewReciboPDF = (recibo: any) => {
-    if (!recibo.boleto_url) {
+    if (!recibo.nf_url) {
       toast({
         title: "Aviso",
         description: "PDF não disponível para este recibo",
