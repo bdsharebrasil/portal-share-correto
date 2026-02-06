@@ -303,6 +303,11 @@ export function NotasFiscaisSaida() {
     category_name: "",
   });
 
+  // Estados para confirmação de PDF
+  const [showPdfConfirmDialog, setShowPdfConfirmDialog] = useState(false);
+  const [isGeneratingPdfEdit, setIsGeneratingPdfEdit] = useState(false);
+  const [pendingReciboUpdate, setPendingReciboUpdate] = useState<any | null>(null);
+
   const { toast } = useToast();
   const { user } = useAuth();
 
