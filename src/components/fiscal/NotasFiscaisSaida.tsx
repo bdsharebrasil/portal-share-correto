@@ -458,7 +458,8 @@ export function NotasFiscaisSaida() {
       categoria: nota.categoria,
       descricao: nota.descricao || "",
       status: nota.status,
-      aeronave: nota.aeronave || "",
+      aeronave_id: nota.aeronave_id || "",
+      aeronave_registro: nota.aeronave_registro || "",
     });
     setPdfUrl(nota.arquivo_pdf_url || "");
     setOpenDialog(true);
