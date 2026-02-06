@@ -31,7 +31,14 @@ export const useAeronaves = () => {
           return [];
         }
       } catch (error) {
-        console.warn("Backend não disponível, usando Supabase direto:", error);
+        // Silenciar erro de conexão esperado e tentar fallback
+        const isConnectionError = error instanceof TypeError &&
+                                  (error.message.includes('Failed to fetch') ||
+                                   error.message.includes('NetworkError'));
+
+        if (!isConnectionError) {
+          console.warn("Erro ao conectar com backend:", (error as Error).message);
+        }
 
         // Fallback: busca direto do Supabase se o backend falhar
         try {
@@ -46,7 +53,6 @@ export const useAeronaves = () => {
             throw supabaseError;
           }
 
-          console.info("Aeronaves carregadas do Supabase (fallback)");
           // Ensure we return an array
           return Array.isArray(data) ? data : [];
         } catch (fallbackError) {
