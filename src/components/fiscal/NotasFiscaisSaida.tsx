@@ -1794,10 +1794,10 @@ export function NotasFiscaisSaida() {
                             {recibo.aircraft_id ? "Vinculada" : "-"}
                           </TableCell>
                           <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                            {format(new Date(recibo.created_at + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
+                            {formatDateSafe(recibo.created_at)}
                           </TableCell>
                           <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                            {recibo.max_payment_date ? format(new Date(recibo.max_payment_date + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR }) : "-"}
+                            {formatDateSafe(recibo.max_payment_date)}
                           </TableCell>
                           <TableCell className="text-foreground font-semibold px-4 py-3 text-right text-emerald-500">
                             R$ {recibo.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
