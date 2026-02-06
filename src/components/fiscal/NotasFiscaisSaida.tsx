@@ -1861,9 +1861,9 @@ export function NotasFiscaisSaida() {
                       {recibos.map((recibo, idx) => (
                         <TableRow key={recibo.id} className={`border-b border-border/30 hover:bg-muted/40 transition-colors ${idx % 2 === 0 ? 'bg-muted/10' : ''}`}>
                           <TableCell className="font-semibold text-foreground px-4 py-3">{recibo.doc}</TableCell>
-                          <TableCell className="text-foreground px-4 py-3">{recibo.description}</TableCell>
+                          <TableCell className="text-foreground px-4 py-3">{recibo.clients?.company_name || "-"}</TableCell>
                           <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                            {recibo.aircraft_id ? "Vinculada" : "-"}
+                            {recibo.aircraft?.registration || "-"}
                           </TableCell>
                           <TableCell className="text-muted-foreground px-4 py-3 text-sm">
                             {formatDateSafe(recibo.date)}
