@@ -36,6 +36,7 @@ interface ClientPartner {
 export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: CreateFlightCycleDialogProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [aircraft, setAircraft] = useState<Aircraft[]>([]);
+  const [partners, setPartners] = useState<ClientPartner[]>([]);
   const [loading, setLoading] = useState(false);
   const { crewMembers, fetchCrewMembers } = useCrewMembers();
 
