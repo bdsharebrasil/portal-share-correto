@@ -383,6 +383,33 @@ export function NotasFiscaisSaida() {
     }
   };
 
+  const loadRecibos = async () => {
+    try {
+      setIsLoadingRecibos(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("receipts")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("receipt_type", "pagamento")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setRecibos(data || []);
+    } catch (error) {
+      console.error("Erro ao carregar recibos:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar recibos de saída",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingRecibos(false);
+    }
+  };
+
   const handleSave = async () => {
     // VALIDAÇÃO COMPLETA
     const erroValidacao = validarNotaFiscal(formData);
