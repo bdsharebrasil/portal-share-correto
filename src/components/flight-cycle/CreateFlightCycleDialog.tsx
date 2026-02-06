@@ -28,14 +28,21 @@ interface Aircraft {
   model: string;
 }
 
+interface ClientPartner {
+  id: string;
+  name: string;
+}
+
 export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: CreateFlightCycleDialogProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [aircraft, setAircraft] = useState<Aircraft[]>([]);
+  const [partners, setPartners] = useState<ClientPartner[]>([]);
   const [loading, setLoading] = useState(false);
   const { crewMembers, fetchCrewMembers } = useCrewMembers();
 
   const [formData, setFormData] = useState({
     client_id: '',
+    partner_id: '',
     aircraft_id: '',
     origin_icao: '',
     destination_icao: '',
@@ -55,6 +62,27 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
       loadData();
     }
   }, [open]);
+
+  useEffect(() => {
+    const loadPartners = async () => {
+      if (!formData.client_id) {
+        setPartners([]);
+        setFormData(prev => ({ ...prev, partner_id: '' }));
+        return;
+      }
+
+      const { data } = await supabase
+        .from('client_partners')
+        .select('id, name')
+        .eq('client_id', formData.client_id)
+        .order('name');
+
+      setPartners(data || []);
+      setFormData(prev => ({ ...prev, partner_id: '' }));
+    };
+
+    loadPartners();
+  }, [formData.client_id]);
 
   const loadData = async () => {
     const [clientsRes, aircraftRes] = await Promise.all([
@@ -84,6 +112,7 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
       // Reset form
       setFormData({
         client_id: '',
+        partner_id: '',
         aircraft_id: '',
         origin_icao: '',
         destination_icao: '',
@@ -114,8 +143,8 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Cliente *</Label>
-              <Select 
-                value={formData.client_id} 
+              <Select
+                value={formData.client_id}
                 onValueChange={(v) => setFormData(prev => ({ ...prev, client_id: v }))}
               >
                 <SelectTrigger>
@@ -133,8 +162,8 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
 
             <div className="space-y-2">
               <Label>Aeronave *</Label>
-              <Select 
-                value={formData.aircraft_id} 
+              <Select
+                value={formData.aircraft_id}
                 onValueChange={(v) => setFormData(prev => ({ ...prev, aircraft_id: v }))}
               >
                 <SelectTrigger>
@@ -150,6 +179,29 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
               </Select>
             </div>
           </div>
+
+          {partners.length > 0 && (
+            <div className="space-y-2">
+              <Label>Partner *</Label>
+              <Select
+                value={formData.partner_id}
+                onValueChange={(v) =>
+                  setFormData(prev => ({ ...prev, partner_id: v }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o partner" />
+                </SelectTrigger>
+                <SelectContent>
+                  {partners.map(partner => (
+                    <SelectItem key={partner.id} value={partner.id}>
+                      {partner.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
