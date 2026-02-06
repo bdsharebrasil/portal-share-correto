@@ -20,7 +20,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useAuth } from "@/contexts/AuthContext";
 import { Document, Page, Text, View, StyleSheet, Image, pdf } from '@react-pdf/renderer';
 
-// --- CONFIGURAÇÃO DO PDF ---
+// --- CONFIGURAÇÃO DO PDF (APENAS PARA RECIBOS) ---
 
 const getLogoUrl = () => {
   if (typeof window !== 'undefined') {
@@ -34,69 +34,32 @@ const logoUrl = getLogoUrl();
 // Estilos do PDF
 const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10, fontFamily: 'Helvetica' },
-  
   header: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, alignItems: 'center' },
   headerLeft: { flexDirection: 'column', justifyContent: 'center' },
-  
-  logoHeader: { 
-    width: 120,
-    height: 50, 
-    objectFit: 'contain',
-    marginBottom: 5 
-  },
-
+  logoHeader: { width: 120, height: 50, objectFit: 'contain', marginBottom: 5 },
   reciboTitle: { fontSize: 16, fontWeight: 'bold', marginTop: 5 },
   headerRight: { alignItems: 'flex-end' },
-  
   label: { color: '#666', fontSize: 8, marginBottom: 2, textTransform: 'uppercase' },
-  
-  valueBox: { 
-    border: '1px solid #000', 
-    padding: 8, 
-    width: 150, 
-    alignItems: 'center', 
-    marginTop: 10,
-    alignSelf: 'flex-end'
-  },
+  valueBox: { border: '1px solid #000', padding: 8, width: 150, alignItems: 'center', marginTop: 10, alignSelf: 'flex-end' },
   valueText: { fontSize: 14, fontWeight: 'bold' },
-  
   row: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 30, marginBottom: 20 },
   column: { width: '48%' },
   bold: { fontWeight: 'bold', fontSize: 10, marginBottom: 2 },
   text: { fontSize: 9, marginBottom: 2, color: '#333' },
-  
-  sectionHeader: { 
-    backgroundColor: '#F3F4F6',
-    padding: 6, 
-    marginTop: 10,
-    marginBottom: 10,
-    fontWeight: 'bold',
-    fontSize: 9
-  },
-  
+  sectionHeader: { backgroundColor: '#F3F4F6', padding: 6, marginTop: 10, marginBottom: 10, fontWeight: 'bold', fontSize: 9 },
   description: { fontSize: 9, lineHeight: 1.5, minHeight: 100 },
-  
   footer: { marginTop: 40, borderTop: '1px solid #eee', paddingTop: 20 },
   disclaimer: { fontSize: 8, color: '#888', fontStyle: 'italic', marginBottom: 30 },
-  
   signatureArea: { marginTop: 40, alignItems: 'center' },
   line: { width: 200, borderBottom: '1px solid #000', marginBottom: 5 },
   signatureName: { fontWeight: 'bold' },
-  
-  logoSignature: {
-    width: 80,
-    height: 30,
-    objectFit: 'contain',
-    marginTop: 10,
-    opacity: 0.8
-  }
+  logoSignature: { width: 80, height: 30, objectFit: 'contain', marginTop: 10, opacity: 0.8 }
 });
 
-// Componente do Documento PDF
+// Componente do Documento PDF (APENAS PARA RECIBOS)
 const ReciboDocument = ({ data }: { data: any }) => (
   <Document>
     <Page size="A4" style={styles.page}>
-      {/* Cabeçalho */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Image src={logoUrl} style={styles.logoHeader} />
@@ -107,8 +70,6 @@ const ReciboDocument = ({ data }: { data: any }) => (
           <Text style={{ fontSize: 12 }}>{data.numero_recibo}</Text>
         </View>
       </View>
-
-      {/* Valor */}
       <View style={{ alignItems: 'flex-end' }}>
         <Text style={styles.label}>VALOR TOTAL</Text>
         <View style={styles.valueBox}>
@@ -117,8 +78,6 @@ const ReciboDocument = ({ data }: { data: any }) => (
           </Text>
         </View>
       </View>
-
-      {/* Dados das Partes */}
       <View style={styles.row}>
         <View style={styles.column}>
           <Text style={styles.label}>EMISSOR (PRESTADOR)</Text>
@@ -133,8 +92,6 @@ const ReciboDocument = ({ data }: { data: any }) => (
           <Text style={styles.text}>CPF/CNPJ: {data.cliente_cnpj || "Não informado"}</Text>
         </View>
       </View>
-
-      {/* Descrição */}
       <View>
         <Text style={styles.sectionHeader}>DESCRIÇÃO DO SERVIÇO</Text>
         <Text style={styles.description}>
@@ -142,20 +99,16 @@ const ReciboDocument = ({ data }: { data: any }) => (
           {data.aeronave_registro ? `\nReferente à aeronave: ${data.aeronave_registro}` : ''}
         </Text>
       </View>
-
-      {/* Rodapé e Assinatura */}
       <View style={styles.footer}>
         <Text style={styles.disclaimer}>
           Este documento serve como comprovante de prestação de serviço e só terá validade após quitação do valor acima discriminado.
         </Text>
-        
         <View style={styles.signatureArea}>
           <Text style={{ marginBottom: 40 }}>
             {new Date().toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}
           </Text>
           <View style={styles.line} />
           <Text style={styles.signatureName}>SHARE BRASIL</Text>
-          
           <Image src={logoUrl} style={styles.logoSignature} />
         </View>
       </View>
@@ -192,51 +145,20 @@ interface Cliente {
 // --- FUNÇÕES DE VALIDAÇÃO ---
 
 const validarNotaFiscal = (formData: any): string | null => {
-  // Validar número da NF
-  if (!formData.numero || formData.numero.trim() === "") {
-    return "Número da nota fiscal é obrigatório";
-  }
-
-  // Validar cliente
-  if (!formData.cliente_nome || formData.cliente_nome.trim() === "") {
-    return "Cliente/Empresa é obrigatório";
-  }
-
-  // Validar CNPJ/CPF (obrigatório na tabela)
-  if (!formData.cliente_cnpj || formData.cliente_cnpj.trim() === "") {
-    return "CNPJ/CPF do cliente é obrigatório";
-  }
-
-  // Validar valor
-  if (!formData.valor || formData.valor.trim() === "") {
-    return "Valor é obrigatório";
-  }
+  if (!formData.numero || formData.numero.trim() === "") return "Número da nota fiscal é obrigatório";
+  if (!formData.cliente_nome || formData.cliente_nome.trim() === "") return "Cliente/Empresa é obrigatório";
+  if (!formData.cliente_cnpj || formData.cliente_cnpj.trim() === "") return "CNPJ/CPF do cliente é obrigatório";
+  if (!formData.valor || formData.valor.trim() === "") return "Valor é obrigatório";
 
   const valorNumerico = parseFloat(formData.valor);
-  if (isNaN(valorNumerico) || valorNumerico <= 0) {
-    return "Valor deve ser um número maior que zero";
-  }
+  if (isNaN(valorNumerico) || valorNumerico <= 0) return "Valor deve ser um número maior que zero";
 
-  // Validar data de criação
-  if (!formData.data_criacao || formData.data_criacao.trim() === "") {
-    return "Data de criação é obrigatória";
-  }
+  if (!formData.data_criacao || formData.data_criacao.trim() === "") return "Data de criação é obrigatória";
+  if (!formData.data_vencimento || formData.data_vencimento.trim() === "") return "Data de vencimento é obrigatória";
+  if (!formData.categoria || formData.categoria.trim() === "") return "Categoria é obrigatória";
 
-  // Validar data de vencimento (obrigatória na tabela)
-  if (!formData.data_vencimento || formData.data_vencimento.trim() === "") {
-    return "Data de vencimento é obrigatória";
-  }
-
-  // Validar categoria (obrigatória na tabela)
-  if (!formData.categoria || formData.categoria.trim() === "") {
-    return "Categoria é obrigatória";
-  }
-
-  // Validar status (apenas pendente, recebido, cancelado)
   const statusValidos = ["pendente", "recebido", "cancelado"];
-  if (!statusValidos.includes(formData.status)) {
-    return "Status inválido. Valores permitidos: pendente, recebido, cancelado";
-  }
+  if (!statusValidos.includes(formData.status)) return "Status inválido. Valores permitidos: pendente, recebido, cancelado";
 
   return null;
 };
@@ -248,15 +170,14 @@ export function NotasFiscaisSaida() {
   let categoriasReceita = getCategoriasReceita();
   const { aeronaves, isLoadingAeronaves } = useAeronaves();
 
-  // Filtrar apenas as categorias especificadas para NF de Saída
   const categoriasNFSaidaIds = [
-    'b5143aad-88ed-4649-9f17-3ff15904bda2', // N.F DIARIAS DE VOO
-    'd95ca1cc-a6c9-4d07-97a6-eb18f542a333', // RESSARCIMENTOS gerais
-    'a7555994-103d-4739-96a5-001c3bec1424', // REEMBOLSO RELATORIO DE DESPESA DE VIAGENS recebido
-    '2874b45b-a3bb-4bec-8f7e-74b328f8693c', // ADM E PILOTAGEM - RECIBO
-    '352095f3-a97a-4539-ad1a-b1471e577583', // N.F ADM - Somente adm de aeronaves
-    '643fd58f-ae2f-4269-9d5a-93345d613fb9', // ADM E PILOTAGEM - N.F
-    '73355581-c479-4a5d-b90b-90b3332f198e', // ADM SHARE - RECIBO
+    'b5143aad-88ed-4649-9f17-3ff15904bda2',
+    'd95ca1cc-a6c9-4d07-97a6-eb18f542a333',
+    'a7555994-103d-4739-96a5-001c3bec1424',
+    '2874b45b-a3bb-4bec-8f7e-74b328f8693c',
+    '352095f3-a97a-4539-ad1a-b1471e577583',
+    '643fd58f-ae2f-4269-9d5a-93345d613fb9',
+    '73355581-c479-4a5d-b90b-90b3332f198e',
   ];
 
   categoriasReceita = categoriasReceita.filter(cat => categoriasNFSaidaIds.includes(cat.id));
@@ -265,7 +186,6 @@ export function NotasFiscaisSaida() {
   const [isLoading, setIsLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editingNota, setEditingNota] = useState<NotaFiscalSaida | null>(null);
-  const [arquivo, setArquivo] = useState<File | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [clienteSearch, setClienteSearch] = useState("");
@@ -288,13 +208,11 @@ export function NotasFiscaisSaida() {
   });
   const [isGeneratingRecibo, setIsGeneratingRecibo] = useState(false);
 
-  // Estados para Histórico de Recibos de Saída
   const [recibos, setRecibos] = useState<any[]>([]);
   const [isLoadingRecibos, setIsLoadingRecibos] = useState(false);
   const [editingRecibo, setEditingRecibo] = useState<any | null>(null);
   const [deleteReciboId, setDeleteReciboId] = useState<string | null>(null);
   const [showReciboEditDialog, setShowReciboEditDialog] = useState(false);
-  const [viewingReciboId, setViewingReciboId] = useState<string | null>(null);
   const [reciboEditData, setReciboEditData] = useState({
     amount: "",
     service_description: "",
@@ -303,7 +221,6 @@ export function NotasFiscaisSaida() {
     category_name: "",
   });
 
-  // Estados para confirmação de PDF
   const [showPdfConfirmDialog, setShowPdfConfirmDialog] = useState(false);
   const [isGeneratingPdfEdit, setIsGeneratingPdfEdit] = useState(false);
   const [pendingReciboUpdate, setPendingReciboUpdate] = useState<any | null>(null);
@@ -348,7 +265,6 @@ export function NotasFiscaisSaida() {
       if (clientsData) {
         clientsData.forEach(client => {
           const nomeCliente = client.company_name || client.proprietario || client.cnpj || "Cliente";
-
           if (nomeCliente && nomeCliente !== "Cliente") {
             clientesList.push({
               id: client.id,
@@ -392,7 +308,6 @@ export function NotasFiscaisSaida() {
     try {
       setIsLoadingRecibos(true);
 
-      // Carregar recibos de saída da tabela bank_reconciliations com dados relacionados
       const { data, error } = await supabase
         .from("bank_reconciliations")
         .select(`
@@ -419,7 +334,6 @@ export function NotasFiscaisSaida() {
   };
 
   const handleSave = async () => {
-    // VALIDAÇÃO COMPLETA
     const erroValidacao = validarNotaFiscal(formData);
     if (erroValidacao) {
       toast({
@@ -431,27 +345,40 @@ export function NotasFiscaisSaida() {
     }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-      // Preparar dados com todos os campos obrigatórios (sem campos auto-gerenciados)
+      if (!currentUser) {
+        toast({
+          title: "Erro",
+          description: "Usuário não autenticado",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Preparar dados da NF
       const notaData: any = {
         numero: formData.numero.trim(),
         cliente_nome: formData.cliente_nome.trim(),
         cliente_cnpj: formData.cliente_cnpj.trim(),
         data_criacao: formData.data_criacao,
-        data_vencimento: formData.data_vencimento, // OBRIGATÓRIO
+        data_vencimento: formData.data_vencimento,
         valor: parseFloat(formData.valor),
         categoria: formData.categoria,
         descricao: formData.descricao || null,
         status: formData.status,
         arquivo_pdf_url: pdfUrl || null,
         aeronave: formData.aeronave || null,
+        criado_por: currentUser.id,
       };
 
       if (editingNota) {
         const { error } = await supabase
           .from("notas_fiscais_saida")
-          .update(notaData)
+          .update({
+            ...notaData,
+            atualizado_em: new Date().toISOString(),
+          })
           .eq("id", editingNota.id);
 
         if (error) throw error;
@@ -461,6 +388,7 @@ export function NotasFiscaisSaida() {
           description: "Nota fiscal atualizada com sucesso",
         });
       } else {
+        // INSERIR NF (triggers vão criar em controle_bancario e contas_areceber)
         const { error } = await supabase
           .from("notas_fiscais_saida")
           .insert([notaData])
@@ -477,6 +405,7 @@ export function NotasFiscaisSaida() {
       setOpenDialog(false);
       resetForm();
       loadNotas();
+      loadRecibos(); // Recarregar recibos também pois NF cria em bank_reconciliations
     } catch (error: any) {
       console.error("Erro ao salvar nota:", error);
       const errorMsg = error?.message || "Erro ao salvar nota fiscal";
@@ -598,7 +527,6 @@ export function NotasFiscaisSaida() {
       aeronave: "",
     });
     setEditingNota(null);
-    setArquivo(null);
     setClienteSearch("");
     setAeronaveSearch("");
     setPdfUrl("");
@@ -618,7 +546,6 @@ export function NotasFiscaisSaida() {
   };
 
   const handleChangeStatus = async (notaId: string, newStatus: string) => {
-    // Validar que o novo status é válido
     const statusValidos = ["pendente", "recebido", "cancelado"];
     if (!statusValidos.includes(newStatus)) {
       toast({
@@ -630,14 +557,11 @@ export function NotasFiscaisSaida() {
     }
 
     try {
-      const nota = notas.find(n => n.id === notaId);
-      if (!nota) return;
-
       const { error } = await supabase
         .from("notas_fiscais_saida")
         .update({
           status: newStatus,
-          atualizado_em: new Date().toISOString(), // ATUALIZAR TIMESTAMP
+          atualizado_em: new Date().toISOString(),
         })
         .eq("id", notaId);
 
@@ -662,14 +586,14 @@ export function NotasFiscaisSaida() {
   const generateReciboNumber = async (clienteNome: string) => {
     const clienteLetras = clienteNome.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, '').padEnd(3, 'X');
     const ano = new Date().getFullYear().toString().slice(-2);
-    
-    const { data: existingRecibos, error } = await supabase
+
+    const { data: existingRecibos } = await supabase
       .from("controle_bancario")
-      .select("numero_documento", { count: "exact" })
+      .select("numero_documento")
       .like("numero_documento", `REC-${clienteLetras}%/${ano}`)
       .eq("tipo_movimento", "entrada")
       .order("numero_documento", { ascending: false });
-    
+
     let numero = 1;
     if (existingRecibos && existingRecibos.length > 0) {
       const ultimoRecibo = existingRecibos[0];
@@ -678,7 +602,7 @@ export function NotasFiscaisSaida() {
         numero = parseInt(match[1]) + 1;
       }
     }
-    
+
     const numeroFormatado = numero.toString().padStart(3, "0");
     return `REC-${clienteLetras}${numeroFormatado}/${ano}`;
   };
@@ -698,6 +622,7 @@ export function NotasFiscaisSaida() {
 
       const numeroRecibo = await generateReciboNumber(reciboData.cliente_nome);
 
+      // GERAR PDF DO RECIBO
       const dadosParaPDF = {
         numero_recibo: numeroRecibo,
         valor: reciboData.valor,
@@ -709,7 +634,6 @@ export function NotasFiscaisSaida() {
       };
 
       const blob = await pdf(<ReciboDocument data={dadosParaPDF} />).toBlob();
-
       const pdfFile = new File([blob], `${numeroRecibo}.pdf`, { type: "application/pdf" });
       const fileName = `recibo_${numeroRecibo}_${Date.now()}.pdf`;
       const filePath = `recibos/${fileName}`;
@@ -729,8 +653,9 @@ export function NotasFiscaisSaida() {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) throw new Error("Usuário não autenticado");
 
+      // Buscar categoria e IDs
       const CATEGORIA_ID = "2874b45b-a3bb-4bec-8f7e-74b328f8693c";
-      
+
       let clientId = reciboData.cliente_id || null;
       if (!clientId) {
         const { data: clientData } = await supabase.from("clients").select("id").eq("company_name", reciboData.cliente_nome).single();
@@ -744,7 +669,8 @@ export function NotasFiscaisSaida() {
       const { data: categoriaData } = await supabase.from("categorias_movimentacao").select("grupo_categoria").eq("id", CATEGORIA_ID).single();
       const grupoCategoria = categoriaData?.grupo_categoria || null;
 
-      const { error: controleBancarioError } = await supabase
+      // 1. INSERIR EM CONTROLE_BANCARIO (trigger criará bank_reconciliations)
+      const { data: controleBancarioData, error: controleBancarioError } = await supabase
         .from("controle_bancario")
         .insert({
           data: new Date().toISOString().split("T")[0],
@@ -762,11 +688,13 @@ export function NotasFiscaisSaida() {
           aeronave_registro: reciboData.aeronave_registro,
           grupo_categoria: grupoCategoria,
           criado_por: currentUser.id,
-        });
+        })
+        .select()
+        .single();
 
       if (controleBancarioError) throw new Error(`Erro controle_bancario: ${controleBancarioError.message}`);
 
-      // CORREÇÃO: Apenas inserir em contas_areceber se aeronave estiver presente (campo obrigatório nessa tabela)
+      // 2. INSERIR EM CONTAS_ARECEBER
       if (reciboData.aeronave_registro) {
         const { error: contasAreceberError } = await supabase.from("contas_areceber").insert({
           numero: numeroRecibo,
@@ -780,6 +708,7 @@ export function NotasFiscaisSaida() {
           status: "pendente",
           aeronave: reciboData.aeronave_registro,
           arquivo_pdf_url: reciboUrl,
+          criado_por: currentUser.id,
         });
 
         if (contasAreceberError) {
@@ -787,13 +716,15 @@ export function NotasFiscaisSaida() {
         }
       }
 
+      // 3. O BANK_RECONCILIATIONS já foi criado pelo trigger de controle_bancario
+
       setReciboViewUrl(reciboUrl);
       setShowReciboViewer(true);
-      
+
       toast({ title: "Sucesso", description: `Recibo ${numeroRecibo} gerado com sucesso!` });
       setShowReciboDialog(false);
       resetReciboForm();
-      loadNotas();
+      loadRecibos();
 
     } catch (error: any) {
       console.error("Erro ao gerar recibo:", error);
@@ -830,16 +761,14 @@ export function NotasFiscaisSaida() {
     c.documento.includes(clienteSearch)
   );
 
-  // CORRIGIR: Usar apenas 'recebido' em vez de 'pago'
   const totalPendente = notas
     .filter((n) => n.status === "pendente")
     .reduce((acc, n) => acc + n.valor, 0);
 
   const totalRecebido = notas
-    .filter((n) => n.status === "recebido") // CORREÇÃO: usar apenas 'recebido'
+    .filter((n) => n.status === "recebido")
     .reduce((acc, n) => acc + n.valor, 0);
 
-  // Função auxiliar para formatar datas com segurança
   const formatDateSafe = (dateStr: string | null | undefined): string => {
     if (!dateStr) return "-";
     try {
@@ -851,7 +780,6 @@ export function NotasFiscaisSaida() {
     }
   };
 
-  // Funções para Histórico de Recibos
   const handleEditRecibo = (recibo: any) => {
     setEditingRecibo(recibo);
     setReciboEditData({
@@ -867,7 +795,6 @@ export function NotasFiscaisSaida() {
   const handleSaveReciboEdit = async () => {
     if (!editingRecibo) return;
 
-    // Armazenar dados para atualização posterior
     setPendingReciboUpdate({
       id: editingRecibo.id,
       amount: parseFloat(reciboEditData.amount),
@@ -877,7 +804,6 @@ export function NotasFiscaisSaida() {
       category: reciboEditData.category_name,
     });
 
-    // Mostrar dialog de confirmação de PDF
     setShowPdfConfirmDialog(true);
   };
 
@@ -885,13 +811,11 @@ export function NotasFiscaisSaida() {
     if (!pendingReciboUpdate) return;
 
     try {
-      let nfUrl = editingRecibo.nf_url; // Manter URL atual se não gerar novo PDF
+      let nfUrl = editingRecibo.nf_url;
 
-      // Gerar novo PDF se confirmado
       if (generatePdf) {
         setIsGeneratingPdfEdit(true);
 
-        // Preparar dados para o PDF - mantendo o mesmo pagador do recibo anterior
         const dadosParaPDF = {
           numero_recibo: editingRecibo.doc,
           cliente_nome: editingRecibo.clients?.company_name || "Não informado",
@@ -901,12 +825,9 @@ export function NotasFiscaisSaida() {
           valor: pendingReciboUpdate.amount,
         };
 
-        // Gerar PDF
         const blob = await pdf(<ReciboDocument data={dadosParaPDF} />).toBlob();
-
-        // Upload do novo PDF
         const timestamp = Date.now();
-        const pdfFileName = `nfs-share-saida/recibos/recibo_${pendingReciboUpdate.id}/${timestamp}.pdf`;
+        const pdfFileName = `recibos/recibo_${pendingReciboUpdate.id}_${timestamp}.pdf`;
 
         const { error: uploadError } = await supabase.storage
           .from("nfs-share-saida")
@@ -917,7 +838,6 @@ export function NotasFiscaisSaida() {
 
         if (uploadError) throw uploadError;
 
-        // Obter URL pública do novo PDF
         const { data: urlData } = supabase.storage
           .from("nfs-share-saida")
           .getPublicUrl(pdfFileName);
@@ -929,7 +849,6 @@ export function NotasFiscaisSaida() {
         setIsGeneratingPdfEdit(false);
       }
 
-      // Atualizar recibo no banco de dados
       const { error } = await supabase
         .from("bank_reconciliations")
         .update({
@@ -952,7 +871,6 @@ export function NotasFiscaisSaida() {
           : "Recibo atualizado com sucesso",
       });
 
-      // Fechar dialogs
       setShowReciboEditDialog(false);
       setShowPdfConfirmDialog(false);
       setEditingRecibo(null);
@@ -997,18 +915,6 @@ export function NotasFiscaisSaida() {
         variant: "destructive",
       });
     }
-  };
-
-  const handleViewReciboPDF = (recibo: any) => {
-    if (!recibo.nf_url) {
-      toast({
-        title: "Aviso",
-        description: "PDF não disponível para este recibo",
-        variant: "default",
-      });
-      return;
-    }
-    setViewingReciboId(recibo.id);
   };
 
   return (
