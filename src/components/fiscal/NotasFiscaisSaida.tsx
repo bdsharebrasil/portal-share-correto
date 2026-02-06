@@ -425,7 +425,7 @@ export function NotasFiscaisSaida() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Preparar dados com todos os campos obrigatórios
+      // Preparar dados com todos os campos obrigatórios (sem campos auto-gerenciados)
       const notaData: any = {
         numero: formData.numero.trim(),
         cliente_nome: formData.cliente_nome.trim(),
@@ -438,18 +438,12 @@ export function NotasFiscaisSaida() {
         status: formData.status,
         arquivo_pdf_url: pdfUrl || null,
         aeronave: formData.aeronave || null,
-        criado_por: user?.id || null,
-        criado_em: new Date().toISOString(), // ADICIONAR TIMESTAMP
-        atualizado_em: new Date().toISOString(), // ADICIONAR TIMESTAMP
       };
 
       if (editingNota) {
         const { error } = await supabase
           .from("notas_fiscais_saida")
-          .update({
-            ...notaData,
-            atualizado_em: new Date().toISOString(), // ATUALIZAR TIMESTAMP
-          })
+          .update(notaData)
           .eq("id", editingNota.id);
 
         if (error) throw error;
