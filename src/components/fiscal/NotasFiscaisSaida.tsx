@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Edit2, Trash2, FileUp, DollarSign, Search, X, Upload, FileText } from "lucide-react";
+import { Plus, Edit2, Trash2, FileUp, DollarSign, Search, X, Upload, FileText, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
@@ -286,6 +287,27 @@ export function NotasFiscaisSaida() {
     descricao: "",
   });
   const [isGeneratingRecibo, setIsGeneratingRecibo] = useState(false);
+
+  // Estados para Histórico de Recibos de Saída
+  const [recibos, setRecibos] = useState<any[]>([]);
+  const [isLoadingRecibos, setIsLoadingRecibos] = useState(false);
+  const [editingRecibo, setEditingRecibo] = useState<any | null>(null);
+  const [deleteReciboId, setDeleteReciboId] = useState<string | null>(null);
+  const [showReciboEditDialog, setShowReciboEditDialog] = useState(false);
+  const [viewingReciboId, setViewingReciboId] = useState<string | null>(null);
+  const [reciboEditData, setReciboEditData] = useState({
+    amount: "",
+    service_description: "",
+    max_payment_date: "",
+    status: "pendente",
+    category_name: "",
+  });
+
+  // Estados para confirmação de PDF
+  const [showPdfConfirmDialog, setShowPdfConfirmDialog] = useState(false);
+  const [isGeneratingPdfEdit, setIsGeneratingPdfEdit] = useState(false);
+  const [pendingReciboUpdate, setPendingReciboUpdate] = useState<any | null>(null);
+
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -307,6 +329,7 @@ export function NotasFiscaisSaida() {
   useEffect(() => {
     loadNotas();
     loadClientes();
+    loadRecibos();
   }, []);
 
   const loadClientes = async () => {
@@ -365,6 +388,36 @@ export function NotasFiscaisSaida() {
     }
   };
 
+  const loadRecibos = async () => {
+    try {
+      setIsLoadingRecibos(true);
+
+      // Carregar recibos de saída da tabela bank_reconciliations com dados relacionados
+      const { data, error } = await supabase
+        .from("bank_reconciliations")
+        .select(`
+          *,
+          clients:client_id (id, company_name, cnpj),
+          aircraft:aircraft_id (id, registration)
+        `)
+        .eq("type", "cliente")
+        .eq("reference_type", "contas_areceber")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setRecibos(data || []);
+    } catch (error) {
+      console.error("Erro ao carregar recibos:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar recibos de saída",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingRecibos(false);
+    }
+  };
+
   const handleSave = async () => {
     // VALIDAÇÃO COMPLETA
     const erroValidacao = validarNotaFiscal(formData);
@@ -380,7 +433,7 @@ export function NotasFiscaisSaida() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Preparar dados com todos os campos obrigatórios
+      // Preparar dados com todos os campos obrigatórios (sem campos auto-gerenciados)
       const notaData: any = {
         numero: formData.numero.trim(),
         cliente_nome: formData.cliente_nome.trim(),
@@ -393,18 +446,12 @@ export function NotasFiscaisSaida() {
         status: formData.status,
         arquivo_pdf_url: pdfUrl || null,
         aeronave: formData.aeronave || null,
-        criado_por: user?.id || null,
-        criado_em: new Date().toISOString(), // ADICIONAR TIMESTAMP
-        atualizado_em: new Date().toISOString(), // ADICIONAR TIMESTAMP
       };
 
       if (editingNota) {
         const { error } = await supabase
           .from("notas_fiscais_saida")
-          .update({
-            ...notaData,
-            atualizado_em: new Date().toISOString(), // ATUALIZAR TIMESTAMP
-          })
+          .update(notaData)
           .eq("id", editingNota.id);
 
         if (error) throw error;
@@ -430,11 +477,12 @@ export function NotasFiscaisSaida() {
       setOpenDialog(false);
       resetForm();
       loadNotas();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao salvar nota:", error);
+      const errorMsg = error?.message || "Erro ao salvar nota fiscal";
       toast({
         title: "Erro",
-        description: "Erro ao salvar nota fiscal",
+        description: errorMsg,
         variant: "destructive",
       });
     }
@@ -456,11 +504,12 @@ export function NotasFiscaisSaida() {
       });
       setDeleteId(null);
       loadNotas();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao deletar nota:", error);
+      const errorMsg = error?.message || "Erro ao deletar nota fiscal";
       toast({
         title: "Erro",
-        description: "Erro ao deletar nota fiscal",
+        description: errorMsg,
         variant: "destructive",
       });
     }
@@ -705,7 +754,6 @@ export function NotasFiscaisSaida() {
           numero_documento: numeroRecibo,
           valor: parseFloat(reciboData.valor),
           categoria_id: CATEGORIA_ID,
-          criado_por: currentUser.id,
           descricao: reciboData.descricao || "Recibo de Saída - Serviços",
           comprovante_url: reciboUrl,
           client_id: clientId,
@@ -713,7 +761,7 @@ export function NotasFiscaisSaida() {
           aeronave_id: aeronaveId,
           aeronave_registro: reciboData.aeronave_registro,
           grupo_categoria: grupoCategoria,
-          colaborador_id: currentUser.id,
+          criado_por: currentUser.id,
         });
 
       if (controleBancarioError) throw new Error(`Erro controle_bancario: ${controleBancarioError.message}`);
@@ -731,7 +779,6 @@ export function NotasFiscaisSaida() {
           descricao: reciboData.descricao || "Recibo de Serviço",
           status: "pendente",
           aeronave: reciboData.aeronave_registro,
-          criado_por: currentUser.id,
           arquivo_pdf_url: reciboUrl,
         });
 
@@ -792,10 +839,201 @@ export function NotasFiscaisSaida() {
     .filter((n) => n.status === "recebido") // CORREÇÃO: usar apenas 'recebido'
     .reduce((acc, n) => acc + n.valor, 0);
 
+  // Função auxiliar para formatar datas com segurança
+  const formatDateSafe = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return "-";
+    try {
+      const date = new Date(dateStr + "T12:00:00");
+      if (isNaN(date.getTime())) return "-";
+      return format(date, "dd/MM/yyyy", { locale: ptBR });
+    } catch (error) {
+      return "-";
+    }
+  };
+
+  // Funções para Histórico de Recibos
+  const handleEditRecibo = (recibo: any) => {
+    setEditingRecibo(recibo);
+    setReciboEditData({
+      amount: recibo.amount.toString(),
+      service_description: recibo.description,
+      max_payment_date: recibo.prazo_pagamento || "",
+      status: recibo.status || "enviado",
+      category_name: recibo.category || "",
+    });
+    setShowReciboEditDialog(true);
+  };
+
+  const handleSaveReciboEdit = async () => {
+    if (!editingRecibo) return;
+
+    // Armazenar dados para atualização posterior
+    setPendingReciboUpdate({
+      id: editingRecibo.id,
+      amount: parseFloat(reciboEditData.amount),
+      description: reciboEditData.service_description,
+      prazo_pagamento: reciboEditData.max_payment_date || null,
+      status: reciboEditData.status,
+      category: reciboEditData.category_name,
+    });
+
+    // Mostrar dialog de confirmação de PDF
+    setShowPdfConfirmDialog(true);
+  };
+
+  const handleGenerateNewPdf = async (generatePdf: boolean) => {
+    if (!pendingReciboUpdate) return;
+
+    try {
+      let nfUrl = editingRecibo.nf_url; // Manter URL atual se não gerar novo PDF
+
+      // Gerar novo PDF se confirmado
+      if (generatePdf) {
+        setIsGeneratingPdfEdit(true);
+
+        // Preparar dados para o PDF - mantendo o mesmo pagador do recibo anterior
+        const dadosParaPDF = {
+          numero_recibo: editingRecibo.doc,
+          cliente_nome: editingRecibo.clients?.company_name || "Não informado",
+          cliente_cnpj: editingRecibo.clients?.cnpj || "Não informado",
+          descricao: pendingReciboUpdate.description,
+          aeronave_registro: editingRecibo.aircraft?.registration || "",
+          valor: pendingReciboUpdate.amount,
+        };
+
+        // Gerar PDF
+        const blob = await pdf(<ReciboDocument data={dadosParaPDF} />).toBlob();
+
+        // Upload do novo PDF
+        const timestamp = Date.now();
+        const pdfFileName = `nfs-share-saida/recibos/recibo_${pendingReciboUpdate.id}/${timestamp}.pdf`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("nfs-share-saida")
+          .upload(pdfFileName, blob, {
+            contentType: "application/pdf",
+            upsert: true,
+          });
+
+        if (uploadError) throw uploadError;
+
+        // Obter URL pública do novo PDF
+        const { data: urlData } = supabase.storage
+          .from("nfs-share-saida")
+          .getPublicUrl(pdfFileName);
+
+        if (urlData?.publicUrl) {
+          nfUrl = urlData.publicUrl;
+        }
+
+        setIsGeneratingPdfEdit(false);
+      }
+
+      // Atualizar recibo no banco de dados
+      const { error } = await supabase
+        .from("bank_reconciliations")
+        .update({
+          amount: pendingReciboUpdate.amount,
+          description: pendingReciboUpdate.description,
+          prazo_pagamento: pendingReciboUpdate.prazo_pagamento,
+          status: pendingReciboUpdate.status,
+          category: pendingReciboUpdate.category,
+          nf_url: nfUrl,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", pendingReciboUpdate.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: generatePdf
+          ? "Recibo atualizado e novo PDF gerado com sucesso"
+          : "Recibo atualizado com sucesso",
+      });
+
+      // Fechar dialogs
+      setShowReciboEditDialog(false);
+      setShowPdfConfirmDialog(false);
+      setEditingRecibo(null);
+      setPendingReciboUpdate(null);
+      loadRecibos();
+    } catch (error: any) {
+      console.error("Erro ao atualizar recibo:", error);
+      const errorMsg = error?.message || "Erro ao atualizar recibo";
+      toast({
+        title: "Erro",
+        description: errorMsg,
+        variant: "destructive",
+      });
+      setIsGeneratingPdfEdit(false);
+    }
+  };
+
+  const handleDeleteRecibo = async () => {
+    if (!deleteReciboId) return;
+
+    try {
+      const { error } = await supabase
+        .from("bank_reconciliations")
+        .delete()
+        .eq("id", deleteReciboId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Recibo deletado com sucesso",
+      });
+
+      setDeleteReciboId(null);
+      loadRecibos();
+    } catch (error: any) {
+      console.error("Erro ao deletar recibo:", error);
+      const errorMsg = error?.message || "Erro ao deletar recibo";
+      toast({
+        title: "Erro",
+        description: errorMsg,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleViewReciboPDF = (recibo: any) => {
+    if (!recibo.nf_url) {
+      toast({
+        title: "Aviso",
+        description: "PDF não disponível para este recibo",
+        variant: "default",
+      });
+      return;
+    }
+    setViewingReciboId(recibo.id);
+  };
+
   return (
     <div className="space-y-6">
-      {/* Cards de Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Tabs */}
+      <Tabs defaultValue="notas-fiscais" className="w-full">
+        <TabsList className="grid w-full max-w-2xl grid-cols-2 bg-background/30 backdrop-blur-sm border-2 border-border/30 p-2 rounded-xl gap-2">
+          <TabsTrigger
+            value="notas-fiscais"
+            className="rounded-lg py-3 px-6 font-semibold text-base data-[state=active]:bg-blue-500/20 data-[state=active]:border-2 data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/20 transition-all duration-300 hover:bg-blue-500/10"
+          >
+            Notas Fiscais de Saída
+          </TabsTrigger>
+          <TabsTrigger
+            value="recibos-saida"
+            className="rounded-lg py-3 px-6 font-semibold text-base data-[state=active]:bg-green-500/20 data-[state=active]:border-2 data-[state=active]:border-green-500 data-[state=active]:text-green-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/20 transition-all duration-300 hover:bg-green-500/10"
+          >
+            Histórico de Recibos
+          </TabsTrigger>
+        </TabsList>
+
+        {/* TAB 1: Notas Fiscais de Saída */}
+        <TabsContent value="notas-fiscais" className="space-y-6 mt-6">
+          {/* Cards de Resumo */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-gradient-to-br from-blue-500/10 via-card to-card border-blue-500/20 shadow-lg shadow-blue-500/5 hover:shadow-lg hover:shadow-blue-500/10 transition-shadow duration-300">
           <CardContent className="p-6">
             <div className="space-y-3">
@@ -1464,10 +1702,10 @@ export function NotasFiscaisSaida() {
                         {nota.aeronave || "-"}
                       </TableCell>
                       <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                        {format(new Date(nota.data_criacao + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
+                        {formatDateSafe(nota.data_criacao)}
                       </TableCell>
                       <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                        {nota.data_vencimento && format(new Date(nota.data_vencimento + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })}
+                        {formatDateSafe(nota.data_vencimento)}
                       </TableCell>
                       <TableCell className="text-foreground font-semibold px-4 py-3 text-right text-emerald-500">
                         R$ {nota.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
@@ -1591,6 +1829,273 @@ export function NotasFiscaisSaida() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+        </TabsContent>
+
+        {/* TAB 2: Histórico de Recibos de Saída */}
+        <TabsContent value="recibos-saida" className="space-y-6 mt-6">
+          {/* Tabela de Recibos de Saída */}
+          <Card className="bg-gradient-to-br from-card/80 to-card/40 border-border/60 shadow-lg">
+            <CardHeader className="border-b border-border/40 pb-4">
+              <CardTitle className="text-lg font-semibold text-foreground">Histórico de Recibos de Saída</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              {isLoadingRecibos ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3"></div>
+                  Carregando recibos...
+                </div>
+              ) : recibos.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <FileUp className="w-12 h-12 opacity-20 mx-auto mb-3" />
+                  Nenhum recibo de saída criado
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-border/40">
+                  <Table>
+                    <TableHeader className="bg-muted/30 border-b border-border/40">
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Número</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Cliente</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Aeronave</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Data de Criação</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Vencimento</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-right">Valor</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Categoria</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Status</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-center">PDF</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {recibos.map((recibo, idx) => (
+                        <TableRow key={recibo.id} className={`border-b border-border/30 hover:bg-muted/40 transition-colors ${idx % 2 === 0 ? 'bg-muted/10' : ''}`}>
+                          <TableCell className="font-semibold text-foreground px-4 py-3">{recibo.doc}</TableCell>
+                          <TableCell className="text-foreground px-4 py-3">{recibo.clients?.company_name || "-"}</TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">
+                            {recibo.aircraft?.registration || "-"}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">
+                            {formatDateSafe(recibo.date)}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">
+                            {formatDateSafe(recibo.prazo_pagamento)}
+                          </TableCell>
+                          <TableCell className="text-foreground font-semibold px-4 py-3 text-right text-emerald-500">
+                            R$ {parseFloat(recibo.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">{recibo.category || "-"}</TableCell>
+                          <TableCell className="px-4 py-3">
+                            <Select
+                              value={recibo.status || "enviado"}
+                              onValueChange={() => {}}
+                            >
+                              <SelectTrigger className={`w-[130px] h-8 text-xs font-medium border rounded-lg ${
+                                recibo.status === "enviado" ? "bg-green-500/10 text-green-600 border-green-500/30" :
+                                recibo.status === "pendente" ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/30" :
+                                "bg-red-500/10 text-red-600 border-red-500/30"
+                              }`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-card border-border">
+                                <SelectItem value="enviado">Enviado</SelectItem>
+                                <SelectItem value="pendente">Pendente</SelectItem>
+                                <SelectItem value="recebido">Recebido</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-center">
+                            {recibo.nf_url ? (
+                              <a
+                                href={recibo.nf_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-primary hover:bg-primary/10 transition-colors"
+                                title="Ver PDF"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </a>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="px-4 py-3">
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditRecibo(recibo)}
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors"
+                                title="Editar"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg transition-colors"
+                                onClick={() => setDeleteReciboId(recibo.id)}
+                                title="Deletar"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Dialog de Edição de Recibo */}
+      <Dialog open={showReciboEditDialog} onOpenChange={setShowReciboEditDialog}>
+        <DialogContent className="bg-card border-border max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Editar Recibo</DialogTitle>
+          </DialogHeader>
+          {editingRecibo && (
+            <div className="space-y-4">
+              {/* Informações de Cliente e Aeronave (somente leitura) */}
+              <div className="bg-muted/30 rounded-lg p-4 border border-border/40">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground text-xs mb-1">Cliente</p>
+                    <p className="text-foreground font-medium">{editingRecibo.clients?.company_name || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs mb-1">Aeronave</p>
+                    <p className="text-foreground font-medium">{editingRecibo.aircraft?.registration || "-"}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-foreground mb-2 block">Valor (R$) *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={reciboEditData.amount}
+                    onChange={(e) => setReciboEditData({ ...reciboEditData, amount: e.target.value })}
+                    className="bg-background border-border"
+                  />
+                </div>
+                <div>
+                  <Label className="text-foreground mb-2 block">Data de Vencimento</Label>
+                  <Input
+                    type="date"
+                    value={reciboEditData.max_payment_date}
+                    onChange={(e) => setReciboEditData({ ...reciboEditData, max_payment_date: e.target.value })}
+                    className="bg-background border-border"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-foreground mb-2 block">Descrição do Serviço *</Label>
+                <Textarea
+                  value={reciboEditData.service_description}
+                  onChange={(e) => setReciboEditData({ ...reciboEditData, service_description: e.target.value })}
+                  className="bg-background border-border resize-none"
+                  rows={3}
+                />
+              </div>
+              <div>
+                <Label className="text-foreground mb-2 block">Categoria</Label>
+                <Input
+                  value={reciboEditData.category_name}
+                  onChange={(e) => setReciboEditData({ ...reciboEditData, category_name: e.target.value })}
+                  placeholder="Categoria"
+                  className="bg-background border-border"
+                />
+              </div>
+              <div>
+                <Label className="text-foreground mb-2 block">Status</Label>
+                <Select value={reciboEditData.status} onValueChange={(value) => setReciboEditData({ ...reciboEditData, status: value })}>
+                  <SelectTrigger className="bg-background border-border">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="pendente">Pendente</SelectItem>
+                    <SelectItem value="pagamento">Pagamento</SelectItem>
+                    <SelectItem value="reembolso">Reembolso</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2 justify-end mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowReciboEditDialog(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                  onClick={handleSaveReciboEdit}
+                >
+                  Salvar
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Confirmação de Exclusão de Recibo */}
+      <Dialog open={!!deleteReciboId} onOpenChange={() => setDeleteReciboId(null)}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Confirmar Exclusão</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">Tem certeza que deseja excluir este recibo?</p>
+          <div className="flex gap-2 justify-end mt-4">
+            <Button variant="outline" onClick={() => setDeleteReciboId(null)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteRecibo}>
+              Excluir
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Confirmação de Geração de PDF */}
+      <Dialog open={showPdfConfirmDialog} onOpenChange={setShowPdfConfirmDialog}>
+        <DialogContent className="bg-card border-border max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Gerar Novo PDF do Recibo?</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">
+            Deseja gerar um novo PDF do recibo com as informações atualizadas? O PDF anterior será substituído.
+          </p>
+          <div className="flex gap-2 justify-end mt-6">
+            <Button
+              variant="outline"
+              onClick={() => handleGenerateNewPdf(false)}
+              disabled={isGeneratingPdfEdit}
+            >
+              Não
+            </Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700"
+              onClick={() => handleGenerateNewPdf(true)}
+              disabled={isGeneratingPdfEdit}
+            >
+              {isGeneratingPdfEdit ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Gerando...
+                </>
+              ) : (
+                "Sim, Gerar PDF"
+              )}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

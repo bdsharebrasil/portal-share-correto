@@ -254,20 +254,17 @@ export function useWeather() {
         setWeather(weatherData);
       } catch (fetchError) {
         if (fetchError instanceof Error) {
-          if (fetchError.message.includes('Failed to fetch')) {
-            console.warn('[METAR] ❌ Falha ao conectar com backend de clima');
-            console.warn('[METAR] 💡 Possíveis causas:');
-            console.warn('[METAR]   1. Sem conexão de internet');
-            console.warn('[METAR]   2. Backend temporariamente indisponível');
-            console.warn('[METAR]   3. Problema de rede');
+          // Apenas log para erros não-transientes
+          if (!fetchError.message.includes('Failed to fetch') &&
+              !fetchError.message.includes('503') &&
+              !fetchError.message.includes('504')) {
+            console.warn('[METAR] ❌ Erro ao buscar METAR:', fetchError.message);
           } else if (fetchError.message.includes('503') || fetchError.message.includes('504')) {
             // Transient error - will retry via retry wrapper
             throw fetchError;
-          } else {
-            console.warn('[METAR] ❌ Erro ao buscar METAR:', fetchError.message);
           }
         }
-        console.warn('[METAR] ⚠️ Usando dados locais como fallback');
+        // Usar dados locais sem log excessivo
         setDefaultWeather(aerodrome);
       }
     } catch (error) {

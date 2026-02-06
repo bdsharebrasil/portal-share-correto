@@ -1,4 +1,11 @@
 // Configuração para comunicação com o backend na Vercel
+//
+// NOTA: Este cliente API implementa fallback automático para Supabase quando o backend está offline.
+// Erros "Failed to fetch" são esperados e tratados graciosamente:
+// - useWeather.ts: Usa dados locais em mock data quando backend falha
+// - useAeronaves.ts: Faz fallback direto para Supabase quando backend falha
+//
+// Esses erros não afetam a funcionalidade da aplicação, apenas reduzem cache/proxy.
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
@@ -30,15 +37,37 @@ class ApiClient {
 
     try {
       const response = await fetch(url, config);
-      const data = await response.json();
+
+      // Se a resposta não é JSON válido, trata como erro de conexão
+      const contentType = response.headers.get('content-type');
+      let data;
+
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          data = await response.json();
+        } catch (parseError) {
+          throw new Error(`Failed to parse JSON response: ${response.statusText}`);
+        }
+      } else {
+        throw new Error(`Invalid response format from API: ${response.statusText}`);
+      }
 
       if (!response.ok) {
         throw new Error(data.error || `API Error: ${response.statusText}`);
       }
 
       return data;
-    } catch (error) {
-      console.error('API Request Error:', error);
+    } catch (error: any) {
+      // Verificar se é erro de rede/conexão (não logar no console para erros esperados)
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        // Este é um erro esperado de conexão - apenas re-lançar silenciosamente
+        throw error;
+      }
+
+      // Para outros erros, logar e re-lançar
+      if (!(error instanceof TypeError) || !error.message.includes('Failed to fetch')) {
+        console.warn('API Request Error:', error.message);
+      }
       throw error;
     }
   }
