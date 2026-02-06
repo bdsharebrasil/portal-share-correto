@@ -133,7 +133,8 @@ interface NotaFiscalSaida {
   criado_em: string | null;
   atualizado_em: string | null;
   criado_por: string | null;
-  aeronave: string | null;
+  aeronave_id: string | null;
+  aeronave_registro: string | null;
 }
 
 interface Cliente {
