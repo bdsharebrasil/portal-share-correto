@@ -880,11 +880,12 @@ export function NotasFiscaisSaida() {
       setShowReciboEditDialog(false);
       setEditingRecibo(null);
       loadRecibos();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao atualizar recibo:", error);
+      const errorMsg = error?.message || "Erro ao atualizar recibo";
       toast({
         title: "Erro",
-        description: "Erro ao atualizar recibo",
+        description: errorMsg,
         variant: "destructive",
       });
     }
