@@ -896,7 +896,7 @@ export function NotasFiscaisSaida() {
 
     try {
       const { error } = await supabase
-        .from("receipts")
+        .from("bank_reconciliations")
         .delete()
         .eq("id", deleteReciboId);
 
