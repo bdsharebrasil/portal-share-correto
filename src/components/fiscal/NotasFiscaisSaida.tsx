@@ -392,10 +392,14 @@ export function NotasFiscaisSaida() {
     try {
       setIsLoadingRecibos(true);
 
-      // Carregar recibos de saída da tabela bank_reconciliations
+      // Carregar recibos de saída da tabela bank_reconciliations com dados relacionados
       const { data, error } = await supabase
         .from("bank_reconciliations")
-        .select("*")
+        .select(`
+          *,
+          clients:client_id (id, company_name, cnpj),
+          aircraft:aircraft_id (id, registration)
+        `)
         .eq("type", "cliente")
         .eq("reference_type", "contas_areceber")
         .order("created_at", { ascending: false });
