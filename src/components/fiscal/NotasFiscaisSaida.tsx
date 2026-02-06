@@ -837,6 +837,95 @@ export function NotasFiscaisSaida() {
     .filter((n) => n.status === "recebido") // CORREÇÃO: usar apenas 'recebido'
     .reduce((acc, n) => acc + n.valor, 0);
 
+  // Funções para Histórico de Recibos
+  const handleEditRecibo = (recibo: any) => {
+    setEditingRecibo(recibo);
+    setReciboEditData({
+      amount: recibo.amount.toString(),
+      service_description: recibo.service_description,
+      max_payment_date: recibo.max_payment_date || "",
+      status: recibo.status || "pendente",
+      category_name: recibo.category_name || "",
+    });
+    setShowReciboEditDialog(true);
+  };
+
+  const handleSaveReciboEdit = async () => {
+    if (!editingRecibo) return;
+
+    try {
+      const { error } = await supabase
+        .from("receipts")
+        .update({
+          amount: parseFloat(reciboEditData.amount),
+          service_description: reciboEditData.service_description,
+          max_payment_date: reciboEditData.max_payment_date || null,
+          status: reciboEditData.status,
+          category_name: reciboEditData.category_name,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", editingRecibo.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Recibo atualizado com sucesso",
+      });
+
+      setShowReciboEditDialog(false);
+      setEditingRecibo(null);
+      loadRecibos();
+    } catch (error) {
+      console.error("Erro ao atualizar recibo:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar recibo",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteRecibo = async () => {
+    if (!deleteReciboId) return;
+
+    try {
+      const { error } = await supabase
+        .from("receipts")
+        .delete()
+        .eq("id", deleteReciboId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Recibo deletado com sucesso",
+      });
+
+      setDeleteReciboId(null);
+      loadRecibos();
+    } catch (error) {
+      console.error("Erro ao deletar recibo:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao deletar recibo",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleViewReciboPDF = (recibo: any) => {
+    if (!recibo.pdf_url) {
+      toast({
+        title: "Aviso",
+        description: "PDF não disponível para este recibo",
+        variant: "default",
+      });
+      return;
+    }
+    setViewingReciboId(recibo.id);
+  };
+
   return (
     <div className="space-y-6">
       {/* Cards de Resumo */}
