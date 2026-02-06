@@ -287,6 +287,22 @@ export function NotasFiscaisSaida() {
     descricao: "",
   });
   const [isGeneratingRecibo, setIsGeneratingRecibo] = useState(false);
+
+  // Estados para Histórico de Recibos de Saída
+  const [recibos, setRecibos] = useState<any[]>([]);
+  const [isLoadingRecibos, setIsLoadingRecibos] = useState(false);
+  const [editingRecibo, setEditingRecibo] = useState<any | null>(null);
+  const [deleteReciboId, setDeleteReciboId] = useState<string | null>(null);
+  const [showReciboEditDialog, setShowReciboEditDialog] = useState(false);
+  const [viewingReciboId, setViewingReciboId] = useState<string | null>(null);
+  const [reciboEditData, setReciboEditData] = useState({
+    amount: "",
+    service_description: "",
+    max_payment_date: "",
+    status: "pendente",
+    category_name: "",
+  });
+
   const { toast } = useToast();
   const { user } = useAuth();
 
