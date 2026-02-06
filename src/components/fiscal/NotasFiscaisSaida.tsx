@@ -1950,6 +1950,20 @@ export function NotasFiscaisSaida() {
           </DialogHeader>
           {editingRecibo && (
             <div className="space-y-4">
+              {/* Informações de Cliente e Aeronave (somente leitura) */}
+              <div className="bg-muted/30 rounded-lg p-4 border border-border/40">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground text-xs mb-1">Cliente</p>
+                    <p className="text-foreground font-medium">{editingRecibo.clients?.company_name || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs mb-1">Aeronave</p>
+                    <p className="text-foreground font-medium">{editingRecibo.aircraft?.registration || "-"}</p>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-foreground mb-2 block">Valor (R$) *</Label>
