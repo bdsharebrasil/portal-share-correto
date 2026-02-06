@@ -369,7 +369,8 @@ export function NotasFiscaisSaida() {
         descricao: formData.descricao || null,
         status: formData.status,
         arquivo_pdf_url: pdfUrl || null,
-        aeronave: formData.aeronave || null,
+        aeronave_id: formData.aeronave_id || null,
+        aeronave_registro: formData.aeronave_registro || null,
         criado_por: currentUser.id,
       };
 
