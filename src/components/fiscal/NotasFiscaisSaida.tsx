@@ -386,14 +386,13 @@ export function NotasFiscaisSaida() {
   const loadRecibos = async () => {
     try {
       setIsLoadingRecibos(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
 
+      // Carregar recibos de saída da tabela bank_reconciliations
       const { data, error } = await supabase
-        .from("receipts")
+        .from("bank_reconciliations")
         .select("*")
-        .eq("user_id", user.id)
-        .eq("receipt_type", "pagamento")
+        .eq("type", "cliente")
+        .eq("reference_type", "contas_areceber")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
