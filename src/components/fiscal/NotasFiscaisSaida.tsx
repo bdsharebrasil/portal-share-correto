@@ -1100,7 +1100,7 @@ export function NotasFiscaisSaida() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-foreground">Aeronave (Opcional)</Label>
+                  <Label className="text-foreground">Aeronave </Label>
                   <Popover open={openAeronavePopover} onOpenChange={setOpenAeronavePopover}>
                     <PopoverTrigger asChild>
                       <div className="relative">
