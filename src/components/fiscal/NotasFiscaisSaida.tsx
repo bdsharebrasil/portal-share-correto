@@ -496,11 +496,12 @@ export function NotasFiscaisSaida() {
       });
       setDeleteId(null);
       loadNotas();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao deletar nota:", error);
+      const errorMsg = error?.message || "Erro ao deletar nota fiscal";
       toast({
         title: "Erro",
-        description: "Erro ao deletar nota fiscal",
+        description: errorMsg,
         variant: "destructive",
       });
     }
