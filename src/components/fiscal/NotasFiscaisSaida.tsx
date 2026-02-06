@@ -1014,9 +1014,19 @@ export function NotasFiscaisSaida() {
     <div className="space-y-6">
       {/* Tabs */}
       <Tabs defaultValue="notas-fiscais" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2 bg-card/50 backdrop-blur-sm border border-border/50 p-1 rounded-lg">
-          <TabsTrigger value="notas-fiscais" className="rounded-md">Notas Fiscais de Saída</TabsTrigger>
-          <TabsTrigger value="recibos-saida" className="rounded-md">Histórico de Recibos</TabsTrigger>
+        <TabsList className="grid w-full max-w-2xl grid-cols-2 bg-background/30 backdrop-blur-sm border-2 border-border/30 p-2 rounded-xl gap-2">
+          <TabsTrigger
+            value="notas-fiscais"
+            className="rounded-lg py-3 px-6 font-semibold text-base data-[state=active]:bg-blue-500/20 data-[state=active]:border-2 data-[state=active]:border-blue-500 data-[state=active]:text-blue-600 data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/20 transition-all duration-300 hover:bg-blue-500/10"
+          >
+            Notas Fiscais de Saída
+          </TabsTrigger>
+          <TabsTrigger
+            value="recibos-saida"
+            className="rounded-lg py-3 px-6 font-semibold text-base data-[state=active]:bg-green-500/20 data-[state=active]:border-2 data-[state=active]:border-green-500 data-[state=active]:text-green-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/20 transition-all duration-300 hover:bg-green-500/10"
+          >
+            Histórico de Recibos
+          </TabsTrigger>
         </TabsList>
 
         {/* TAB 1: Notas Fiscais de Saída */}
