@@ -42,6 +42,7 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
 
   const [formData, setFormData] = useState({
     client_id: '',
+    partner_id: '',
     aircraft_id: '',
     origin_icao: '',
     destination_icao: '',
