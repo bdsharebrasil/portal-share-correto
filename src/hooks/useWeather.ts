@@ -8,70 +8,45 @@ export interface WeatherData {
   windDirection: number | null;
   windSpeed: number | null;
   windGust: number | null;
-  visibility: { value: number; unit: 'SM' | 'm' } | null;
+  visibility: { value: number; unit: string } | null;
   flightCategory: 'VFR' | 'MVFR' | 'IFR' | 'LIFR' | 'UNKNOWN';
   rawMetar: string;
   icon: string;
-  description: string;
-}
-
-const UPDATE_INTERVAL = 5 * 60 * 1000;
-
-function isDayTime(): boolean {
-  const hours = new Date(new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })).getHours();
-  return hours >= 6 && hours < 18;
-}
-
-function getWeatherIconFromMetar(metar: string): string {
-  const lower = metar.toLowerCase();
-  const daySuffix = isDayTime() ? 'd' : 'n';
-  if (lower.includes('ts')) return `11${daySuffix}`;
-  if (lower.includes('ra')) return `10${daySuffix}`;
-  if (lower.includes('ovc') || lower.includes('bkn')) return `04${daySuffix}`;
-  if (lower.includes('sct') || lower.includes('few')) return `02${daySuffix}`;
-  return `01${daySuffix}`;
 }
 
 export function useWeather() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchWeather = useCallback(async (icao: string = 'SBGR') => {
-    try {
-      setLoading(true);
-      const data = await fetchAISWebMETAR(icao);
+  const updateWeather = useCallback(async (icao: string = 'SBGR') => {
+    setLoading(true);
+    const data = await fetchAISWebMETAR(icao);
+    
+    if (data) {
+      const isDay = new Date().getHours() >= 6 && new Date().getHours() < 18;
+      const daySuffix = isDay ? 'd' : 'n';
 
-      if (data) {
-        const weatherData: WeatherData = {
-          location: data.icao,
-          temperature: data.temp ?? 0,
-          dewpoint: data.dewp,
-          windDirection: typeof data.wdir === 'number' ? data.wdir : null,
-          windSpeed: data.wspd,
-          windGust: data.wgst,
-          visibility: data.visib ? { 
-            value: typeof data.visib === 'number' ? data.visib : 9999, 
-            unit: 'm' 
-          } : null,
-          flightCategory: data.flightCategory,
-          rawMetar: data.rawOb,
-          icon: getWeatherIconFromMetar(data.rawOb),
-          description: `Vento ${data.wdir}° ${data.wspd}kt`
-        };
-        setWeather(weatherData);
-      }
-    } catch (error) {
-      console.error("Falha ao carregar clima:", error);
-    } finally {
-      setLoading(false);
+      setWeather({
+        location: data.icao,
+        temperature: data.temp ?? 0,
+        dewpoint: data.dewp,
+        windDirection: typeof data.wdir === 'number' ? data.wdir : null,
+        windSpeed: data.wspd,
+        windGust: data.wgst,
+        visibility: data.visib ? { value: Number(data.visib), unit: 'm' } : null,
+        flightCategory: data.flightCategory,
+        rawMetar: data.rawOb,
+        icon: data.rawOb.toLowerCase().includes('ts') ? `11${daySuffix}` : `01${daySuffix}`
+      });
     }
+    setLoading(false);
   }, []);
 
   useEffect(() => {
-    fetchWeather('SBGR');
-    const interval = setInterval(() => fetchWeather('SBGR'), UPDATE_INTERVAL);
-    return () => clearInterval(interval);
-  }, [fetchWeather]);
+    updateWeather();
+    const timer = setInterval(() => updateWeather(), 5 * 60 * 1000);
+    return () => clearInterval(timer);
+  }, [updateWeather]);
 
-  return { weather, loading, fetchWeather };
+  return { weather, loading, updateWeather };
 }
