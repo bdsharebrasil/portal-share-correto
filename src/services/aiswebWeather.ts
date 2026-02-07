@@ -1,9 +1,7 @@
-/**
- * Serviço unificado para buscar dados meteorológicos via AISWeb API
- * Substitui a API aviationweather.gov para METAR e TAF
- */
 
-const AISWEB_API_URL = import.meta.env.VITE_BACKEND_URL || 'https://backend-share.vercel.app';
+
+const AISWEB_API_URL = import.meta.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev
+';
 
 export interface AISWebMETARData {
   icao: string;
