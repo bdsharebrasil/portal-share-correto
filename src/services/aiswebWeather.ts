@@ -1,28 +1,40 @@
-
-
-const AISWEB_API_URL = import.meta.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev
-';
+const AISWEB_API_URL = import.meta.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev';
 
 export interface AISWebMETARData {
   icao: string;
   rawOb: string;
-  rawText: string;
   temp: number | null;
   dewp: number | null;
   wdir: number | string | null;
   wspd: number | null;
   wgst: number | null;
   visib: string | number | null;
-  altim: number | null;
   flightCategory: 'VFR' | 'MVFR' | 'IFR' | 'LIFR' | 'UNKNOWN';
-  fltcat?: string;
-  reportTime?: string;
-  updatedTime?: string;
-  source: 'AISWEB' | 'FALLBACK';
-  clouds?: Array<{
-    cover: string;
-    base: number;
-  }>;
+  clouds?: Array<{ cover: string; base: number }>;
+}
+
+export async function fetchAISWebMETAR(icao: string): Promise<AISWebMETARData | null> {
+  try {
+    const response = await fetch(`${AISWEB_API_URL}/api/weather/metar/${icao.toUpperCase()}`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    
+    // Retorna os dados mapeados conforme a resposta da sua API Workers
+    return {
+      icao: icao.toUpperCase(),
+      rawOb: data.rawText || data.raw || '',
+      temp: data.temp,
+      dewp: data.dewp,
+      wdir: data.wdir,
+      wspd: data.wspd,
+      wgst: data.wgst,
+      visib: data.visib,
+      flightCategory: data.flightCategory || 'UNKNOWN',
+    };
+  } catch (error) {
+    console.error("Erro na busca AISWeb:", error);
+    return null;
+  }
 }
 
 export interface AISWebTAFData {
