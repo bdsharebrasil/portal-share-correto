@@ -595,10 +595,13 @@ export type Database = {
       }
       aircraft_loans: {
         Row: {
+          arrival_aerodrome: string | null
           borrower_aircraft_id: string | null
           borrower_client_id: string
           created_at: string | null
+          departure_aerodrome: string
           entry_date: string
+          fuel_added: number | null
           hours_borrowed: number
           hours_paid_back: number | null
           id: string
@@ -607,14 +610,19 @@ export type Database = {
           logbook_entry_id: string | null
           notes: string | null
           payback_entry_id: string | null
+          pic_name: string | null
           status: string | null
+          trecho: string | null
           updated_at: string | null
         }
         Insert: {
+          arrival_aerodrome?: string | null
           borrower_aircraft_id?: string | null
           borrower_client_id: string
           created_at?: string | null
+          departure_aerodrome: string
           entry_date: string
+          fuel_added?: number | null
           hours_borrowed: number
           hours_paid_back?: number | null
           id?: string
@@ -623,14 +631,19 @@ export type Database = {
           logbook_entry_id?: string | null
           notes?: string | null
           payback_entry_id?: string | null
+          pic_name?: string | null
           status?: string | null
+          trecho?: string | null
           updated_at?: string | null
         }
         Update: {
+          arrival_aerodrome?: string | null
           borrower_aircraft_id?: string | null
           borrower_client_id?: string
           created_at?: string | null
+          departure_aerodrome?: string
           entry_date?: string
+          fuel_added?: number | null
           hours_borrowed?: number
           hours_paid_back?: number | null
           id?: string
@@ -639,7 +652,9 @@ export type Database = {
           logbook_entry_id?: string | null
           notes?: string | null
           payback_entry_id?: string | null
+          pic_name?: string | null
           status?: string | null
+          trecho?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -1315,7 +1330,7 @@ export type Database = {
           comprovante_url: string | null
           controle_bancario_id: string | null
           created_at: string | null
-          created_by: string
+          criado_por: string
           data_reembolso: string | null
           date: string
           description: string
@@ -1326,8 +1341,8 @@ export type Database = {
           id: string
           nf_url: string | null
           partner_name: string | null
-          prazo_pagamento: string | null
           percentual: string | null
+          prazo_pagamento: string | null
           receiver_id: string | null
           reference_id: string | null
           reference_type: string | null
@@ -1349,7 +1364,7 @@ export type Database = {
           comprovante_url?: string | null
           controle_bancario_id?: string | null
           created_at?: string | null
-          created_by: string
+          criado_por: string
           data_reembolso?: string | null
           date: string
           description: string
@@ -1360,8 +1375,8 @@ export type Database = {
           id?: string
           nf_url?: string | null
           partner_name?: string | null
-          prazo_pagamento?: string | null
           percentual?: string | null
+          prazo_pagamento?: string | null
           receiver_id?: string | null
           reference_id?: string | null
           reference_type?: string | null
@@ -1383,7 +1398,7 @@ export type Database = {
           comprovante_url?: string | null
           controle_bancario_id?: string | null
           created_at?: string | null
-          created_by?: string
+          criado_por?: string
           data_reembolso?: string | null
           date?: string
           description?: string
@@ -1394,8 +1409,8 @@ export type Database = {
           id?: string
           nf_url?: string | null
           partner_name?: string | null
-          prazo_pagamento?: string | null
           percentual?: string | null
+          prazo_pagamento?: string | null
           receiver_id?: string | null
           reference_id?: string | null
           reference_type?: string | null
@@ -1996,6 +2011,93 @@ export type Database = {
           },
           {
             foreignKeyName: "client_contracts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_resumo_cliente_completo"
+            referencedColumns: ["cliente_id"]
+          },
+        ]
+      }
+      client_partners: {
+        Row: {
+          client_id: string
+          cpf: string
+          created_at: string
+          id: string
+          name: string
+          share_percentage: number | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          cpf: string
+          created_at?: string
+          id?: string
+          name: string
+          share_percentage?: number | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          cpf?: string
+          created_at?: string
+          id?: string
+          name?: string
+          share_percentage?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_partners_client_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_partners_client_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "client_partners_client_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente_completo"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "client_partners_client_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente_simples"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "client_partners_client_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "client_partners_client_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "client_partners_client_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_reembolsos_pendentes"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "client_partners_client_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_resumo_cliente_completo"
@@ -2832,7 +2934,7 @@ export type Database = {
       }
       contas_areceber: {
         Row: {
-          aeronave: string
+          aeronave: string | null
           arquivo_pdf_url: string | null
           atualizado_em: string | null
           banco_recebimento: string | null
@@ -2856,7 +2958,7 @@ export type Database = {
           valor: number
         }
         Insert: {
-          aeronave: string
+          aeronave?: string | null
           arquivo_pdf_url?: string | null
           atualizado_em?: string | null
           banco_recebimento?: string | null
@@ -2880,7 +2982,7 @@ export type Database = {
           valor: number
         }
         Update: {
-          aeronave?: string
+          aeronave?: string | null
           arquivo_pdf_url?: string | null
           atualizado_em?: string | null
           banco_recebimento?: string | null
@@ -3136,7 +3238,6 @@ export type Database = {
           reembolsavel: boolean | null
           reembolso_recebido: boolean | null
           status: string | null
-          tags: string[] | null
           tem_rateio: boolean | null
           tipo_movimento: string
           travel_report_id: string | null
@@ -3176,7 +3277,6 @@ export type Database = {
           reembolsavel?: boolean | null
           reembolso_recebido?: boolean | null
           status?: string | null
-          tags?: string[] | null
           tem_rateio?: boolean | null
           tipo_movimento: string
           travel_report_id?: string | null
@@ -3216,7 +3316,6 @@ export type Database = {
           reembolsavel?: boolean | null
           reembolso_recebido?: boolean | null
           status?: string | null
-          tags?: string[] | null
           tem_rateio?: boolean | null
           tipo_movimento?: string
           travel_report_id?: string | null
@@ -4432,7 +4531,6 @@ export type Database = {
           partner_name: string | null
           quantidade_lembretes: number | null
           status: string
-          tipo_despesa: string | null
           validado_por: string | null
           valor: number
           valor_pago: number | null
@@ -4474,7 +4572,6 @@ export type Database = {
           partner_name?: string | null
           quantidade_lembretes?: number | null
           status?: string
-          tipo_despesa?: string | null
           validado_por?: string | null
           valor: number
           valor_pago?: number | null
@@ -4516,7 +4613,6 @@ export type Database = {
           partner_name?: string | null
           quantidade_lembretes?: number | null
           status?: string
-          tipo_despesa?: string | null
           validado_por?: string | null
           valor?: number
           valor_pago?: number | null
@@ -5431,8 +5527,12 @@ export type Database = {
           is_controlled_airport: boolean | null
           observations: string | null
           origin_icao: string
+          partner_id: string | null
+          partner_name: string | null
+          pic_name: string | null
           responsible_user_id: string | null
           return_date: string | null
+          sic_name: string | null
           started_at: string | null
           status: string
           updated_at: string
@@ -5453,8 +5553,12 @@ export type Database = {
           is_controlled_airport?: boolean | null
           observations?: string | null
           origin_icao: string
+          partner_id?: string | null
+          partner_name?: string | null
+          pic_name?: string | null
           responsible_user_id?: string | null
           return_date?: string | null
+          sic_name?: string | null
           started_at?: string | null
           status?: string
           updated_at?: string
@@ -5475,8 +5579,12 @@ export type Database = {
           is_controlled_airport?: boolean | null
           observations?: string | null
           origin_icao?: string
+          partner_id?: string | null
+          partner_name?: string | null
+          pic_name?: string | null
           responsible_user_id?: string | null
           return_date?: string | null
+          sic_name?: string | null
           started_at?: string | null
           status?: string
           updated_at?: string
@@ -5579,6 +5687,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "flight_cycles_partner_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "client_partners"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -5791,6 +5906,7 @@ export type Database = {
           aircraft_id: string | null
           alternate_airport: string | null
           arrival_airport: string
+          calculations: Json | null
           created_at: string | null
           created_by: string | null
           cruise_altitude: string | null
@@ -5805,11 +5921,14 @@ export type Database = {
           route: string | null
           status: string | null
           updated_at: string | null
+          validation_data: Json | null
+          weather_data: Json | null
         }
         Insert: {
           aircraft_id?: string | null
           alternate_airport?: string | null
           arrival_airport: string
+          calculations?: Json | null
           created_at?: string | null
           created_by?: string | null
           cruise_altitude?: string | null
@@ -5824,11 +5943,14 @@ export type Database = {
           route?: string | null
           status?: string | null
           updated_at?: string | null
+          validation_data?: Json | null
+          weather_data?: Json | null
         }
         Update: {
           aircraft_id?: string | null
           alternate_airport?: string | null
           arrival_airport?: string
+          calculations?: Json | null
           created_at?: string | null
           created_by?: string | null
           cruise_altitude?: string | null
@@ -5843,6 +5965,8 @@ export type Database = {
           route?: string | null
           status?: string | null
           updated_at?: string | null
+          validation_data?: Json | null
+          weather_data?: Json | null
         }
         Relationships: [
           {
@@ -7570,6 +7694,7 @@ export type Database = {
       }
       notas_fiscais_saida: {
         Row: {
+          aeronave: string | null
           arquivo_pdf_url: string | null
           atualizado_em: string | null
           categoria: string
@@ -7584,9 +7709,9 @@ export type Database = {
           numero: string
           status: string
           valor: number
-          aeronave: string | null
         }
         Insert: {
+          aeronave?: string | null
           arquivo_pdf_url?: string | null
           atualizado_em?: string | null
           categoria: string
@@ -7601,9 +7726,9 @@ export type Database = {
           numero: string
           status: string
           valor: number
-          aeronave?: string | null
         }
         Update: {
+          aeronave?: string | null
           arquivo_pdf_url?: string | null
           atualizado_em?: string | null
           categoria?: string
@@ -7618,9 +7743,107 @@ export type Database = {
           numero?: string
           status?: string
           valor?: number
-          aeronave?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "notas_fiscais_saida_aeronave_fkey"
+            columns: ["aeronave"]
+            isOneToOne: false
+            referencedRelation: "active_flight_cycles"
+            referencedColumns: ["registration"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aeronave_fkey"
+            columns: ["aeronave"]
+            isOneToOne: false
+            referencedRelation: "aircraft"
+            referencedColumns: ["registration"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aeronave_fkey"
+            columns: ["aeronave"]
+            isOneToOne: false
+            referencedRelation: "aircraft_availability"
+            referencedColumns: ["registration"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aeronave_fkey"
+            columns: ["aeronave"]
+            isOneToOne: false
+            referencedRelation: "crew_flight_history"
+            referencedColumns: ["aircraft_registration"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aeronave_fkey"
+            columns: ["aeronave"]
+            isOneToOne: false
+            referencedRelation: "pending_booking_requests"
+            referencedColumns: ["aircraft_registration"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aeronave_fkey"
+            columns: ["aeronave"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave"
+            referencedColumns: ["aeronave_registro"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aeronave_fkey"
+            columns: ["aeronave"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave_simples"
+            referencedColumns: ["aeronave_registro"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aeronave_fkey"
+            columns: ["aeronave"]
+            isOneToOne: false
+            referencedRelation: "vw_categorias_aeronave"
+            referencedColumns: ["aeronave_registro"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aeronave_fkey"
+            columns: ["aeronave"]
+            isOneToOne: false
+            referencedRelation: "vw_dashboard_clientes"
+            referencedColumns: ["aeronave"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aeronave_fkey"
+            columns: ["aeronave"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aeronave_fkey"
+            columns: ["aeronave"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_registro"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aeronave_fkey"
+            columns: ["aeronave"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_cliente"
+            referencedColumns: ["aeronave_registro"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aeronave_fkey"
+            columns: ["aeronave"]
+            isOneToOne: false
+            referencedRelation: "vw_financeiro_caixa"
+            referencedColumns: ["aeronave"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aeronave_fkey"
+            columns: ["aeronave"]
+            isOneToOne: false
+            referencedRelation: "vw_reembolsos_pendentes"
+            referencedColumns: ["aeronave"]
+          },
+        ]
       }
       notifications: {
         Row: {
