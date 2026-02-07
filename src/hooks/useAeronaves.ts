@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -10,9 +9,8 @@ export type Aeronave = Tables<"aircraft">;
 const aeronavesQueryKey = ["aeronaves-aircraft"];
 
 /**
- * Hook para buscar todas as aeronaves cadastradas.
- * Usa o backend Express para cache e proxy do Supabase.
- * Se o backend não está disponível, faz fallback direto para Supabase.
+ * Hook para buscar todas as aeronaves cadastradas diretamente do Supabase.
+ * Não usa API backend - dados vêm direto da base de dados.
  * Ordena pelo registro (prefixo).
  */
 export const useAeronaves = () => {
@@ -20,49 +18,26 @@ export const useAeronaves = () => {
     queryKey: aeronavesQueryKey,
     queryFn: async () => {
       try {
-        const response = await apiClient.getAircraft();
-        // The API client already returns data.data || data, so this should be an array
-        if (Array.isArray(response)) {
-          return response;
-        } else if (response && typeof response === 'object' && 'data' in response && Array.isArray((response as any).data)) {
-          return (response as any).data;
-        } else {
-          console.warn("Unexpected data format from API:", response);
-          return [];
+        const { data, error: supabaseError } = await supabase
+          .from('aircraft')
+          .select('*')
+          .eq('status', 'Ativa')
+          .order('registration', { ascending: true });
+
+        if (supabaseError) {
+          console.error("Erro ao buscar aeronaves do Supabase:", supabaseError);
+          throw supabaseError;
         }
+
+        // Ensure we return an array
+        return Array.isArray(data) ? data : [];
       } catch (error) {
-        // Silenciar erro de conexão esperado e tentar fallback
-        const isConnectionError = error instanceof TypeError &&
-                                  (error.message.includes('Failed to fetch') ||
-                                   error.message.includes('NetworkError'));
-
-        if (!isConnectionError) {
-          console.warn("Erro ao conectar com backend:", (error as Error).message);
-        }
-
-        // Fallback: busca direto do Supabase se o backend falhar
-        try {
-          const { data, error: supabaseError } = await supabase
-            .from('aircraft')
-            .select('*')
-            .eq('status', 'Ativa')
-            .order('registration', { ascending: true });
-
-          if (supabaseError) {
-            console.error("Erro ao buscar aeronaves do Supabase:", supabaseError);
-            throw supabaseError;
-          }
-
-          // Ensure we return an array
-          return Array.isArray(data) ? data : [];
-        } catch (fallbackError) {
-          console.error("Erro ao buscar aeronaves (fallback):", fallbackError);
-          // Return empty array instead of throwing, to allow app to function
-          return [];
-        }
+        console.error("Erro ao buscar aeronaves:", error);
+        // Return empty array instead of throwing, to allow app to function
+        return [];
       }
     },
-    staleTime: 20 * 60 * 1000, // 20 minutos (compatível com cache do backend)
+    staleTime: 20 * 60 * 1000, // 20 minutos
     gcTime: 30 * 60 * 1000, // 30 minutos
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),

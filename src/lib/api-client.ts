@@ -1,13 +1,10 @@
-// Configuração para comunicação com o backend na Vercel
+// Configuração para comunicação com o backend remoto (Cloudflare Workers)
 //
-// NOTA: Este cliente API implementa fallback automático para Supabase quando o backend está offline.
-// Erros "Failed to fetch" são esperados e tratados graciosamente:
-// - useWeather.ts: Usa dados locais em mock data quando backend falha
-// - useAeronaves.ts: Faz fallback direto para Supabase quando backend falha
-//
-// Esses erros não afetam a funcionalidade da aplicação, apenas reduzem cache/proxy.
+// O cliente API faz fallback automático para Supabase quando o backend estiver inacessível.
+// Erros de rede como "Failed to fetch" são tratados e usados para ativar o fallback.
+// Alterar a URL via variável de ambiente `VITE_BACKEND_URL` se necessário.
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev';
 
 interface ApiError {
   error: string;

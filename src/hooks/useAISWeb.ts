@@ -1,6 +1,4 @@
-// CRIAR NOVO ARQUIVO: hooks/useAISWeb.ts
-
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { 
   fetchAISWebNOTAMs, 
   fetchROTAER, 
@@ -17,40 +15,54 @@ interface AISWebCache {
   restrictions: Record<string, { data: AirspaceRestriction[]; timestamp: number }>;
 }
 
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+const CACHE_DURATION = 5 * 60 * 1000;
 
 export function useAISWeb() {
-  const [cache, setCache] = useState<AISWebCache>({
+  // Estado para renderização
+  const [cacheState, setCacheState] = useState<AISWebCache>({
     notams: {},
     rotaer: {},
     restrictions: {},
   });
   
+  // Ref para acesso síncrono dentro das funções (evita recriar funções quando o cache muda)
+  const cacheRef = useRef<AISWebCache>(cacheState);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Verificar se cache é válido
+  // Helper para atualizar tanto o Ref quanto o State
+  const updateCache = useCallback((updater: (prev: AISWebCache) => AISWebCache) => {
+    setCacheState(prev => {
+      const newState = updater(prev);
+      cacheRef.current = newState; // Mantém o ref sincronizado
+      return newState;
+    });
+  }, []);
+
   const isCacheValid = useCallback((timestamp: number) => {
     return Date.now() - timestamp < CACHE_DURATION;
   }, []);
 
-  // Buscar NOTAMs
+  // 1. Buscar NOTAMs (Agora estável, sem dependência do cacheState)
   const getNOTAMs = useCallback(async (icao: string, forceRefresh = false): Promise<NOTAMData[]> => {
     const icaoUpper = icao.toUpperCase();
     
-    // Verificar cache
-    if (!forceRefresh && cache.notams[icaoUpper] && isCacheValid(cache.notams[icaoUpper].timestamp)) {
-      return cache.notams[icaoUpper].data;
+    // Ler do Ref em vez do State
+    const cached = cacheRef.current.notams[icaoUpper];
+    if (!forceRefresh && cached && isCacheValid(cached.timestamp)) {
+      return cached.data;
     }
 
+    // Não setar loading se for uma chamada interna (para evitar flicker em Promise.all)
+    // Mas para chamadas diretas, ok. Vamos controlar isso melhor no validateFlightPlan.
     setLoading(true);
     setError(null);
 
     try {
       const notams = await fetchAISWebNOTAMs(icaoUpper);
       
-      // Atualizar cache
-      setCache(prev => ({
+      updateCache(prev => ({
         ...prev,
         notams: {
           ...prev.notams,
@@ -62,36 +74,19 @@ export function useAISWeb() {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Erro ao buscar NOTAMs';
       setError(errorMsg);
-      throw err;
+      throw err; // Re-throw para quem chamou tratar se quiser
     } finally {
       setLoading(false);
     }
-  }, [cache.notams, isCacheValid]);
+  }, [updateCache, isCacheValid]); // Dependências estáveis!
 
-  // Buscar múltiplos NOTAMs (origem, destino, alternativa)
-  const getMultipleNOTAMs = useCallback(async (icaos: string[]): Promise<Record<string, NOTAMData[]>> => {
-    const results: Record<string, NOTAMData[]> = {};
-    
-    await Promise.all(
-      icaos.filter(Boolean).map(async (icao) => {
-        try {
-          results[icao.toUpperCase()] = await getNOTAMs(icao);
-        } catch (err) {
-          console.error(`Failed to fetch NOTAMs for ${icao}:`, err);
-          results[icao.toUpperCase()] = [];
-        }
-      })
-    );
-
-    return results;
-  }, [getNOTAMs]);
-
-  // Buscar ROTAER
+  // 2. Buscar ROTAER
   const getROTAER = useCallback(async (icao: string, forceRefresh = false): Promise<ROTAERData | null> => {
     const icaoUpper = icao.toUpperCase();
     
-    if (!forceRefresh && cache.rotaer[icaoUpper] && isCacheValid(cache.rotaer[icaoUpper].timestamp)) {
-      return cache.rotaer[icaoUpper].data;
+    const cached = cacheRef.current.rotaer[icaoUpper];
+    if (!forceRefresh && cached && isCacheValid(cached.timestamp)) {
+      return cached.data;
     }
 
     setLoading(true);
@@ -100,7 +95,7 @@ export function useAISWeb() {
     try {
       const rotaer = await fetchROTAER(icaoUpper);
       
-      setCache(prev => ({
+      updateCache(prev => ({
         ...prev,
         rotaer: {
           ...prev.rotaer,
@@ -110,33 +105,58 @@ export function useAISWeb() {
 
       return rotaer;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Erro ao buscar ROTAER';
-      setError(errorMsg);
+      console.error(err);
+      // ROTAER falhando não deve quebrar a app, retorna null
       return null;
     } finally {
       setLoading(false);
     }
-  }, [cache.rotaer, isCacheValid]);
+  }, [updateCache, isCacheValid]);
 
-  // Verificar restrições de rota
+  // 3. Buscar Múltiplos NOTAMs (Otimizado para Promise.all)
+  const getMultipleNOTAMs = useCallback(async (icaos: string[]): Promise<Record<string, NOTAMData[]>> => {
+    setLoading(true);
+    const uniqueIcaos = [...new Set(icaos.filter(Boolean))];
+    const results: Record<string, NOTAMData[]> = {};
+
+    try {
+      await Promise.all(
+        uniqueIcaos.map(async (icao) => {
+          try {
+            // Nota: getNOTAMs gerencia seu próprio loading interno, 
+            // mas como estamos num Promise.all, o último a terminar vai setar false.
+            results[icao.toUpperCase()] = await getNOTAMs(icao); 
+          } catch (e) {
+            results[icao.toUpperCase()] = [];
+          }
+        })
+      );
+      return results;
+    } finally {
+      setLoading(false);
+    }
+  }, [getNOTAMs]);
+
+  // 4. Restrições de Rota (Com hash simples para a chave)
   const getRouteRestrictions = useCallback(async (
     points: Array<{ lat: number; lng: number }>,
     altitude: number,
     forceRefresh = false
   ): Promise<AirspaceRestriction[]> => {
-    const cacheKey = `${points.map(p => `${p.lat},${p.lng}`).join('-')}-${altitude}`;
+    // Cria uma chave simplificada (ex: primeiros e últimos pontos + length) para economizar memória
+    // Ou usa JSON.stringify se a rota não for gigantesca
+    const cacheKey = `route-${points.length}-${points[0]?.lat}-${points[points.length-1]?.lat}-${altitude}`;
     
-    if (!forceRefresh && cache.restrictions[cacheKey] && isCacheValid(cache.restrictions[cacheKey].timestamp)) {
-      return cache.restrictions[cacheKey].data;
+    const cached = cacheRef.current.restrictions[cacheKey];
+    if (!forceRefresh && cached && isCacheValid(cached.timestamp)) {
+      return cached.data;
     }
 
     setLoading(true);
-    setError(null);
-
     try {
       const restrictions = await checkRouteRestrictions(points, altitude);
       
-      setCache(prev => ({
+      updateCache(prev => ({
         ...prev,
         restrictions: {
           ...prev.restrictions,
@@ -146,15 +166,14 @@ export function useAISWeb() {
 
       return restrictions;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Erro ao verificar restrições';
-      setError(errorMsg);
+      console.error(err);
       return [];
     } finally {
       setLoading(false);
     }
-  }, [cache.restrictions, isCacheValid]);
+  }, [updateCache, isCacheValid]);
 
-  // Validar plano de voo completo
+  // 5. Validação (Orquestrador)
   const validateFlightPlan = useCallback(async (
     origin: string,
     destination: string,
@@ -166,16 +185,21 @@ export function useAISWeb() {
     setError(null);
 
     try {
-      // Buscar NOTAMs de todos os aeródromos
       const icaos = [origin, destination, alternate].filter(Boolean) as string[];
-      const notamsData = await getMultipleNOTAMs(icaos);
+      
+      // Executa em paralelo: NOTAMs e Restrições
+      const [notamsData, restrictions] = await Promise.all([
+        getMultipleNOTAMs(icaos),
+        getRouteRestrictions(route, altitude)
+      ]);
 
-      // Verificar se aeródromos estão operacionais
       const originStatus = isAerodromeOperational(notamsData[origin.toUpperCase()] || []);
       const destStatus = isAerodromeOperational(notamsData[destination.toUpperCase()] || []);
 
-      // Verificar restrições de rota
-      const restrictions = await getRouteRestrictions(route, altitude);
+      // Formata warnings de restrições
+      const restrictionWarnings = restrictions
+        .filter(r => r.active)
+        .map(r => `Área Restrita: ${r.name} (${r.type})`);
 
       return {
         valid: originStatus.operational && destStatus.operational,
@@ -184,13 +208,13 @@ export function useAISWeb() {
         destinationStatus: destStatus,
         restrictions,
         warnings: [
-          ...originStatus.warnings || [],
-          ...destStatus.warnings || [],
-          ...restrictions.filter(r => r.active).map(r => `Espaço aéreo restrito: ${r.name}`),
+          ...(originStatus.warnings || []),
+          ...(destStatus.warnings || []),
+          ...restrictionWarnings,
         ],
       };
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Erro na validação';
+      const errorMsg = err instanceof Error ? err.message : 'Erro na validação do plano';
       setError(errorMsg);
       throw err;
     } finally {
@@ -198,19 +222,17 @@ export function useAISWeb() {
     }
   }, [getMultipleNOTAMs, getRouteRestrictions]);
 
-  // Limpar cache
   const clearCache = useCallback(() => {
-    setCache({ notams: {}, rotaer: {}, restrictions: {} });
+    const empty = { notams: {}, rotaer: {}, restrictions: {} };
+    setCacheState(empty);
+    cacheRef.current = empty;
   }, []);
 
-  // Verificar se dados estão desatualizados
   const getCacheAge = useCallback((icao: string, type: 'notams' | 'rotaer') => {
-    const cached = cache[type][icao.toUpperCase()];
+    const cached = cacheRef.current[type][icao.toUpperCase()];
     if (!cached) return null;
-    
-    const ageMs = Date.now() - cached.timestamp;
-    return Math.floor(ageMs / 1000 / 60); // retorna em minutos
-  }, [cache]);
+    return Math.floor((Date.now() - cached.timestamp) / 1000 / 60);
+  }, []);
 
   return {
     getNOTAMs,
@@ -220,6 +242,7 @@ export function useAISWeb() {
     validateFlightPlan,
     clearCache,
     getCacheAge,
+    cache: cacheState, // Expor o estado reativo se necessário para UI de debug
     loading,
     error,
   };

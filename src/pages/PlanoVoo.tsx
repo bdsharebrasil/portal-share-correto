@@ -11,12 +11,11 @@ import {
   AlertTriangle, CheckCircle, FileText, Download,
   Save, Calculator, Navigation, Route, CloudRain,
   RefreshCw, Loader2, Shield, Radio, Info,
-  XCircle, AlertCircle, CheckCircle2
+  XCircle, AlertCircle, CheckCircle2, Thermometer
 } from 'lucide-react';
 import { InlineLottieSpinner } from '@/components/ui/inline-lottie-spinner';
 import { useAerodromes, type Aerodromo } from '@/hooks/useAerodromes';
 import { useAeronaves, type Aeronave } from '@/hooks/useAeronaves';
-import { useAviationWeather, getFlightCategoryColor, getFlightCategoryBg, formatWind, formatVisibility, type AirportWeather } from '@/hooks/useAviationWeather';
 import { useAISWeb } from '@/hooks/useAISWeb';
 import { useFlightPlans } from '@/hooks/useFlightPlans';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,6 +23,7 @@ import { calculateDistance, calculateMagneticHeading, calculateOptimalAltitude, 
 import { FlightRouteMap, type RoutePoint } from '@/components/plano-voo/FlightRouteMap';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { fetchAISWebMETAR, type AISWebMETARData } from '@/services/aiswebWeather';
 
 interface FlightFormData {
   origin: string;
@@ -55,8 +55,8 @@ interface FlightCalculations {
 interface ValidationResult {
   valid: boolean;
   notams: Record<string, NOTAMData[]>;
-  originStatus: { operational: boolean; reason: string | null; criticalNOTAMs: NOTAMData[] };
-  destinationStatus: { operational: boolean; reason: string | null; criticalNOTAMs: NOTAMData[] };
+  originStatus: { operational: boolean; reason: string | null; criticalNOTAMs: NOTAMData[]; warnings?: string[] };
+  destinationStatus: { operational: boolean; reason: string | null; criticalNOTAMs: NOTAMData[]; warnings?: string[] };
   restrictions: any[];
   warnings: string[];
 }
@@ -89,6 +89,45 @@ function parseCoordinates(coordStr: string | null): { lat: number; lng: number }
   return null;
 }
 
+// Helper para formatar vento
+function formatWind(wdir: number | string | null, wspd: number | null, wgst: number | null): string {
+  if (wspd === null || wspd === 0) return 'Calmo';
+  
+  const direction = wdir !== null ? `${wdir}°` : 'VRB';
+  const gust = wgst && wgst > wspd ? ` rajadas ${wgst}kt` : '';
+  return `${direction} ${wspd}kt${gust}`;
+}
+
+// Helper para formatar visibilidade
+function formatVisibility(visib: string | number | null): string {
+  if (!visib) return '--';
+  const value = typeof visib === 'string' ? parseFloat(visib) : visib;
+  if (value >= 9999) return '10km+';
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}km`;
+  return `${value}m`;
+}
+
+// Helper para cor da categoria de voo
+function getFlightCategoryColor(cat: string): string {
+  switch (cat) {
+    case 'VFR': return 'text-green-400';
+    case 'MVFR': return 'text-blue-400';
+    case 'IFR': return 'text-orange-400';
+    case 'LIFR': return 'text-red-400';
+    default: return 'text-slate-400';
+  }
+}
+
+function getFlightCategoryBg(cat: string): string {
+  switch (cat) {
+    case 'VFR': return 'bg-green-500/20 border-green-500/50';
+    case 'MVFR': return 'bg-blue-500/20 border-blue-500/50';
+    case 'IFR': return 'bg-orange-500/20 border-orange-500/50';
+    case 'LIFR': return 'bg-red-500/20 border-red-500/50';
+    default: return 'bg-slate-500/20 border-slate-500/50';
+  }
+}
+
 export default function PlanoVooPage() {
   const [activeTab, setActiveTab] = useState('planejar');
   const [formData, setFormData] = useState<FlightFormData>({
@@ -107,8 +146,8 @@ export default function PlanoVooPage() {
 
   const [calculations, setCalculations] = useState<FlightCalculations | null>(null);
   const [validation, setValidation] = useState<ValidationResult | null>(null);
-  const [originWeather, setOriginWeather] = useState<AirportWeather | null>(null);
-  const [destWeather, setDestWeather] = useState<AirportWeather | null>(null);
+  const [originWeather, setOriginWeather] = useState<AISWebMETARData | null>(null);
+  const [destWeather, setDestWeather] = useState<AISWebMETARData | null>(null);
   const [originROTAER, setOriginROTAER] = useState<ROTAERData | null>(null);
   const [destROTAER, setDestROTAER] = useState<ROTAERData | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
@@ -117,7 +156,6 @@ export default function PlanoVooPage() {
   const { user } = useAuth();
   const { aerodromes, isLoadingAerodromes } = useAerodromes();
   const { aeronaves, isLoadingAeronaves } = useAeronaves();
-  const { getWeather } = useAviationWeather();
   const {
     getNOTAMs,
     getMultipleNOTAMs,
@@ -226,11 +264,14 @@ export default function PlanoVooPage() {
     const fuelReserve = fuelRequired * 0.45;
     const totalFuel = fuelRequired + fuelReserve;
 
-    // Calcular altitude ótima com restrições (se disponível)
+    // Validar plano primeiro para obter restrições
+    const validationResult = await validatePlan(originCoords, destCoords);
+
+    // Calcular altitude ótima com restrições
     const altitudeData = calculateOptimalAltitude(
       bearing,
       formData.flightRule,
-      validation?.restrictions || []
+      validationResult?.restrictions || []
     );
 
     setCalculations({
@@ -246,19 +287,16 @@ export default function PlanoVooPage() {
       ete: `${Math.floor(timeHours)}h ${Math.round((timeHours % 1) * 60)}min`
     });
 
-    // Validar plano automaticamente
-    await validatePlan(originCoords, destCoords);
-
     setActiveTab('resultados');
     toast.success('Plano de voo calculado');
-  }, [formData, getAerodromeByCode, getAircraftById, validation]);
+  }, [formData, getAerodromeByCode, getAircraftById]);
 
   // Validar plano de voo
   const validatePlan = useCallback(async (
     originCoords: { lat: number; lng: number },
     destCoords: { lat: number; lng: number }
-  ) => {
-    if (!formData.origin || !formData.destination) return;
+  ): Promise<ValidationResult | null> => {
+    if (!formData.origin || !formData.destination) return null;
 
     setIsValidating(true);
     try {
@@ -288,9 +326,11 @@ export default function PlanoVooPage() {
         toast.error(`DESTINO: ${validationResult.destinationStatus.reason}`);
       }
 
+      return validationResult;
     } catch (error) {
       console.error('Validation error:', error);
       toast.error('Erro ao validar plano de voo');
+      return null;
     } finally {
       setIsValidating(false);
     }
@@ -306,11 +346,11 @@ export default function PlanoVooPage() {
     setIsLoadingWeather(true);
     try {
       if (formData.origin) {
-        const weather = await getWeather(formData.origin);
+        const weather = await fetchAISWebMETAR(formData.origin);
         setOriginWeather(weather);
       }
       if (formData.destination) {
-        const weather = await getWeather(formData.destination);
+        const weather = await fetchAISWebMETAR(formData.destination);
         setDestWeather(weather);
       }
       toast.success('Dados meteorológicos atualizados');
@@ -320,7 +360,7 @@ export default function PlanoVooPage() {
     } finally {
       setIsLoadingWeather(false);
     }
-  }, [formData.origin, formData.destination, getWeather]);
+  }, [formData.origin, formData.destination]);
 
   // Buscar dados ROTAER
   const fetchROTAERData = useCallback(async () => {
@@ -347,7 +387,7 @@ export default function PlanoVooPage() {
     }
   }, [formData.origin, formData.destination, fetchROTAERData]);
 
-  // Salvar plano - ATUALIZADO PARA USAR SUPABASE
+  // Salvar plano
   const savePlan = useCallback(async () => {
     if (!calculations) {
       toast.error('Calcule o plano primeiro');
@@ -388,7 +428,7 @@ export default function PlanoVooPage() {
     await createFlightPlan(planInput);
   }, [formData, calculations, validation, originWeather, destWeather, createFlightPlan, user]);
 
-  // Excluir plano - ATUALIZADO PARA USAR SUPABASE
+  // Excluir plano
   const handleDeletePlan = useCallback(async (id: string) => {
     await deleteFlightPlan(id);
   }, [deleteFlightPlan]);
@@ -417,7 +457,7 @@ export default function PlanoVooPage() {
   };
 
   // Renderizar card de meteorologia
-  const renderWeatherCard = (weather: AirportWeather | null, title: string, icao: string) => {
+  const renderWeatherCard = (weather: AISWebMETARData | null, title: string, icao: string) => {
     if (!weather) {
       return (
         <Card className="bg-slate-800/50 border-slate-700 p-4">
@@ -430,77 +470,46 @@ export default function PlanoVooPage() {
       );
     }
 
-    if (weather.loading) {
-      return (
-        <Card className="bg-slate-800/50 border-slate-700 p-4">
-          <div className="flex items-center gap-2">
-            <InlineLottieSpinner size="md" />
-            <span className="text-white">Carregando...</span>
-          </div>
-        </Card>
-      );
-    }
-
-    if (weather.error && !weather.metar) {
-      return (
-        <Card className="bg-slate-800/50 border-slate-700 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-5 h-5 text-amber-400" />
-            <h3 className="text-white font-semibold">{icao}</h3>
-          </div>
-          <p className="text-amber-400 text-sm">{weather.error}</p>
-        </Card>
-      );
-    }
-
-    const metar = weather.metar;
-    if (!metar) return null;
-
     return (
       <Card className="bg-slate-800/50 border-slate-700 p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <CloudRain className="w-5 h-5 text-cyan-400" />
-            <h3 className="text-white font-semibold">{metar.icaoId}</h3>
+            <h3 className="text-white font-semibold">{weather.icao}</h3>
           </div>
-          <Badge className={`${getFlightCategoryBg(metar.fltcat)} ${getFlightCategoryColor(metar.fltcat)} border`}>
-            {metar.fltcat || 'N/A'}
+          <Badge className={`${getFlightCategoryBg(weather.flightCategory)} ${getFlightCategoryColor(weather.flightCategory)} border`}>
+            {weather.flightCategory}
           </Badge>
         </div>
 
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-slate-400">Temperatura:</span>
-            <span className="text-white font-mono">{metar.temp !== null ? `${metar.temp}°C` : '--'}</span>
+            <span className="text-white font-mono">{weather.temp !== null ? `${weather.temp}°C` : '--'}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-slate-400">Ponto de Orvalho:</span>
-            <span className="text-white font-mono">{metar.dewp !== null ? `${metar.dewp}°C` : '--'}</span>
+            <span className="text-white font-mono">{weather.dewp !== null ? `${weather.dewp}°C` : '--'}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-slate-400">Vento:</span>
-            <span className="text-white font-mono">{formatWind(metar.wdir, metar.wspd, metar.wgst)}</span>
+            <span className="text-white font-mono">{formatWind(weather.wdir, weather.wspd, weather.wgst)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-slate-400">Visibilidade:</span>
-            <span className="text-white font-mono">{formatVisibility(metar.visib)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-slate-400">QNH:</span>
-            <span className="text-white font-mono">{metar.altim ? `${metar.altim} hPa` : '--'}</span>
+            <span className="text-white font-mono">{formatVisibility(weather.visib)}</span>
           </div>
         </div>
 
-        {metar.rawOb && (
+        {weather.rawOb && (
           <div className="mt-3 pt-3 border-t border-slate-700">
-            <p className="text-xs text-slate-500 font-mono break-all">{metar.rawOb}</p>
+            <p className="text-xs text-slate-500 font-mono break-all">{weather.rawOb}</p>
           </div>
         )}
 
-        {weather.taf && weather.taf.rawTAF && (
-          <div className="mt-3 pt-3 border-t border-slate-700">
-            <h4 className="text-xs text-slate-400 mb-1">TAF:</h4>
-            <p className="text-xs text-slate-500 font-mono break-all">{weather.taf.rawTAF}</p>
+        {weather.updatedTime && (
+          <div className="mt-2 text-xs text-slate-500">
+            Atualizado: {new Date(weather.updatedTime).toLocaleTimeString('pt-BR')}
           </div>
         )}
       </Card>
@@ -829,7 +838,7 @@ export default function PlanoVooPage() {
               </Card>
             </TabsContent>
 
-            {/* TAB: Resultados */}
+            {/* TAB: Resultados - CONTINUAÇÃO NO PRÓXIMO ARQUIVO */}
             <TabsContent value="resultados" className="space-y-4">
               {calculations ? (
                 <>
@@ -1230,7 +1239,6 @@ export default function PlanoVooPage() {
                           variant="ghost"
                           size="sm"
                           onClick={() => {
-                            // Carregar plano para edição
                             setFormData({
                               origin: plan.departure_airport,
                               destination: plan.arrival_airport,

@@ -11,7 +11,7 @@ const tripulantesQueryKey = ["tripulantes-crew-members"];
 
 /**
  * Hook para buscar todos os membros ativos da tripulação.
- * Usa o backend Express para cache e proxy do Supabase.
+ * Usa o backend remoto (Cloudflare Workers) para cache e proxy do Supabase.
  * Se o backend não está disponível, faz fallback direto para Supabase.
  * Retorna uma lista ordenada pelo nome completo.
  */

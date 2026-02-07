@@ -1,52 +1,72 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchAISWebMETAR, type AISWebMETARData } from '@/services/aiswebWeather';
 
-export interface WeatherData {
-  location: string;
-  temperature: number;
-  dewpoint: number | null;
-  windDirection: number | null;
-  windSpeed: number | null;
-  windGust: number | null;
-  visibility: { value: number; unit: string } | null;
-  flightCategory: 'VFR' | 'MVFR' | 'IFR' | 'LIFR' | 'UNKNOWN';
-  rawMetar: string;
-  icon: string;
+// Interface que espelha exatamente o retorno do seu Backend
+export interface MetarResponse {
+  icao: string;
+  rawOb: string;
+  temp: number | null;
+  dewp: number | null;
+  wdir: number | null;
+  wspd: number | null;
+  wgst: number | null;
+  visib: number | null;
+  altim: number | null;
+  flightCategory: 'VFR' | 'MVFR' | 'IFR' | 'LIFR';
+  reportTime: string;
+  updatedTime: string;
+  source: string;
 }
 
-export function useWeather() {
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [loading, setLoading] = useState(true);
+export interface WeatherState {
+  data: MetarResponse | null;
+  loading: boolean;
+  error: string | null;
+}
 
-  const updateWeather = useCallback(async (icao: string = 'SBGR') => {
+export function useWeather(defaultIcao: string = 'SBGR') {
+  const [weather, setWeather] = useState<MetarResponse | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchWeather = useCallback(async (icao: string) => {
     setLoading(true);
-    const data = await fetchAISWebMETAR(icao);
-    
-    if (data) {
-      const isDay = new Date().getHours() >= 6 && new Date().getHours() < 18;
-      const daySuffix = isDay ? 'd' : 'n';
+    setError(null);
+    try {
+      // Chama a rota do SEU backend
+      const response = await fetch(`/api/weather/metar/${icao}`);
+      
+      if (!response.ok) {
+        throw new Error(`Erro: ${response.statusText}`);
+      }
 
-      setWeather({
-        location: data.icao,
-        temperature: data.temp ?? 0,
-        dewpoint: data.dewp,
-        windDirection: typeof data.wdir === 'number' ? data.wdir : null,
-        windSpeed: data.wspd,
-        windGust: data.wgst,
-        visibility: data.visib ? { value: Number(data.visib), unit: 'm' } : null,
-        flightCategory: data.flightCategory,
-        rawMetar: data.rawOb,
-        icon: data.rawOb.toLowerCase().includes('ts') ? `11${daySuffix}` : `01${daySuffix}`
-      });
+      const data: MetarResponse = await response.json();
+      
+      // Validação básica se veio dado vazio
+      if (!data || !data.rawOb) {
+        throw new Error("Dados meteorológicos indisponíveis.");
+      }
+
+      setWeather(data);
+    } catch (err: any) {
+      console.error("Erro ao buscar clima:", err);
+      setError(err.message || "Erro desconhecido");
+      setWeather(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
+  // Busca inicial e setup do intervalo
   useEffect(() => {
-    updateWeather();
-    const timer = setInterval(() => updateWeather(), 5 * 60 * 1000);
-    return () => clearInterval(timer);
-  }, [updateWeather]);
+    fetchWeather(defaultIcao);
+    
+    // Atualiza a cada 5 minutos (300000ms) para respeitar o cache do backend
+    const interval = setInterval(() => {
+      fetchWeather(defaultIcao);
+    }, 5 * 60 * 1000);
 
-  return { weather, loading, updateWeather };
+    return () => clearInterval(interval);
+  }, [fetchWeather, defaultIcao]);
+
+  return { weather, loading, error, refetch: () => fetchWeather(defaultIcao) };
 }
