@@ -39,7 +39,7 @@ interface UseFlightCalculationsReturn {
   clearResult: () => void;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev';
 
 export function useFlightCalculations(): UseFlightCalculationsReturn {
   const [calculating, setCalculating] = useState(false);
@@ -110,7 +110,7 @@ export function useFlightCalculations(): UseFlightCalculationsReturn {
           payload.arrivalManual = arrivalManual;
         }
 
-        const response = await fetch(`${API_BASE_URL}/flight-calculations`, {
+        const response = await fetch(`${API_BASE_URL}/api/flight-calculations`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://backend-share.vercel.app/api';
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev';
 
 export interface AirportInfo {
   icao: string;
@@ -56,7 +56,7 @@ export async function getAirportCoordinates(icao: string): Promise<AirportInfo |
 
   // Try backend API first
   try {
-    const response = await fetch(`${API_BASE_URL}/airports/${upperIcao}`, {
+    const response = await fetch(`${API_BASE_URL}/api/airports/${upperIcao}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -129,7 +129,7 @@ export async function getMultipleAirportCoordinates(icaos: string[]): Promise<Ma
  */
 export async function searchAirports(query: string): Promise<AirportInfo[]> {
   try {
-    const response = await fetch(`${API_BASE_URL}/airports/search?q=${encodeURIComponent(query)}`, {
+    const response = await fetch(`${API_BASE_URL}/api/airports/search?q=${encodeURIComponent(query)}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
