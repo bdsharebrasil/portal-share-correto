@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { fetchMETAR, fetchTAF } from '@/lib/aviation';
+import { fetchAISWebMETAR, fetchAISWebTAF, type AISWebMETARData, type AISWebTAFData } from '@/services/aiswebWeather';
 
 // Exported as both MetarData and METARData for compatibility
 export interface MetarData {
@@ -43,7 +43,7 @@ export interface AirportWeather {
 
 /**
  * Hook para buscar dados meteorológicos de aviação (METAR e TAF)
- * Usa a API oficial da aviationweather.gov
+ * Usa a API do AISWeb via backend
  * 
  * Can be used in two ways:
  * 1. With icao parameter: returns { metar, loading, error } for that specific airport
@@ -60,6 +60,37 @@ export function useAviationWeather(icao?: string) {
     loading: false,
     error: null,
   });
+
+  const convertToMetarData = (aiswebData: AISWebMETARData | null): MetarData | null => {
+    if (!aiswebData) return null;
+    return {
+      icaoId: aiswebData.icao,
+      rawOb: aiswebData.rawOb,
+      temp: aiswebData.temp,
+      dewp: aiswebData.dewp,
+      wdir: aiswebData.wdir,
+      wspd: aiswebData.wspd,
+      wgst: aiswebData.wgst,
+      visib: aiswebData.visib,
+      altim: aiswebData.altim,
+      fltcat: aiswebData.fltcat,
+      flightCategory: aiswebData.flightCategory,
+      reportTime: aiswebData.reportTime,
+      updatedTime: aiswebData.updatedTime,
+      source: aiswebData.source,
+      clouds: aiswebData.clouds,
+    };
+  };
+
+  const convertToTafData = (aiswebData: AISWebTAFData | null): TafData | null => {
+    if (!aiswebData) return null;
+    return {
+      icaoId: aiswebData.icao,
+      rawTAF: aiswebData.rawTAF,
+      validTimeFrom: aiswebData.validTimeFrom,
+      validTimeTo: aiswebData.validTimeTo,
+    };
+  };
 
   const getWeather = useCallback(async (icaoCode: string): Promise<AirportWeather> => {
     if (!icaoCode || icaoCode.length < 4) {
@@ -80,14 +111,14 @@ export function useAviationWeather(icao?: string) {
     }));
 
     try {
-      // Fetch METAR and TAF in parallel
+      // Fetch METAR and TAF in parallel via AISWeb
       const [metarResult, tafResult] = await Promise.all([
-        fetchMETAR(icaoUpper),
-        fetchTAF(icaoUpper)
+        fetchAISWebMETAR(icaoUpper),
+        fetchAISWebTAF(icaoUpper)
       ]);
 
-      const metar = metarResult && metarResult.length > 0 ? metarResult[0] : null;
-      const taf = tafResult && tafResult.length > 0 ? tafResult[0] : null;
+      const metar = convertToMetarData(metarResult);
+      const taf = convertToTafData(tafResult);
 
       const weatherData: AirportWeather = {
         icao: icaoUpper,

@@ -1,6 +1,7 @@
 import { pdf } from "@react-pdf/renderer";
 import { ReciboDocument } from "@/lib/reciboGenerator";
 import { supabase } from "@/integrations/supabase/client";
+import React from "react";
 
 interface GeneratePdfOptions {
   receiptData: any;

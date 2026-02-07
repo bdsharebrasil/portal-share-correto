@@ -9,16 +9,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Plane, MapPin, Clock, Fuel, Wind, Calendar,
   AlertTriangle, CheckCircle, FileText, Download,
-  Save, Calculator, Navigation, Route,
-  CloudRain, RefreshCw, Loader2
+  Save, Calculator, Navigation, Route, CloudRain,
+  RefreshCw, Loader2, Shield, Radio, Info,
+  XCircle, AlertCircle, CheckCircle2
 } from 'lucide-react';
 import { InlineLottieSpinner } from '@/components/ui/inline-lottie-spinner';
 import { useAerodromes, type Aerodromo } from '@/hooks/useAerodromes';
 import { useAeronaves, type Aeronave } from '@/hooks/useAeronaves';
 import { useAviationWeather, getFlightCategoryColor, getFlightCategoryBg, formatWind, formatVisibility, type AirportWeather } from '@/hooks/useAviationWeather';
-import { calculateDistance, calculateMagneticHeading } from '@/lib/aviation';
+import { useAISWeb } from '@/hooks/useAISWeb';
+import { useFlightPlans } from '@/hooks/useFlightPlans';
+import { useAuth } from '@/contexts/AuthContext';
+import { calculateDistance, calculateMagneticHeading, calculateOptimalAltitude, isAerodromeOperational, type NOTAMData, type ROTAERData } from '@/lib/aviation';
 import { FlightRouteMap, type RoutePoint } from '@/components/plano-voo/FlightRouteMap';
 import { toast } from 'sonner';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface FlightFormData {
   origin: string;
@@ -43,6 +48,17 @@ interface FlightCalculations {
   fuelReserve: number;
   totalFuel: number;
   suggestedAlt: string;
+  altitudeWarnings: string[];
+  alternatives: string[];
+}
+
+interface ValidationResult {
+  valid: boolean;
+  notams: Record<string, NOTAMData[]>;
+  originStatus: { operational: boolean; reason: string | null; criticalNOTAMs: NOTAMData[] };
+  destinationStatus: { operational: boolean; reason: string | null; criticalNOTAMs: NOTAMData[] };
+  restrictions: any[];
+  warnings: string[];
 }
 
 // Parse coordenadas do banco de dados
@@ -90,20 +106,35 @@ export default function PlanoVooPage() {
   });
 
   const [calculations, setCalculations] = useState<FlightCalculations | null>(null);
+  const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [originWeather, setOriginWeather] = useState<AirportWeather | null>(null);
   const [destWeather, setDestWeather] = useState<AirportWeather | null>(null);
-  const [savedPlans, setSavedPlans] = useState<Array<{ id: number; date: string; formData: FlightFormData; calculations: FlightCalculations }>>([]);
+  const [originROTAER, setOriginROTAER] = useState<ROTAERData | null>(null);
+  const [destROTAER, setDestROTAER] = useState<ROTAERData | null>(null);
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
 
+  const { user } = useAuth();
   const { aerodromes, isLoadingAerodromes } = useAerodromes();
   const { aeronaves, isLoadingAeronaves } = useAeronaves();
   const { getWeather } = useAviationWeather();
-
-  // Carregar planos salvos do localStorage
-  useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem('flightPlansV2') || '[]');
-    setSavedPlans(saved);
-  }, []);
+  const {
+    getNOTAMs,
+    getMultipleNOTAMs,
+    getROTAER,
+    getRouteRestrictions,
+    validateFlightPlan,
+    getCacheAge,
+    loading: aiswebLoading,
+    error: aiswebError
+  } = useAISWeb();
+  const {
+    flightPlans,
+    loading: loadingPlans,
+    createFlightPlan,
+    deleteFlightPlan,
+    refreshFlightPlans
+  } = useFlightPlans();
 
   // Obter aeródromo por designativo
   const getAerodromeByCode = useCallback((code: string): Aerodromo | undefined => {
@@ -165,7 +196,7 @@ export default function PlanoVooPage() {
   }, [formData.origin, formData.destination, formData.alternate, getAerodromeByCode]);
 
   // Calcular plano de voo
-  const calculateFlightPlan = useCallback(() => {
+  const calculateFlightPlan = useCallback(async () => {
     const originAerodrome = getAerodromeByCode(formData.origin);
     const destAerodrome = getAerodromeByCode(formData.destination);
     const aircraft = getAircraftById(formData.aircraftId);
@@ -186,23 +217,21 @@ export default function PlanoVooPage() {
     const distance = calculateDistance(originCoords.lat, originCoords.lng, destCoords.lat, destCoords.lng);
     const bearing = calculateMagneticHeading(originCoords.lat, originCoords.lng, destCoords.lat, destCoords.lng);
 
-    // Velocidade de cruzeiro - usar do formulário ou da aeronave ou default
+    // Velocidade de cruzeiro
     const cruiseSpeed = formData.cruiseSpeed ? parseInt(formData.cruiseSpeed) : 180;
-    const fuelConsumption = aircraft?.fuel_consumption || 50; // L/h default
+    const fuelConsumption = aircraft?.fuel_consumption || 50;
 
     const timeHours = distance / cruiseSpeed;
     const fuelRequired = timeHours * fuelConsumption;
-    const fuelReserve = fuelRequired * 0.45; // 45% reserva
+    const fuelReserve = fuelRequired * 0.45;
     const totalFuel = fuelRequired + fuelReserve;
 
-    // Altitude sugerida baseada em regras VFR/IFR
-    const isIFR = formData.flightRule === 'I';
-    let suggestedAlt: string;
-    if (bearing >= 0 && bearing < 180) {
-      suggestedAlt = isIFR ? 'FL070' : '5500';
-    } else {
-      suggestedAlt = isIFR ? 'FL080' : '6500';
-    }
+    // Calcular altitude ótima com restrições (se disponível)
+    const altitudeData = calculateOptimalAltitude(
+      bearing,
+      formData.flightRule,
+      validation?.restrictions || []
+    );
 
     setCalculations({
       distance: Math.round(distance),
@@ -211,13 +240,61 @@ export default function PlanoVooPage() {
       fuelRequired: Math.round(fuelRequired),
       fuelReserve: Math.round(fuelReserve),
       totalFuel: Math.round(totalFuel),
-      suggestedAlt,
+      suggestedAlt: altitudeData.suggested,
+      altitudeWarnings: altitudeData.warnings,
+      alternatives: altitudeData.alternatives,
       ete: `${Math.floor(timeHours)}h ${Math.round((timeHours % 1) * 60)}min`
     });
 
+    // Validar plano automaticamente
+    await validatePlan(originCoords, destCoords);
+
     setActiveTab('resultados');
     toast.success('Plano de voo calculado');
-  }, [formData, getAerodromeByCode, getAircraftById]);
+  }, [formData, getAerodromeByCode, getAircraftById, validation]);
+
+  // Validar plano de voo
+  const validatePlan = useCallback(async (
+    originCoords: { lat: number; lng: number },
+    destCoords: { lat: number; lng: number }
+  ) => {
+    if (!formData.origin || !formData.destination) return;
+
+    setIsValidating(true);
+    try {
+      const altitude = formData.cruiseAlt ? parseInt(formData.cruiseAlt) : 5500;
+      const route = [originCoords, destCoords];
+
+      const validationResult = await validateFlightPlan(
+        formData.origin,
+        formData.destination,
+        formData.alternate || null,
+        route,
+        altitude
+      );
+
+      setValidation(validationResult);
+
+      // Mostrar warnings se houver
+      if (validationResult.warnings.length > 0) {
+        toast.warning(`${validationResult.warnings.length} alertas encontrados`);
+      }
+
+      // Alertar se aeródromo não operacional
+      if (!validationResult.originStatus.operational) {
+        toast.error(`ORIGEM: ${validationResult.originStatus.reason}`);
+      }
+      if (!validationResult.destinationStatus.operational) {
+        toast.error(`DESTINO: ${validationResult.destinationStatus.reason}`);
+      }
+
+    } catch (error) {
+      console.error('Validation error:', error);
+      toast.error('Erro ao validar plano de voo');
+    } finally {
+      setIsValidating(false);
+    }
+  }, [formData, validateFlightPlan]);
 
   // Buscar meteorologia
   const fetchWeatherData = useCallback(async () => {
@@ -245,32 +322,76 @@ export default function PlanoVooPage() {
     }
   }, [formData.origin, formData.destination, getWeather]);
 
-  // Salvar plano
-  const savePlan = useCallback(() => {
+  // Buscar dados ROTAER
+  const fetchROTAERData = useCallback(async () => {
+    if (!formData.origin && !formData.destination) return;
+
+    try {
+      if (formData.origin) {
+        const rotaer = await getROTAER(formData.origin);
+        setOriginROTAER(rotaer);
+      }
+      if (formData.destination) {
+        const rotaer = await getROTAER(formData.destination);
+        setDestROTAER(rotaer);
+      }
+    } catch (error) {
+      console.error('Error fetching ROTAER:', error);
+    }
+  }, [formData.origin, formData.destination, getROTAER]);
+
+  // Buscar ROTAER quando mudar origem/destino
+  useEffect(() => {
+    if (formData.origin || formData.destination) {
+      fetchROTAERData();
+    }
+  }, [formData.origin, formData.destination, fetchROTAERData]);
+
+  // Salvar plano - ATUALIZADO PARA USAR SUPABASE
+  const savePlan = useCallback(async () => {
     if (!calculations) {
       toast.error('Calcule o plano primeiro');
       return;
     }
 
-    const plan = {
-      id: Date.now(),
-      date: new Date().toISOString(),
-      formData,
-      calculations
-    };
-    const updated = [...savedPlans, plan];
-    setSavedPlans(updated);
-    localStorage.setItem('flightPlansV2', JSON.stringify(updated));
-    toast.success('Plano de voo salvo!');
-  }, [formData, calculations, savedPlans]);
+    if (!user) {
+      toast.error('Você precisa estar logado para salvar planos');
+      return;
+    }
 
-  // Excluir plano
-  const deletePlan = useCallback((id: number) => {
-    const updated = savedPlans.filter(p => p.id !== id);
-    setSavedPlans(updated);
-    localStorage.setItem('flightPlansV2', JSON.stringify(updated));
-    toast.success('Plano excluído');
-  }, [savedPlans]);
+    // Extrair data da departure ou usar hoje
+    const flightDate = formData.departure
+      ? formData.departure.split('T')[0]
+      : new Date().toISOString().split('T')[0];
+
+    const planInput = {
+      flight_date: flightDate,
+      departure_airport: formData.origin,
+      arrival_airport: formData.destination,
+      aircraft_id: formData.aircraftId || undefined,
+      pilot_in_command: user.email || 'Piloto',
+      alternate_airport: formData.alternate || undefined,
+      cruise_altitude: formData.cruiseAlt || calculations.suggestedAlt,
+      estimated_time: calculations.ete,
+      fuel_endurance: `${calculations.totalFuel}L`,
+      route: formData.route || 'DCT',
+      status: 'draft' as const,
+      calculations,
+      validation,
+      weather: {
+        origin: originWeather,
+        destination: destWeather,
+        timestamp: Date.now(),
+      },
+    };
+
+    await createFlightPlan(planInput);
+  }, [formData, calculations, validation, originWeather, destWeather, createFlightPlan, user]);
+
+  // Excluir plano - ATUALIZADO PARA USAR SUPABASE
+  const handleDeletePlan = useCallback(async (id: string) => {
+    await deleteFlightPlan(id);
+  }, [deleteFlightPlan]);
 
   // Atualizar aircraft quando mudar
   const handleAircraftChange = useCallback((aircraftId: string) => {
@@ -282,7 +403,20 @@ export default function PlanoVooPage() {
     }));
   }, [aeronaves]);
 
-  // Renderizar componente de weather card
+  // Renderizar NOTAM badge
+  const renderNOTAMBadge = (priority: NOTAMData['priority']) => {
+    const config = {
+      critical: { icon: XCircle, color: 'bg-red-500/20 text-red-400 border-red-500/50' },
+      high: { icon: AlertTriangle, color: 'bg-orange-500/20 text-orange-400 border-orange-500/50' },
+      medium: { icon: AlertCircle, color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50' },
+      low: { icon: Info, color: 'bg-blue-500/20 text-blue-400 border-blue-500/50' },
+    };
+
+    const { icon: Icon, color } = config[priority];
+    return <Icon className="w-4 h-4" />;
+  };
+
+  // Renderizar card de meteorologia
   const renderWeatherCard = (weather: AirportWeather | null, title: string, icao: string) => {
     if (!weather) {
       return (
@@ -373,6 +507,91 @@ export default function PlanoVooPage() {
     );
   };
 
+  // Renderizar card ROTAER
+  const renderROTAERCard = (rotaer: ROTAERData | null, icao: string) => {
+    if (!rotaer) {
+      return (
+        <Card className="bg-slate-800/50 border-slate-700 p-4">
+          <div className="flex items-center gap-2">
+            <Info className="w-5 h-5 text-slate-400" />
+            <p className="text-slate-400 text-sm">Dados ROTAER não disponíveis</p>
+          </div>
+        </Card>
+      );
+    }
+
+    return (
+      <Card className="bg-slate-800/50 border-slate-700 p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Radio className="w-5 h-5 text-primary" />
+          <h3 className="text-white font-semibold">{rotaer.icao} - ROTAER</h3>
+        </div>
+
+        <div className="space-y-3 text-sm">
+          {/* Pistas */}
+          {rotaer.runways && rotaer.runways.length > 0 && (
+            <div>
+              <h4 className="text-slate-400 font-semibold mb-1">Pistas:</h4>
+              {rotaer.runways.map((rwy, idx) => (
+                <div key={idx} className="text-white ml-2">
+                  <span className="font-mono">{rwy.designator}</span>: {rwy.length}m x {rwy.width}m - {rwy.surface}
+                  {rwy.strength && <span className="text-slate-400"> (PCN: {rwy.strength})</span>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Frequências */}
+          {rotaer.frequencies && rotaer.frequencies.length > 0 && (
+            <div>
+              <h4 className="text-slate-400 font-semibold mb-1">Frequências:</h4>
+              <div className="grid grid-cols-2 gap-1 ml-2">
+                {rotaer.frequencies.map((freq, idx) => (
+                  <div key={idx} className="text-white">
+                    <span className="text-slate-400">{freq.type}:</span> <span className="font-mono">{freq.frequency}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Auxílios */}
+          {rotaer.navaids && rotaer.navaids.length > 0 && (
+            <div>
+              <h4 className="text-slate-400 font-semibold mb-1">Auxílios:</h4>
+              <div className="flex flex-wrap gap-2 ml-2">
+                {rotaer.navaids.map((nav, idx) => (
+                  <Badge key={idx} variant="outline" className="bg-primary/10 border-primary/30 text-primary">
+                    {nav.type} {nav.identifier} ({nav.frequency})
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Serviços */}
+          <div>
+            <h4 className="text-slate-400 font-semibold mb-1">Serviços:</h4>
+            <div className="flex flex-wrap gap-2 ml-2">
+              {rotaer.services.fuel && <Badge variant="outline" className="bg-green-500/10 border-green-500/30 text-green-400">Combustível</Badge>}
+              {rotaer.services.hangar && <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-blue-400">Hangar</Badge>}
+              {rotaer.services.maintenance && <Badge variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-400">Manutenção</Badge>}
+              {rotaer.services.customs && <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-purple-400">Alfândega</Badge>}
+            </div>
+          </div>
+
+          {/* Horário */}
+          {rotaer.operatingHours && (
+            <div className="flex justify-between pt-2 border-t border-slate-700">
+              <span className="text-slate-400">Horário:</span>
+              <span className="text-white font-mono">{rotaer.operatingHours}</span>
+            </div>
+          )}
+        </div>
+      </Card>
+    );
+  };
+
   return (
     <Layout>
       <div className="min-h-screen bg-background p-4 md:p-6">
@@ -386,9 +605,19 @@ export default function PlanoVooPage() {
               <h1 className="text-2xl md:text-3xl font-bold text-foreground">Plano de Voo</h1>
             </div>
             <p className="text-muted-foreground">
-              Planejamento com cálculos automáticos, meteorologia real e mapa interativo
+              Planejamento completo com NOTAMs, ROTAER, meteorologia e validação automática
             </p>
           </div>
+
+          {/* Erro da API AISWeb */}
+          {aiswebError && (
+            <Alert className="mb-4 bg-orange-500/10 border-orange-500/50">
+              <AlertTriangle className="w-4 h-4 text-orange-400" />
+              <AlertDescription className="text-orange-400">
+                {aiswebError} - O app continuará funcionando com dados limitados.
+              </AlertDescription>
+            </Alert>
+          )}
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <TabsList className="bg-surface-dark border border-border-dark">
@@ -400,13 +629,26 @@ export default function PlanoVooPage() {
                 <Route className="w-4 h-4 mr-2" />
                 Resultados
               </TabsTrigger>
+              <TabsTrigger value="notam" className="data-[state=active]:bg-primary/20">
+                <Shield className="w-4 h-4 mr-2" />
+                NOTAMs
+                {validation && validation.warnings.length > 0 && (
+                  <Badge className="ml-2 bg-red-500/20 text-red-400 border-red-500/50">
+                    {validation.warnings.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="aerodromos" className="data-[state=active]:bg-primary/20">
+                <Radio className="w-4 h-4 mr-2" />
+                Aeródromos
+              </TabsTrigger>
               <TabsTrigger value="meteorologia" className="data-[state=active]:bg-primary/20">
                 <CloudRain className="w-4 h-4 mr-2" />
                 Meteorologia
               </TabsTrigger>
               <TabsTrigger value="salvos" className="data-[state=active]:bg-primary/20">
                 <FileText className="w-4 h-4 mr-2" />
-                Salvos ({savedPlans.length})
+                Salvos ({flightPlans.length})
               </TabsTrigger>
             </TabsList>
 
@@ -570,10 +812,19 @@ export default function PlanoVooPage() {
                 <Button
                   onClick={calculateFlightPlan}
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                  disabled={!formData.origin || !formData.destination}
+                  disabled={!formData.origin || !formData.destination || isValidating}
                 >
-                  <Calculator className="w-4 h-4 mr-2" />
-                  Calcular Plano de Voo
+                  {isValidating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Validando...
+                    </>
+                  ) : (
+                    <>
+                      <Calculator className="w-4 h-4 mr-2" />
+                      Calcular e Validar Plano
+                    </>
+                  )}
                 </Button>
               </Card>
             </TabsContent>
@@ -582,24 +833,80 @@ export default function PlanoVooPage() {
             <TabsContent value="resultados" className="space-y-4">
               {calculations ? (
                 <>
-                  {/* Resumo da Rota */}
+                  {/* Status do Plano */}
                   <Card className="bg-surface-dark border-border-dark p-6">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
                         <Route className="w-5 h-5 text-primary" />
-                        <h2 className="text-lg font-semibold text-foreground">Resumo do Voo</h2>
+                        <h2 className="text-lg font-semibold text-foreground">Status do Plano</h2>
                       </div>
-                      <Badge variant="outline" className="bg-green-500/20 text-green-400 border-green-500/50">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Plano Válido
-                      </Badge>
+                      {validation && (
+                        <Badge
+                          variant="outline"
+                          className={validation.valid
+                            ? "bg-green-500/20 text-green-400 border-green-500/50"
+                            : "bg-red-500/20 text-red-400 border-red-500/50"
+                          }
+                        >
+                          {validation.valid ? (
+                            <>
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Plano Válido
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="w-3 h-3 mr-1" />
+                              Atenção Necessária
+                            </>
+                          )}
+                        </Badge>
+                      )}
                     </div>
+
+                    {/* Warnings */}
+                    {validation && validation.warnings.length > 0 && (
+                      <Alert className="mb-4 bg-yellow-500/10 border-yellow-500/50">
+                        <AlertTriangle className="w-4 h-4 text-yellow-400" />
+                        <AlertDescription className="text-yellow-400">
+                          <div className="font-semibold mb-1">{validation.warnings.length} alerta(s) encontrado(s):</div>
+                          <ul className="list-disc list-inside space-y-1 text-sm">
+                            {validation.warnings.slice(0, 3).map((warning, idx) => (
+                              <li key={idx}>{warning}</li>
+                            ))}
+                            {validation.warnings.length > 3 && (
+                              <li className="text-yellow-300">+ {validation.warnings.length - 3} outros alertas (veja aba NOTAMs)</li>
+                            )}
+                          </ul>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                    {/* Warnings de Altitude */}
+                    {calculations.altitudeWarnings.length > 0 && (
+                      <Alert className="mb-4 bg-orange-500/10 border-orange-500/50">
+                        <AlertCircle className="w-4 h-4 text-orange-400" />
+                        <AlertDescription className="text-orange-400">
+                          <div className="font-semibold mb-1">Atenção - Altitude:</div>
+                          <ul className="list-disc list-inside space-y-1 text-sm">
+                            {calculations.altitudeWarnings.map((warning, idx) => (
+                              <li key={idx}>{warning}</li>
+                            ))}
+                          </ul>
+                        </AlertDescription>
+                      </Alert>
+                    )}
 
                     <div className="flex items-center justify-between py-6">
                       <div className="text-center">
                         <MapPin className="w-6 h-6 text-green-400 mx-auto mb-1" />
                         <p className="text-2xl font-bold text-foreground">{formData.origin}</p>
                         <p className="text-sm text-muted-foreground">{getAerodromeByCode(formData.origin)?.name}</p>
+                        {validation && !validation.originStatus.operational && (
+                          <Badge className="mt-1 bg-red-500/20 text-red-400 border-red-500/50">
+                            <XCircle className="w-3 h-3 mr-1" />
+                            Não Operacional
+                          </Badge>
+                        )}
                       </div>
 
                       <div className="flex-1 mx-4 border-t border-dashed border-primary/50 relative">
@@ -612,6 +919,12 @@ export default function PlanoVooPage() {
                         <MapPin className="w-6 h-6 text-red-400 mx-auto mb-1" />
                         <p className="text-2xl font-bold text-foreground">{formData.destination}</p>
                         <p className="text-sm text-muted-foreground">{getAerodromeByCode(formData.destination)?.name}</p>
+                        {validation && !validation.destinationStatus.operational && (
+                          <Badge className="mt-1 bg-red-500/20 text-red-400 border-red-500/50">
+                            <XCircle className="w-3 h-3 mr-1" />
+                            Não Operacional
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </Card>
@@ -632,7 +945,7 @@ export default function PlanoVooPage() {
                       <Card className="bg-surface-dark border-border-dark p-4">
                         <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                           <Clock className="w-4 h-4 text-primary" />
-                          Tempo e Velocidade
+                          Tempo e Navegação
                         </h3>
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
@@ -645,8 +958,20 @@ export default function PlanoVooPage() {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">Altitude Sugerida:</span>
-                            <span className="text-foreground font-mono">{calculations.suggestedAlt}</span>
+                            <span className="text-foreground font-mono font-bold text-primary">{calculations.suggestedAlt}</span>
                           </div>
+                          {calculations.alternatives.length > 0 && (
+                            <div className="pt-2 border-t border-border-dark">
+                              <span className="text-muted-foreground text-xs block mb-1">Alternativas:</span>
+                              <div className="flex flex-wrap gap-1">
+                                {calculations.alternatives.map((alt, idx) => (
+                                  <Badge key={idx} variant="outline" className="text-xs">
+                                    {alt}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </Card>
 
@@ -684,6 +1009,14 @@ export default function PlanoVooPage() {
                         <Download className="w-4 h-4 mr-2" />
                         Exportar PDF
                       </Button>
+                      <Button
+                        onClick={() => setActiveTab('notam')}
+                        variant="outline"
+                        className="border-border-dark"
+                      >
+                        <Shield className="w-4 h-4 mr-2" />
+                        Ver NOTAMs
+                      </Button>
                     </div>
                   </Card>
                 </>
@@ -693,6 +1026,114 @@ export default function PlanoVooPage() {
                   <p className="text-muted-foreground">Preencha os dados e calcule o plano de voo</p>
                 </Card>
               )}
+            </TabsContent>
+
+            {/* TAB: NOTAMs */}
+            <TabsContent value="notam" className="space-y-4">
+              {validation ? (
+                <>
+                  {Object.entries(validation.notams).map(([icao, notams]) => (
+                    <Card key={icao} className="bg-surface-dark border-border-dark p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Shield className="w-5 h-5 text-primary" />
+                          <h3 className="text-white font-semibold">{icao}</h3>
+                        </div>
+                        <Badge variant="outline">
+                          {notams.length} NOTAM{notams.length !== 1 ? 'S' : ''}
+                        </Badge>
+                      </div>
+
+                      {notams.length === 0 ? (
+                        <p className="text-slate-400 text-sm">Nenhum NOTAM ativo</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {notams.map((notam, idx) => (
+                            <div
+                              key={idx}
+                              className={`p-3 rounded-lg border ${notam.priority === 'critical' ? 'bg-red-500/10 border-red-500/50' :
+                                  notam.priority === 'high' ? 'bg-orange-500/10 border-orange-500/50' :
+                                    notam.priority === 'medium' ? 'bg-yellow-500/10 border-yellow-500/50' :
+                                      'bg-blue-500/10 border-blue-500/50'
+                                }`}
+                            >
+                              <div className="flex items-start gap-2">
+                                {renderNOTAMBadge(notam.priority)}
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-mono text-xs text-slate-400">{notam.number}</span>
+                                    <Badge
+                                      variant="outline"
+                                      className={`text-xs ${notam.priority === 'critical' ? 'bg-red-500/20 text-red-400 border-red-500/50' :
+                                          notam.priority === 'high' ? 'bg-orange-500/20 text-orange-400 border-orange-500/50' :
+                                            notam.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50' :
+                                              'bg-blue-500/20 text-blue-400 border-blue-500/50'
+                                        }`}
+                                    >
+                                      {notam.priority.toUpperCase()}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-white text-sm mb-2">{notam.message}</p>
+                                  <div className="flex flex-wrap gap-2 text-xs text-slate-400">
+                                    <span>Válido: {new Date(notam.startDate).toLocaleDateString('pt-BR')} - {new Date(notam.endDate).toLocaleDateString('pt-BR')}</span>
+                                    {notam.schedule && <span>• {notam.schedule}</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </Card>
+                  ))}
+
+                  {/* Restrições de Espaço Aéreo */}
+                  {validation.restrictions && validation.restrictions.length > 0 && (
+                    <Card className="bg-surface-dark border-border-dark p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Shield className="w-5 h-5 text-orange-400" />
+                        <h3 className="text-white font-semibold">Restrições de Espaço Aéreo na Rota</h3>
+                      </div>
+                      <div className="space-y-2">
+                        {validation.restrictions.map((restriction, idx) => (
+                          <div key={idx} className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/50">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-white font-semibold">{restriction.name}</span>
+                              <Badge variant="outline" className="bg-orange-500/20 text-orange-400 border-orange-500/50">
+                                {restriction.type}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-slate-300 mb-1">{restriction.notes}</p>
+                            <div className="text-xs text-slate-400">
+                              Limites: {restriction.lowerLimit} - {restriction.upperLimit}
+                              {restriction.schedule && ` • ${restriction.schedule}`}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </Card>
+                  )}
+                </>
+              ) : (
+                <Card className="bg-surface-dark border-border-dark p-12 text-center">
+                  <Shield className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">Calcule o plano de voo para ver NOTAMs</p>
+                </Card>
+              )}
+            </TabsContent>
+
+            {/* TAB: Aeródromos */}
+            <TabsContent value="aerodromos" className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-white font-semibold mb-2">Origem: {formData.origin}</h3>
+                  {renderROTAERCard(originROTAER, formData.origin)}
+                </div>
+                <div>
+                  <h3 className="text-white font-semibold mb-2">Destino: {formData.destination}</h3>
+                  {renderROTAERCard(destROTAER, formData.destination)}
+                </div>
+              </div>
             </TabsContent>
 
             {/* TAB: Meteorologia */}
@@ -720,41 +1161,111 @@ export default function PlanoVooPage() {
 
             {/* TAB: Salvos */}
             <TabsContent value="salvos" className="space-y-4">
-              {savedPlans.length === 0 ? (
+              {loadingPlans ? (
+                <Card className="bg-surface-dark border-border-dark p-12 text-center">
+                  <Loader2 className="w-12 h-12 text-primary mx-auto mb-4 animate-spin" />
+                  <p className="text-muted-foreground">Carregando planos...</p>
+                </Card>
+              ) : flightPlans.length === 0 ? (
                 <Card className="bg-surface-dark border-border-dark p-12 text-center">
                   <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                   <p className="text-muted-foreground">Nenhum plano de voo salvo ainda</p>
                 </Card>
               ) : (
-                savedPlans.map((plan) => (
+                flightPlans.map((plan) => (
                   <Card key={plan.id} className="bg-surface-dark border-border-dark p-4">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <Plane className="w-4 h-4 text-primary" />
                           <span className="text-foreground font-semibold">
-                            {plan.formData.origin} → {plan.formData.destination}
+                            {plan.departure_airport} → {plan.arrival_airport}
                           </span>
                           <Badge variant="outline" className="text-xs">
-                            {new Date(plan.date).toLocaleDateString('pt-BR')}
+                            {new Date(plan.flight_date).toLocaleDateString('pt-BR')}
                           </Badge>
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${
+                              plan.status === 'filed' ? 'bg-blue-500/20 text-blue-400 border-blue-500/50' :
+                              plan.status === 'approved' ? 'bg-green-500/20 text-green-400 border-green-500/50' :
+                              plan.status === 'completed' ? 'bg-purple-500/20 text-purple-400 border-purple-500/50' :
+                              plan.status === 'cancelled' ? 'bg-red-500/20 text-red-400 border-red-500/50' :
+                              'bg-gray-500/20 text-gray-400 border-gray-500/50'
+                            }`}
+                          >
+                            {plan.status.toUpperCase()}
+                          </Badge>
+                          {plan.validation && !plan.validation.valid && (
+                            <Badge className="bg-red-500/20 text-red-400 border-red-500/50">
+                              <AlertTriangle className="w-3 h-3 mr-1" />
+                              Atenção
+                            </Badge>
+                          )}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          <span>Aeronave: {plan.formData.registration || 'N/A'}</span>
+                          <span>Piloto: {plan.pilot_in_command}</span>
                           <span className="mx-2">•</span>
-                          <span>Distância: {plan.calculations.distance} NM</span>
+                          <span>Distância: {plan.calculations?.distance || '--'} NM</span>
                           <span className="mx-2">•</span>
-                          <span>Tempo: {plan.calculations.ete}</span>
+                          <span>Tempo: {plan.estimated_time || '--'}</span>
+                          {plan.alternate_airport && (
+                            <>
+                              <span className="mx-2">•</span>
+                              <span>Alt: {plan.alternate_airport}</span>
+                            </>
+                          )}
+                        </div>
+                        {plan.validation && plan.validation.warnings.length > 0 && (
+                          <div className="mt-2 text-xs text-yellow-400">
+                            {plan.validation.warnings.length} alerta(s) - Verifique NOTAMs
+                          </div>
+                        )}
+                        <div className="mt-2 text-xs text-slate-500">
+                          Criado em: {new Date(plan.created_at).toLocaleString('pt-BR')}
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deletePlan(plan.id)}
-                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                      >
-                        Excluir
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            // Carregar plano para edição
+                            setFormData({
+                              origin: plan.departure_airport,
+                              destination: plan.arrival_airport,
+                              alternate: plan.alternate_airport || '',
+                              aircraftId: plan.aircraft_id || '',
+                              registration: '',
+                              flightRule: 'V',
+                              cruiseAlt: plan.cruise_altitude || '',
+                              cruiseSpeed: '',
+                              departure: '',
+                              passengers: 1,
+                              route: plan.route || ''
+                            });
+                            if (plan.calculations) {
+                              setCalculations(plan.calculations);
+                            }
+                            if (plan.validation) {
+                              setValidation(plan.validation);
+                            }
+                            setActiveTab('planejar');
+                            toast.success('Plano carregado para edição');
+                          }}
+                          className="text-primary hover:text-primary/80 hover:bg-primary/10"
+                        >
+                          Editar
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeletePlan(plan.id)}
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                        >
+                          Excluir
+                        </Button>
+                      </div>
                     </div>
                   </Card>
                 ))

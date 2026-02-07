@@ -133,8 +133,9 @@ interface NotaFiscalSaida {
   criado_em: string | null;
   atualizado_em: string | null;
   criado_por: string | null;
-  aeronave_id: string | null;
-  aeronave_registro: string | null;
+  aeronave: string | null;
+  aeronave_id?: string | null;
+  aeronave_registro?: string | null;
 }
 
 interface Cliente {
@@ -370,8 +371,7 @@ export function NotasFiscaisSaida() {
         descricao: formData.descricao || null,
         status: formData.status,
         arquivo_pdf_url: pdfUrl || null,
-        aeronave_id: formData.aeronave_id || null,
-        aeronave_registro: formData.aeronave_registro || null,
+        aeronave: formData.aeronave_registro || null,
         criado_por: currentUser.id,
       };
 

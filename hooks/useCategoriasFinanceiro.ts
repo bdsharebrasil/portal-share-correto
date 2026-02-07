@@ -171,7 +171,7 @@ export function useCategoriasFinanceiro() {
   }, [categorias]);
 
   const getCategoriasEntrada = useCallback(() => {
-    return categorias.filter(cat => cat.tipo === "entrada");
+    return categorias.filter(cat => cat.tipo === "receita");
   }, [categorias]);
 
   const getCategoriaNomes = useCallback(() => {

@@ -467,7 +467,7 @@ export async function insertReceiptToBankReconciliations(
       prazo_pagamento: data.data_vencimento || null,
       forma_pagamento: "empresa_paga" as const,
       afeta_caixa_empresa: true,
-      created_by: userId,
+      criado_por: userId,
       comprovante_url: data.recibo_url || null,
       nf_url: data.nf_url || null,
       partner_name: data.client_name || null,

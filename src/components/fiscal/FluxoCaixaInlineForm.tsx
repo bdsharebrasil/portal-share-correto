@@ -620,7 +620,7 @@ export function FluxoCaixaInlineForm({
                 status: 'pendente',
                 reference_type: 'controle_bancario',
                 reference_id: lancamentoId,
-                created_by: user.id,
+                criado_por: user.id,
               })
               .select('id')
               .maybeSingle();

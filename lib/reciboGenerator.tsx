@@ -240,35 +240,32 @@ const styles = StyleSheet.create({
 });
 
 // Receipt PDF Component
-export const ReciboDocument = React.forwardRef(
-  (props: { data: any }, ref) => {
-    const { data } = props;
+export const ReciboDocument = ({ data }: { data: any }) => {
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value);
+  };
 
-    const formatCurrency = (value: number) => {
-      return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-      }).format(value);
-    };
+  const formatDocumento = (doc: string) => {
+    // Format CPF/CNPJ
+    if (doc && doc.length === 11) {
+      return doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/g, '$1.$2.$3-$4');
+    }
+    if (doc && doc.length === 14) {
+      return doc.replace(
+        /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/g,
+        '$1.$2.$3/$4-$5'
+      );
+    }
+    return doc;
+  };
 
-    const formatDocumento = (doc: string) => {
-      // Format CPF/CNPJ
-      if (doc && doc.length === 11) {
-        return doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/g, '$1.$2.$3-$4');
-      }
-      if (doc && doc.length === 14) {
-        return doc.replace(
-          /(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/g,
-          '$1.$2.$3/$4-$5'
-        );
-      }
-      return doc;
-    };
+  const isReembolso = data.receipt_type === 'reembolso';
 
-    const isReembolso = data.receipt_type === 'reembolso';
-
-    return (
-      <Document ref={ref}>
+  return (
+    <Document>
         <Page size="A4" style={styles.page}>
           {/* Header */}
           <View style={styles.header}>
@@ -411,11 +408,8 @@ export const ReciboDocument = React.forwardRef(
                 cache={false}
               />
             </View>
-          </View>
-        </Page>
-      </Document>
-    );
-  }
-);
-
-ReciboDocument.displayName = 'ReciboDocument';
+        </View>
+      </Page>
+    </Document>
+  );
+};
