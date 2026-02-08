@@ -512,6 +512,8 @@ export function DynamicLogbookForm({
             borrower_client_id: selectedBorrowerClient, // Cliente que está usando a aeronave
             hours_borrowed: totalBlockTime,
             entry_date: format(date!, 'yyyy-MM-dd'),
+            departure_aerodrome: formData.departure_airport,
+            arrival_aerodrome: formData.arrival_airport,
             logbook_entry_id: insertedEntry.id,
             status: 'active',
             notes: `Empréstimo registrado via diário de bordo - ${formData.departure_airport} → ${formData.arrival_airport}`,

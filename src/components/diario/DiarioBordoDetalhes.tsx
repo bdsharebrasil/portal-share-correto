@@ -1098,6 +1098,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             borrower_client_id: newEntry.borrower_client_id, // Cliente que usa
             hours_borrowed: newEntry.total_time,
             entry_date: newEntry.entry_date,
+            departure_aerodrome: newEntry.departure_aerodrome,
+            arrival_aerodrome: newEntry.arrival_aerodrome,
             logbook_entry_id: insertedEntry.id,
             status: 'active',
             notes: `Empréstimo registrado via diário de bordo - ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}${newEntry.partner_name ? ` | Cotista: ${newEntry.partner_name}` : ''}${newEntry.borrower_partner_name ? ` | Usado por: ${newEntry.borrower_partner_name}` : ''}`,

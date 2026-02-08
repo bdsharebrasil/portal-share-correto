@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useVencimentosSync } from '@/contexts/VencimentosSyncContext';
-import { Search, Wrench, AlertCircle, AlertTriangle, CheckCircle, Plus, Calendar, Zap, AlertTriangle as Warning, Edit, Trash2, Eye } from 'lucide-react';
+import { Search, Wrench, AlertCircle, AlertTriangle, CheckCircle, Plus, Calendar, Zap, AlertTriangle as Warning, Edit, Trash2, Eye, Clock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -109,10 +109,10 @@ export default function ManutencaoAeronave() {
           id: m.id,
           aeronaveId: m.aeronave_id,
           aeronaveRegistro: aircraft?.registration || '-',
-          tipo: m.tipo === 'preventiva' ? 'preventiva' : 'corretiva',
+          tipo: (m.tipo === 'preventiva' ? 'preventiva' : 'corretiva') as 'preventiva' | 'corretiva',
           subtipo: m.vencimento_horas === 50 ? 'preventiva_50h' : m.vencimento_horas === 100 ? 'preventiva_100h' : m.tipo,
           descricao: m.descricao || m.tipo,
-          statusExecutado: m.etapa,
+          statusExecutado: m.etapa as 'pendente' | 'em_andamento' | 'concluida' | 'cancelada',
           dataProximaManutencao: m.data_programada,
           horasProximaManutencao: m.vencimento_horas,
           horasAtuais: currentHours,
@@ -123,7 +123,7 @@ export default function ManutencaoAeronave() {
         };
       });
 
-      setManutencoes(manutencoesList);
+      setManutencoes(manutencoesList as ManutencaoItem[]);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       setNotification({
@@ -204,7 +204,7 @@ export default function ManutencaoAeronave() {
   const stats = useMemo(() => ({
     preventivas: manutencoes.filter(m => m.tipo === 'preventiva').length,
     corretivas: manutencoes.filter(m => m.tipo === 'corretiva').length,
-    pendentes: manutencoes.filter(m => m.statusExecutado === 'pendente' || m.statusExecutado === 'aguardando').length,
+    pendentes: manutencoes.filter(m => m.statusExecutado === 'pendente').length,
     emAndamento: manutencoes.filter(m => m.statusExecutado === 'em_andamento').length,
     concluidas: manutencoes.filter(m => m.statusExecutado === 'concluida').length
   }), [manutencoes]);

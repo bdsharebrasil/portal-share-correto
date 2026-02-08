@@ -56,7 +56,8 @@ export function VencimentosSyncProvider({ children }: { children: React.ReactNod
             type: payload.eventType === 'INSERT' ? 'create' : payload.eventType === 'UPDATE' ? 'update' : 'delete',
             entityType: 'crew_license',
             entityId: payload.new?.id || payload.old?.id,
-            data: payload.new || payload.old
+            data: payload.new || payload.old,
+            timestamp: Date.now()
           });
         }
       )
@@ -72,7 +73,8 @@ export function VencimentosSyncProvider({ children }: { children: React.ReactNod
             type: payload.eventType === 'INSERT' ? 'create' : payload.eventType === 'UPDATE' ? 'update' : 'delete',
             entityType: 'flight_document',
             entityId: payload.new?.id || payload.old?.id,
-            data: payload.new || payload.old
+            data: payload.new || payload.old,
+            timestamp: Date.now()
           });
         }
       )
@@ -88,7 +90,8 @@ export function VencimentosSyncProvider({ children }: { children: React.ReactNod
             type: payload.eventType === 'INSERT' ? 'create' : payload.eventType === 'UPDATE' ? 'update' : 'delete',
             entityType: 'manutencao',
             entityId: payload.new?.id || payload.old?.id,
-            data: payload.new || payload.old
+            data: payload.new || payload.old,
+            timestamp: Date.now()
           });
         }
       )

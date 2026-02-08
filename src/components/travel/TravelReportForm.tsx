@@ -397,7 +397,7 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
             aircraft_id: formData.aeronave,
             status: 'pendente',
             prazo_pagamento: null,
-            created_by: null
+            criado_por: ''
           }]);
 
         if (reconciliationError) {

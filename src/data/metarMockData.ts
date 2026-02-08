@@ -1,4 +1,17 @@
-import { type METARData } from '@/hooks/useAviationWeather';
+// METARData type for fallback data
+interface METARData {
+  temp: number;
+  dewp: number;
+  wdir: number;
+  wspd: number;
+  wgst: number;
+  visib: number;
+  altim: number;
+  rawOb: string;
+  flightCategory: 'VFR' | 'MVFR' | 'IFR' | 'LIFR';
+  updatedTime: string;
+  source: string;
+}
 
 // Mock data for Brazilian airports - realistic METAR data
 // This is used as fallback when API is unavailable

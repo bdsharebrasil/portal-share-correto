@@ -56,7 +56,7 @@ export function useWeather(defaultIcao: string = 'SBGR') {
       // Validação: checar se há erro no response do backend
       if ('error' in data) {
         console.error('[AISWeb METAR] Sem dados METAR para', icao);
-        throw new Error(data.error || 'Dados meteorológicos indisponíveis');
+        throw new Error((data as any).error || 'Dados meteorológicos indisponíveis');
       }
       
       // Validação básica se veio dado vazio
