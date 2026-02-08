@@ -5,7 +5,7 @@ import path from "path";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // Usar variável de ambiente para URL da API, com fallback
-  const apiBaseUrl = import.meta.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev';
+  const apiBaseUrl = process.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev';
 
   return {
     server: {
