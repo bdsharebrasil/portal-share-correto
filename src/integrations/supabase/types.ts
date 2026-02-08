@@ -7695,9 +7695,11 @@ export type Database = {
       notas_fiscais_saida: {
         Row: {
           aeronave: string | null
+          aircraft_id: string | null
           arquivo_pdf_url: string | null
           atualizado_em: string | null
           categoria: string
+          client_id: string | null
           cliente_cnpj: string
           cliente_nome: string
           criado_em: string | null
@@ -7712,9 +7714,11 @@ export type Database = {
         }
         Insert: {
           aeronave?: string | null
+          aircraft_id?: string | null
           arquivo_pdf_url?: string | null
           atualizado_em?: string | null
           categoria: string
+          client_id?: string | null
           cliente_cnpj: string
           cliente_nome: string
           criado_em?: string | null
@@ -7729,9 +7733,11 @@ export type Database = {
         }
         Update: {
           aeronave?: string | null
+          aircraft_id?: string | null
           arquivo_pdf_url?: string | null
           atualizado_em?: string | null
           categoria?: string
+          client_id?: string | null
           cliente_cnpj?: string
           cliente_nome?: string
           criado_em?: string | null
@@ -7842,6 +7848,104 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["aeronave"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "aircraft"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "aircraft_availability"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave_simples"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente_completo"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente_simples"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_reembolsos_pendentes"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "notas_fiscais_saida_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_resumo_cliente_completo"
+            referencedColumns: ["cliente_id"]
           },
         ]
       }
