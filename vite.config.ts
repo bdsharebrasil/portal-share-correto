@@ -1,38 +1,47 @@
-import { defineConfig, loadEnv } from 'vite'
-import react from '@vitejs/plugin-react'
-import path from 'path'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react-swc";
+import path from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  // Carrega as variáveis de ambiente
-  const env = loadEnv(mode, process.cwd(), '')
+  // Usar variável de ambiente para URL da API, com fallback
+  const apiBaseUrl = import.meta.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev';
 
   return {
-    plugins: [react()],
-
+    server: {
+      host: "::",
+      port: 8080,
+      hmr: {
+        // Disable Vite's dev overlay which can fail when serializing certain DOM nodes
+        overlay: false,
+      },
+      middlewareMode: false,
+      proxy: {
+        '/api': {
+          target: apiBaseUrl,
+          changeOrigin: true,
+        },
+      },
+    },
+    plugins: [
+      react(),
+      {
+        name: 'add-permissions-policy',
+        configureServer(server: any) {
+          return () => {
+            server.middlewares.use((req: any, res: any, next: any) => {
+              res.setHeader('Permissions-Policy', 'geolocation=*');
+              res.setHeader('Feature-Policy', 'geolocation *');
+              next();
+            });
+          };
+        },
+      },
+    ].filter(Boolean),
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src'),
+        "@": path.resolve(__dirname, "./src"),
       },
     },
-
-    // Define variáveis globais (opcional - só se necessário)
-    define: {
-      'import.meta.env.VITE_BACKEND_URL': JSON.stringify(
-        env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev'
-      ),
-    },
-
-    // Configuração do servidor de desenvolvimento
-    server: {
-      port: 3000,
-      proxy: {
-        // Opcional: Proxy para desenvolvimento local
-        // '/api': {
-        //   target: env.VITE_BACKEND_URL || 'http://localhost:8787',
-        //   changeOrigin: true,
-        // },
-      },
-    },
-  }
-})
+  };
+});
