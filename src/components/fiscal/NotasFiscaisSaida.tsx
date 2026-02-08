@@ -430,6 +430,7 @@ export function NotasFiscaisSaida() {
       loadRecibos(); // Recarregar recibos também pois NF cria em bank_reconciliations
     } catch (error: any) {
       console.error("Erro ao salvar nota:", error);
+      console.error("Erro completo:", JSON.stringify(error, null, 2));
       const errorMsg = error?.message || "Erro ao salvar nota fiscal";
       toast({
         title: "Erro",
