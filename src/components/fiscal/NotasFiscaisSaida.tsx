@@ -532,6 +532,7 @@ export function NotasFiscaisSaida() {
       numero: "",
       cliente_nome: "",
       cliente_cnpj: "",
+      client_id: "",
       data_criacao: new Date().toISOString().split("T")[0],
       data_vencimento: "",
       valor: "",
