@@ -1,82 +1,39 @@
-/**
- * Configuração Centralizada da API
- * 
- * Este arquivo define a URL base da API e outros parâmetros
- * de configuração que podem variar entre ambientes.
- */
+// src/config/api.ts
 
 /**
- * URL Base da API Backend
- * 
- * - Em desenvolvimento local: http://localhost:3001
- * - Em produção Vercel: https://seu-backend-nome.vercel.app
- * 
- * Configure no arquivo .env.local:
- * VITE_API_BASE_URL=https://seu-backend.vercel.app
+ * Configuração centralizada de URLs da API
  */
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001';
 
-/**
- * URL completa do Supabase
- */
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+// URL base do backend (Workers)
+export const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev';
 
-/**
- * Token público do Supabase
- */
-export const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
+// URL da API do Supabase
+export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
+export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-/**
- * Token da API AVWX
- */
-export const AVWX_TOKEN = import.meta.env.VITE_AVWX_API_TOKEN;
+// Endpoints específicos
+export const API_ENDPOINTS = {
+  health: `${API_BASE_URL}/health`,
+  weather: {
+    metar: (icao: string) => `${API_BASE_URL}/api/weather/metar/${icao}`,
+    taf: (icao: string) => `${API_BASE_URL}/api/weather/taf/${icao}`,
+  },
+  airports: {
+    byIcao: (icao: string) => `${API_BASE_URL}/api/airports/${icao}`,
+    search: (query: string) => `${API_BASE_URL}/api/airports/search?q=${query}`,
+  },
+  flights: {
+    all: `${API_BASE_URL}/flights`,
+    byId: (id: string) => `${API_BASE_URL}/flights/${id}`,
+    active: `${API_BASE_URL}/flights/active/now`,
+    calculations: `${API_BASE_URL}/api/flight-calculations`,
+  },
+} as const;
 
-/**
- * Ambiente da aplicação
- */
-export const APP_ENV = import.meta.env.VITE_APP_ENV || 'development';
-
-/**
- * Função auxiliar para fazer requisições à API
- */
-export const apiFetch = async (
-  endpoint: string,
-  options?: RequestInit
-): Promise<any> => {
-  const url = `${API_BASE_URL}${endpoint}`;
-  
-  console.debug(`[API] ${options?.method || 'GET'} ${url}`);
-  
-  try {
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options?.headers,
-      },
-      ...options,
-    });
-
-    if (!response.ok) {
-      console.error(`[API] Erro ${response.status}: ${response.statusText}`);
-      throw new Error(`API Error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.debug(`[API] ✓ Sucesso`, data);
-    return data;
-  } catch (error) {
-    console.error(`[API] ✗ Falha:`, error);
-    throw error;
-  }
-};
-
-/**
- * Logging de configuração
- */
-if (APP_ENV === 'development') {
-  console.group('🔧 Configuração da API');
-  console.log('API Base URL:', API_BASE_URL);
-  console.log('Supabase URL:', SUPABASE_URL ? '✓' : '✗');
-  console.log('Environment:', APP_ENV);
-  console.groupEnd();
+// Log de configuração (útil para debug)
+if (import.meta.env.DEV) {
+  console.log('📡 API Configuration:', {
+    baseUrl: API_BASE_URL,
+    supabaseUrl: SUPABASE_URL,
+  });
 }

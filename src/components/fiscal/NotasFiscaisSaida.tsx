@@ -123,6 +123,7 @@ interface NotaFiscalSaida {
   numero: string;
   cliente_nome: string;
   cliente_cnpj: string;
+  client_id: string;
   data_criacao: string;
   data_vencimento: string;
   valor: number;
@@ -149,6 +150,7 @@ interface Cliente {
 const validarNotaFiscal = (formData: any): string | null => {
   if (!formData.numero || formData.numero.trim() === "") return "Número da nota fiscal é obrigatório";
   if (!formData.cliente_nome || formData.cliente_nome.trim() === "") return "Cliente/Empresa é obrigatório";
+  if (!formData.client_id || formData.client_id.trim() === "") return "Selecione um cliente válido";
   if (!formData.cliente_cnpj || formData.cliente_cnpj.trim() === "") return "CNPJ/CPF do cliente é obrigatório";
   if (!formData.valor || formData.valor.trim() === "") return "Valor é obrigatório";
 
@@ -158,6 +160,11 @@ const validarNotaFiscal = (formData: any): string | null => {
   if (!formData.data_criacao || formData.data_criacao.trim() === "") return "Data de criação é obrigatória";
   if (!formData.data_vencimento || formData.data_vencimento.trim() === "") return "Data de vencimento é obrigatória";
   if (!formData.categoria || formData.categoria.trim() === "") return "Categoria é obrigatória";
+
+  // Validação de aeronave: se registro foi preenchido, ID deve estar presente
+  if (formData.aeronave_registro && formData.aeronave_registro.trim() !== "" && (!formData.aeronave_id || formData.aeronave_id.trim() === "")) {
+    return "Selecione uma aeronave válida ou limpe o campo de registro";
+  }
 
   const statusValidos = ["pendente", "recebido", "cancelado"];
   if (!statusValidos.includes(formData.status)) return "Status inválido. Valores permitidos: pendente, recebido, cancelado";
@@ -236,6 +243,7 @@ export function NotasFiscaisSaida() {
     numero: "",
     cliente_nome: "",
     cliente_cnpj: "",
+    client_id: "",
     data_criacao: new Date().toISOString().split("T")[0],
     data_vencimento: "",
     valor: "",
@@ -359,11 +367,19 @@ export function NotasFiscaisSaida() {
         return;
       }
 
+      // Debug: Log dos dados antes de salvar
+      console.log("[NotasFiscal] FormData antes de salvar:", {
+        client_id: formData.client_id,
+        cliente_nome: formData.cliente_nome,
+        cliente_cnpj: formData.cliente_cnpj,
+      });
+
       // Preparar dados da NF
       const notaData: any = {
         numero: formData.numero.trim(),
         cliente_nome: formData.cliente_nome.trim(),
         cliente_cnpj: formData.cliente_cnpj.trim(),
+        client_id: formData.client_id,
         data_criacao: formData.data_criacao,
         data_vencimento: formData.data_vencimento,
         valor: parseFloat(formData.valor),
@@ -372,8 +388,11 @@ export function NotasFiscaisSaida() {
         status: formData.status,
         arquivo_pdf_url: pdfUrl || null,
         aeronave: formData.aeronave_registro || null,
+        aircraft_id: formData.aeronave_id || null,
         criado_por: currentUser.id,
       };
+
+      console.log("[NotasFiscal] NotaData preparada para salvar:", notaData);
 
       if (editingNota) {
         const { error } = await supabase
@@ -411,6 +430,7 @@ export function NotasFiscaisSaida() {
       loadRecibos(); // Recarregar recibos também pois NF cria em bank_reconciliations
     } catch (error: any) {
       console.error("Erro ao salvar nota:", error);
+      console.error("Erro completo:", JSON.stringify(error, null, 2));
       const errorMsg = error?.message || "Erro ao salvar nota fiscal";
       toast({
         title: "Erro",
@@ -453,6 +473,7 @@ export function NotasFiscaisSaida() {
       numero: nota.numero,
       cliente_nome: nota.cliente_nome,
       cliente_cnpj: nota.cliente_cnpj,
+      client_id: nota.client_id || "",
       data_criacao: nota.data_criacao,
       data_vencimento: nota.data_vencimento,
       valor: nota.valor.toString(),
@@ -522,6 +543,7 @@ export function NotasFiscaisSaida() {
       numero: "",
       cliente_nome: "",
       cliente_cnpj: "",
+      client_id: "",
       data_criacao: new Date().toISOString().split("T")[0],
       data_vencimento: "",
       valor: "",
@@ -1041,7 +1063,7 @@ export function NotasFiscaisSaida() {
                         <Input
                           value={formData.cliente_nome}
                           onChange={(e) => {
-                            setFormData({ ...formData, cliente_nome: e.target.value });
+                            setFormData({ ...formData, cliente_nome: e.target.value, client_id: "" });
                             setClienteSearch(e.target.value);
                             setOpenClientePopover(true);
                           }}
@@ -1070,8 +1092,10 @@ export function NotasFiscaisSaida() {
                                 <CommandItem
                                   key={c.id}
                                   onSelect={() => {
+                                    console.log("[Cliente Selecionado]", { id: c.id, nome: c.nome, documento: c.documento });
                                     setFormData({
                                       ...formData,
+                                      client_id: c.id,
                                       cliente_nome: c.nome,
                                       cliente_cnpj: c.documento
                                     });
@@ -1096,7 +1120,7 @@ export function NotasFiscaisSaida() {
                   <Label className="text-foreground">CNPJ/CPF *</Label>
                   <Input
                     value={formData.cliente_cnpj}
-                    onChange={(e) => setFormData({ ...formData, cliente_cnpj: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, cliente_cnpj: e.target.value, client_id: "" })}
                     placeholder="00.000.000/0000-00"
                     className="bg-background border-border"
                   />

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { API_ENDPOINTS } from '@/config/api';
 
 // Interface que espelha exatamente o retorno do seu Backend
 export interface MetarResponse {
@@ -29,26 +30,45 @@ export function useWeather(defaultIcao: string = 'SBGR') {
   const [error, setError] = useState<string | null>(null);
 
   const fetchWeather = useCallback(async (icao: string) => {
+    console.log('[METAR AISWeb] 🌐 Buscando dados:', icao);
     setLoading(true);
     setError(null);
+
     try {
-      // Chama a rota do SEU backend
-      const response = await fetch(`/api/weather/metar/${icao}`);
+      // Usa a configuração centralizada
+      const url = API_ENDPOINTS.weather.metar(icao);
+      
+      console.log('[AISWeb METAR] Buscando dados para', icao);
+      console.log('[AISWeb METAR] URL:', url);
+      
+      const response = await fetch(url);
       
       if (!response.ok) {
-        throw new Error(`Erro: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[AISWeb METAR] Erro na resposta:', errorData);
+        throw new Error(errorData.error || `Erro: ${response.statusText}`);
       }
 
       const data: MetarResponse = await response.json();
       
+      console.log('[AISWeb METAR] Dados recebidos:', data);
+      
+      // Validação: checar se há erro no response do backend
+      if ('error' in data) {
+        console.error('[AISWeb METAR] Sem dados METAR para', icao);
+        throw new Error(data.error || 'Dados meteorológicos indisponíveis');
+      }
+      
       // Validação básica se veio dado vazio
       if (!data || !data.rawOb) {
+        console.error('[AISWeb METAR] Sem dados METAR para', icao);
         throw new Error("Dados meteorológicos indisponíveis.");
       }
 
+      console.log('[METAR AISWeb] ✅ Dados carregados com sucesso');
       setWeather(data);
     } catch (err: any) {
-      console.error("Erro ao buscar clima:", err);
+      console.error('[METAR AISWeb] ❌ Erro ao buscar clima:', err);
       setError(err.message || "Erro desconhecido");
       setWeather(null);
     } finally {
