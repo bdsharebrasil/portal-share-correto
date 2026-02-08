@@ -33,7 +33,7 @@ export function useWeather(defaultIcao: string = 'SBGR') {
     setError(null);
     try {
       // Chama a rota do SEU backend
-      const response = await fetch(`/api/weather/metar/${icao}`);
+      const response = await fetch(`${VITE_BACKEND_URL}/api/weather/metar/${icao}`);
       
       if (!response.ok) {
         throw new Error(`Erro: ${response.statusText}`);
