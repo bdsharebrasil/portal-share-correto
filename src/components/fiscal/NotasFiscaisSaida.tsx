@@ -367,6 +367,13 @@ export function NotasFiscaisSaida() {
         return;
       }
 
+      // Debug: Log dos dados antes de salvar
+      console.log("[NotasFiscal] FormData antes de salvar:", {
+        client_id: formData.client_id,
+        cliente_nome: formData.cliente_nome,
+        cliente_cnpj: formData.cliente_cnpj,
+      });
+
       // Preparar dados da NF
       const notaData: any = {
         numero: formData.numero.trim(),
@@ -384,6 +391,8 @@ export function NotasFiscaisSaida() {
         aircraft_id: formData.aeronave_id || null,
         criado_por: currentUser.id,
       };
+
+      console.log("[NotasFiscal] NotaData preparada para salvar:", notaData);
 
       if (editingNota) {
         const { error } = await supabase
