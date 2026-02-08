@@ -123,6 +123,7 @@ interface NotaFiscalSaida {
   numero: string;
   cliente_nome: string;
   cliente_cnpj: string;
+  client_id: string;
   data_criacao: string;
   data_vencimento: string;
   valor: number;
