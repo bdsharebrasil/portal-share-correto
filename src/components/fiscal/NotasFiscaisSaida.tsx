@@ -1092,6 +1092,7 @@ export function NotasFiscaisSaida() {
                                 <CommandItem
                                   key={c.id}
                                   onSelect={() => {
+                                    console.log("[Cliente Selecionado]", { id: c.id, nome: c.nome, documento: c.documento });
                                     setFormData({
                                       ...formData,
                                       client_id: c.id,
