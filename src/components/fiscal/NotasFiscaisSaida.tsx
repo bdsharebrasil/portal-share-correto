@@ -123,7 +123,7 @@ interface NotaFiscalSaida {
   numero: string;
   cliente_nome: string;
   cliente_cnpj: string;
-  client_id: string;
+  client_id: string | null;
   data_criacao: string;
   data_vencimento: string;
   valor: number;
@@ -302,7 +302,7 @@ export function NotasFiscaisSaida() {
         .order("data_criacao", { ascending: false });
 
       if (error) throw error;
-      setNotas(data || []);
+      setNotas((data || []) as NotaFiscalSaida[]);
     } catch (error) {
       console.error("Erro ao carregar notas:", error);
       toast({
