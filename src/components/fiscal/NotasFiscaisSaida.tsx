@@ -1109,7 +1109,7 @@ export function NotasFiscaisSaida() {
                   <Label className="text-foreground">CNPJ/CPF *</Label>
                   <Input
                     value={formData.cliente_cnpj}
-                    onChange={(e) => setFormData({ ...formData, cliente_cnpj: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, cliente_cnpj: e.target.value, client_id: "" })}
                     placeholder="00.000.000/0000-00"
                     className="bg-background border-border"
                   />
