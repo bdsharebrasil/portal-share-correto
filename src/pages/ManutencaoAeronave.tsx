@@ -109,10 +109,10 @@ export default function ManutencaoAeronave() {
           id: m.id,
           aeronaveId: m.aeronave_id,
           aeronaveRegistro: aircraft?.registration || '-',
-          tipo: (m.tipo === 'preventiva' ? 'preventiva' : 'corretiva') as 'preventiva' | 'corretiva',
+          tipo: m.tipo === 'preventiva' ? 'preventiva' : 'corretiva',
           subtipo: m.vencimento_horas === 50 ? 'preventiva_50h' : m.vencimento_horas === 100 ? 'preventiva_100h' : m.tipo,
           descricao: m.descricao || m.tipo,
-          statusExecutado: m.etapa as 'pendente' | 'em_andamento' | 'concluida' | 'cancelada',
+          statusExecutado: (['pendente', 'em_andamento', 'concluida', 'cancelada'].includes(m.etapa) ? m.etapa : 'pendente') as 'pendente' | 'em_andamento' | 'concluida' | 'cancelada',
           dataProximaManutencao: m.data_programada,
           horasProximaManutencao: m.vencimento_horas,
           horasAtuais: currentHours,
@@ -120,10 +120,10 @@ export default function ManutencaoAeronave() {
           observacoes: m.observacoes,
           custoPrevisto: m.custo_estimado,
           createdAt: m.created_at
-        };
+        } as ManutencaoItem;
       });
 
-      setManutencoes(manutencoesList as ManutencaoItem[]);
+      setManutencoes(manutencoesList);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       setNotification({

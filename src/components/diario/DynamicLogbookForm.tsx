@@ -504,16 +504,16 @@ export function DynamicLogbookForm({
 
       // Se for empréstimo, registrar na tabela aircraft_loans E no banco de horas (hour_transactions)
       if (flightCategory === 'emprestimo' && insertedEntry) {
-        // 1. Registrar na tabela aircraft_loans
+        // Registrar na tabela aircraft_loans
         const { error: loanError } = await supabase.from('aircraft_loans').insert([
           {
             lender_aircraft_id: aircraftId,
-            lender_client_id: selectedClient, // Cotista que está emprestando
-            borrower_client_id: selectedBorrowerClient, // Cliente que está usando a aeronave
+            lender_client_id: selectedClient,
+            borrower_client_id: selectedBorrowerClient,
             hours_borrowed: totalBlockTime,
             entry_date: format(date!, 'yyyy-MM-dd'),
-            departure_aerodrome: formData.departure_airport,
-            arrival_aerodrome: formData.arrival_airport,
+            departure_aerodrome: formData.departure_airport || '',
+            arrival_aerodrome: formData.arrival_airport || '',
             logbook_entry_id: insertedEntry.id,
             status: 'active',
             notes: `Empréstimo registrado via diário de bordo - ${formData.departure_airport} → ${formData.arrival_airport}`,
