@@ -372,7 +372,7 @@ export function NotasFiscaisSaida() {
         numero: formData.numero.trim(),
         cliente_nome: formData.cliente_nome.trim(),
         cliente_cnpj: formData.cliente_cnpj.trim(),
-        client_id: formData.client_id || null,
+        client_id: formData.client_id,
         data_criacao: formData.data_criacao,
         data_vencimento: formData.data_vencimento,
         valor: parseFloat(formData.valor),
