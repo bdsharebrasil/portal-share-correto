@@ -1053,7 +1053,7 @@ export function NotasFiscaisSaida() {
                         <Input
                           value={formData.cliente_nome}
                           onChange={(e) => {
-                            setFormData({ ...formData, cliente_nome: e.target.value });
+                            setFormData({ ...formData, cliente_nome: e.target.value, client_id: "" });
                             setClienteSearch(e.target.value);
                             setOpenClientePopover(true);
                           }}
