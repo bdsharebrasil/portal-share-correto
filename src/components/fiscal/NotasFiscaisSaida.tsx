@@ -344,101 +344,129 @@ export function NotasFiscaisSaida() {
     }
   };
 
-  const handleSave = async () => {
-    const erroValidacao = validarNotaFiscal(formData);
-    if (erroValidacao) {
+  
+const handleSave = async () => {
+  const erroValidacao = validarNotaFiscal(formData);
+  if (erroValidacao) {
+    toast({
+      title: "Validação",
+      description: erroValidacao,
+      variant: "destructive",
+    });
+    return;
+  }
+
+  try {
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+    if (!currentUser) {
       toast({
-        title: "Validação",
-        description: erroValidacao,
+        title: "Erro",
+        description: "Usuário não autenticado",
         variant: "destructive",
       });
       return;
     }
 
-    try {
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
+    // Debug: Log dos dados antes de salvar
+    console.log("[NotasFiscal] FormData antes de salvar:", {
+      client_id: formData.client_id,
+      cliente_nome: formData.cliente_nome,
+      cliente_cnpj: formData.cliente_cnpj,
+      categoria_id: formData.categoria,
+    });
 
-      if (!currentUser) {
-        toast({
-          title: "Erro",
-          description: "Usuário não autenticado",
-          variant: "destructive",
-        });
-        return;
-      }
+    // **BUSCAR O NOME DA CATEGORIA PRIMEIRO** ← NOVA FUNCIONALIDADE
+    const { data: categoriaData, error: categoriaError } = await supabase
+      .from("categorias_movimentacao")
+      .select("nome, grupo_categoria")
+      .eq("id", formData.categoria)
+      .single();
 
-      // Debug: Log dos dados antes de salvar
-      console.log("[NotasFiscal] FormData antes de salvar:", {
-        client_id: formData.client_id,
-        cliente_nome: formData.cliente_nome,
-        cliente_cnpj: formData.cliente_cnpj,
-      });
-
-      // Preparar dados da NF
-      const notaData: any = {
-        numero: formData.numero.trim(),
-        cliente_nome: formData.cliente_nome.trim(),
-        cliente_cnpj: formData.cliente_cnpj.trim(),
-        client_id: formData.client_id,
-        data_criacao: formData.data_criacao,
-        data_vencimento: formData.data_vencimento,
-        valor: parseFloat(formData.valor),
-        categoria: formData.categoria,
-        descricao: formData.descricao || null,
-        status: formData.status,
-        arquivo_pdf_url: pdfUrl || null,
-        aeronave: formData.aeronave_registro || null,
-        aircraft_id: formData.aeronave_id || null,
-        criado_por: currentUser.id,
-      };
-
-      console.log("[NotasFiscal] NotaData preparada para salvar:", notaData);
-
-      if (editingNota) {
-        const { error } = await supabase
-          .from("notas_fiscais_saida")
-          .update({
-            ...notaData,
-            atualizado_em: new Date().toISOString(),
-          })
-          .eq("id", editingNota.id);
-
-        if (error) throw error;
-
-        toast({
-          title: "Sucesso",
-          description: "Nota fiscal atualizada com sucesso",
-        });
-      } else {
-        // INSERIR NF (triggers vão criar em controle_bancario e contas_areceber)
-        const { error } = await supabase
-          .from("notas_fiscais_saida")
-          .insert([notaData])
-          .select();
-
-        if (error) throw error;
-
-        toast({
-          title: "Sucesso",
-          description: "Nota fiscal criada com sucesso",
-        });
-      }
-
-      setOpenDialog(false);
-      resetForm();
-      loadNotas();
-      loadRecibos(); // Recarregar recibos também pois NF cria em bank_reconciliations
-    } catch (error: any) {
-      console.error("Erro ao salvar nota:", error);
-      console.error("Erro completo:", JSON.stringify(error, null, 2));
-      const errorMsg = error?.message || "Erro ao salvar nota fiscal";
+    if (categoriaError) {
+      console.error("Erro ao buscar categoria:", categoriaError);
       toast({
         title: "Erro",
-        description: errorMsg,
+        description: "Erro ao buscar informações da categoria",
         variant: "destructive",
       });
+      return;
     }
-  };
+
+    const categoriaNome = categoriaData?.nome?.trim() || "NF de Saída";
+    const grupoCategoria = categoriaData?.grupo_categoria || null;
+
+    console.log("[NotasFiscal] Categoria encontrada:", {
+      id: formData.categoria,
+      nome: categoriaNome,
+      grupo: grupoCategoria
+    });
+
+    // Preparar dados da NF
+    const notaData: any = {
+      numero: formData.numero.trim(),
+      cliente_nome: formData.cliente_nome.trim(),
+      cliente_cnpj: formData.cliente_cnpj.trim(),
+      client_id: formData.client_id,
+      data_criacao: formData.data_criacao,
+      data_vencimento: formData.data_vencimento,
+      valor: parseFloat(formData.valor),
+      categoria: categoriaNome,  // ← MUDANÇA PRINCIPAL: USA O NOME, NÃO O ID
+      descricao: formData.descricao || null,
+      status: formData.status,
+      arquivo_pdf_url: pdfUrl || null,
+      aeronave: formData.aeronave_registro || null,
+      aircraft_id: formData.aeronave_id || null,
+      criado_por: currentUser.id,
+    };
+
+    console.log("[NotasFiscal] NotaData preparada para salvar:", notaData);
+
+    if (editingNota) {
+      const { error } = await supabase
+        .from("notas_fiscais_saida")
+        .update({
+          ...notaData,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("id", editingNota.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Nota fiscal atualizada com sucesso",
+      });
+    } else {
+      // INSERIR NF (triggers vão criar em controle_bancario e contas_areceber)
+      const { error } = await supabase
+        .from("notas_fiscais_saida")
+        .insert([notaData])
+        .select();
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso",
+        description: "Nota fiscal criada com sucesso",
+      });
+    }
+
+    setOpenDialog(false);
+    resetForm();
+    loadNotas();
+    loadRecibos(); // Recarregar recibos também pois NF cria em bank_reconciliations
+  } catch (error: any) {
+    console.error("Erro ao salvar nota:", error);
+    console.error("Erro completo:", JSON.stringify(error, null, 2));
+    const errorMsg = error?.message || "Erro ao salvar nota fiscal";
+    toast({
+      title: "Erro",
+      description: errorMsg,
+      variant: "destructive",
+      });
+  }
+};
 
   const handleDelete = async () => {
     if (!deleteId) return;
