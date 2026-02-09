@@ -17,21 +17,13 @@ export function useFlightCycles() {
         .select(`
           *,
           client:clients(company_name, proprietario),
-          partner_fk:client_partners(name),
           aircraft:aircraft(registration, model),
           expenses:flight_expenses(*)
         `)
         .order('flight_date', { ascending: false });
 
       if (error) throw error;
-
-      // Populate partner_name from partner object
-      const processedData = (data || []).map((cycle: any) => ({
-        ...cycle,
-        partner_name: cycle.partner_fk?.name || null,
-      }));
-
-      setCycles(processedData as FlightCycle[]);
+      setCycles((data || []) as FlightCycle[]);
     } catch (err: any) {
       setError(err.message);
       console.error('Error fetching flight cycles:', err);
