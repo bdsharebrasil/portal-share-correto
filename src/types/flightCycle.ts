@@ -47,6 +47,7 @@ export interface FlightCycle {
   observations: string | null;
   pic_name: string | null;
   sic_name: string | null;
+  partner_name: string | null;
   created_at: string;
   updated_at: string;
   started_at: string | null;
@@ -55,7 +56,6 @@ export interface FlightCycle {
   // Joined data
   client?: { company_name: string; proprietario: string };
   partner?: { name: string };
-  partner_name?: string;
   aircraft?: { registration: string; model: string };
   expenses?: FlightExpense[];
 }
