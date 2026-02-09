@@ -2,8 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const DGA_CLIENT_ID = "738850b2-d19c-496b-b2d3-35ecc64bd862";
-
+// Interfaces mantidas
 export interface PartnerAccount {
   id: string;
   client_id: string;
@@ -56,34 +55,45 @@ export interface PartnerExpense {
   created_at: string;
 }
 
-export function useDGAAccounts() {
+// --- HOOKS DE LEITURA (QUERIES) ---
+
+export function useSocioAccounts(clientId: string | null) {
   return useQuery({
-    queryKey: ["dga-partner-accounts"],
+    queryKey: ["partner-accounts", clientId], // A chave muda por cliente
     queryFn: async () => {
+      if (!clientId) return [];
+      
       const { data, error } = await supabase
         .from("partner_accounts")
         .select("*")
-        .eq("client_id", DGA_CLIENT_ID)
+        .eq("client_id", clientId)
         .order("partner_name");
+      
       if (error) throw error;
       return (data || []) as PartnerAccount[];
     },
+    enabled: !!clientId, // Só busca se tiver cliente selecionado
   });
 }
 
-export function useDGATransactions(filters?: {
-  partnerCpf?: string;
-  startDate?: string;
-  endDate?: string;
-  type?: string;
-}) {
+export function useSocioTransactions(
+  clientId: string | null,
+  filters?: {
+    partnerCpf?: string;
+    startDate?: string;
+    endDate?: string;
+    type?: string;
+  }
+) {
   return useQuery({
-    queryKey: ["dga-partner-transactions", filters],
+    queryKey: ["partner-transactions", clientId, filters],
     queryFn: async () => {
+      if (!clientId) return [];
+
       let query = supabase
         .from("partner_transactions")
         .select("*")
-        .eq("client_id", DGA_CLIENT_ID)
+        .eq("client_id", clientId)
         .order("created_at", { ascending: false });
 
       if (filters?.partnerCpf) query = query.eq("partner_cpf", filters.partnerCpf);
@@ -95,21 +105,27 @@ export function useDGATransactions(filters?: {
       if (error) throw error;
       return (data || []) as PartnerTransaction[];
     },
+    enabled: !!clientId,
   });
 }
 
-export function useDGAExpenses(filters?: {
-  status?: string;
-  partnerCpf?: string;
-  type?: string;
-}) {
+export function useSocioExpenses(
+  clientId: string | null,
+  filters?: {
+    status?: string;
+    partnerCpf?: string;
+    type?: string;
+  }
+) {
   return useQuery({
-    queryKey: ["dga-partner-expenses", filters],
+    queryKey: ["partner-expenses", clientId, filters],
     queryFn: async () => {
+      if (!clientId) return [];
+
       let query = supabase
         .from("partner_expenses")
         .select("*")
-        .eq("client_id", DGA_CLIENT_ID)
+        .eq("client_id", clientId)
         .order("created_at", { ascending: false });
 
       if (filters?.status) query = query.eq("status", filters.status);
@@ -120,14 +136,18 @@ export function useDGAExpenses(filters?: {
       if (error) throw error;
       return (data || []) as PartnerExpense[];
     },
+    enabled: !!clientId,
   });
 }
+
+// --- HOOKS DE ESCRITA (MUTATIONS) ---
 
 export function useAddDeposit() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (data: {
+      clientId: string; // Obrigatório passar o ID do cliente
       partnerCpf: string;
       partnerName: string;
       amount: number;
@@ -139,9 +159,10 @@ export function useAddDeposit() {
       const { data: account, error: accErr } = await supabase
         .from("partner_accounts")
         .select("current_balance, total_deposited")
-        .eq("client_id", DGA_CLIENT_ID)
+        .eq("client_id", data.clientId)
         .eq("partner_cpf", data.partnerCpf)
         .single();
+      
       if (accErr) throw accErr;
 
       const balanceBefore = Number(account.current_balance);
@@ -151,7 +172,7 @@ export function useAddDeposit() {
       const { error: txErr } = await supabase
         .from("partner_transactions")
         .insert({
-          client_id: DGA_CLIENT_ID,
+          client_id: data.clientId,
           partner_cpf: data.partnerCpf,
           partner_name: data.partnerName,
           transaction_type: "deposit",
@@ -171,13 +192,16 @@ export function useAddDeposit() {
           current_balance: balanceAfter,
           total_deposited: Number(account.total_deposited) + data.amount,
         })
-        .eq("client_id", DGA_CLIENT_ID)
+        .eq("client_id", data.clientId)
         .eq("partner_cpf", data.partnerCpf);
       if (updErr) throw updErr;
+
+      return data.clientId; // Retorna para usar no onSuccess
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["dga-partner-accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["dga-partner-transactions"] });
+    onSuccess: (clientId) => {
+      // Invalida as queries específicas daquele cliente
+      queryClient.invalidateQueries({ queryKey: ["partner-accounts", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
       toast.success("Depósito registrado com sucesso!");
     },
     onError: (err: any) => {
@@ -191,6 +215,7 @@ export function usePayExpense() {
 
   return useMutation({
     mutationFn: async (data: {
+      clientId: string; // Obrigatório
       expenseId: string;
       partnerCpf: string;
       partnerName: string;
@@ -201,7 +226,7 @@ export function usePayExpense() {
       const { data: account, error: accErr } = await supabase
         .from("partner_accounts")
         .select("current_balance, total_spent")
-        .eq("client_id", DGA_CLIENT_ID)
+        .eq("client_id", data.clientId)
         .eq("partner_cpf", data.partnerCpf)
         .single();
       if (accErr) throw accErr;
@@ -217,7 +242,7 @@ export function usePayExpense() {
       const { error: txErr } = await supabase
         .from("partner_transactions")
         .insert({
-          client_id: DGA_CLIENT_ID,
+          client_id: data.clientId,
           partner_cpf: data.partnerCpf,
           partner_name: data.partnerName,
           transaction_type: "payment",
@@ -238,7 +263,7 @@ export function usePayExpense() {
           current_balance: balanceAfter,
           total_spent: Number(account.total_spent) + data.amount,
         })
-        .eq("client_id", DGA_CLIENT_ID)
+        .eq("client_id", data.clientId)
         .eq("partner_cpf", data.partnerCpf);
       if (updErr) throw updErr;
 
@@ -253,11 +278,13 @@ export function usePayExpense() {
         })
         .eq("id", data.expenseId);
       if (expErr) throw expErr;
+
+      return data.clientId;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["dga-partner-accounts"] });
-      queryClient.invalidateQueries({ queryKey: ["dga-partner-transactions"] });
-      queryClient.invalidateQueries({ queryKey: ["dga-partner-expenses"] });
+    onSuccess: (clientId) => {
+      queryClient.invalidateQueries({ queryKey: ["partner-accounts", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["partner-expenses", clientId] });
       toast.success("Pagamento registrado com sucesso!");
     },
     onError: (err: any) => {
@@ -271,6 +298,7 @@ export function useCreateExpense() {
 
   return useMutation({
     mutationFn: async (data: {
+      clientId: string; // Obrigatório
       expenseType: string;
       description: string;
       totalAmount: number;
@@ -280,7 +308,7 @@ export function useCreateExpense() {
       notes?: string;
     }) => {
       const { error } = await supabase.from("partner_expenses").insert({
-        client_id: DGA_CLIENT_ID,
+        client_id: data.clientId,
         expense_type: data.expenseType,
         description: data.description,
         total_amount: data.totalAmount,
@@ -291,9 +319,11 @@ export function useCreateExpense() {
         status: "pending",
       });
       if (error) throw error;
+      
+      return data.clientId;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["dga-partner-expenses"] });
+    onSuccess: (clientId) => {
+      queryClient.invalidateQueries({ queryKey: ["partner-expenses", clientId] });
       toast.success("Despesa criada com sucesso!");
     },
     onError: (err: any) => {
@@ -301,8 +331,6 @@ export function useCreateExpense() {
     },
   });
 }
-
-export const DGA_CLIENT_ID_CONST = DGA_CLIENT_ID;
 
 export const EXPENSE_TYPES = [
   { value: "combustivel", label: "Combustível" },
