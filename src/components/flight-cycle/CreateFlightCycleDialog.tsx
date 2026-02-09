@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { FlightCycle, CrewMember } from "@/types/flightCycle";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { formatFlightDuration, parseFlightDuration } from "@/lib/duration-utils";
 import { useCrewMembers } from "@/hooks/useCrewMembers";
 
 interface CreateFlightCycleDialogProps {
