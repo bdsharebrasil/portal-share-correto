@@ -10,6 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { format, differenceInDays, isPast, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { formatFlightDuration, parseFlightDuration } from "@/lib/duration-utils";
 import { AddExpenseDialog } from "./AddExpenseDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useCrewMembers } from "@/hooks/useCrewMembers";
@@ -30,14 +31,6 @@ interface ClientPartner {
   id: string;
   name: string;
 }
-
-// Utility function to convert decimal hours to HH:MM format
-const formatFlightDuration = (hours: number | null | undefined): string => {
-  if (!hours && hours !== 0) return '';
-  const wholeHours = Math.floor(hours);
-  const minutes = Math.round((hours - wholeHours) * 60);
-  return `${String(wholeHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-};
 
 interface FlightCycleDetailProps {
   cycle: FlightCycle;
