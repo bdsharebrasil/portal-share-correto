@@ -298,14 +298,9 @@ export function FlightCycleDetail({
                     if (value === '') {
                       setEditData(prev => ({ ...prev, flight_duration_hours: '' }));
                     } else {
-                      const parts = value.split(':');
-                      if (parts.length === 2) {
-                        const hours = parseInt(parts[0], 10);
-                        const minutes = parseInt(parts[1], 10);
-                        if (!isNaN(hours) && !isNaN(minutes)) {
-                          const totalHours = hours + (minutes / 60);
-                          setEditData(prev => ({ ...prev, flight_duration_hours: totalHours.toString() }));
-                        }
+                      const parsed = parseFlightDuration(value);
+                      if (parsed !== null) {
+                        setEditData(prev => ({ ...prev, flight_duration_hours: parsed.toString() }));
                       }
                     }
                   }}
