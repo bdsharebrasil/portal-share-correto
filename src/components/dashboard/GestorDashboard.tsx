@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Plane, AlertTriangle, ArrowRight, BarChart3, Clock, FileText, PieChart, ArrowLeft } from "lucide-react";
+import { Users, Plane, AlertTriangle, ArrowRight, BarChart3, Clock, FileText, PieChart, ArrowLeft, DollarSign } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
