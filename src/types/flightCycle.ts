@@ -31,6 +31,7 @@ export type ExpenseCategory = 'imediata' | 'regulatoria' | 'variavel';
 export interface FlightCycle {
   id: string;
   client_id: string | null;
+  partner_id: string | null;
   aircraft_id: string | null;
   origin_icao: string;
   destination_icao: string;
@@ -53,6 +54,8 @@ export interface FlightCycle {
   finalized_at: string | null;
   // Joined data
   client?: { company_name: string; proprietario: string };
+  partner?: { name: string };
+  partner_name?: string;
   aircraft?: { registration: string; model: string };
   expenses?: FlightExpense[];
 }
