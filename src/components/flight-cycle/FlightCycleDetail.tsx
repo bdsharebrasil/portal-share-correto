@@ -131,6 +131,7 @@ export function FlightCycleDetail({
     try {
       await onUpdateCycle(cycle.id, {
         client_id: editData.client_id || null,
+        partner_id: editData.partner_id || null,
         origin_icao: editData.origin_icao,
         destination_icao: editData.destination_icao,
         flight_duration_hours: editData.flight_duration_hours ? parseFloat(editData.flight_duration_hours) : null,
