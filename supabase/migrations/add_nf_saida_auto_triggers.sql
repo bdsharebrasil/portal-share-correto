@@ -120,7 +120,7 @@ BEGIN
     ) VALUES (
       'cliente',
       NEW.data_criacao,
-      'NF Saída ' || NEW.numero || ' - ' || NEW.cliente_nome || 
+      COALESCE(NEW.descricao, 'NF Saída ' || NEW.numero || ' - ' || NEW.cliente_nome) ||
       CASE WHEN NEW.aeronave IS NOT NULL THEN ' (' || NEW.aeronave || ')' ELSE '' END,
       NEW.valor,
       v_status_br,
