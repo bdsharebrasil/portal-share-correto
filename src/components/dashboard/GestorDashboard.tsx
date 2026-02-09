@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Plane, AlertTriangle, ArrowRight, BarChart3, Clock, FileText, PieChart, ArrowLeft } from "lucide-react";
+import { Users, Plane, AlertTriangle, ArrowRight, BarChart3, Clock, FileText, PieChart, ArrowLeft, DollarSign } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +49,7 @@ export function GestorDashboard() {
     { icon: Plane, label: "Controle de Aeronaves", route: "/aeronaves", textColor: "text-cyan-400", grid: 2 },
     { icon: PieChart, label: "Balanço Clientes", route: "/financeiro/balanco-cliente", textColor: "text-indigo-400", grid: 2 },
     { icon: BarChart3, label: "Dashboard Gestor", route: "/financeiro/gestor", color: "from-orange-500 to-orange-600", restricted: true, grid: 3 },
+    { icon: DollarSign, label: "Financeiro Sócios", route: "/financeiro/dga", color: "from-purple-500 to-purple-600", restricted: true, grid: 3 },
   ];
 
   const quickTools = allQuickTools.filter(tool => !tool.restricted || isAdmin || isGestorMaster);
@@ -186,8 +187,8 @@ export function GestorDashboard() {
             ))}
           </div>
 
-          {/* Grid 3: Dashboard Gestor */}
-          <div className="grid grid-cols-1 gap-4">
+          {/* Grid 3: Dashboard Gestor e Financeiro Sócios */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {grid3Tools.map((tool) => (
               <button
                 key={tool.label}
