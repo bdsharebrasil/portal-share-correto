@@ -18,7 +18,7 @@ function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-export function DGAPartnerCards({ accounts }: { accounts: PartnerAccount[] }) {
+export function PartnerCards({ accounts }: { accounts: PartnerAccount[] }) {
   const totalBalance = accounts.reduce((s, a) => s + Number(a.current_balance), 0);
 
   return (
