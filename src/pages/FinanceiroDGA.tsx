@@ -1,17 +1,41 @@
+import React, { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { DollarSign, Loader2, Users, Search, ArrowRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { DGAPartnerCards } from "@/components/dga/DGAPartnerCards";
 import { DGADepositForm } from "@/components/dga/DGADepositForm";
 import { DGAExpenseForm } from "@/components/dga/DGAExpenseForm";
 import { DGATransactionsTable } from "@/components/dga/DGATransactionsTable";
 import { DGAExpensesTable } from "@/components/dga/DGAExpensesTable";
 import { useDGAAccounts, useDGATransactions, useDGAExpenses } from "@/hooks/useDGAFinanceiro";
+import { useClientesComSocios } from "@/hooks/useSocioBalanco";
 
 export default function FinanceiroDGA() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [clienteSelecionado, setClienteSelecionado] = useState<string | null>(null);
+
   const { data: accounts = [], isLoading: loadingAccounts } = useDGAAccounts();
   const { data: transactions = [], isLoading: loadingTx } = useDGATransactions();
   const { data: expenses = [], isLoading: loadingExp } = useDGAExpenses();
+
+  // Carregar clientes com sócios
+  const { data: clientesComSocios = [], isLoading: loadingClientes } = useClientesComSocios();
+
+  // Filtrar apenas clientes que têm partners
+  const clientesComPartners = clientesComSocios.filter(cliente =>
+    cliente.socios && cliente.socios.length > 0
+  );
+
+  // Filtrar por termo de busca
+  const clientesFiltrados = clientesComPartners.filter(cliente =>
+    cliente.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cliente.proprietario?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cliente.cnpj?.includes(searchTerm)
+  );
 
   const isLoading = loadingAccounts || loadingTx || loadingExp;
 
