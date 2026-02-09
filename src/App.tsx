@@ -182,6 +182,13 @@ const App = () => {
                         </RoleProtected>
                       )
                     } />
+                    <Route path="/financeiro/socios" element={
+                      renderProtected(
+                        <RoleProtected allowedRoles={["admin","gestor_master","financeiro_master"]}>
+                          <ClientesComSociosSelector />
+                        </RoleProtected>
+                      )
+                    } />
                     <Route path="/financeiro/balanco-cliente" element={
                       renderProtected(
                         <RoleProtected allowedRoles={["admin","gestor_master","financeiro_master"]}>
