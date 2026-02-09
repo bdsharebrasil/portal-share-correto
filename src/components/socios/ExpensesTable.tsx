@@ -4,8 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Receipt, CreditCard } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DGAPayExpenseDialog } from "./DGAPayExpenseDialog";
-import { EXPENSE_TYPES, type PartnerExpense, type PartnerAccount } from "@/hooks/useDGAFinanceiro";
+import { PayExpenseDialog } from "./PayExpenseDialog";
+import { EXPENSE_TYPES, type PartnerExpense, type PartnerAccount } from "@/hooks/useFinanceiroSocios";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -50,7 +50,7 @@ function ExpenseRow({ exp, accounts, onPay }: { exp: PartnerExpense; accounts: P
   );
 }
 
-export function DGAExpensesTable({ expenses, accounts }: { expenses: PartnerExpense[]; accounts: PartnerAccount[] }) {
+export function ExpensesTable({ expenses, accounts }: { expenses: PartnerExpense[]; accounts: PartnerAccount[] }) {
   const [payExpense, setPayExpense] = useState<PartnerExpense | null>(null);
 
   const pending = expenses.filter((e) => e.status === "pending");
@@ -90,7 +90,7 @@ export function DGAExpensesTable({ expenses, accounts }: { expenses: PartnerExpe
           </Tabs>
         </CardContent>
       </Card>
-      <DGAPayExpenseDialog
+      <PayExpenseDialog
         expense={payExpense}
         accounts={accounts}
         open={!!payExpense}
