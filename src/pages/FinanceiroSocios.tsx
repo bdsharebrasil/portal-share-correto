@@ -8,11 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 // Componentes ajustados para o contexto de Socios
-import { SocioPartnerCards } from "@/components/socios/PartnerCards";
-import { SocioDepositForm } from "@/components/socios/DepositForm";
-import { SocioExpenseForm } from "@/components/socios/ExpenseForm";
-import { SocioTransactionsTable } from "@/components/socios/TransactionsTable";
-import { SocioExpensesTable } from "@/components/socios/ExpensesTable";
+import { PartnerCards } from "@/components/socios/PartnerCards";
+import { DepositForm } from "@/components/socios/DepositForm";
+import { ExpenseForm } from "@/components/socios/ExpenseForm";
+import { TransactionsTable } from "@/components/socios/TransactionsTable";
+import { ExpensesTable } from "@/components/socios/ExpensesTable";
 
 // Hooks ajustados
 import { useSocioAccounts, useSocioTransactions, useSocioExpenses } from "@/hooks/useFinanceiroSocios";
@@ -219,13 +219,13 @@ export default function FinanceiroSocios() {
               ← Voltar para Seleção
             </Button>
             {/* Formulários recebem o clienteId e as contas carregadas */}
-            <SocioDepositForm accounts={accounts} clienteId={clienteSelecionado} />
-            <SocioExpenseForm clienteId={clienteSelecionado} />
+            <DepositForm accounts={accounts} clienteId={clienteSelecionado} />
+            <ExpenseForm clienteId={clienteSelecionado} />
           </div>
         </div>
 
         {/* Cards de Resumo dos Sócios */}
-        <SocioPartnerCards accounts={accounts} />
+        <PartnerCards accounts={accounts} />
 
         {/* Tabs de Conteúdo */}
         <Tabs defaultValue="overview" className="w-full">
@@ -238,12 +238,12 @@ export default function FinanceiroSocios() {
 
           <TabsContent value="overview" className="space-y-4 mt-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <SocioTransactionsTable 
+              <TransactionsTable 
                 transactions={transactions} 
                 title="Últimas 5 Transações" 
                 limit={5} 
               />
-              <SocioExpensesTable 
+              <ExpensesTable 
                 expenses={expenses.filter((e) => e.status === "pending").slice(0, 5)} 
                 accounts={accounts} 
               />
@@ -251,18 +251,18 @@ export default function FinanceiroSocios() {
           </TabsContent>
 
           <TabsContent value="deposits" className="mt-4">
-            <SocioTransactionsTable
+            <TransactionsTable
               transactions={transactions.filter((t) => t.transaction_type === "deposit")}
               title="Histórico de Depósitos"
             />
           </TabsContent>
 
           <TabsContent value="expenses" className="mt-4">
-            <SocioExpensesTable expenses={expenses} accounts={accounts} />
+            <ExpensesTable expenses={expenses} accounts={accounts} />
           </TabsContent>
 
           <TabsContent value="history" className="mt-4">
-            <SocioTransactionsTable transactions={transactions} title="Todas as Transações" />
+            <TransactionsTable transactions={transactions} title="Todas as Transações" />
           </TabsContent>
         </Tabs>
       </div>
