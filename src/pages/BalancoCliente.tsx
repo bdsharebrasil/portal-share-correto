@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
 import { LayoutDashboard, Receipt, AlertCircle, Plane, FileBarChart, ArrowLeft, Users, User } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -22,14 +22,24 @@ import { useClientesComSocios, ClienteComSocios, Socio } from '@/hooks/useSocioB
 
 function BalancoClienteContent() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryClienteId = searchParams.get('clienteId') || '';
+
   const [activeTab, setActiveTab] = useState('visao-geral');
-  const [clienteId, setClienteId] = useState('');
+  const [clienteId, setClienteId] = useState(queryClienteId);
   const [socioId, setSocioId] = useState<string | undefined>(undefined);
   const [aeronaveId, setAeronaveId] = useState('');
   const [periodo, setPeriodo] = useState({
     inicio: format(startOfMonth(subMonths(new Date(), 2)), 'yyyy-MM-dd'),
     fim: format(endOfMonth(new Date()), 'yyyy-MM-dd')
   });
+
+  // Sincronizar clienteId com query params
+  useEffect(() => {
+    if (queryClienteId && queryClienteId !== clienteId) {
+      setClienteId(queryClienteId);
+    }
+  }, [queryClienteId]);
 
   // Carregar clientes com sócios
   const { data: clientesComSocios = [], isLoading: loadingClientes } = useClientesComSocios();
