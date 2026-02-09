@@ -43,7 +43,7 @@ BEGIN
       client_id,
       grupo_categoria
     ) VALUES (
-      'NF Saída ' || NEW.numero || ' - ' || NEW.cliente_nome || 
+      COALESCE(NEW.descricao, 'NF Saída ' || NEW.numero || ' - ' || NEW.cliente_nome) ||
       CASE WHEN NEW.aeronave IS NOT NULL THEN ' (' || NEW.aeronave || ')' ELSE '' END,
       NEW.valor,
       CURRENT_DATE,
