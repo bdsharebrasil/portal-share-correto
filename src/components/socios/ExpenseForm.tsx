@@ -9,7 +9,7 @@ import { Plus } from "lucide-react";
 import { useCreateExpense, EXPENSE_TYPES } from "@/hooks/useFinanceiroSocios";
 import { format } from "date-fns";
 
-export function DGAExpenseForm() {
+export function ExpenseForm() {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState("");
   const [description, setDescription] = useState("");
