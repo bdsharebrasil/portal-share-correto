@@ -274,13 +274,22 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Duração (horas)</Label>
+              <Label>Duração do Voo (HH:MM)</Label>
               <Input
-                type="number"
-                step="0.5"
-                value={formData.flight_duration_hours}
-                onChange={(e) => setFormData(prev => ({ ...prev, flight_duration_hours: e.target.value }))}
-                placeholder="2.5"
+                type="text"
+                value={formData.flight_duration_hours ? formatFlightDuration(parseFloat(formData.flight_duration_hours)) : ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '') {
+                    setFormData(prev => ({ ...prev, flight_duration_hours: '' }));
+                  } else {
+                    const parsed = parseFlightDuration(value);
+                    if (parsed !== null) {
+                      setFormData(prev => ({ ...prev, flight_duration_hours: parsed.toString() }));
+                    }
+                  }
+                }}
+                placeholder="00:00"
               />
             </div>
           </div>
