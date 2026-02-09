@@ -187,8 +187,8 @@ export function GestorDashboard() {
             ))}
           </div>
 
-          {/* Grid 3: Dashboard Gestor */}
-          <div className="grid grid-cols-1 gap-4">
+          {/* Grid 3: Dashboard Gestor e Financeiro Sócios */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {grid3Tools.map((tool) => (
               <button
                 key={tool.label}
