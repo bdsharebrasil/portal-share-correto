@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, addMonths } from 'date-fns';
+import { format, isSameDay, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, isBefore, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -18,8 +16,7 @@ export function BlockDateRangeSelector({
   onDatesChange
 }: BlockDateRangeSelectorProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState<Date | null>(null);
+  const [firstClickDate, setFirstClickDate] = useState<Date | null>(null);
   const [tempSelected, setTempSelected] = useState<Date[]>(selectedDates);
 
   const monthStart = startOfMonth(currentMonth);
@@ -43,33 +40,30 @@ export function BlockDateRangeSelector({
     return tempSelected.some(d => isSameDay(d, date));
   };
 
-  const handleDayMouseDown = (date: Date) => {
-    setIsDragging(true);
-    setDragStart(date);
-    setTempSelected([date]);
+  const isFirstClickDate = (date: Date) => {
+    return firstClickDate && isSameDay(firstClickDate, date);
   };
 
-  const handleDayMouseEnter = (date: Date) => {
-    if (isDragging && dragStart) {
-      const [start, end] = dragStart < date ? [dragStart, date] : [date, dragStart];
+  const handleDayClick = (date: Date) => {
+    if (!firstClickDate) {
+      // Primeiro clique: marca a data inicial
+      setFirstClickDate(date);
+      setTempSelected([date]);
+    } else {
+      // Segundo clique: seleciona o intervalo
+      const [start, end] = isBefore(firstClickDate, date) 
+        ? [firstClickDate, date] 
+        : [date, firstClickDate];
+      
       const dateRange = getDateRangeBetween(start, end);
       setTempSelected(dateRange);
+      setFirstClickDate(null); // Reset para nova seleção
     }
   };
 
-  const handleDayMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  React.useEffect(() => {
-    document.addEventListener('mouseup', handleDayMouseUp);
-    return () => {
-      document.removeEventListener('mouseup', handleDayMouseUp);
-    };
-  }, []);
-
   const handleClearDates = () => {
     setTempSelected([]);
+    setFirstClickDate(null);
   };
 
   const handleRemoveDate = (date: Date) => {
@@ -78,6 +72,15 @@ export function BlockDateRangeSelector({
 
   return (
     <div className="space-y-4">
+      {/* Instructions */}
+      <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+        {firstClickDate ? (
+          <span>Clique na data final para completar a seleção</span>
+        ) : (
+          <span>Clique em uma data inicial, depois em uma data final</span>
+        )}
+      </div>
+
       {/* Month Navigation */}
       <div className="flex items-center justify-between">
         <Button
@@ -99,7 +102,7 @@ export function BlockDateRangeSelector({
         </Button>
       </div>
 
-      {/* Mini Calendar with Drag Select */}
+      {/* Mini Calendar with Click Select */}
       <div className="border rounded-lg p-4 bg-muted/30">
         <div className="grid grid-cols-7 gap-1 mb-2">
           {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day) => (
@@ -118,18 +121,19 @@ export function BlockDateRangeSelector({
           {/* Calendar days */}
           {calendarDays.map((day) => {
             const isSelected = isDateSelected(day);
+            const isFirst = isFirstClickDate(day);
             const isToday = isSameDay(day, new Date());
 
             return (
               <button
                 key={day.toISOString()}
-                onMouseDown={() => handleDayMouseDown(day)}
-                onMouseEnter={() => handleDayMouseEnter(day)}
+                onClick={() => handleDayClick(day)}
                 className={cn(
-                  'p-2 text-sm rounded transition-colors cursor-pointer select-none',
-                  isSelected && 'bg-primary text-primary-foreground font-semibold',
-                  isToday && !isSelected && 'border border-primary font-semibold',
-                  !isSelected && 'hover:bg-muted'
+                  'p-2 text-sm rounded transition-colors cursor-pointer select-none font-medium',
+                  isFirst && 'bg-blue-500 text-white ring-2 ring-blue-400 ring-offset-1',
+                  isSelected && !isFirst && 'bg-primary text-primary-foreground',
+                  isToday && !isSelected && !isFirst && 'border border-primary',
+                  !isSelected && !isFirst && 'hover:bg-muted text-foreground'
                 )}
               >
                 {day.getDate()}
@@ -139,7 +143,7 @@ export function BlockDateRangeSelector({
         </div>
       </div>
 
-      {/* Selected Dates Display */}
+      {/* Selected Dates Display - Only show when dates are selected */}
       {tempSelected.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -157,7 +161,7 @@ export function BlockDateRangeSelector({
             </Button>
           </div>
 
-          <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg max-h-24 overflow-y-auto">
+          <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg max-h-32 overflow-y-auto">
             <div className="flex flex-wrap gap-2">
               {tempSelected
                 .sort((a, b) => a.getTime() - b.getTime())
@@ -174,18 +178,16 @@ export function BlockDateRangeSelector({
                 ))}
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Apply changes when dates change */}
-      {tempSelected.length > 0 && (
-        <Button
-          onClick={() => onDatesChange(tempSelected)}
-          className="w-full"
-          size="sm"
-        >
-          Aplicar Seleção ({tempSelected.length} data(s))
-        </Button>
+          {/* Apply changes when dates change */}
+          <Button
+            onClick={() => onDatesChange(tempSelected)}
+            className="w-full"
+            size="sm"
+          >
+            Aplicar Seleção ({tempSelected.length} data(s))
+          </Button>
+        </div>
       )}
     </div>
   );
