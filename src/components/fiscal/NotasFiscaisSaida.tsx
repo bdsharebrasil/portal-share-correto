@@ -8,15 +8,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Edit2, Trash2, FileUp, DollarSign, Search, X, Upload, FileText, Eye } from "lucide-react";
+import { Plus, Edit2, Trash2, FileUp, DollarSign, Search, X, Upload, FileText, Eye, CalendarIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
 import { useAeronaves } from "@/hooks/useAeronaves";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Document, Page, Text, View, StyleSheet, Image, pdf } from '@react-pdf/renderer';
 
@@ -1073,12 +1075,32 @@ const handleSave = async () => {
                 </div>
                 <div>
                   <Label className="text-foreground">Data de Criação *</Label>
-                  <Input
-                    type="date"
-                    value={formData.data_criacao}
-                    onChange={(e) => setFormData({ ...formData, data_criacao: e.target.value })}
-                    className="bg-background border-border"
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal bg-background border-border",
+                          !formData.data_criacao && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.data_criacao
+                          ? format(parse(formData.data_criacao, "yyyy-MM-dd", new Date()), "dd/MM/yyyy")
+                          : "Selecione a data"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.data_criacao ? parse(formData.data_criacao, "yyyy-MM-dd", new Date()) : undefined}
+                        onSelect={(date) => setFormData({ ...formData, data_criacao: date ? format(date, "yyyy-MM-dd") : "" })}
+                        locale={ptBR}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
 
@@ -1249,12 +1271,32 @@ const handleSave = async () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-foreground">Data de Vencimento *</Label>
-                  <Input
-                    type="date"
-                    value={formData.data_vencimento}
-                    onChange={(e) => setFormData({ ...formData, data_vencimento: e.target.value })}
-                    className="bg-background border-border"
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal bg-background border-border",
+                          !formData.data_vencimento && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.data_vencimento
+                          ? format(parse(formData.data_vencimento, "yyyy-MM-dd", new Date()), "dd/MM/yyyy")
+                          : "Selecione a data"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={formData.data_vencimento ? parse(formData.data_vencimento, "yyyy-MM-dd", new Date()) : undefined}
+                        onSelect={(date) => setFormData({ ...formData, data_vencimento: date ? format(date, "yyyy-MM-dd") : "" })}
+                        locale={ptBR}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div>
                   <Label className="text-foreground">Valor (R$) *</Label>
