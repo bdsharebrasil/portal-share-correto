@@ -47,9 +47,9 @@ export function GestorDashboard() {
     { icon: FileText, label: "Gestão Fiscal", route: "/financeiro/gestao-fiscal", color: "from-green-500 to-green-600", grid: 1 },
     { icon: Users, label: "Gestão de Funcionários", route: "/gestao-funcionarios", color: "from-blue-500 to-blue-600", grid: 1 },
     { icon: Plane, label: "Controle de Aeronaves", route: "/aeronaves", textColor: "text-cyan-400", grid: 2 },
-    { icon: PieChart, label: "Balanço Sócios", route: "/financeiro/socios", textColor: "text-indigo-400", grid: 2 },
+    { icon: PieChart, label: "Balanço Clientes", route: "/financeiro/balanco-cliente", textColor: "text-indigo-400", grid: 2 },
     { icon: BarChart3, label: "Dashboard Gestor", route: "/financeiro/gestor", color: "from-orange-500 to-orange-600", restricted: true, grid: 3 },
-    { icon: DollarSign, label: "Financeiro DGA", route: "/financeiro/dga", color: "from-purple-500 to-purple-600", restricted: true, grid: 3 },
+    { icon: DollarSign, label: "Financeiro Sócios", route: "/financeiro/dga", color: "from-purple-500 to-purple-600", restricted: true, grid: 3 },
   ];
 
   const quickTools = allQuickTools.filter(tool => !tool.restricted || isAdmin || isGestorMaster);
