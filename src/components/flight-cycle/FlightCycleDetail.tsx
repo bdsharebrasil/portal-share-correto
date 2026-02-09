@@ -89,6 +89,28 @@ export function FlightCycleDetail({
     }
   }, [isEditing]);
 
+  // Load partners when client is selected
+  useEffect(() => {
+    const loadPartners = async () => {
+      if (!editData.client_id) {
+        setPartners([]);
+        setEditData(prev => ({ ...prev, partner_id: '' }));
+        return;
+      }
+
+      const { data } = await supabase
+        .from('client_partners')
+        .select('id, name')
+        .eq('client_id', editData.client_id)
+        .order('name');
+
+      setPartners(data || []);
+      setEditData(prev => ({ ...prev, partner_id: '' }));
+    };
+
+    loadPartners();
+  }, [editData.client_id]);
+
   const loadEditData = async () => {
     const [clientsRes, aircraftRes] = await Promise.all([
       supabase.from('clients').select('id, company_name, proprietario').order('company_name'),
