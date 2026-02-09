@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { DollarSign, TrendingUp, TrendingDown } from "lucide-react";
-import type { PartnerAccount } from "@/hooks/useDGAFinanceiro";
+import type { PartnerAccount } from "@/hooks/useFinanceiroSocios";
 
 const PARTNER_COLORS: Record<string, string> = {
   GUAVIRA: "from-emerald-500/20 to-emerald-600/10 border-emerald-500/30",

@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpCircle, ArrowDownCircle, History } from "lucide-react";
-import type { PartnerTransaction } from "@/hooks/useDGAFinanceiro";
+import type { PartnerTransaction } from "@/hooks/useFinanceiroSocios";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -9,7 +9,7 @@ function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-export function DGATransactionsTable({
+export function TransactionsTable({
   transactions,
   title = "Últimas Transações",
   limit,

@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus } from "lucide-react";
-import { useCreateExpense, EXPENSE_TYPES } from "@/hooks/useDGAFinanceiro";
+import { useCreateExpense, EXPENSE_TYPES } from "@/hooks/useFinanceiroSocios";
 import { format } from "date-fns";
 
 export function DGAExpenseForm() {

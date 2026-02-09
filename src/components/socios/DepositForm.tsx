@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
-import { useAddDeposit, type PartnerAccount } from "@/hooks/useDGAFinanceiro";
+import { useAddDeposit, type PartnerAccount } from "@/hooks/useFinanceiroSocios";
 import { format } from "date-fns";
 
 export function DGADepositForm({ accounts }: { accounts: PartnerAccount[] }) {
