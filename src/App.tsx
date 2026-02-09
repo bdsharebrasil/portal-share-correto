@@ -186,7 +186,9 @@ const App = () => {
                         <RoleProtected allowedRoles={["admin","gestor_master","financeiro_master"]}>
                           <BalancoCliente />
                         </RoleProtected>
-                          <Route path="/financeiro/financeiro-socios" element={
+                      )
+                    } />
+                    <Route path="/financeiro/financeiro-socios" element={
                       renderProtected(
                         <RoleProtected allowedRoles={["admin","gestor_master","financeiro_master"]}>
                           <FinanceiroSocios />
@@ -247,8 +249,6 @@ const App = () => {
                     <Route path="/manutencao/preventiva" element={renderProtected(<ManutencaoPreventiva />)} />
                     <Route path="/manutencao/aeronaves" element={renderProtected(<ManutencaoAeronave />)} />
                     <Route path="/ferias" element={renderProtected(<Ferias />)} />
-                     )
-                    } />
                     <Route path="*" element={renderProtected(<NotFound />)} />
                   </Routes>
                 </HashRouter>
