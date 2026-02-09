@@ -9,7 +9,7 @@ import { Plus } from "lucide-react";
 import { useAddDeposit, type PartnerAccount } from "@/hooks/useFinanceiroSocios";
 import { format } from "date-fns";
 
-export function DGADepositForm({ accounts }: { accounts: PartnerAccount[] }) {
+export function DepositForm({ accounts }: { accounts: PartnerAccount[] }) {
   const [open, setOpen] = useState(false);
   const [cpf, setCpf] = useState("");
   const [amount, setAmount] = useState("");
