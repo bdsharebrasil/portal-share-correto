@@ -249,7 +249,7 @@ export function FlightCycleDetail({
               {cycle.flight_duration_hours && (
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4" />
-                  <span>{cycle.flight_duration_hours}h de voo</span>
+                  <span>{formatFlightDuration(cycle.flight_duration_hours)} de voo</span>
                 </div>
               )}
             </div>
