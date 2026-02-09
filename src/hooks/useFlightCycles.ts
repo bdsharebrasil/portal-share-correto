@@ -17,7 +17,7 @@ export function useFlightCycles() {
         .select(`
           *,
           client:clients(company_name, proprietario),
-          partner:client_partners(name),
+          partner_fk:client_partners(name),
           aircraft:aircraft(registration, model),
           expenses:flight_expenses(*)
         `)
@@ -26,9 +26,9 @@ export function useFlightCycles() {
       if (error) throw error;
 
       // Populate partner_name from partner object
-      const processedData = (data || []).map(cycle => ({
+      const processedData = (data || []).map((cycle: any) => ({
         ...cycle,
-        partner_name: cycle.partner?.name || null,
+        partner_name: cycle.partner_fk?.name || null,
       }));
 
       setCycles(processedData as FlightCycle[]);
