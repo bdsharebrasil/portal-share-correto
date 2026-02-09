@@ -296,16 +296,51 @@ export function FlightCycleDetail({
               </div>
 
               <div className="space-y-2">
-                <Label>Duração do Voo (horas)</Label>
+                <Label>Duração do Voo (HH:MM)</Label>
                 <Input
-                  type="number"
-                  step="0.5"
-                  value={editData.flight_duration_hours}
-                  onChange={(e) => setEditData(prev => ({ ...prev, flight_duration_hours: e.target.value }))}
-                  placeholder="0"
+                  type="text"
+                  value={editData.flight_duration_hours ? formatFlightDuration(parseFloat(editData.flight_duration_hours)) : ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '') {
+                      setEditData(prev => ({ ...prev, flight_duration_hours: '' }));
+                    } else {
+                      const parts = value.split(':');
+                      if (parts.length === 2) {
+                        const hours = parseInt(parts[0], 10);
+                        const minutes = parseInt(parts[1], 10);
+                        if (!isNaN(hours) && !isNaN(minutes)) {
+                          const totalHours = hours + (minutes / 60);
+                          setEditData(prev => ({ ...prev, flight_duration_hours: totalHours.toString() }));
+                        }
+                      }
+                    }
+                  }}
+                  placeholder="00:00"
                 />
               </div>
             </div>
+
+            {partners.length > 0 && (
+              <div className="space-y-2">
+                <Label>Partner</Label>
+                <Select
+                  value={editData.partner_id}
+                  onValueChange={(v) => setEditData(prev => ({ ...prev, partner_id: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um partner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {partners.map(partner => (
+                      <SelectItem key={partner.id} value={partner.id}>
+                        {partner.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
