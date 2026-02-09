@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { FlightCycle, CrewMember } from "@/types/flightCycle";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { formatFlightDuration, parseFlightDuration } from "@/lib/duration-utils";
 import { useCrewMembers } from "@/hooks/useCrewMembers";
 
 interface CreateFlightCycleDialogProps {
@@ -100,8 +101,16 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
   const handleSubmit = async () => {
     setLoading(true);
     try {
+      // Get partner name if partner is selected
+      let partnerName: string | null = null;
+      if (formData.partner_id) {
+        const partner = partners.find(p => p.id === formData.partner_id);
+        partnerName = partner?.name || null;
+      }
+
       await onCreate({
         ...formData,
+        partner_name: partnerName,
         flight_duration_hours: formData.flight_duration_hours ? parseFloat(formData.flight_duration_hours) : null,
         return_date: formData.return_date || null,
         status: 'confirmado',
@@ -265,13 +274,22 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Duração (horas)</Label>
+              <Label>Duração do Voo (HH:MM)</Label>
               <Input
-                type="number"
-                step="0.5"
-                value={formData.flight_duration_hours}
-                onChange={(e) => setFormData(prev => ({ ...prev, flight_duration_hours: e.target.value }))}
-                placeholder="2.5"
+                type="text"
+                value={formData.flight_duration_hours ? formatFlightDuration(parseFloat(formData.flight_duration_hours)) : ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === '') {
+                    setFormData(prev => ({ ...prev, flight_duration_hours: '' }));
+                  } else {
+                    const parsed = parseFlightDuration(value);
+                    if (parsed !== null) {
+                      setFormData(prev => ({ ...prev, flight_duration_hours: parsed.toString() }));
+                    }
+                  }
+                }}
+                placeholder="00:00"
               />
             </div>
           </div>

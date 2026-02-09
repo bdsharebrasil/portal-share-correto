@@ -10,6 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { format, differenceInDays, isPast, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { formatFlightDuration, parseFlightDuration } from "@/lib/duration-utils";
 import { AddExpenseDialog } from "./AddExpenseDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useCrewMembers } from "@/hooks/useCrewMembers";
@@ -24,6 +25,11 @@ interface Aircraft {
   id: string;
   registration: string;
   model: string;
+}
+
+interface ClientPartner {
+  id: string;
+  name: string;
 }
 
 interface FlightCycleDetailProps {
@@ -48,9 +54,11 @@ export function FlightCycleDetail({
   const [isEditing, setIsEditing] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [aircraft, setAircraft] = useState<Aircraft[]>([]);
+  const [partners, setPartners] = useState<ClientPartner[]>([]);
   const { crewMembers, fetchCrewMembers } = useCrewMembers();
   const [editData, setEditData] = useState({
     client_id: cycle.client_id || '',
+    partner_id: cycle.partner_id || '',
     origin_icao: cycle.origin_icao,
     destination_icao: cycle.destination_icao,
     flight_duration_hours: cycle.flight_duration_hours?.toString() || '',
@@ -74,6 +82,28 @@ export function FlightCycleDetail({
     }
   }, [isEditing]);
 
+  // Load partners when client is selected
+  useEffect(() => {
+    const loadPartners = async () => {
+      if (!editData.client_id) {
+        setPartners([]);
+        setEditData(prev => ({ ...prev, partner_id: '' }));
+        return;
+      }
+
+      const { data } = await supabase
+        .from('client_partners')
+        .select('id, name')
+        .eq('client_id', editData.client_id)
+        .order('name');
+
+      setPartners(data || []);
+      setEditData(prev => ({ ...prev, partner_id: '' }));
+    };
+
+    loadPartners();
+  }, [editData.client_id]);
+
   const loadEditData = async () => {
     const [clientsRes, aircraftRes] = await Promise.all([
       supabase.from('clients').select('id, company_name, proprietario').order('company_name'),
@@ -92,8 +122,17 @@ export function FlightCycleDetail({
 
     setSavingEdit(true);
     try {
+      // Get partner name if partner is selected
+      let partnerName: string | null = null;
+      if (editData.partner_id) {
+        const partner = partners.find(p => p.id === editData.partner_id);
+        partnerName = partner?.name || null;
+      }
+
       await onUpdateCycle(cycle.id, {
         client_id: editData.client_id || null,
+        partner_id: editData.partner_id || null,
+        partner_name: partnerName,
         origin_icao: editData.origin_icao,
         destination_icao: editData.destination_icao,
         flight_duration_hours: editData.flight_duration_hours ? parseFloat(editData.flight_duration_hours) : null,
@@ -109,6 +148,7 @@ export function FlightCycleDetail({
   const handleCancelEdit = () => {
     setEditData({
       client_id: cycle.client_id || '',
+      partner_id: cycle.partner_id || '',
       origin_icao: cycle.origin_icao,
       destination_icao: cycle.destination_icao,
       flight_duration_hours: cycle.flight_duration_hours?.toString() || '',
@@ -187,7 +227,7 @@ export function FlightCycleDetail({
                     </Badge>
                   </div>
                   <p className="text-muted-foreground">
-                    {cycle.client?.company_name || cycle.client?.proprietario || 'Cliente não definido'}
+                    {cycle.partner_name || cycle.client?.company_name || cycle.client?.proprietario || 'Cliente não definido'}
                   </p>
                 </div>
               </div>
@@ -210,7 +250,7 @@ export function FlightCycleDetail({
               {cycle.flight_duration_hours && (
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4" />
-                  <span>{cycle.flight_duration_hours}h de voo</span>
+                  <span>{formatFlightDuration(cycle.flight_duration_hours)} de voo</span>
                 </div>
               )}
             </div>
@@ -257,16 +297,46 @@ export function FlightCycleDetail({
               </div>
 
               <div className="space-y-2">
-                <Label>Duração do Voo (horas)</Label>
+                <Label>Duração do Voo (HH:MM)</Label>
                 <Input
-                  type="number"
-                  step="0.5"
-                  value={editData.flight_duration_hours}
-                  onChange={(e) => setEditData(prev => ({ ...prev, flight_duration_hours: e.target.value }))}
-                  placeholder="0"
+                  type="text"
+                  value={editData.flight_duration_hours ? formatFlightDuration(parseFloat(editData.flight_duration_hours)) : ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '') {
+                      setEditData(prev => ({ ...prev, flight_duration_hours: '' }));
+                    } else {
+                      const parsed = parseFlightDuration(value);
+                      if (parsed !== null) {
+                        setEditData(prev => ({ ...prev, flight_duration_hours: parsed.toString() }));
+                      }
+                    }
+                  }}
+                  placeholder="00:00"
                 />
               </div>
             </div>
+
+            {partners.length > 0 && (
+              <div className="space-y-2">
+                <Label>Partner</Label>
+                <Select
+                  value={editData.partner_id}
+                  onValueChange={(v) => setEditData(prev => ({ ...prev, partner_id: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um partner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {partners.map(partner => (
+                      <SelectItem key={partner.id} value={partner.id}>
+                        {partner.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
