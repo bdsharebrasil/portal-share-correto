@@ -26,6 +26,19 @@ interface Aircraft {
   model: string;
 }
 
+interface ClientPartner {
+  id: string;
+  name: string;
+}
+
+// Utility function to convert decimal hours to HH:MM format
+const formatFlightDuration = (hours: number | null | undefined): string => {
+  if (!hours && hours !== 0) return '';
+  const wholeHours = Math.floor(hours);
+  const minutes = Math.round((hours - wholeHours) * 60);
+  return `${String(wholeHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+};
+
 interface FlightCycleDetailProps {
   cycle: FlightCycle;
   onBack: () => void;
