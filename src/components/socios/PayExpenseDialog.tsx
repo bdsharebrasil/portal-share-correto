@@ -4,14 +4,14 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CheckCircle, XCircle } from "lucide-react";
-import { usePayExpense, type PartnerAccount, type PartnerExpense } from "@/hooks/useDGAFinanceiro";
+import { usePayExpense, type PartnerAccount, type PartnerExpense } from "@/hooks/useFinanceiroSocios";
 import { format } from "date-fns";
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-export function DGAPayExpenseDialog({
+export function PayExpenseDialog({
   expense,
   accounts,
   open,
