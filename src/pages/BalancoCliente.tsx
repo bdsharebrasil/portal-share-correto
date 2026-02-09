@@ -22,14 +22,24 @@ import { useClientesComSocios, ClienteComSocios, Socio } from '@/hooks/useSocioB
 
 function BalancoClienteContent() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryClienteId = searchParams.get('clienteId') || '';
+
   const [activeTab, setActiveTab] = useState('visao-geral');
-  const [clienteId, setClienteId] = useState('');
+  const [clienteId, setClienteId] = useState(queryClienteId);
   const [socioId, setSocioId] = useState<string | undefined>(undefined);
   const [aeronaveId, setAeronaveId] = useState('');
   const [periodo, setPeriodo] = useState({
     inicio: format(startOfMonth(subMonths(new Date(), 2)), 'yyyy-MM-dd'),
     fim: format(endOfMonth(new Date()), 'yyyy-MM-dd')
   });
+
+  // Sincronizar clienteId com query params
+  useEffect(() => {
+    if (queryClienteId && queryClienteId !== clienteId) {
+      setClienteId(queryClienteId);
+    }
+  }, [queryClienteId]);
 
   // Carregar clientes com sócios
   const { data: clientesComSocios = [], isLoading: loadingClientes } = useClientesComSocios();
