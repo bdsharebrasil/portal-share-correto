@@ -61,9 +61,11 @@ export function FlightCycleDetail({
   const [isEditing, setIsEditing] = useState(false);
   const [clients, setClients] = useState<Client[]>([]);
   const [aircraft, setAircraft] = useState<Aircraft[]>([]);
+  const [partners, setPartners] = useState<ClientPartner[]>([]);
   const { crewMembers, fetchCrewMembers } = useCrewMembers();
   const [editData, setEditData] = useState({
     client_id: cycle.client_id || '',
+    partner_id: cycle.partner_id || '',
     origin_icao: cycle.origin_icao,
     destination_icao: cycle.destination_icao,
     flight_duration_hours: cycle.flight_duration_hours?.toString() || '',
