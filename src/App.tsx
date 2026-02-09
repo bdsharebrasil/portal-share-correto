@@ -74,6 +74,7 @@ import ManutencaoPreventiva from "./pages/ManutencaoPreventiva";
 import ManutencaoAeronave from "./pages/ManutencaoAeronave";
 import VencimentosTripulacao from "./pages/VencimentosTripulacao";
 import VencimentosDocumentos from "./pages/VencimentosDocumentos";
+import FinanceiroDGA from "./pages/FinanceiroDGA";
 const queryClient = new QueryClient();
 
 const App = () => {
@@ -241,7 +242,13 @@ const App = () => {
                     <Route path="/manutencao/preventiva" element={renderProtected(<ManutencaoPreventiva />)} />
                     <Route path="/manutencao/aeronaves" element={renderProtected(<ManutencaoAeronave />)} />
                     <Route path="/ferias" element={renderProtected(<Ferias />)} />
-
+                    <Route path="/financeiro/dga" element={
+                      renderProtected(
+                        <RoleProtected allowedRoles={["admin","gestor_master","financeiro_master"]}>
+                          <FinanceiroDGA />
+                        </RoleProtected>
+                      )
+                    } />
                     <Route path="*" element={renderProtected(<NotFound />)} />
                   </Routes>
                 </HashRouter>
