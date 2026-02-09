@@ -226,7 +226,7 @@ export function FlightCycleDetail({
                     </Badge>
                   </div>
                   <p className="text-muted-foreground">
-                    {cycle.client?.company_name || cycle.client?.proprietario || 'Cliente não definido'}
+                    {cycle.partner_name || cycle.client?.company_name || cycle.client?.proprietario || 'Cliente não definido'}
                   </p>
                 </div>
               </div>
