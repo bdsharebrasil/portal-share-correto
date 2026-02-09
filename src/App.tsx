@@ -69,7 +69,6 @@ import PainelAgendamentos from "./pages/PainelAgendamentos";
 import CartoesCorporativos from "./pages/CartoesCorporativos";
 import BancodeHoras from './pages/BancodeHoras';
 import BalancoCliente from "./pages/BalancoCliente";
-import ClientesComSociosSelector from "./pages/financeiro/ClientesComSociosSelector";
 import MapaComponentes from "./pages/MapaComponentes";
 import ManutencaoPreventiva from "./pages/ManutencaoPreventiva";
 import ManutencaoAeronave from "./pages/ManutencaoAeronave";
