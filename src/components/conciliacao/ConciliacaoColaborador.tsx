@@ -115,6 +115,16 @@ export function ConciliacaoColaborador() {
       const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
+      // 1. Carregar IDs de categorias "RECEITAS OPERACIONAIS"
+      const { data: categoriasProtegidas } = await supabase
+        .from('categorias_movimentacao')
+        .select('id, nome')
+        .eq('grupo_categoria', 'RECEITAS OPERACIONAIS');
+
+      const idsCategoriasProtegidas = new Set(categoriasProtegidas?.map(c => c.id) || []);
+      const nomesCategoriasProtegidas = new Set(categoriasProtegidas?.map(c => c.nome?.toLowerCase()) || []);
+
+      // 2. Carregar dados de conciliação
       const { data, error } = await supabase
         .from('bank_reconciliations')
         .select(`
@@ -127,7 +137,30 @@ export function ConciliacaoColaborador() {
         .order('date', { ascending: false });
 
       if (error) throw error;
-      setColaboradorData((data || []) as any);
+
+      // 3. Filtrar em frontend registros com categoria protegida
+      const filteredData = (data || []).filter(item => {
+        // Verifica por ID
+        if (item.categoria_movimentacao_id && idsCategoriasProtegidas.has(item.categoria_movimentacao_id)) {
+          return false;
+        }
+
+        // Verifica por nome da categoria
+        const categoryName = item.category?.toLowerCase() || '';
+        if (nomesCategoriasProtegidas.has(categoryName)) {
+          return false;
+        }
+
+        // Verifica se está explícito na descrição
+        const description = item.description?.toLowerCase() || '';
+        if (description.includes('receita operacional')) {
+          return false;
+        }
+
+        return true;
+      });
+
+      setColaboradorData(filteredData as any);
     } catch (error) {
       console.error('Erro ao buscar conciliações:', error);
       toast({

@@ -298,28 +298,37 @@ export function useCreateExpense() {
 
   return useMutation({
     mutationFn: async (data: {
-      clientId: string; // Obrigatório
+      clientId: string;
       expenseType: string;
       description: string;
       totalAmount: number;
-      supplierName?: string;
+      category?: string;
+      assignedPartnerCpf?: string | null;
+      assignedPartnerName?: string | null;
+      supplierName?: string | null;
       dueDate?: string;
+      invoiceNumber?: string | null;
       invoiceUrl?: string;
-      notes?: string;
+      paymentMethod?: string | null;
+      notes?: string | null;
     }) => {
       const { error } = await supabase.from("partner_expenses").insert({
         client_id: data.clientId,
         expense_type: data.expenseType,
         description: data.description,
         total_amount: data.totalAmount,
+        assigned_partner_cpf: data.assignedPartnerCpf || null,
+        assigned_partner_name: data.assignedPartnerName || null,
         supplier_name: data.supplierName || null,
         due_date: data.dueDate || null,
+        invoice_number: data.invoiceNumber || null,
         invoice_url: data.invoiceUrl || null,
+        payment_method: data.paymentMethod || null,
         notes: data.notes || null,
         status: "pending",
       });
       if (error) throw error;
-      
+
       return data.clientId;
     },
     onSuccess: (clientId) => {
@@ -328,6 +337,45 @@ export function useCreateExpense() {
     },
     onError: (err: any) => {
       toast.error("Erro ao criar despesa: " + err.message);
+    },
+  });
+}
+
+export function useAddBankInterest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      clientId: string;
+      amount: number;
+      description: string;
+      bankName: string;
+      paymentDate: string;
+    }) => {
+      // For shared account interest, use a special identifier (00000000000) to represent shared account
+      const { error } = await supabase
+        .from("partner_transactions")
+        .insert({
+          client_id: data.clientId,
+          partner_cpf: "00000000000",  // Special identifier for shared account
+          partner_name: "Conta Compartilhada",
+          transaction_type: "deposit",
+          amount: data.amount,
+          balance_before: 0,  // Interest doesn't affect individual partner balance
+          balance_after: 0,
+          description: data.description,
+          payment_date: data.paymentDate,
+        });
+
+      if (error) throw error;
+      return data.clientId;
+    },
+    onSuccess: (clientId) => {
+      queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
+      toast.success("Rendimento bancário registrado com sucesso!");
+    },
+    onError: (err: any) => {
+      toast.error("Erro ao registrar rendimento: " + err.message);
     },
   });
 }
