@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,8 +10,6 @@ import { generateReceiptNumber, GeneratedReceipt, ReceiptType } from "@/lib/rece
 import { handleReceiptSubmit } from "@/services/receiptSubmitHandler";
 import { toast } from "@/hooks/use-toast";
 import { FileText, Clock, Star } from "lucide-react";
-import { pdf } from "@react-pdf/renderer";
-import { ReciboDocument } from "@/lib/reciboGenerator";
 
 interface Cliente {
   id: string;
@@ -97,29 +95,30 @@ export default function EmissaoRecibo() {
     setIsGeneratingPdf(false);
 
     try {
-      // Extrai dados do submissionData que chegou do formulário
-      const originalForm = formData.originalFormData || {};
-      const isReembolso = originalForm.receiptType === "reembolso";
+      // Ler dados do pagador com fallback para originalFormData
+      const pagadorNome = formData.pagadorNome || formData.originalFormData?.pagadorNome || "";
+      const pagadorDocumento = formData.pagadorDocumento || formData.originalFormData?.pagadorDocumento || "";
+      const pagadorEndereco = formData.pagadorEndereco || formData.originalFormData?.pagadorEndereco || "";
+      const pagadorCidade = formData.pagadorCidade || formData.originalFormData?.pagadorCidade || "";
+      const pagadorUF = formData.pagadorUF || formData.originalFormData?.pagadorUF || "";
+      const valor = formData.valor || formData.originalFormData?.valor || "";
+      const servicoDescricao = formData.servicoDescricao || formData.originalFormData?.servicoDescricao || "";
 
-      // Pega o nome do pagador do originalFormData
-      const nomePagador = originalForm.pagadorNome?.trim();
+      // Validação básica
+      if (!pagadorNome?.trim()) throw new Error("Nome do pagador é obrigatório");
+      if (!valor || Number(valor) <= 0) throw new Error("Valor deve ser maior que zero");
+      if (!servicoDescricao?.trim()) throw new Error("Descrição do serviço é obrigatória");
 
-      if (!nomePagador) {
-        console.error("Dados recebidos:", {
-          formData,
-          originalForm,
-          pagadorNome: originalForm.pagadorNome
-        });
-        throw new Error("Nome do pagador não foi preenchido corretamente. Por favor, preencha os dados do pagador.");
-      }
-      if (!formData.amount || Number(formData.amount) <= 0) {
-        throw new Error("Valor deve ser maior que zero");
-      }
-      if (!formData.description?.trim()) {
-        throw new Error("Descrição do serviço é obrigatória");
-      }
+      // Normalizar no formData para uso abaixo
+      formData.pagadorNome = pagadorNome;
+      formData.pagadorDocumento = pagadorDocumento;
+      formData.pagadorEndereco = pagadorEndereco;
+      formData.pagadorCidade = pagadorCidade;
+      formData.pagadorUF = pagadorUF;
+      formData.valor = valor;
+      formData.servicoDescricao = servicoDescricao;
 
-      const receiptNumber = generateReceiptNumber(originalForm.clienteId ? nomePagador : "");
+      const receiptNumber = generateReceiptNumber(formData.clienteId ? formData.pagadorNome : "");
       console.log("Número de recibo:", receiptNumber);
 
       // ===================== UPLOAD DE ARQUIVOS =====================
@@ -141,35 +140,34 @@ export default function EmissaoRecibo() {
         return publicUrlData.publicUrl;
       };
 
-      // Extrai arquivos de formData
-      if (formData.files?.boleto instanceof File) boletoUrl = await uploadFile(formData.files.boleto, "boleto", "n.f-boletos-clients");
-      if (formData.files?.notaFiscal instanceof File) notaFiscalUrl = await uploadFile(formData.files.notaFiscal, "nf", "n.f-boletos-clients");
+      if (formData.reembolsoBoletoFile instanceof File) boletoUrl = await uploadFile(formData.reembolsoBoletoFile, "boleto", "n.f-boletos-clients");
+      if (formData.reembolsoNotaFiscalFile instanceof File) notaFiscalUrl = await uploadFile(formData.reembolsoNotaFiscalFile, "nf", "n.f-boletos-clients");
 
       // ===================== INSERIR RECIBO =====================
       // Para reembolso, adiciona número do documento na descrição
-      let finalDescription = formData.description?.trim() || "";
-      if (isReembolso && originalForm.reembolsoNumeroDocumento?.trim()) {
-        finalDescription = `${finalDescription} - Documento: ${originalForm.reembolsoNumeroDocumento.trim()}`;
+      let finalDescription = formData.servicoDescricao.trim();
+      if (formData.receiptType === "reembolso" && formData.reembolsoNumeroDocumento?.trim()) {
+        finalDescription = `${finalDescription} - Documento: ${formData.reembolsoNumeroDocumento.trim()}`;
       }
 
       const receiptPayload = {
         user_id: userId,
-        payer_name: nomePagador,
-        payer_document: originalForm.pagadorDocumento?.trim() || "",
-        payer_address: originalForm.pagadorEndereco?.trim() || null,
-        payer_city: originalForm.pagadorCidade?.trim() || null,
-        payer_uf: originalForm.pagadorUF?.trim() || null,
-        amount: Number(formData.amount),
+        payer_name: formData.pagadorNome.trim(),
+        payer_document: formData.pagadorDocumento?.trim() || "",
+        payer_address: formData.pagadorEndereco?.trim() || null,
+        payer_city: formData.pagadorCidade?.trim() || null,
+        payer_uf: formData.pagadorUF?.trim() || null,
+        amount: Number(formData.valor),
         service_description: finalDescription,
-        receipt_type: originalForm.receiptType || "pagamento",
-        issue_date: originalForm.dataEmissao || new Date().toISOString().split("T")[0],
+        receipt_type: formData.receiptType || "pagamento",
+        issue_date: formData.dataEmissao || new Date().toISOString().split("T")[0],
         receipt_number: receiptNumber,
-        max_payment_date: originalForm.prazoMaximoQuitacao || null,
-        payment_method: originalForm.formaPagamento?.trim() || null,
-        client_id: originalForm.clienteId?.trim() ? originalForm.clienteId : null,
+        max_payment_date: formData.prazoMaximoQuitacao || null,
+        payment_method: formData.formaPagamento?.trim() || null,
+        client_id: formData.clienteId?.trim() ? formData.clienteId : null,
         boleto_url: boletoUrl,
         nf_url: notaFiscalUrl,
-        doc_number: originalForm.reembolsoNumeroDocumento?.trim() || null,
+        doc_number: formData.reembolsoNumeroDocumento?.trim() || null,
       };
 
       // Evita duplicidade: verifica se já existe o receipt_number
@@ -182,31 +180,31 @@ export default function EmissaoRecibo() {
       console.log("Recibo inserido:", receiptData);
 
       // ===================== PROCESSAR REEMBOLSO (bank_reconciliations + rateio) =====================
-      if (isReembolso && (originalForm.clienteId || formData.client_id)) {
+      if (formData.receiptType === "reembolso" && formData.clienteId) {
         try {
           console.log("📨 Processando reembolso com submissão de recibo...");
 
           // Determina o valor total e percentual corretamente
-          const isRateado = originalForm.reembolsoRateado === true;
-          const valorRecibo = Number(formData.amount); // valor que o cliente vai pagar
-          const valorTotalDespesa = isRateado ? Number(originalForm.reembolsoValorTotal) : valorRecibo;
-          const percentual = isRateado ? originalForm.reembolsoPorcentagem : "100";
+          const isRateado = formData.reembolsoRateado === true;
+          const valorRecibo = Number(formData.valor); // valor que o cliente vai pagar
+          const valorTotalDespesa = isRateado ? Number(formData.reembolsoValorTotal) : valorRecibo;
+          const percentual = isRateado ? formData.reembolsoPorcentagem : "100";
 
           // Preparar payload para o novo serviço
           const submissionPayload = {
             type: "cliente" as const,
-            date: originalForm.prazoMaximoQuitacao || originalForm.dataEmissao,
-            description: `Reembolso - ${formData.description?.trim()}${
-              originalForm.reembolsoNumeroDocumento ? ` (Doc: ${originalForm.reembolsoNumeroDocumento})` : ""
+            date: formData.prazoMaximoQuitacao || formData.dataEmissao,
+            description: `Reembolso - ${formData.servicoDescricao.trim()}${
+              formData.reembolsoNumeroDocumento ? ` (Doc: ${formData.reembolsoNumeroDocumento})` : ""
             }`,
             amount: valorRecibo,
             status: "pendente",
-            client_id: originalForm.clienteId || formData.client_id,
-            aircraft_id: originalForm.aircraftId || formData.aircraft_id || null,
-            categoria_movimentacao_id: originalForm.reembolsoCategoriaId || formData.categoria_movimentacao_id || null,
+            client_id: formData.clienteId,
+            aircraft_id: formData.aircraftId || null,
+            categoria_movimentacao_id: formData.reembolsoCategoriaId || null,
             tipo_documento: isRateado ? "rateio" as const : "recibo" as const,
-            doc: originalForm.reembolsoNumeroDocumento || null,
-            prazo_pagamento: originalForm.prazoMaximoQuitacao || null,
+            doc: formData.reembolsoNumeroDocumento || null,
+            payment_term: formData.prazoMaximoQuitacao || null,
             percentual: percentual,
             forma_pagamento: isRateado ? "rateio_direto" : "empresa_paga",
             afeta_caixa_empresa: true,
@@ -255,70 +253,24 @@ export default function EmissaoRecibo() {
       // ===================== GERAR PDF =====================
       try {
         setIsGeneratingPdf(true);
-        console.log("Gerando PDF com @react-pdf/renderer...");
+        const { data: pdfResult, error: pdfError } = await supabase.functions.invoke("recibo-pdf", {
+          body: { receiptData: { ...receiptData, boleto_url: boletoUrl, nf_url: notaFiscalUrl } },
+        });
+        if (pdfError) throw pdfError;
 
-        // Preparar dados para o PDF
-        const pdfData = {
-          ...receiptData,
-          boleto_url: boletoUrl,
-          nf_url: notaFiscalUrl,
-        };
-
-        // Gerar o PDF usando @react-pdf/renderer
-        const pdfBlob = await pdf(
-          <ReciboDocument data={pdfData} />
-        ).toBlob();
-
-        // Upload do PDF para o Storage
-        const pdfFileName = `recibos/${receiptData.id}_${Date.now()}.pdf`;
-        const { error: uploadError } = await supabase.storage
-          .from("receipts")
-          .upload(pdfFileName, pdfBlob, {
-            contentType: "application/pdf",
-            upsert: true,
-          });
-
-        if (uploadError) throw uploadError;
-
-        // Obter URL pública do PDF
-        const { data: urlData } = supabase.storage
-          .from("receipts")
-          .getPublicUrl(pdfFileName);
-
-        if (!urlData?.publicUrl) {
-          throw new Error("Falha ao obter URL pública do PDF");
+        if (pdfResult?.url) {
+          const { error: updateError } = await supabase.from("receipts").update({ pdf_url: pdfResult.url }).eq("id", receiptData.id);
+          if (updateError) throw updateError;
         }
 
-        // Atualizar no banco de dados
-        const { error: updateError } = await supabase
-          .from("receipts")
-          .update({ pdf_url: urlData.publicUrl })
-          .eq("id", receiptData.id);
-
-        if (updateError) throw updateError;
-
-        // Recarregar histórico
         await loadRecentReceipts(userId);
-
-        // Preparar mensagem de sucesso
         const attachmentInfo = uploadedFiles.length > 0
           ? `Anexos: ${uploadedFiles.map(f => f.type === 'boleto' ? 'Boleto' : 'Nota Fiscal').join(' e ')}.`
           : '';
-
-        toast({
-          title: "✅ Sucesso!",
-          description: `Recibo ${receiptNumber} gerado com sucesso! ${attachmentInfo}`
-        });
-
-        console.log("✅ PDF gerado e enviado com sucesso:", urlData.publicUrl);
+        toast({ title: "✅ Sucesso!", description: `Recibo ${receiptNumber} gerado com sucesso! ${attachmentInfo}` });
       } catch (pdfErr) {
-        console.error("❌ Erro ao gerar PDF:", pdfErr);
-        const errorMsg = pdfErr instanceof Error ? pdfErr.message : "Erro ao gerar PDF";
-        toast({
-          title: "⚠️ Aviso",
-          description: `Recibo ${receiptNumber} criado, mas houve erro ao gerar PDF: ${errorMsg}`,
-          variant: "default"
-        });
+        console.error("Erro PDF:", pdfErr);
+        toast({ title: "Recibo criado, PDF pendente", description: `Recibo ${receiptNumber} criado, mas o PDF falhou.`, variant: "default" });
       }
 
     } catch (err) {
@@ -398,137 +350,50 @@ export default function EmissaoRecibo() {
   // ===================== RENDER =====================
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-card/30 p-4 md:p-8 rounded-[13px] overflow-hidden">
-        <div className="max-w-7xl mx-auto space-y-8">
-          {/* Header Section */}
-          <div className="space-y-2">
-            <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
-              Emissão de Recibos
-            </h1>
-            <p className="text-muted-foreground text-lg">Gerar e gerenciar recibos PDF de forma simples e segura</p>
+      <div className="min-h-screen p-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div>
+            <h1 className="text-4xl font-extrabold text-white">Emissão de Recibos</h1>
+            <p className="text-slate-400 mt-2">Gerar e gerenciar recibos PDF</p>
           </div>
 
           <Tabs defaultValue="emitir" className="w-full">
-            {/* Tab Navigation */}
-            <div className="overflow-x-auto">
-              <TabsList className="flex gap-2 bg-card/50 backdrop-blur-sm p-1.5 rounded-xl border border-border/50 w-fit md:w-auto">
-                <TabsTrigger value="emitir" className="px-4 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-lg transition-all">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Emitir
-                </TabsTrigger>
-                <TabsTrigger value="historico" className="px-4 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-lg transition-all">
-                  <Clock className="h-4 w-4 mr-2" />
-                  Histórico
-                </TabsTrigger>
-                <TabsTrigger value="descricoes" className="px-4 py-2.5 data-[state=active]:bg-primary/20 data-[state=active]:text-primary rounded-lg transition-all">
-                  <Star className="h-4 w-4 mr-2" />
-                  Descrições Favoritas
-                </TabsTrigger>
-              </TabsList>
-            </div>
+            <TabsList className="flex gap-3 bg-transparent p-0 border-0 max-w-lg">
+              <TabsTrigger value="emitir">Emitir</TabsTrigger>
+              <TabsTrigger value="historico">Histórico</TabsTrigger>
+              <TabsTrigger value="descricoes">
+                <Star className="h-4 w-4 mr-1" />
+                Descrições Favoritas
+              </TabsTrigger>
+            </TabsList>
 
-            {/* Tab Content - Emitir */}
-            <TabsContent value="emitir" className="mt-6">
-              <div className="rounded-[19px] bg-card/30 backdrop-blur-sm border border-border/50 p-6 md:p-8 shadow-lg hover:shadow-xl transition-shadow overflow-hidden">
-                <ReceiptForm
-                  clientesAtivos={clientesAtivos}
-                  favoritePayers={favoritePayers}
-                  isGenerating={isGenerating}
-                  onSubmit={handleGenerateReceipt}
-                />
-              </div>
+            <TabsContent value="emitir">
+              <ReceiptForm
+                clientesAtivos={clientesAtivos}
+                favoritePayers={favoritePayers}
+                isGenerating={isGenerating}
+                onSubmit={handleGenerateReceipt}
+              />
             </TabsContent>
 
-            {/* Tab Content - Histórico */}
-            <TabsContent value="historico" className="mt-6">
-              <div className="space-y-4">
-                {/* Clear History Button */}
-                <div className="flex justify-end">
-                  <button
-                    onClick={handleClearHistory}
-                    className="px-4 py-2 bg-destructive/20 hover:bg-destructive/30 text-destructive rounded-lg transition-colors text-sm font-medium"
-                  >
-                    Limpar Histórico
-                  </button>
-                </div>
-
-                {/* Receipts Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {recentReceipts.length > 0 ? (
-                    recentReceipts.map((r) => (
-                      <div
-                        key={r.id}
-                        className="rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 p-5 hover:border-primary/50 hover:shadow-lg transition-all duration-300 group"
-                      >
-                        {/* Receipt Header */}
-                        <div className="space-y-3 mb-4">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-muted-foreground">Recibo</p>
-                              <p className="text-primary font-bold truncate group-hover:text-primary/80">{r.receipt_number}</p>
-                            </div>
-                            <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full whitespace-nowrap">
-                              {r.receipt_type === 'reembolso' ? 'Reembolso' : 'Pagamento'}
-                            </span>
-                          </div>
-
-                          <div>
-                            <p className="text-sm text-muted-foreground mb-1">Pagador</p>
-                            <p className="font-medium text-foreground truncate">{r.payer_name}</p>
-                          </div>
-
-                          {r.payer_document && (
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-1">Documento</p>
-                              <p className="text-sm font-mono text-foreground">{r.payer_document}</p>
-                            </div>
-                          )}
-
-                          <div className="pt-2 border-t border-border/30">
-                            <p className="text-sm text-muted-foreground mb-1">Valor</p>
-                            <p className="text-lg font-bold text-primary">R$ {r.amount?.toFixed(2).replace('.', ',') || '0,00'}</p>
-                          </div>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleViewReceipt(r.id)}
-                            disabled={isLoadingPdf}
-                            className="flex-1 px-3 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
-                          >
-                            Visualizar
-                          </button>
-                          <button
-                            onClick={() => handleDownloadReceipt(r.id)}
-                            className="flex-1 px-3 py-2 bg-accent/20 hover:bg-accent/30 text-accent rounded-lg transition-colors text-sm font-medium"
-                          >
-                            Baixar
-                          </button>
-                          <button
-                            onClick={() => handleDeleteReceipt(r.id)}
-                            className="flex-1 px-3 py-2 bg-destructive/20 hover:bg-destructive/30 text-destructive rounded-lg transition-colors text-sm font-medium"
-                          >
-                            Excluir
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="col-span-full rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 p-12 text-center">
-                      <Clock className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-                      <p className="text-muted-foreground">Nenhum recibo gerado ainda</p>
+            <TabsContent value="historico">
+              <div className="space-y-2">
+                {recentReceipts.map((r) => (
+                  <div key={r.id} className="flex justify-between items-center p-2 border rounded">
+                    <span>{r.receipt_number} - {r.payer_name}</span>
+                    <div className="space-x-2">
+                      <button onClick={() => handleViewReceipt(r.id)}>Visualizar</button>
+                      <button onClick={() => handleDownloadReceipt(r.id)}>Baixar</button>
+                      <button onClick={() => handleDeleteReceipt(r.id)}>Excluir</button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                ))}
+                <button onClick={handleClearHistory}>Limpar Histórico</button>
               </div>
             </TabsContent>
 
-            {/* Tab Content - Descrições Favoritas */}
-            <TabsContent value="descricoes" className="mt-6">
-              <div className="rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 p-6 md:p-8 shadow-lg">
-                <DescriptionManager />
-              </div>
+            <TabsContent value="descricoes">
+              <DescriptionManager />
             </TabsContent>
           </Tabs>
         </div>
