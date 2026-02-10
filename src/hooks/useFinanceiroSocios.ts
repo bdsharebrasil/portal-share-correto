@@ -154,6 +154,8 @@ export function useAddDeposit() {
       description: string;
       receiptUrl?: string;
       paymentDate: string;
+      bankName?: string | null;
+      transactionSubtype?: string;
     }) => {
       // Get current balance
       const { data: account, error: accErr } = await supabase
@@ -162,7 +164,7 @@ export function useAddDeposit() {
         .eq("client_id", data.clientId)
         .eq("partner_cpf", data.partnerCpf)
         .single();
-      
+
       if (accErr) throw accErr;
 
       const balanceBefore = Number(account.current_balance);
@@ -182,6 +184,8 @@ export function useAddDeposit() {
           description: data.description,
           receipt_url: data.receiptUrl || null,
           payment_date: data.paymentDate,
+          bank_name: data.bankName || null,
+          transaction_subtype: data.transactionSubtype || "deposit",
         });
       if (txErr) throw txErr;
 
@@ -365,6 +369,8 @@ export function useAddBankInterest() {
           balance_after: 0,
           description: data.description,
           payment_date: data.paymentDate,
+          bank_name: data.bankName || null,
+          transaction_subtype: "interest",
         });
 
       if (error) throw error;
