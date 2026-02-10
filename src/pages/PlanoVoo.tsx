@@ -503,7 +503,15 @@ export default function PlanoVooPage() {
 
         {weather.rawOb && (
           <div className="mt-3 pt-3 border-t border-slate-700">
+            <p className="text-xs text-slate-400 font-semibold mb-1">METAR:</p>
             <p className="text-xs text-slate-500 font-mono break-all">{weather.rawOb}</p>
+          </div>
+        )}
+
+        {weather.taf && (
+          <div className="mt-2 pt-2 border-t border-slate-700">
+            <p className="text-xs text-slate-400 font-semibold mb-1">TAF:</p>
+            <p className="text-xs text-slate-500 font-mono break-all">{weather.taf}</p>
           </div>
         )}
 
@@ -582,10 +590,10 @@ export default function PlanoVooPage() {
           <div>
             <h4 className="text-slate-400 font-semibold mb-1">Serviços:</h4>
             <div className="flex flex-wrap gap-2 ml-2">
-              {rotaer.services.fuel && <Badge variant="outline" className="bg-green-500/10 border-green-500/30 text-green-400">Combustível</Badge>}
-              {rotaer.services.hangar && <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-blue-400">Hangar</Badge>}
-              {rotaer.services.maintenance && <Badge variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-400">Manutenção</Badge>}
-              {rotaer.services.customs && <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-purple-400">Alfândega</Badge>}
+              {rotaer?.services?.fuel && <Badge variant="outline" className="bg-green-500/10 border-green-500/30 text-green-400">Combustível</Badge>}
+              {rotaer?.services?.hangar && <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-blue-400">Hangar</Badge>}
+              {rotaer?.services?.maintenance && <Badge variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-400">Manutenção</Badge>}
+              {rotaer?.services?.customs && <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-purple-400">Alfândega</Badge>}
             </div>
           </div>
 
