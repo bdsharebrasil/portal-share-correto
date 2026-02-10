@@ -26,12 +26,18 @@ import { format } from "date-fns";
 
 // ─── Lookup: Bancos ───────────────────────────────────────────────────────────
 const BANK_OPTIONS = [
-  { id: "bradesco", label: "Bradesco" },
-  { id: "sicredi", label: "Sicredi" },
-  { id: "caixa", label: "Caixa Econômica" },
-  { id: "inter", label: "Inter" },
-  { id: "sicoob", label: "Sicoob" },
-  { id: "outros", label: "Outros" },
+  { id: "bradesco",  label: "Bradesco" },
+  { id: "itau",      label: "Itaú" },
+  { id: "santander", label: "Santander" },
+  { id: "bb",        label: "Banco do Brasil" },
+  { id: "caixa",     label: "Caixa Econômica" },
+  { id: "nubank",    label: "Nubank" },
+  { id: "inter",     label: "Inter" },
+  { id: "btg",       label: "BTG Pactual" },
+  { id: "xp",        label: "XP Investimentos" },
+  { id: "sicoob",    label: "Sicoob" },
+  { id: "sicredi",   label: "Sicredi" },
+  { id: "outros",    label: "Outros" },
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -50,7 +56,6 @@ const EMPTY_DEPOSIT = {
 };
 
 const EMPTY_INTEREST = {
-  cpf: "",
   amount: "",
   date: format(new Date(), "yyyy-MM-dd"),
   bankName: "",
@@ -107,17 +112,16 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
   // ── Submit: Rendimento Bancário ────────────────────────────────────────────
   const handleInterestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!interest.cpf || !interest.amount || !interest.bankName) return;
+    if (!interest.amount || !interest.bankName) return;
 
-    const partner = getPartner(interest.cpf);
-    const account = getAccount(interest.cpf);
+    const bankLabel = BANK_OPTIONS.find(b => b.id === interest.bankName)?.label ?? interest.bankName;
 
     await addDeposit.mutateAsync({
       clientId: clienteId,
-      partnerCpf: interest.cpf,
-      partnerName: partner?.name || account?.partner_name || "",
+      partnerCpf: null,        // conta compartilhada — sem sócio específico
+      partnerName: "Conta Compartilhada",
       amount: parseFloat(interest.amount),
-      description: `Rendimento bancário${interest.bankName ? ` - ${BANK_OPTIONS.find(b => b.id === interest.bankName)?.label}` : ""}${interest.notes ? ` (${interest.notes})` : ""}`,
+      description: `Rendimento bancário - ${bankLabel}${interest.notes ? ` (${interest.notes})` : ""}`,
       paymentDate: interest.date,
       bankName: interest.bankName,
       transactionSubtype: "bank_interest",
@@ -224,32 +228,15 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
               <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-sm text-amber-700 dark:text-amber-400">
                 <TrendingUp className="h-4 w-4 mt-0.5 flex-shrink-0" />
                 <span>
-                  Registre os juros/rendimentos gerados pela conta do sócio no banco.
-                  O valor será somado ao saldo e ao total de rendimentos acumulados.
+                  Rendimento da <strong>conta compartilhada</strong> entre os sócios.
+                  O valor é registrado no centro de custo do cliente, sem vínculo individual.
                 </span>
               </div>
-
-              {/* Sócio */}
-              <PartnerSelect
-                value={interest.cpf}
-                onChange={(v) => setInterest((p) => ({ ...p, cpf: v }))}
-                partners={partners}
-                accounts={accounts}
-                loading={loadingPartners}
-              />
-
-              {/* Info do sócio */}
-              <PartnerSummaryCard
-                partner={getPartner(interest.cpf)}
-                account={getAccount(interest.cpf)}
-                showInterest
-              />
 
               {/* Banco (obrigatório para rendimento) */}
               <BankSelect
                 value={interest.bankName}
                 onChange={(v) => setInterest((p) => ({ ...p, bankName: v }))}
-                disabled={!interest.cpf}
                 required
               />
 
@@ -257,7 +244,6 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
               <AmountField
                 value={interest.amount}
                 onChange={(v) => setInterest((p) => ({ ...p, amount: v }))}
-                disabled={!interest.cpf}
                 label="Valor do Rendimento (R$) *"
                 placeholder="0,00"
               />
@@ -276,7 +262,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                   id="int-notes"
                   value={interest.notes}
                   onChange={(e) => setInterest((p) => ({ ...p, notes: e.target.value }))}
-                  placeholder="Ex: Rendimento"
+                  placeholder="Ex: Rendimento FacilCred Janeiro"
                   disabled={addDeposit.isPending}
                   className="mt-2"
                 />
@@ -284,7 +270,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
 
               <SubmitButton
                 loading={addDeposit.isPending}
-                disabled={!interest.cpf || !interest.amount || !interest.bankName}
+                disabled={!interest.amount || !interest.bankName}
                 label="Registrar Rendimento"
                 variant="interest"
               />
@@ -511,10 +497,11 @@ function SubmitButton({
   return (
     <Button
       type="submit"
-      className={`w-full mt-2 ${variant === "interest"
+      className={`w-full mt-2 ${
+        variant === "interest"
           ? "bg-amber-600 hover:bg-amber-700 text-white"
           : ""
-        }`}
+      }`}
       disabled={loading || disabled}
       size="lg"
     >
