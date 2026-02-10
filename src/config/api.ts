@@ -15,8 +15,8 @@ export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 export const API_ENDPOINTS = {
   health: `${API_BASE_URL}/health`,
   weather: {
-    metar: (icao: string) => `${API_BASE_URL}/api/weather/metar/${icao}`,
-    taf: (icao: string) => `${API_BASE_URL}/api/weather/taf/${icao}`,
+    metar: (icao: string) => `${API_BASE_URL}/api/weather/${icao}`,
+    taf: (icao: string) => `${API_BASE_URL}/api/weather/${icao}`,
   },
   airports: {
     byIcao: (icao: string) => `${API_BASE_URL}/api/airports/${icao}`,

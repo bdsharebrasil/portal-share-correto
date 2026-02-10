@@ -99,19 +99,15 @@ export function WeatherDisplay() {
         <div className="p-4 space-y-4">
           {/* Grid de Informações */}
           <div className="grid grid-cols-2 gap-3">
-            {/* Vento */}
-            <div className="bg-card border rounded-md p-2 flex items-center gap-3">
-              <div className="bg-blue-500/10 p-2 rounded-full text-blue-500">
-                <Wind className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-[10px] uppercase text-muted-foreground font-semibold">Vento</p>
-                <p className="text-sm font-bold">
-                  {weather.wdir ? String(weather.wdir).padStart(3, '0') : 'VRB'}° 
-                  <span className="mx-1 text-muted-foreground">@</span> 
-                  {weather.wspd}kt
-                  {weather.wgst && <span className="text-red-400 ml-1">G{weather.wgst}</span>}
-                </p>
+           {/* Vento - Ajustado para aceitar VRB (Variável) */}
+<p className="text-sm font-bold">
+  {typeof weather.wdir === 'number' 
+    ? String(weather.wdir).padStart(3, '0') + '°' 
+    : 'VRB'} 
+  <span className="mx-1 text-muted-foreground">@</span> 
+  {weather.wspd}kt
+  {weather.wgst && <span className="text-red-400 ml-1">G{weather.wgst}</span>}
+</p>
               </div>
             </div>
 

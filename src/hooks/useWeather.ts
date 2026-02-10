@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { API_ENDPOINTS } from '@/config/api';
 
-// Interface que espelha exatamente o retorno do seu Backend
+// 1. Interface de retorno para o seu Componente
 export interface MetarResponse {
   icao: string;
   rawOb: string;
@@ -18,11 +18,29 @@ export interface MetarResponse {
   source: string;
 }
 
-export interface WeatherState {
-  data: MetarResponse | null;
-  loading: boolean;
-  error: string | null;
-}
+// 2. Função Auxiliar: Transforma a string "SBGR 100400Z..." em dados legíveis
+const parseMetarString = (raw: string) => {
+  // Regex para Temperatura e Orvalho (ex: 22/18 ou M02/M05)
+  const tempMatch = raw.match(/(M?\d{2})\/(M?\d{2})/);
+  // Regex para Vento (ex: 08005KT ou 12015G25KT)
+  const windMatch = raw.match(/(\d{3})(\d{2})(G\d{2})?KT/);
+  // Regex para Pressão (ex: Q1015)
+  const pressMatch = raw.match(/Q(\d{4})/);
+  // Regex para Visibilidade (ex: 9999 ou 0500)
+  const visibMatch = raw.match(/\s(\d{4})\s/);
+
+  const parseTemp = (t: string) => t.startsWith('M') ? -parseInt(t.substring(1)) : parseInt(t);
+
+  return {
+    temp: tempMatch ? parseTemp(tempMatch[1]) : null,
+    dewp: tempMatch ? parseTemp(tempMatch[2]) : null,
+    wdir: windMatch ? parseInt(windMatch[1]) : null,
+    wspd: windMatch ? parseInt(windMatch[2]) : null,
+    wgst: windMatch && windMatch[3] ? parseInt(windMatch[3].replace('G', '')) : null,
+    altim: pressMatch ? parseInt(pressMatch[1]) : null,
+    visib: visibMatch ? parseInt(visibMatch[1]) : (raw.includes('CAVOK') ? 9999 : null),
+  };
+};
 
 export function useWeather(defaultIcao: string = 'SBGR') {
   const [weather, setWeather] = useState<MetarResponse | null>(null);
@@ -30,61 +48,50 @@ export function useWeather(defaultIcao: string = 'SBGR') {
   const [error, setError] = useState<string | null>(null);
 
   const fetchWeather = useCallback(async (icao: string) => {
-    console.log('[METAR AISWeb] 🌐 Buscando dados:', icao);
     setLoading(true);
     setError(null);
 
     try {
-      // Usa a configuração centralizada
       const url = API_ENDPOINTS.weather.metar(icao);
-      
-      console.log('[AISWeb METAR] Buscando dados para', icao);
-      console.log('[AISWeb METAR] URL:', url);
-      
       const response = await fetch(url);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('[AISWeb METAR] Erro na resposta:', errorData);
-        throw new Error(errorData.error || `Erro: ${response.statusText}`);
+
+      if (!response.ok) throw new Error(`Erro na API: ${response.status}`);
+
+      const data = await response.json();
+
+      // Navega na estrutura da AISWEB: data -> met -> metar
+      // O seu Worker manda 'aisweb' ou o objeto direto. Ajustamos para ambos:
+      const aisData = data.met || data.aisweb?.met;
+      const metarObj = aisData?.metar;
+
+      if (!metarObj || !metarObj.metar) {
+        throw new Error("Dados METAR não encontrados para este ICAO.");
       }
 
-      const data: MetarResponse = await response.json();
-      
-      console.log('[AISWeb METAR] Dados recebidos:', data);
-      
-      // Validação: checar se há erro no response do backend
-      if ('error' in data) {
-        console.error('[AISWeb METAR] Sem dados METAR para', icao);
-        throw new Error((data as any).error || 'Dados meteorológicos indisponíveis');
-      }
-      
-      // Validação básica se veio dado vazio
-      if (!data || !data.rawOb) {
-        console.error('[AISWeb METAR] Sem dados METAR para', icao);
-        throw new Error("Dados meteorológicos indisponíveis.");
-      }
+      // Monta o objeto final processado
+      const parsedData: MetarResponse = {
+        icao: metarObj.loc || icao.toUpperCase(),
+        rawOb: metarObj.metar,
+        ...parseMetarString(metarObj.metar),
+        flightCategory: (metarObj.cat as any) || 'VFR',
+        reportTime: metarObj.date,
+        updatedTime: new Date().toISOString(),
+        source: 'AISWEB'
+      };
 
-      console.log('[METAR AISWeb] ✅ Dados carregados com sucesso');
-      setWeather(data);
+      setWeather(parsedData);
     } catch (err: any) {
-      console.error('[METAR AISWeb] ❌ Erro ao buscar clima:', err);
-      setError(err.message || "Erro desconhecido");
+      console.error('[useWeather] Erro:', err);
+      setError(err.message);
       setWeather(null);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Busca inicial e setup do intervalo
   useEffect(() => {
     fetchWeather(defaultIcao);
-    
-    // Atualiza a cada 5 minutos (300000ms) para respeitar o cache do backend
-    const interval = setInterval(() => {
-      fetchWeather(defaultIcao);
-    }, 5 * 60 * 1000);
-
+    const interval = setInterval(() => fetchWeather(defaultIcao), 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, [fetchWeather, defaultIcao]);
 
