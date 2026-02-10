@@ -9,9 +9,12 @@ import { useNavigate } from "react-router-dom";
 
 // Componentes ajustados para o contexto de Socios
 import { PartnerCards } from "@/components/socios/PartnerCards";
+import { TransactionsTable } from "@/components/socios/TransactionsTable";
+import { DepositForm } from "@/components/socios/DepositForm";
+import { ExpenseForm } from "@/components/socios/ExpenseForm";
 
 // Hooks ajustados
-import { useSocioAccounts } from "@/hooks/useFinanceiroSocios";
+import { useSocioAccounts, useSocioTransactions } from "@/hooks/useFinanceiroSocios";
 import { useClientesComSocios } from "@/hooks/useSocioBalanco";
 import { useClientPartners } from "@/hooks/useClientPartners";
 
@@ -27,6 +30,7 @@ export default function FinanceiroSocios() {
   // Passamos o ID do cliente para os hooks filtrarem os dados
   const { data: accounts = [], isLoading: loadingAccounts } = useSocioAccounts(clienteSelecionado);
   const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteSelecionado);
+  const { data: transactions = [], isLoading: loadingTransactions } = useSocioTransactions(clienteSelecionado);
 
   // Filtrar apenas clientes que têm partners configurados
   const clientesComPartners = clientesComSocios.filter(cliente =>
@@ -225,6 +229,17 @@ export default function FinanceiroSocios() {
             </Button>
           </div>
         </div>
+
+        {/* Botões de Ação */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <DepositForm accounts={accounts} clienteId={clienteSelecionado} />
+          <ExpenseForm clienteId={clienteSelecionado} />
+        </div>
+
+        {/* Cards com as 2 Últimas Transações */}
+        {!loadingTransactions && transactions.length > 0 && (
+          <TransactionsTable transactions={transactions} limit={2} />
+        )}
 
         {/* Cards de Resumo dos Sócios */}
         <PartnerCards accounts={accounts} />
