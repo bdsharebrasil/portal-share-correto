@@ -49,7 +49,7 @@ export function GestorDashboard() {
     { icon: Plane, label: "Controle de Aeronaves", route: "/aeronaves", textColor: "text-cyan-400", grid: 2 },
     { icon: PieChart, label: "Balanço Clientes", route: "/financeiro/balanco-cliente", textColor: "text-indigo-400", grid: 2 },
     { icon: BarChart3, label: "Dashboard Gestor", route: "/financeiro/gestor", color: "from-orange-500 to-orange-600", restricted: true, grid: 3 },
-    { icon: DollarSign, label: "Financeiro Sócios", route: "/financeiro/dga", color: "from-purple-500 to-purple-600", restricted: true, grid: 3 },
+    { icon: DollarSign, label: "Financeiro Sócios", route: "/financeiro/financeiro-socios", color: "from-purple-500 to-purple-600", restricted: true, grid: 3 },
   ];
 
   const quickTools = allQuickTools.filter(tool => !tool.restricted || isAdmin || isGestorMaster);

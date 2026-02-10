@@ -6,19 +6,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plane, MapPin, Clock, Fuel, Wind, Calendar, AlertTriangle, CheckCircle, FileText, Download, Save, Calculator, Navigation, Route, CloudRain, RefreshCw, Loader2, Shield, Radio, Info, XCircle, AlertCircle, CheckCircle2, Thermometer } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Plane, MapPin, Clock, Fuel, Wind, Calendar, AlertTriangle, CheckCircle, FileText, Download, Save, Calculator, Navigation, Route, CloudRain, RefreshCw, Loader2, Shield, Radio, Info, XCircle, AlertCircle, CheckCircle2, Thermometer, ChevronRight } from 'lucide-react';
 import { InlineLottieSpinner } from '@/components/ui/inline-lottie-spinner';
 import { useAerodromes, type Aerodromo } from '@/hooks/useAerodromes';
 import { useAeronaves, type Aeronave } from '@/hooks/useAeronaves';
 import { useAISWeb } from '@/hooks/useAISWeb';
 import { useFlightPlans } from '@/hooks/useFlightPlans';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSolarData } from '@/hooks/useSolarData';
 import { calculateDistance, calculateMagneticHeading, calculateOptimalAltitude, isAerodromeOperational, type NOTAMData, type ROTAERData } from '@/lib/aviation';
 import { FlightRouteMap, type RoutePoint } from '@/components/plano-voo/FlightRouteMap';
 import { AerodromeCombobox } from '@/components/plano-voo/AerodromeCombobox';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { fetchAISWebMETAR, type AISWebMETARData } from '@/services/aiswebWeather';
+import { fetchAirportCharts, type ChartData } from '@/services/chartsService';
 interface FlightFormData {
   origin: string;
   destination: string;
@@ -143,6 +146,24 @@ function getFlightCategoryBg(cat: string): string {
       return 'bg-slate-500/20 border-slate-500/50';
   }
 }
+
+// Helper para formatar datas de NOTAM com segurança
+function formatNOTAMDate(dateValue: any): string {
+  try {
+    if (!dateValue) return 'N/A';
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return 'Data Inválida';
+    return date.toLocaleDateString('pt-BR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+  } catch (error) {
+    console.warn('[formatNOTAMDate] Error formatting date:', dateValue, error);
+    return 'Data Inválida';
+  }
+}
+
 export default function PlanoVooPage() {
   const [activeTab, setActiveTab] = useState('planejar');
   const [formData, setFormData] = useState<FlightFormData>({
@@ -169,7 +190,13 @@ export default function PlanoVooPage() {
   const [altNotams, setAltNotams] = useState<NOTAMData[]>([]);
   const [isLoadingNotams, setIsLoadingNotams] = useState(false);
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
+  const [restrictionsModal, setRestrictionsModal] = useState<{ icao: string; restrictions: string[] } | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [originCharts, setOriginCharts] = useState<ChartData[]>([]);
+  const [destCharts, setDestCharts] = useState<ChartData[]>([]);
+  const [isLoadingCharts, setIsLoadingCharts] = useState(false);
+  const { solarData: originSolar } = useSolarData(formData.origin || null);
+  const { solarData: destSolar } = useSolarData(formData.destination || null);
   const {
     user
   } = useAuth();
@@ -404,11 +431,33 @@ export default function PlanoVooPage() {
       setIsLoadingNotams(false);
     }
   }, [formData.origin, formData.destination, formData.alternate, getMultipleNOTAMs]);
+
+  // Buscar Cartas do aeródromo
+  const fetchChartsData = useCallback(async () => {
+    if (!formData.origin && !formData.destination) return;
+    setIsLoadingCharts(true);
+    try {
+      if (formData.origin) {
+        const charts = await fetchAirportCharts(formData.origin);
+        setOriginCharts(charts);
+      }
+      if (formData.destination) {
+        const charts = await fetchAirportCharts(formData.destination);
+        setDestCharts(charts);
+      }
+    } catch (error) {
+      console.error('Error fetching charts:', error);
+    } finally {
+      setIsLoadingCharts(false);
+    }
+  }, [formData.origin, formData.destination]);
+
   useEffect(() => {
     if (formData.origin || formData.destination) {
       fetchNOTAMsData();
+      fetchChartsData();
     }
-  }, [formData.origin, formData.destination, formData.alternate, fetchNOTAMsData]);
+  }, [formData.origin, formData.destination, formData.alternate, fetchNOTAMsData, fetchChartsData]);
 
   // Salvar plano
   const savePlan = useCallback(async () => {
@@ -546,7 +595,7 @@ export default function PlanoVooPage() {
   };
 
   // Renderizar card ROTAER
-  const renderROTAERCard = (rotaer: ROTAERData | null, icao: string) => {
+  const renderROTAERCard = (rotaer: ROTAERData | null, icao: string, solarData?: any) => {
     if (!rotaer) {
       return <Card className="bg-slate-800/50 border-slate-700 p-4">
           <div className="flex items-center gap-2">
@@ -555,57 +604,131 @@ export default function PlanoVooPage() {
           </div>
         </Card>;
     }
-    return <Card className="bg-slate-800/50 border-slate-700 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Radio className="w-5 h-5 text-primary" />
-          <h3 className="text-white font-semibold">{rotaer.icao} - ROTAER</h3>
-        </div>
 
-        <div className="space-y-3 text-sm">
-          {/* Pistas */}
-          {rotaer.runways && rotaer.runways.length > 0 && <div>
-              <h4 className="text-slate-400 font-semibold mb-1">Pistas:</h4>
-              {rotaer.runways.map((rwy, idx) => <div key={idx} className="text-white ml-2">
-                  <span className="font-mono">{rwy.designator}</span>: {rwy.length}m x {rwy.width}m - {rwy.surface}
-                  {rwy.strength && <span className="text-slate-400"> (PCN: {rwy.strength})</span>}
-                </div>)}
+    return <Card className="bg-slate-800/50 border-slate-700 p-4">
+        <div className="space-y-4">
+          {/* Solar Data - Sunrise/Sunset */}
+          {solarData?.day && <div className="bg-gradient-to-r from-orange-900/20 to-yellow-900/20 border border-orange-500/30 rounded-lg p-3 mb-3">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-orange-400 font-semibold">Nascer:</span>
+                  <span className="text-white font-mono">{solarData.day.sunrise}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-yellow-400 font-semibold">Pôr:</span>
+                  <span className="text-white font-mono">{solarData.day.sunset}</span>
+                </div>
+              </div>
             </div>}
 
-          {/* Frequências */}
-          {rotaer.frequencies && rotaer.frequencies.length > 0 && <div>
-              <h4 className="text-slate-400 font-semibold mb-1">Frequências:</h4>
-              <div className="grid grid-cols-2 gap-1 ml-2">
-                {rotaer.frequencies.map((freq, idx) => <div key={idx} className="text-white">
-                    <span className="text-slate-400">{freq.type}:</span> <span className="font-mono">{freq.frequency}</span>
+          {/* Header */}
+          <div className="border-b border-slate-700 pb-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Radio className="w-5 h-5 text-primary" />
+              <h3 className="text-white font-semibold">{rotaer.icao} - {rotaer.name}</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs text-slate-400 ml-7">
+              <div>{rotaer.city}, {rotaer.state}</div>
+              <div>Elevação: {rotaer.elevation}ft</div>
+              <div>Coordenadas: {rotaer.coordinates.lat.toFixed(2)}°, {rotaer.coordinates.lng.toFixed(2)}°</div>
+              <div>Tipo: {rotaer.type}</div>
+            </div>
+          </div>
+
+          {/* Pistas */}
+          {rotaer.runways && rotaer.runways.length > 0 && <div>
+              <h4 className="text-slate-300 font-semibold mb-2 flex items-center gap-2">
+                <Navigation className="w-4 h-4 text-cyan-400" />
+                Pistas:
+              </h4>
+              <div className="grid gap-2 ml-6">
+                {rotaer.runways.map((rwy, idx) => <div key={idx} className="text-white bg-slate-900/30 p-2 rounded border border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-cyan-400">{rwy.designator}</span>
+                      <span className="text-slate-400 text-sm">{rwy.surface}</span>
+                    </div>
+                    <div className="text-slate-300 text-sm mt-1">
+                      {rwy.length}m × {rwy.width}m
+                      {rwy.strength && <span className="ml-2 text-slate-500">(PCN: {rwy.strength})</span>}
+                    </div>
                   </div>)}
               </div>
             </div>}
 
-          {/* Auxílios */}
+          {/* Frequências Comunicação */}
+          {rotaer.frequencies && rotaer.frequencies.length > 0 && <div>
+              <h4 className="text-slate-300 font-semibold mb-2 flex items-center gap-2">
+                <Radio className="w-4 h-4 text-orange-400" />
+                Frequências:
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 ml-6">
+                {rotaer.frequencies.map((freq, idx) => <div key={idx} className="bg-slate-900/30 p-2 rounded border border-slate-700">
+                    <div className="text-slate-400 text-xs font-semibold">{freq.type}</div>
+                    <div className="text-white font-mono text-sm mt-1">
+                      {freq.frequency} MHz
+                      {freq.name && <span className="ml-2 text-slate-400">({freq.name})</span>}
+                    </div>
+                  </div>)}
+              </div>
+            </div>}
+
+          {/* Auxílios à Navegação */}
           {rotaer.navaids && rotaer.navaids.length > 0 && <div>
-              <h4 className="text-slate-400 font-semibold mb-1">Auxílios:</h4>
-              <div className="flex flex-wrap gap-2 ml-2">
-                {rotaer.navaids.map((nav, idx) => <Badge key={idx} variant="outline" className="bg-primary/10 border-primary/30 text-primary">
-                    {nav.type} {nav.identifier} ({nav.frequency})
+              <h4 className="text-slate-300 font-semibold mb-2 flex items-center gap-2">
+                <Radio className="w-4 h-4 text-purple-400" />
+                Auxílios à Navegação:
+              </h4>
+              <div className="flex flex-wrap gap-2 ml-6">
+                {rotaer.navaids.map((nav, idx) => <Badge key={idx} variant="outline" className="bg-purple-500/20 border-purple-500/40 text-purple-300">
+                    {nav.type} {nav.identifier} {nav.frequency && `(${nav.frequency})`}
                   </Badge>)}
               </div>
             </div>}
 
           {/* Serviços */}
           <div>
-            <h4 className="text-slate-400 font-semibold mb-1">Serviços:</h4>
-            <div className="flex flex-wrap gap-2 ml-2">
-              {rotaer?.services?.fuel && <Badge variant="outline" className="bg-green-500/10 border-green-500/30 text-green-400">Combustível</Badge>}
-              {rotaer?.services?.hangar && <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-blue-400">Hangar</Badge>}
-              {rotaer?.services?.maintenance && <Badge variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-400">Manutenção</Badge>}
-              {rotaer?.services?.customs && <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-purple-400">Alfândega</Badge>}
+            <h4 className="text-slate-300 font-semibold mb-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400" />
+              Serviços Disponíveis:
+            </h4>
+            <div className="flex flex-wrap gap-2 ml-6">
+              {rotaer.services?.fuel && <Badge variant="outline" className="bg-green-500/20 border-green-500/40 text-green-300">
+                Combustível {rotaer.services.fuelTypes && rotaer.services.fuelTypes.length > 0 && `(${rotaer.services.fuelTypes.join(', ')})`}
+              </Badge>}
+              {rotaer.services?.maintenance && <Badge variant="outline" className="bg-orange-500/20 border-orange-500/40 text-orange-300">Manutenção</Badge>}
+              {rotaer.services?.hangar && <Badge variant="outline" className="bg-blue-500/20 border-blue-500/40 text-blue-300">Hangar</Badge>}
+              {rotaer.services?.customs && <Badge variant="outline" className="bg-purple-500/20 border-purple-500/40 text-purple-300">Alfândega</Badge>}
+              {(!rotaer.services?.fuel && !rotaer.services?.maintenance && !rotaer.services?.hangar && !rotaer.services?.customs) && <span className="text-slate-400 text-sm ml-6">Serviços não disponíveis</span>}
             </div>
           </div>
 
-          {/* Horário */}
-          {rotaer.operatingHours && <div className="flex justify-between pt-2 border-t border-slate-700">
-              <span className="text-slate-400">Horário:</span>
-              <span className="text-white font-mono">{rotaer.operatingHours}</span>
+          {/* Restrições */}
+          {rotaer.restrictions && rotaer.restrictions.length > 0 && <div>
+              <h4 className="text-slate-300 font-semibold mb-2 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-400" />
+                Restrições e Observações:
+              </h4>
+              <div className="ml-6 space-y-1">
+                {rotaer.restrictions.slice(0, 3).map((restriction, idx) => <p key={idx} className="text-slate-300 text-sm bg-red-900/10 border-l-2 border-red-500 pl-2 py-1">
+                    {restriction}
+                  </p>)}
+                {rotaer.restrictions.length > 3 && <button
+                    onClick={() => setRestrictionsModal({ icao: rotaer.icao, restrictions: rotaer.restrictions })}
+                    className="mt-2 text-red-400 hover:text-red-300 text-sm font-semibold flex items-center gap-1 transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                    Ver {rotaer.restrictions.length - 3} restrições adicionais
+                  </button>}
+              </div>
+            </div>}
+
+          {/* Contato */}
+          {(rotaer.contact?.phone || rotaer.contact?.email) && <div className="border-t border-slate-700 pt-3">
+              <h4 className="text-slate-300 font-semibold mb-2">Contato:</h4>
+              <div className="text-sm text-slate-300 ml-2 space-y-1">
+                {rotaer.contact.phone && <div>Tel: <span className="font-mono">{rotaer.contact.phone}</span></div>}
+                {rotaer.contact.email && <div>Email: <span className="font-mono text-blue-400">{rotaer.contact.email}</span></div>}
+              </div>
             </div>}
         </div>
       </Card>;
@@ -654,6 +777,10 @@ export default function PlanoVooPage() {
               <TabsTrigger value="aerodromos" className="data-[state=active]:bg-primary/20">
                 <Radio className="w-4 h-4 mr-2" />
                 Aeródromos
+              </TabsTrigger>
+              <TabsTrigger value="cartas" className="data-[state=active]:bg-primary/20">
+                <FileText className="w-4 h-4 mr-2" />
+                Cartas
               </TabsTrigger>
               <TabsTrigger value="meteorologia" className="data-[state=active]:bg-primary/20">
                 <CloudRain className="w-4 h-4 mr-2" />
@@ -994,7 +1121,7 @@ export default function PlanoVooPage() {
                                   </div>
                                   <p className="text-white text-sm mb-2">{notam.message}</p>
                                   <div className="flex flex-wrap gap-2 text-xs text-slate-400">
-                                    <span>Válido: {new Date(notam.startDate).toLocaleDateString('pt-BR')} - {new Date(notam.endDate).toLocaleDateString('pt-BR')}</span>
+                                    <span>Válido: {formatNOTAMDate(notam.startDate)} - {formatNOTAMDate(notam.endDate)}</span>
                                     {notam.schedule && <span>• {notam.schedule}</span>}
                                   </div>
                                 </div>
@@ -1036,11 +1163,93 @@ export default function PlanoVooPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <h3 className="text-white font-semibold mb-2">Origem: {formData.origin}</h3>
-                  {renderROTAERCard(originROTAER, formData.origin)}
+                  {renderROTAERCard(originROTAER, formData.origin, originSolar)}
                 </div>
                 <div>
                   <h3 className="text-white font-semibold mb-2">Destino: {formData.destination}</h3>
-                  {renderROTAERCard(destROTAER, formData.destination)}
+                  {renderROTAERCard(destROTAER, formData.destination, destSolar)}
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* TAB: Cartas */}
+            <TabsContent value="cartas" className="space-y-4">
+              <div className="flex justify-end mb-2">
+                <Button onClick={fetchChartsData} disabled={isLoadingCharts || !formData.origin && !formData.destination} className="bg-primary hover:bg-primary/90">
+                  {isLoadingCharts ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                  Atualizar Cartas
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Cartas Origem */}
+                <div>
+                  <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-400" />
+                    Cartas - {formData.origin || 'Origem'}
+                  </h3>
+                  {originCharts.length > 0 ? <div className="space-y-2">
+                      {originCharts.map((chart, idx) => <div key={idx} className="bg-slate-900/30 border border-slate-700 rounded-lg p-3 hover:bg-slate-900/50 transition-colors">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <h4 className="text-white font-semibold text-sm">{chart.title}</h4>
+                              {chart.description && <p className="text-slate-400 text-xs mt-1">{chart.description}</p>}
+                            </div>
+                            <Badge variant="outline" className={`ml-2 flex-shrink-0 ${
+                              chart.type === 'IFR' ? 'bg-red-500/20 border-red-500/50 text-red-300' :
+                              chart.type === 'VFR' ? 'bg-green-500/20 border-green-500/50 text-green-300' :
+                              'bg-blue-500/20 border-blue-500/50 text-blue-300'
+                            }`}>
+                              {chart.type}
+                            </Badge>
+                          </div>
+                          {chart.edition && <p className="text-slate-500 text-xs mb-2">Edição: {chart.edition}</p>}
+                          {chart.url ? <a href={chart.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 text-xs font-semibold">
+                              <Download className="w-3 h-3" />
+                              Download
+                            </a> : <span className="text-slate-500 text-xs">Sem link disponível</span>}
+                        </div>)}
+                    </div> : <div className="bg-slate-900/30 border border-slate-700 rounded-lg p-4 text-center text-slate-400">
+                      {isLoadingCharts ? <span className="flex items-center justify-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Carregando...
+                        </span> : <span>Nenhuma carta disponível</span>}
+                    </div>}
+                </div>
+
+                {/* Cartas Destino */}
+                <div>
+                  <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-400" />
+                    Cartas - {formData.destination || 'Destino'}
+                  </h3>
+                  {destCharts.length > 0 ? <div className="space-y-2">
+                      {destCharts.map((chart, idx) => <div key={idx} className="bg-slate-900/30 border border-slate-700 rounded-lg p-3 hover:bg-slate-900/50 transition-colors">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <h4 className="text-white font-semibold text-sm">{chart.title}</h4>
+                              {chart.description && <p className="text-slate-400 text-xs mt-1">{chart.description}</p>}
+                            </div>
+                            <Badge variant="outline" className={`ml-2 flex-shrink-0 ${
+                              chart.type === 'IFR' ? 'bg-red-500/20 border-red-500/50 text-red-300' :
+                              chart.type === 'VFR' ? 'bg-green-500/20 border-green-500/50 text-green-300' :
+                              'bg-blue-500/20 border-blue-500/50 text-blue-300'
+                            }`}>
+                              {chart.type}
+                            </Badge>
+                          </div>
+                          {chart.edition && <p className="text-slate-500 text-xs mb-2">Edição: {chart.edition}</p>}
+                          {chart.url ? <a href={chart.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 text-xs font-semibold">
+                              <Download className="w-3 h-3" />
+                              Download
+                            </a> : <span className="text-slate-500 text-xs">Sem link disponível</span>}
+                        </div>)}
+                    </div> : <div className="bg-slate-900/30 border border-slate-700 rounded-lg p-4 text-center text-slate-400">
+                      {isLoadingCharts ? <span className="flex items-center justify-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Carregando...
+                        </span> : <span>Nenhuma carta disponível</span>}
+                    </div>}
                 </div>
               </div>
             </TabsContent>
@@ -1141,5 +1350,28 @@ export default function PlanoVooPage() {
           </Tabs>
         </div>
       </div>
+
+      {/* Modal de Restrições */}
+      <Dialog open={!!restrictionsModal} onOpenChange={(open) => !open && setRestrictionsModal(null)}>
+        <DialogContent className="max-w-2xl max-h-96 overflow-y-auto bg-slate-900 border-slate-700">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-400" />
+              Restrições e Observações - {restrictionsModal?.icao}
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Todas as restrições operacionais e observações importantes para este aeródromo
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 mt-4">
+            {restrictionsModal?.restrictions.map((restriction, idx) => <div key={idx} className="bg-red-900/20 border-l-4 border-red-500 pl-4 py-3 rounded">
+                <p className="text-slate-200 text-sm leading-relaxed">
+                  <span className="text-red-400 font-semibold mr-2">•</span>
+                  {restriction}
+                </p>
+              </div>)}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>;
 }

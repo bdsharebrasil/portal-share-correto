@@ -155,7 +155,7 @@ export function useAISWeb() {
     setLoading(true);
     try {
       const restrictions = await checkRouteRestrictions(points, altitude);
-      
+
       updateCache(prev => ({
         ...prev,
         restrictions: {
@@ -166,7 +166,8 @@ export function useAISWeb() {
 
       return restrictions;
     } catch (err) {
-      console.error(err);
+      // Route restrictions are optional, log but don't fail
+      console.debug('[useAISWeb] Route restrictions check failed, continuing with empty restrictions');
       return [];
     } finally {
       setLoading(false);
@@ -186,18 +187,19 @@ export function useAISWeb() {
 
     try {
       const icaos = [origin, destination, alternate].filter(Boolean) as string[];
-      
-      // Executa em paralelo: NOTAMs e Restrições
-      const [notamsData, restrictions] = await Promise.all([
+
+      // Executa NOTAMs e Restrições em paralelo
+      // Restrições são opcionais, então usamos Promise.allSettled para não falhar se indisponíveis
+      const [notamsData, restrictionsResult] = await Promise.all([
         getMultipleNOTAMs(icaos),
-        getRouteRestrictions(route, altitude)
+        getRouteRestrictions(route, altitude).catch(() => [])
       ]);
 
       const originStatus = isAerodromeOperational(notamsData[origin.toUpperCase()] || []);
       const destStatus = isAerodromeOperational(notamsData[destination.toUpperCase()] || []);
 
       // Formata warnings de restrições
-      const restrictionWarnings = restrictions
+      const restrictionWarnings = (restrictionsResult || [])
         .filter(r => r.active)
         .map(r => `Área Restrita: ${r.name} (${r.type})`);
 
@@ -206,7 +208,7 @@ export function useAISWeb() {
         notams: notamsData,
         originStatus,
         destinationStatus: destStatus,
-        restrictions,
+        restrictions: restrictionsResult || [],
         warnings: [
           ...(originStatus.warnings || []),
           ...(destStatus.warnings || []),
@@ -215,8 +217,17 @@ export function useAISWeb() {
       };
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Erro na validação do plano';
+      console.error('[validateFlightPlan] Error:', errorMsg);
       setError(errorMsg);
-      throw err;
+      // Don't re-throw - validation should continue with warnings
+      return {
+        valid: false,
+        notams: {},
+        originStatus: { operational: false, reason: 'Erro ao verificar status', criticalNOTAMs: [] },
+        destinationStatus: { operational: false, reason: 'Erro ao verificar status', criticalNOTAMs: [] },
+        restrictions: [],
+        warnings: [errorMsg],
+      };
     } finally {
       setLoading(false);
     }

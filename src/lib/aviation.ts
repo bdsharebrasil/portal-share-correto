@@ -152,77 +152,426 @@ const AISWEB_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://api-workers
 
 // Fetch NOTAMs via Workers proxy
 export async function fetchAISWebNOTAMs(icao: string): Promise<NOTAMData[]> {
+  const icaoUpper = icao.toUpperCase();
+
   try {
-    const response = await fetch(
-      `${AISWEB_BASE_URL}/api/notam/${icao.toUpperCase()}`,
-      {
-        headers: {
-          'Accept': 'application/json',
-        },
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+
+    try {
+      const response = await fetch(
+        `${AISWEB_BASE_URL}/api/notam/${icaoUpper}`,
+        {
+          headers: {
+            'Accept': 'application/json',
+          },
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.debug(`[fetchAISWebNOTAMs] No NOTAMs found for ${icaoUpper}`);
+          return [];
+        }
+        console.warn(`[fetchAISWebNOTAMs] API error for ${icaoUpper}: ${response.status}`);
+        return [];
       }
-    );
-    
-    if (!response.ok) {
-      if (response.status === 404) return [];
-      throw new Error(`AISWeb API error: ${response.status}`);
+
+      const data = await response.json();
+      const parsed = parseAndPrioritizeNOTAMs(data);
+      console.debug(`[fetchAISWebNOTAMs] Found ${parsed.length} NOTAMs for ${icaoUpper}`);
+      return parsed;
+    } catch (fetchError) {
+      clearTimeout(timeout);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        console.warn(`[fetchAISWebNOTAMs] Timeout fetching NOTAMs for ${icaoUpper}`);
+      } else {
+        console.warn(`[fetchAISWebNOTAMs] Failed to fetch NOTAMs for ${icaoUpper}:`, fetchError);
+      }
+      return [];
     }
-    
-    const data = await response.json();
-    return parseAndPrioritizeNOTAMs(data);
   } catch (error) {
-    console.error('Error fetching NOTAMs from AISWeb:', error);
-    throw error;
+    console.error(`[fetchAISWebNOTAMs] Unexpected error for ${icaoUpper}:`, error);
+    return [];
   }
 }
 
-// Parse e priorizar NOTAMs
-function parseAndPrioritizeNOTAMs(rawData: any[]): NOTAMData[] {
-  return rawData.map(notam => {
-    let priority: NOTAMData['priority'] = 'low';
-    const msg = notam.message?.toLowerCase() || '';
-    
-    if (msg.includes('closed') || msg.includes('fechado') || 
-        msg.includes('unsafe') || msg.includes('não autorizado')) {
-      priority = 'critical';
-    } else if (msg.includes('restricted') || msg.includes('restrito') || 
-               msg.includes('caution') || msg.includes('atenção')) {
-      priority = 'high';
-    } else if (msg.includes('tempo') || msg.includes('temporary')) {
-      priority = 'medium';
-    }
-    
-    return {
-      ...notam,
-      priority,
-    };
-  }).sort((a, b) => {
-    const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
-    return priorityOrder[a.priority] - priorityOrder[b.priority];
-  });
+// Parse e priorizar NOTAMs - com validação robusta de dados
+function parseAndPrioritizeNOTAMs(rawData: any): NOTAMData[] {
+  // A API pode retornar:
+  // 1. Array direto: [...notams]
+  // 2. Array com objetos contendo 'item': [{ item: [...] }]
+  // 3. Objeto com 'data' ou 'notams': { data: [...] }
+
+  let dataArray: any[] = [];
+
+  if (Array.isArray(rawData)) {
+    dataArray = rawData;
+  } else if (rawData?.data && Array.isArray(rawData.data)) {
+    dataArray = rawData.data;
+  } else if (rawData?.notams && Array.isArray(rawData.notams)) {
+    dataArray = rawData.notams;
+  } else {
+    console.warn('[parseAndPrioritizeNOTAMs] Unexpected response format:', rawData);
+    return [];
+  }
+
+  // Se cada elemento tem 'item' (wrapper object), extrair items
+  if (dataArray.length > 0 && dataArray[0]?.item && Array.isArray(dataArray[0].item)) {
+    dataArray = dataArray.flatMap(wrapper => wrapper.item || []);
+  }
+
+  if (!Array.isArray(dataArray) || dataArray.length === 0) {
+    return [];
+  }
+
+  return dataArray
+    .map(notam => {
+      // Validar e normalizar dados críticos
+      if (!notam) return null;
+
+      // Extrair ICAO de múltiplos campos possíveis
+      const icao = (notam.loc || notam.icao || notam.icaoairport_id || 'UNKN').toUpperCase();
+
+      // Normalizar campos de data - suportar formato DECEA (yyyymmddhhmm) e ISO
+      let startDate = parseNOTAMDate(
+        notam.b || notam.start || notam.startDate || notam.start_date || notam.validFrom
+      );
+      let endDate = parseNOTAMDate(
+        notam.c || notam.end || notam.endDate || notam.end_date || notam.validTo
+      );
+
+      // Validar datas - se forem null/undefined, usar datas padrão
+      if (!isValidDate(startDate)) {
+        startDate = new Date().toISOString();
+        console.debug(`[parseNOTAM] Invalid startDate for ${icao}/${notam.number}, using current date`);
+      }
+      if (!isValidDate(endDate)) {
+        // Se não temos end date, assumir 30 dias a partir do start
+        const start = new Date(startDate);
+        endDate = new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        console.debug(`[parseNOTAM] Invalid endDate for ${icao}/${notam.number}, using +30 days from start`);
+      }
+
+      // Extrair mensagem de múltiplos campos
+      const message = notam.e || notam.message || notam.text || notam.description || 'Sem descrição';
+
+      // Determinar prioridade
+      let priority: NOTAMData['priority'] = 'low';
+      const msg = message.toLowerCase();
+
+      if (msg.includes('closed') || msg.includes('fechado') ||
+          msg.includes('clsd') || msg.includes('unsafe') || msg.includes('não autorizado') ||
+          msg.includes('inoperacional') || msg.includes('closed') || msg.includes('closure')) {
+        priority = 'critical';
+      } else if (msg.includes('restricted') || msg.includes('restrito') ||
+                 msg.includes('caution') || msg.includes('atenção') ||
+                 msg.includes('danger') || msg.includes('perigo') || msg.includes('limit')) {
+        priority = 'high';
+      } else if (msg.includes('tempo') || msg.includes('temporary') ||
+                 msg.includes('provisório') || msg.includes('experimental') ||
+                 msg.includes('test') || msg.includes('teste')) {
+        priority = 'medium';
+      }
+
+      // Normalizar NOTAM com valores padrão
+      return {
+        id: notam.id || `${icao}-${notam.number}-${Date.now()}`,
+        icao,
+        number: String(notam.n || notam.number || '0000'),
+        type: notam.tp || notam.type || 'NOTAM',
+        category: notam.cat || notam.category || 'AIRSPACE',
+        traffic: notam.traffic || 'ALL',
+        purpose: notam.purpose || notam.p || 'M',
+        scope: notam.scope || notam.s || 'AOR',
+        lower: String(notam.lower || 'SFC'),
+        upper: String(notam.upper || 'UNLIM'),
+        coordinates: notam.coordinates || null,
+        radius: notam.radius || null,
+        message,
+        startDate,
+        endDate,
+        schedule: notam.schedule || null,
+        created: notam.dt || notam.created || new Date().toISOString(),
+        source: notam.source || 'AISWEB',
+        priority,
+      } as NOTAMData;
+    })
+    .filter((notam): notam is NOTAMData => notam !== null)
+    .sort((a, b) => {
+      const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+      return priorityOrder[a.priority] - priorityOrder[b.priority];
+    });
 }
 
-// Fetch ROTAER (InfoTemp) via Workers proxy
-export async function fetchROTAER(icao: string): Promise<ROTAERData | null> {
-  try {
-    const response = await fetch(
-      `${AISWEB_BASE_URL}/api/infotemp/${icao.toUpperCase()}`,
-      {
-        headers: {
-          'Accept': 'application/json',
-        },
-      }
-    );
-    
-    if (!response.ok) {
-      if (response.status === 404) return null;
-      throw new Error(`ROTAER fetch failed: ${response.status}`);
+// Parse NOTAM dates - suporta formato DECEA (yyyymmddhhmm) e ISO
+function parseNOTAMDate(dateValue: any): string {
+  if (!dateValue) return '';
+
+  // Se já for uma data ISO válida
+  if (typeof dateValue === 'string' && dateValue.includes('-')) {
+    if (isValidDate(dateValue)) {
+      return dateValue;
     }
-    
-    return await response.json();
+  }
+
+  // Formato DECEA: yyyymmddhhmm ou yymmddhhmm
+  if (typeof dateValue === 'number' || (typeof dateValue === 'string' && /^\d+$/.test(dateValue))) {
+    const dateStr = String(dateValue);
+
+    if (dateStr.length === 12) {
+      // yymmddhhmm → 2512191818 = 25-12-19 18:18
+      const year = parseInt(dateStr.substring(0, 2));
+      const month = parseInt(dateStr.substring(2, 4));
+      const day = parseInt(dateStr.substring(4, 6));
+      const hour = parseInt(dateStr.substring(6, 8));
+      const minute = parseInt(dateStr.substring(8, 10));
+
+      // Converter YY para YYYY (assume 2000-2099)
+      const fullYear = year < 50 ? 2000 + year : 1900 + year;
+
+      try {
+        const date = new Date(Date.UTC(fullYear, month - 1, day, hour, minute, 0));
+        if (isValidDate(date)) {
+          return date.toISOString();
+        }
+      } catch (e) {
+        console.debug('[parseNOTAMDate] Error parsing DECEA format:', dateStr, e);
+      }
+    } else if (dateStr.length === 14) {
+      // yyyymmddhhmm → 20251219 1818
+      const year = parseInt(dateStr.substring(0, 4));
+      const month = parseInt(dateStr.substring(4, 6));
+      const day = parseInt(dateStr.substring(6, 8));
+      const hour = parseInt(dateStr.substring(8, 10));
+      const minute = parseInt(dateStr.substring(10, 12));
+
+      try {
+        const date = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+        if (isValidDate(date)) {
+          return date.toISOString();
+        }
+      } catch (e) {
+        console.debug('[parseNOTAMDate] Error parsing full format:', dateStr, e);
+      }
+    }
+  }
+
+  return '';
+}
+
+// Helper para validar se uma data é válida
+function isValidDate(dateValue: any): boolean {
+  if (!dateValue) return false;
+  const date = new Date(dateValue);
+  return date instanceof Date && !isNaN(date.getTime());
+}
+
+// Fetch ROTAER via Workers proxy
+export async function fetchROTAER(icao: string): Promise<ROTAERData | null> {
+  const icaoUpper = icao.toUpperCase();
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+
+    try {
+      const response = await fetch(
+        `${AISWEB_BASE_URL}/api/rotaer/${icaoUpper}`,
+        {
+          headers: {
+            'Accept': 'application/json',
+          },
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.debug(`[fetchROTAER] No ROTAER data found for ${icaoUpper}`);
+          return null;
+        }
+        console.warn(`[fetchROTAER] API error for ${icaoUpper}: ${response.status}`);
+        return null;
+      }
+
+      const data = await response.json();
+      const parsed = parseROTAERData(data);
+      console.debug(`[fetchROTAER] Successfully fetched ROTAER for ${icaoUpper}`);
+      return parsed;
+    } catch (fetchError) {
+      clearTimeout(timeout);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        console.warn(`[fetchROTAER] Timeout fetching ROTAER for ${icaoUpper}`);
+      } else {
+        console.warn(`[fetchROTAER] Failed to fetch ROTAER for ${icaoUpper}:`, fetchError);
+      }
+      return null;
+    }
   } catch (error) {
-    console.error('Error fetching ROTAER:', error);
+    console.error(`[fetchROTAER] Unexpected error for ${icaoUpper}:`, error);
     return null;
   }
+}
+
+// Parse ROTAER data from DECEA XML-like JSON format
+function parseROTAERData(rawData: any): ROTAERData | null {
+  if (!rawData) return null;
+
+  try {
+    // Extract main airport data (can be wrapped or direct)
+    const airport = Array.isArray(rawData) ? rawData[0] : rawData;
+    if (!airport) return null;
+
+    // Parse pistas (runways)
+    const runways: ROTAERData['runways'] = [];
+    const runwaysData = airport.runways?.runway;
+    if (runwaysData) {
+      const rwyArray = Array.isArray(runwaysData) ? runwaysData : [runwaysData];
+      rwyArray.forEach((rwy: any) => {
+        if (rwy?.ident) {
+          runways.push({
+            designator: String(rwy.ident),
+            length: parseInt(rwy.length?.['#text'] || rwy.length || '0'),
+            width: parseInt(rwy.width?.['#text'] || rwy.width || '0'),
+            surface: String(rwy.surface?.['#text'] || rwy.surface || 'UNKN'),
+            strength: String(rwy.surface_c?.['#text'] || ''),
+            lighting: !!rwy.lights,
+          });
+        }
+      });
+    }
+
+    // Parse frequências (frequencies)
+    const frequencies: ROTAERData['frequencies'] = [];
+    const servicesData = airport.services?.service;
+    if (servicesData) {
+      const serviceArray = Array.isArray(servicesData) ? servicesData : [servicesData];
+      serviceArray.forEach((service: any) => {
+        if (service['@_type'] === 'COM' && service.freqs) {
+          const freqArray = Array.isArray(service.freqs.freq)
+            ? service.freqs.freq
+            : [service.freqs.freq];
+          freqArray.forEach((freq: any) => {
+            if (freq) {
+              frequencies.push({
+                type: service.type || 'Unknown',
+                frequency: String(freq['#text'] || freq || ''),
+                name: service.callsign || undefined,
+              });
+            }
+          });
+        }
+      });
+    }
+
+    // Parse navaids
+    const navaids: ROTAERData['navaids'] = [];
+    const serviceArray = Array.isArray(servicesData) ? servicesData : [servicesData];
+    if (serviceArray) {
+      serviceArray.forEach((service: any) => {
+        if (service['@_type'] === 'NAV' && service.type) {
+          navaids.push({
+            type: service.type || 'UNKNOWN',
+            identifier: service.ident || '',
+            frequency: String(service.freq || ''),
+          });
+        }
+      });
+    }
+
+    // Parse serviços
+    const services = {
+      fuel: false,
+      fuelTypes: [] as string[],
+      hangar: false,
+      maintenance: false,
+      customs: false,
+    };
+
+    if (serviceArray) {
+      serviceArray.forEach((service: any) => {
+        if (service['@_type'] === 'AirportSuppliesService' && service.fuel) {
+          services.fuel = true;
+          const fuelSpan = service.fuel.span?.['#text'] || '';
+          services.fuelTypes = fuelSpan.split(' ').filter((f: string) => f && f.length < 5);
+        }
+        if (service['@_type'] === 'AircraftGroundService') {
+          services.maintenance = true;
+        }
+      });
+    }
+
+    // Build ROTAERData
+    return {
+      icao: (airport.AeroCode || airport.loc || airport.icao || 'UNKN').toUpperCase(),
+      name: airport.name || airport.aero || '',
+      city: airport.city || '',
+      state: airport.uf || airport.state || '',
+      country: 'BR',
+      type: airport.type || 'AD',
+      coordinates: {
+        lat: parseFloat(airport.lat || airport.latitude || '0'),
+        lng: parseFloat(airport.lng || airport.longitude || '0'),
+      },
+      elevation: parseInt(airport.altFt || airport.elevation || '0'),
+      runways,
+      frequencies,
+      navaids,
+      services,
+      operatingHours: airport.operatingHours || '24H',
+      restrictions: extractRestrictions(airport),
+      contact: {
+        phone: extractContact(airport, 'phone'),
+        email: extractContact(airport, 'email'),
+      },
+    };
+  } catch (error) {
+    console.error('[parseROTAERData] Error parsing ROTAER:', error);
+    return null;
+  }
+}
+
+// Helper para extrair restrições dos remarks
+function extractRestrictions(airport: any): string[] {
+  const restrictions: string[] = [];
+  const rmkText = airport.rmk?.rmkText;
+
+  if (rmkText) {
+    const rmkArray = Array.isArray(rmkText) ? rmkText : [rmkText];
+    rmkArray.forEach((remark: any) => {
+      const text = remark['#text'] || '';
+      if (text && (text.includes('PRB') || text.includes('OBS') || text.includes('LIMIT'))) {
+        restrictions.push(text.substring(0, 100) + (text.length > 100 ? '...' : ''));
+      }
+    });
+  }
+
+  return restrictions;
+}
+
+// Helper para extrair contato
+function extractContact(airport: any, type: 'phone' | 'email'): string | undefined {
+  const rmkText = airport.rmk?.rmkText;
+  if (!rmkText) return undefined;
+
+  const rmkArray = Array.isArray(rmkText) ? rmkText : [rmkText];
+  const pattern = type === 'phone' ? /(\d{2})\s?(\d{4})-?(\d{4})/ : /[\w\.-]+@[\w\.-]+\.\w+/;
+
+  for (const remark of rmkArray) {
+    const text = remark['#text'] || '';
+    const match = text.match(pattern);
+    if (match) {
+      return match[0];
+    }
+  }
+
+  return undefined;
 }
 
 // Verificar restrições de espaço aéreo na rota
@@ -231,22 +580,46 @@ export async function checkRouteRestrictions(
   altitude: number
 ): Promise<AirspaceRestriction[]> {
   try {
+    // Skip if not enough points
+    if (!points || points.length < 2) {
+      return [];
+    }
+
     const routeCoords = points.map(p => `${p.lat},${p.lng}`).join(';');
-    
-    const response = await fetch(
-      `${AISWEB_BASE_URL}/airspace/restrictions?route=${routeCoords}&altitude=${altitude}`,
-      {
-        headers: {
-          'Accept': 'application/json',
-        },
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+    try {
+      const response = await fetch(
+        `${AISWEB_BASE_URL}/airspace/restrictions?route=${routeCoords}&altitude=${altitude}`,
+        {
+          headers: {
+            'Accept': 'application/json',
+          },
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        console.warn(`Airspace restrictions check returned status ${response.status}`);
+        return [];
       }
-    );
-    
-    if (!response.ok) throw new Error('Failed to check restrictions');
-    
-    return await response.json();
+
+      return await response.json();
+    } catch (fetchError) {
+      clearTimeout(timeout);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        console.warn('Airspace restrictions check timed out');
+      } else {
+        console.debug('Airspace restrictions unavailable, continuing with empty restrictions');
+      }
+      return [];
+    }
   } catch (error) {
-    console.error('Error checking route restrictions:', error);
+    console.debug('Error in checkRouteRestrictions:', error);
     return [];
   }
 }
