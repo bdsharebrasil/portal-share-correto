@@ -50,7 +50,7 @@ function ExpenseRow({ exp, accounts, onPay }: { exp: PartnerExpense; accounts: P
   );
 }
 
-export function ExpensesTable({ expenses, accounts }: { expenses: PartnerExpense[]; accounts: PartnerAccount[] }) {
+export function ExpensesTable({ expenses, accounts, clienteId }: { expenses: PartnerExpense[]; accounts: PartnerAccount[]; clienteId: string }) {
   const [payExpense, setPayExpense] = useState<PartnerExpense | null>(null);
 
   const pending = expenses.filter((e) => e.status === "pending");
@@ -93,6 +93,7 @@ export function ExpensesTable({ expenses, accounts }: { expenses: PartnerExpense
       <PayExpenseDialog
         expense={payExpense}
         accounts={accounts}
+        clienteId={clienteId}
         open={!!payExpense}
         onOpenChange={(v) => !v && setPayExpense(null)}
       />

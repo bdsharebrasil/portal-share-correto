@@ -14,11 +14,13 @@ function fmt(v: number) {
 export function PayExpenseDialog({
   expense,
   accounts,
+  clienteId,
   open,
   onOpenChange,
 }: {
   expense: PartnerExpense | null;
   accounts: PartnerAccount[];
+  clienteId: string;
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
@@ -34,6 +36,7 @@ export function PayExpenseDialog({
     const acc = accounts.find((a) => a.partner_cpf === selectedCpf);
     if (!acc) return;
     await payExpense.mutateAsync({
+      clientId: clienteId,
       expenseId: expense.id,
       partnerCpf: selectedCpf,
       partnerName: acc.partner_name,
