@@ -146,6 +146,10 @@ export function useFlightCycles() {
       
       if (status === 'em_execucao') updateData.started_at = new Date().toISOString();
       if (status === 'concluido') updateData.completed_at = new Date().toISOString();
+      if (status === 'aguardando_despesas') {
+        updateData.completed_at = new Date().toISOString();
+        updateData.return_date = new Date().toISOString().split('T')[0];
+      }
       if (status === 'finalizado') updateData.finalized_at = new Date().toISOString();
 
       const { error } = await supabase

@@ -1,4 +1,4 @@
-import { Plane, ChevronRight, Clock, MapPin, User } from "lucide-react";
+import { Plane, ChevronRight, Clock, MapPin, User, Calendar } from "lucide-react";
 import { FlightCycle, FLIGHT_STATUS_CONFIG } from "@/types/flightCycle";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -67,17 +67,25 @@ export function FlightCycleCard({ cycle, onClick }: FlightCycleCardProps) {
         <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
       </div>
 
-      {/* Route */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+      {/* Route & Dates */}
+      <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground mb-3">
         <MapPin className="h-4 w-4" />
         <span className="font-mono">
           {cycle.origin_icao} → {cycle.destination_icao}
         </span>
-        <span className="mx-2">•</span>
-        <Clock className="h-4 w-4" />
+        <span className="mx-1">•</span>
+        <Calendar className="h-4 w-4" />
         <span>
           {format(new Date(cycle.flight_date), "dd/MM/yyyy", { locale: ptBR })}
         </span>
+        {cycle.return_date && (
+          <>
+            <span>→</span>
+            <span>
+              {format(new Date(cycle.return_date), "dd/MM/yyyy", { locale: ptBR })}
+            </span>
+          </>
+        )}
       </div>
 
       {/* Progress */}

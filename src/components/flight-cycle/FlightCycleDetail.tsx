@@ -245,8 +245,14 @@ export function FlightCycleDetail({
               </div>
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
-                <span>{format(new Date(cycle.flight_date), "dd/MM/yyyy", { locale: ptBR })}</span>
+                <span>Início: {format(new Date(cycle.flight_date), "dd/MM/yyyy", { locale: ptBR })}</span>
               </div>
+              {cycle.return_date && (
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  <span>Retorno: {format(new Date(cycle.return_date), "dd/MM/yyyy", { locale: ptBR })}</span>
+                </div>
+              )}
               {cycle.flight_duration_hours && (
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4" />
