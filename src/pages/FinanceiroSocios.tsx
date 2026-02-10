@@ -236,11 +236,6 @@ export default function FinanceiroSocios() {
           <ExpenseForm clienteId={clienteSelecionado} />
         </div>
 
-        {/* Cards com as 2 Últimas Transações */}
-        {!loadingTransactions && transactions.length > 0 && (
-          <TransactionsTable transactions={transactions} limit={2} />
-        )}
-
         {/* Cards de Resumo dos Sócios */}
         <PartnerCards accounts={accounts} />
 
@@ -311,6 +306,11 @@ export default function FinanceiroSocios() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Cards com as 2 Últimas Transações */}
+        {!loadingTransactions && transactions.length > 0 && (
+          <TransactionsTable transactions={transactions} limit={2} />
         )}
 
       </div>
