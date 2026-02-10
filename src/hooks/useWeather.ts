@@ -20,6 +20,7 @@ export interface MetarResponse {
 }
 
 export function useWeather(defaultIcao: string = 'SBGR') {
+  const [currentIcao, setCurrentIcao] = useState<string>(defaultIcao);
   const [weather, setWeather] = useState<MetarResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +56,7 @@ export function useWeather(defaultIcao: string = 'SBGR') {
       };
 
       setWeather(parsedData);
+      setCurrentIcao(icao);
     } catch (err: any) {
       console.error('[useWeather] Erro:', err);
       setError(err.message);
@@ -65,10 +67,22 @@ export function useWeather(defaultIcao: string = 'SBGR') {
   }, []);
 
   useEffect(() => {
-    fetchWeather(defaultIcao);
-    const interval = setInterval(() => fetchWeather(defaultIcao), 5 * 60 * 1000);
+    fetchWeather(currentIcao);
+    const interval = setInterval(() => fetchWeather(currentIcao), 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [fetchWeather, defaultIcao]);
+  }, [fetchWeather, currentIcao]);
 
-  return { weather, loading, error, refetch: () => fetchWeather(defaultIcao), locationName };
+  const changeAirport = useCallback((icao: string) => {
+    setCurrentIcao(icao);
+  }, []);
+
+  return {
+    weather,
+    loading,
+    error,
+    refetch: () => fetchWeather(currentIcao),
+    locationName,
+    currentIcao,
+    changeAirport,
+  };
 }

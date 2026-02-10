@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { RefreshCw, Wind, Droplets, Gauge, Eye, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWeather } from "@/hooks/useWeather";
+import { useGeolocation } from "@/hooks/useGeolocation";
+import { useFindNearestAirport } from "@/hooks/useFindNearestAirport";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { searchAirports } from "@/services/airports";
 import { getWeatherIconType } from "@/utils/weatherIcons";
 
 import clearDayIcon from "@/assets/meteocons/clear-day.svg";
@@ -15,9 +18,28 @@ import thunderstormsIcon from "@/assets/meteocons/thunderstorms.svg";
 import fogIcon from "@/assets/meteocons/fog.svg";
 
 export function WeatherDisplay() {
-  const { weather, loading, error, refetch, locationName } = useWeather();
+  const { coords } = useGeolocation();
+  const { nearest, findNearest } = useFindNearestAirport();
+  const { weather, loading, error, refetch, currentIcao, changeAirport } = useWeather();
   const [isOpen, setIsOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Auto-detect nearest airport on component mount or when coords change
+  useEffect(() => {
+    if (coords && !weather) {
+      findNearest(coords.latitude, coords.longitude);
+    }
+  }, [coords, weather, findNearest]);
+
+  // Change to nearest airport when found
+  useEffect(() => {
+    if (nearest && !weather) {
+      changeAirport(nearest.airport.icao);
+    }
+  }, [nearest, weather, changeAirport]);
 
   const isDayTime = (): boolean => {
     const hours = new Date().getHours();
@@ -28,6 +50,30 @@ export function WeatherDisplay() {
     setIsRefreshing(true);
     await refetch();
     setTimeout(() => setIsRefreshing(false), 800);
+  };
+
+  const handleSearchAirports = async (query: string) => {
+    setSearchQuery(query);
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const results = await searchAirports(query);
+      setSearchResults(results);
+    } catch (err) {
+      console.error("Erro ao buscar aeroportos:", err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSelectAirport = (icao: string) => {
+    changeAirport(icao);
+    setSearchQuery("");
+    setSearchResults([]);
   };
 
   const renderIcon = (rawMetar: string) => {
@@ -105,7 +151,7 @@ export function WeatherDisplay() {
         </button>
       </PopoverTrigger>
 
-      <PopoverContent className="w-80 p-0 overflow-hidden shadow-xl" align="end">
+      <PopoverContent className="w-96 p-0 overflow-hidden shadow-xl" align="end">
         {/* Header */}
         <div className="bg-muted/40 p-3 border-b flex items-center justify-between">
           <div>
@@ -118,10 +164,10 @@ export function WeatherDisplay() {
               </span>
             </h4>
             <p className="text-[10px] text-muted-foreground">
-              {locationName && (
+              {nearest && (
                 <span className="inline-flex items-center gap-0.5 mr-1">
                   <MapPin className="h-2.5 w-2.5" />
-                  {locationName} •
+                  ~{Math.round(nearest.distance)}km • {nearest.airport.name}
                 </span>
               )}
               Fonte: AISWEB • Atualizado às{" "}
@@ -129,7 +175,6 @@ export function WeatherDisplay() {
                 hour: "2-digit",
                 minute: "2-digit",
               })}
-              {" • Próx. atualização em 1h"}
             </p>
           </div>
           <Button
@@ -141,6 +186,36 @@ export function WeatherDisplay() {
           >
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
           </Button>
+        </div>
+
+        {/* Airport Selector */}
+        <div className="p-3 border-b space-y-2">
+          <label className="text-xs font-semibold text-muted-foreground">Trocar Aeroporto</label>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Digite ICAO ou nome do aeroporto..."
+              value={searchQuery}
+              onChange={(e) => handleSearchAirports(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-md border border-input bg-background placeholder:text-muted-foreground"
+            />
+            {searchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-md border border-input bg-background shadow-lg z-50">
+                {searchResults.slice(0, 5).map((airport) => (
+                  <button
+                    key={airport.icao}
+                    onClick={() => handleSelectAirport(airport.icao)}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex justify-between items-center border-b last:border-b-0"
+                  >
+                    <div>
+                      <div className="font-semibold">{airport.icao}</div>
+                      <div className="text-xs text-muted-foreground">{airport.name}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="p-4 space-y-4">
