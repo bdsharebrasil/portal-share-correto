@@ -245,7 +245,8 @@ export default function FinanceiroSocios() {
               />
               <ExpensesTable 
                 expenses={expenses.filter((e) => e.status === "pending").slice(0, 5)} 
-                accounts={accounts} 
+                accounts={accounts}
+                clienteId={clienteSelecionado}
               />
             </div>
           </TabsContent>
@@ -258,7 +259,7 @@ export default function FinanceiroSocios() {
           </TabsContent>
 
           <TabsContent value="expenses" className="mt-4">
-            <ExpensesTable expenses={expenses} accounts={accounts} />
+            <ExpensesTable expenses={expenses} accounts={accounts} clienteId={clienteSelecionado} />
           </TabsContent>
 
           <TabsContent value="history" className="mt-4">

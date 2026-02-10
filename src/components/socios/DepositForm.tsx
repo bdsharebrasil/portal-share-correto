@@ -9,7 +9,7 @@ import { Plus } from "lucide-react";
 import { useAddDeposit, type PartnerAccount } from "@/hooks/useFinanceiroSocios";
 import { format } from "date-fns";
 
-export function DepositForm({ accounts }: { accounts: PartnerAccount[] }) {
+export function DepositForm({ accounts, clienteId }: { accounts: PartnerAccount[]; clienteId: string }) {
   const [open, setOpen] = useState(false);
   const [cpf, setCpf] = useState("");
   const [amount, setAmount] = useState("");
@@ -23,6 +23,7 @@ export function DepositForm({ accounts }: { accounts: PartnerAccount[] }) {
     e.preventDefault();
     if (!cpf || !amount || !description) return;
     await addDeposit.mutateAsync({
+      clientId: clienteId,
       partnerCpf: cpf,
       partnerName: selectedAccount?.partner_name || "",
       amount: parseFloat(amount),

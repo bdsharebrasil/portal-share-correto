@@ -9,7 +9,7 @@ import { Plus } from "lucide-react";
 import { useCreateExpense, EXPENSE_TYPES } from "@/hooks/useFinanceiroSocios";
 import { format } from "date-fns";
 
-export function ExpenseForm() {
+export function ExpenseForm({ clienteId }: { clienteId: string }) {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState("");
   const [description, setDescription] = useState("");
@@ -23,6 +23,7 @@ export function ExpenseForm() {
     e.preventDefault();
     if (!type || !description || !amount) return;
     await createExpense.mutateAsync({
+      clientId: clienteId,
       expenseType: type,
       description,
       totalAmount: parseFloat(amount),
