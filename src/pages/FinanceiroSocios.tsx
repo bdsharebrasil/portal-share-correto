@@ -17,6 +17,7 @@ import { ExpensesTable } from "@/components/socios/ExpensesTable";
 // Hooks ajustados
 import { useSocioAccounts, useSocioTransactions, useSocioExpenses } from "@/hooks/useFinanceiroSocios";
 import { useClientesComSocios } from "@/hooks/useSocioBalanco";
+import { useClientPartners } from "@/hooks/useClientPartners";
 
 export default function FinanceiroSocios() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,6 +31,7 @@ export default function FinanceiroSocios() {
   const { data: accounts = [], isLoading: loadingAccounts } = useSocioAccounts(clienteSelecionado);
   const { data: transactions = [], isLoading: loadingTx } = useSocioTransactions(clienteSelecionado);
   const { data: expenses = [], isLoading: loadingExp } = useSocioExpenses(clienteSelecionado);
+  const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteSelecionado);
 
   // Filtrar apenas clientes que têm partners configurados
   const clientesComPartners = clientesComSocios.filter(cliente =>
@@ -226,6 +228,75 @@ export default function FinanceiroSocios() {
 
         {/* Cards de Resumo dos Sócios */}
         <PartnerCards accounts={accounts} />
+
+        {/* Seção de Parceiros (Sócios) Cadastrados */}
+        {!loadingPartners && partners.length > 0 && (
+          <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  Sócios Cadastrados
+                </CardTitle>
+                <span className="text-xs bg-primary/20 text-primary px-3 py-1 rounded-full font-semibold">
+                  {partners.length} sócio{partners.length > 1 ? 's' : ''}
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {partners.map((partner) => (
+                  <div
+                    key={partner.id}
+                    className="rounded-lg border border-border/50 bg-muted/30 p-4 hover:bg-muted/50 transition-colors"
+                  >
+                    {/* Nome e CPF */}
+                    <div className="mb-3">
+                      <h3 className="font-semibold text-foreground truncate">{partner.name}</h3>
+                      <p className="text-xs text-muted-foreground font-mono">
+                        {partner.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}
+                      </p>
+                    </div>
+
+                    {/* Percentual de Participação */}
+                    {partner.share_percentage && (
+                      <div className="mb-3 pb-3 border-b border-border/50">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">Participação:</span>
+                          <span className="font-semibold text-sm text-primary">
+                            {partner.share_percentage}%
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Saldo do Sócio */}
+                    {accounts.find((a) => a.partner_cpf === partner.cpf) && (
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Saldo:</span>
+                          <span className="font-semibold text-green-600">
+                            R$ {Number(
+                              accounts.find((a) => a.partner_cpf === partner.cpf)?.current_balance || 0
+                            ).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground text-xs">Total Depositado:</span>
+                          <span className="font-medium text-xs">
+                            R$ {Number(
+                              accounts.find((a) => a.partner_cpf === partner.cpf)?.total_deposited || 0
+                            ).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Tabs de Conteúdo */}
         <Tabs defaultValue="overview" className="w-full">
