@@ -214,7 +214,42 @@ class ApiClient {
 
   // ========== WEATHER ==========
   async getWeather(icao: string) {
-    return this.get(`/api/weather/metar?icao=${icao.toUpperCase()}`);
+    return this.get(`/api/weather/${icao.toUpperCase()}`);
+  }
+
+  // ========== NOTAM ==========
+  async getNotam(icao: string) {
+    return this.get(`/api/notam/${icao.toUpperCase()}`);
+  }
+
+  // ========== INFOTEMP (ROTAER) ==========
+  async getInfoTemp(icao: string) {
+    return this.get(`/api/infotemp/${icao.toUpperCase()}`);
+  }
+
+  // ========== CHARTS ==========
+  async getCharts(icao: string, especie?: string, tipo?: string) {
+    const params: Record<string, string> = {};
+    if (especie) params.especie = especie;
+    if (tipo) params.tipo = tipo;
+    return this.get(`/api/charts/${icao.toUpperCase()}`, params);
+  }
+
+  // ========== SOLAR ==========
+  async getSolar(icao: string, date?: string) {
+    const params: Record<string, string> = {};
+    if (date) params.date = date;
+    return this.get(`/api/solar/${icao.toUpperCase()}`, params);
+  }
+
+  // ========== PREFERENTIAL ROUTES ==========
+  async getPreferentialRoutes(adep: string, ades: string) {
+    return this.get('/api/routes', { adep, ades });
+  }
+
+  // ========== WAYPOINTS ==========
+  async getWaypoints() {
+    return this.get('/api/waypoints');
   }
 
   // ========== FLIGHT CALCULATIONS ==========

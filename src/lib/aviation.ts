@@ -147,14 +147,14 @@ export interface AirspaceRestriction {
   notes: string;
 }
 
-// AISWeb API Base URL
-const AISWEB_BASE_URL = 'https://api.aisweb.aer.mil.br';
+// AISWeb API Base URL (via Workers proxy)
+const AISWEB_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev';
 
-// Fetch NOTAMs da AISWeb
+// Fetch NOTAMs via Workers proxy
 export async function fetchAISWebNOTAMs(icao: string): Promise<NOTAMData[]> {
   try {
     const response = await fetch(
-      `${AISWEB_BASE_URL}/notam?icao=${icao.toUpperCase()}`,
+      `${AISWEB_BASE_URL}/api/notam/${icao.toUpperCase()}`,
       {
         headers: {
           'Accept': 'application/json',
@@ -201,11 +201,11 @@ function parseAndPrioritizeNOTAMs(rawData: any[]): NOTAMData[] {
   });
 }
 
-// Fetch ROTAER
+// Fetch ROTAER (InfoTemp) via Workers proxy
 export async function fetchROTAER(icao: string): Promise<ROTAERData | null> {
   try {
     const response = await fetch(
-      `${AISWEB_BASE_URL}/rotaer?icao=${icao.toUpperCase()}`,
+      `${AISWEB_BASE_URL}/api/infotemp/${icao.toUpperCase()}`,
       {
         headers: {
           'Accept': 'application/json',
