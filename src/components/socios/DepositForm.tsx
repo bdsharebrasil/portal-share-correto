@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Users, TrendingUp, Landmark } from "lucide-react";
-import { useAddDeposit, type PartnerAccount } from "@/hooks/useFinanceiroSocios";
+import { useAddDeposit, useAddBankInterest, type PartnerAccount } from "@/hooks/useFinanceiroSocios";
 import { useClientPartners } from "@/hooks/useClientPartners";
 import { formatCPF, formatMoney } from "@/lib/formatters";
 import { format } from "date-fns";
@@ -74,6 +74,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
   const [interest, setInterest] = useState(EMPTY_INTEREST);
 
   const addDeposit = useAddDeposit();
+  const addInterest = useAddBankInterest();
   const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteId);
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -116,15 +117,12 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
 
     const bankLabel = BANK_OPTIONS.find(b => b.id === interest.bankName)?.label ?? interest.bankName;
 
-    await addDeposit.mutateAsync({
+    await addInterest.mutateAsync({
       clientId: clienteId,
-      partnerCpf: null,        // conta compartilhada — sem sócio específico
-      partnerName: "Conta Compartilhada",
       amount: parseFloat(interest.amount),
       description: `Rendimento bancário - ${bankLabel}${interest.notes ? ` (${interest.notes})` : ""}`,
       paymentDate: interest.date,
       bankName: interest.bankName,
-      transactionSubtype: "bank_interest",
     });
 
     resetAndClose();
@@ -269,7 +267,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
               </div>
 
               <SubmitButton
-                loading={addDeposit.isPending}
+                loading={addInterest.isPending}
                 disabled={!interest.amount || !interest.bankName}
                 label="Registrar Rendimento"
                 variant="interest"

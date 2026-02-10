@@ -332,6 +332,46 @@ export function useCreateExpense() {
   });
 }
 
+export function useAddBankInterest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      clientId: string;
+      amount: number;
+      description: string;
+      bankName: string;
+      paymentDate: string;
+    }) => {
+      // For shared account interest, we just create a transaction without a specific partner
+      // This is a simple transaction entry for bank interest
+      const { error } = await supabase
+        .from("partner_transactions")
+        .insert({
+          client_id: data.clientId,
+          partner_cpf: null,  // Shared account - no specific partner
+          partner_name: "Conta Compartilhada",
+          transaction_type: "deposit",
+          amount: data.amount,
+          balance_before: 0,  // Interest doesn't affect individual partner balance
+          balance_after: 0,
+          description: data.description,
+          payment_date: data.paymentDate,
+        });
+
+      if (error) throw error;
+      return data.clientId;
+    },
+    onSuccess: (clientId) => {
+      queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
+      toast.success("Rendimento bancário registrado com sucesso!");
+    },
+    onError: (err: any) => {
+      toast.error("Erro ao registrar rendimento: " + err.message);
+    },
+  });
+}
+
 export const EXPENSE_TYPES = [
   { value: "combustivel", label: "Combustível" },
   { value: "manutencao", label: "Manutenção" },
