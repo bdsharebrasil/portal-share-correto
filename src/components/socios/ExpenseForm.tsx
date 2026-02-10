@@ -18,7 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Receipt } from "lucide-react";
-import { useAddExpense } from "@/hooks/useFinanceiroSocios";
+import { useCreateExpense } from "@/hooks/useFinanceiroSocios";
 import { useClientPartners } from "@/hooks/useClientPartners";
 import { formatCPF } from "@/lib/formatters";
 import { format } from "date-fns";
@@ -64,7 +64,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
 
-  const addExpense = useAddExpense();
+  const addExpense = useCreateExpense();
   const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteId);
 
   const set = (key: keyof typeof EMPTY_FORM) => (value: string) =>

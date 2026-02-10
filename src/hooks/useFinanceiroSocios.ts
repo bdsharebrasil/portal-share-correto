@@ -298,28 +298,37 @@ export function useCreateExpense() {
 
   return useMutation({
     mutationFn: async (data: {
-      clientId: string; // Obrigatório
+      clientId: string;
       expenseType: string;
       description: string;
       totalAmount: number;
-      supplierName?: string;
+      category?: string;
+      assignedPartnerCpf?: string | null;
+      assignedPartnerName?: string | null;
+      supplierName?: string | null;
       dueDate?: string;
+      invoiceNumber?: string | null;
       invoiceUrl?: string;
-      notes?: string;
+      paymentMethod?: string | null;
+      notes?: string | null;
     }) => {
       const { error } = await supabase.from("partner_expenses").insert({
         client_id: data.clientId,
         expense_type: data.expenseType,
         description: data.description,
         total_amount: data.totalAmount,
+        assigned_partner_cpf: data.assignedPartnerCpf || null,
+        assigned_partner_name: data.assignedPartnerName || null,
         supplier_name: data.supplierName || null,
         due_date: data.dueDate || null,
+        invoice_number: data.invoiceNumber || null,
         invoice_url: data.invoiceUrl || null,
+        payment_method: data.paymentMethod || null,
         notes: data.notes || null,
         status: "pending",
       });
       if (error) throw error;
-      
+
       return data.clientId;
     },
     onSuccess: (clientId) => {
