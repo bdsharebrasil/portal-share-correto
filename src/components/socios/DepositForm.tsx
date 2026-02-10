@@ -310,7 +310,7 @@ function PartnerSelect({
               Nenhum sócio cadastrado para este cliente
             </div>
           ) : (
-            partners.map((partner) => {
+            partners.filter((p) => p.cpf && p.cpf.trim()).map((partner) => {
               const account = accounts.find((a) => a.partner_cpf === partner.cpf);
               return (
                 <SelectItem key={partner.id} value={partner.cpf}>
