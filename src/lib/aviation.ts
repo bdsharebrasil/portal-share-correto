@@ -201,11 +201,30 @@ export async function fetchAISWebNOTAMs(icao: string): Promise<NOTAMData[]> {
 
 // Parse e priorizar NOTAMs - com validação robusta de dados
 function parseAndPrioritizeNOTAMs(rawData: any): NOTAMData[] {
-  // Handle both array and object responses
-  const dataArray = Array.isArray(rawData) ? rawData : (rawData?.data || rawData?.notams || []);
+  // A API pode retornar:
+  // 1. Array direto: [...notams]
+  // 2. Array com objetos contendo 'item': [{ item: [...] }]
+  // 3. Objeto com 'data' ou 'notams': { data: [...] }
 
-  if (!Array.isArray(dataArray)) {
-    console.warn('[parseAndPrioritizeNOTAMs] Response is not an array:', rawData);
+  let dataArray: any[] = [];
+
+  if (Array.isArray(rawData)) {
+    dataArray = rawData;
+  } else if (rawData?.data && Array.isArray(rawData.data)) {
+    dataArray = rawData.data;
+  } else if (rawData?.notams && Array.isArray(rawData.notams)) {
+    dataArray = rawData.notams;
+  } else {
+    console.warn('[parseAndPrioritizeNOTAMs] Unexpected response format:', rawData);
+    return [];
+  }
+
+  // Se cada elemento tem 'item' (wrapper object), extrair items
+  if (dataArray.length > 0 && dataArray[0]?.item && Array.isArray(dataArray[0].item)) {
+    dataArray = dataArray.flatMap(wrapper => wrapper.item || []);
+  }
+
+  if (!Array.isArray(dataArray) || dataArray.length === 0) {
     return [];
   }
 
@@ -214,58 +233,69 @@ function parseAndPrioritizeNOTAMs(rawData: any): NOTAMData[] {
       // Validar e normalizar dados críticos
       if (!notam) return null;
 
-      // Normalizar campos de data (suportar múltiplos formatos)
-      let startDate = notam.startDate || notam.start_date || notam.validFrom || notam.valid_from;
-      let endDate = notam.endDate || notam.end_date || notam.validTo || notam.valid_to;
+      // Extrair ICAO de múltiplos campos possíveis
+      const icao = (notam.loc || notam.icao || notam.icaoairport_id || 'UNKN').toUpperCase();
+
+      // Normalizar campos de data - suportar formato DECEA (yyyymmddhhmm) e ISO
+      let startDate = parseNOTAMDate(
+        notam.b || notam.start || notam.startDate || notam.start_date || notam.validFrom
+      );
+      let endDate = parseNOTAMDate(
+        notam.c || notam.end || notam.endDate || notam.end_date || notam.validTo
+      );
 
       // Validar datas - se forem null/undefined, usar datas padrão
       if (!isValidDate(startDate)) {
         startDate = new Date().toISOString();
-        console.warn(`[parseNOTAM] Invalid startDate for ${notam.icao}/${notam.number}, using current date`);
+        console.debug(`[parseNOTAM] Invalid startDate for ${icao}/${notam.number}, using current date`);
       }
       if (!isValidDate(endDate)) {
         // Se não temos end date, assumir 30 dias a partir do start
         const start = new Date(startDate);
         endDate = new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
-        console.warn(`[parseNOTAM] Invalid endDate for ${notam.icao}/${notam.number}, using +30 days from start`);
+        console.debug(`[parseNOTAM] Invalid endDate for ${icao}/${notam.number}, using +30 days from start`);
       }
+
+      // Extrair mensagem de múltiplos campos
+      const message = notam.e || notam.message || notam.text || notam.description || 'Sem descrição';
 
       // Determinar prioridade
       let priority: NOTAMData['priority'] = 'low';
-      const msg = (notam.message || notam.text || notam.description || '').toLowerCase();
+      const msg = message.toLowerCase();
 
       if (msg.includes('closed') || msg.includes('fechado') ||
-          msg.includes('unsafe') || msg.includes('não autorizado') ||
-          msg.includes('inoperacional')) {
+          msg.includes('clsd') || msg.includes('unsafe') || msg.includes('não autorizado') ||
+          msg.includes('inoperacional') || msg.includes('closed') || msg.includes('closure')) {
         priority = 'critical';
       } else if (msg.includes('restricted') || msg.includes('restrito') ||
                  msg.includes('caution') || msg.includes('atenção') ||
-                 msg.includes('danger') || msg.includes('perigo')) {
+                 msg.includes('danger') || msg.includes('perigo') || msg.includes('limit')) {
         priority = 'high';
       } else if (msg.includes('tempo') || msg.includes('temporary') ||
-                 msg.includes('provisório') || msg.includes('experimental')) {
+                 msg.includes('provisório') || msg.includes('experimental') ||
+                 msg.includes('test') || msg.includes('teste')) {
         priority = 'medium';
       }
 
       // Normalizar NOTAM com valores padrão
       return {
-        id: notam.id || `${notam.icao}-${notam.number}-${Date.now()}`,
-        icao: (notam.icao || 'UNKN').toUpperCase(),
-        number: notam.number || '0000',
-        type: notam.type || 'NOTAM',
-        category: notam.category || 'AIRSPACE',
+        id: notam.id || `${icao}-${notam.number}-${Date.now()}`,
+        icao,
+        number: String(notam.n || notam.number || '0000'),
+        type: notam.tp || notam.type || 'NOTAM',
+        category: notam.cat || notam.category || 'AIRSPACE',
         traffic: notam.traffic || 'ALL',
-        purpose: notam.purpose || 'INFORMATION',
-        scope: notam.scope || 'AOR',
-        lower: notam.lower || 'SFC',
-        upper: notam.upper || 'UNLIM',
+        purpose: notam.purpose || notam.p || 'M',
+        scope: notam.scope || notam.s || 'AOR',
+        lower: String(notam.lower || 'SFC'),
+        upper: String(notam.upper || 'UNLIM'),
         coordinates: notam.coordinates || null,
         radius: notam.radius || null,
-        message: notam.message || notam.text || 'Sem descrição',
+        message,
         startDate,
         endDate,
         schedule: notam.schedule || null,
-        created: notam.created || new Date().toISOString(),
+        created: notam.dt || notam.created || new Date().toISOString(),
         source: notam.source || 'AISWEB',
         priority,
       } as NOTAMData;
@@ -275,6 +305,62 @@ function parseAndPrioritizeNOTAMs(rawData: any): NOTAMData[] {
       const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
       return priorityOrder[a.priority] - priorityOrder[b.priority];
     });
+}
+
+// Parse NOTAM dates - suporta formato DECEA (yyyymmddhhmm) e ISO
+function parseNOTAMDate(dateValue: any): string {
+  if (!dateValue) return '';
+
+  // Se já for uma data ISO válida
+  if (typeof dateValue === 'string' && dateValue.includes('-')) {
+    if (isValidDate(dateValue)) {
+      return dateValue;
+    }
+  }
+
+  // Formato DECEA: yyyymmddhhmm ou yymmddhhmm
+  if (typeof dateValue === 'number' || (typeof dateValue === 'string' && /^\d+$/.test(dateValue))) {
+    const dateStr = String(dateValue);
+
+    if (dateStr.length === 12) {
+      // yymmddhhmm → 2512191818 = 25-12-19 18:18
+      const year = parseInt(dateStr.substring(0, 2));
+      const month = parseInt(dateStr.substring(2, 4));
+      const day = parseInt(dateStr.substring(4, 6));
+      const hour = parseInt(dateStr.substring(6, 8));
+      const minute = parseInt(dateStr.substring(8, 10));
+
+      // Converter YY para YYYY (assume 2000-2099)
+      const fullYear = year < 50 ? 2000 + year : 1900 + year;
+
+      try {
+        const date = new Date(Date.UTC(fullYear, month - 1, day, hour, minute, 0));
+        if (isValidDate(date)) {
+          return date.toISOString();
+        }
+      } catch (e) {
+        console.debug('[parseNOTAMDate] Error parsing DECEA format:', dateStr, e);
+      }
+    } else if (dateStr.length === 14) {
+      // yyyymmddhhmm → 20251219 1818
+      const year = parseInt(dateStr.substring(0, 4));
+      const month = parseInt(dateStr.substring(4, 6));
+      const day = parseInt(dateStr.substring(6, 8));
+      const hour = parseInt(dateStr.substring(8, 10));
+      const minute = parseInt(dateStr.substring(10, 12));
+
+      try {
+        const date = new Date(Date.UTC(year, month - 1, day, hour, minute, 0));
+        if (isValidDate(date)) {
+          return date.toISOString();
+        }
+      } catch (e) {
+        console.debug('[parseNOTAMDate] Error parsing full format:', dateStr, e);
+      }
+    }
+  }
+
+  return '';
 }
 
 // Helper para validar se uma data é válida
