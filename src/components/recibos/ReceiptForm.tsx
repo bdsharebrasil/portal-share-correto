@@ -15,8 +15,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { FileText, Star } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
-import { ClienteSearchInput } from "./ClienteSearchInput";
-import { ClientDataDisplay } from "./ClientDataDisplay";
 
 interface ReceiptFormProps {
   clientesAtivos: any[];
@@ -69,16 +67,6 @@ export function ReceiptForm({
     reembolsoRateado: false,
     reembolsoBoletoFile: null as File | null,
     reembolsoNotaFiscalFile: null as File | null,
-  });
-
-  const [clienteSearchValue, setClienteSearchValue] = useState({
-    clienteId: "",
-    nome: "",
-    documento: "",
-    endereco: "",
-    cidade: "",
-    uf: "",
-    useFromDatabase: false,
   });
 
   const [aircrafts, setAircrafts] = useState<any[]>([]);
@@ -146,13 +134,11 @@ export function ReceiptForm({
     loadFavoriteDescriptions();
   }, []);
 
-  // Reset ao mudar tipo
+  // Reset campos de reembolso ao mudar tipo (mas manter cliente/pagador)
   useEffect(() => {
     if (formData.receiptType === "pagamento") {
       setFormData((prev) => ({
         ...prev,
-        clienteId: "",
-        aircraftId: "",
         reembolsoValorTotal: "",
         reembolsoPorcentagem: "",
         reembolsoCategoriaId: "",
@@ -161,58 +147,10 @@ export function ReceiptForm({
         reembolsoBoletoFile: null,
         reembolsoNotaFiscalFile: null,
       }));
-      setAircrafts([]);
-    } else {
-      // Ao mudar para reembolso, NÃO limpa os campos do pagador
-      // pois eles já estão sincronizados via clienteSearchValue
-      // Se cliente não está selecionado, limpa apenas os campos específicos de reembolso
-      if (!clienteSearchValue.clienteId) {
-        setFormData((prev) => ({
-          ...prev,
-          pagadorNome: "",
-          pagadorDocumento: "",
-          pagadorEndereco: "",
-          pagadorCidade: "",
-          pagadorUF: "",
-          reembolsoValorTotal: "",
-          reembolsoPorcentagem: "",
-          reembolsoCategoriaId: "",
-          reembolsoNumeroDocumento: "",
-          reembolsoRateado: false,
-          reembolsoBoletoFile: null,
-          reembolsoNotaFiscalFile: null,
-        }));
-      }
     }
-  }, [formData.receiptType, clienteSearchValue.clienteId]);
+  }, [formData.receiptType]);
 
-  // Sincroniza a seleção de cliente com o formData
-  const handleClienteSearchChange = (searchValue: typeof clienteSearchValue) => {
-    console.log("Client search changed:", searchValue);
-    setClienteSearchValue(searchValue);
-
-    // Atualiza os dados do pagador no formulário - SEMPRE sincroniza
-    setFormData((prev) => {
-      const updated = {
-        ...prev,
-        clienteId: searchValue.clienteId || "",
-        pagadorNome: searchValue.nome || prev.pagadorNome || "",
-        pagadorDocumento: searchValue.documento || prev.pagadorDocumento || "",
-        pagadorEndereco: searchValue.endereco || prev.pagadorEndereco || "",
-        pagadorCidade: searchValue.cidade || prev.pagadorCidade || "",
-        pagadorUF: searchValue.uf || prev.pagadorUF || "",
-      };
-      console.log("FormData updated:", updated);
-      return updated;
-    });
-
-    // Se é reembolso e foi selecionado um cliente, carrega as aeronaves
-    if (formData.receiptType === "reembolso" && searchValue.clienteId) {
-      loadAircrafts(searchValue.clienteId);
-    }
-  };
-
-  // Carrega aeronaves quando cliente é selecionado
+  // Cliente / Aeronave - preenche dados do pagador para ambos os tipos
   useEffect(() => {
     if (!formData.clienteId) {
       setAircrafts([]);
@@ -220,6 +158,18 @@ export function ReceiptForm({
     }
 
     loadAircrafts(formData.clienteId);
+
+    const client = clientesAtivos.find((c) => c.id === formData.clienteId);
+    if (client) {
+      setFormData((prev) => ({
+        ...prev,
+        pagadorNome: client.company_name || "",
+        pagadorDocumento: client.cnpj || "",
+        pagadorEndereco: client.address || "",
+        pagadorCidade: client.city || "",
+        pagadorUF: client.uf || "",
+      }));
+    }
   }, [formData.clienteId]);
 
   const loadAircrafts = async (clientId: string) => {
@@ -236,128 +186,19 @@ export function ReceiptForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Debug: log dos dados antes do submit
-    console.log("=== SUBMIT DEBUG ===");
-    console.log("formData.pagadorNome:", formData.pagadorNome);
-    console.log("clienteSearchValue.nome:", clienteSearchValue.nome);
-    console.log("clienteSearchValue:", clienteSearchValue);
-    console.log("formData:", formData);
-
-    // Sincroniza dados do cliente se vindo de busca
-    let finalPagadorNome = formData.pagadorNome;
-    let finalPagadorDocumento = formData.pagadorDocumento;
-    let finalPagadorEndereco = formData.pagadorEndereco;
-    let finalPagadorCidade = formData.pagadorCidade;
-    let finalPagadorUF = formData.pagadorUF;
-
-    // Se tem dados no clienteSearchValue, usa eles como fallback
-    if (!finalPagadorNome && clienteSearchValue.nome) {
-      finalPagadorNome = clienteSearchValue.nome;
-      finalPagadorDocumento = clienteSearchValue.documento;
-      finalPagadorEndereco = clienteSearchValue.endereco;
-      finalPagadorCidade = clienteSearchValue.cidade;
-      finalPagadorUF = clienteSearchValue.uf;
-    }
-
-    console.log("finalPagadorNome:", finalPagadorNome);
-
-    // Validações gerais
-    if (!finalPagadorNome?.trim()) {
-      alert("Por favor, preencha o nome do pagador ou selecione um cliente");
-      return;
-    }
-
-    // Validação específica por tipo
-    if (isReembolso) {
-      if (!clienteSearchValue.clienteId && !formData.clienteId) {
-        alert("Por favor, selecione o cliente para o reembolso");
-        return;
-      }
-      if (!formData.aircraftId) {
-        alert("Por favor, selecione a aeronave para o reembolso");
-        return;
-      }
-      if (!formData.reembolsoCategoriaId) {
-        alert("Por favor, selecione a categoria do reembolso");
-        return;
-      }
-    }
-
-    // Validações comuns
-    if (!formData.valor || Number(formData.valor) <= 0) {
-      alert("Por favor, preencha um valor válido");
-      return;
-    }
-    if (!formData.servicoDescricao?.trim()) {
-      alert("Por favor, preencha a descrição do serviço");
-      return;
-    }
-
-    // Prepara os dados conforme a estrutura da tabela bank_reconciliations
+    // Envia dados do formulário diretamente com campos de pagador no nível raiz
     const submissionData = {
-      // Dados básicos
-      type: "cliente",
-      date: formData.dataEmissao,
-      description: formData.servicoDescricao,
-      amount: parseFloat(formData.valor),
-      status: "pendente",
-
-      // IDs relacionados
-      client_id: clienteSearchValue.clienteId || formData.clienteId || null,
-      aircraft_id: formData.aircraftId || null,
-      categoria_movimentacao_id: formData.reembolsoCategoriaId || null,
-
-      // Dados específicos de reembolso
-      tipo_documento: formData.reembolsoRateado ? "rateio" : "recibo",
-      doc: formData.reembolsoNumeroDocumento || null,
-      prazo_pagamento: formData.prazoMaximoQuitacao || null,
-
-      // Dados de rateio
-      percentual: formData.reembolsoRateado ? formData.reembolsoPorcentagem : null,
-
-      // Forma de pagamento
-      forma_pagamento: formData.reembolsoRateado ? "rateio_direto" : "empresa_paga",
-      afeta_caixa_empresa: true,
-
-      // Dados do fornecedor (para recibos de reembolso) - usa dados sincronizados
-      fornecedor_nome: finalPagadorNome || null,
-      fornecedor_dados: finalPagadorNome ? {
-        nome: finalPagadorNome,
-        documento: finalPagadorDocumento,
-        endereco: finalPagadorEndereco,
-        cidade: finalPagadorCidade,
-        uf: finalPagadorUF
-      } : null,
-
-      // Arquivos (URLs serão preenchidas após upload)
-      boleto_url: null, // Será preenchido após upload
-      nf_url: null, // Será preenchido após upload
-
-      // Dados adicionais de rateio
-      ...(formData.reembolsoRateado && {
-        rateio_data: {
-          valor_total: parseFloat(formData.reembolsoValorTotal),
-          percentual: parseFloat(formData.reembolsoPorcentagem),
-          valor_cliente: parseFloat(formData.valor)
-        }
-      }),
-
-      // Arquivos para upload
-      files: {
-        boleto: formData.reembolsoBoletoFile,
-        notaFiscal: formData.reembolsoNotaFiscalFile
-      },
-
-      // Dados originais do formulário (para compatibilidade) - com dados sincronizados
-      originalFormData: {
-        ...formData,
-        pagadorNome: finalPagadorNome,
-        pagadorDocumento: finalPagadorDocumento,
-        pagadorEndereco: finalPagadorEndereco,
-        pagadorCidade: finalPagadorCidade,
-        pagadorUF: finalPagadorUF,
-        clienteId: clienteSearchValue.clienteId || formData.clienteId
-      }
+      ...formData,
+      // Garantir campos no nível raiz para EmissaoRecibo
+      pagadorNome: formData.pagadorNome,
+      pagadorDocumento: formData.pagadorDocumento,
+      pagadorEndereco: formData.pagadorEndereco,
+      pagadorCidade: formData.pagadorCidade,
+      pagadorUF: formData.pagadorUF,
+      valor: formData.valor,
+      servicoDescricao: formData.servicoDescricao,
+      // Compatibilidade
+      originalFormData: formData,
     };
 
     onSubmit(submissionData);
@@ -395,36 +236,31 @@ export function ReceiptForm({
             </Select>
           </div>
 
-          {/* BUSCA DE CLIENTE / PAGADOR - Para ambos os tipos */}
-          <div className="p-4 border border-border rounded-lg bg-muted/30">
-            <h3 className="font-semibold text-sm mb-4">
-              {isReembolso ? "Dados do Cliente (Reembolso)" : "Dados do Pagador"}
-            </h3>
-            <ClienteSearchInput
-              value={clienteSearchValue}
-              onChange={handleClienteSearchChange}
-              required={true}
-              disabled={false}
-            />
-
-            {/* Exibição dos dados preenchidos para confirmar - usando novo layout */}
-            {formData.pagadorNome && (
-              <div className="mt-4">
-                <ClientDataDisplay
-                  nome={formData.pagadorNome}
-                  documento={formData.pagadorDocumento}
-                  endereco={formData.pagadorEndereco}
-                  cidade={formData.pagadorCidade}
-                  uf={formData.pagadorUF}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* AERONAVE - APENAS PARA REEMBOLSOS */}
-          {isReembolso && clienteSearchValue.clienteId && (
+          {/* CLIENTE / AERONAVE - visível para ambos os tipos */}
+          <div className="grid md:grid-cols-2 gap-4">
             <div>
-              <Label>Aeronave *</Label>
+              <Label>Cliente</Label>
+              <Select
+                value={formData.clienteId}
+                onValueChange={(v) =>
+                  setFormData((p) => ({ ...p, clienteId: v }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clientesAtivos.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.company_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Aeronave</Label>
               <Select
                 value={formData.aircraftId}
                 disabled={!formData.clienteId}
@@ -444,7 +280,84 @@ export function ReceiptForm({
                 </SelectContent>
               </Select>
             </div>
-          )}
+          </div>
+
+          {/* DADOS DO PAGADOR - visível para ambos os tipos */}
+          <div className="space-y-4 p-4 border border-border rounded-lg bg-muted/20">
+            <Label className="text-sm font-semibold">Dados do Pagador</Label>
+            <p className="text-xs text-muted-foreground -mt-2">
+              {formData.clienteId ? "Preenchido automaticamente pelo cliente selecionado" : "Preencha manualmente os dados do pagador"}
+            </p>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label>Nome / Razão Social *</Label>
+                <Input
+                  value={formData.pagadorNome}
+                  onChange={(e) => setFormData((p) => ({ ...p, pagadorNome: e.target.value }))}
+                  placeholder="Nome do pagador"
+                  required
+                />
+              </div>
+              <div>
+                <Label>CPF / CNPJ *</Label>
+                <Input
+                  value={formData.pagadorDocumento}
+                  onChange={(e) => setFormData((p) => ({ ...p, pagadorDocumento: e.target.value }))}
+                  placeholder="Documento do pagador"
+                  required
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Endereço</Label>
+              <Input
+                value={formData.pagadorEndereco}
+                onChange={(e) => setFormData((p) => ({ ...p, pagadorEndereco: e.target.value }))}
+                placeholder="Endereço"
+              />
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label>Cidade</Label>
+                <Input
+                  value={formData.pagadorCidade}
+                  onChange={(e) => setFormData((p) => ({ ...p, pagadorCidade: e.target.value }))}
+                  placeholder="Cidade"
+                />
+              </div>
+              <div>
+                <Label>UF</Label>
+                <Input
+                  value={formData.pagadorUF}
+                  onChange={(e) => setFormData((p) => ({ ...p, pagadorUF: e.target.value }))}
+                  placeholder="UF"
+                  maxLength={2}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* FORMA DE PAGAMENTO - visível para ambos os tipos */}
+          <div>
+            <Label>Forma de Pagamento</Label>
+            <Select
+              value={formData.formaPagamento}
+              onValueChange={(v) => setFormData((p) => ({ ...p, formaPagamento: v }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a forma de pagamento" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pix">PIX</SelectItem>
+                <SelectItem value="boleto">Boleto</SelectItem>
+                <SelectItem value="transferencia">Transferência Bancária</SelectItem>
+                <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                <SelectItem value="cheque">Cheque</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* CATEGORIA E NÚMERO DO DOCUMENTO */}
           {isReembolso && (
@@ -605,35 +518,32 @@ export function ReceiptForm({
             </div>
           )}
 
-          {/* PRAZO DE QUITAÇÃO */}
-          {isReembolso && (
-            <div className="space-y-3">
-              <Label>Prazo Máximo de Quitação</Label>
-              <div className="grid md:grid-cols-2 gap-4">
-                {/* Input manual de data */}
-                <div>
-                  <Label className="text-xs text-muted-foreground mb-1 block">Digite a data</Label>
-                  <Input
-                    type="date"
-                    value={formData.prazoMaximoQuitacao}
-                    onChange={(e) =>
-                      setFormData((p) => ({
-                        ...p,
-                        prazoMaximoQuitacao: e.target.value,
-                      }))
-                    }
-                    min={formData.dataEmissao}
-                    className="w-full"
-                  />
-                </div>
+          {/* PRAZO DE QUITAÇÃO - visível para ambos */}
+          <div className="space-y-3">
+            <Label>Prazo Máximo de Quitação</Label>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Digite a data</Label>
+                <Input
+                  type="date"
+                  value={formData.prazoMaximoQuitacao}
+                  onChange={(e) =>
+                    setFormData((p) => ({
+                      ...p,
+                      prazoMaximoQuitacao: e.target.value,
+                    }))
+                  }
+                  min={formData.dataEmissao}
+                  className="w-full"
+                />
               </div>
-              {formData.prazoMaximoQuitacao && (
-                <p className="text-xs text-muted-foreground">
-                  Data selecionada: {format(parseLocalDate(formData.prazoMaximoQuitacao), "dd/MM/yyyy")}
-                </p>
-              )}
             </div>
-          )}
+            {formData.prazoMaximoQuitacao && (
+              <p className="text-xs text-muted-foreground">
+                Data selecionada: {format(parseLocalDate(formData.prazoMaximoQuitacao), "dd/MM/yyyy")}
+              </p>
+            )}
+          </div>
 
           {/* DESCRIÇÃO DO SERVIÇO / RECIBO */}
           <div className="space-y-2">
