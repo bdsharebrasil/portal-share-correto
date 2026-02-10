@@ -143,6 +143,24 @@ function getFlightCategoryBg(cat: string): string {
       return 'bg-slate-500/20 border-slate-500/50';
   }
 }
+
+// Helper para formatar datas de NOTAM com segurança
+function formatNOTAMDate(dateValue: any): string {
+  try {
+    if (!dateValue) return 'N/A';
+    const date = new Date(dateValue);
+    if (isNaN(date.getTime())) return 'Data Inválida';
+    return date.toLocaleDateString('pt-BR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+  } catch (error) {
+    console.warn('[formatNOTAMDate] Error formatting date:', dateValue, error);
+    return 'Data Inválida';
+  }
+}
+
 export default function PlanoVooPage() {
   const [activeTab, setActiveTab] = useState('planejar');
   const [formData, setFormData] = useState<FlightFormData>({
@@ -994,7 +1012,7 @@ export default function PlanoVooPage() {
                                   </div>
                                   <p className="text-white text-sm mb-2">{notam.message}</p>
                                   <div className="flex flex-wrap gap-2 text-xs text-slate-400">
-                                    <span>Válido: {new Date(notam.startDate).toLocaleDateString('pt-BR')} - {new Date(notam.endDate).toLocaleDateString('pt-BR')}</span>
+                                    <span>Válido: {formatNOTAMDate(notam.startDate)} - {formatNOTAMDate(notam.endDate)}</span>
                                     {notam.schedule && <span>• {notam.schedule}</span>}
                                   </div>
                                 </div>

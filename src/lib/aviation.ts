@@ -152,53 +152,136 @@ const AISWEB_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://api-workers
 
 // Fetch NOTAMs via Workers proxy
 export async function fetchAISWebNOTAMs(icao: string): Promise<NOTAMData[]> {
+  const icaoUpper = icao.toUpperCase();
+
   try {
-    const response = await fetch(
-      `${AISWEB_BASE_URL}/api/notam/${icao.toUpperCase()}`,
-      {
-        headers: {
-          'Accept': 'application/json',
-        },
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+
+    try {
+      const response = await fetch(
+        `${AISWEB_BASE_URL}/api/notam/${icaoUpper}`,
+        {
+          headers: {
+            'Accept': 'application/json',
+          },
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.debug(`[fetchAISWebNOTAMs] No NOTAMs found for ${icaoUpper}`);
+          return [];
+        }
+        console.warn(`[fetchAISWebNOTAMs] API error for ${icaoUpper}: ${response.status}`);
+        return [];
       }
-    );
-    
-    if (!response.ok) {
-      if (response.status === 404) return [];
-      throw new Error(`AISWeb API error: ${response.status}`);
+
+      const data = await response.json();
+      const parsed = parseAndPrioritizeNOTAMs(data);
+      console.debug(`[fetchAISWebNOTAMs] Found ${parsed.length} NOTAMs for ${icaoUpper}`);
+      return parsed;
+    } catch (fetchError) {
+      clearTimeout(timeout);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        console.warn(`[fetchAISWebNOTAMs] Timeout fetching NOTAMs for ${icaoUpper}`);
+      } else {
+        console.warn(`[fetchAISWebNOTAMs] Failed to fetch NOTAMs for ${icaoUpper}:`, fetchError);
+      }
+      return [];
     }
-    
-    const data = await response.json();
-    return parseAndPrioritizeNOTAMs(data);
   } catch (error) {
-    console.error('Error fetching NOTAMs from AISWeb:', error);
-    throw error;
+    console.error(`[fetchAISWebNOTAMs] Unexpected error for ${icaoUpper}:`, error);
+    return [];
   }
 }
 
-// Parse e priorizar NOTAMs
-function parseAndPrioritizeNOTAMs(rawData: any[]): NOTAMData[] {
-  return rawData.map(notam => {
-    let priority: NOTAMData['priority'] = 'low';
-    const msg = notam.message?.toLowerCase() || '';
-    
-    if (msg.includes('closed') || msg.includes('fechado') || 
-        msg.includes('unsafe') || msg.includes('não autorizado')) {
-      priority = 'critical';
-    } else if (msg.includes('restricted') || msg.includes('restrito') || 
-               msg.includes('caution') || msg.includes('atenção')) {
-      priority = 'high';
-    } else if (msg.includes('tempo') || msg.includes('temporary')) {
-      priority = 'medium';
-    }
-    
-    return {
-      ...notam,
-      priority,
-    };
-  }).sort((a, b) => {
-    const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
-    return priorityOrder[a.priority] - priorityOrder[b.priority];
-  });
+// Parse e priorizar NOTAMs - com validação robusta de dados
+function parseAndPrioritizeNOTAMs(rawData: any): NOTAMData[] {
+  // Handle both array and object responses
+  const dataArray = Array.isArray(rawData) ? rawData : (rawData?.data || rawData?.notams || []);
+
+  if (!Array.isArray(dataArray)) {
+    console.warn('[parseAndPrioritizeNOTAMs] Response is not an array:', rawData);
+    return [];
+  }
+
+  return dataArray
+    .map(notam => {
+      // Validar e normalizar dados críticos
+      if (!notam) return null;
+
+      // Normalizar campos de data (suportar múltiplos formatos)
+      let startDate = notam.startDate || notam.start_date || notam.validFrom || notam.valid_from;
+      let endDate = notam.endDate || notam.end_date || notam.validTo || notam.valid_to;
+
+      // Validar datas - se forem null/undefined, usar datas padrão
+      if (!isValidDate(startDate)) {
+        startDate = new Date().toISOString();
+        console.warn(`[parseNOTAM] Invalid startDate for ${notam.icao}/${notam.number}, using current date`);
+      }
+      if (!isValidDate(endDate)) {
+        // Se não temos end date, assumir 30 dias a partir do start
+        const start = new Date(startDate);
+        endDate = new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        console.warn(`[parseNOTAM] Invalid endDate for ${notam.icao}/${notam.number}, using +30 days from start`);
+      }
+
+      // Determinar prioridade
+      let priority: NOTAMData['priority'] = 'low';
+      const msg = (notam.message || notam.text || notam.description || '').toLowerCase();
+
+      if (msg.includes('closed') || msg.includes('fechado') ||
+          msg.includes('unsafe') || msg.includes('não autorizado') ||
+          msg.includes('inoperacional')) {
+        priority = 'critical';
+      } else if (msg.includes('restricted') || msg.includes('restrito') ||
+                 msg.includes('caution') || msg.includes('atenção') ||
+                 msg.includes('danger') || msg.includes('perigo')) {
+        priority = 'high';
+      } else if (msg.includes('tempo') || msg.includes('temporary') ||
+                 msg.includes('provisório') || msg.includes('experimental')) {
+        priority = 'medium';
+      }
+
+      // Normalizar NOTAM com valores padrão
+      return {
+        id: notam.id || `${notam.icao}-${notam.number}-${Date.now()}`,
+        icao: (notam.icao || 'UNKN').toUpperCase(),
+        number: notam.number || '0000',
+        type: notam.type || 'NOTAM',
+        category: notam.category || 'AIRSPACE',
+        traffic: notam.traffic || 'ALL',
+        purpose: notam.purpose || 'INFORMATION',
+        scope: notam.scope || 'AOR',
+        lower: notam.lower || 'SFC',
+        upper: notam.upper || 'UNLIM',
+        coordinates: notam.coordinates || null,
+        radius: notam.radius || null,
+        message: notam.message || notam.text || 'Sem descrição',
+        startDate,
+        endDate,
+        schedule: notam.schedule || null,
+        created: notam.created || new Date().toISOString(),
+        source: notam.source || 'AISWEB',
+        priority,
+      } as NOTAMData;
+    })
+    .filter((notam): notam is NOTAMData => notam !== null)
+    .sort((a, b) => {
+      const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+      return priorityOrder[a.priority] - priorityOrder[b.priority];
+    });
+}
+
+// Helper para validar se uma data é válida
+function isValidDate(dateValue: any): boolean {
+  if (!dateValue) return false;
+  const date = new Date(dateValue);
+  return date instanceof Date && !isNaN(date.getTime());
 }
 
 // Fetch ROTAER (InfoTemp) via Workers proxy
