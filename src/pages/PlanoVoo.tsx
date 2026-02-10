@@ -14,12 +14,14 @@ import { useAeronaves, type Aeronave } from '@/hooks/useAeronaves';
 import { useAISWeb } from '@/hooks/useAISWeb';
 import { useFlightPlans } from '@/hooks/useFlightPlans';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSolarData } from '@/hooks/useSolarData';
 import { calculateDistance, calculateMagneticHeading, calculateOptimalAltitude, isAerodromeOperational, type NOTAMData, type ROTAERData } from '@/lib/aviation';
 import { FlightRouteMap, type RoutePoint } from '@/components/plano-voo/FlightRouteMap';
 import { AerodromeCombobox } from '@/components/plano-voo/AerodromeCombobox';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { fetchAISWebMETAR, type AISWebMETARData } from '@/services/aiswebWeather';
+import { fetchAirportCharts, type ChartData } from '@/services/chartsService';
 interface FlightFormData {
   origin: string;
   destination: string;
@@ -190,6 +192,11 @@ export default function PlanoVooPage() {
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
   const [restrictionsModal, setRestrictionsModal] = useState<{ icao: string; restrictions: string[] } | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  const [originCharts, setOriginCharts] = useState<ChartData[]>([]);
+  const [destCharts, setDestCharts] = useState<ChartData[]>([]);
+  const [isLoadingCharts, setIsLoadingCharts] = useState(false);
+  const { solarData: originSolar } = useSolarData(formData.origin || null);
+  const { solarData: destSolar } = useSolarData(formData.destination || null);
   const {
     user
   } = useAuth();
@@ -424,11 +431,33 @@ export default function PlanoVooPage() {
       setIsLoadingNotams(false);
     }
   }, [formData.origin, formData.destination, formData.alternate, getMultipleNOTAMs]);
+
+  // Buscar Cartas do aeródromo
+  const fetchChartsData = useCallback(async () => {
+    if (!formData.origin && !formData.destination) return;
+    setIsLoadingCharts(true);
+    try {
+      if (formData.origin) {
+        const charts = await fetchAirportCharts(formData.origin);
+        setOriginCharts(charts);
+      }
+      if (formData.destination) {
+        const charts = await fetchAirportCharts(formData.destination);
+        setDestCharts(charts);
+      }
+    } catch (error) {
+      console.error('Error fetching charts:', error);
+    } finally {
+      setIsLoadingCharts(false);
+    }
+  }, [formData.origin, formData.destination]);
+
   useEffect(() => {
     if (formData.origin || formData.destination) {
       fetchNOTAMsData();
+      fetchChartsData();
     }
-  }, [formData.origin, formData.destination, formData.alternate, fetchNOTAMsData]);
+  }, [formData.origin, formData.destination, formData.alternate, fetchNOTAMsData, fetchChartsData]);
 
   // Salvar plano
   const savePlan = useCallback(async () => {
@@ -566,7 +595,7 @@ export default function PlanoVooPage() {
   };
 
   // Renderizar card ROTAER
-  const renderROTAERCard = (rotaer: ROTAERData | null, icao: string) => {
+  const renderROTAERCard = (rotaer: ROTAERData | null, icao: string, solarData?: any) => {
     if (!rotaer) {
       return <Card className="bg-slate-800/50 border-slate-700 p-4">
           <div className="flex items-center gap-2">
@@ -578,6 +607,20 @@ export default function PlanoVooPage() {
 
     return <Card className="bg-slate-800/50 border-slate-700 p-4">
         <div className="space-y-4">
+          {/* Solar Data - Sunrise/Sunset */}
+          {solarData?.day && <div className="bg-gradient-to-r from-orange-900/20 to-yellow-900/20 border border-orange-500/30 rounded-lg p-3 mb-3">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="text-orange-400 font-semibold">Nascer:</span>
+                  <span className="text-white font-mono">{solarData.day.sunrise}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-yellow-400 font-semibold">Pôr:</span>
+                  <span className="text-white font-mono">{solarData.day.sunset}</span>
+                </div>
+              </div>
+            </div>}
+
           {/* Header */}
           <div className="border-b border-slate-700 pb-3">
             <div className="flex items-center gap-2 mb-2">
@@ -734,6 +777,10 @@ export default function PlanoVooPage() {
               <TabsTrigger value="aerodromos" className="data-[state=active]:bg-primary/20">
                 <Radio className="w-4 h-4 mr-2" />
                 Aeródromos
+              </TabsTrigger>
+              <TabsTrigger value="cartas" className="data-[state=active]:bg-primary/20">
+                <FileText className="w-4 h-4 mr-2" />
+                Cartas
               </TabsTrigger>
               <TabsTrigger value="meteorologia" className="data-[state=active]:bg-primary/20">
                 <CloudRain className="w-4 h-4 mr-2" />
@@ -1116,11 +1163,93 @@ export default function PlanoVooPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <h3 className="text-white font-semibold mb-2">Origem: {formData.origin}</h3>
-                  {renderROTAERCard(originROTAER, formData.origin)}
+                  {renderROTAERCard(originROTAER, formData.origin, originSolar)}
                 </div>
                 <div>
                   <h3 className="text-white font-semibold mb-2">Destino: {formData.destination}</h3>
-                  {renderROTAERCard(destROTAER, formData.destination)}
+                  {renderROTAERCard(destROTAER, formData.destination, destSolar)}
+                </div>
+              </div>
+            </TabsContent>
+
+            {/* TAB: Cartas */}
+            <TabsContent value="cartas" className="space-y-4">
+              <div className="flex justify-end mb-2">
+                <Button onClick={fetchChartsData} disabled={isLoadingCharts || !formData.origin && !formData.destination} className="bg-primary hover:bg-primary/90">
+                  {isLoadingCharts ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                  Atualizar Cartas
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Cartas Origem */}
+                <div>
+                  <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-400" />
+                    Cartas - {formData.origin || 'Origem'}
+                  </h3>
+                  {originCharts.length > 0 ? <div className="space-y-2">
+                      {originCharts.map((chart, idx) => <div key={idx} className="bg-slate-900/30 border border-slate-700 rounded-lg p-3 hover:bg-slate-900/50 transition-colors">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <h4 className="text-white font-semibold text-sm">{chart.title}</h4>
+                              {chart.description && <p className="text-slate-400 text-xs mt-1">{chart.description}</p>}
+                            </div>
+                            <Badge variant="outline" className={`ml-2 flex-shrink-0 ${
+                              chart.type === 'IFR' ? 'bg-red-500/20 border-red-500/50 text-red-300' :
+                              chart.type === 'VFR' ? 'bg-green-500/20 border-green-500/50 text-green-300' :
+                              'bg-blue-500/20 border-blue-500/50 text-blue-300'
+                            }`}>
+                              {chart.type}
+                            </Badge>
+                          </div>
+                          {chart.edition && <p className="text-slate-500 text-xs mb-2">Edição: {chart.edition}</p>}
+                          {chart.url ? <a href={chart.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 text-xs font-semibold">
+                              <Download className="w-3 h-3" />
+                              Download
+                            </a> : <span className="text-slate-500 text-xs">Sem link disponível</span>}
+                        </div>)}
+                    </div> : <div className="bg-slate-900/30 border border-slate-700 rounded-lg p-4 text-center text-slate-400">
+                      {isLoadingCharts ? <span className="flex items-center justify-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Carregando...
+                        </span> : <span>Nenhuma carta disponível</span>}
+                    </div>}
+                </div>
+
+                {/* Cartas Destino */}
+                <div>
+                  <h3 className="text-white font-semibold mb-3 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-400" />
+                    Cartas - {formData.destination || 'Destino'}
+                  </h3>
+                  {destCharts.length > 0 ? <div className="space-y-2">
+                      {destCharts.map((chart, idx) => <div key={idx} className="bg-slate-900/30 border border-slate-700 rounded-lg p-3 hover:bg-slate-900/50 transition-colors">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <h4 className="text-white font-semibold text-sm">{chart.title}</h4>
+                              {chart.description && <p className="text-slate-400 text-xs mt-1">{chart.description}</p>}
+                            </div>
+                            <Badge variant="outline" className={`ml-2 flex-shrink-0 ${
+                              chart.type === 'IFR' ? 'bg-red-500/20 border-red-500/50 text-red-300' :
+                              chart.type === 'VFR' ? 'bg-green-500/20 border-green-500/50 text-green-300' :
+                              'bg-blue-500/20 border-blue-500/50 text-blue-300'
+                            }`}>
+                              {chart.type}
+                            </Badge>
+                          </div>
+                          {chart.edition && <p className="text-slate-500 text-xs mb-2">Edição: {chart.edition}</p>}
+                          {chart.url ? <a href={chart.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-blue-400 hover:text-blue-300 text-xs font-semibold">
+                              <Download className="w-3 h-3" />
+                              Download
+                            </a> : <span className="text-slate-500 text-xs">Sem link disponível</span>}
+                        </div>)}
+                    </div> : <div className="bg-slate-900/30 border border-slate-700 rounded-lg p-4 text-center text-slate-400">
+                      {isLoadingCharts ? <span className="flex items-center justify-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Carregando...
+                        </span> : <span>Nenhuma carta disponível</span>}
+                    </div>}
                 </div>
               </div>
             </TabsContent>
