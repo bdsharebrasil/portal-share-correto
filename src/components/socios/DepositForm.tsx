@@ -1,48 +1,138 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Users } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Users, TrendingUp, Landmark } from "lucide-react";
 import { useAddDeposit, type PartnerAccount } from "@/hooks/useFinanceiroSocios";
-import { useClientPartners, type ClientPartner } from "@/hooks/useClientPartners";
+import { useClientPartners } from "@/hooks/useClientPartners";
 import { formatCPF, formatMoney } from "@/lib/formatters";
 import { format } from "date-fns";
 
-export function DepositForm({ accounts, clienteId }: { accounts: PartnerAccount[]; clienteId: string }) {
-  const [open, setOpen] = useState(false);
-  const [cpf, setCpf] = useState("");
-  const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("");
-  const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const addDeposit = useAddDeposit();
+// ─── Lookup: Bancos ───────────────────────────────────────────────────────────
+const BANK_OPTIONS = [
+  { id: "bradesco", label: "Bradesco" },
+  { id: "itau", label: "Itaú" },
+  { id: "santander", label: "Santander" },
+  { id: "bb", label: "Banco do Brasil" },
+  { id: "caixa", label: "Caixa Econômica" },
+  { id: "nubank", label: "Nubank" },
+  { id: "inter", label: "Inter" },
+  { id: "btg", label: "BTG Pactual" },
+  { id: "xp", label: "XP Investimentos" },
+  { id: "sicoob", label: "Sicoob" },
+  { id: "sicredi", label: "Sicredi" },
+  { id: "outros", label: "Outros" },
+];
 
-  // Buscar parceiros do cliente diretamente de client_partners
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface DepositFormProps {
+  accounts: PartnerAccount[];
+  clienteId: string;
+}
+
+// ─── Estado inicial reutilizável ──────────────────────────────────────────────
+const EMPTY_DEPOSIT = {
+  cpf: "",
+  amount: "",
+  description: "",
+  date: format(new Date(), "yyyy-MM-dd"),
+  bankName: "",
+};
+
+const EMPTY_INTEREST = {
+  cpf: "",
+  amount: "",
+  date: format(new Date(), "yyyy-MM-dd"),
+  bankName: "",
+  notes: "",
+};
+
+// ─── Componente Principal ─────────────────────────────────────────────────────
+export function DepositForm({ accounts, clienteId }: DepositFormProps) {
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"deposit" | "interest">("deposit");
+
+  // Formulário de Depósito
+  const [deposit, setDeposit] = useState(EMPTY_DEPOSIT);
+
+  // Formulário de Rendimento
+  const [interest, setInterest] = useState(EMPTY_INTEREST);
+
+  const addDeposit = useAddDeposit();
   const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteId);
 
-  const selectedAccount = accounts.find((a) => a.partner_cpf === cpf);
-  const selectedPartner = partners.find((p) => p.cpf === cpf);
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  const getAccount = (cpf: string) => accounts.find((a) => a.partner_cpf === cpf);
+  const getPartner = (cpf: string) => partners.find((p) => p.cpf === cpf);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!cpf || !amount || !description) return;
-    await addDeposit.mutateAsync({
-      clientId: clienteId,
-      partnerCpf: cpf,
-      partnerName: selectedPartner?.name || selectedAccount?.partner_name || "",
-      amount: parseFloat(amount),
-      description,
-      paymentDate: date,
-    });
+  const resetAndClose = () => {
     setOpen(false);
-    setCpf("");
-    setAmount("");
-    setDescription("");
-    setDate(format(new Date(), "yyyy-MM-dd"));
+    setDeposit(EMPTY_DEPOSIT);
+    setInterest(EMPTY_INTEREST);
+    setTab("deposit");
   };
 
+  // ── Submit: Depósito comum ─────────────────────────────────────────────────
+  const handleDepositSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deposit.cpf || !deposit.amount || !deposit.description) return;
+
+    const partner = getPartner(deposit.cpf);
+    const account = getAccount(deposit.cpf);
+
+    await addDeposit.mutateAsync({
+      clientId: clienteId,
+      partnerCpf: deposit.cpf,
+      partnerName: partner?.name || account?.partner_name || "",
+      amount: parseFloat(deposit.amount),
+      description: deposit.description,
+      paymentDate: deposit.date,
+      bankName: deposit.bankName || null,
+      transactionSubtype: "deposit",
+    });
+
+    resetAndClose();
+  };
+
+  // ── Submit: Rendimento Bancário ────────────────────────────────────────────
+  const handleInterestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!interest.cpf || !interest.amount || !interest.bankName) return;
+
+    const partner = getPartner(interest.cpf);
+    const account = getAccount(interest.cpf);
+
+    await addDeposit.mutateAsync({
+      clientId: clienteId,
+      partnerCpf: interest.cpf,
+      partnerName: partner?.name || account?.partner_name || "",
+      amount: parseFloat(interest.amount),
+      description: `Rendimento bancário${interest.bankName ? ` - ${BANK_OPTIONS.find(b => b.id === interest.bankName)?.label}` : ""}${interest.notes ? ` (${interest.notes})` : ""}`,
+      paymentDate: interest.date,
+      bankName: interest.bankName,
+      transactionSubtype: "bank_interest",
+    });
+
+    resetAndClose();
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -51,154 +141,397 @@ export function DepositForm({ accounts, clienteId }: { accounts: PartnerAccount[
           Novo Depósito
         </Button>
       </DialogTrigger>
+
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="w-5 h-5 text-primary" />
-            Registrar Depósito
+            Registrar Entrada
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Sócio Selecionado */}
-          <div>
-            <Label className="font-semibold">Sócio *</Label>
-            <Select value={cpf} onValueChange={setCpf} disabled={loadingPartners}>
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder={loadingPartners ? "Carregando sócios..." : "Selecione o sócio"} />
-              </SelectTrigger>
-              <SelectContent>
-                {partners.length === 0 ? (
-                  <div className="p-2 text-sm text-muted-foreground">
-                    Nenhum sócio cadastrado para este cliente
-                  </div>
-                ) : (
-                  partners.map((partner) => {
-                    const account = accounts.find((a) => a.partner_cpf === partner.cpf);
-                    return (
-                      <SelectItem key={partner.id} value={partner.cpf}>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{partner.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            CPF: {formatCPF(partner.cpf)}
-                            {partner.share_percentage && ` • Participação: ${partner.share_percentage}%`}
-                          </span>
-                          {account && (
-                            <span className="text-xs text-green-600 font-semibold">
-                              Saldo: {formatMoney(account.current_balance)}
-                            </span>
-                          )}
-                        </div>
-                      </SelectItem>
-                    );
-                  })
-                )}
-              </SelectContent>
-            </Select>
-          </div>
 
-          {/* Dados do Sócio Selecionado */}
-          {selectedPartner && (
-            <Card className="bg-muted/30 border-primary/20 p-3">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Nome:</span>
-                  <span className="font-medium">{selectedPartner.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">CPF:</span>
-                  <span className="font-mono">{formatCPF(selectedPartner.cpf)}</span>
-                </div>
-                {selectedPartner.share_percentage && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Participação:</span>
-                    <span className="font-medium">{selectedPartner.share_percentage}%</span>
-                  </div>
-                )}
-                {selectedAccount && (
-                  <>
-                    <div className="border-t border-muted my-2" />
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Saldo Atual:</span>
-                      <span className="font-semibold text-green-600">{formatMoney(selectedAccount.current_balance)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total Depositado:</span>
-                      <span className="font-medium">{formatMoney(selectedAccount.total_deposited)}</span>
-                    </div>
-                  </>
-                )}
+        {/* Tabs: Depósito | Rendimento */}
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "deposit" | "interest")}>
+          <TabsList className="w-full">
+            <TabsTrigger value="deposit" className="flex-1 gap-2">
+              <Landmark className="h-4 w-4" />
+              Depósito
+            </TabsTrigger>
+            <TabsTrigger value="interest" className="flex-1 gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Rendimento Bancário
+            </TabsTrigger>
+          </TabsList>
+
+          {/* ── TAB: DEPÓSITO ─────────────────────────────────────────────── */}
+          <TabsContent value="deposit">
+            <form onSubmit={handleDepositSubmit} className="space-y-4 mt-2">
+              {/* Sócio */}
+              <PartnerSelect
+                value={deposit.cpf}
+                onChange={(v) => setDeposit((p) => ({ ...p, cpf: v }))}
+                partners={partners}
+                accounts={accounts}
+                loading={loadingPartners}
+              />
+
+              {/* Info do sócio selecionado */}
+              <PartnerSummaryCard
+                partner={getPartner(deposit.cpf)}
+                account={getAccount(deposit.cpf)}
+              />
+
+              {/* Banco */}
+              <BankSelect
+                value={deposit.bankName}
+                onChange={(v) => setDeposit((p) => ({ ...p, bankName: v }))}
+                disabled={!deposit.cpf}
+              />
+
+              {/* Valor */}
+              <AmountField
+                value={deposit.amount}
+                onChange={(v) => setDeposit((p) => ({ ...p, amount: v }))}
+                disabled={!deposit.cpf}
+              />
+
+              {/* Data */}
+              <DateField
+                value={deposit.date}
+                onChange={(v) => setDeposit((p) => ({ ...p, date: v }))}
+              />
+
+              {/* Descrição */}
+              <div>
+                <Label htmlFor="dep-desc" className="font-semibold">Descrição *</Label>
+                <Input
+                  id="dep-desc"
+                  value={deposit.description}
+                  onChange={(e) => setDeposit((p) => ({ ...p, description: e.target.value }))}
+                  placeholder="Ex: Depósito referente ao mês de janeiro"
+                  required
+                  disabled={addDeposit.isPending}
+                  className="mt-2"
+                />
               </div>
-            </Card>
-          )}
-          {/* Valor do Depósito */}
-          <div>
-            <Label htmlFor="amount" className="font-semibold">
-              Valor (R$) *
-            </Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              min="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0,00"
-              required
-              disabled={addDeposit.isPending || !cpf}
-              className="mt-2"
-            />
-          </div>
 
-          {/* Data */}
-          <div>
-            <Label htmlFor="date" className="font-semibold">
-              Data *
-            </Label>
-            <Input
-              id="date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              required
-              disabled={addDeposit.isPending}
-              className="mt-2"
-            />
-          </div>
+              <SubmitButton
+                loading={addDeposit.isPending}
+                disabled={!deposit.cpf || !deposit.amount || !deposit.description}
+                label="Confirmar Depósito"
+              />
+            </form>
+          </TabsContent>
 
-          {/* Descrição */}
-          <div>
-            <Label htmlFor="description" className="font-semibold">
-              Descrição *
-            </Label>
-            <Input
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Ex: Depósito referente ao mês de janeiro"
-              required
-              disabled={addDeposit.isPending}
-              className="mt-2"
-            />
-          </div>
+          {/* ── TAB: RENDIMENTO ───────────────────────────────────────────── */}
+          <TabsContent value="interest">
+            <form onSubmit={handleInterestSubmit} className="space-y-4 mt-2">
+              {/* Aviso informativo */}
+              <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-sm text-amber-700 dark:text-amber-400">
+                <TrendingUp className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <span>
+                  Registre os juros/rendimentos gerados pela conta do sócio no banco.
+                  O valor será somado ao saldo e ao total de rendimentos acumulados.
+                </span>
+              </div>
 
-          {/* Botão Submit */}
-          <Button
-            type="submit"
-            className="w-full mt-6"
-            disabled={addDeposit.isPending || !cpf || !amount || !description}
-            size="lg"
-          >
-            {addDeposit.isPending ? (
-              <>
-                <span className="animate-spin mr-2">⏳</span>
-                Registrando Depósito...
-              </>
-            ) : (
-              "Confirmar Depósito"
-            )}
-          </Button>
-        </form>
+              {/* Sócio */}
+              <PartnerSelect
+                value={interest.cpf}
+                onChange={(v) => setInterest((p) => ({ ...p, cpf: v }))}
+                partners={partners}
+                accounts={accounts}
+                loading={loadingPartners}
+              />
+
+              {/* Info do sócio */}
+              <PartnerSummaryCard
+                partner={getPartner(interest.cpf)}
+                account={getAccount(interest.cpf)}
+                showInterest
+              />
+
+              {/* Banco (obrigatório para rendimento) */}
+              <BankSelect
+                value={interest.bankName}
+                onChange={(v) => setInterest((p) => ({ ...p, bankName: v }))}
+                disabled={!interest.cpf}
+                required
+              />
+
+              {/* Valor */}
+              <AmountField
+                value={interest.amount}
+                onChange={(v) => setInterest((p) => ({ ...p, amount: v }))}
+                disabled={!interest.cpf}
+                label="Valor do Rendimento (R$) *"
+                placeholder="0,00"
+              />
+
+              {/* Data */}
+              <DateField
+                value={interest.date}
+                onChange={(v) => setInterest((p) => ({ ...p, date: v }))}
+                label="Data do Rendimento *"
+              />
+
+              {/* Observação */}
+              <div>
+                <Label htmlFor="int-notes" className="font-semibold">Observação</Label>
+                <Input
+                  id="int-notes"
+                  value={interest.notes}
+                  onChange={(e) => setInterest((p) => ({ ...p, notes: e.target.value }))}
+                  placeholder="Ex: Rendimento FacilCred Janeiro"
+                  disabled={addDeposit.isPending}
+                  className="mt-2"
+                />
+              </div>
+
+              <SubmitButton
+                loading={addDeposit.isPending}
+                disabled={!interest.cpf || !interest.amount || !interest.bankName}
+                label="Registrar Rendimento"
+                variant="interest"
+              />
+            </form>
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── Sub-componentes reutilizáveis ────────────────────────────────────────────
+
+function PartnerSelect({
+  value,
+  onChange,
+  partners,
+  accounts,
+  loading,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  partners: any[];
+  accounts: PartnerAccount[];
+  loading: boolean;
+}) {
+  return (
+    <div>
+      <Label className="font-semibold">Sócio *</Label>
+      <Select value={value} onValueChange={onChange} disabled={loading}>
+        <SelectTrigger className="mt-2">
+          <SelectValue
+            placeholder={loading ? "Carregando sócios..." : "Selecione o sócio"}
+          />
+        </SelectTrigger>
+        <SelectContent>
+          {partners.length === 0 ? (
+            <div className="p-2 text-sm text-muted-foreground">
+              Nenhum sócio cadastrado para este cliente
+            </div>
+          ) : (
+            partners.map((partner) => {
+              const account = accounts.find((a) => a.partner_cpf === partner.cpf);
+              return (
+                <SelectItem key={partner.id} value={partner.cpf}>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{partner.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      CPF: {formatCPF(partner.cpf)}
+                      {partner.share_percentage &&
+                        ` • Participação: ${partner.share_percentage}%`}
+                    </span>
+                    {account && (
+                      <span className="text-xs text-green-600 font-semibold">
+                        Saldo: {formatMoney(account.current_balance)}
+                      </span>
+                    )}
+                  </div>
+                </SelectItem>
+              );
+            })
+          )}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function BankSelect({
+  value,
+  onChange,
+  disabled,
+  required = false,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  required?: boolean;
+}) {
+  return (
+    <div>
+      <Label className="font-semibold">
+        Instituição Bancária {required ? "*" : "(opcional)"}
+      </Label>
+      <Select value={value} onValueChange={onChange} disabled={disabled}>
+        <SelectTrigger className="mt-2">
+          <SelectValue placeholder="Selecione o banco" />
+        </SelectTrigger>
+        <SelectContent>
+          {BANK_OPTIONS.map((bank) => (
+            <SelectItem key={bank.id} value={bank.id}>
+              {bank.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+function AmountField({
+  value,
+  onChange,
+  disabled,
+  label = "Valor (R$) *",
+  placeholder = "0,00",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  label?: string;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <Label htmlFor="amount" className="font-semibold">{label}</Label>
+      <Input
+        id="amount"
+        type="number"
+        step="0.01"
+        min="0.01"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        required
+        disabled={disabled}
+        className="mt-2"
+      />
+    </div>
+  );
+}
+
+function DateField({
+  value,
+  onChange,
+  label = "Data *",
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  label?: string;
+}) {
+  return (
+    <div>
+      <Label htmlFor="date" className="font-semibold">{label}</Label>
+      <Input
+        id="date"
+        type="date"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required
+        className="mt-2"
+      />
+    </div>
+  );
+}
+
+function PartnerSummaryCard({
+  partner,
+  account,
+  showInterest = false,
+}: {
+  partner: any;
+  account: PartnerAccount | undefined;
+  showInterest?: boolean;
+}) {
+  if (!partner) return null;
+
+  return (
+    <Card className="bg-muted/30 border-primary/20 p-3">
+      <div className="space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Nome:</span>
+          <span className="font-medium">{partner.name}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">CPF:</span>
+          <span className="font-mono">{formatCPF(partner.cpf)}</span>
+        </div>
+        {partner.share_percentage && (
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Participação:</span>
+            <span className="font-medium">{partner.share_percentage}%</span>
+          </div>
+        )}
+        {account && (
+          <>
+            <div className="border-t border-muted my-1" />
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Saldo Atual:</span>
+              <span className="font-semibold text-green-600">
+                {formatMoney(account.current_balance)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Total Depositado:</span>
+              <span className="font-medium">{formatMoney(account.total_deposited)}</span>
+            </div>
+            {showInterest && (account as any).total_interest_earned !== undefined && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground text-amber-600">Rendimentos:</span>
+                <span className="font-medium text-amber-600">
+                  {formatMoney((account as any).total_interest_earned ?? 0)}
+                </span>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function SubmitButton({
+  loading,
+  disabled,
+  label,
+  variant = "default",
+}: {
+  loading: boolean;
+  disabled: boolean;
+  label: string;
+  variant?: "default" | "interest";
+}) {
+  return (
+    <Button
+      type="submit"
+      className={`w-full mt-2 ${variant === "interest"
+          ? "bg-amber-600 hover:bg-amber-700 text-white"
+          : ""
+        }`}
+      disabled={loading || disabled}
+      size="lg"
+    >
+      {loading ? (
+        <>
+          <span className="animate-spin mr-2">⏳</span>
+          Registrando...
+        </>
+      ) : (
+        label
+      )}
+    </Button>
   );
 }
