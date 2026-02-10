@@ -3,7 +3,7 @@ import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, Download, ArrowLeft, Calendar, FileText } from "lucide-react";
+import { DollarSign, Download, ArrowLeft, Calendar, FileText, Trash2, Edit2 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useClientesComSocios } from "@/hooks/useSocioBalanco";
 import { useSocioTransactions } from "@/hooks/useFinanceiroSocios";
@@ -35,6 +35,7 @@ export default function RelatorioTransacoesSocios() {
   const navigate = useNavigate();
   const { clienteId } = useParams<{ clienteId: string }>();
   const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   // Load client data
   const { data: clientesComSocios = [], isLoading: loadingClientes } = useClientesComSocios();
@@ -91,7 +92,14 @@ export default function RelatorioTransacoesSocios() {
     }
   }, [sortedMonths, selectedMonth]);
 
-  const selectedTransactions = selectedMonth ? groupedTransactions[selectedMonth] : [];
+  const selectedTransactions = useMemo(() => {
+    const transactions = selectedMonth ? [...(groupedTransactions[selectedMonth] || [])] : [];
+    return transactions.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+    });
+  }, [selectedMonth, sortOrder, groupedTransactions]);
 
   const downloadCSV = () => {
     if (!selectedTransactions.length) return;
@@ -330,8 +338,11 @@ export default function RelatorioTransacoesSocios() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border/50 bg-muted/30">
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">
-                        Data
+                      <th
+                        className="px-4 py-3 text-left text-sm font-semibold text-foreground cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                      >
+                        Data {sortOrder === "asc" ? "↑" : "↓"}
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">
                         Sócio
@@ -353,6 +364,9 @@ export default function RelatorioTransacoesSocios() {
                       </th>
                       <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">
                         Saldo
+                      </th>
+                      <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">
+                        Ações
                       </th>
                     </tr>
                   </thead>
@@ -405,6 +419,32 @@ export default function RelatorioTransacoesSocios() {
                         </td>
                         <td className="px-4 py-3 text-sm font-semibold text-right text-foreground">
                           R$ {tx.balance_after.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              className="p-1.5 rounded hover:bg-blue-500/20 transition-colors text-blue-600 hover:text-blue-700"
+                              title="Editar transação"
+                              onClick={() => {
+                                // TODO: Implement edit functionality
+                                console.log("Edit transaction:", tx.id);
+                              }}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </button>
+                            <button
+                              className="p-1.5 rounded hover:bg-red-500/20 transition-colors text-red-600 hover:text-red-700"
+                              title="Deletar transação"
+                              onClick={() => {
+                                // TODO: Implement delete functionality
+                                if (confirm(`Tem certeza que deseja deletar esta transação?`)) {
+                                  console.log("Delete transaction:", tx.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

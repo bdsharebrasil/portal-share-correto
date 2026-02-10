@@ -46,7 +46,7 @@ const EMPTY_FORM = {
   totalAmount: "",
   category: "" as ExpenseCategoryId | "",
   expenseType: "",
-  assignedPartnerCpf: "",
+  assignedPartnerCpf: "none",
   dueDate: format(new Date(), "yyyy-MM-dd"),
   supplierName: "",
   invoiceNumber: "",
@@ -74,7 +74,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     e.preventDefault();
     if (!form.description || !form.totalAmount || !form.category) return;
 
-    const assignedPartner = partners.find((p) => p.cpf === form.assignedPartnerCpf);
+    const assignedPartnerCpf = form.assignedPartnerCpf === "none" ? null : form.assignedPartnerCpf;
+    const assignedPartner = assignedPartnerCpf ? partners.find((p) => p.cpf === assignedPartnerCpf) : null;
 
     await addExpense.mutateAsync({
       clientId: clienteId,
@@ -82,7 +83,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       totalAmount: parseFloat(form.totalAmount),
       category: form.category,
       expenseType: form.expenseType || form.category,
-      assignedPartnerCpf: form.assignedPartnerCpf || null,
+      assignedPartnerCpf: assignedPartnerCpf,
       assignedPartnerName: assignedPartner?.name || null,
       dueDate: form.dueDate,
       supplierName: form.supplierName || null,
@@ -208,7 +209,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">— Sem atribuição —</SelectItem>
+                <SelectItem value="none">— Sem atribuição —</SelectItem>
                 {partners.map((partner) => (
                   <SelectItem key={partner.id} value={partner.cpf}>
                     <div className="flex flex-col">
