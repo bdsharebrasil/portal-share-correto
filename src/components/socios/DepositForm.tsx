@@ -18,41 +18,94 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Users, TrendingUp, Landmark } from "lucide-react";
-import { useAddDeposit, useAddBankInterest, type PartnerAccount } from "@/hooks/useFinanceiroSocios";
+import { Plus, TrendingUp, Landmark, ArrowDownCircle } from "lucide-react";
+import { useAddDeposit, type PartnerAccount } from "@/hooks/useFinanceiroSocios";
 import { useClientPartners } from "@/hooks/useClientPartners";
 import { formatCPF, formatMoney } from "@/lib/formatters";
 import { format } from "date-fns";
 
-// ─── Lookup: Bancos ───────────────────────────────────────────────────────────
+// tipos de entrada — requires_partner controla se exibe seletor de sócio
+export const ENTRY_TYPES = [
+  {
+    id: "deposit_partner",
+    label: "Depósito de Sócio",
+    icon: "👤",
+    description: "Aporte realizado por um sócio específico",
+    requires_partner: true,
+    subtype: "deposit",
+  },
+  {
+    id: "transfer",
+    label: "Transferência (TED/PIX)",
+    icon: "🔁",
+    description: "Transferência recebida de conta externa",
+    requires_partner: false,
+    subtype: "transfer",
+  },
+  {
+    id: "reversal",
+    label: "Estorno",
+    icon: "↩️",
+    description: "Devolução ou estorno de pagamento anterior",
+    requires_partner: false,
+    subtype: "reversal",
+  },
+  {
+    id: "acquisition_refund",
+    label: "Devolução de Aquisição",
+    icon: "📦",
+    description: "Reembolso de compra ou aquisição cancelada",
+    requires_partner: false,
+    subtype: "acquisition_refund",
+  },
+  {
+    id: "reimbursement",
+    label: "Ressarcimento Recebido",
+    icon: "💸",
+    description: "Ressarcimento recebido de terceiros",
+    requires_partner: false,
+    subtype: "reimbursement",
+  },
+  {
+    id: "other_income",
+    label: "Outros",
+    icon: "📎",
+    description: "Outras entradas não categorizadas",
+    requires_partner: false,
+    subtype: "other_income",
+  },
+] as const;
+
+export type EntryTypeId = typeof ENTRY_TYPES[number]["id"];
+
 const BANK_OPTIONS = [
-  { id: "bradesco",  label: "Bradesco" },
-  { id: "itau",      label: "Itaú" },
+  { id: "bradesco", label: "Bradesco" },
+  { id: "itau", label: "Itaú" },
   { id: "santander", label: "Santander" },
-  { id: "bb",        label: "Banco do Brasil" },
-  { id: "caixa",     label: "Caixa Econômica" },
-  { id: "nubank",    label: "Nubank" },
-  { id: "inter",     label: "Inter" },
-  { id: "btg",       label: "BTG Pactual" },
-  { id: "xp",        label: "XP Investimentos" },
-  { id: "sicoob",    label: "Sicoob" },
-  { id: "sicredi",   label: "Sicredi" },
-  { id: "outros",    label: "Outros" },
+  { id: "bb", label: "Banco do Brasil" },
+  { id: "caixa", label: "Caixa Econômica" },
+  { id: "nubank", label: "Nubank" },
+  { id: "inter", label: "Inter" },
+  { id: "btg", label: "BTG Pactual" },
+  { id: "xp", label: "XP Investimentos" },
+  { id: "sicoob", label: "Sicoob" },
+  { id: "sicredi", label: "Sicredi" },
+  { id: "outros", label: "Outros" },
 ];
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 interface DepositFormProps {
   accounts: PartnerAccount[];
   clienteId: string;
 }
 
-// ─── Estado inicial reutilizável ──────────────────────────────────────────────
-const EMPTY_DEPOSIT = {
+const EMPTY_ENTRY = {
+  entryType: "" as EntryTypeId | "",
   cpf: "",
   amount: "",
   description: "",
   date: format(new Date(), "yyyy-MM-dd"),
   bankName: "",
+  prazo: "extra" as "mensal" | "extra",
 };
 
 const EMPTY_INTEREST = {
@@ -60,98 +113,114 @@ const EMPTY_INTEREST = {
   date: format(new Date(), "yyyy-MM-dd"),
   bankName: "",
   notes: "",
+  prazo: "mensal" as "mensal" | "extra",
 };
 
-// ─── Componente Principal ─────────────────────────────────────────────────────
 export function DepositForm({ accounts, clienteId }: DepositFormProps) {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<"deposit" | "interest">("deposit");
-
-  // Formulário de Depósito
-  const [deposit, setDeposit] = useState(EMPTY_DEPOSIT);
-
-  // Formulário de Rendimento
+  const [tab, setTab] = useState<"entry" | "interest">("entry");
+  const [entry, setEntry] = useState(EMPTY_ENTRY);
   const [interest, setInterest] = useState(EMPTY_INTEREST);
 
   const addDeposit = useAddDeposit();
-  const addInterest = useAddBankInterest();
   const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteId);
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
   const getAccount = (cpf: string) => accounts.find((a) => a.partner_cpf === cpf);
   const getPartner = (cpf: string) => partners.find((p) => p.cpf === cpf);
 
-  const resetAndClose = () => {
-    setOpen(false);
-    setDeposit(EMPTY_DEPOSIT);
-    setInterest(EMPTY_INTEREST);
-    setTab("deposit");
+  const selectedEntryType = ENTRY_TYPES.find((t) => t.id === entry.entryType);
+  const requiresPartner = selectedEntryType?.requires_partner ?? false;
+
+  const handleEntryTypeChange = (value: EntryTypeId) => {
+    const type = ENTRY_TYPES.find((t) => t.id === value);
+    setEntry((p) => ({
+      ...p,
+      entryType: value,
+      cpf: type?.requires_partner ? p.cpf : "",
+    }));
   };
 
-  // ── Submit: Depósito comum ─────────────────────────────────────────────────
-  const handleDepositSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!deposit.cpf || !deposit.amount || !deposit.description) return;
+  const resetAndClose = () => {
+    setOpen(false);
+    setEntry(EMPTY_ENTRY);
+    setInterest(EMPTY_INTEREST);
+    setTab("entry");
+  };
 
-    const partner = getPartner(deposit.cpf);
-    const account = getAccount(deposit.cpf);
+  const isEntryValid = () => {
+    if (!entry.entryType || !entry.amount || !entry.description) return false;
+    if (requiresPartner && !entry.cpf) return false;
+    return true;
+  };
+
+  const handleEntrySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isEntryValid()) return;
+
+    const partner = getPartner(entry.cpf);
+    const account = getAccount(entry.cpf);
 
     await addDeposit.mutateAsync({
       clientId: clienteId,
-      partnerCpf: deposit.cpf,
-      partnerName: partner?.name || account?.partner_name || "",
-      amount: parseFloat(deposit.amount),
-      description: deposit.description,
-      paymentDate: deposit.date,
-      bankName: deposit.bankName || null,
-      transactionSubtype: "deposit",
+      partnerCpf: requiresPartner ? entry.cpf : null,
+      partnerName: requiresPartner
+        ? (partner?.name || account?.partner_name || "")
+        : (selectedEntryType?.label ?? "Conta Geral"),
+      amount: parseFloat(entry.amount),
+      description: entry.description,
+      paymentDate: entry.date,
+      bankName: entry.bankName || null,
+      transactionSubtype: selectedEntryType?.subtype ?? "deposit",
+      prazo: entry.prazo,
     });
 
     resetAndClose();
   };
 
-  // ── Submit: Rendimento Bancário ────────────────────────────────────────────
   const handleInterestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!interest.amount || !interest.bankName) return;
 
-    const bankLabel = BANK_OPTIONS.find(b => b.id === interest.bankName)?.label ?? interest.bankName;
+    const bankLabel =
+      BANK_OPTIONS.find((b) => b.id === interest.bankName)?.label ?? interest.bankName;
 
-    await addInterest.mutateAsync({
+    await addDeposit.mutateAsync({
       clientId: clienteId,
+      partnerCpf: null,
+      partnerName: "Conta Compartilhada",
       amount: parseFloat(interest.amount),
       description: `Rendimento bancário - ${bankLabel}${interest.notes ? ` (${interest.notes})` : ""}`,
       paymentDate: interest.date,
       bankName: interest.bankName,
+      transactionSubtype: "bank_interest",
+      prazo: interest.prazo,
     });
 
     resetAndClose();
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="gap-2">
           <Plus className="h-4 w-4" />
-          Novo Depósito
+          Nova Entrada
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5 text-primary" />
+            <ArrowDownCircle className="w-5 h-5 text-green-500" />
             Registrar Entrada
           </DialogTitle>
         </DialogHeader>
 
-        {/* Tabs: Depósito | Rendimento */}
-        <Tabs value={tab} onValueChange={(v) => setTab(v as "deposit" | "interest")}>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "entry" | "interest")}>
           <TabsList className="w-full">
-            <TabsTrigger value="deposit" className="flex-1 gap-2">
+            <TabsTrigger value="entry" className="flex-1 gap-2">
               <Landmark className="h-4 w-4" />
-              Depósito
+              Entrada
             </TabsTrigger>
             <TabsTrigger value="interest" className="flex-1 gap-2">
               <TrendingUp className="h-4 w-4" />
@@ -159,70 +228,123 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
             </TabsTrigger>
           </TabsList>
 
-          {/* ── TAB: DEPÓSITO ─────────────────────────────────────────────── */}
-          <TabsContent value="deposit">
-            <form onSubmit={handleDepositSubmit} className="space-y-4 mt-2">
-              {/* Sócio */}
-              <PartnerSelect
-                value={deposit.cpf}
-                onChange={(v) => setDeposit((p) => ({ ...p, cpf: v }))}
-                partners={partners}
-                accounts={accounts}
-                loading={loadingPartners}
-              />
+          {/* TAB: ENTRADA */}
+          <TabsContent value="entry">
+            <form onSubmit={handleEntrySubmit} className="space-y-4 mt-2">
 
-              {/* Info do sócio selecionado */}
-              <PartnerSummaryCard
-                partner={getPartner(deposit.cpf)}
-                account={getAccount(deposit.cpf)}
-              />
+              {/* Tipo de Entrada */}
+              <div>
+                <Label className="font-semibold">Tipo de Entrada *</Label>
+                <Select
+                  value={entry.entryType}
+                  onValueChange={(v) => handleEntryTypeChange(v as EntryTypeId)}
+                >
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Selecione o tipo de entrada" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ENTRY_TYPES.map((type) => (
+                      <SelectItem key={type.id} value={type.id}>
+                        <div className="flex flex-col">
+                          <span>{type.icon} {type.label}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {type.description}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Badge informativo */}
+              {selectedEntryType && (
+                <div className={`flex items-center gap-2 rounded-lg p-3 text-sm border ${requiresPartner
+                    ? "bg-primary/5 border-primary/20 text-primary"
+                    : "bg-muted/40 border-border/50 text-muted-foreground"
+                  }`}>
+                  <span className="text-base">{selectedEntryType.icon}</span>
+                  <span>
+                    {requiresPartner
+                      ? "Entrada vinculada a um sócio específico"
+                      : "Entrada da conta geral — sem vínculo com sócio"}
+                  </span>
+                </div>
+              )}
+
+              {/* Sócio — apenas quando o tipo exige */}
+              {requiresPartner && (
+                <>
+                  <PartnerSelect
+                    value={entry.cpf}
+                    onChange={(v) => setEntry((p) => ({ ...p, cpf: v }))}
+                    partners={partners}
+                    accounts={accounts}
+                    loading={loadingPartners}
+                  />
+                  <PartnerSummaryCard
+                    partner={getPartner(entry.cpf)}
+                    account={getAccount(entry.cpf)}
+                  />
+                </>
+              )}
 
               {/* Banco */}
               <BankSelect
-                value={deposit.bankName}
-                onChange={(v) => setDeposit((p) => ({ ...p, bankName: v }))}
-                disabled={!deposit.cpf}
+                value={entry.bankName}
+                onChange={(v) => setEntry((p) => ({ ...p, bankName: v }))}
+                disabled={!entry.entryType}
+              />
+
+              {/* Prazo */}
+              <PrazoSelect
+                value={entry.prazo}
+                onChange={(v) => setEntry((p) => ({ ...p, prazo: v as "mensal" | "extra" }))}
+                disabled={!entry.entryType}
               />
 
               {/* Valor */}
               <AmountField
-                value={deposit.amount}
-                onChange={(v) => setDeposit((p) => ({ ...p, amount: v }))}
-                disabled={!deposit.cpf}
+                value={entry.amount}
+                onChange={(v) => setEntry((p) => ({ ...p, amount: v }))}
+                disabled={!entry.entryType}
               />
 
               {/* Data */}
               <DateField
-                value={deposit.date}
-                onChange={(v) => setDeposit((p) => ({ ...p, date: v }))}
+                value={entry.date}
+                onChange={(v) => setEntry((p) => ({ ...p, date: v }))}
               />
 
               {/* Descrição */}
               <div>
-                <Label htmlFor="dep-desc" className="font-semibold">Descrição *</Label>
+                <Label htmlFor="entry-desc" className="font-semibold">Descrição *</Label>
                 <Input
-                  id="dep-desc"
-                  value={deposit.description}
-                  onChange={(e) => setDeposit((p) => ({ ...p, description: e.target.value }))}
-                  placeholder="Ex: Depósito referente ao mês de janeiro"
+                  id="entry-desc"
+                  value={entry.description}
+                  onChange={(e) => setEntry((p) => ({ ...p, description: e.target.value }))}
+                  placeholder={
+                    selectedEntryType
+                      ? `Ex: ${selectedEntryType.label} referente a...`
+                      : "Descreva a entrada"
+                  }
                   required
-                  disabled={addDeposit.isPending}
+                  disabled={addDeposit.isPending || !entry.entryType}
                   className="mt-2"
                 />
               </div>
 
               <SubmitButton
                 loading={addDeposit.isPending}
-                disabled={!deposit.cpf || !deposit.amount || !deposit.description}
-                label="Confirmar Depósito"
+                disabled={!isEntryValid()}
+                label={selectedEntryType ? `Confirmar ${selectedEntryType.label}` : "Confirmar Entrada"}
               />
             </form>
           </TabsContent>
 
-          {/* ── TAB: RENDIMENTO ───────────────────────────────────────────── */}
+          {/* TAB: RENDIMENTO */}
           <TabsContent value="interest">
             <form onSubmit={handleInterestSubmit} className="space-y-4 mt-2">
-              {/* Aviso informativo */}
               <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-sm text-amber-700 dark:text-amber-400">
                 <TrendingUp className="h-4 w-4 mt-0.5 flex-shrink-0" />
                 <span>
@@ -231,14 +353,17 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                 </span>
               </div>
 
-              {/* Banco (obrigatório para rendimento) */}
               <BankSelect
                 value={interest.bankName}
                 onChange={(v) => setInterest((p) => ({ ...p, bankName: v }))}
                 required
               />
 
-              {/* Valor */}
+              <PrazoSelect
+                value={interest.prazo}
+                onChange={(v) => setInterest((p) => ({ ...p, prazo: v as "mensal" | "extra" }))}
+              />
+
               <AmountField
                 value={interest.amount}
                 onChange={(v) => setInterest((p) => ({ ...p, amount: v }))}
@@ -246,14 +371,12 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                 placeholder="0,00"
               />
 
-              {/* Data */}
               <DateField
                 value={interest.date}
                 onChange={(v) => setInterest((p) => ({ ...p, date: v }))}
                 label="Data do Rendimento *"
               />
 
-              {/* Observação */}
               <div>
                 <Label htmlFor="int-notes" className="font-semibold">Observação</Label>
                 <Input
@@ -267,7 +390,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
               </div>
 
               <SubmitButton
-                loading={addInterest.isPending}
+                loading={addDeposit.isPending}
                 disabled={!interest.amount || !interest.bankName}
                 label="Registrar Rendimento"
                 variant="interest"
@@ -280,14 +403,10 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
   );
 }
 
-// ─── Sub-componentes reutilizáveis ────────────────────────────────────────────
+// ─── Sub-componentes ──────────────────────────────────────────────────────────
 
 function PartnerSelect({
-  value,
-  onChange,
-  partners,
-  accounts,
-  loading,
+  value, onChange, partners, accounts, loading,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -300,9 +419,7 @@ function PartnerSelect({
       <Label className="font-semibold">Sócio *</Label>
       <Select value={value} onValueChange={onChange} disabled={loading}>
         <SelectTrigger className="mt-2">
-          <SelectValue
-            placeholder={loading ? "Carregando sócios..." : "Selecione o sócio"}
-          />
+          <SelectValue placeholder={loading ? "Carregando sócios..." : "Selecione o sócio"} />
         </SelectTrigger>
         <SelectContent>
           {partners.length === 0 ? (
@@ -310,7 +427,7 @@ function PartnerSelect({
               Nenhum sócio cadastrado para este cliente
             </div>
           ) : (
-            partners.filter((p) => p.cpf && p.cpf.trim()).map((partner) => {
+            partners.map((partner) => {
               const account = accounts.find((a) => a.partner_cpf === partner.cpf);
               return (
                 <SelectItem key={partner.id} value={partner.cpf}>
@@ -318,8 +435,7 @@ function PartnerSelect({
                     <span className="font-medium">{partner.name}</span>
                     <span className="text-xs text-muted-foreground">
                       CPF: {formatCPF(partner.cpf)}
-                      {partner.share_percentage &&
-                        ` • Participação: ${partner.share_percentage}%`}
+                      {partner.share_percentage && ` • Participação: ${partner.share_percentage}%`}
                     </span>
                     {account && (
                       <span className="text-xs text-green-600 font-semibold">
@@ -337,11 +453,41 @@ function PartnerSelect({
   );
 }
 
+function PrazoSelect({
+  value, onChange, disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div>
+      <Label className="font-semibold">Prazo *</Label>
+      <Select value={value} onValueChange={onChange} disabled={disabled}>
+        <SelectTrigger className="mt-2">
+          <SelectValue placeholder="Selecione o prazo" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="mensal">
+            <span className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-blue-500 inline-block" />
+              Mensal
+            </span>
+          </SelectItem>
+          <SelectItem value="extra">
+            <span className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-orange-500 inline-block" />
+              Extra
+            </span>
+          </SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 function BankSelect({
-  value,
-  onChange,
-  disabled,
-  required = false,
+  value, onChange, disabled, required = false,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -370,11 +516,7 @@ function BankSelect({
 }
 
 function AmountField({
-  value,
-  onChange,
-  disabled,
-  label = "Valor (R$) *",
-  placeholder = "0,00",
+  value, onChange, disabled, label = "Valor (R$) *", placeholder = "0,00",
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -402,9 +544,7 @@ function AmountField({
 }
 
 function DateField({
-  value,
-  onChange,
-  label = "Data *",
+  value, onChange, label = "Data *",
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -426,16 +566,12 @@ function DateField({
 }
 
 function PartnerSummaryCard({
-  partner,
-  account,
-  showInterest = false,
+  partner, account,
 }: {
   partner: any;
   account: PartnerAccount | undefined;
-  showInterest?: boolean;
 }) {
   if (!partner) return null;
-
   return (
     <Card className="bg-muted/30 border-primary/20 p-3">
       <div className="space-y-2 text-sm">
@@ -466,14 +602,6 @@ function PartnerSummaryCard({
               <span className="text-muted-foreground">Total Depositado:</span>
               <span className="font-medium">{formatMoney(account.total_deposited)}</span>
             </div>
-            {showInterest && (account as any).total_interest_earned !== undefined && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground text-amber-600">Rendimentos:</span>
-                <span className="font-medium text-amber-600">
-                  {formatMoney((account as any).total_interest_earned ?? 0)}
-                </span>
-              </div>
-            )}
           </>
         )}
       </div>
@@ -482,10 +610,7 @@ function PartnerSummaryCard({
 }
 
 function SubmitButton({
-  loading,
-  disabled,
-  label,
-  variant = "default",
+  loading, disabled, label, variant = "default",
 }: {
   loading: boolean;
   disabled: boolean;
@@ -495,22 +620,13 @@ function SubmitButton({
   return (
     <Button
       type="submit"
-      className={`w-full mt-2 ${
-        variant === "interest"
-          ? "bg-amber-600 hover:bg-amber-700 text-white"
-          : ""
-      }`}
+      className={`w-full mt-2 ${variant === "interest" ? "bg-amber-600 hover:bg-amber-700 text-white" : ""}`}
       disabled={loading || disabled}
       size="lg"
     >
       {loading ? (
-        <>
-          <span className="animate-spin mr-2">⏳</span>
-          Registrando...
-        </>
-      ) : (
-        label
-      )}
+        <><span className="animate-spin mr-2">⏳</span>Registrando...</>
+      ) : label}
     </Button>
   );
 }
