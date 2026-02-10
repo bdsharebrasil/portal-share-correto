@@ -30,7 +30,7 @@ export const ENTRY_TYPES = [
     id: "deposit_partner",
     label: "Depósito de Sócio",
     icon: "👤",
-    description: "Aporte realizado por um sócio específico",
+    description: "Aporte realizado por um sócio",
     requires_partner: true,
     subtype: "deposit",
   },
@@ -80,14 +80,7 @@ export type EntryTypeId = typeof ENTRY_TYPES[number]["id"];
 
 const BANK_OPTIONS = [
   { id: "bradesco", label: "Bradesco" },
-  { id: "itau", label: "Itaú" },
-  { id: "santander", label: "Santander" },
-  { id: "bb", label: "Banco do Brasil" },
   { id: "caixa", label: "Caixa Econômica" },
-  { id: "nubank", label: "Nubank" },
-  { id: "inter", label: "Inter" },
-  { id: "btg", label: "BTG Pactual" },
-  { id: "xp", label: "XP Investimentos" },
   { id: "sicoob", label: "Sicoob" },
   { id: "sicredi", label: "Sicredi" },
   { id: "outros", label: "Outros" },
@@ -266,8 +259,8 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                   <span className="text-base">{selectedEntryType.icon}</span>
                   <span>
                     {requiresPartner
-                      ? "Entrada vinculada a um sócio específico"
-                      : "Entrada da conta geral — sem vínculo com sócio"}
+                      ? "Entrada vinculada a um sócio"
+                      : "Entrada da conta geral"}
                   </span>
                 </div>
               )}
@@ -349,7 +342,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                 <TrendingUp className="h-4 w-4 mt-0.5 flex-shrink-0" />
                 <span>
                   Rendimento da <strong>conta compartilhada</strong> entre os sócios.
-                  O valor é registrado no centro de custo do cliente, sem vínculo individual.
+                  O valor é registrado no centro de custo do cliente.
                 </span>
               </div>
 
