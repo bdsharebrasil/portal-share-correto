@@ -370,28 +370,208 @@ function isValidDate(dateValue: any): boolean {
   return date instanceof Date && !isNaN(date.getTime());
 }
 
-// Fetch ROTAER (InfoTemp) via Workers proxy
+// Fetch ROTAER via Workers proxy
 export async function fetchROTAER(icao: string): Promise<ROTAERData | null> {
+  const icaoUpper = icao.toUpperCase();
+
   try {
-    const response = await fetch(
-      `${AISWEB_BASE_URL}/api/infotemp/${icao.toUpperCase()}`,
-      {
-        headers: {
-          'Accept': 'application/json',
-        },
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+
+    try {
+      const response = await fetch(
+        `${AISWEB_BASE_URL}/api/rotaer/${icaoUpper}`,
+        {
+          headers: {
+            'Accept': 'application/json',
+          },
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.debug(`[fetchROTAER] No ROTAER data found for ${icaoUpper}`);
+          return null;
+        }
+        console.warn(`[fetchROTAER] API error for ${icaoUpper}: ${response.status}`);
+        return null;
       }
-    );
-    
-    if (!response.ok) {
-      if (response.status === 404) return null;
-      throw new Error(`ROTAER fetch failed: ${response.status}`);
+
+      const data = await response.json();
+      const parsed = parseROTAERData(data);
+      console.debug(`[fetchROTAER] Successfully fetched ROTAER for ${icaoUpper}`);
+      return parsed;
+    } catch (fetchError) {
+      clearTimeout(timeout);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        console.warn(`[fetchROTAER] Timeout fetching ROTAER for ${icaoUpper}`);
+      } else {
+        console.warn(`[fetchROTAER] Failed to fetch ROTAER for ${icaoUpper}:`, fetchError);
+      }
+      return null;
     }
-    
-    return await response.json();
   } catch (error) {
-    console.error('Error fetching ROTAER:', error);
+    console.error(`[fetchROTAER] Unexpected error for ${icaoUpper}:`, error);
     return null;
   }
+}
+
+// Parse ROTAER data from DECEA XML-like JSON format
+function parseROTAERData(rawData: any): ROTAERData | null {
+  if (!rawData) return null;
+
+  try {
+    // Extract main airport data (can be wrapped or direct)
+    const airport = Array.isArray(rawData) ? rawData[0] : rawData;
+    if (!airport) return null;
+
+    // Parse pistas (runways)
+    const runways: ROTAERData['runways'] = [];
+    const runwaysData = airport.runways?.runway;
+    if (runwaysData) {
+      const rwyArray = Array.isArray(runwaysData) ? runwaysData : [runwaysData];
+      rwyArray.forEach((rwy: any) => {
+        if (rwy?.ident) {
+          runways.push({
+            designator: String(rwy.ident),
+            length: parseInt(rwy.length?.['#text'] || rwy.length || '0'),
+            width: parseInt(rwy.width?.['#text'] || rwy.width || '0'),
+            surface: String(rwy.surface?.['#text'] || rwy.surface || 'UNKN'),
+            strength: String(rwy.surface_c?.['#text'] || ''),
+            lighting: !!rwy.lights,
+          });
+        }
+      });
+    }
+
+    // Parse frequências (frequencies)
+    const frequencies: ROTAERData['frequencies'] = [];
+    const servicesData = airport.services?.service;
+    if (servicesData) {
+      const serviceArray = Array.isArray(servicesData) ? servicesData : [servicesData];
+      serviceArray.forEach((service: any) => {
+        if (service['@_type'] === 'COM' && service.freqs) {
+          const freqArray = Array.isArray(service.freqs.freq)
+            ? service.freqs.freq
+            : [service.freqs.freq];
+          freqArray.forEach((freq: any) => {
+            if (freq) {
+              frequencies.push({
+                type: service.type || 'Unknown',
+                frequency: String(freq['#text'] || freq || ''),
+                name: service.callsign || undefined,
+              });
+            }
+          });
+        }
+      });
+    }
+
+    // Parse navaids
+    const navaids: ROTAERData['navaids'] = [];
+    const serviceArray = Array.isArray(servicesData) ? servicesData : [servicesData];
+    if (serviceArray) {
+      serviceArray.forEach((service: any) => {
+        if (service['@_type'] === 'NAV' && service.type) {
+          navaids.push({
+            type: service.type || 'UNKNOWN',
+            identifier: service.ident || '',
+            frequency: String(service.freq || ''),
+          });
+        }
+      });
+    }
+
+    // Parse serviços
+    const services = {
+      fuel: false,
+      fuelTypes: [] as string[],
+      hangar: false,
+      maintenance: false,
+      customs: false,
+    };
+
+    if (serviceArray) {
+      serviceArray.forEach((service: any) => {
+        if (service['@_type'] === 'AirportSuppliesService' && service.fuel) {
+          services.fuel = true;
+          const fuelSpan = service.fuel.span?.['#text'] || '';
+          services.fuelTypes = fuelSpan.split(' ').filter((f: string) => f && f.length < 5);
+        }
+        if (service['@_type'] === 'AircraftGroundService') {
+          services.maintenance = true;
+        }
+      });
+    }
+
+    // Build ROTAERData
+    return {
+      icao: (airport.AeroCode || airport.loc || airport.icao || 'UNKN').toUpperCase(),
+      name: airport.name || airport.aero || '',
+      city: airport.city || '',
+      state: airport.uf || airport.state || '',
+      country: 'BR',
+      type: airport.type || 'AD',
+      coordinates: {
+        lat: parseFloat(airport.lat || airport.latitude || '0'),
+        lng: parseFloat(airport.lng || airport.longitude || '0'),
+      },
+      elevation: parseInt(airport.altFt || airport.elevation || '0'),
+      runways,
+      frequencies,
+      navaids,
+      services,
+      operatingHours: airport.operatingHours || '24H',
+      restrictions: extractRestrictions(airport),
+      contact: {
+        phone: extractContact(airport, 'phone'),
+        email: extractContact(airport, 'email'),
+      },
+    };
+  } catch (error) {
+    console.error('[parseROTAERData] Error parsing ROTAER:', error);
+    return null;
+  }
+}
+
+// Helper para extrair restrições dos remarks
+function extractRestrictions(airport: any): string[] {
+  const restrictions: string[] = [];
+  const rmkText = airport.rmk?.rmkText;
+
+  if (rmkText) {
+    const rmkArray = Array.isArray(rmkText) ? rmkText : [rmkText];
+    rmkArray.forEach((remark: any) => {
+      const text = remark['#text'] || '';
+      if (text && (text.includes('PRB') || text.includes('OBS') || text.includes('LIMIT'))) {
+        restrictions.push(text.substring(0, 100) + (text.length > 100 ? '...' : ''));
+      }
+    });
+  }
+
+  return restrictions;
+}
+
+// Helper para extrair contato
+function extractContact(airport: any, type: 'phone' | 'email'): string | undefined {
+  const rmkText = airport.rmk?.rmkText;
+  if (!rmkText) return undefined;
+
+  const rmkArray = Array.isArray(rmkText) ? rmkText : [rmkText];
+  const pattern = type === 'phone' ? /(\d{2})\s?(\d{4})-?(\d{4})/ : /[\w\.-]+@[\w\.-]+\.\w+/;
+
+  for (const remark of rmkArray) {
+    const text = remark['#text'] || '';
+    const match = text.match(pattern);
+    if (match) {
+      return match[0];
+    }
+  }
+
+  return undefined;
 }
 
 // Verificar restrições de espaço aéreo na rota

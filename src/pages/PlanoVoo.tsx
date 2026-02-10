@@ -573,57 +573,111 @@ export default function PlanoVooPage() {
           </div>
         </Card>;
     }
-    return <Card className="bg-slate-800/50 border-slate-700 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Radio className="w-5 h-5 text-primary" />
-          <h3 className="text-white font-semibold">{rotaer.icao} - ROTAER</h3>
-        </div>
 
-        <div className="space-y-3 text-sm">
+    return <Card className="bg-slate-800/50 border-slate-700 p-4">
+        <div className="space-y-4">
+          {/* Header */}
+          <div className="border-b border-slate-700 pb-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Radio className="w-5 h-5 text-primary" />
+              <h3 className="text-white font-semibold">{rotaer.icao} - {rotaer.name}</h3>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs text-slate-400 ml-7">
+              <div>{rotaer.city}, {rotaer.state}</div>
+              <div>Elevação: {rotaer.elevation}ft</div>
+              <div>Coordenadas: {rotaer.coordinates.lat.toFixed(2)}°, {rotaer.coordinates.lng.toFixed(2)}°</div>
+              <div>Tipo: {rotaer.type}</div>
+            </div>
+          </div>
+
           {/* Pistas */}
           {rotaer.runways && rotaer.runways.length > 0 && <div>
-              <h4 className="text-slate-400 font-semibold mb-1">Pistas:</h4>
-              {rotaer.runways.map((rwy, idx) => <div key={idx} className="text-white ml-2">
-                  <span className="font-mono">{rwy.designator}</span>: {rwy.length}m x {rwy.width}m - {rwy.surface}
-                  {rwy.strength && <span className="text-slate-400"> (PCN: {rwy.strength})</span>}
-                </div>)}
-            </div>}
-
-          {/* Frequências */}
-          {rotaer.frequencies && rotaer.frequencies.length > 0 && <div>
-              <h4 className="text-slate-400 font-semibold mb-1">Frequências:</h4>
-              <div className="grid grid-cols-2 gap-1 ml-2">
-                {rotaer.frequencies.map((freq, idx) => <div key={idx} className="text-white">
-                    <span className="text-slate-400">{freq.type}:</span> <span className="font-mono">{freq.frequency}</span>
+              <h4 className="text-slate-300 font-semibold mb-2 flex items-center gap-2">
+                <Navigation className="w-4 h-4 text-cyan-400" />
+                Pistas:
+              </h4>
+              <div className="grid gap-2 ml-6">
+                {rotaer.runways.map((rwy, idx) => <div key={idx} className="text-white bg-slate-900/30 p-2 rounded border border-slate-700">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono font-bold text-cyan-400">{rwy.designator}</span>
+                      <span className="text-slate-400 text-sm">{rwy.surface}</span>
+                    </div>
+                    <div className="text-slate-300 text-sm mt-1">
+                      {rwy.length}m × {rwy.width}m
+                      {rwy.strength && <span className="ml-2 text-slate-500">(PCN: {rwy.strength})</span>}
+                    </div>
                   </div>)}
               </div>
             </div>}
 
-          {/* Auxílios */}
+          {/* Frequências Comunicação */}
+          {rotaer.frequencies && rotaer.frequencies.length > 0 && <div>
+              <h4 className="text-slate-300 font-semibold mb-2 flex items-center gap-2">
+                <Radio className="w-4 h-4 text-orange-400" />
+                Frequências:
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 ml-6">
+                {rotaer.frequencies.map((freq, idx) => <div key={idx} className="bg-slate-900/30 p-2 rounded border border-slate-700">
+                    <div className="text-slate-400 text-xs font-semibold">{freq.type}</div>
+                    <div className="text-white font-mono text-sm mt-1">
+                      {freq.frequency} MHz
+                      {freq.name && <span className="ml-2 text-slate-400">({freq.name})</span>}
+                    </div>
+                  </div>)}
+              </div>
+            </div>}
+
+          {/* Auxílios à Navegação */}
           {rotaer.navaids && rotaer.navaids.length > 0 && <div>
-              <h4 className="text-slate-400 font-semibold mb-1">Auxílios:</h4>
-              <div className="flex flex-wrap gap-2 ml-2">
-                {rotaer.navaids.map((nav, idx) => <Badge key={idx} variant="outline" className="bg-primary/10 border-primary/30 text-primary">
-                    {nav.type} {nav.identifier} ({nav.frequency})
+              <h4 className="text-slate-300 font-semibold mb-2 flex items-center gap-2">
+                <Radio className="w-4 h-4 text-purple-400" />
+                Auxílios à Navegação:
+              </h4>
+              <div className="flex flex-wrap gap-2 ml-6">
+                {rotaer.navaids.map((nav, idx) => <Badge key={idx} variant="outline" className="bg-purple-500/20 border-purple-500/40 text-purple-300">
+                    {nav.type} {nav.identifier} {nav.frequency && `(${nav.frequency})`}
                   </Badge>)}
               </div>
             </div>}
 
           {/* Serviços */}
           <div>
-            <h4 className="text-slate-400 font-semibold mb-1">Serviços:</h4>
-            <div className="flex flex-wrap gap-2 ml-2">
-              {rotaer?.services?.fuel && <Badge variant="outline" className="bg-green-500/10 border-green-500/30 text-green-400">Combustível</Badge>}
-              {rotaer?.services?.hangar && <Badge variant="outline" className="bg-blue-500/10 border-blue-500/30 text-blue-400">Hangar</Badge>}
-              {rotaer?.services?.maintenance && <Badge variant="outline" className="bg-orange-500/10 border-orange-500/30 text-orange-400">Manutenção</Badge>}
-              {rotaer?.services?.customs && <Badge variant="outline" className="bg-purple-500/10 border-purple-500/30 text-purple-400">Alfândega</Badge>}
+            <h4 className="text-slate-300 font-semibold mb-2 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400" />
+              Serviços Disponíveis:
+            </h4>
+            <div className="flex flex-wrap gap-2 ml-6">
+              {rotaer.services?.fuel && <Badge variant="outline" className="bg-green-500/20 border-green-500/40 text-green-300">
+                Combustível {rotaer.services.fuelTypes && rotaer.services.fuelTypes.length > 0 && `(${rotaer.services.fuelTypes.join(', ')})`}
+              </Badge>}
+              {rotaer.services?.maintenance && <Badge variant="outline" className="bg-orange-500/20 border-orange-500/40 text-orange-300">Manutenção</Badge>}
+              {rotaer.services?.hangar && <Badge variant="outline" className="bg-blue-500/20 border-blue-500/40 text-blue-300">Hangar</Badge>}
+              {rotaer.services?.customs && <Badge variant="outline" className="bg-purple-500/20 border-purple-500/40 text-purple-300">Alfândega</Badge>}
+              {(!rotaer.services?.fuel && !rotaer.services?.maintenance && !rotaer.services?.hangar && !rotaer.services?.customs) && <span className="text-slate-400 text-sm ml-6">Serviços não disponíveis</span>}
             </div>
           </div>
 
-          {/* Horário */}
-          {rotaer.operatingHours && <div className="flex justify-between pt-2 border-t border-slate-700">
-              <span className="text-slate-400">Horário:</span>
-              <span className="text-white font-mono">{rotaer.operatingHours}</span>
+          {/* Restrições */}
+          {rotaer.restrictions && rotaer.restrictions.length > 0 && <div>
+              <h4 className="text-slate-300 font-semibold mb-2 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-400" />
+                Restrições e Observações:
+              </h4>
+              <div className="ml-6 space-y-1">
+                {rotaer.restrictions.slice(0, 3).map((restriction, idx) => <p key={idx} className="text-slate-300 text-sm bg-red-900/10 border-l-2 border-red-500 pl-2 py-1">
+                    {restriction}
+                  </p>)}
+                {rotaer.restrictions.length > 3 && <p className="text-slate-400 text-sm italic">+ {rotaer.restrictions.length - 3} restrições adicionais</p>}
+              </div>
+            </div>}
+
+          {/* Contato */}
+          {(rotaer.contact?.phone || rotaer.contact?.email) && <div className="border-t border-slate-700 pt-3">
+              <h4 className="text-slate-300 font-semibold mb-2">Contato:</h4>
+              <div className="text-sm text-slate-300 ml-2 space-y-1">
+                {rotaer.contact.phone && <div>Tel: <span className="font-mono">{rotaer.contact.phone}</span></div>}
+                {rotaer.contact.email && <div>Email: <span className="font-mono text-blue-400">{rotaer.contact.email}</span></div>}
+              </div>
             </div>}
         </div>
       </Card>;
