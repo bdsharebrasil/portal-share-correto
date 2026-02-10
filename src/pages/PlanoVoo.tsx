@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plane, MapPin, Clock, Fuel, Wind, Calendar, AlertTriangle, CheckCircle, FileText, Download, Save, Calculator, Navigation, Route, CloudRain, RefreshCw, Loader2, Shield, Radio, Info, XCircle, AlertCircle, CheckCircle2, Thermometer } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Plane, MapPin, Clock, Fuel, Wind, Calendar, AlertTriangle, CheckCircle, FileText, Download, Save, Calculator, Navigation, Route, CloudRain, RefreshCw, Loader2, Shield, Radio, Info, XCircle, AlertCircle, CheckCircle2, Thermometer, ChevronRight } from 'lucide-react';
 import { InlineLottieSpinner } from '@/components/ui/inline-lottie-spinner';
 import { useAerodromes, type Aerodromo } from '@/hooks/useAerodromes';
 import { useAeronaves, type Aeronave } from '@/hooks/useAeronaves';
@@ -187,6 +188,7 @@ export default function PlanoVooPage() {
   const [altNotams, setAltNotams] = useState<NOTAMData[]>([]);
   const [isLoadingNotams, setIsLoadingNotams] = useState(false);
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
+  const [restrictionsModal, setRestrictionsModal] = useState<{ icao: string; restrictions: string[] } | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const {
     user
@@ -667,7 +669,13 @@ export default function PlanoVooPage() {
                 {rotaer.restrictions.slice(0, 3).map((restriction, idx) => <p key={idx} className="text-slate-300 text-sm bg-red-900/10 border-l-2 border-red-500 pl-2 py-1">
                     {restriction}
                   </p>)}
-                {rotaer.restrictions.length > 3 && <p className="text-slate-400 text-sm italic">+ {rotaer.restrictions.length - 3} restrições adicionais</p>}
+                {rotaer.restrictions.length > 3 && <button
+                    onClick={() => setRestrictionsModal({ icao: rotaer.icao, restrictions: rotaer.restrictions })}
+                    className="mt-2 text-red-400 hover:text-red-300 text-sm font-semibold flex items-center gap-1 transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                    Ver {rotaer.restrictions.length - 3} restrições adicionais
+                  </button>}
               </div>
             </div>}
 
@@ -1213,5 +1221,28 @@ export default function PlanoVooPage() {
           </Tabs>
         </div>
       </div>
+
+      {/* Modal de Restrições */}
+      <Dialog open={!!restrictionsModal} onOpenChange={(open) => !open && setRestrictionsModal(null)}>
+        <DialogContent className="max-w-2xl max-h-96 overflow-y-auto bg-slate-900 border-slate-700">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-400" />
+              Restrições e Observações - {restrictionsModal?.icao}
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Todas as restrições operacionais e observações importantes para este aeródromo
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 mt-4">
+            {restrictionsModal?.restrictions.map((restriction, idx) => <div key={idx} className="bg-red-900/20 border-l-4 border-red-500 pl-4 py-3 rounded">
+                <p className="text-slate-200 text-sm leading-relaxed">
+                  <span className="text-red-400 font-semibold mr-2">•</span>
+                  {restriction}
+                </p>
+              </div>)}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>;
 }
