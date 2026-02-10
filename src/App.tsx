@@ -8,6 +8,7 @@ import { LoadingProvider } from "@/contexts/LoadingContext";
 import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import { VencimentosSyncProvider } from "@/contexts/VencimentosSyncContext";
 import { ExpirationAlertsProvider } from "@/contexts/ExpirationAlertsContext";
+import { AnniversaryAlertsProvider } from "@/contexts/AnniversaryAlertsContext";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -114,8 +115,9 @@ const App = () => {
             <ViewModeProvider>
               <VencimentosSyncProvider>
                 <ExpirationAlertsProvider>
-                  <TooltipProvider>
-                  <Toaster />
+                  <AnniversaryAlertsProvider>
+                    <TooltipProvider>
+                    <Toaster />
                 <GlobalLoader />
                 <InstallPrompt />
                 <HashRouter>
@@ -255,6 +257,7 @@ const App = () => {
                   </Routes>
                 </HashRouter>
                 </TooltipProvider>
+                </AnniversaryAlertsProvider>
                 </ExpirationAlertsProvider>
               </VencimentosSyncProvider>
             </ViewModeProvider>
