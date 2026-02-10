@@ -138,9 +138,11 @@ export function ConciliacaoClientes() {
         .select(`
           *,
           clients:client_id (company_name),
-          aircraft:aircraft_id (registration)
+          aircraft:aircraft_id (registration),
+          categorias_movimentacao(grupo_categoria)
         `)
         .eq('type', 'cliente' as any)
+        .not('categorias_movimentacao.grupo_categoria', 'eq', 'RECEITAS OPERACIONAIS')
         .gte('date', startDate.toISOString().split('T')[0])
         .lte('date', endDate.toISOString().split('T')[0])
         .order('date', { ascending: false });

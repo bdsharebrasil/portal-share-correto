@@ -119,9 +119,11 @@ export function ConciliacaoColaborador() {
         .from('bank_reconciliations')
         .select(`
           *,
-          user_profiles:receiver_id (full_name)
+          user_profiles:receiver_id (full_name),
+          categorias_movimentacao(grupo_categoria)
         `)
         .eq('type', 'colaborador' as any)
+        .not('categorias_movimentacao.grupo_categoria', 'eq', 'RECEITAS OPERACIONAIS')
         .gte('date', startDate.toISOString().split('T')[0])
         .lte('date', endDate.toISOString().split('T')[0])
         .order('date', { ascending: false });
