@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { LoadingProvider } from "@/contexts/LoadingContext";
 import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import { VencimentosSyncProvider } from "@/contexts/VencimentosSyncContext";
+import { ExpirationAlertsProvider } from "@/contexts/ExpirationAlertsContext";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -112,8 +113,9 @@ const App = () => {
           <LoadingProvider>
             <ViewModeProvider>
               <VencimentosSyncProvider>
-                <TooltipProvider>
-                <Toaster />
+                <ExpirationAlertsProvider>
+                  <TooltipProvider>
+                  <Toaster />
                 <GlobalLoader />
                 <InstallPrompt />
                 <HashRouter>
@@ -252,7 +254,8 @@ const App = () => {
                     <Route path="*" element={renderProtected(<NotFound />)} />
                   </Routes>
                 </HashRouter>
-              </TooltipProvider>
+                </TooltipProvider>
+                </ExpirationAlertsProvider>
               </VencimentosSyncProvider>
             </ViewModeProvider>
           </LoadingProvider>
