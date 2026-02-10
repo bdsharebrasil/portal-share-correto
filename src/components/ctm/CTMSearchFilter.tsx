@@ -19,8 +19,8 @@ export function CTMSearchFilter({
   onReset,
 }: CTMSearchFilterProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
 
   const handleSearch = (value: string) => {
@@ -40,8 +40,8 @@ export function CTMSearchFilter({
 
   const handleReset = () => {
     setSearchQuery('');
-    setStatusFilter('');
-    setTypeFilter('');
+    setStatusFilter('all');
+    setTypeFilter('all');
     onReset();
   };
 
@@ -92,7 +92,7 @@ export function CTMSearchFilter({
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="pendente">Pendente</SelectItem>
                   <SelectItem value="em_andamento">Em Andamento</SelectItem>
                   <SelectItem value="concluido">Concluído</SelectItem>
@@ -108,7 +108,7 @@ export function CTMSearchFilter({
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos</SelectItem>
+                  <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="corretiva">Corretiva</SelectItem>
                   <SelectItem value="preventiva">Preventiva</SelectItem>
                   <SelectItem value="revisao">Revisão</SelectItem>

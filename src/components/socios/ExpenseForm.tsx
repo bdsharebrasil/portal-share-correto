@@ -50,7 +50,7 @@ const EMPTY_FORM = {
   dueDate: format(new Date(), "yyyy-MM-dd"),
   supplierName: "",
   invoiceNumber: "",
-  paymentMethod: "",
+  paymentMethod: "nao_informado",
   notes: "",
 };
 
@@ -264,7 +264,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 <SelectValue placeholder="Selecione (opcional)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">— Não informado —</SelectItem>
+                <SelectItem value="nao_informado">— Não informado —</SelectItem>
                 <SelectItem value="pix">PIX</SelectItem>
                 <SelectItem value="ted">TED</SelectItem>
                 <SelectItem value="boleto">Boleto</SelectItem>
