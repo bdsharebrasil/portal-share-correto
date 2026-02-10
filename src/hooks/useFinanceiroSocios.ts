@@ -324,6 +324,8 @@ export function useCreateExpense() {
       invoiceUrl?: string;
       paymentMethod?: string | null;
       notes?: string | null;
+      referenceType?: string | null;
+      referenceId?: string | null;
     }) => {
       const { error } = await supabase.from("partner_expenses").insert({
         client_id: data.clientId,
@@ -339,6 +341,8 @@ export function useCreateExpense() {
         payment_method: data.paymentMethod || null,
         notes: data.notes || null,
         status: "pending",
+        reference_type: data.referenceType || null,
+        reference_id: data.referenceId || null,
       });
       if (error) throw error;
 
