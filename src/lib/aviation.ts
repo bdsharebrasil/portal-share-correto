@@ -231,22 +231,46 @@ export async function checkRouteRestrictions(
   altitude: number
 ): Promise<AirspaceRestriction[]> {
   try {
+    // Skip if not enough points
+    if (!points || points.length < 2) {
+      return [];
+    }
+
     const routeCoords = points.map(p => `${p.lat},${p.lng}`).join(';');
-    
-    const response = await fetch(
-      `${AISWEB_BASE_URL}/airspace/restrictions?route=${routeCoords}&altitude=${altitude}`,
-      {
-        headers: {
-          'Accept': 'application/json',
-        },
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+    try {
+      const response = await fetch(
+        `${AISWEB_BASE_URL}/airspace/restrictions?route=${routeCoords}&altitude=${altitude}`,
+        {
+          headers: {
+            'Accept': 'application/json',
+          },
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        console.warn(`Airspace restrictions check returned status ${response.status}`);
+        return [];
       }
-    );
-    
-    if (!response.ok) throw new Error('Failed to check restrictions');
-    
-    return await response.json();
+
+      return await response.json();
+    } catch (fetchError) {
+      clearTimeout(timeout);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        console.warn('Airspace restrictions check timed out');
+      } else {
+        console.debug('Airspace restrictions unavailable, continuing with empty restrictions');
+      }
+      return [];
+    }
   } catch (error) {
-    console.error('Error checking route restrictions:', error);
+    console.debug('Error in checkRouteRestrictions:', error);
     return [];
   }
 }
