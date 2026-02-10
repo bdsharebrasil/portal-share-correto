@@ -7,6 +7,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { LoadingProvider } from "@/contexts/LoadingContext";
 import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import { VencimentosSyncProvider } from "@/contexts/VencimentosSyncContext";
+import { ExpirationAlertsProvider } from "@/contexts/ExpirationAlertsContext";
+import { AnniversaryAlertsProvider } from "@/contexts/AnniversaryAlertsContext";
 import { GlobalLoader } from "@/components/ui/global-loader";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -75,6 +77,7 @@ import ManutencaoAeronave from "./pages/ManutencaoAeronave";
 import VencimentosTripulacao from "./pages/VencimentosTripulacao";
 import VencimentosDocumentos from "./pages/VencimentosDocumentos";
 import FinanceiroSocios from "./pages/FinanceiroSocios";
+import RelatorioTransacoesSocios from "./pages/RelatorioTransacoesSocios";
 const queryClient = new QueryClient();
 
 const App = () => {
@@ -112,8 +115,10 @@ const App = () => {
           <LoadingProvider>
             <ViewModeProvider>
               <VencimentosSyncProvider>
-                <TooltipProvider>
-                <Toaster />
+                <ExpirationAlertsProvider>
+                  <AnniversaryAlertsProvider>
+                    <TooltipProvider>
+                    <Toaster />
                 <GlobalLoader />
                 <InstallPrompt />
                 <HashRouter>
@@ -195,6 +200,13 @@ const App = () => {
                         </RoleProtected>
                       )
                     } />
+                    <Route path="/financeiro/relatorio-socios/:clienteId" element={
+                      renderProtected(
+                        <RoleProtected allowedRoles={["admin","gestor_master","financeiro_master"]}>
+                          <RelatorioTransacoesSocios />
+                        </RoleProtected>
+                      )
+                    } />
                     <Route path="/cartoes-corporativos" element={renderProtected(<CartoesCorporativos />)} />
                     <Route path="/cartao/alimentacao" element={renderProtected(<ValeAlimentacao />)} />
                     <Route path="/cartao/combustivel" element={renderProtected(<ValeCombustivel />)} />
@@ -252,7 +264,9 @@ const App = () => {
                     <Route path="*" element={renderProtected(<NotFound />)} />
                   </Routes>
                 </HashRouter>
-              </TooltipProvider>
+                </TooltipProvider>
+                </AnniversaryAlertsProvider>
+                </ExpirationAlertsProvider>
               </VencimentosSyncProvider>
             </ViewModeProvider>
           </LoadingProvider>

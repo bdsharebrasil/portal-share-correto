@@ -90,6 +90,7 @@ export function useSocioTransactions(
     queryFn: async () => {
       if (!clientId) return [];
 
+      // Buscar transações de movimentação
       let query = supabase
         .from("partner_transactions")
         .select("*")
@@ -101,9 +102,50 @@ export function useSocioTransactions(
       if (filters?.endDate) query = query.lte("created_at", filters.endDate);
       if (filters?.type) query = query.eq("transaction_type", filters.type);
 
-      const { data, error } = await query;
+      const { data: transactions, error } = await query;
       if (error) throw error;
-      return (data || []) as PartnerTransaction[];
+
+      // Buscar despesas também (para mostrar na lista de transações)
+      const { data: expenses, error: expenseError } = await supabase
+        .from("partner_expenses")
+        .select("*")
+        .eq("client_id", clientId);
+
+      if (expenseError) console.warn("Erro ao carregar despesas:", expenseError);
+
+      // Transformar despesas em formato de transação para exibição
+      const expensesAsTransactions = (expenses || []).map((exp: any) => ({
+        id: exp.id,
+        client_id: exp.client_id,
+        partner_cpf: exp.assigned_partner_cpf || "N/A",
+        partner_name: exp.assigned_partner_name || "Geral",
+        transaction_type: "expense",
+        amount: exp.total_amount,
+        balance_before: 0,
+        balance_after: 0,
+        description: exp.description,
+        reference_type: "partner_expense",
+        reference_id: exp.id,
+        payment_date: exp.due_date,
+        receipt_url: null,
+        notes: exp.notes,
+        created_by: null,
+        created_at: exp.created_at,
+        expense_type: exp.expense_type,
+        status: exp.status,
+      }));
+
+      // Combinar e ordenar por data
+      const combined = [
+        ...(transactions || []),
+        ...expensesAsTransactions,
+      ].sort((a, b) => {
+        const dateA = new Date(a.created_at).getTime();
+        const dateB = new Date(b.created_at).getTime();
+        return dateB - dateA;
+      });
+
+      return combined;
     },
     enabled: !!clientId,
   });
@@ -324,6 +366,8 @@ export function useCreateExpense() {
       invoiceUrl?: string;
       paymentMethod?: string | null;
       notes?: string | null;
+      referenceType?: string | null;
+      referenceId?: string | null;
     }) => {
       const { error } = await supabase.from("partner_expenses").insert({
         client_id: data.clientId,
@@ -339,6 +383,8 @@ export function useCreateExpense() {
         payment_method: data.paymentMethod || null,
         notes: data.notes || null,
         status: "pending",
+        reference_type: data.referenceType || null,
+        reference_id: data.referenceId || null,
       });
       if (error) throw error;
 
