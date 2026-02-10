@@ -60,11 +60,16 @@ export async function fetchAirportCharts(icao: string): Promise<ChartData[]> {
 function parseChartsData(rawData: any): ChartData[] {
   if (!rawData) return [];
 
+  console.debug('[parseChartsData] Raw data:', rawData);
+
   // Handle both array and object responses
   let chartsArray: any[] = [];
 
   if (Array.isArray(rawData)) {
     chartsArray = rawData;
+  } else if (rawData?.item && Array.isArray(rawData.item)) {
+    // Formato DECEA: { item: [...] }
+    chartsArray = rawData.item;
   } else if (rawData?.charts && Array.isArray(rawData.charts)) {
     chartsArray = rawData.charts;
   } else if (rawData?.data && Array.isArray(rawData.data)) {
@@ -74,50 +79,57 @@ function parseChartsData(rawData: any): ChartData[] {
     return [];
   }
 
+  console.debug('[parseChartsData] Found', chartsArray.length, 'charts');
+
   return chartsArray
     .map((chart: any) => {
       if (!chart) return null;
 
-      // Determinar tipo de carta
+      // Mapear tipo da carta usando campos da API DECEA
       let type: ChartData['type'] = 'AIRPORT';
-      const title = (chart.title || chart.name || chart.designator || '').toUpperCase();
-      
-      if (title.includes('IFR') || title.includes('INSTRUMENT')) {
-        type = 'IFR';
-      } else if (title.includes('VFR') || title.includes('VISUAL')) {
-        type = 'VFR';
-      } else if (title.includes('APPROACH') || title.includes('APP')) {
-        type = 'APPROACH';
-      } else if (title.includes('DEPARTURE') || title.includes('DEP')) {
-        type = 'DEPARTURE';
-      } else if (title.includes('STAR')) {
-        type = 'STAR';
-      } else if (title.includes('SID')) {
+      const tipoAPI = (chart.tipo || '').toUpperCase();
+
+      if (tipoAPI === 'SID') {
         type = 'SID';
-      } else if (title.includes('IAP') || title.includes('PROCEDURE')) {
-        type = 'IAP';
+      } else if (tipoAPI === 'STAR') {
+        type = 'STAR';
+      } else if (tipoAPI === 'IAC') {
+        type = 'APPROACH'; // IAC = Carta de Aproximação por Instrumentos
+      } else if (tipoAPI.includes('IFR') || tipoAPI.includes('INSTRUMENT')) {
+        type = 'IFR';
+      } else if (tipoAPI.includes('VFR') || tipoAPI.includes('VISUAL')) {
+        type = 'VFR';
+      } else if (tipoAPI.includes('DEP')) {
+        type = 'DEPARTURE';
       }
 
-      return {
+      // Extrair título e descrição
+      const title = chart.nome || chart.title || chart.name || chart.designator || 'Sem título';
+      const description = chart.tipo_descr || chart.description || tipoAPI || '';
+
+      const parsedChart: ChartData = {
         type,
         title,
-        description: chart.description || chart.designator || '',
-        url: chart.url || chart.link || undefined,
-        format: chart.format || undefined,
+        description,
+        url: chart.link || chart.url || undefined,
+        format: chart.format || (chart.arquivo ? 'PDF' : undefined),
         scale: chart.scale || undefined,
-        edition: chart.edition || undefined,
-      } as ChartData;
+        edition: chart.amdt || chart.edition || undefined,
+      };
+
+      console.debug('[parseChartsData] Parsed chart:', parsedChart);
+      return parsedChart;
     })
     .filter((chart): chart is ChartData => chart !== null)
     .sort((a, b) => {
-      // Ordenar por tipo (IFR/VFR primeiro, depois outros)
+      // Ordenar por tipo (SID/STAR/APPROACH primeiro, depois outros)
       const typeOrder: Record<string, number> = {
-        'IFR': 0,
-        'VFR': 1,
+        'SID': 0,
+        'STAR': 1,
         'APPROACH': 2,
         'DEPARTURE': 3,
-        'STAR': 4,
-        'SID': 5,
+        'IFR': 4,
+        'VFR': 5,
         'IAP': 6,
         'AIRPORT': 7,
       };
