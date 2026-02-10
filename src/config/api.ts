@@ -11,13 +11,16 @@ export const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://api-wor
 export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-// Endpoints específicos
+// Endpoints específicos (alinhados com Workers backend)
 export const API_ENDPOINTS = {
   health: `${API_BASE_URL}/health`,
-  weather: {
-    metar: (icao: string) => `${API_BASE_URL}/api/weather/${icao}`,
-    taf: (icao: string) => `${API_BASE_URL}/api/weather/${icao}`,
-  },
+  weather: (icao: string) => `${API_BASE_URL}/api/weather/${icao}`,
+  notam: (icao: string) => `${API_BASE_URL}/api/notam/${icao}`,
+  charts: (icao: string) => `${API_BASE_URL}/api/charts/${icao}`,
+  infotemp: (icao: string) => `${API_BASE_URL}/api/infotemp/${icao}`,
+  solar: (icao: string) => `${API_BASE_URL}/api/solar/${icao}`,
+  routes: `${API_BASE_URL}/api/routes`,
+  waypoints: `${API_BASE_URL}/api/waypoints`,
   airports: {
     byIcao: (icao: string) => `${API_BASE_URL}/api/airports/${icao}`,
     search: (query: string) => `${API_BASE_URL}/api/airports/search?q=${query}`,

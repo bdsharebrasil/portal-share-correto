@@ -27,7 +27,7 @@ export async function fetchAISWebMETAR(icao: string): Promise<AISWebMETARData | 
   }
 
   try {
-    const response = await fetch(`${AISWEB_API_URL}/api/weather/metar/${icaoUpper}`);
+    const response = await fetch(`${AISWEB_API_URL}/api/weather/${icaoUpper}`);
     if (!response.ok) throw new Error('Falha na rede');
     
     const data = await response.json();

@@ -52,7 +52,7 @@ export function useWeather(defaultIcao: string = 'SBGR') {
     setError(null);
 
     try {
-      const url = API_ENDPOINTS.weather.metar(icao);
+      const url = API_ENDPOINTS.weather(icao);
       const response = await fetch(url);
 
       if (!response.ok) throw new Error(`Erro na API: ${response.status}`);
