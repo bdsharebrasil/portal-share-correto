@@ -1,82 +1,57 @@
 import { useState, useEffect, useCallback } from 'react';
-import { API_ENDPOINTS } from '@/config/api';
+import { fetchAISWebMETAR, type AISWebMETARData } from '@/services/aiswebWeather';
 
-// 1. Interface de retorno para o seu Componente
+// Interface compatível com o componente
 export interface MetarResponse {
   icao: string;
   rawOb: string;
   temp: number | null;
   dewp: number | null;
-  wdir: number | null;
+  wdir: number | string | null;
   wspd: number | null;
   wgst: number | null;
-  visib: number | null;
-  altim: number | null;
-  flightCategory: 'VFR' | 'MVFR' | 'IFR' | 'LIFR';
+  visib: number | string | null;
+  altim?: number | null;
+  flightCategory: 'VFR' | 'MVFR' | 'IFR' | 'LIFR' | 'UNKNOWN';
   reportTime: string;
   updatedTime: string;
   source: string;
+  taf?: string;
 }
-
-// 2. Função Auxiliar: Transforma a string "SBGR 100400Z..." em dados legíveis
-const parseMetarString = (raw: string) => {
-  // Regex para Temperatura e Orvalho (ex: 22/18 ou M02/M05)
-  const tempMatch = raw.match(/(M?\d{2})\/(M?\d{2})/);
-  // Regex para Vento (ex: 08005KT ou 12015G25KT)
-  const windMatch = raw.match(/(\d{3})(\d{2})(G\d{2})?KT/);
-  // Regex para Pressão (ex: Q1015)
-  const pressMatch = raw.match(/Q(\d{4})/);
-  // Regex para Visibilidade (ex: 9999 ou 0500)
-  const visibMatch = raw.match(/\s(\d{4})\s/);
-
-  const parseTemp = (t: string) => t.startsWith('M') ? -parseInt(t.substring(1)) : parseInt(t);
-
-  return {
-    temp: tempMatch ? parseTemp(tempMatch[1]) : null,
-    dewp: tempMatch ? parseTemp(tempMatch[2]) : null,
-    wdir: windMatch ? parseInt(windMatch[1]) : null,
-    wspd: windMatch ? parseInt(windMatch[2]) : null,
-    wgst: windMatch && windMatch[3] ? parseInt(windMatch[3].replace('G', '')) : null,
-    altim: pressMatch ? parseInt(pressMatch[1]) : null,
-    visib: visibMatch ? parseInt(visibMatch[1]) : (raw.includes('CAVOK') ? 9999 : null),
-  };
-};
 
 export function useWeather(defaultIcao: string = 'SBGR') {
   const [weather, setWeather] = useState<MetarResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [locationName] = useState<string | null>(null);
 
   const fetchWeather = useCallback(async (icao: string) => {
     setLoading(true);
     setError(null);
 
     try {
-      const url = API_ENDPOINTS.weather(icao);
-      const response = await fetch(url);
+      const aisData = await fetchAISWebMETAR(icao);
 
-      if (!response.ok) throw new Error(`Erro na API: ${response.status}`);
-
-      const data = await response.json();
-
-      // Navega na estrutura da AISWEB: data -> met -> metar
-      // O seu Worker manda 'aisweb' ou o objeto direto. Ajustamos para ambos:
-      const aisData = data.met || data.aisweb?.met;
-      const metarObj = aisData?.metar;
-
-      if (!metarObj || !metarObj.metar) {
+      if (!aisData) {
         throw new Error("Dados METAR não encontrados para este ICAO.");
       }
 
-      // Monta o objeto final processado
+      // Converter AISWebMETARData para MetarResponse
       const parsedData: MetarResponse = {
-        icao: metarObj.loc || icao.toUpperCase(),
-        rawOb: metarObj.metar,
-        ...parseMetarString(metarObj.metar),
-        flightCategory: (metarObj.cat as any) || 'VFR',
-        reportTime: metarObj.date,
-        updatedTime: new Date().toISOString(),
-        source: 'AISWEB'
+        icao: aisData.icao,
+        rawOb: aisData.rawOb,
+        temp: aisData.temp,
+        dewp: aisData.dewp,
+        wdir: aisData.wdir,
+        wspd: aisData.wspd,
+        wgst: aisData.wgst,
+        visib: aisData.visib,
+        altim: undefined, // AISWebMETARData não inclui altim processado
+        flightCategory: aisData.flightCategory,
+        reportTime: aisData.updatedTime || new Date().toISOString(),
+        updatedTime: aisData.updatedTime || new Date().toISOString(),
+        source: 'AISWEB',
+        taf: aisData.taf,
       };
 
       setWeather(parsedData);
@@ -95,5 +70,5 @@ export function useWeather(defaultIcao: string = 'SBGR') {
     return () => clearInterval(interval);
   }, [fetchWeather, defaultIcao]);
 
-  return { weather, loading, error, refetch: () => fetchWeather(defaultIcao) };
+  return { weather, loading, error, refetch: () => fetchWeather(defaultIcao), locationName };
 }
