@@ -6,13 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Plane, MapPin, Clock, Fuel, Wind, Calendar,
-  AlertTriangle, CheckCircle, FileText, Download,
-  Save, Calculator, Navigation, Route, CloudRain,
-  RefreshCw, Loader2, Shield, Radio, Info,
-  XCircle, AlertCircle, CheckCircle2, Thermometer
-} from 'lucide-react';
+import { Plane, MapPin, Clock, Fuel, Wind, Calendar, AlertTriangle, CheckCircle, FileText, Download, Save, Calculator, Navigation, Route, CloudRain, RefreshCw, Loader2, Shield, Radio, Info, XCircle, AlertCircle, CheckCircle2, Thermometer } from 'lucide-react';
 import { InlineLottieSpinner } from '@/components/ui/inline-lottie-spinner';
 import { useAerodromes, type Aerodromo } from '@/hooks/useAerodromes';
 import { useAeronaves, type Aeronave } from '@/hooks/useAeronaves';
@@ -21,10 +15,10 @@ import { useFlightPlans } from '@/hooks/useFlightPlans';
 import { useAuth } from '@/contexts/AuthContext';
 import { calculateDistance, calculateMagneticHeading, calculateOptimalAltitude, isAerodromeOperational, type NOTAMData, type ROTAERData } from '@/lib/aviation';
 import { FlightRouteMap, type RoutePoint } from '@/components/plano-voo/FlightRouteMap';
+import { AerodromeCombobox } from '@/components/plano-voo/AerodromeCombobox';
 import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { fetchAISWebMETAR, type AISWebMETARData } from '@/services/aiswebWeather';
-
 interface FlightFormData {
   origin: string;
   destination: string;
@@ -38,7 +32,6 @@ interface FlightFormData {
   passengers: number;
   route: string;
 }
-
 interface FlightCalculations {
   distance: number;
   bearing: number;
@@ -51,25 +44,40 @@ interface FlightCalculations {
   altitudeWarnings: string[];
   alternatives: string[];
 }
-
 interface ValidationResult {
   valid: boolean;
   notams: Record<string, NOTAMData[]>;
-  originStatus: { operational: boolean; reason: string | null; criticalNOTAMs: NOTAMData[]; warnings?: string[] };
-  destinationStatus: { operational: boolean; reason: string | null; criticalNOTAMs: NOTAMData[]; warnings?: string[] };
+  originStatus: {
+    operational: boolean;
+    reason: string | null;
+    criticalNOTAMs: NOTAMData[];
+    warnings?: string[];
+  };
+  destinationStatus: {
+    operational: boolean;
+    reason: string | null;
+    criticalNOTAMs: NOTAMData[];
+    warnings?: string[];
+  };
   restrictions: any[];
   warnings: string[];
 }
 
 // Parse coordenadas do banco de dados
-function parseCoordinates(coordStr: string | null): { lat: number; lng: number } | null {
+function parseCoordinates(coordStr: string | null): {
+  lat: number;
+  lng: number;
+} | null {
   if (!coordStr) return null;
 
   // Formato decimal: "-23.5505,-46.6333"
   if (coordStr.includes(',') && !coordStr.includes(' ')) {
     const [lat, lng] = coordStr.split(',').map(Number);
     if (!isNaN(lat) && !isNaN(lng)) {
-      return { lat, lng };
+      return {
+        lat,
+        lng
+      };
     }
   }
 
@@ -79,20 +87,19 @@ function parseCoordinates(coordStr: string | null): { lat: number; lng: number }
   if (match) {
     let lng = parseInt(match[1]) + parseInt(match[2]) / 60 + parseFloat(match[3]) / 3600;
     let lat = parseInt(match[5]) + parseInt(match[6]) / 60 + parseFloat(match[7]) / 3600;
-
     if (match[4].toUpperCase() === 'W') lng = -lng;
     if (match[8].toUpperCase() === 'S') lat = -lat;
-
-    return { lat, lng };
+    return {
+      lat,
+      lng
+    };
   }
-
   return null;
 }
 
 // Helper para formatar vento
 function formatWind(wdir: number | string | null, wspd: number | null, wgst: number | null): string {
   if (wspd === null || wspd === 0) return 'Calmo';
-  
   const direction = wdir !== null ? `${wdir}°` : 'VRB';
   const gust = wgst && wgst > wspd ? ` rajadas ${wgst}kt` : '';
   return `${direction} ${wspd}kt${gust}`;
@@ -110,24 +117,32 @@ function formatVisibility(visib: string | number | null): string {
 // Helper para cor da categoria de voo
 function getFlightCategoryColor(cat: string): string {
   switch (cat) {
-    case 'VFR': return 'text-green-400';
-    case 'MVFR': return 'text-blue-400';
-    case 'IFR': return 'text-orange-400';
-    case 'LIFR': return 'text-red-400';
-    default: return 'text-slate-400';
+    case 'VFR':
+      return 'text-green-400';
+    case 'MVFR':
+      return 'text-blue-400';
+    case 'IFR':
+      return 'text-orange-400';
+    case 'LIFR':
+      return 'text-red-400';
+    default:
+      return 'text-slate-400';
   }
 }
-
 function getFlightCategoryBg(cat: string): string {
   switch (cat) {
-    case 'VFR': return 'bg-green-500/20 border-green-500/50';
-    case 'MVFR': return 'bg-blue-500/20 border-blue-500/50';
-    case 'IFR': return 'bg-orange-500/20 border-orange-500/50';
-    case 'LIFR': return 'bg-red-500/20 border-red-500/50';
-    default: return 'bg-slate-500/20 border-slate-500/50';
+    case 'VFR':
+      return 'bg-green-500/20 border-green-500/50';
+    case 'MVFR':
+      return 'bg-blue-500/20 border-blue-500/50';
+    case 'IFR':
+      return 'bg-orange-500/20 border-orange-500/50';
+    case 'LIFR':
+      return 'bg-red-500/20 border-red-500/50';
+    default:
+      return 'bg-slate-500/20 border-slate-500/50';
   }
 }
-
 export default function PlanoVooPage() {
   const [activeTab, setActiveTab] = useState('planejar');
   const [formData, setFormData] = useState<FlightFormData>({
@@ -143,19 +158,29 @@ export default function PlanoVooPage() {
     passengers: 1,
     route: ''
   });
-
   const [calculations, setCalculations] = useState<FlightCalculations | null>(null);
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [originWeather, setOriginWeather] = useState<AISWebMETARData | null>(null);
   const [destWeather, setDestWeather] = useState<AISWebMETARData | null>(null);
   const [originROTAER, setOriginROTAER] = useState<ROTAERData | null>(null);
   const [destROTAER, setDestROTAER] = useState<ROTAERData | null>(null);
+  const [originNotams, setOriginNotams] = useState<NOTAMData[]>([]);
+  const [destNotams, setDestNotams] = useState<NOTAMData[]>([]);
+  const [altNotams, setAltNotams] = useState<NOTAMData[]>([]);
+  const [isLoadingNotams, setIsLoadingNotams] = useState(false);
   const [isLoadingWeather, setIsLoadingWeather] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
-
-  const { user } = useAuth();
-  const { aerodromes, isLoadingAerodromes } = useAerodromes();
-  const { aeronaves, isLoadingAeronaves } = useAeronaves();
+  const {
+    user
+  } = useAuth();
+  const {
+    aerodromes,
+    isLoadingAerodromes
+  } = useAerodromes();
+  const {
+    aeronaves,
+    isLoadingAeronaves
+  } = useAeronaves();
   const {
     getNOTAMs,
     getMultipleNOTAMs,
@@ -187,7 +212,6 @@ export default function PlanoVooPage() {
   // Pontos para o mapa
   const routePoints = useMemo((): RoutePoint[] => {
     const points: RoutePoint[] = [];
-
     const originAerodrome = getAerodromeByCode(formData.origin);
     if (originAerodrome) {
       const coords = parseCoordinates(originAerodrome.coordenadas);
@@ -201,7 +225,6 @@ export default function PlanoVooPage() {
         });
       }
     }
-
     const destAerodrome = getAerodromeByCode(formData.destination);
     if (destAerodrome) {
       const coords = parseCoordinates(destAerodrome.coordenadas);
@@ -215,7 +238,6 @@ export default function PlanoVooPage() {
         });
       }
     }
-
     const altAerodrome = getAerodromeByCode(formData.alternate);
     if (altAerodrome) {
       const coords = parseCoordinates(altAerodrome.coordenadas);
@@ -229,7 +251,6 @@ export default function PlanoVooPage() {
         });
       }
     }
-
     return points;
   }, [formData.origin, formData.destination, formData.alternate, getAerodromeByCode]);
 
@@ -238,27 +259,22 @@ export default function PlanoVooPage() {
     const originAerodrome = getAerodromeByCode(formData.origin);
     const destAerodrome = getAerodromeByCode(formData.destination);
     const aircraft = getAircraftById(formData.aircraftId);
-
     if (!originAerodrome || !destAerodrome) {
       toast.error('Selecione origem e destino');
       return;
     }
-
     const originCoords = parseCoordinates(originAerodrome.coordenadas);
     const destCoords = parseCoordinates(destAerodrome.coordenadas);
-
     if (!originCoords || !destCoords) {
       toast.error('Coordenadas não disponíveis para os aeródromos selecionados');
       return;
     }
-
     const distance = calculateDistance(originCoords.lat, originCoords.lng, destCoords.lat, destCoords.lng);
     const bearing = calculateMagneticHeading(originCoords.lat, originCoords.lng, destCoords.lat, destCoords.lng);
 
     // Velocidade de cruzeiro
     const cruiseSpeed = formData.cruiseSpeed ? parseInt(formData.cruiseSpeed) : 180;
     const fuelConsumption = aircraft?.fuel_consumption || 50;
-
     const timeHours = distance / cruiseSpeed;
     const fuelRequired = timeHours * fuelConsumption;
     const fuelReserve = fuelRequired * 0.45;
@@ -268,12 +284,7 @@ export default function PlanoVooPage() {
     const validationResult = await validatePlan(originCoords, destCoords);
 
     // Calcular altitude ótima com restrições
-    const altitudeData = calculateOptimalAltitude(
-      bearing,
-      formData.flightRule,
-      validationResult?.restrictions || []
-    );
-
+    const altitudeData = calculateOptimalAltitude(bearing, formData.flightRule, validationResult?.restrictions || []);
     setCalculations({
       distance: Math.round(distance),
       bearing: Math.round(bearing),
@@ -284,33 +295,26 @@ export default function PlanoVooPage() {
       suggestedAlt: altitudeData.suggested,
       altitudeWarnings: altitudeData.warnings,
       alternatives: altitudeData.alternatives,
-      ete: `${Math.floor(timeHours)}h ${Math.round((timeHours % 1) * 60)}min`
+      ete: `${Math.floor(timeHours)}h ${Math.round(timeHours % 1 * 60)}min`
     });
-
     setActiveTab('resultados');
     toast.success('Plano de voo calculado');
   }, [formData, getAerodromeByCode, getAircraftById]);
 
   // Validar plano de voo
-  const validatePlan = useCallback(async (
-    originCoords: { lat: number; lng: number },
-    destCoords: { lat: number; lng: number }
-  ): Promise<ValidationResult | null> => {
+  const validatePlan = useCallback(async (originCoords: {
+    lat: number;
+    lng: number;
+  }, destCoords: {
+    lat: number;
+    lng: number;
+  }): Promise<ValidationResult | null> => {
     if (!formData.origin || !formData.destination) return null;
-
     setIsValidating(true);
     try {
       const altitude = formData.cruiseAlt ? parseInt(formData.cruiseAlt) : 5500;
       const route = [originCoords, destCoords];
-
-      const validationResult = await validateFlightPlan(
-        formData.origin,
-        formData.destination,
-        formData.alternate || null,
-        route,
-        altitude
-      );
-
+      const validationResult = await validateFlightPlan(formData.origin, formData.destination, formData.alternate || null, route, altitude);
       setValidation(validationResult);
 
       // Mostrar warnings se houver
@@ -325,7 +329,6 @@ export default function PlanoVooPage() {
       if (!validationResult.destinationStatus.operational) {
         toast.error(`DESTINO: ${validationResult.destinationStatus.reason}`);
       }
-
       return validationResult;
     } catch (error) {
       console.error('Validation error:', error);
@@ -342,7 +345,6 @@ export default function PlanoVooPage() {
       toast.error('Selecione origem e/ou destino');
       return;
     }
-
     setIsLoadingWeather(true);
     try {
       if (formData.origin) {
@@ -365,7 +367,6 @@ export default function PlanoVooPage() {
   // Buscar dados ROTAER
   const fetchROTAERData = useCallback(async () => {
     if (!formData.origin && !formData.destination) return;
-
     try {
       if (formData.origin) {
         const rotaer = await getROTAER(formData.origin);
@@ -387,23 +388,41 @@ export default function PlanoVooPage() {
     }
   }, [formData.origin, formData.destination, fetchROTAERData]);
 
+  // Auto-fetch NOTAMs quando mudar origem/destino/alternativa
+  const fetchNOTAMsData = useCallback(async () => {
+    const icaos = [formData.origin, formData.destination, formData.alternate].filter(Boolean);
+    if (icaos.length === 0) return;
+    setIsLoadingNotams(true);
+    try {
+      const results = await getMultipleNOTAMs(icaos);
+      if (formData.origin) setOriginNotams(results[formData.origin.toUpperCase()] || []);
+      if (formData.destination) setDestNotams(results[formData.destination.toUpperCase()] || []);
+      if (formData.alternate) setAltNotams(results[formData.alternate.toUpperCase()] || []);
+    } catch (error) {
+      console.error('Error fetching NOTAMs:', error);
+    } finally {
+      setIsLoadingNotams(false);
+    }
+  }, [formData.origin, formData.destination, formData.alternate, getMultipleNOTAMs]);
+  useEffect(() => {
+    if (formData.origin || formData.destination) {
+      fetchNOTAMsData();
+    }
+  }, [formData.origin, formData.destination, formData.alternate, fetchNOTAMsData]);
+
   // Salvar plano
   const savePlan = useCallback(async () => {
     if (!calculations) {
       toast.error('Calcule o plano primeiro');
       return;
     }
-
     if (!user) {
       toast.error('Você precisa estar logado para salvar planos');
       return;
     }
 
     // Extrair data da departure ou usar hoje
-    const flightDate = formData.departure
-      ? formData.departure.split('T')[0]
-      : new Date().toISOString().split('T')[0];
-
+    const flightDate = formData.departure ? formData.departure.split('T')[0] : new Date().toISOString().split('T')[0];
     const planInput = {
       flight_date: flightDate,
       departure_airport: formData.origin,
@@ -421,10 +440,9 @@ export default function PlanoVooPage() {
       weather: {
         origin: originWeather,
         destination: destWeather,
-        timestamp: Date.now(),
-      },
+        timestamp: Date.now()
+      }
     };
-
     await createFlightPlan(planInput);
   }, [formData, calculations, validation, originWeather, destWeather, createFlightPlan, user]);
 
@@ -446,32 +464,42 @@ export default function PlanoVooPage() {
   // Renderizar NOTAM badge
   const renderNOTAMBadge = (priority: NOTAMData['priority']) => {
     const config = {
-      critical: { icon: XCircle, color: 'bg-red-500/20 text-red-400 border-red-500/50' },
-      high: { icon: AlertTriangle, color: 'bg-orange-500/20 text-orange-400 border-orange-500/50' },
-      medium: { icon: AlertCircle, color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50' },
-      low: { icon: Info, color: 'bg-blue-500/20 text-blue-400 border-blue-500/50' },
+      critical: {
+        icon: XCircle,
+        color: 'bg-red-500/20 text-red-400 border-red-500/50'
+      },
+      high: {
+        icon: AlertTriangle,
+        color: 'bg-orange-500/20 text-orange-400 border-orange-500/50'
+      },
+      medium: {
+        icon: AlertCircle,
+        color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50'
+      },
+      low: {
+        icon: Info,
+        color: 'bg-blue-500/20 text-blue-400 border-blue-500/50'
+      }
     };
-
-    const { icon: Icon, color } = config[priority];
+    const {
+      icon: Icon,
+      color
+    } = config[priority];
     return <Icon className="w-4 h-4" />;
   };
 
   // Renderizar card de meteorologia
   const renderWeatherCard = (weather: AISWebMETARData | null, title: string, icao: string) => {
     if (!weather) {
-      return (
-        <Card className="bg-slate-800/50 border-slate-700 p-4">
+      return <Card className="bg-slate-800/50 border-slate-700 p-4">
           <div className="flex items-center gap-2 mb-3">
             <CloudRain className="w-5 h-5 text-cyan-400" />
             <h3 className="text-white font-semibold">{icao || title}</h3>
           </div>
           <p className="text-slate-400 text-sm">Clique em "Buscar METAR" para carregar</p>
-        </Card>
-      );
+        </Card>;
     }
-
-    return (
-      <Card className="bg-slate-800/50 border-slate-700 p-4">
+    return <Card className="bg-slate-800/50 border-slate-700 p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <CloudRain className="w-5 h-5 text-cyan-400" />
@@ -501,44 +529,33 @@ export default function PlanoVooPage() {
           </div>
         </div>
 
-        {weather.rawOb && (
-          <div className="mt-3 pt-3 border-t border-slate-700">
+        {weather.rawOb && <div className="mt-3 pt-3 border-t border-slate-700">
             <p className="text-xs text-slate-400 font-semibold mb-1">METAR:</p>
             <p className="text-xs text-slate-500 font-mono break-all">{weather.rawOb}</p>
-          </div>
-        )}
+          </div>}
 
-        {weather.taf && (
-          <div className="mt-2 pt-2 border-t border-slate-700">
+        {weather.taf && <div className="mt-2 pt-2 border-t border-slate-700">
             <p className="text-xs text-slate-400 font-semibold mb-1">TAF:</p>
             <p className="text-xs text-slate-500 font-mono break-all">{weather.taf}</p>
-          </div>
-        )}
+          </div>}
 
-        {weather.updatedTime && (
-          <div className="mt-2 text-xs text-slate-500">
+        {weather.updatedTime && <div className="mt-2 text-xs text-slate-500">
             Atualizado: {new Date(weather.updatedTime).toLocaleTimeString('pt-BR')}
-          </div>
-        )}
-      </Card>
-    );
+          </div>}
+      </Card>;
   };
 
   // Renderizar card ROTAER
   const renderROTAERCard = (rotaer: ROTAERData | null, icao: string) => {
     if (!rotaer) {
-      return (
-        <Card className="bg-slate-800/50 border-slate-700 p-4">
+      return <Card className="bg-slate-800/50 border-slate-700 p-4">
           <div className="flex items-center gap-2">
             <Info className="w-5 h-5 text-slate-400" />
             <p className="text-slate-400 text-sm">Dados ROTAER não disponíveis</p>
           </div>
-        </Card>
-      );
+        </Card>;
     }
-
-    return (
-      <Card className="bg-slate-800/50 border-slate-700 p-4">
+    return <Card className="bg-slate-800/50 border-slate-700 p-4">
         <div className="flex items-center gap-2 mb-3">
           <Radio className="w-5 h-5 text-primary" />
           <h3 className="text-white font-semibold">{rotaer.icao} - ROTAER</h3>
@@ -546,45 +563,33 @@ export default function PlanoVooPage() {
 
         <div className="space-y-3 text-sm">
           {/* Pistas */}
-          {rotaer.runways && rotaer.runways.length > 0 && (
-            <div>
+          {rotaer.runways && rotaer.runways.length > 0 && <div>
               <h4 className="text-slate-400 font-semibold mb-1">Pistas:</h4>
-              {rotaer.runways.map((rwy, idx) => (
-                <div key={idx} className="text-white ml-2">
+              {rotaer.runways.map((rwy, idx) => <div key={idx} className="text-white ml-2">
                   <span className="font-mono">{rwy.designator}</span>: {rwy.length}m x {rwy.width}m - {rwy.surface}
                   {rwy.strength && <span className="text-slate-400"> (PCN: {rwy.strength})</span>}
-                </div>
-              ))}
-            </div>
-          )}
+                </div>)}
+            </div>}
 
           {/* Frequências */}
-          {rotaer.frequencies && rotaer.frequencies.length > 0 && (
-            <div>
+          {rotaer.frequencies && rotaer.frequencies.length > 0 && <div>
               <h4 className="text-slate-400 font-semibold mb-1">Frequências:</h4>
               <div className="grid grid-cols-2 gap-1 ml-2">
-                {rotaer.frequencies.map((freq, idx) => (
-                  <div key={idx} className="text-white">
+                {rotaer.frequencies.map((freq, idx) => <div key={idx} className="text-white">
                     <span className="text-slate-400">{freq.type}:</span> <span className="font-mono">{freq.frequency}</span>
-                  </div>
-                ))}
+                  </div>)}
               </div>
-            </div>
-          )}
+            </div>}
 
           {/* Auxílios */}
-          {rotaer.navaids && rotaer.navaids.length > 0 && (
-            <div>
+          {rotaer.navaids && rotaer.navaids.length > 0 && <div>
               <h4 className="text-slate-400 font-semibold mb-1">Auxílios:</h4>
               <div className="flex flex-wrap gap-2 ml-2">
-                {rotaer.navaids.map((nav, idx) => (
-                  <Badge key={idx} variant="outline" className="bg-primary/10 border-primary/30 text-primary">
+                {rotaer.navaids.map((nav, idx) => <Badge key={idx} variant="outline" className="bg-primary/10 border-primary/30 text-primary">
                     {nav.type} {nav.identifier} ({nav.frequency})
-                  </Badge>
-                ))}
+                  </Badge>)}
               </div>
-            </div>
-          )}
+            </div>}
 
           {/* Serviços */}
           <div>
@@ -598,24 +603,19 @@ export default function PlanoVooPage() {
           </div>
 
           {/* Horário */}
-          {rotaer.operatingHours && (
-            <div className="flex justify-between pt-2 border-t border-slate-700">
+          {rotaer.operatingHours && <div className="flex justify-between pt-2 border-t border-slate-700">
               <span className="text-slate-400">Horário:</span>
               <span className="text-white font-mono">{rotaer.operatingHours}</span>
-            </div>
-          )}
+            </div>}
         </div>
-      </Card>
-    );
+      </Card>;
   };
-
-  return (
-    <Layout>
-      <div className="min-h-screen bg-background p-4 md:p-6">
+  return <Layout>
+      <div className="min-h-screen p-4 md:p-6 bg-inherit rounded-2xl">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="mb-6">
-            <div className="flex items-center gap-3 mb-2">
+          <div className="mb-6 rounded-xl">
+            <div className="flex items-center gap-3 mb-2 mx-[2px] px-[12px]">
               <div className="p-2 bg-primary/10 rounded-lg">
                 <Plane className="w-6 h-6 text-primary" />
               </div>
@@ -627,14 +627,12 @@ export default function PlanoVooPage() {
           </div>
 
           {/* Erro da API AISWeb */}
-          {aiswebError && (
-            <Alert className="mb-4 bg-orange-500/10 border-orange-500/50">
+          {aiswebError && <Alert className="mb-4 bg-orange-500/10 border-orange-500/50">
               <AlertTriangle className="w-4 h-4 text-orange-400" />
               <AlertDescription className="text-orange-400">
                 {aiswebError} - O app continuará funcionando com dados limitados.
               </AlertDescription>
-            </Alert>
-          )}
+            </Alert>}
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
             <TabsList className="bg-surface-dark border border-border-dark">
@@ -649,11 +647,9 @@ export default function PlanoVooPage() {
               <TabsTrigger value="notam" className="data-[state=active]:bg-primary/20">
                 <Shield className="w-4 h-4 mr-2" />
                 NOTAMs
-                {validation && validation.warnings.length > 0 && (
-                  <Badge className="ml-2 bg-red-500/20 text-red-400 border-red-500/50">
+                {validation && validation.warnings.length > 0 && <Badge className="ml-2 bg-red-500/20 text-red-400 border-red-500/50">
                     {validation.warnings.length}
-                  </Badge>
-                )}
+                  </Badge>}
               </TabsTrigger>
               <TabsTrigger value="aerodromos" className="data-[state=active]:bg-primary/20">
                 <Radio className="w-4 h-4 mr-2" />
@@ -681,55 +677,46 @@ export default function PlanoVooPage() {
                   {/* Origem */}
                   <div>
                     <Label className="text-muted-foreground">Aeródromo de Origem *</Label>
-                    <select
-                      value={formData.origin}
-                      onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
-                      className="w-full mt-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground"
-                      disabled={isLoadingAerodromes}
-                    >
-                      <option value="">Selecione</option>
-                      {aerodromes.map((ad) => (
-                        <option key={ad.id} value={ad.designativo}>
-                          {ad.designativo} - {ad.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="mt-1">
+                      <AerodromeCombobox aerodromes={aerodromes} value={formData.origin} onChange={val => setFormData({
+                      ...formData,
+                      origin: val
+                    })} placeholder="Buscar origem..." disabled={isLoadingAerodromes} />
+                    </div>
+                    {originNotams.length > 0 && <div className="mt-1 flex items-center gap-1">
+                        <Shield className="w-3 h-3 text-warning" />
+                        <span className="text-xs text-warning">{originNotams.length} NOTAM(s) ativo(s)</span>
+                      </div>}
                   </div>
 
                   {/* Destino */}
                   <div>
                     <Label className="text-muted-foreground">Aeródromo de Destino *</Label>
-                    <select
-                      value={formData.destination}
-                      onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                      className="w-full mt-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground"
-                      disabled={isLoadingAerodromes}
-                    >
-                      <option value="">Selecione</option>
-                      {aerodromes.map((ad) => (
-                        <option key={ad.id} value={ad.designativo}>
-                          {ad.designativo} - {ad.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="mt-1">
+                      <AerodromeCombobox aerodromes={aerodromes} value={formData.destination} onChange={val => setFormData({
+                      ...formData,
+                      destination: val
+                    })} placeholder="Buscar destino..." disabled={isLoadingAerodromes} />
+                    </div>
+                    {destNotams.length > 0 && <div className="mt-1 flex items-center gap-1">
+                        <Shield className="w-3 h-3 text-warning" />
+                        <span className="text-xs text-warning">{destNotams.length} NOTAM(s) ativo(s)</span>
+                      </div>}
                   </div>
 
                   {/* Alternativa */}
                   <div>
                     <Label className="text-muted-foreground">Alternativa</Label>
-                    <select
-                      value={formData.alternate}
-                      onChange={(e) => setFormData({ ...formData, alternate: e.target.value })}
-                      className="w-full mt-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground"
-                      disabled={isLoadingAerodromes}
-                    >
-                      <option value="">Opcional</option>
-                      {aerodromes.map((ad) => (
-                        <option key={ad.id} value={ad.designativo}>
-                          {ad.designativo} - {ad.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="mt-1">
+                      <AerodromeCombobox aerodromes={aerodromes} value={formData.alternate} onChange={val => setFormData({
+                      ...formData,
+                      alternate: val
+                    })} placeholder="Buscar alternativa..." disabled={isLoadingAerodromes} />
+                    </div>
+                    {altNotams.length > 0 && <div className="mt-1 flex items-center gap-1">
+                        <Shield className="w-3 h-3 text-warning" />
+                        <span className="text-xs text-warning">{altNotams.length} NOTAM(s) ativo(s)</span>
+                      </div>}
                   </div>
                 </div>
 
@@ -737,40 +724,30 @@ export default function PlanoVooPage() {
                   {/* Aeronave */}
                   <div>
                     <Label className="text-muted-foreground">Aeronave *</Label>
-                    <select
-                      value={formData.aircraftId}
-                      onChange={(e) => handleAircraftChange(e.target.value)}
-                      className="w-full mt-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground"
-                      disabled={isLoadingAeronaves}
-                    >
+                    <select value={formData.aircraftId} onChange={e => handleAircraftChange(e.target.value)} className="w-full mt-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground" disabled={isLoadingAeronaves}>
                       <option value="">Selecione</option>
-                      {aeronaves.map((ac) => (
-                        <option key={ac.id} value={ac.id}>
+                      {aeronaves.map(ac => <option key={ac.id} value={ac.id}>
                           {ac.registration} - {ac.model}
-                        </option>
-                      ))}
+                        </option>)}
                     </select>
                   </div>
 
                   {/* Matrícula */}
                   <div>
                     <Label className="text-muted-foreground">Matrícula</Label>
-                    <Input
-                      value={formData.registration}
-                      onChange={(e) => setFormData({ ...formData, registration: e.target.value.toUpperCase() })}
-                      placeholder="PT-ABC"
-                      className="mt-1 bg-background border-border text-foreground"
-                    />
+                    <Input value={formData.registration} onChange={e => setFormData({
+                    ...formData,
+                    registration: e.target.value.toUpperCase()
+                  })} placeholder="PT-ABC" className="mt-1 bg-background border-border text-foreground" />
                   </div>
 
                   {/* Regra de Voo */}
                   <div>
                     <Label className="text-muted-foreground">Regra de Voo</Label>
-                    <select
-                      value={formData.flightRule}
-                      onChange={(e) => setFormData({ ...formData, flightRule: e.target.value as 'V' | 'I' | 'Y' | 'Z' })}
-                      className="w-full mt-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground"
-                    >
+                    <select value={formData.flightRule} onChange={e => setFormData({
+                    ...formData,
+                    flightRule: e.target.value as 'V' | 'I' | 'Y' | 'Z'
+                  })} className="w-full mt-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground">
                       <option value="V">VFR</option>
                       <option value="I">IFR</option>
                       <option value="Y">IFR/VFR</option>
@@ -781,13 +758,10 @@ export default function PlanoVooPage() {
                   {/* Passageiros */}
                   <div>
                     <Label className="text-muted-foreground">Passageiros</Label>
-                    <Input
-                      type="number"
-                      value={formData.passengers}
-                      onChange={(e) => setFormData({ ...formData, passengers: parseInt(e.target.value) || 1 })}
-                      min="1"
-                      className="mt-1 bg-background border-border text-foreground"
-                    />
+                    <Input type="number" value={formData.passengers} onChange={e => setFormData({
+                    ...formData,
+                    passengers: parseInt(e.target.value) || 1
+                  })} min="1" className="mt-1 bg-background border-border text-foreground" />
                   </div>
                 </div>
 
@@ -795,61 +769,46 @@ export default function PlanoVooPage() {
                   {/* Velocidade de Cruzeiro */}
                   <div>
                     <Label className="text-muted-foreground">Velocidade Cruzeiro (kt)</Label>
-                    <Input
-                      value={formData.cruiseSpeed}
-                      onChange={(e) => setFormData({ ...formData, cruiseSpeed: e.target.value })}
-                      placeholder="180"
-                      className="mt-1 bg-background border-border text-foreground"
-                    />
+                    <Input value={formData.cruiseSpeed} onChange={e => setFormData({
+                    ...formData,
+                    cruiseSpeed: e.target.value
+                  })} placeholder="180" className="mt-1 bg-background border-border text-foreground" />
                   </div>
 
                   {/* Data/Hora */}
                   <div>
                     <Label className="text-muted-foreground">Data/Hora de Partida</Label>
-                    <Input
-                      type="datetime-local"
-                      value={formData.departure}
-                      onChange={(e) => setFormData({ ...formData, departure: e.target.value })}
-                      className="mt-1 bg-background border-border text-foreground"
-                    />
+                    <Input type="datetime-local" value={formData.departure} onChange={e => setFormData({
+                    ...formData,
+                    departure: e.target.value
+                  })} className="mt-1 bg-background border-border text-foreground" />
                   </div>
 
                   {/* Rota */}
                   <div>
                     <Label className="text-muted-foreground">Rota</Label>
-                    <Input
-                      value={formData.route}
-                      onChange={(e) => setFormData({ ...formData, route: e.target.value.toUpperCase() })}
-                      placeholder="DCT ou via pontos"
-                      className="mt-1 bg-background border-border text-foreground"
-                    />
+                    <Input value={formData.route} onChange={e => setFormData({
+                    ...formData,
+                    route: e.target.value.toUpperCase()
+                  })} placeholder="DCT ou via pontos" className="mt-1 bg-background border-border text-foreground" />
                   </div>
                 </div>
 
-                <Button
-                  onClick={calculateFlightPlan}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                  disabled={!formData.origin || !formData.destination || isValidating}
-                >
-                  {isValidating ? (
-                    <>
+                <Button onClick={calculateFlightPlan} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={!formData.origin || !formData.destination || isValidating}>
+                  {isValidating ? <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Validando...
-                    </>
-                  ) : (
-                    <>
+                    </> : <>
                       <Calculator className="w-4 h-4 mr-2" />
                       Calcular e Validar Plano
-                    </>
-                  )}
+                    </>}
                 </Button>
               </Card>
             </TabsContent>
 
             {/* TAB: Resultados - CONTINUAÇÃO NO PRÓXIMO ARQUIVO */}
             <TabsContent value="resultados" className="space-y-4">
-              {calculations ? (
-                <>
+              {calculations ? <>
                   {/* Status do Plano */}
                   <Card className="bg-surface-dark border-border-dark p-6">
                     <div className="flex items-center justify-between mb-4">
@@ -857,73 +816,49 @@ export default function PlanoVooPage() {
                         <Route className="w-5 h-5 text-primary" />
                         <h2 className="text-lg font-semibold text-foreground">Status do Plano</h2>
                       </div>
-                      {validation && (
-                        <Badge
-                          variant="outline"
-                          className={validation.valid
-                            ? "bg-green-500/20 text-green-400 border-green-500/50"
-                            : "bg-red-500/20 text-red-400 border-red-500/50"
-                          }
-                        >
-                          {validation.valid ? (
-                            <>
+                      {validation && <Badge variant="outline" className={validation.valid ? "bg-green-500/20 text-green-400 border-green-500/50" : "bg-red-500/20 text-red-400 border-red-500/50"}>
+                          {validation.valid ? <>
                               <CheckCircle className="w-3 h-3 mr-1" />
                               Plano Válido
-                            </>
-                          ) : (
-                            <>
+                            </> : <>
                               <XCircle className="w-3 h-3 mr-1" />
                               Atenção Necessária
-                            </>
-                          )}
-                        </Badge>
-                      )}
+                            </>}
+                        </Badge>}
                     </div>
 
                     {/* Warnings */}
-                    {validation && validation.warnings.length > 0 && (
-                      <Alert className="mb-4 bg-yellow-500/10 border-yellow-500/50">
+                    {validation && validation.warnings.length > 0 && <Alert className="mb-4 bg-yellow-500/10 border-yellow-500/50">
                         <AlertTriangle className="w-4 h-4 text-yellow-400" />
                         <AlertDescription className="text-yellow-400">
                           <div className="font-semibold mb-1">{validation.warnings.length} alerta(s) encontrado(s):</div>
                           <ul className="list-disc list-inside space-y-1 text-sm">
-                            {validation.warnings.slice(0, 3).map((warning, idx) => (
-                              <li key={idx}>{warning}</li>
-                            ))}
-                            {validation.warnings.length > 3 && (
-                              <li className="text-yellow-300">+ {validation.warnings.length - 3} outros alertas (veja aba NOTAMs)</li>
-                            )}
+                            {validation.warnings.slice(0, 3).map((warning, idx) => <li key={idx}>{warning}</li>)}
+                            {validation.warnings.length > 3 && <li className="text-yellow-300">+ {validation.warnings.length - 3} outros alertas (veja aba NOTAMs)</li>}
                           </ul>
                         </AlertDescription>
-                      </Alert>
-                    )}
+                      </Alert>}
 
                     {/* Warnings de Altitude */}
-                    {calculations.altitudeWarnings.length > 0 && (
-                      <Alert className="mb-4 bg-orange-500/10 border-orange-500/50">
+                    {calculations.altitudeWarnings.length > 0 && <Alert className="mb-4 bg-orange-500/10 border-orange-500/50">
                         <AlertCircle className="w-4 h-4 text-orange-400" />
                         <AlertDescription className="text-orange-400">
                           <div className="font-semibold mb-1">Atenção - Altitude:</div>
                           <ul className="list-disc list-inside space-y-1 text-sm">
-                            {calculations.altitudeWarnings.map((warning, idx) => (
-                              <li key={idx}>{warning}</li>
-                            ))}
+                            {calculations.altitudeWarnings.map((warning, idx) => <li key={idx}>{warning}</li>)}
                           </ul>
                         </AlertDescription>
-                      </Alert>
-                    )}
+                      </Alert>}
 
                     <div className="flex items-center justify-between py-6">
                       <div className="text-center">
                         <MapPin className="w-6 h-6 text-green-400 mx-auto mb-1" />
                         <p className="text-2xl font-bold text-foreground">{formData.origin}</p>
                         <p className="text-sm text-muted-foreground">{getAerodromeByCode(formData.origin)?.name}</p>
-                        {validation && !validation.originStatus.operational && (
-                          <Badge className="mt-1 bg-red-500/20 text-red-400 border-red-500/50">
+                        {validation && !validation.originStatus.operational && <Badge className="mt-1 bg-red-500/20 text-red-400 border-red-500/50">
                             <XCircle className="w-3 h-3 mr-1" />
                             Não Operacional
-                          </Badge>
-                        )}
+                          </Badge>}
                       </div>
 
                       <div className="flex-1 mx-4 border-t border-dashed border-primary/50 relative">
@@ -936,12 +871,10 @@ export default function PlanoVooPage() {
                         <MapPin className="w-6 h-6 text-red-400 mx-auto mb-1" />
                         <p className="text-2xl font-bold text-foreground">{formData.destination}</p>
                         <p className="text-sm text-muted-foreground">{getAerodromeByCode(formData.destination)?.name}</p>
-                        {validation && !validation.destinationStatus.operational && (
-                          <Badge className="mt-1 bg-red-500/20 text-red-400 border-red-500/50">
+                        {validation && !validation.destinationStatus.operational && <Badge className="mt-1 bg-red-500/20 text-red-400 border-red-500/50">
                             <XCircle className="w-3 h-3 mr-1" />
                             Não Operacional
-                          </Badge>
-                        )}
+                          </Badge>}
                       </div>
                     </div>
                   </Card>
@@ -977,18 +910,14 @@ export default function PlanoVooPage() {
                             <span className="text-muted-foreground">Altitude Sugerida:</span>
                             <span className="text-foreground font-mono font-bold text-primary">{calculations.suggestedAlt}</span>
                           </div>
-                          {calculations.alternatives.length > 0 && (
-                            <div className="pt-2 border-t border-border-dark">
+                          {calculations.alternatives.length > 0 && <div className="pt-2 border-t border-border-dark">
                               <span className="text-muted-foreground text-xs block mb-1">Alternativas:</span>
                               <div className="flex flex-wrap gap-1">
-                                {calculations.alternatives.map((alt, idx) => (
-                                  <Badge key={idx} variant="outline" className="text-xs">
+                                {calculations.alternatives.map((alt, idx) => <Badge key={idx} variant="outline" className="text-xs">
                                     {alt}
-                                  </Badge>
-                                ))}
+                                  </Badge>)}
                               </div>
-                            </div>
-                          )}
+                            </div>}
                         </div>
                       </Card>
 
@@ -1026,31 +955,22 @@ export default function PlanoVooPage() {
                         <Download className="w-4 h-4 mr-2" />
                         Exportar PDF
                       </Button>
-                      <Button
-                        onClick={() => setActiveTab('notam')}
-                        variant="outline"
-                        className="border-border-dark"
-                      >
+                      <Button onClick={() => setActiveTab('notam')} variant="outline" className="border-border-dark">
                         <Shield className="w-4 h-4 mr-2" />
                         Ver NOTAMs
                       </Button>
                     </div>
                   </Card>
-                </>
-              ) : (
-                <Card className="bg-surface-dark border-border-dark p-12 text-center">
+                </> : <Card className="bg-surface-dark border-border-dark p-12 text-center">
                   <Calculator className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                   <p className="text-muted-foreground">Preencha os dados e calcule o plano de voo</p>
-                </Card>
-              )}
+                </Card>}
             </TabsContent>
 
             {/* TAB: NOTAMs */}
             <TabsContent value="notam" className="space-y-4">
-              {validation ? (
-                <>
-                  {Object.entries(validation.notams).map(([icao, notams]) => (
-                    <Card key={icao} className="bg-surface-dark border-border-dark p-4">
+              {validation ? <>
+                  {Object.entries(validation.notams).map(([icao, notams]) => <Card key={icao} className="bg-surface-dark border-border-dark p-4">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                           <Shield className="w-5 h-5 text-primary" />
@@ -1061,32 +981,14 @@ export default function PlanoVooPage() {
                         </Badge>
                       </div>
 
-                      {notams.length === 0 ? (
-                        <p className="text-slate-400 text-sm">Nenhum NOTAM ativo</p>
-                      ) : (
-                        <div className="space-y-2">
-                          {notams.map((notam, idx) => (
-                            <div
-                              key={idx}
-                              className={`p-3 rounded-lg border ${notam.priority === 'critical' ? 'bg-red-500/10 border-red-500/50' :
-                                  notam.priority === 'high' ? 'bg-orange-500/10 border-orange-500/50' :
-                                    notam.priority === 'medium' ? 'bg-yellow-500/10 border-yellow-500/50' :
-                                      'bg-blue-500/10 border-blue-500/50'
-                                }`}
-                            >
+                      {notams.length === 0 ? <p className="text-slate-400 text-sm">Nenhum NOTAM ativo</p> : <div className="space-y-2">
+                          {notams.map((notam, idx) => <div key={idx} className={`p-3 rounded-lg border ${notam.priority === 'critical' ? 'bg-red-500/10 border-red-500/50' : notam.priority === 'high' ? 'bg-orange-500/10 border-orange-500/50' : notam.priority === 'medium' ? 'bg-yellow-500/10 border-yellow-500/50' : 'bg-blue-500/10 border-blue-500/50'}`}>
                               <div className="flex items-start gap-2">
                                 {renderNOTAMBadge(notam.priority)}
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-1">
                                     <span className="font-mono text-xs text-slate-400">{notam.number}</span>
-                                    <Badge
-                                      variant="outline"
-                                      className={`text-xs ${notam.priority === 'critical' ? 'bg-red-500/20 text-red-400 border-red-500/50' :
-                                          notam.priority === 'high' ? 'bg-orange-500/20 text-orange-400 border-orange-500/50' :
-                                            notam.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50' :
-                                              'bg-blue-500/20 text-blue-400 border-blue-500/50'
-                                        }`}
-                                    >
+                                    <Badge variant="outline" className={`text-xs ${notam.priority === 'critical' ? 'bg-red-500/20 text-red-400 border-red-500/50' : notam.priority === 'high' ? 'bg-orange-500/20 text-orange-400 border-orange-500/50' : notam.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50' : 'bg-blue-500/20 text-blue-400 border-blue-500/50'}`}>
                                       {notam.priority.toUpperCase()}
                                     </Badge>
                                   </div>
@@ -1097,23 +999,18 @@ export default function PlanoVooPage() {
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </Card>
-                  ))}
+                            </div>)}
+                        </div>}
+                    </Card>)}
 
                   {/* Restrições de Espaço Aéreo */}
-                  {validation.restrictions && validation.restrictions.length > 0 && (
-                    <Card className="bg-surface-dark border-border-dark p-4">
+                  {validation.restrictions && validation.restrictions.length > 0 && <Card className="bg-surface-dark border-border-dark p-4">
                       <div className="flex items-center gap-2 mb-3">
                         <Shield className="w-5 h-5 text-orange-400" />
                         <h3 className="text-white font-semibold">Restrições de Espaço Aéreo na Rota</h3>
                       </div>
                       <div className="space-y-2">
-                        {validation.restrictions.map((restriction, idx) => (
-                          <div key={idx} className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/50">
+                        {validation.restrictions.map((restriction, idx) => <div key={idx} className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/50">
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-white font-semibold">{restriction.name}</span>
                               <Badge variant="outline" className="bg-orange-500/20 text-orange-400 border-orange-500/50">
@@ -1125,18 +1022,13 @@ export default function PlanoVooPage() {
                               Limites: {restriction.lowerLimit} - {restriction.upperLimit}
                               {restriction.schedule && ` • ${restriction.schedule}`}
                             </div>
-                          </div>
-                        ))}
+                          </div>)}
                       </div>
-                    </Card>
-                  )}
-                </>
-              ) : (
-                <Card className="bg-surface-dark border-border-dark p-12 text-center">
+                    </Card>}
+                </> : <Card className="bg-surface-dark border-border-dark p-12 text-center">
                   <Shield className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                   <p className="text-muted-foreground">Calcule o plano de voo para ver NOTAMs</p>
-                </Card>
-              )}
+                </Card>}
             </TabsContent>
 
             {/* TAB: Aeródromos */}
@@ -1156,16 +1048,8 @@ export default function PlanoVooPage() {
             {/* TAB: Meteorologia */}
             <TabsContent value="meteorologia" className="space-y-4">
               <div className="flex justify-end mb-2">
-                <Button
-                  onClick={fetchWeatherData}
-                  disabled={isLoadingWeather || (!formData.origin && !formData.destination)}
-                  className="bg-primary hover:bg-primary/90"
-                >
-                  {isLoadingWeather ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                  )}
+                <Button onClick={fetchWeatherData} disabled={isLoadingWeather || !formData.origin && !formData.destination} className="bg-primary hover:bg-primary/90">
+                  {isLoadingWeather ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
                   Buscar METAR
                 </Button>
               </div>
@@ -1178,19 +1062,13 @@ export default function PlanoVooPage() {
 
             {/* TAB: Salvos */}
             <TabsContent value="salvos" className="space-y-4">
-              {loadingPlans ? (
-                <Card className="bg-surface-dark border-border-dark p-12 text-center">
+              {loadingPlans ? <Card className="bg-surface-dark border-border-dark p-12 text-center">
                   <Loader2 className="w-12 h-12 text-primary mx-auto mb-4 animate-spin" />
                   <p className="text-muted-foreground">Carregando planos...</p>
-                </Card>
-              ) : flightPlans.length === 0 ? (
-                <Card className="bg-surface-dark border-border-dark p-12 text-center">
+                </Card> : flightPlans.length === 0 ? <Card className="bg-surface-dark border-border-dark p-12 text-center">
                   <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                   <p className="text-muted-foreground">Nenhum plano de voo salvo ainda</p>
-                </Card>
-              ) : (
-                flightPlans.map((plan) => (
-                  <Card key={plan.id} className="bg-surface-dark border-border-dark p-4">
+                </Card> : flightPlans.map(plan => <Card key={plan.id} className="bg-surface-dark border-border-dark p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
@@ -1201,24 +1079,13 @@ export default function PlanoVooPage() {
                           <Badge variant="outline" className="text-xs">
                             {new Date(plan.flight_date).toLocaleDateString('pt-BR')}
                           </Badge>
-                          <Badge
-                            variant="outline"
-                            className={`text-xs ${
-                              plan.status === 'filed' ? 'bg-blue-500/20 text-blue-400 border-blue-500/50' :
-                              plan.status === 'approved' ? 'bg-green-500/20 text-green-400 border-green-500/50' :
-                              plan.status === 'completed' ? 'bg-purple-500/20 text-purple-400 border-purple-500/50' :
-                              plan.status === 'cancelled' ? 'bg-red-500/20 text-red-400 border-red-500/50' :
-                              'bg-gray-500/20 text-gray-400 border-gray-500/50'
-                            }`}
-                          >
+                          <Badge variant="outline" className={`text-xs ${plan.status === 'filed' ? 'bg-blue-500/20 text-blue-400 border-blue-500/50' : plan.status === 'approved' ? 'bg-green-500/20 text-green-400 border-green-500/50' : plan.status === 'completed' ? 'bg-purple-500/20 text-purple-400 border-purple-500/50' : plan.status === 'cancelled' ? 'bg-red-500/20 text-red-400 border-red-500/50' : 'bg-gray-500/20 text-gray-400 border-gray-500/50'}`}>
                             {plan.status.toUpperCase()}
                           </Badge>
-                          {plan.validation && !plan.validation.valid && (
-                            <Badge className="bg-red-500/20 text-red-400 border-red-500/50">
+                          {plan.validation && !plan.validation.valid && <Badge className="bg-red-500/20 text-red-400 border-red-500/50">
                               <AlertTriangle className="w-3 h-3 mr-1" />
                               Atenção
-                            </Badge>
-                          )}
+                            </Badge>}
                         </div>
                         <div className="text-sm text-muted-foreground">
                           <span>Piloto: {plan.pilot_in_command}</span>
@@ -1226,70 +1093,53 @@ export default function PlanoVooPage() {
                           <span>Distância: {plan.calculations?.distance || '--'} NM</span>
                           <span className="mx-2">•</span>
                           <span>Tempo: {plan.estimated_time || '--'}</span>
-                          {plan.alternate_airport && (
-                            <>
+                          {plan.alternate_airport && <>
                               <span className="mx-2">•</span>
                               <span>Alt: {plan.alternate_airport}</span>
-                            </>
-                          )}
+                            </>}
                         </div>
-                        {plan.validation && plan.validation.warnings.length > 0 && (
-                          <div className="mt-2 text-xs text-yellow-400">
+                        {plan.validation && plan.validation.warnings.length > 0 && <div className="mt-2 text-xs text-yellow-400">
                             {plan.validation.warnings.length} alerta(s) - Verifique NOTAMs
-                          </div>
-                        )}
+                          </div>}
                         <div className="mt-2 text-xs text-slate-500">
                           Criado em: {new Date(plan.created_at).toLocaleString('pt-BR')}
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setFormData({
-                              origin: plan.departure_airport,
-                              destination: plan.arrival_airport,
-                              alternate: plan.alternate_airport || '',
-                              aircraftId: plan.aircraft_id || '',
-                              registration: '',
-                              flightRule: 'V',
-                              cruiseAlt: plan.cruise_altitude || '',
-                              cruiseSpeed: '',
-                              departure: '',
-                              passengers: 1,
-                              route: plan.route || ''
-                            });
-                            if (plan.calculations) {
-                              setCalculations(plan.calculations);
-                            }
-                            if (plan.validation) {
-                              setValidation(plan.validation);
-                            }
-                            setActiveTab('planejar');
-                            toast.success('Plano carregado para edição');
-                          }}
-                          className="text-primary hover:text-primary/80 hover:bg-primary/10"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => {
+                    setFormData({
+                      origin: plan.departure_airport,
+                      destination: plan.arrival_airport,
+                      alternate: plan.alternate_airport || '',
+                      aircraftId: plan.aircraft_id || '',
+                      registration: '',
+                      flightRule: 'V',
+                      cruiseAlt: plan.cruise_altitude || '',
+                      cruiseSpeed: '',
+                      departure: '',
+                      passengers: 1,
+                      route: plan.route || ''
+                    });
+                    if (plan.calculations) {
+                      setCalculations(plan.calculations);
+                    }
+                    if (plan.validation) {
+                      setValidation(plan.validation);
+                    }
+                    setActiveTab('planejar');
+                    toast.success('Plano carregado para edição');
+                  }} className="text-primary hover:text-primary/80 hover:bg-primary/10">
                           Editar
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeletePlan(plan.id)}
-                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => handleDeletePlan(plan.id)} className="text-red-400 hover:text-red-300 hover:bg-red-500/10">
                           Excluir
                         </Button>
                       </div>
                     </div>
-                  </Card>
-                ))
-              )}
+                  </Card>)}
             </TabsContent>
           </Tabs>
         </div>
       </div>
-    </Layout>
-  );
+    </Layout>;
 }

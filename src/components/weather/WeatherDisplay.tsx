@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw, Wind, Droplets, Gauge, Eye } from "lucide-react";
+import { RefreshCw, Wind, Droplets, Gauge, Eye, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWeather } from "@/hooks/useWeather";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -15,7 +15,7 @@ import thunderstormsIcon from "@/assets/meteocons/thunderstorms.svg";
 import fogIcon from "@/assets/meteocons/fog.svg";
 
 export function WeatherDisplay() {
-  const { weather, loading, error, refetch } = useWeather("SBGR");
+  const { weather, loading, error, refetch, locationName } = useWeather();
   const [isOpen, setIsOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -118,11 +118,18 @@ export function WeatherDisplay() {
               </span>
             </h4>
             <p className="text-[10px] text-muted-foreground">
+              {locationName && (
+                <span className="inline-flex items-center gap-0.5 mr-1">
+                  <MapPin className="h-2.5 w-2.5" />
+                  {locationName} •
+                </span>
+              )}
               Fonte: AISWEB • Atualizado às{" "}
               {new Date(weather.updatedTime).toLocaleTimeString("pt-BR", {
                 hour: "2-digit",
                 minute: "2-digit",
               })}
+              {" • Próx. atualização em 1h"}
             </p>
           </div>
           <Button

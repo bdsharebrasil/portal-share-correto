@@ -302,7 +302,7 @@ export function AeronauticalInfoTab({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Runway Info */}
-          {rotaer.runways.length > 0 && (
+          {rotaer?.runways?.length > 0 && (
             <div>
               <div className="flex items-center gap-1 mb-2 text-sm font-medium text-foreground">
                 <Plane className="w-4 h-4" />
@@ -321,7 +321,7 @@ export function AeronauticalInfoTab({
           )}
 
           {/* Frequencies */}
-          {rotaer.frequencies.length > 0 && (
+          {rotaer?.frequencies?.length > 0 && (
             <div>
               <div className="flex items-center gap-1 mb-2 text-sm font-medium text-foreground">
                 <Radio className="w-4 h-4" />
@@ -342,19 +342,19 @@ export function AeronauticalInfoTab({
               Serviços
             </div>
             <div className="flex flex-wrap gap-2">
-              {rotaer.services.fuel && (
+              {rotaer?.services?.fuel && (
                 <Badge variant="outline" className="text-success border-success/50">Combustível</Badge>
               )}
-              {rotaer.services.hangar && (
+              {rotaer?.services?.hangar && (
                 <Badge variant="outline" className="text-primary border-primary/50">Hangar</Badge>
               )}
-              {rotaer.services.maintenance && (
+              {rotaer?.services?.maintenance && (
                 <Badge variant="outline" className="text-primary border-primary/50">Manutenção</Badge>
               )}
-              {rotaer.services.customs && (
+              {rotaer?.services?.customs && (
                 <Badge variant="outline" className="text-primary border-primary/50">Alfândega</Badge>
               )}
-              {!rotaer.services.fuel && !rotaer.services.hangar && (
+              {!rotaer?.services?.fuel && !rotaer?.services?.hangar && (
                 <span className="text-sm text-muted-foreground">Informações limitadas</span>
               )}
             </div>
@@ -367,12 +367,12 @@ export function AeronauticalInfoTab({
               Horário de Funcionamento
             </div>
             <p className="text-sm text-muted-foreground">
-              {rotaer.operatingHours || 'Não informado'}
+              {rotaer?.operatingHours || 'Não informado'}
             </p>
           </div>
 
           {/* Navaids */}
-          {rotaer.navaids.length > 0 && (
+          {rotaer?.navaids?.length > 0 && (
             <div className="md:col-span-2">
               <div className="flex items-center gap-1 mb-2 text-sm font-medium text-foreground">
                 <Radio className="w-4 h-4" />
@@ -392,7 +392,7 @@ export function AeronauticalInfoTab({
         {/* Elevation */}
         <div className="mt-3 pt-3 border-t border-border flex items-center gap-4 text-sm">
           <span className="text-muted-foreground">Elevação:</span>
-          <span className="text-foreground font-mono">{rotaer.elevation} ft</span>
+          <span className="text-foreground font-mono">{rotaer?.elevation || 'N/A'} ft</span>
           {'city' in rotaer && rotaer.city && (
             <>
               <span className="text-muted-foreground">Cidade:</span>
