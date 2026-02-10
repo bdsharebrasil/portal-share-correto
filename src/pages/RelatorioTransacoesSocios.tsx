@@ -3,7 +3,7 @@ import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, Download, ArrowLeft, Calendar } from "lucide-react";
+import { DollarSign, Download, ArrowLeft, Calendar, FileText } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useClientesComSocios } from "@/hooks/useSocioBalanco";
 import { useSocioTransactions } from "@/hooks/useFinanceiroSocios";
@@ -14,16 +14,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 interface GroupedTransactions {
   [monthYear: string]: Array<{
     id: string;
     date: string;
     partner_name: string;
-    partner_cpf: string;
     amount: number;
     balance_after: number;
     description?: string;
+    bank_name?: string;
+    prazo?: string;
     transaction_type: "deposit" | "withdrawal" | "transfer";
   }>;
 }
@@ -58,10 +61,11 @@ export default function RelatorioTransacoesSocios() {
         id: tx.id,
         date: new Date(tx.created_at).toLocaleDateString("pt-BR"),
         partner_name: tx.partner_name || "N/A",
-        partner_cpf: tx.partner_cpf || "N/A",
         amount: parseFloat(tx.amount) || 0,
         balance_after: parseFloat(tx.balance_after) || 0,
-        description: tx.description,
+        description: tx.description || "N/A",
+        bank_name: tx.bank_name || "N/A",
+        prazo: tx.prazo || "N/A",
         transaction_type: tx.transaction_type,
       });
     });
@@ -92,11 +96,13 @@ export default function RelatorioTransacoesSocios() {
   const downloadCSV = () => {
     if (!selectedTransactions.length) return;
 
-    const headers = ["Data", "Sócio", "CPF", "Tipo", "Valor", "Saldo"];
+    const headers = ["Data", "Sócio", "Descrição", "Banco", "Prazo", "Tipo", "Valor", "Saldo"];
     const rows = selectedTransactions.map((tx) => [
       tx.date,
       tx.partner_name,
-      tx.partner_cpf,
+      tx.description,
+      tx.bank_name,
+      tx.prazo,
       tx.transaction_type === "deposit" ? "Depósito" : "Retirada",
       `R$ ${tx.amount.toFixed(2)}`,
       `R$ ${tx.balance_after.toFixed(2)}`,
@@ -104,7 +110,7 @@ export default function RelatorioTransacoesSocios() {
 
     const csv = [
       headers.join(","),
-      ...rows.map((row) => row.join(",")),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
     ].join("\n");
 
     const element = document.createElement("a");
@@ -114,6 +120,90 @@ export default function RelatorioTransacoesSocios() {
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
+  };
+
+  const downloadPDF = () => {
+    if (!selectedTransactions.length) return;
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 10;
+
+    // Title
+    doc.setFontSize(16);
+    doc.text("Relatório de Transações - Sócios", margin, margin);
+
+    // Client info
+    doc.setFontSize(10);
+    doc.text(
+      `Cliente: ${selectedClientData?.company_name || selectedClientData?.proprietario}`,
+      margin,
+      margin + 10
+    );
+    doc.text(`CNPJ: ${selectedClientData?.cnpj}`, margin, margin + 15);
+    doc.text(`Período: ${selectedMonth}`, margin, margin + 20);
+
+    // Table
+    const tableColumn = ["Data", "Sócio", "Descrição", "Banco", "Prazo", "Tipo", "Valor", "Saldo"];
+    const tableRows = selectedTransactions.map((tx) => [
+      tx.date,
+      tx.partner_name,
+      tx.description,
+      tx.bank_name,
+      tx.prazo,
+      tx.transaction_type === "deposit" ? "Depósito" : "Retirada",
+      `R$ ${tx.amount.toFixed(2)}`,
+      `R$ ${tx.balance_after.toFixed(2)}`,
+    ]);
+
+    (doc as any).autoTable({
+      head: [tableColumn],
+      body: tableRows,
+      startY: margin + 28,
+      margin: margin,
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+      },
+      headStyles: {
+        fillColor: [59, 130, 246],
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+      },
+      alternateRowStyles: {
+        fillColor: [240, 240, 240],
+      },
+    });
+
+    // Summary
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFontSize(10);
+    doc.text(
+      `Total de Depósitos: R$ ${selectedTransactions
+        .filter((t) => t.transaction_type === "deposit")
+        .reduce((sum, t) => sum + t.amount, 0)
+        .toFixed(2)}`,
+      margin,
+      finalY
+    );
+    doc.text(
+      `Total de Retiradas: R$ ${selectedTransactions
+        .filter((t) => t.transaction_type !== "deposit")
+        .reduce((sum, t) => sum + t.amount, 0)
+        .toFixed(2)}`,
+      margin,
+      finalY + 6
+    );
+    doc.setFontSize(12);
+    doc.setFont(undefined, "bold");
+    doc.text(
+      `Saldo Final: R$ ${selectedTransactions[selectedTransactions.length - 1]?.balance_after.toFixed(2) || "0.00"}`,
+      margin,
+      finalY + 14
+    );
+
+    doc.save(`relatorio_${selectedMonth}.pdf`);
   };
 
   if (loadingClientes) {
@@ -193,15 +283,26 @@ export default function RelatorioTransacoesSocios() {
             </Select>
           </div>
 
-          <Button
-            onClick={downloadCSV}
-            disabled={!selectedTransactions.length}
-            variant="outline"
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Exportar CSV
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              onClick={downloadPDF}
+              disabled={!selectedTransactions.length}
+              variant="outline"
+              className="gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              Exportar PDF
+            </Button>
+            <Button
+              onClick={downloadCSV}
+              disabled={!selectedTransactions.length}
+              variant="outline"
+              className="gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Exportar CSV
+            </Button>
+          </div>
         </div>
 
         {/* Transactions Table */}
@@ -236,7 +337,13 @@ export default function RelatorioTransacoesSocios() {
                         Sócio
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">
-                        CPF
+                        Descrição
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">
+                        Banco
+                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">
+                        Prazo
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">
                         Tipo
@@ -261,8 +368,14 @@ export default function RelatorioTransacoesSocios() {
                         <td className="px-4 py-3 text-sm text-foreground font-medium">
                           {tx.partner_name}
                         </td>
-                        <td className="px-4 py-3 text-sm font-mono text-muted-foreground">
-                          {tx.partner_cpf}
+                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                          {tx.description}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                          {tx.bank_name}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                          {tx.prazo}
                         </td>
                         <td className="px-4 py-3 text-sm">
                           <Badge
