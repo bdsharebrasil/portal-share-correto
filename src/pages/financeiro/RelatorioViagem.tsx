@@ -26,6 +26,7 @@ import { draftStorage } from '@/lib/travelReportDraft';
 import type { TravelReportDraft } from '@/lib/travelReportDraft';
 import { AutocompleteInput } from '@/components/ui/autocomplete-input';
 import { calculateReportTotals, enrichReportWithCorrectTotals, extractPayerTotals, getValidExpenses } from '@/lib/travelReportUtils';
+import { PartnerSelectModal } from '@/components/diario/PartnerSelectModal';
 
 const EXPENSE_CATEGORIES = ['Combustível', 'Hospedagem', 'Alimentação', 'Transporte', 'Outros'];
 const REPORT_STATUSES = ['Rascunho', 'Finalizado', 'Enviado'];
@@ -44,6 +45,7 @@ interface TravelReport {
   report_number: string;
   client_id: string;
   client: string;
+  partner_name: string;
   aircraft_id: string;
   aircraft_registration: string;
   crew_member_id: string;
@@ -86,6 +88,23 @@ export default function RelatorioViagem() {
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
   const [hasSavedDraft, setHasSavedDraft] = useState(false);
+  const [showPartnerModal, setShowPartnerModal] = useState(false);
+  const [clientPartners, setClientPartners] = useState<{name: string; cpf?: string; index: number}[]>([]);
+
+  const fetchClientPartners = async (clientId: string) => {
+    const { data, error } = await supabase
+      .from('client_partners')
+      .select('name, cpf')
+      .eq('client_id', clientId)
+      .order('name');
+    if (error || !data || data.length === 0) {
+      setClientPartners([]);
+      return [];
+    }
+    const partners = data.map((p, i) => ({ name: p.name, cpf: p.cpf || undefined, index: i }));
+    setClientPartners(partners);
+    return partners;
+  };
 
   useEffect(() => {
     loadReports();
@@ -229,6 +248,7 @@ export default function RelatorioViagem() {
       report_number: `REL-XXX-0001/${new Date().getFullYear().toString().slice(-2)}`,
       client_id: '',
       client: '',
+      partner_name: '',
       aircraft_id: '',
       aircraft_registration: '',
       crew_member_id: '',
@@ -527,7 +547,8 @@ export default function RelatorioViagem() {
       const reportDataToSave = {
         report_number: reportNumber,
         client_id: currentReport.client_id || null,
-        client: currentReport.client,
+        client: currentReport.partner_name || currentReport.client,
+        partner_name: currentReport.partner_name || null,
         aircraft_id: currentReport.aircraft_id || null,
         aircraft_registration: currentReport.aircraft_registration,
         crew_member_id: currentReport.crew_member_id || null,
@@ -1016,10 +1037,10 @@ export default function RelatorioViagem() {
                         }))}
                         placeholder="Digite o nome do cliente ou selecione"
                         isLoading={isLoadingClientes}
-                        onSelect={(option) => {
+                        onSelect={async (option) => {
                           const selectedClient = clientes.find(c => c.id === option.id);
                           if (selectedClient) {
-                            const updated = { ...currentReport, client_id: option.id, client: selectedClient.company_name };
+                            const updated = { ...currentReport, client_id: option.id, client: selectedClient.company_name, partner_name: '' };
                             setCurrentReport(updated);
                             if (!isEditing) {
                               draftStorage.saveDraft(updated as TravelReportDraft);
@@ -1029,6 +1050,11 @@ export default function RelatorioViagem() {
                                 setCurrentReport(prev => prev ? { ...prev, report_number: newNumber } : null);
                               }
                             });
+                            // Check for partners
+                            const partners = await fetchClientPartners(option.id);
+                            if (partners.length > 0) {
+                              setShowPartnerModal(true);
+                            }
                           }
                         }}
                       />
@@ -1041,6 +1067,18 @@ export default function RelatorioViagem() {
                       {currentReport?.client_id && (
                         <p className="text-xs text-green-600 flex items-center gap-1">
                           ✓ Cliente selecionado
+                        </p>
+                      )}
+                      {currentReport?.partner_name && (
+                        <p className="text-xs text-amber-500 flex items-center gap-1">
+                          👤 Sócio: <span className="font-semibold">{currentReport.partner_name}</span>
+                          <button 
+                            type="button"
+                            className="ml-1 underline text-amber-400 hover:text-amber-300"
+                            onClick={() => setShowPartnerModal(true)}
+                          >
+                            alterar
+                          </button>
                         </p>
                       )}
                     </div>
@@ -1483,6 +1521,19 @@ export default function RelatorioViagem() {
           </>
         )}
       </div>
+      <PartnerSelectModal
+        open={showPartnerModal}
+        onOpenChange={setShowPartnerModal}
+        clientName={currentReport?.client || ''}
+        partners={clientPartners}
+        selectedPartner={currentReport?.partner_name || null}
+        onSelectPartner={(partnerName) => {
+          setCurrentReport(prev => prev ? { ...prev, partner_name: partnerName } : null);
+          if (currentReport && !isEditing) {
+            draftStorage.saveDraft({ ...currentReport, partner_name: partnerName } as TravelReportDraft);
+          }
+        }}
+      />
     </Layout>
   );
 }
