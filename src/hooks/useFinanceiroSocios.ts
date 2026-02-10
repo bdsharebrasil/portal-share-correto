@@ -352,13 +352,12 @@ export function useAddBankInterest() {
       bankName: string;
       paymentDate: string;
     }) => {
-      // For shared account interest, we just create a transaction without a specific partner
-      // This is a simple transaction entry for bank interest
+      // For shared account interest, use a special identifier (00000000000) to represent shared account
       const { error } = await supabase
         .from("partner_transactions")
         .insert({
           client_id: data.clientId,
-          partner_cpf: null,  // Shared account - no specific partner
+          partner_cpf: "00000000000",  // Special identifier for shared account
           partner_name: "Conta Compartilhada",
           transaction_type: "deposit",
           amount: data.amount,
