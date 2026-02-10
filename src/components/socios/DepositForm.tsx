@@ -27,16 +27,10 @@ import { format } from "date-fns";
 // ─── Lookup: Bancos ───────────────────────────────────────────────────────────
 const BANK_OPTIONS = [
   { id: "bradesco", label: "Bradesco" },
-  { id: "itau", label: "Itaú" },
-  { id: "santander", label: "Santander" },
-  { id: "bb", label: "Banco do Brasil" },
-  { id: "caixa", label: "Caixa Econômica" },
-  { id: "nubank", label: "Nubank" },
-  { id: "inter", label: "Inter" },
-  { id: "btg", label: "BTG Pactual" },
-  { id: "xp", label: "XP Investimentos" },
-  { id: "sicoob", label: "Sicoob" },
   { id: "sicredi", label: "Sicredi" },
+  { id: "caixa", label: "Caixa Econômica" },
+  { id: "inter", label: "Inter" },
+  { id: "sicoob", label: "Sicoob" },
   { id: "outros", label: "Outros" },
 ];
 
@@ -282,7 +276,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                   id="int-notes"
                   value={interest.notes}
                   onChange={(e) => setInterest((p) => ({ ...p, notes: e.target.value }))}
-                  placeholder="Ex: Rendimento FacilCred Janeiro"
+                  placeholder="Ex: Rendimento"
                   disabled={addDeposit.isPending}
                   className="mt-2"
                 />
