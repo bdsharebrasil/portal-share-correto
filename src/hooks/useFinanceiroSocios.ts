@@ -148,32 +148,54 @@ export function useAddDeposit() {
   return useMutation({
     mutationFn: async (data: {
       clientId: string; // Obrigatório passar o ID do cliente
-      partnerCpf: string;
+      partnerCpf: string | null;
       partnerName: string;
       amount: number;
       description: string;
       receiptUrl?: string;
       paymentDate: string;
+      bankName?: string | null;
+      transactionSubtype?: string;
+      prazo?: string;
     }) => {
-      // Get current balance
-      const { data: account, error: accErr } = await supabase
-        .from("partner_accounts")
-        .select("current_balance, total_deposited")
-        .eq("client_id", data.clientId)
-        .eq("partner_cpf", data.partnerCpf)
-        .single();
-      
-      if (accErr) throw accErr;
+      let balanceBefore = 0;
+      let balanceAfter = 0;
 
-      const balanceBefore = Number(account.current_balance);
-      const balanceAfter = balanceBefore + data.amount;
+      // Get current balance only if there's a partner
+      if (data.partnerCpf) {
+        const { data: account, error: accErr } = await supabase
+          .from("partner_accounts")
+          .select("current_balance, total_deposited")
+          .eq("client_id", data.clientId)
+          .eq("partner_cpf", data.partnerCpf)
+          .single();
+
+        if (accErr) throw accErr;
+
+        balanceBefore = Number(account.current_balance);
+        balanceAfter = balanceBefore + data.amount;
+
+        // Update account balance only if there's a partner
+        const { error: updErr } = await supabase
+          .from("partner_accounts")
+          .update({
+            current_balance: balanceAfter,
+            total_deposited: Number(account.total_deposited) + data.amount,
+          })
+          .eq("client_id", data.clientId)
+          .eq("partner_cpf", data.partnerCpf);
+        if (updErr) throw updErr;
+      } else {
+        // For entries without a specific partner, don't update balance
+        balanceAfter = data.amount;
+      }
 
       // Create transaction
       const { error: txErr } = await supabase
         .from("partner_transactions")
         .insert({
           client_id: data.clientId,
-          partner_cpf: data.partnerCpf,
+          partner_cpf: data.partnerCpf || "00000000000", // Use special identifier for general account
           partner_name: data.partnerName,
           transaction_type: "deposit",
           amount: data.amount,
@@ -182,19 +204,10 @@ export function useAddDeposit() {
           description: data.description,
           receipt_url: data.receiptUrl || null,
           payment_date: data.paymentDate,
+          bank_name: data.bankName || null,
+          transaction_subtype: data.transactionSubtype || "deposit",
         });
       if (txErr) throw txErr;
-
-      // Update account balance
-      const { error: updErr } = await supabase
-        .from("partner_accounts")
-        .update({
-          current_balance: balanceAfter,
-          total_deposited: Number(account.total_deposited) + data.amount,
-        })
-        .eq("client_id", data.clientId)
-        .eq("partner_cpf", data.partnerCpf);
-      if (updErr) throw updErr;
 
       return data.clientId; // Retorna para usar no onSuccess
     },
@@ -365,6 +378,8 @@ export function useAddBankInterest() {
           balance_after: 0,
           description: data.description,
           payment_date: data.paymentDate,
+          bank_name: data.bankName || null,
+          transaction_subtype: "interest",
         });
 
       if (error) throw error;
