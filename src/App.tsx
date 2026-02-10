@@ -77,6 +77,7 @@ import ManutencaoAeronave from "./pages/ManutencaoAeronave";
 import VencimentosTripulacao from "./pages/VencimentosTripulacao";
 import VencimentosDocumentos from "./pages/VencimentosDocumentos";
 import FinanceiroSocios from "./pages/FinanceiroSocios";
+import RelatorioTransacoesSocios from "./pages/RelatorioTransacoesSocios";
 const queryClient = new QueryClient();
 
 const App = () => {
@@ -196,6 +197,13 @@ const App = () => {
                       renderProtected(
                         <RoleProtected allowedRoles={["admin","gestor_master","financeiro_master"]}>
                           <FinanceiroSocios />
+                        </RoleProtected>
+                      )
+                    } />
+                    <Route path="/financeiro/relatorio-socios/:clienteId" element={
+                      renderProtected(
+                        <RoleProtected allowedRoles={["admin","gestor_master","financeiro_master"]}>
+                          <RelatorioTransacoesSocios />
                         </RoleProtected>
                       )
                     } />

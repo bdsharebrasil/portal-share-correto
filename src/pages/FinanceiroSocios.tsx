@@ -1,25 +1,22 @@
 import React, { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, Loader2, Users, Search, ArrowRight } from "lucide-react";
+import { DollarSign, Loader2, Users, Search, ArrowRight, BarChart3 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 // Componentes ajustados para o contexto de Socios
 import { PartnerCards } from "@/components/socios/PartnerCards";
-import { DepositForm } from "@/components/socios/DepositForm";
-import { ExpenseForm } from "@/components/socios/ExpenseForm";
-import { TransactionsTable } from "@/components/socios/TransactionsTable";
-import { ExpensesTable } from "@/components/socios/ExpensesTable";
 
 // Hooks ajustados
-import { useSocioAccounts, useSocioTransactions, useSocioExpenses } from "@/hooks/useFinanceiroSocios";
+import { useSocioAccounts } from "@/hooks/useFinanceiroSocios";
 import { useClientesComSocios } from "@/hooks/useSocioBalanco";
 import { useClientPartners } from "@/hooks/useClientPartners";
 
 export default function FinanceiroSocios() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [clienteSelecionado, setClienteSelecionado] = useState<string | null>(null);
 
@@ -29,8 +26,6 @@ export default function FinanceiroSocios() {
   // 2. Carregar dados financeiros APENAS se houver um cliente selecionado
   // Passamos o ID do cliente para os hooks filtrarem os dados
   const { data: accounts = [], isLoading: loadingAccounts } = useSocioAccounts(clienteSelecionado);
-  const { data: transactions = [], isLoading: loadingTx } = useSocioTransactions(clienteSelecionado);
-  const { data: expenses = [], isLoading: loadingExp } = useSocioExpenses(clienteSelecionado);
   const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteSelecionado);
 
   // Filtrar apenas clientes que têm partners configurados
@@ -48,7 +43,7 @@ export default function FinanceiroSocios() {
   // Encontrar o objeto do cliente selecionado para exibir no Header
   const selectedClientData = clientesComSocios.find(c => c.id === clienteSelecionado);
 
-  const isDashboardLoading = clienteSelecionado && (loadingAccounts || loadingTx || loadingExp);
+  const isDashboardLoading = clienteSelecionado && loadingAccounts;
 
   // --- TELA DE SELEÇÃO DE CLIENTE ---
   if (!clienteSelecionado) {
@@ -206,12 +201,12 @@ export default function FinanceiroSocios() {
             <div>
               <h1 className="text-2xl font-bold text-foreground">Painel Financeiro</h1>
               <p className="text-sm text-muted-foreground">
-                {selectedClientData?.company_name || selectedClientData?.proprietario || 'Cliente'} 
+                {selectedClientData?.company_name || selectedClientData?.proprietario || 'Cliente'}
                 {selectedClientData?.cnpj ? ` • ${selectedClientData.cnpj}` : ''}
               </p>
             </div>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row gap-2">
              <Button
               variant="outline"
@@ -220,9 +215,14 @@ export default function FinanceiroSocios() {
             >
               ← Voltar para Seleção
             </Button>
-            {/* Formulários recebem o clienteId e as contas carregadas */}
-            <DepositForm accounts={accounts} clienteId={clienteSelecionado} />
-            <ExpenseForm clienteId={clienteSelecionado} />
+            <Button
+              onClick={() => navigate(`/financeiro/relatorio-socios/${clienteSelecionado}`)}
+              className="gap-2"
+              size="sm"
+            >
+              <BarChart3 className="h-4 w-4" />
+              Relatório Mensal
+            </Button>
           </div>
         </div>
 
@@ -298,45 +298,6 @@ export default function FinanceiroSocios() {
           </Card>
         )}
 
-        {/* Tabs de Conteúdo */}
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList>
-            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-            <TabsTrigger value="deposits">Depósitos</TabsTrigger>
-            <TabsTrigger value="expenses">Despesas</TabsTrigger>
-            <TabsTrigger value="history">Histórico</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-4 mt-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <TransactionsTable 
-                transactions={transactions} 
-                title="Últimas 5 Transações" 
-                limit={5} 
-              />
-              <ExpensesTable 
-                expenses={expenses.filter((e) => e.status === "pending").slice(0, 5)} 
-                accounts={accounts}
-                clienteId={clienteSelecionado}
-              />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="deposits" className="mt-4">
-            <TransactionsTable
-              transactions={transactions.filter((t) => t.transaction_type === "deposit")}
-              title="Histórico de Depósitos"
-            />
-          </TabsContent>
-
-          <TabsContent value="expenses" className="mt-4">
-            <ExpensesTable expenses={expenses} accounts={accounts} clienteId={clienteSelecionado} />
-          </TabsContent>
-
-          <TabsContent value="history" className="mt-4">
-            <TransactionsTable transactions={transactions} title="Todas as Transações" />
-          </TabsContent>
-        </Tabs>
       </div>
     </Layout>
   );
