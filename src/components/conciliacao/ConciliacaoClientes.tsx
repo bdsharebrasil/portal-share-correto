@@ -133,22 +133,53 @@ export function ConciliacaoClientes() {
       const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
+      // 1. Carregar IDs de categorias "RECEITAS OPERACIONAIS"
+      const { data: categoriasProtegidas } = await supabase
+        .from('categorias_movimentacao')
+        .select('id, nome')
+        .eq('grupo_categoria', 'RECEITAS OPERACIONAIS');
+
+      const idsCategoriasProtegidas = new Set(categoriasProtegidas?.map(c => c.id) || []);
+      const nomesCategoriasProtegidas = new Set(categoriasProtegidas?.map(c => c.nome?.toLowerCase()) || []);
+
+      // 2. Carregar dados de conciliação
       const { data, error } = await supabase
         .from('bank_reconciliations')
         .select(`
           *,
           clients:client_id (company_name),
-          aircraft:aircraft_id (registration),
-          categorias_movimentacao(grupo_categoria)
+          aircraft:aircraft_id (registration)
         `)
         .eq('type', 'cliente' as any)
-        .not('categorias_movimentacao.grupo_categoria', 'eq', 'RECEITAS OPERACIONAIS')
         .gte('date', startDate.toISOString().split('T')[0])
         .lte('date', endDate.toISOString().split('T')[0])
         .order('date', { ascending: false });
 
       if (error) throw error;
-      setConciliacaoClientes((data || []) as any);
+
+      // 3. Filtrar em frontend registros com categoria protegida
+      const filteredData = (data || []).filter(item => {
+        // Verifica por ID
+        if (item.categoria_movimentacao_id && idsCategoriasProtegidas.has(item.categoria_movimentacao_id)) {
+          return false;
+        }
+
+        // Verifica por nome da categoria
+        const categoryName = item.category?.toLowerCase() || '';
+        if (nomesCategoriasProtegidas.has(categoryName)) {
+          return false;
+        }
+
+        // Verifica se está explícito na descrição
+        const description = item.description?.toLowerCase() || '';
+        if (description.includes('receita operacional')) {
+          return false;
+        }
+
+        return true;
+      });
+
+      setConciliacaoClientes(filteredData as any);
     } catch (error) {
       console.error('Erro ao buscar conciliações:', error);
       toast({
