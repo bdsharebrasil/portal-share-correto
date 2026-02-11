@@ -20,7 +20,7 @@ import {
 import { Receipt, Plus } from "lucide-react";
 import { useCreateExpense } from "@/hooks/useFinanceiroSocios";
 import { useClientPartners } from "@/hooks/useClientPartners";
-import { useClientAbastecimentos, useCreateAbastecimento } from "@/hooks/useAbastecimentos";
+import { useClientAbastecimentos } from "@/hooks/useAbastecimentos";
 import { formatCPF } from "@/lib/formatters";
 import { format } from "date-fns";
 
@@ -48,7 +48,9 @@ const EMPTY_FORM = {
   category: "" as ExpenseCategoryId | "",
   expenseType: "",
   assignedPartnerCpf: "none",
-  dueDate: format(new Date(), "yyyy-MM-dd"),
+  // FIX #3: renomeado internamente para "paymentDate" — representa a data em
+  // que a despesa foi EFETUADA/PAGA (não uma data de vencimento futura).
+  paymentDate: format(new Date(), "yyyy-MM-dd"),
   supplierName: "",
   invoiceNumber: "",
   paymentMethod: "nao_informado",
@@ -69,7 +71,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
   const addExpense = useCreateExpense();
   const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteId);
-  const { data: abastecimentos = [], isLoading: loadingAbastecimentos } = useClientAbastecimentos(clienteId);
+  const { data: abastecimentos = [] } = useClientAbastecimentos(clienteId);
 
   const set = (key: keyof typeof EMPTY_FORM) => (value: string | boolean) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -78,27 +80,32 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     e.preventDefault();
     if (!form.description || !form.totalAmount || !form.category) return;
 
-    const assignedPartnerCpf = form.assignedPartnerCpf === "none" ? null : form.assignedPartnerCpf;
-    const assignedPartner = assignedPartnerCpf ? partners.find((p) => p.cpf === assignedPartnerCpf) : null;
+    const assignedPartnerCpf =
+      form.assignedPartnerCpf === "none" ? null : form.assignedPartnerCpf;
+    const assignedPartner = assignedPartnerCpf
+      ? partners.find((p) => p.cpf === assignedPartnerCpf)
+      : null;
 
-    const mutationData = {
+    await addExpense.mutateAsync({
       clientId: clienteId,
       description: form.description,
       totalAmount: parseFloat(form.totalAmount),
       category: form.category,
       expenseType: form.expenseType || form.category,
-      assignedPartnerCpf: assignedPartnerCpf,
+      assignedPartnerCpf,
       assignedPartnerName: assignedPartner?.name || null,
-      dueDate: form.dueDate,
+      // FIX #3: envia como dueDate (campo do banco), mas o valor
+      // representa a data real de pagamento efetuado
+      dueDate: form.paymentDate,
       supplierName: form.supplierName || null,
       invoiceNumber: form.invoiceNumber || null,
       paymentMethod: form.paymentMethod || null,
       notes: form.notes || null,
-      referenceType: form.category === "abastecimento" ? "abastecimento" : null,
-      referenceId: form.category === "abastecimento" ? form.abastecimentoId || null : null,
-    };
-
-    await addExpense.mutateAsync(mutationData);
+      referenceType:
+        form.category === "abastecimento" ? "abastecimento" : null,
+      referenceId:
+        form.category === "abastecimento" ? form.abastecimentoId || null : null,
+    });
 
     setOpen(false);
     setForm(EMPTY_FORM);
@@ -153,11 +160,16 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           {/* ── Abastecimento (apenas se categoria for abastecimento) ────── */}
           {isAbastecimentoCategory && (
             <div className="space-y-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-              <Label className="font-semibold text-amber-900">Vincular com Abastecimento</Label>
+              <Label className="font-semibold text-amber-900">
+                Vincular com Abastecimento
+              </Label>
 
               {!form.criarNovoAbastecimento ? (
                 <>
-                  <Select value={form.abastecimentoId} onValueChange={(value) => set("abastecimentoId")(value)}>
+                  <Select
+                    value={form.abastecimentoId}
+                    onValueChange={(v) => set("abastecimentoId")(v)}
+                  >
                     <SelectTrigger className="mt-2">
                       <SelectValue placeholder="Selecione um abastecimento registrado" />
                     </SelectTrigger>
@@ -170,7 +182,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                         abastecimentos.map((abast) => (
                           <SelectItem key={abast.id} value={abast.id}>
                             <span className="text-sm">
-                              {format(new Date(abast.data), "dd/MM/yyyy")} - {abast.local} - R$ {Number(abast.valor_total).toFixed(2)}
+                              {format(new Date(abast.data), "dd/MM/yyyy")} -{" "}
+                              {abast.local} - R${" "}
+                              {Number(abast.valor_total).toFixed(2)}
                             </span>
                           </SelectItem>
                         ))
@@ -191,12 +205,14 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 </>
               ) : (
                 <>
-                  <div className="space-y-2 text-sm">
-                    <p className="font-medium text-amber-900">Preencha os dados do abastecimento:</p>
-                  </div>
+                  <p className="font-medium text-amber-900 text-sm">
+                    Preencha os dados do abastecimento:
+                  </p>
 
                   <div>
-                    <Label htmlFor="abast-data" className="text-sm">Data do Abastecimento</Label>
+                    <Label htmlFor="abast-data" className="text-sm">
+                      Data do Abastecimento
+                    </Label>
                     <Input
                       id="abast-data"
                       type="date"
@@ -207,7 +223,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   </div>
 
                   <div>
-                    <Label htmlFor="abast-local" className="text-sm">Local</Label>
+                    <Label htmlFor="abast-local" className="text-sm">
+                      Local
+                    </Label>
                     <Input
                       id="abast-local"
                       placeholder="Ex: Portimão, Portugal"
@@ -218,7 +236,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <Label htmlFor="abast-litros" className="text-sm">Litros</Label>
+                      <Label htmlFor="abast-litros" className="text-sm">
+                        Litros
+                      </Label>
                       <Input
                         id="abast-litros"
                         type="number"
@@ -229,7 +249,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="abast-valor-unitario" className="text-sm">Valor Unitário</Label>
+                      <Label htmlFor="abast-valor-unitario" className="text-sm">
+                        Valor Unitário
+                      </Label>
                       <Input
                         id="abast-valor-unitario"
                         type="number"
@@ -257,7 +279,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
           {/* ── Descrição ─────────────────────────────────────────────────── */}
           <div>
-            <Label htmlFor="exp-desc" className="font-semibold">Descrição *</Label>
+            <Label htmlFor="exp-desc" className="font-semibold">
+              Descrição *
+            </Label>
             <Input
               id="exp-desc"
               value={form.description}
@@ -273,10 +297,13 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             />
           </div>
 
-          {/* ── Valor + Vencimento ─────────────────────────────────────────── */}
+          {/* ── Valor + Data do Pagamento ─────────────────────────────────── */}
+          {/* FIX #3: label correto — "Data do Pagamento" sem "Vencimento" */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="exp-amount" className="font-semibold">Valor (R$) *</Label>
+              <Label htmlFor="exp-amount" className="font-semibold">
+                Valor (R$) *
+              </Label>
               <Input
                 id="exp-amount"
                 type="number"
@@ -291,12 +318,14 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
               />
             </div>
             <div>
-              <Label htmlFor="exp-due" className="font-semibold">Data *</Label>
+              <Label htmlFor="exp-payment-date" className="font-semibold">
+                Data do Pagamento *
+              </Label>
               <Input
-                id="exp-due"
+                id="exp-payment-date"
                 type="date"
-                value={form.dueDate}
-                onChange={(e) => set("dueDate")(e.target.value)}
+                value={form.paymentDate}
+                onChange={(e) => set("paymentDate")(e.target.value)}
                 required
                 disabled={addExpense.isPending}
                 className="mt-2"
@@ -308,7 +337,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           <div>
             <Label className="font-semibold">
               Sócio Responsável{" "}
-              <span className="text-muted-foreground font-normal">(opcional)</span>
+              <span className="text-muted-foreground font-normal">
+                (opcional)
+              </span>
             </Label>
             <Select
               value={form.assignedPartnerCpf}
@@ -373,7 +404,10 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           {/* ── Forma de Pagamento ────────────────────────────────────────── */}
           <div>
             <Label className="font-semibold">Forma de Pagamento</Label>
-            <Select value={form.paymentMethod} onValueChange={set("paymentMethod")}>
+            <Select
+              value={form.paymentMethod}
+              onValueChange={set("paymentMethod")}
+            >
               <SelectTrigger className="mt-2">
                 <SelectValue placeholder="Selecione (opcional)" />
               </SelectTrigger>
@@ -391,7 +425,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
           {/* ── Observações ───────────────────────────────────────────────── */}
           <div>
-            <Label htmlFor="exp-notes" className="font-semibold">Observações</Label>
+            <Label htmlFor="exp-notes" className="font-semibold">
+              Observações
+            </Label>
             <Textarea
               id="exp-notes"
               value={form.notes}
@@ -422,9 +458,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 Registrando Despesa...
               </>
             ) : (
-              <>
-                {selectedCategory?.icon} Registrar Despesa
-              </>
+              <>{selectedCategory?.icon} Registrar Despesa</>
             )}
           </Button>
         </form>
