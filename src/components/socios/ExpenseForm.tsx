@@ -291,7 +291,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
               />
             </div>
             <div>
-              <Label htmlFor="exp-due" className="font-semibold">Vencimento *</Label>
+              <Label htmlFor="exp-due" className="font-semibold">Data *</Label>
               <Input
                 id="exp-due"
                 type="date"

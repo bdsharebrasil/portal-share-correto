@@ -1318,6 +1318,63 @@ export type Database = {
           },
         ]
       }
+      anniversary_alerts: {
+        Row: {
+          birth_date: string
+          created_at: string
+          days_until_birthday: number
+          id: string
+          is_today: boolean
+          is_upcoming: boolean
+          person_id: string
+          person_name: string
+          person_type: string
+          updated_at: string
+        }
+        Insert: {
+          birth_date: string
+          created_at?: string
+          days_until_birthday: number
+          id?: string
+          is_today?: boolean
+          is_upcoming?: boolean
+          person_id: string
+          person_name: string
+          person_type: string
+          updated_at?: string
+        }
+        Update: {
+          birth_date?: string
+          created_at?: string
+          days_until_birthday?: number
+          id?: string
+          is_today?: boolean
+          is_upcoming?: boolean
+          person_id?: string
+          person_name?: string
+          person_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      bank_institutions: {
+        Row: {
+          id: string
+          label: string
+          sort_order: number
+        }
+        Insert: {
+          id: string
+          label: string
+          sort_order?: number
+        }
+        Update: {
+          id?: string
+          label?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       bank_reconciliations: {
         Row: {
           afeta_caixa_empresa: boolean | null
@@ -5121,6 +5178,27 @@ export type Database = {
           },
         ]
       }
+      expense_categories: {
+        Row: {
+          icon: string | null
+          id: string
+          label: string
+          sort_order: number
+        }
+        Insert: {
+          icon?: string | null
+          id: string
+          label: string
+          sort_order?: number
+        }
+        Update: {
+          icon?: string | null
+          id?: string
+          label?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       expense_config: {
         Row: {
           expense_type: string
@@ -5290,6 +5368,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      expiration_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          days_until_expiry: number
+          description: string | null
+          entity_name: string | null
+          expiry_date: string
+          id: string
+          reference_id: string
+          reference_table: string
+          severity: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          days_until_expiry: number
+          description?: string | null
+          entity_name?: string | null
+          expiry_date: string
+          id?: string
+          reference_id: string
+          reference_table: string
+          severity?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          days_until_expiry?: number
+          description?: string | null
+          entity_name?: string | null
+          expiry_date?: string
+          id?: string
+          reference_id?: string
+          reference_table?: string
+          severity?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       favorite_payers: {
         Row: {
@@ -8142,6 +8265,7 @@ export type Database = {
       }
       partner_accounts: {
         Row: {
+          bank_name: string | null
           client_id: string
           created_at: string | null
           current_balance: number | null
@@ -8149,10 +8273,12 @@ export type Database = {
           partner_cpf: string
           partner_name: string
           total_deposited: number | null
+          total_interest_earned: number | null
           total_spent: number | null
           updated_at: string | null
         }
         Insert: {
+          bank_name?: string | null
           client_id: string
           created_at?: string | null
           current_balance?: number | null
@@ -8160,10 +8286,12 @@ export type Database = {
           partner_cpf: string
           partner_name: string
           total_deposited?: number | null
+          total_interest_earned?: number | null
           total_spent?: number | null
           updated_at?: string | null
         }
         Update: {
+          bank_name?: string | null
           client_id?: string
           created_at?: string | null
           current_balance?: number | null
@@ -8171,6 +8299,7 @@ export type Database = {
           partner_cpf?: string
           partner_name?: string
           total_deposited?: number | null
+          total_interest_earned?: number | null
           total_spent?: number | null
           updated_at?: string | null
         }
@@ -8238,6 +8367,7 @@ export type Database = {
           aircraft_id: string | null
           assigned_partner_cpf: string | null
           assigned_partner_name: string | null
+          category: string | null
           client_id: string
           created_at: string | null
           created_by: string | null
@@ -8250,6 +8380,7 @@ export type Database = {
           notes: string | null
           paid_date: string | null
           payment_method: string | null
+          prazo: string | null
           status: string | null
           supplier_name: string | null
           total_amount: number
@@ -8259,6 +8390,7 @@ export type Database = {
           aircraft_id?: string | null
           assigned_partner_cpf?: string | null
           assigned_partner_name?: string | null
+          category?: string | null
           client_id: string
           created_at?: string | null
           created_by?: string | null
@@ -8271,6 +8403,7 @@ export type Database = {
           notes?: string | null
           paid_date?: string | null
           payment_method?: string | null
+          prazo?: string | null
           status?: string | null
           supplier_name?: string | null
           total_amount: number
@@ -8280,6 +8413,7 @@ export type Database = {
           aircraft_id?: string | null
           assigned_partner_cpf?: string | null
           assigned_partner_name?: string | null
+          category?: string | null
           client_id?: string
           created_at?: string | null
           created_by?: string | null
@@ -8292,6 +8426,7 @@ export type Database = {
           notes?: string | null
           paid_date?: string | null
           payment_method?: string | null
+          prazo?: string | null
           status?: string | null
           supplier_name?: string | null
           total_amount?: number
@@ -8403,6 +8538,7 @@ export type Database = {
           amount: number
           balance_after: number
           balance_before: number
+          bank_name: string | null
           client_id: string
           created_at: string | null
           created_by: string | null
@@ -8412,9 +8548,11 @@ export type Database = {
           partner_cpf: string
           partner_name: string
           payment_date: string | null
+          prazo: string | null
           receipt_url: string | null
           reference_id: string | null
           reference_type: string | null
+          transaction_subtype: string | null
           transaction_type: string
           updated_at: string | null
         }
@@ -8422,6 +8560,7 @@ export type Database = {
           amount: number
           balance_after: number
           balance_before: number
+          bank_name?: string | null
           client_id: string
           created_at?: string | null
           created_by?: string | null
@@ -8431,9 +8570,11 @@ export type Database = {
           partner_cpf: string
           partner_name: string
           payment_date?: string | null
+          prazo?: string | null
           receipt_url?: string | null
           reference_id?: string | null
           reference_type?: string | null
+          transaction_subtype?: string | null
           transaction_type: string
           updated_at?: string | null
         }
@@ -8441,6 +8582,7 @@ export type Database = {
           amount?: number
           balance_after?: number
           balance_before?: number
+          bank_name?: string | null
           client_id?: string
           created_at?: string | null
           created_by?: string | null
@@ -8450,9 +8592,11 @@ export type Database = {
           partner_cpf?: string
           partner_name?: string
           payment_date?: string | null
+          prazo?: string | null
           receipt_url?: string | null
           reference_id?: string | null
           reference_type?: string | null
+          transaction_subtype?: string | null
           transaction_type?: string
           updated_at?: string | null
         }
@@ -10539,6 +10683,82 @@ export type Database = {
           },
         ]
       }
+      user_alert_preferences: {
+        Row: {
+          action: string
+          alert_id: string
+          created_at: string
+          id: string
+          snoozed_until: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action?: string
+          alert_id: string
+          created_at?: string
+          id?: string
+          snoozed_until?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          alert_id?: string
+          created_at?: string
+          id?: string
+          snoozed_until?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_alert_preferences_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "expiration_alerts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_anniversary_preferences: {
+        Row: {
+          acknowledged_at: string | null
+          action: string
+          alert_id: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          action?: string
+          alert_id: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          action?: string
+          alert_id?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_anniversary_preferences_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "anniversary_alerts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_documents: {
         Row: {
           category: string | null
@@ -11245,6 +11465,75 @@ export type Database = {
           valor: number | null
         }
         Relationships: []
+      }
+      v_partner_balance_by_bank: {
+        Row: {
+          bank_name: string | null
+          client_id: string | null
+          current_balance: number | null
+          partner_cpf: string | null
+          partner_name: string | null
+          total_deposited: number | null
+          total_interest: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_accounts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_accounts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "partner_accounts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente_completo"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "partner_accounts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente_simples"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "partner_accounts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "partner_accounts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "partner_accounts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_reembolsos_pendentes"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "partner_accounts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_resumo_cliente_completo"
+            referencedColumns: ["cliente_id"]
+          },
+        ]
       }
       v_partners: {
         Row: {
@@ -11956,6 +12245,8 @@ export type Database = {
           valor_rateado: number
         }[]
       }
+      refresh_anniversary_alerts: { Args: never; Returns: undefined }
+      refresh_expiration_alerts: { Args: never; Returns: undefined }
       send_report_to_ctm: { Args: { report_id: string }; Returns: undefined }
       start_flight_execution: {
         Args: { p_booking_id: string; p_pic_id: string; p_sic_id?: string }
