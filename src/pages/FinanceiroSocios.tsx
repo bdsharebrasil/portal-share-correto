@@ -310,7 +310,11 @@ export default function FinanceiroSocios() {
 
         {/* Cards com as 2 Últimas Transações */}
         {!loadingTransactions && transactions.length > 0 && (
-          <TransactionsTable transactions={transactions} limit={2} />
+          <TransactionsTable
+            transactions={transactions}
+            clienteId={clienteSelecionado}
+            clienteName={selectedClientData?.company_name || selectedClientData?.proprietario || 'Cliente'}
+          />
         )}
 
       </div>

@@ -441,6 +441,112 @@ export function useAddBankInterest() {
   });
 }
 
+export function useDeleteTransaction() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: { id: string; clientId: string; transactionType: string; partnerCpf: string; amount: number }) => {
+      if (data.transactionType === "expense") {
+        // Delete from partner_expenses
+        const { error } = await supabase.from("partner_expenses").delete().eq("id", data.id);
+        if (error) throw error;
+      } else {
+        // Reverse balance changes
+        if (data.partnerCpf && data.partnerCpf !== "00000000000") {
+          const { data: account, error: accErr } = await supabase
+            .from("partner_accounts")
+            .select("current_balance, total_deposited, total_spent")
+            .eq("client_id", data.clientId)
+            .eq("partner_cpf", data.partnerCpf)
+            .single();
+          if (accErr) throw accErr;
+
+          const updates: any = {};
+          if (data.transactionType === "deposit") {
+            updates.current_balance = Number(account.current_balance) - data.amount;
+            updates.total_deposited = Number(account.total_deposited) - data.amount;
+          } else if (data.transactionType === "payment") {
+            updates.current_balance = Number(account.current_balance) + data.amount;
+            updates.total_spent = Number(account.total_spent) - data.amount;
+          }
+
+          const { error: updErr } = await supabase
+            .from("partner_accounts")
+            .update(updates)
+            .eq("client_id", data.clientId)
+            .eq("partner_cpf", data.partnerCpf);
+          if (updErr) throw updErr;
+        }
+
+        const { error } = await supabase.from("partner_transactions").delete().eq("id", data.id);
+        if (error) throw error;
+      }
+
+      return data.clientId;
+    },
+    onSuccess: (clientId) => {
+      queryClient.invalidateQueries({ queryKey: ["partner-accounts", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["partner-expenses", clientId] });
+      toast.success("Transação excluída com sucesso!");
+    },
+    onError: (err: any) => {
+      toast.error("Erro ao excluir: " + err.message);
+    },
+  });
+}
+
+export function useUpdateTransaction() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      id: string;
+      clientId: string;
+      transactionType: string;
+      description: string;
+      amount: number;
+      paymentDate: string;
+      notes?: string | null;
+    }) => {
+      if (data.transactionType === "expense") {
+        const { error } = await supabase
+          .from("partner_expenses")
+          .update({
+            description: data.description,
+            total_amount: data.amount,
+            due_date: data.paymentDate,
+            notes: data.notes || null,
+          })
+          .eq("id", data.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("partner_transactions")
+          .update({
+            description: data.description,
+            amount: data.amount,
+            payment_date: data.paymentDate,
+            notes: data.notes || null,
+          })
+          .eq("id", data.id);
+        if (error) throw error;
+      }
+
+      return data.clientId;
+    },
+    onSuccess: (clientId) => {
+      queryClient.invalidateQueries({ queryKey: ["partner-accounts", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["partner-expenses", clientId] });
+      toast.success("Transação atualizada com sucesso!");
+    },
+    onError: (err: any) => {
+      toast.error("Erro ao atualizar: " + err.message);
+    },
+  });
+}
+
 export const EXPENSE_TYPES = [
   { value: "combustivel", label: "Combustível" },
   { value: "manutencao", label: "Manutenção" },
