@@ -246,7 +246,6 @@ export default function RelatorioTransacoesSocios() {
       "Prazo",
       "Tipo",
       "Valor",
-      "Saldo",
     ];
     const rows = selectedTransactions.map((tx) => [
       tx.date,
@@ -256,7 +255,6 @@ export default function RelatorioTransacoesSocios() {
       tx.prazo,
       txLabel(tx.transaction_type),
       `R$ ${tx.amount.toFixed(2)}`,
-      `R$ ${tx.balance_after.toFixed(2)}`,
     ]);
 
     const csv = [
@@ -304,7 +302,6 @@ export default function RelatorioTransacoesSocios() {
       "Prazo",
       "Tipo",
       "Valor",
-      "Saldo",
     ];
     const tableRows = selectedTransactions.map((tx) => [
       tx.date,
@@ -314,7 +311,6 @@ export default function RelatorioTransacoesSocios() {
       tx.prazo,
       txLabel(tx.transaction_type),
       `R$ ${tx.amount.toFixed(2)}`,
-      `R$ ${tx.balance_after.toFixed(2)}`,
     ]);
 
     (doc as any).autoTable({
@@ -519,9 +515,6 @@ export default function RelatorioTransacoesSocios() {
                       <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">
                         Valor
                       </th>
-                      <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">
-                        Saldo
-                      </th>
                       <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">
                         Ações
                       </th>
@@ -565,9 +558,6 @@ export default function RelatorioTransacoesSocios() {
                         >
                           {txSign(tx.transaction_type)} R${" "}
                           {tx.amount.toFixed(2)}
-                        </td>
-                        <td className="px-4 py-3 text-sm font-semibold text-right text-foreground">
-                          R$ {tx.balance_after.toFixed(2)}
                         </td>
                         <td className="px-4 py-3 text-center">
                           <div className="flex items-center justify-center gap-2">
