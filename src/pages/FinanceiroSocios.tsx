@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,20 +32,29 @@ export default function FinanceiroSocios() {
   const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteSelecionado);
   const { data: transactions = [], isLoading: loadingTransactions } = useSocioTransactions(clienteSelecionado);
 
-  // Filtrar apenas clientes que têm partners configurados
-  const clientesComPartners = clientesComSocios.filter(cliente =>
-    cliente.socios && cliente.socios.length > 0
+  // Memoizar clientes com partners para evitar recalcular a cada render
+  const clientesComPartners = useMemo(
+    () => clientesComSocios.filter(cliente =>
+      cliente.socios && cliente.socios.length > 0
+    ),
+    [clientesComSocios]
   );
 
   // Filtrar lista de seleção por termo de busca
-  const clientesFiltrados = clientesComPartners.filter(cliente =>
-    cliente.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cliente.proprietario?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cliente.cnpj?.includes(searchTerm)
+  const clientesFiltrados = useMemo(
+    () => clientesComPartners.filter(cliente =>
+      cliente.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cliente.proprietario?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cliente.cnpj?.includes(searchTerm)
+    ),
+    [clientesComPartners, searchTerm]
   );
 
   // Encontrar o objeto do cliente selecionado para exibir no Header
-  const selectedClientData = clientesComSocios.find(c => c.id === clienteSelecionado);
+  const selectedClientData = useMemo(
+    () => clientesComSocios.find(c => c.id === clienteSelecionado),
+    [clientesComSocios, clienteSelecionado]
+  );
 
   const isDashboardLoading = clienteSelecionado && loadingAccounts;
 
@@ -237,7 +246,11 @@ export default function FinanceiroSocios() {
         </div>
 
         {/* Cards de Resumo dos Sócios */}
-        <PartnerCards accounts={accounts} />
+        <PartnerCards 
+          accounts={accounts} 
+          transactions={transactions}
+          clienteId={clienteSelecionado} 
+        />
 
         {/* Seção de Parceiros (Sócios) Cadastrados */}
         {!loadingPartners && partners.length > 0 && (

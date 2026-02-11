@@ -27,14 +27,12 @@ export function WeatherDisplay() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
 
-  // Auto-detect nearest airport on component mount or when coords change
   useEffect(() => {
     if (coords && !weather) {
       findNearest(coords.latitude, coords.longitude);
     }
   }, [coords, weather, findNearest]);
 
-  // Change to nearest airport when found
   useEffect(() => {
     if (nearest && !weather) {
       changeAirport(nearest.airport.icao);
@@ -76,9 +74,9 @@ export function WeatherDisplay() {
     setSearchResults([]);
   };
 
-  const renderIcon = (rawMetar: string) => {
+  const renderIcon = (rawMetar: string, size: string = "h-6 w-6") => {
     const type = getWeatherIconType(rawMetar, isDayTime());
-    const props = { className: "h-6 w-6" };
+    const props = { className: size };
 
     switch (true) {
       case type.includes("thunder"):       return <img src={thunderstormsIcon} {...props} />;
@@ -92,6 +90,35 @@ export function WeatherDisplay() {
     }
   };
 
+  // Função para determinar o gradiente de fundo baseado na temperatura e condição
+  const getWeatherGradient = (temp: number, rawMetar: string): string => {
+    const type = getWeatherIconType(rawMetar, isDayTime());
+    
+    // Noturno
+    if (type.includes("clear-n") || type.includes("partly-cloudy-n")) {
+      return "from-indigo-500 via-purple-500 to-indigo-700";
+    }
+    
+    // Chuvoso
+    if (type.includes("rain") || type.includes("thunder")) {
+      return "from-cyan-400 via-blue-500 to-cyan-600";
+    }
+    
+    // Nublado
+    if (type.includes("cloudy") || type.includes("fog")) {
+      return "from-slate-400 via-gray-500 to-slate-600";
+    }
+    
+    // Ensolarado - varia com temperatura
+    if (temp >= 30) {
+      return "from-orange-400 via-red-400 to-orange-500";
+    } else if (temp >= 20) {
+      return "from-amber-300 via-orange-400 to-amber-500";
+    } else {
+      return "from-sky-300 via-blue-400 to-sky-500";
+    }
+  };
+
   const getCategoryColor = (cat: string) => {
     switch (cat) {
       case "VFR":  return "text-green-500 bg-green-500/10 border-green-500/20";
@@ -102,11 +129,9 @@ export function WeatherDisplay() {
     }
   };
 
-  // Converte altímetro (inHg) para hPa — arredonda para inteiro
   const toHpa = (altim?: number): string =>
     altim ? Math.round(altim * 33.8639).toString() : "---";
 
-  // Formata visibilidade: >= 9999 → "10km+", caso contrário em metros ou km
   const formatVisib = (visib?: number): string => {
     if (visib === undefined || visib === null) return "---";
     if (visib >= 9999) return "10km+";
@@ -114,39 +139,75 @@ export function WeatherDisplay() {
     return `${visib}m`;
   };
 
-  // Formata direção do vento — aceita número ou string "VRB"
   const formatWdir = (wdir: number | string | undefined): string => {
     if (wdir === undefined || wdir === null) return "---";
-    if (typeof wdir === "string") return wdir; // ex: "VRB"
+    if (typeof wdir === "string") return wdir;
     return String(wdir).padStart(3, "0") + "°";
   };
 
   if (loading && !weather)
-    return <div className="text-xs p-2 animate-pulse">Buscando METAR...</div>;
+    return <div className="text-xs p-2 animate-pulse">Buscando...</div>;
   if (error || !weather)
     return <div className="text-xs p-2 text-red-400">Offline</div>;
+
+  const gradient = getWeatherGradient(weather.temp, weather.rawOb);
+  const weatherType = getWeatherIconType(weather.rawOb, isDayTime());
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <button className="flex items-center space-x-2 text-sm hover:opacity-80 transition-all group">
-          <div className="flex flex-col items-end leading-none">
-            <span className="text-xs font-bold text-muted-foreground">
-              {weather.icao}
-            </span>
-            <span className="text-[10px] text-muted-foreground/60">
-              {new Date(weather.reportTime).toLocaleTimeString("pt-BR", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </span>
-          </div>
+        <button className="group relative overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105">
+          {/* Card compacto com gradiente - tamanho ajustado para header */}
+          <div className={`relative bg-gradient-to-br ${gradient} px-3 py-2 h-12 min-w-[120px]`}>
+            {/* Overlay com padrão decorativo */}
+            <div className="absolute inset-0 opacity-20">
+              {weatherType.includes("rain") && (
+                <div className="absolute top-1 left-2 text-white/40">
+                  <Droplets className="h-4 w-4" />
+                </div>
+              )}
+              {weatherType.includes("clear-d") && (
+                <div className="absolute top-1 right-2 text-white/30">
+                  <div className="w-5 h-5 rounded-full bg-white/40" />
+                </div>
+              )}
+              {weatherType.includes("clear-n") && (
+                <div className="absolute top-1 right-2 text-white/40">
+                  <div className="w-4 h-4 rounded-full bg-white/50" />
+                  <div className="absolute top-1 left-0.5 w-3 h-3 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600" />
+                </div>
+              )}
+            </div>
 
-          <div
-            className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg border transition-colors ${getCategoryColor(weather.flightCategory)}`}
-          >
-            {renderIcon(weather.rawOb)}
-            <span className="font-bold text-lg">{weather.temp}°</span>
+            {/* Conteúdo */}
+            <div className="relative z-10 h-full flex items-center justify-between gap-3 text-white">
+              {/* Info esquerda */}
+              <div className="flex flex-col justify-center leading-none">
+                <div className="text-[10px] font-semibold tracking-tight opacity-90">
+                  {weather.icao}
+                </div>
+                <div className="text-[8px] opacity-70 font-medium">
+                  BRASIL
+                </div>
+              </div>
+
+              {/* Temperatura e ícone */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-2xl font-black tracking-tighter leading-none">
+                  {weather.temp}°
+                </span>
+                <div className="opacity-80">
+                  {renderIcon(weather.rawOb, "h-5 w-5")}
+                </div>
+              </div>
+            </div>
+
+            {/* Badge de categoria (menor) */}
+            <div className="absolute top-1 right-1">
+              <div className={`text-[7px] px-1 py-0.5 rounded-full font-bold backdrop-blur-sm ${getCategoryColor(weather.flightCategory)} bg-white/20`}>
+                {weather.flightCategory}
+              </div>
+            </div>
           </div>
         </button>
       </PopoverTrigger>
@@ -266,7 +327,7 @@ export function WeatherDisplay() {
                 <p className="text-[10px] uppercase text-muted-foreground font-semibold">
                   Visibilidade
                 </p>
-                <p className="text-sm font-bold">{formatVisib(weather.visib)}</p>
+                <p className="text-sm font-bold">{formatVisib(typeof weather.visib === 'string' ? parseInt(weather.visib, 10) : weather.visib)}</p>
               </div>
             </div>
 

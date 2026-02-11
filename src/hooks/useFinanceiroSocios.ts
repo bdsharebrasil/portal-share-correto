@@ -53,6 +53,8 @@ export interface PartnerExpense {
   notes: string | null;
   created_by: string | null;
   created_at: string;
+  bank_name?: string | null;
+  prazo?: string | null;
 }
 
 // --- HOOKS DE LEITURA (QUERIES) ---
@@ -368,6 +370,8 @@ export function useCreateExpense() {
       notes?: string | null;
       referenceType?: string | null;
       referenceId?: string | null;
+      bankName?: string | null;
+      prazo?: string | null;
     }) => {
       const { error } = await supabase.from("partner_expenses").insert({
         client_id: data.clientId,
@@ -385,6 +389,7 @@ export function useCreateExpense() {
         status: "pending",
         reference_type: data.referenceType || null,
         reference_id: data.referenceId || null,
+        prazo: data.prazo || null,
       });
       if (error) throw error;
 
@@ -392,6 +397,8 @@ export function useCreateExpense() {
     },
     onSuccess: (clientId) => {
       queryClient.invalidateQueries({ queryKey: ["partner-expenses", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["partner-accounts", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
       toast.success("Despesa criada com sucesso!");
     },
     onError: (err: any) => {

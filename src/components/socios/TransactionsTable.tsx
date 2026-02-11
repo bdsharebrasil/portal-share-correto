@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -13,40 +12,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   ArrowUpCircle,
   ArrowDownCircle,
-  History,
   Receipt,
-  Pencil,
-  Trash2,
   Filter,
   FileDown,
+  Clock,
 } from "lucide-react";
-import {
-  useDeleteTransaction,
-  useUpdateTransaction,
-} from "@/hooks/useFinanceiroSocios";
 import type { PartnerTransaction } from "@/hooks/useFinanceiroSocios";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { formatMoney } from "@/lib/formatters";
 import { TransactionsPDFExport } from "./TransactionsPDFExport";
 
 function fmt(v: number) {
@@ -71,105 +46,90 @@ export function TransactionsTable({
   const [filterPartner, setFilterPartner] = useState("all");
   const [filterType, setFilterType] = useState("all");
   const [filterMonth, setFilterMonth] = useState("all");
-  const [editTx, setEditTx] = useState<PartnerTransaction | null>(null);
-  const [deleteTx, setDeleteTx] = useState<PartnerTransaction | null>(null);
-  const [editForm, setEditForm] = useState({
-    description: "",
-    amount: "",
-    paymentDate: "",
-    notes: "",
-  });
   const [showFilters, setShowFilters] = useState(false);
   const [showPDFExport, setShowPDFExport] = useState(false);
 
-  const deleteTransaction = useDeleteTransaction();
-  const updateTransaction = useUpdateTransaction();
+  // Memoizar a função de obter data da transação
+  const getTransactionDate = useMemo(
+    () => (tx: any) => {
+      const date = tx.payment_date || tx.created_at;
+      try {
+        return format(new Date(date.includes("T") ? date : date + "T12:00:00"), "dd/MM/yyyy", {
+          locale: ptBR,
+        });
+      } catch {
+        return format(new Date(tx.created_at), "dd/MM/yyyy", { locale: ptBR });
+      }
+    },
+    []
+  );
 
-  // Get unique partners and months for filters
-  const partners = [...new Set(transactions.map((t) => t.partner_name))].filter(Boolean);
-  const months = [
-    ...new Set(
-      transactions.map((t) => {
-        const date = (t as any).payment_date || t.created_at;
-        return format(new Date(date), "yyyy-MM");
-      })
-    ),
-  ].sort().reverse();
+  // Memoizar partners únicos
+  const partners = useMemo(
+    () => [...new Set(transactions.map((t) => t.partner_name))].filter(Boolean),
+    [transactions]
+  );
 
-  // Apply filters
-  let filtered = transactions;
-  if (filterPartner !== "all") {
-    filtered = filtered.filter((t) => t.partner_name === filterPartner);
-  }
-  if (filterType !== "all") {
-    filtered = filtered.filter((t) => t.transaction_type === filterType);
-  }
-  if (filterMonth !== "all") {
-    filtered = filtered.filter((t) => {
-      const date = (t as any).payment_date || t.created_at;
-      return format(new Date(date), "yyyy-MM") === filterMonth;
-    });
-  }
+  // Memoizar meses únicos
+  const months = useMemo(
+    () =>
+      [
+        ...new Set(
+          transactions.map((t) => {
+            const date = (t as any).payment_date || t.created_at;
+            try {
+              return format(new Date(date), "yyyy-MM");
+            } catch {
+              return format(new Date(), "yyyy-MM");
+            }
+          })
+        ),
+      ].sort().reverse(),
+    [transactions]
+  );
 
-  const items = limit ? filtered.slice(0, limit) : filtered;
+  // Memoizar transações filtradas
+  const filtered = useMemo(() => {
+    let result = [...transactions];
 
-  // Summary
-  const totalDeposits = items
-    .filter((t) => t.transaction_type === "deposit")
-    .reduce((s, t) => s + Number(t.amount), 0);
-  const totalExpenses = items
-    .filter((t) => t.transaction_type !== "deposit")
-    .reduce((s, t) => s + Number(t.amount), 0);
-  const netResult = totalDeposits - totalExpenses;
-
-  const handleEditOpen = (tx: PartnerTransaction) => {
-    setEditTx(tx);
-    setEditForm({
-      description: tx.description || "",
-      amount: String(tx.amount),
-      paymentDate: (tx as any).payment_date
-        ? String((tx as any).payment_date)
-        : format(new Date(tx.created_at), "yyyy-MM-dd"),
-      notes: tx.notes || "",
-    });
-  };
-
-  const handleEditSave = async () => {
-    if (!editTx || !clienteId) return;
-    await updateTransaction.mutateAsync({
-      id: editTx.id,
-      clientId: clienteId,
-      transactionType: editTx.transaction_type,
-      description: editForm.description,
-      amount: parseFloat(editForm.amount),
-      paymentDate: editForm.paymentDate,
-      notes: editForm.notes || null,
-    });
-    setEditTx(null);
-  };
-
-  const handleDelete = async () => {
-    if (!deleteTx || !clienteId) return;
-    await deleteTransaction.mutateAsync({
-      id: deleteTx.id,
-      clientId: clienteId,
-      transactionType: deleteTx.transaction_type,
-      partnerCpf: deleteTx.partner_cpf,
-      amount: Number(deleteTx.amount),
-    });
-    setDeleteTx(null);
-  };
-
-  const getTransactionDate = (tx: any) => {
-    const date = tx.payment_date || tx.created_at;
-    try {
-      return format(new Date(date.includes("T") ? date : date + "T12:00:00"), "dd/MM/yyyy", {
-        locale: ptBR,
-      });
-    } catch {
-      return format(new Date(tx.created_at), "dd/MM/yyyy", { locale: ptBR });
+    if (filterPartner !== "all") {
+      result = result.filter((t) => t.partner_name === filterPartner);
     }
-  };
+    if (filterType !== "all") {
+      result = result.filter((t) => t.transaction_type === filterType);
+    }
+    if (filterMonth !== "all") {
+      result = result.filter((t) => {
+        const date = (t as any).payment_date || t.created_at;
+        try {
+          return format(new Date(date), "yyyy-MM") === filterMonth;
+        } catch {
+          return false;
+        }
+      });
+    }
+
+    return result;
+  }, [transactions, filterPartner, filterType, filterMonth]);
+
+  // Memoizar items com limite
+  const items = useMemo(
+    () => (limit ? filtered.slice(0, limit) : filtered),
+    [filtered, limit]
+  );
+
+  // Memoizar resumo financeiro
+  const summary = useMemo(() => {
+    const totalDeposits = items
+      .filter((t) => t.transaction_type === "deposit")
+      .reduce((s, t) => s + Number(t.amount), 0);
+    const totalExpenses = items
+      .filter((t) => t.transaction_type !== "deposit")
+      .reduce((s, t) => s + Number(t.amount), 0);
+    const netResult = totalDeposits - totalExpenses;
+
+    return { totalDeposits, totalExpenses, netResult };
+  }, [items]);
 
   return (
     <>
@@ -177,7 +137,7 @@ export function TransactionsTable({
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <History className="h-4 w-4 text-primary" />
+              <Clock className="h-4 w-4 text-primary" />
               {title}
             </CardTitle>
             <div className="flex gap-2">
@@ -289,7 +249,7 @@ export function TransactionsTable({
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div>
                     <p
                       className={`text-sm font-bold whitespace-nowrap ${
                         tx.transaction_type === "deposit"
@@ -302,28 +262,6 @@ export function TransactionsTable({
                       {tx.transaction_type === "deposit" ? "+" : "-"}
                       {fmt(Number(tx.amount))}
                     </p>
-
-                    {/* Edit/Delete buttons */}
-                    {clienteId && (
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => handleEditOpen(tx)}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive hover:text-destructive"
-                          onClick={() => setDeleteTx(tx)}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    )}
                   </div>
                 </div>
               ))}
@@ -332,16 +270,16 @@ export function TransactionsTable({
               <div className="mt-4 p-3 rounded-lg border border-border/50 bg-muted/20 space-y-1">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Total Entradas:</span>
-                  <span className="font-semibold text-emerald-400">+{fmt(totalDeposits)}</span>
+                  <span className="font-semibold text-emerald-400">+{fmt(summary.totalDeposits)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Total Saídas:</span>
-                  <span className="font-semibold text-red-400">-{fmt(totalExpenses)}</span>
+                  <span className="font-semibold text-red-400">-{fmt(summary.totalExpenses)}</span>
                 </div>
                 <div className="flex justify-between text-sm font-bold border-t border-border/50 pt-1">
                   <span>Resultado:</span>
-                  <span className={netResult >= 0 ? "text-emerald-400" : "text-red-400"}>
-                    {fmt(netResult)}
+                  <span className={summary.netResult >= 0 ? "text-emerald-400" : "text-red-400"}>
+                    {fmt(summary.netResult)}
                   </span>
                 </div>
               </div>
@@ -349,93 +287,6 @@ export function TransactionsTable({
           )}
         </CardContent>
       </Card>
-
-      {/* Edit Dialog */}
-      <Dialog open={!!editTx} onOpenChange={(v) => !v && setEditTx(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar Transação</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Descrição</Label>
-              <Input
-                value={editForm.description}
-                onChange={(e) =>
-                  setEditForm((p) => ({ ...p, description: e.target.value }))
-                }
-                className="mt-1"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Valor (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={editForm.amount}
-                  onChange={(e) =>
-                    setEditForm((p) => ({ ...p, amount: e.target.value }))
-                  }
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label>Data</Label>
-                <Input
-                  type="date"
-                  value={editForm.paymentDate}
-                  onChange={(e) =>
-                    setEditForm((p) => ({ ...p, paymentDate: e.target.value }))
-                  }
-                  className="mt-1"
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Observações</Label>
-              <Textarea
-                value={editForm.notes}
-                onChange={(e) =>
-                  setEditForm((p) => ({ ...p, notes: e.target.value }))
-                }
-                rows={2}
-                className="mt-1"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditTx(null)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleEditSave} disabled={updateTransaction.isPending}>
-              {updateTransaction.isPending ? "Salvando..." : "Salvar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteTx} onOpenChange={(v) => !v && setDeleteTx(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Transação</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja excluir "{deleteTx?.description}"? Esta ação
-              não pode ser desfeita e o saldo será ajustado automaticamente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteTransaction.isPending ? "Excluindo..." : "Excluir"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* PDF Export Dialog */}
       {showPDFExport && clienteId && (

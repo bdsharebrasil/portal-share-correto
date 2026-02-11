@@ -18,9 +18,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Receipt, Plus } from "lucide-react";
+import { Combobox } from "@/components/ui/combobox";
 import { useCreateExpense } from "@/hooks/useFinanceiroSocios";
 import { useClientPartners } from "@/hooks/useClientPartners";
 import { useClientAbastecimentos } from "@/hooks/useAbastecimentos";
+import { useFornecedoresFavoritos } from "@/hooks/useFornecedoresFavoritos";
 import { formatCPF } from "@/lib/formatters";
 import { format } from "date-fns";
 
@@ -57,6 +59,8 @@ const EMPTY_FORM = {
   notes: "",
   abastecimentoId: "",
   criarNovoAbastecimento: false,
+  bankName: "nao_selecionado", // NOVO: Banco (com valor padrão válido)
+  prazo: "extra" as "mensal" | "extra", // NOVO: Prazo
 };
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -69,9 +73,11 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
 
+
   const addExpense = useCreateExpense();
   const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteId);
   const { data: abastecimentos = [] } = useClientAbastecimentos(clienteId);
+  const { data: fornecedoresFavoritos = [] } = useFornecedoresFavoritos();
 
   const set = (key: keyof typeof EMPTY_FORM) => (value: string | boolean) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -105,6 +111,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
         form.category === "abastecimento" ? "abastecimento" : null,
       referenceId:
         form.category === "abastecimento" ? form.abastecimentoId || null : null,
+      bankName: form.bankName !== "nao_selecionado" ? form.bankName : null,
+      prazo: form.prazo || null,
     });
 
     setOpen(false);
@@ -374,15 +382,19 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           {/* ── Fornecedor + Nº Nota ──────────────────────────────────────── */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="exp-supplier" className="font-semibold">
-                Fornecedor
-              </Label>
-              <Input
-                id="exp-supplier"
+              <Label className="font-semibold">Fornecedor</Label>
+              <Combobox
+                options={fornecedoresFavoritos.map((f) => ({
+                  value: f.nome_completo,
+                  label: `${f.nome_completo}${f.documento ? ` (${f.documento})` : ""}`,
+                }))}
                 value={form.supplierName}
-                onChange={(e) => set("supplierName")(e.target.value)}
-                placeholder="Nome do fornecedor"
+                onValueChange={set("supplierName")}
+                placeholder="Selecione ou digite o fornecedor..."
+                searchPlaceholder="Buscar fornecedor..."
+                emptyText="Nenhum fornecedor encontrado"
                 disabled={addExpense.isPending}
+                allowCustomValue={true}
                 className="mt-2"
               />
             </div>
@@ -421,6 +433,50 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 <SelectItem value="outros">Outros</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+
+          {/* ── Banco e Prazo ─────────────────────────────────────────────── */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label className="font-semibold">Banco</Label>
+              <Select value={form.bankName} onValueChange={set("bankName")}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Selecione (opcional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nao_selecionado">— Não selecionado —</SelectItem>
+                  <SelectItem value="bradesco">Bradesco</SelectItem>
+                  <SelectItem value="caixa">Caixa Econômica</SelectItem>
+                  <SelectItem value="sicoob">Sicoob</SelectItem>
+                  <SelectItem value="sicredi">Sicredi</SelectItem>
+                  <SelectItem value="itau">Itaú</SelectItem>
+                  <SelectItem value="santander">Santander</SelectItem>
+                  <SelectItem value="outros">Outros</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="font-semibold">Prazo</Label>
+              <Select value={form.prazo} onValueChange={(v) => set("prazo")(v as "mensal" | "extra")}>
+                <SelectTrigger className="mt-2">
+                  <SelectValue placeholder="Selecione o prazo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mensal">
+                    <span className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-blue-500 inline-block" />
+                      Mensal
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="extra">
+                    <span className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-orange-500 inline-block" />
+                      Extra
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* ── Observações ───────────────────────────────────────────────── */}

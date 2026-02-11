@@ -31,6 +31,7 @@ interface ComboboxProps {
   emptyText?: string
   className?: string
   disabled?: boolean
+  allowCustomValue?: boolean
 }
 
 export function Combobox({
@@ -42,6 +43,7 @@ export function Combobox({
   emptyText = "Nenhum resultado encontrado.",
   className,
   disabled = false,
+  allowCustomValue = false,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const [searchValue, setSearchValue] = React.useState("")
@@ -52,6 +54,8 @@ export function Combobox({
     option.label.toLowerCase().includes(searchValue.toLowerCase())
   )
 
+  const canUseCustomValue = allowCustomValue && searchValue.trim() && !options.some(o => o.value.toLowerCase() === searchValue.toLowerCase())
+
   const handleSelect = (selectedValue: string) => {
     onValueChange(selectedValue === value ? "" : selectedValue)
     setSearchValue("")
@@ -61,6 +65,14 @@ export function Combobox({
   const handleClear = () => {
     onValueChange("")
     setSearchValue("")
+  }
+
+  const handleCustomValue = () => {
+    if (searchValue.trim()) {
+      onValueChange(searchValue)
+      setSearchValue("")
+      setOpen(false)
+    }
   }
 
   return (
@@ -101,25 +113,50 @@ export function Combobox({
           />
           <CommandList>
             {filteredOptions.length === 0 ? (
-              <CommandEmpty>{emptyText}</CommandEmpty>
-            ) : (
-              <CommandGroup>
-                {filteredOptions.map((option) => (
-                  <CommandItem
-                    key={option.value}
-                    value={option.value}
-                    onSelect={() => handleSelect(option.value)}
-                  >
-                    {value === option.value && (
-                      <Check size={16} className="mr-2" />
-                    )}
-                    {value !== option.value && (
+              <>
+                {canUseCustomValue ? (
+                  <CommandGroup>
+                    <CommandItem
+                      onSelect={handleCustomValue}
+                    >
                       <div className="mr-2 h-4 w-4" />
-                    )}
-                    {option.label}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
+                      <span className="italic">Usar "{searchValue}"</span>
+                    </CommandItem>
+                  </CommandGroup>
+                ) : (
+                  <CommandEmpty>{emptyText}</CommandEmpty>
+                )}
+              </>
+            ) : (
+              <>
+                <CommandGroup>
+                  {filteredOptions.map((option) => (
+                    <CommandItem
+                      key={option.value}
+                      value={option.value}
+                      onSelect={() => handleSelect(option.value)}
+                    >
+                      {value === option.value && (
+                        <Check size={16} className="mr-2" />
+                      )}
+                      {value !== option.value && (
+                        <div className="mr-2 h-4 w-4" />
+                      )}
+                      {option.label}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+                {canUseCustomValue && (
+                  <CommandGroup>
+                    <CommandItem
+                      onSelect={handleCustomValue}
+                    >
+                      <div className="mr-2 h-4 w-4" />
+                      <span className="italic">Usar "{searchValue}"</span>
+                    </CommandItem>
+                  </CommandGroup>
+                )}
+              </>
             )}
           </CommandList>
         </Command>

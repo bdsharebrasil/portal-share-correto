@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import jsPDF from "jspdf";
+import type { jsPDF as jsPDFType } from "jspdf";
 import "jspdf-autotable";
+
+// Estender tipagem do jsPDF para incluir autoTable
+declare module "jspdf" {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+    lastAutoTable: { finalY: number };
+  }
+}
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 interface TransactionRow {
@@ -110,6 +119,8 @@ export default function RelatorioTransacoesSocios() {
     amount: "",
     paymentDate: "",
     notes: "",
+    bank_name: "",
+    prazo: "",
   });
 
   // ── Hooks de dados ──────────────────────────────────────────────────────────
@@ -121,10 +132,12 @@ export default function RelatorioTransacoesSocios() {
   const deleteTransaction = useDeleteTransaction();
   const updateTransaction = useUpdateTransaction();
 
-  const selectedClientData = clientesComSocios.find((c) => c.id === clienteId);
+  const selectedClientData = useMemo(
+    () => clientesComSocios.find((c) => c.id === clienteId),
+    [clientesComSocios, clienteId]
+  );
 
   // ── Agrupamento por mês ─────────────────────────────────────────────────────
-  // FIX #2: usa payment_date (data inserida no formulário) em vez de created_at
   const groupedTransactions = useMemo(() => {
     const grouped: GroupedTransactions = {};
 
@@ -135,7 +148,10 @@ export default function RelatorioTransacoesSocios() {
         tx.due_date ||
         tx.created_at;
 
-      const date = new Date(rawDate);
+      // Parser a data sem problemas de timezone
+      const dateStr = rawDate.split('T')[0]; // Pega apenas a data (YYYY-MM-DD)
+      const [year, month, day] = dateStr.split('-');
+      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
 
       const monthYear = date.toLocaleDateString("pt-BR", {
         month: "2-digit",
@@ -171,12 +187,15 @@ export default function RelatorioTransacoesSocios() {
     return grouped;
   }, [transactions]);
 
-  const sortedMonths = Object.keys(groupedTransactions).sort(
-    (a, b) => new Date(b).getTime() - new Date(a).getTime()
+  const sortedMonths = useMemo(
+    () => Object.keys(groupedTransactions).sort(
+      (a, b) => new Date(b).getTime() - new Date(a).getTime()
+    ),
+    [groupedTransactions]
   );
 
   // Seleciona mês mais recente por padrão
-  React.useEffect(() => {
+  useEffect(() => {
     if (sortedMonths.length > 0 && !selectedMonth) {
       setSelectedMonth(sortedMonths[0]);
     }
@@ -216,6 +235,8 @@ export default function RelatorioTransacoesSocios() {
       amount: tx.amount.toFixed(2),
       paymentDate: `${year}-${month}-${day}`,
       notes: tx.notes || "",
+      bank_name: tx.bank_name === "N/A" ? "" : tx.bank_name || "",
+      prazo: tx.prazo === "N/A" ? "" : tx.prazo || "",
     });
   };
 
@@ -277,7 +298,7 @@ export default function RelatorioTransacoesSocios() {
   const downloadPDF = () => {
     if (!selectedTransactions.length) return;
 
-    const doc = new jsPDF();
+    const doc = new jsPDF() as any;
     const margin = 10;
 
     doc.setFontSize(16);
@@ -313,21 +334,24 @@ export default function RelatorioTransacoesSocios() {
       `R$ ${tx.amount.toFixed(2)}`,
     ]);
 
-    (doc as any).autoTable({
-      head: [tableColumn],
-      body: tableRows,
-      startY: margin + 28,
-      margin,
-      styles: { fontSize: 9, cellPadding: 3 },
-      headStyles: {
-        fillColor: [59, 130, 246],
-        textColor: [255, 255, 255],
-        fontStyle: "bold",
-      },
-      alternateRowStyles: { fillColor: [240, 240, 240] },
-    });
+    // Usar o método autoTable do jspdf-autotable
+    if (doc.autoTable) {
+      doc.autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: margin + 28,
+        margin,
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: {
+          fillColor: [59, 130, 246],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+        },
+        alternateRowStyles: { fillColor: [240, 240, 240] },
+      });
+    }
 
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    const finalY = doc.lastAutoTable?.finalY || margin + 40;
     doc.setFontSize(10);
     doc.text(
       `Total de Depósitos: R$ ${selectedTransactions
@@ -384,7 +408,7 @@ export default function RelatorioTransacoesSocios() {
               onClick={() => navigate("/financeiro/financeiro-socios")}
               className="mt-4"
             >
-              ← Voltar
+              ← Voltar 
             </Button>
           </CardContent>
         </Card>
@@ -414,13 +438,25 @@ export default function RelatorioTransacoesSocios() {
             </div>
           </div>
 
-          <Button
-            variant="outline"
-            onClick={() => navigate("/financeiro/financeiro-socios")}
-            size="sm"
-          >
-            ← Voltar
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/financeiro/financeiro-socios")}
+              size="sm"
+            >
+              ← Voltar 
+            </Button>
+            <Button
+              onClick={downloadPDF}
+              disabled={!selectedTransactions.length}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              Exportar PDF
+            </Button>
+          </div>
         </div>
 
         {/* Controles */}
@@ -442,27 +478,6 @@ export default function RelatorioTransacoesSocios() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Button
-              onClick={downloadPDF}
-              disabled={!selectedTransactions.length}
-              variant="outline"
-              className="gap-2"
-            >
-              <FileText className="h-4 w-4" />
-              Exportar PDF
-            </Button>
-            <Button
-              onClick={downloadCSV}
-              disabled={!selectedTransactions.length}
-              variant="outline"
-              className="gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Exportar CSV
-            </Button>
           </div>
         </div>
 
@@ -561,7 +576,6 @@ export default function RelatorioTransacoesSocios() {
                         </td>
                         <td className="px-4 py-3 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            {/* FIX #1 — botão Editar funcional */}
                             <button
                               className="p-1.5 rounded hover:bg-blue-500/20 transition-colors text-blue-600 hover:text-blue-700"
                               title="Editar transação"
@@ -569,7 +583,6 @@ export default function RelatorioTransacoesSocios() {
                             >
                               <Edit2 className="h-4 w-4" />
                             </button>
-                            {/* FIX #1 — botão Deletar funcional */}
                             <button
                               className="p-1.5 rounded hover:bg-red-500/20 transition-colors text-red-600 hover:text-red-700"
                               title="Deletar transação"
@@ -719,6 +732,40 @@ export default function RelatorioTransacoesSocios() {
                   }
                   className="mt-1"
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="edit-bank">Banco</Label>
+                <Select value={editForm.bank_name || "none"} onValueChange={(value) => setEditForm(p => ({ ...p, bank_name: value === "none" ? "" : value }))}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Selecione o banco" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    <SelectItem value="Bradesco">Bradesco</SelectItem>
+                    <SelectItem value="Caixa">Caixa</SelectItem>
+                    <SelectItem value="Sicoob">Sicoob</SelectItem>
+                    <SelectItem value="Sicredi">Sicredi</SelectItem>
+                    <SelectItem value="Itaú">Itaú</SelectItem>
+                    <SelectItem value="Santander">Santander</SelectItem>
+                    <SelectItem value="Outros">Outros</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="edit-prazo">Prazo</Label>
+                <Select value={editForm.prazo || "none"} onValueChange={(value) => setEditForm(p => ({ ...p, prazo: value === "none" ? "" : value }))}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Selecione o prazo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum</SelectItem>
+                    <SelectItem value="Mensal">Mensal</SelectItem>
+                    <SelectItem value="Extra">Extra</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

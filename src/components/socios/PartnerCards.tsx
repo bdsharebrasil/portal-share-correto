@@ -1,6 +1,8 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { DollarSign, TrendingUp, TrendingDown } from "lucide-react";
-import type { PartnerAccount } from "@/hooks/useFinanceiroSocios";
+import { DollarSign, TrendingUp, TrendingDown, RotateCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import type { PartnerAccount, PartnerTransaction } from "@/hooks/useFinanceiroSocios";
+import { useQueryClient } from "@tanstack/react-query";
 
 const PARTNER_COLORS: Record<string, string> = {
   GUAVIRA: "from-emerald-500/20 to-emerald-600/10 border-emerald-500/30",
@@ -18,40 +20,87 @@ function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-export function PartnerCards({ accounts }: { accounts: PartnerAccount[] }) {
-  const totalBalance = accounts.reduce((s, a) => s + Number(a.current_balance), 0);
+interface PartnerCardsProps {
+  accounts: PartnerAccount[];
+  transactions?: PartnerTransaction[];
+  clienteId?: string;
+}
+
+// Calcula o saldo de um sócio baseado em suas transações
+function calculatePartnerBalance(partnerCpf: string, transactions: PartnerTransaction[]): number {
+  const partnerTransactions = transactions.filter(t => t.partner_cpf === partnerCpf);
+  
+  const totalDeposits = partnerTransactions
+    .filter(t => t.transaction_type === "deposit")
+    .reduce((sum, t) => sum + Number(t.amount), 0);
+  
+  const totalExpenses = partnerTransactions
+    .filter(t => t.transaction_type !== "deposit")
+    .reduce((sum, t) => sum + Number(t.amount), 0);
+  
+  return totalDeposits - totalExpenses;
+}
+
+export function PartnerCards({ accounts, transactions = [], clienteId }: PartnerCardsProps) {
+  const queryClient = useQueryClient();
+  
+  // Calcula o saldo de cada sócio automaticamente baseado em transações
+  const totalBalance = accounts.reduce((s, a) => {
+    const balance = calculatePartnerBalance(a.partner_cpf, transactions);
+    return s + balance;
+  }, 0);
+
+  const handleRefresh = () => {
+    if (clienteId) {
+      queryClient.invalidateQueries({ queryKey: ["partner-accounts", clienteId] });
+      queryClient.invalidateQueries({ queryKey: ["partner-transactions", clienteId] });
+      queryClient.invalidateQueries({ queryKey: ["partner-expenses", clienteId] });
+    }
+  };
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {accounts.map((acc) => (
-          <Card
-            key={acc.id}
-            className={`bg-gradient-to-br ${PARTNER_COLORS[acc.partner_name] || "from-muted/20 to-muted/10 border-muted/30"} border`}
-          >
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className={`font-bold text-lg ${PARTNER_TEXT[acc.partner_name] || "text-foreground"}`}>
-                  {acc.partner_name}
-                </h3>
-                <span className="text-xs text-muted-foreground">{acc.partner_cpf}</span>
-              </div>
-              <p className="text-2xl font-bold text-foreground mb-3">
-                {fmt(Number(acc.current_balance))}
-              </p>
-              <div className="flex justify-between text-sm">
-                <span className="flex items-center gap-1 text-emerald-400">
-                  <TrendingUp className="h-3 w-3" />
-                  {fmt(Number(acc.total_deposited))}
-                </span>
-                <span className="flex items-center gap-1 text-red-400">
-                  <TrendingDown className="h-3 w-3" />
-                  {fmt(Number(acc.total_spent))}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+        {accounts.map((acc) => {
+          // Calcula saldo automático, depósitos e despesas baseado em transações
+          const accountTransactions = transactions.filter(t => t.partner_cpf === acc.partner_cpf);
+          const totalDeposits = accountTransactions
+            .filter(t => t.transaction_type === "deposit")
+            .reduce((sum, t) => sum + Number(t.amount), 0);
+          const totalExpenses = accountTransactions
+            .filter(t => t.transaction_type !== "deposit")
+            .reduce((sum, t) => sum + Number(t.amount), 0);
+          const calculatedBalance = totalDeposits - totalExpenses;
+          
+          return (
+            <Card
+              key={acc.id}
+              className={`bg-gradient-to-br ${PARTNER_COLORS[acc.partner_name] || "from-muted/20 to-muted/10 border-muted/30"} border`}
+            >
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className={`font-bold text-lg ${PARTNER_TEXT[acc.partner_name] || "text-foreground"}`}>
+                    {acc.partner_name}
+                  </h3>
+                  <span className="text-xs text-muted-foreground">{acc.partner_cpf}</span>
+                </div>
+                <p className="text-2xl font-bold text-foreground mb-3">
+                  {fmt(calculatedBalance)}
+                </p>
+                <div className="flex justify-between text-sm">
+                  <span className="flex items-center gap-1 text-emerald-400">
+                    <TrendingUp className="h-3 w-3" />
+                    {fmt(totalDeposits)}
+                  </span>
+                  <span className="flex items-center gap-1 text-red-400">
+                    <TrendingDown className="h-3 w-3" />
+                    {fmt(totalExpenses)}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
       <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
         <CardContent className="p-4 flex items-center justify-between">
@@ -59,7 +108,20 @@ export function PartnerCards({ accounts }: { accounts: PartnerAccount[] }) {
             <DollarSign className="h-5 w-5 text-primary" />
             <span className="font-medium text-foreground">Saldo Total da Conta</span>
           </div>
-          <span className="text-xl font-bold text-primary">{fmt(totalBalance)}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-xl font-bold text-primary">{fmt(totalBalance)}</span>
+            {clienteId && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRefresh}
+                title="Atualizar saldos"
+                className="h-8 w-8 p-0"
+              >
+                <RotateCw className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
