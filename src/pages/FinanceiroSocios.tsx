@@ -256,15 +256,15 @@ export default function FinanceiroSocios() {
         {!loadingPartners && partners.length > 0 &&
         <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-primary" />
-                  Sócios Cadastrados
-                </CardTitle>
-                <span className="text-xs bg-primary/20 text-primary px-3 py-1 rounded-full font-semibold">
-                  {partners.length} sócio{partners.length > 1 ? 's' : ''}
-                </span>
-              </div>
+              
+
+
+
+
+
+
+
+
             </CardHeader>
             <CardContent>
               
