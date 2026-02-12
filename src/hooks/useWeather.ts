@@ -19,7 +19,7 @@ export interface MetarResponse {
   taf?: string;
 }
 
-export function useWeather(defaultIcao: string = 'SBGR') {
+export function useWeather(defaultIcao: string = '') {
   const [currentIcao, setCurrentIcao] = useState<string>(defaultIcao);
   const [weather, setWeather] = useState<MetarResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -67,6 +67,9 @@ export function useWeather(defaultIcao: string = 'SBGR') {
   }, []);
 
   useEffect(() => {
+    // Só carrega weather se tem um ICAO definido
+    if (!currentIcao) return;
+
     fetchWeather(currentIcao);
     const interval = setInterval(() => fetchWeather(currentIcao), 5 * 60 * 1000);
     return () => clearInterval(interval);
