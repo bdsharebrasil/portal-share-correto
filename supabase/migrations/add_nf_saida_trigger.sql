@@ -3,22 +3,23 @@ CREATE OR REPLACE FUNCTION handle_nf_saida_recebida()
 RETURNS TRIGGER AS $$
 DECLARE
   v_banco_id uuid;
+  v_categoria_id uuid := '2874b45b-a3bb-4bec-8f7e-74b328f8693c'::uuid;
 BEGIN
   -- Only process when status changes to 'recebido'
   IF NEW.status = 'recebido' AND OLD.status IS DISTINCT FROM NEW.status THEN
-    
+
     -- Check if a controle_bancario entry already exists for this NF
     IF NOT EXISTS (
-      SELECT 1 FROM controle_bancario 
-      WHERE referencia = 'nf_saida_' || NEW.id
+      SELECT 1 FROM controle_bancario
+      WHERE referencia = 'nf_saida_' || NEW.id::text
     ) THEN
       -- Insert entry into controle_bancario
+      -- Usar categoria_id fixa, não o nome de categoria (que é TEXT)
       INSERT INTO controle_bancario (
         descricao,
         valor,
         data,
         tipo_movimento,
-        categoria,
         status,
         numero_documento,
         referencia,
@@ -31,10 +32,9 @@ BEGIN
         NEW.valor,
         CURRENT_DATE,
         'entrada',
-        NEW.categoria,
         'recebido',
         NEW.numero,
-        'nf_saida_' || NEW.id,
+        'nf_saida_' || NEW.id::text,
         NEW.criado_por,
         NULL, -- conta_banco will be set by the user in the dialog
         CURRENT_TIMESTAMP,
@@ -42,7 +42,7 @@ BEGIN
       );
     END IF;
   END IF;
-  
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

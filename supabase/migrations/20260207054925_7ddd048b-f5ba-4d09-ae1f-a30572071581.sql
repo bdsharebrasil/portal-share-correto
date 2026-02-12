@@ -47,11 +47,11 @@ BEGIN
   END IF;
 
   -- Verificar se já existe registro em bank_reconciliations para esta NF
-  -- CORRIGIDO: reference_id é UUID, usar comparação direta
+  -- CORRIGIDO: reference_id é TEXT, converter UUID para text
   IF NOT EXISTS (
     SELECT 1 FROM public.bank_reconciliations
     WHERE reference_type = 'nf_saida'
-    AND reference_id = NEW.id
+    AND reference_id::text = NEW.id::text
   ) THEN
     -- Inserir entrada em bank_reconciliations com todos os campos obrigatórios
     INSERT INTO public.bank_reconciliations (
