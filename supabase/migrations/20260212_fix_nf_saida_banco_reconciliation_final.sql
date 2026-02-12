@@ -7,14 +7,10 @@
 -- DROP old triggers if they exist (cleanup)
 DROP TRIGGER IF EXISTS trigger_create_bank_reconciliation_nf_saida ON public.notas_fiscais_saida;
 DROP TRIGGER IF EXISTS trigger_update_controle_bancario_from_nf_saida ON public.notas_fiscais_saida;
-DROP TRIGGER IF EXISTS trigger_create_bank_reconciliation_controle ON public.controle_bancario;
-DROP TRIGGER IF EXISTS trigger_update_bank_reconciliation_controle ON public.controle_bancario;
 
 -- DROP old functions (cleanup)
 DROP FUNCTION IF EXISTS public.create_bank_reconciliation_from_nf_saida() CASCADE;
 DROP FUNCTION IF EXISTS public.update_controle_bancario_from_nf_saida() CASCADE;
-DROP FUNCTION IF EXISTS public.create_bank_reconciliation_from_controle() CASCADE;
-DROP FUNCTION IF EXISTS public.update_bank_reconciliation_from_controle() CASCADE;
 
 -- =====================================================
 -- FUNCTION 1: Create bank_reconciliation from NF Saída
@@ -132,33 +128,25 @@ EXECUTE FUNCTION create_bank_reconciliation_from_nf_saida();
 CREATE OR REPLACE FUNCTION public.update_controle_bancario_from_nf_saida()
 RETURNS TRIGGER AS $$
 DECLARE
-  v_status_cb text;
+  v_status_br text;
 BEGIN
   -- Only process if status changed
   IF OLD.status IS DISTINCT FROM NEW.status THEN
-    -- Map NF status to controle_bancario status
+    -- Map NF status to bank_reconciliation status
     IF NEW.status = 'recebido' THEN
-      v_status_cb := 'confirmado';
+      v_status_br := 'recebido';
     ELSIF NEW.status = 'pendente' THEN
-      v_status_cb := 'pendente';
+      v_status_br := 'pendente';
     ELSIF NEW.status = 'cancelado' THEN
-      v_status_cb := 'cancelado';
+      v_status_br := 'cancelado';
     ELSE
-      v_status_cb := NEW.status;
+      v_status_br := NEW.status;
     END IF;
 
-    -- Update controle_bancario records
-    UPDATE public.controle_bancario
-    SET 
-      status = v_status_cb,
-      data_atualizacao = CURRENT_TIMESTAMP
-    WHERE numero_documento = NEW.numero
-      AND tipo = 'saida';
-
-    -- Also update bank_reconciliations
+    -- Update bank_reconciliations
     UPDATE public.bank_reconciliations
-    SET 
-      status = v_status_cb,
+    SET
+      status = v_status_br,
       updated_at = CURRENT_TIMESTAMP
     WHERE reference_type = 'nf_saida'
       AND reference_id = NEW.id;
