@@ -621,6 +621,9 @@ export function FluxoCaixaInlineForm({
                 reference_type: 'controle_bancario',
                 reference_id: lancamentoId,
                 criado_por: user.id,
+                forma_pagamento: 'empresa_paga',
+                tipo_documento: 'despesa_viagem',
+                afeta_caixa_empresa: true,
               })
               .select('id')
               .maybeSingle();

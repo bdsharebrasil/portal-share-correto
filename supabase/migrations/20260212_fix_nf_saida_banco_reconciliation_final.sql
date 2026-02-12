@@ -54,8 +54,10 @@ BEGIN
     LIMIT 1;
   END IF;
 
-  -- Only create if client found; aircraft is optional for type='cliente'
+  -- CRITICAL: Only create if client found AND validation passes
+  -- constraint cliente_fields_required requires both client_id AND category NOT NULL
   IF v_client_id IS NULL THEN
+    -- Client not found - cannot create bank_reconciliation with type='cliente'
     RETURN NEW;
   END IF;
 
@@ -167,16 +169,16 @@ EXECUTE FUNCTION update_controle_bancario_from_nf_saida();
 -- =====================================================
 -- CONSTRAINT: Ensure required fields for type='cliente'
 -- =====================================================
--- Removida pois há múltiplas fontes inserindo dados incompletos
--- ALTER TABLE public.bank_reconciliations
--- DROP CONSTRAINT IF EXISTS cliente_fields_required;
---
--- ALTER TABLE public.bank_reconciliations
--- ADD CONSTRAINT cliente_fields_required
--- CHECK (
---   (type <> 'cliente') OR
---   (client_id IS NOT NULL AND category IS NOT NULL)
--- );
+-- Re-activating constraint - now all functions will respect it
+ALTER TABLE public.bank_reconciliations
+DROP CONSTRAINT IF EXISTS cliente_fields_required;
+
+ALTER TABLE public.bank_reconciliations
+ADD CONSTRAINT cliente_fields_required
+CHECK (
+  (type <> 'cliente') OR
+  (client_id IS NOT NULL AND category IS NOT NULL)
+);
 
 -- =====================================================
 -- INDEX: Performance improvements
