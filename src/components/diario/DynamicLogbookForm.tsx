@@ -99,6 +99,36 @@ export function DynamicLogbookForm({
   const queryClient = useQueryClient();
   const { tripulantes } = useTripulantes();
 
+  // Buscar tripulantes da tabela crew (externos)
+  const { data: crewPersons = [] } = useQuery({
+    queryKey: ['crew'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('crew')
+        .select('id, full_name, canac, status')
+        .eq('status', 'ativo')
+        .order('full_name', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar crew:', error);
+        return [];
+      }
+
+      return data || [];
+    }
+  });
+
+  // Combinar tripulantes de crew_members e crew
+  const allCrew = [
+    ...tripulantes,
+    ...crewPersons.map((person: any) => ({
+      id: person.id,
+      full_name: person.full_name,
+      canac: person.canac,
+      status: person.status
+    }))
+  ];
+
   const { data: aerodromes = [] } = useQuery({
     queryKey: ['aerodromes'],
     queryFn: async () => {
@@ -1059,7 +1089,7 @@ export function DynamicLogbookForm({
                       className="w-full justify-between h-11 font-normal"
                     >
                       {selectedPic
-                        ? tripulantes.find(t => t.id === selectedPic)?.full_name || 'PIC selecionado'
+                        ? allCrew.find(t => t.id === selectedPic)?.full_name || 'PIC selecionado'
                         : 'Selecione o PIC...'
                       }
                     </Button>
@@ -1070,7 +1100,7 @@ export function DynamicLogbookForm({
                       <CommandList>
                         <CommandEmpty>Nenhum piloto encontrado.</CommandEmpty>
                         <CommandGroup>
-                          {tripulantes.map((tripulante) => (
+                          {allCrew.map((tripulante) => (
                             <CommandItem
                               key={tripulante.id}
                               value={tripulante.full_name}
@@ -1099,7 +1129,7 @@ export function DynamicLogbookForm({
               <SICComboBoxManual
                 value={selectedSic ?? ''}
                 sicName={sicName ?? ''}
-                crew={tripulantes}
+                crew={allCrew}
                 onChange={(sicCanac, sicNameValue) => {
                   setSelectedSic(sicCanac ?? '');
                   setSicName(sicNameValue ?? '');
