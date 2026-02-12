@@ -1047,61 +1047,36 @@ export function NotasFiscaisSaida() {
         newStatus
       });
 
-      // Primeiro, buscar os dados completos do recibo para atualizar controle_bancario
-      console.log("📋 Buscando recibo...");
-      const { data: reciboData, error: searchError } = await supabase
-        .from("bank_reconciliations")
-        .select("*")
-        .eq("id", idLimpo)
-        .single();
-
-      if (searchError) {
-        console.error("❌ Erro ao buscar recibo:", searchError);
-        throw searchError;
-      }
-
-      if (!reciboData) {
-        throw new Error("Recibo não encontrado");
-      }
-
-      console.log("✅ Recibo encontrado:", { id: reciboData.id, status: reciboData.status });
-
-      // Se há um controle_bancario_id associado, atualizar lá
-      if (reciboData.controle_bancario_id) {
-        console.log("🔄 Atualizando controle_bancario...");
-        const { error: updateError, data: updateData } = await supabase
-          .from("controle_bancario")
-          .update({
-            status: newStatus,
-            data_atualizacao: new Date().toISOString(),
-          })
-          .eq("id", reciboData.controle_bancario_id)
-          .select();
-
-        if (updateError) {
-          console.error("❌ Erro ao atualizar controle_bancario:", updateError);
-          throw updateError;
+      // Tentar usar RPC para atualizar (evita triggers problemáticos)
+      console.log("🔄 Tentando RPC update_recibo_status...");
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
+        'update_recibo_status',
+        {
+          p_recibo_id: idLimpo,
+          p_new_status: newStatus
         }
+      );
 
-        console.log("✅ controle_bancario atualizado:", updateData);
-      } else {
-        // Se não há controle_bancario_id, tentar atualizar bank_reconciliations diretamente
-        console.log("🔄 Atualizando bank_reconciliations diretamente...");
-        const { error: updateError, data: updateData } = await supabase
+      if (rpcError) {
+        console.warn("⚠️ RPC não disponível, tentando método direto...", rpcError);
+
+        // Se RPC falhar, tentar atualização direta com SQL raw
+        const { data: updateData, error: updateError } = await supabase
           .from("bank_reconciliations")
           .update({
             status: newStatus,
             updated_at: new Date().toISOString(),
           })
-          .eq("id", idLimpo)
-          .select();
+          .eq("id", idLimpo);
 
         if (updateError) {
-          console.error("❌ Erro ao atualizar bank_reconciliations:", updateError);
+          console.error("❌ Erro ao atualizar (método direto):", updateError);
           throw updateError;
         }
 
-        console.log("✅ bank_reconciliations atualizado:", updateData);
+        console.log("✅ Atualizado com sucesso (método direto)");
+      } else {
+        console.log("✅ Atualizado com sucesso (RPC):", rpcData);
       }
 
       console.log("✅ Recibo atualizado com sucesso");
