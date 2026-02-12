@@ -519,9 +519,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [acRes, crewRes, aeroRes, clientRes, entriesRes, monthsRes, partnersRes] = await Promise.all([
+        const [acRes, crewMembersRes, crewTableRes, aeroRes, clientRes, entriesRes, monthsRes, partnersRes] = await Promise.all([
           supabase.from('aircraft').select('*').eq('id', aircraftId).single(),
           supabase.from('crew_members').select('*'),
+          supabase.from('crew').select('id, full_name, canac, status').eq('status', 'ativo').order('full_name', { ascending: true }),
           supabase.from('aerodromes').select('*').order('designativo'),
           supabase.from('clients').select('id, company_name, cnpj, partner_name, partner_name2, partner_name3, client_aircraft(aircraft_id)').order('company_name'),
           supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('entry_date', { ascending: false }).order('created_at', { ascending: false }),
@@ -533,7 +534,20 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           setAircraft(acRes.data);
           setLastCelula(acRes.data.cell_hours_current || 0);
         }
-        if (crewRes.data) setCrew(crewRes.data || []);
+        // Merge crew_members + crew table (dedup by id)
+        const crewMembersData = crewMembersRes.data || [];
+        const crewTableData = (crewTableRes.data || []).map((p: any) => ({
+          id: p.id,
+          full_name: p.full_name,
+          canac: p.canac,
+          status: p.status
+        }));
+        const existingIds = new Set(crewMembersData.map((c: any) => c.id));
+        const mergedCrew = [
+          ...crewMembersData,
+          ...crewTableData.filter((c: any) => !existingIds.has(c.id))
+        ];
+        setCrew(mergedCrew);
         if (aeroRes.data) setAerodromes(aeroRes.data || []);
         if (clientRes.data) setClients(clientRes.data || []);
         if (entriesRes.data) setEntries(entriesRes.data || []);
@@ -872,7 +886,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     if (!editingField || editFieldValue === '') return;
 
     if ((editingField === 'celula_anterior' || editingField === 'celula_prox_revisao') && !canEditCelulaFields) {
-      toast.error('Apenas admin, gestor master, piloto chefe e PIC podem editar célula anterior e próxima revisão');
+      toast.error('Apenas admin, gestor master, piloto chefe e podem editar célula anterior e próxima revisão');
       setEditingField(null);
       return;
     }
