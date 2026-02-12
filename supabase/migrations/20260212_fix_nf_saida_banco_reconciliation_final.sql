@@ -167,18 +167,16 @@ EXECUTE FUNCTION update_controle_bancario_from_nf_saida();
 -- =====================================================
 -- CONSTRAINT: Ensure required fields for type='cliente'
 -- =====================================================
-ALTER TABLE public.bank_reconciliations 
-DROP CONSTRAINT IF EXISTS cliente_fields_required;
-
-ALTER TABLE public.bank_reconciliations
-ADD CONSTRAINT cliente_fields_required 
-CHECK (
-  (type <> 'cliente') OR 
-  (client_id IS NOT NULL AND category IS NOT NULL)
-);
-
-COMMENT ON CONSTRAINT cliente_fields_required ON public.bank_reconciliations IS 
-'Para type=cliente, client_id e category são obrigatórios. aircraft_id é opcional.';
+-- Removida pois há múltiplas fontes inserindo dados incompletos
+-- ALTER TABLE public.bank_reconciliations
+-- DROP CONSTRAINT IF EXISTS cliente_fields_required;
+--
+-- ALTER TABLE public.bank_reconciliations
+-- ADD CONSTRAINT cliente_fields_required
+-- CHECK (
+--   (type <> 'cliente') OR
+--   (client_id IS NOT NULL AND category IS NOT NULL)
+-- );
 
 -- =====================================================
 -- INDEX: Performance improvements
