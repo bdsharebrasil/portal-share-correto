@@ -94,7 +94,7 @@ BEGIN
       true,
       v_categoria_id,
       'nf_saida',
-      NEW.id::text,
+      NEW.id,
       NEW.arquivo_pdf_url,
       v_client_id,
       v_aircraft_id

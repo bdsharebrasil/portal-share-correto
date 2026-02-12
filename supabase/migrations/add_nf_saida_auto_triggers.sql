@@ -134,7 +134,7 @@ BEGIN
       true,
       v_categoria_id,
       'nf_saida',
-      NEW.id::text,
+      NEW.id,
       NEW.arquivo_pdf_url
     );
   END IF;
