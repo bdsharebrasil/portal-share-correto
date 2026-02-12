@@ -1015,11 +1015,11 @@ export function NotasFiscaisSaida() {
       return;
     }
 
-    const statusValidos = ["enviado", "pendente", "recebido"];
+    const statusValidos = ["enviado", "pendente", "recebido", "aprovado", "pago", "cancelado", "reembolsado"];
     if (!statusValidos.includes(newStatus)) {
       toast({
         title: "Erro",
-        description: "Status inválido",
+        description: `Status inválido: "${newStatus}". Status válidos: ${statusValidos.join(", ")}`,
         variant: "destructive",
       });
       return;
@@ -1028,18 +1028,26 @@ export function NotasFiscaisSaida() {
     try {
       console.log("Atualizando recibo:", { reciboId: reciboId.trim(), newStatus });
 
-      const { error } = await supabase
+      const { error, data } = await supabase
         .from("bank_reconciliations")
         .update({
           status: newStatus,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", reciboId.trim());
+        .eq("id", reciboId.trim())
+        .select();
 
       if (error) {
-        console.error("Erro ao atualizar status do recibo:", error);
+        console.error("Erro ao atualizar status do recibo - Erro Supabase:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+        });
         throw error;
       }
+
+      console.log("Recibo atualizado com sucesso:", data);
 
       toast({
         title: "Sucesso",
@@ -1048,7 +1056,7 @@ export function NotasFiscaisSaida() {
 
       loadRecibos();
     } catch (error: any) {
-      console.error("Erro ao atualizar status do recibo:", error);
+      console.error("Erro completo ao atualizar status do recibo:", JSON.stringify(error, null, 2));
 
       // Extrair mensagem de erro corretamente
       let errorMsg = "Erro ao atualizar status";
@@ -1058,6 +1066,11 @@ export function NotasFiscaisSaida() {
         errorMsg = error;
       } else if (error?.details) {
         errorMsg = error.details;
+      }
+
+      // Se for erro de constraint, mostrar mais detalhes
+      if (errorMsg.includes("violates check constraint")) {
+        errorMsg = `Status "${newStatus}" não é válido para esta tabela. Valores permitidos: ${statusValidos.join(", ")}`;
       }
 
       toast({
@@ -1998,14 +2011,19 @@ export function NotasFiscaisSaida() {
                             >
                               <SelectTrigger className={`w-[130px] h-8 text-xs font-medium border rounded-lg ${recibo.status === "enviado" ? "bg-green-500/10 text-green-600 border-green-500/30" :
                                   recibo.status === "pendente" ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/30" :
-                                    "bg-red-500/10 text-red-600 border-red-500/30"
+                                  recibo.status === "recebido" ? "bg-blue-500/10 text-blue-600 border-blue-500/30" :
+                                    "bg-gray-500/10 text-gray-600 border-gray-500/30"
                                 }`}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent className="bg-card border-border">
-                                <SelectItem value="enviado">Enviado</SelectItem>
                                 <SelectItem value="pendente">Pendente</SelectItem>
+                                <SelectItem value="enviado">Enviado</SelectItem>
+                                <SelectItem value="aprovado">Aprovado</SelectItem>
                                 <SelectItem value="recebido">Recebido</SelectItem>
+                                <SelectItem value="pago">Pago</SelectItem>
+                                <SelectItem value="reembolsado">Reembolsado</SelectItem>
+                                <SelectItem value="cancelado">Cancelado</SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>
@@ -2126,8 +2144,12 @@ export function NotasFiscaisSaida() {
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
                     <SelectItem value="pendente">Pendente</SelectItem>
-                    <SelectItem value="pagamento">Pagamento</SelectItem>
-                    <SelectItem value="reembolso">Reembolso</SelectItem>
+                    <SelectItem value="enviado">Enviado</SelectItem>
+                    <SelectItem value="aprovado">Aprovado</SelectItem>
+                    <SelectItem value="recebido">Recebido</SelectItem>
+                    <SelectItem value="pago">Pago</SelectItem>
+                    <SelectItem value="reembolsado">Reembolsado</SelectItem>
+                    <SelectItem value="cancelado">Cancelado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
