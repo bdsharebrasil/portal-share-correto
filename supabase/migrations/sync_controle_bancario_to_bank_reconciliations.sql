@@ -4,7 +4,7 @@
 -- Este script sincroniza registros existentes em controle_bancario
 -- para bank_reconciliations, especialmente para entradas (receitas)
 
-```sql
+
 -- =====================================================
 -- SCRIPT: Sincronizar Controle Bancário com Bank Reconciliations
 -- =====================================================
@@ -32,7 +32,7 @@ INSERT INTO public.bank_reconciliations (
   prazo_pagamento,
   forma_pagamento,
   afeta_caixa_empresa,
-  created_by,
+  criado_por,
   partner_name,
   comprovante_url,
   nf_url,
@@ -47,16 +47,16 @@ SELECT
   cb.data as date,
   cb.descricao as description,
   cb.valor as amount,
-  CASE 
+  CASE
     WHEN cb.status = 'confirmado' THEN 'recebido'
     WHEN cb.status = 'pendente' THEN 'pendente'
     WHEN cb.status = 'inadimplente' THEN 'pendente'
     ELSE cb.status
   END as status,
   cb.client_id as client_id,
-  CASE 
+  CASE
     WHEN cb.aeronave_id IS NOT NULL THEN cb.aeronave_id
-    WHEN cb.aeronave_registro IS NOT NULL THEN 
+    WHEN cb.aeronave_registro IS NOT NULL THEN
       (SELECT id FROM public.aircraft WHERE registration = cb.aeronave_registro LIMIT 1)
     ELSE NULL
   END as aircraft_id,
@@ -66,7 +66,7 @@ SELECT
   cb.data_vencimento as prazo_pagamento,
   'empresa_paga' as forma_pagamento,
   true as afeta_caixa_empresa,
-  cb.criado_por as created_by,
+  cb.criado_por as criado_por,
   cb.partner_name as partner_name,
   cb.recibo_url as comprovante_url,
   cb.nf_url as nf_url,
@@ -134,5 +134,3 @@ ON CONFLICT DO NOTHING;
 --   AND br.reference_id = cb.id
 -- )
 -- ORDER BY cb.data DESC;
-
-```

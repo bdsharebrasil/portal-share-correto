@@ -107,7 +107,7 @@ BEGIN
       status,
       category,
       partner_name,
-      created_by,
+      criado_por,
       tipo_documento,
       doc,
       prazo_pagamento,
