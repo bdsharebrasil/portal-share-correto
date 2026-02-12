@@ -118,18 +118,18 @@ export function TransactionsTable({
     [filtered, limit]
   );
 
-  // Memoizar resumo financeiro
+  // Memoizar resumo financeiro - usa filtered (todas as transações filtradas, sem limite)
   const summary = useMemo(() => {
-    const totalDeposits = items
+    const totalDeposits = filtered
       .filter((t) => t.transaction_type === "deposit")
       .reduce((s, t) => s + Number(t.amount), 0);
-    const totalExpenses = items
+    const totalExpenses = filtered
       .filter((t) => t.transaction_type !== "deposit")
       .reduce((s, t) => s + Number(t.amount), 0);
     const netResult = totalDeposits - totalExpenses;
 
     return { totalDeposits, totalExpenses, netResult };
-  }, [items]);
+  }, [filtered]);
 
   return (
     <>
