@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Plane, MapPin, Clock, Fuel, Wind, Calendar, AlertTriangle, CheckCircle, FileText, Download, Save, Calculator, Navigation, Route, CloudRain, RefreshCw, Loader2, Shield, Radio, Info, XCircle, AlertCircle, CheckCircle2, Thermometer, ChevronRight } from 'lucide-react';
+import { Plane, MapPin, Clock, Fuel, Wind, Calendar, AlertTriangle, CheckCircle, FileText, Download, Save, Calculator, Navigation, Route, CloudRain, RefreshCw, Loader2, Shield, Radio, Info, XCircle, AlertCircle, CheckCircle2, Thermometer, ChevronRight, Check, Users } from 'lucide-react';
 import { InlineLottieSpinner } from '@/components/ui/inline-lottie-spinner';
 import { useAerodromes, type Aerodromo } from '@/hooks/useAerodromes';
 import { useAeronaves, type Aeronave } from '@/hooks/useAeronaves';
@@ -22,6 +22,11 @@ import { toast } from 'sonner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { fetchAISWebMETAR, type AISWebMETARData } from '@/services/aiswebWeather';
 import { fetchAirportCharts, type ChartData } from '@/services/chartsService';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 interface FlightFormData {
   origin: string;
   destination: string;
@@ -34,6 +39,8 @@ interface FlightFormData {
   departure: string;
   passengers: number;
   route: string;
+  picId: string;
+  picName?: string;
 }
 interface FlightCalculations {
   distance: number;
@@ -177,8 +184,12 @@ export default function PlanoVooPage() {
     cruiseSpeed: '',
     departure: '',
     passengers: 1,
-    route: ''
+    route: '',
+    picId: '',
+    picName: ''
   });
+  const [selectedPic, setSelectedPic] = useState<string>('');
+  const [picOpen, setPicOpen] = useState(false);
   const [calculations, setCalculations] = useState<FlightCalculations | null>(null);
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [originWeather, setOriginWeather] = useState<AISWebMETARData | null>(null);
@@ -225,6 +236,29 @@ export default function PlanoVooPage() {
     deleteFlightPlan,
     refreshFlightPlans
   } = useFlightPlans();
+
+  // Buscar crew members (pilotos)
+  const { data: crewMembers = [] } = useQuery({
+    queryKey: ['crew-members-pic'],
+    queryFn: async () => {
+      const { data: crewData, error } = await supabase
+        .from('crew_members')
+        .select('id, full_name, canac, status')
+        .eq('status', 'ativo')
+        .order('full_name', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar crew members:', error);
+        return [];
+      }
+
+      return (crewData || []).map((member: any) => ({
+        id: member.id,
+        full_name: member.full_name,
+        canac: member.canac
+      }));
+    }
+  });
 
   // Obter aeródromo por designativo
   const getAerodromeByCode = useCallback((code: string): Aerodromo | undefined => {
@@ -283,6 +317,10 @@ export default function PlanoVooPage() {
 
   // Calcular plano de voo
   const calculateFlightPlan = useCallback(async () => {
+    if (!formData.picId) {
+      toast.error('Selecione um PIC (Piloto em Comando)');
+      return;
+    }
     const originAerodrome = getAerodromeByCode(formData.origin);
     const destAerodrome = getAerodromeByCode(formData.destination);
     const aircraft = getAircraftById(formData.aircraftId);
@@ -469,15 +507,21 @@ export default function PlanoVooPage() {
       toast.error('Você precisa estar logado para salvar planos');
       return;
     }
+    if (!formData.picId) {
+      toast.error('Selecione um PIC (Piloto em Comando)');
+      return;
+    }
 
     // Extrair data da departure ou usar hoje
     const flightDate = formData.departure ? formData.departure.split('T')[0] : new Date().toISOString().split('T')[0];
+    const picName = crewMembers.find(c => c.id === formData.picId)?.full_name || formData.picName || 'Piloto';
+    
     const planInput = {
       flight_date: flightDate,
       departure_airport: formData.origin,
       arrival_airport: formData.destination,
       aircraft_id: formData.aircraftId || undefined,
-      pilot_in_command: user.email || 'Piloto',
+      pilot_in_command: picName,
       alternate_airport: formData.alternate || undefined,
       cruise_altitude: formData.cruiseAlt || calculations.suggestedAlt,
       estimated_time: calculations.ete,
@@ -493,7 +537,7 @@ export default function PlanoVooPage() {
       }
     };
     await createFlightPlan(planInput);
-  }, [formData, calculations, validation, originWeather, destWeather, createFlightPlan, user]);
+  }, [formData, calculations, validation, originWeather, destWeather, createFlightPlan, user, crewMembers]);
 
   // Excluir plano
   const handleDeletePlan = useCallback(async (id: string) => {
@@ -868,6 +912,67 @@ export default function PlanoVooPage() {
                   })} placeholder="PT-ABC" className="mt-1 bg-background border-border text-foreground" />
                   </div>
 
+                  {/* PIC */}
+                  <div>
+                    <Label className="text-muted-foreground">PIC (Piloto em Comando) *</Label>
+                    <Popover open={picOpen} onOpenChange={setPicOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between h-11 font-normal mt-1"
+                        >
+                          {selectedPic
+                            ? (() => {
+                                const pic = crewMembers.find(c => c.id === selectedPic);
+                                return pic ? `${pic.full_name} (${pic.canac})` : 'Selecione o PIC...';
+                              })()
+                            : 'Selecione o PIC...'
+                          }
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0" align="start">
+                        <Command>
+                          <CommandInput 
+                            placeholder="Buscar piloto por nome ou CANAC..." 
+                            onValueChange={() => {}}
+                          />
+                          <CommandList>
+                            <CommandEmpty>Nenhum piloto encontrado.</CommandEmpty>
+                            <CommandGroup>
+                              {crewMembers.map((crew) => (
+                                <CommandItem
+                                  key={crew.id}
+                                  value={`${crew.full_name} ${crew.canac}`}
+                                  onSelect={() => {
+                                    setSelectedPic(crew.id);
+                                    setFormData({
+                                      ...formData,
+                                      picId: crew.id,
+                                      picName: crew.full_name
+                                    });
+                                    setPicOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      selectedPic === crew.id ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  <div className="flex flex-col gap-0.5 flex-1">
+                                    <span className="font-medium">{crew.full_name}</span>
+                                    <span className="text-xs text-muted-foreground">CANAC: {crew.canac}</span>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
                   {/* Regra de Voo */}
                   <div>
                     <Label className="text-muted-foreground">Regra de Voo</Label>
@@ -881,7 +986,9 @@ export default function PlanoVooPage() {
                       <option value="Z">VFR/IFR</option>
                     </select>
                   </div>
+                </div>
 
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                   {/* Passageiros */}
                   <div>
                     <Label className="text-muted-foreground">Passageiros</Label>
@@ -890,9 +997,7 @@ export default function PlanoVooPage() {
                     passengers: parseInt(e.target.value) || 1
                   })} min="1" className="mt-1 bg-background border-border text-foreground" />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                   {/* Velocidade de Cruzeiro */}
                   <div>
                     <Label className="text-muted-foreground">Velocidade Cruzeiro (kt)</Label>
@@ -902,6 +1007,17 @@ export default function PlanoVooPage() {
                   })} placeholder="180" className="mt-1 bg-background border-border text-foreground" />
                   </div>
 
+                  {/* Altitude de Cruzeiro */}
+                  <div>
+                    <Label className="text-muted-foreground">Altitude Cruzeiro (ft)</Label>
+                    <Input value={formData.cruiseAlt} onChange={e => setFormData({
+                    ...formData,
+                    cruiseAlt: e.target.value
+                  })} placeholder="5500" className="mt-1 bg-background border-border text-foreground" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   {/* Data/Hora */}
                   <div>
                     <Label className="text-muted-foreground">Data/Hora de Partida</Label>
@@ -921,7 +1037,7 @@ export default function PlanoVooPage() {
                   </div>
                 </div>
 
-                <Button onClick={calculateFlightPlan} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={!formData.origin || !formData.destination || isValidating}>
+                <Button onClick={calculateFlightPlan} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" disabled={!formData.origin || !formData.destination || !formData.picId || isValidating}>
                   {isValidating ? <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       Validando...
@@ -1327,7 +1443,9 @@ export default function PlanoVooPage() {
                       cruiseSpeed: '',
                       departure: '',
                       passengers: 1,
-                      route: plan.route || ''
+                      route: plan.route || '',
+                      picId: '',
+                      picName: plan.pilot_in_command || ''
                     });
                     if (plan.calculations) {
                       setCalculations(plan.calculations);

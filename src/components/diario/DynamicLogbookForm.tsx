@@ -1089,21 +1089,29 @@ export function DynamicLogbookForm({
                       className="w-full justify-between h-11 font-normal"
                     >
                       {selectedPic
-                        ? allCrew.find(t => t.id === selectedPic)?.full_name || 'PIC selecionado'
+                        ? (() => {
+                            const pic = allCrew.find(t => t.id === selectedPic);
+                            return pic ? `${pic.full_name} (${pic.canac})` : 'PIC selecionado';
+                          })()
                         : 'Selecione o PIC...'
                       }
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0" align="start">
                     <Command>
-                      <CommandInput placeholder="Buscar piloto..." />
+                      <CommandInput 
+                        placeholder="Buscar piloto por nome ou CANAC..." 
+                        onValueChange={(value) => {
+                          // Permitir busca por nome ou CANAC
+                        }}
+                      />
                       <CommandList>
                         <CommandEmpty>Nenhum piloto encontrado.</CommandEmpty>
                         <CommandGroup>
                           {allCrew.map((tripulante) => (
                             <CommandItem
                               key={tripulante.id}
-                              value={tripulante.full_name}
+                              value={`${tripulante.full_name} ${tripulante.canac}`}
                               onSelect={() => {
                                 setSelectedPic(tripulante.id);
                                 setPicOpen(false);
@@ -1115,7 +1123,10 @@ export function DynamicLogbookForm({
                                   selectedPic === tripulante.id ? "opacity-100" : "opacity-0"
                                 )}
                               />
-                              <span>{tripulante.full_name}</span>
+                              <div className="flex flex-col gap-0.5">
+                                <span className="font-medium">{tripulante.full_name}</span>
+                                <span className="text-xs text-muted-foreground">CANAC: {tripulante.canac}</span>
+                              </div>
                             </CommandItem>
                           ))}
                         </CommandGroup>

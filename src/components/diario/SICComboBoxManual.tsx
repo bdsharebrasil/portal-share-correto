@@ -193,7 +193,7 @@ export function SICComboBoxManual({
                         {filteredCrew.map((crew_member) => (
                           <CommandItem
                             key={crew_member.id}
-                            value={crew_member.full_name}
+                            value={`${crew_member.full_name} ${crew_member.canac}`}
                             onSelect={() => handleSelectCrew(crew_member.id)}
                             className="cursor-pointer hover:bg-slate-800"
                           >
@@ -203,10 +203,10 @@ export function SICComboBoxManual({
                                 value === crew_member.id ? "opacity-100" : "opacity-0"
                               )}
                             />
-                            <span>{crew_member.full_name}</span>
-                            <span className="ml-auto text-xs text-slate-500 font-mono">
-                              {crew_member.canac}
-                            </span>
+                            <div className="flex flex-col gap-0.5 flex-1">
+                              <span className="font-medium text-white">{crew_member.full_name}</span>
+                              <span className="text-xs text-slate-500">CANAC: {crew_member.canac}</span>
+                            </div>
                           </CommandItem>
                         ))}
                       </CommandGroup>

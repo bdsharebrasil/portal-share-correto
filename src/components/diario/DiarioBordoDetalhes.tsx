@@ -1,13 +1,16 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { Layout } from "../layout/Layout";
-import { ArrowLeft, Plus, CheckCircle, Loader2, Save, X, Clock, Navigation, Users, Fuel, Calendar, Search, ChevronLeft, ChevronRight, Plane, Info, AlertCircle, TrendingUp, DollarSign, Edit, Trash2, MapPin, Download } from 'lucide-react';
+import { ArrowLeft, Plus, CheckCircle, Loader2, Save, X, Clock, Navigation, Users, Fuel, Calendar, Search, ChevronLeft, ChevronRight, Plane, Info, AlertCircle, TrendingUp, DollarSign, Edit, Trash2, MapPin, Download, Check, ChevronDown } from 'lucide-react';
 import { supabase } from '../../integrations/supabase/client';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { updateCrewFlightHours } from '@/services/crewFlightHours';
 import { fetchManutencaoRevisao, fetchManutencaoRevisaoAtiva, updateManutencaoHoras, ensureRevisionMaintenance } from '@/services/manutencoes';
 import { MaintenanceStatusAlert } from './MaintenanceStatusAlert';
@@ -304,6 +307,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [showTechnicalStatus, setShowTechnicalStatus] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const [picNewOpen, setPicNewOpen] = useState(false);
+  const [picEditOpen, setPicEditOpen] = useState(false);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [availableMonths, setAvailableMonths] = useState<Array<{ month: number; year: number }>>([]);
 
@@ -521,7 +526,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       try {
         const [acRes, crewMembersRes, crewTableRes, aeroRes, clientRes, entriesRes, monthsRes, partnersRes] = await Promise.all([
           supabase.from('aircraft').select('*').eq('id', aircraftId).single(),
-          supabase.from('crew_members').select('*'),
+          supabase.from('crew_members').select('*').eq('status', 'ativo').order('full_name', { ascending: true }),
           supabase.from('crew').select('id, full_name, canac, status').eq('status', 'ativo').order('full_name', { ascending: true }),
           supabase.from('aerodromes').select('*').order('designativo'),
           supabase.from('clients').select('id, company_name, cnpj, partner_name, partner_name2, partner_name3, client_aircraft(aircraft_id)').order('company_name'),
@@ -1966,17 +1971,61 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
               <div className="space-y-1">
                 <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Comandante (PIC) *</Label>
-                <Select value={newEntry.pic_canac} onValueChange={v => setNewEntry({
-                  ...newEntry,
-                  pic_canac: v
-                })}>
-                  <SelectTrigger className="bg-slate-950 border-slate-800 text-white">
-                    <SelectValue placeholder="Selecione o PIC" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {crew.map(c => <SelectItem key={c.id} value={c.id}>{c.full_name} ({c.canac})</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Popover open={picNewOpen} onOpenChange={setPicNewOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      className="w-full justify-between h-11 font-normal bg-slate-950 border-slate-800 text-white hover:bg-slate-900"
+                    >
+                      {newEntry.pic_canac
+                        ? (() => {
+                            const pic = crew.find(c => c.id === newEntry.pic_canac);
+                            return pic ? `${pic.full_name} (${pic.canac})` : 'Selecione o PIC...';
+                          })()
+                        : 'Selecione o PIC...'
+                      }
+                      <ChevronDown className="h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0 bg-slate-950 border-slate-800" align="start">
+                    <Command className="bg-slate-950">
+                      <CommandInput 
+                        placeholder="Buscar piloto por nome ou CANAC..." 
+                        className="bg-slate-900 border-slate-800 text-white placeholder:text-slate-500"
+                      />
+                      <CommandList>
+                        <CommandEmpty>Nenhum piloto encontrado.</CommandEmpty>
+                        <CommandGroup>
+                          {crew.map((pilot) => (
+                            <CommandItem
+                              key={pilot.id}
+                              value={`${pilot.full_name} ${pilot.canac}`}
+                              onSelect={() => {
+                                setNewEntry({
+                                  ...newEntry,
+                                  pic_canac: pilot.id
+                                });
+                                setPicNewOpen(false);
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  newEntry.pic_canac === pilot.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col gap-0.5 flex-1">
+                                <span className="font-medium text-white">{pilot.full_name}</span>
+                                <span className="text-xs text-slate-500">CANAC: {pilot.canac}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <SICComboBoxManual
@@ -3437,17 +3486,61 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4 pt-2">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">PIC *</Label>
-                    <Select value={editingEntry.pic_canac} onValueChange={v => setEditingEntry({
-                      ...editingEntry,
-                      pic_canac: v
-                    })}>
-                      <SelectTrigger className="bg-slate-900 border border-slate-700 text-white h-10">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {crew.map(c => <SelectItem key={c.id} value={c.id}>{c.full_name} ({c.canac})</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={picEditOpen} onOpenChange={setPicEditOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between h-11 font-normal bg-slate-900 border-slate-700 text-white hover:bg-slate-800"
+                        >
+                          {editingEntry.pic_canac
+                            ? (() => {
+                                const pic = crew.find(c => c.id === editingEntry.pic_canac);
+                                return pic ? `${pic.full_name} (${pic.canac})` : 'Selecione o PIC...';
+                              })()
+                            : 'Selecione o PIC...'
+                          }
+                          <ChevronDown className="h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0 bg-slate-900 border-slate-700" align="start">
+                        <Command className="bg-slate-900">
+                          <CommandInput 
+                            placeholder="Buscar piloto por nome ou CANAC..." 
+                            className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
+                          />
+                          <CommandList>
+                            <CommandEmpty>Nenhum piloto encontrado.</CommandEmpty>
+                            <CommandGroup>
+                              {crew.map((pilot) => (
+                                <CommandItem
+                                  key={pilot.id}
+                                  value={`${pilot.full_name} ${pilot.canac}`}
+                                  onSelect={() => {
+                                    setEditingEntry({
+                                      ...editingEntry,
+                                      pic_canac: pilot.id
+                                    });
+                                    setPicEditOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      editingEntry.pic_canac === pilot.id ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  <div className="flex flex-col gap-0.5 flex-1">
+                                    <span className="font-medium text-white">{pilot.full_name}</span>
+                                    <span className="text-xs text-slate-500">CANAC: {pilot.canac}</span>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <SICComboBoxManual
                     value={editingEntry.sic_canac ?? ''}

@@ -378,7 +378,10 @@ export function FlightCycleDetail({
                   <SelectContent>
                     {crewMembers.map(member => (
                       <SelectItem key={member.id} value={member.full_name}>
-                        {member.full_name}
+                        <div className="flex items-center gap-2">
+                          <span>{member.full_name}</span>
+                          <span className="text-xs text-muted-foreground">({member.canac})</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -397,7 +400,10 @@ export function FlightCycleDetail({
                   <SelectContent>
                     {crewMembers.map(member => (
                       <SelectItem key={member.id} value={member.full_name}>
-                        {member.full_name}
+                        <div className="flex items-center gap-2">
+                          <span>{member.full_name}</span>
+                          <span className="text-xs text-muted-foreground">({member.canac})</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
