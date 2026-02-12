@@ -236,6 +236,16 @@ export function NotasFiscaisSaida() {
   const [isGeneratingPdfEdit, setIsGeneratingPdfEdit] = useState(false);
   const [pendingReciboUpdate, setPendingReciboUpdate] = useState<any | null>(null);
 
+  // Estados para confirmação de recebimento de NF
+  const [showRecebimentoDialog, setShowRecebimentoDialog] = useState(false);
+  const [pendingNotaRecebimento, setPendingNotaRecebimento] = useState<{ notaId: string; numeroNota: string } | null>(null);
+  const [recebimentoData, setRecebimentoData] = useState({
+    banco: "",
+    data_recebimento: new Date().toISOString().split("T")[0],
+    comprovante_url: "",
+  });
+  const [isUploadingComprovante, setIsUploadingComprovante] = useState(false);
+
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -638,6 +648,21 @@ export function NotasFiscaisSaida() {
       return;
     }
 
+    // Se for marcar como "recebido", abrir diálogo de confirmação
+    if (newStatus === "recebido") {
+      const nota = notas.find(n => n.id === idLimpo);
+      if (nota) {
+        setPendingNotaRecebimento({ notaId: idLimpo, numeroNota: nota.numero });
+        setRecebimentoData({
+          banco: "",
+          data_recebimento: new Date().toISOString().split("T")[0],
+          comprovante_url: "",
+        });
+        setShowRecebimentoDialog(true);
+      }
+      return;
+    }
+
     try {
       console.log("🔵 Atualizando Nota Fiscal:", { notaId: idLimpo, newStatus });
 
@@ -660,7 +685,7 @@ export function NotasFiscaisSaida() {
 
       toast({
         title: "Sucesso",
-        description: `Status atualizado para ${newStatus === 'recebido' ? 'Recebido' : newStatus === 'cancelado' ? 'Cancelado' : 'Pendente'}`,
+        description: `Status atualizado para ${newStatus === 'cancelado' ? 'Cancelado' : 'Pendente'}`,
       });
 
       loadNotas();
@@ -1156,6 +1181,102 @@ export function NotasFiscaisSaida() {
         description: errorMsg.includes("policy") || errorMsg.includes("permission")
           ? "Sem permissão para atualizar. Verifique se seu perfil tem acesso (Admin, Gestor ou Financeiro)."
           : errorMsg,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleComprovanteUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploadingComprovante(true);
+
+      const fileName = `comprovantes/recebimento_${pendingNotaRecebimento?.numeroNota}_${Date.now()}${file.name.substring(file.name.lastIndexOf("."))}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("nfs-share-saida")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("nfs-share-saida")
+        .getPublicUrl(fileName);
+
+      setRecebimentoData({
+        ...recebimentoData,
+        comprovante_url: urlData.publicUrl,
+      });
+
+      toast({
+        title: "Sucesso",
+        description: "Comprovante anexado com sucesso",
+      });
+    } catch (error: any) {
+      console.error("Erro ao upload do comprovante:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao anexar comprovante",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingComprovante(false);
+    }
+  };
+
+  const handleConfirmRecebimento = async () => {
+    if (!pendingNotaRecebimento) return;
+
+    if (!recebimentoData.banco.trim()) {
+      toast({
+        title: "Erro",
+        description: "Banco é obrigatório",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!recebimentoData.data_recebimento) {
+      toast({
+        title: "Erro",
+        description: "Data de recebimento é obrigatória",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("notas_fiscais_saida")
+        .update({
+          status: "recebido",
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("id", pendingNotaRecebimento.notaId);
+
+      if (error) {
+        console.error("Erro ao confirmar recebimento:", error);
+        throw error;
+      }
+
+      // Atualizar também a tabela de histórico/logs se existir
+      // Por enquanto, apenas atualizamos a nota fiscal
+
+      toast({
+        title: "Sucesso",
+        description: "Nota Fiscal marcada como recebida com sucesso",
+      });
+
+      setShowRecebimentoDialog(false);
+      setPendingNotaRecebimento(null);
+      loadNotas();
+    } catch (error: any) {
+      console.error("Erro ao confirmar recebimento:", error);
+      toast({
+        title: "Erro",
+        description: error?.message || "Erro ao confirmar recebimento",
         variant: "destructive",
       });
     }
@@ -2300,6 +2421,107 @@ export function NotasFiscaisSaida() {
               )}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Confirmação de Recebimento de NF */}
+      <Dialog open={showRecebimentoDialog} onOpenChange={setShowRecebimentoDialog}>
+        <DialogContent className="bg-card border-border max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Confirmar Recebimento da NF</DialogTitle>
+          </DialogHeader>
+          {pendingNotaRecebimento && (
+            <div className="space-y-4">
+              <div className="bg-muted/30 rounded-lg p-4 border border-border/40">
+                <p className="text-sm text-muted-foreground">Número da NF</p>
+                <p className="text-lg font-semibold text-foreground">{pendingNotaRecebimento.numeroNota}</p>
+              </div>
+
+              <div>
+                <Label className="text-foreground mb-2 block">Banco *</Label>
+                <Input
+                  value={recebimentoData.banco}
+                  onChange={(e) => setRecebimentoData({ ...recebimentoData, banco: e.target.value })}
+                  placeholder="Ex: Itaú, Bradesco, etc."
+                  className="bg-background border-border"
+                />
+              </div>
+
+              <div>
+                <Label className="text-foreground mb-2 block">Data de Recebimento *</Label>
+                <Input
+                  type="date"
+                  value={recebimentoData.data_recebimento}
+                  onChange={(e) => setRecebimentoData({ ...recebimentoData, data_recebimento: e.target.value })}
+                  className="bg-background border-border"
+                />
+              </div>
+
+              <div>
+                <Label className="text-foreground mb-2 block">Comprovante de Recebimento</Label>
+                {recebimentoData.comprovante_url ? (
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                    <FileText className="h-5 w-5 text-primary" />
+                    <a
+                      href={recebimentoData.comprovante_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline flex-1 truncate"
+                    >
+                      Comprovante anexado
+                    </a>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setRecebimentoData({ ...recebimentoData, comprovante_url: "" })}
+                      className="h-8 w-8 p-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="file"
+                      onChange={handleComprovanteUpload}
+                      disabled={isUploadingComprovante}
+                      className="hidden"
+                      id="comprovante-upload"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById("comprovante-upload")?.click()}
+                      disabled={isUploadingComprovante}
+                      className="w-full"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {isUploadingComprovante ? "Enviando..." : "Anexar Comprovante"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 justify-end mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowRecebimentoDialog(false);
+                    setPendingNotaRecebimento(null);
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={handleConfirmRecebimento}
+                >
+                  Confirmar Recebimento
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
