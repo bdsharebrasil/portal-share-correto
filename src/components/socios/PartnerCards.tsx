@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { DollarSign, TrendingUp, TrendingDown, RotateCw } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PartnerAccount, PartnerTransaction } from "@/hooks/useFinanceiroSocios";
 import { useQueryClient } from "@tanstack/react-query";
@@ -7,13 +7,13 @@ import { useQueryClient } from "@tanstack/react-query";
 const PARTNER_COLORS: Record<string, string> = {
   GUAVIRA: "from-emerald-500/20 to-emerald-600/10 border-emerald-500/30",
   ARMANDO: "from-blue-500/20 to-blue-600/10 border-blue-500/30",
-  DJALMA: "from-amber-500/20 to-amber-600/10 border-amber-500/30",
+  DJALMA: "from-amber-500/20 to-amber-600/10 border-amber-500/30"
 };
 
 const PARTNER_TEXT: Record<string, string> = {
   GUAVIRA: "text-emerald-400",
   ARMANDO: "text-blue-400",
-  DJALMA: "text-amber-400",
+  DJALMA: "text-amber-400"
 };
 
 function fmt(v: number) {
@@ -28,29 +28,29 @@ interface PartnerCardsProps {
 
 // Calcula o saldo de um sócio baseado em suas transações
 function calculatePartnerBalance(partnerCpf: string, transactions: PartnerTransaction[]): number {
-  const partnerTransactions = transactions.filter(t => t.partner_cpf === partnerCpf);
-  
-  const totalDeposits = partnerTransactions
-    .filter(t => t.transaction_type === "deposit")
-    .reduce((sum, t) => sum + Number(t.amount), 0);
-  
-  const totalExpenses = partnerTransactions
-    .filter(t => t.transaction_type !== "deposit")
-    .reduce((sum, t) => sum + Number(t.amount), 0);
-  
+  const partnerTransactions = transactions.filter((t) => t.partner_cpf === partnerCpf);
+
+  const totalDeposits = partnerTransactions.
+  filter((t) => t.transaction_type === "deposit").
+  reduce((sum, t) => sum + Number(t.amount), 0);
+
+  const totalExpenses = partnerTransactions.
+  filter((t) => t.transaction_type !== "deposit").
+  reduce((sum, t) => sum + Number(t.amount), 0);
+
   return totalDeposits - totalExpenses;
 }
 
 export function PartnerCards({ accounts, transactions = [], clienteId }: PartnerCardsProps) {
   const queryClient = useQueryClient();
-  
+
   // Calcula o saldo total automaticamente baseado em TODAS as transações
-  const totalDepositsAll = transactions
-    .filter(t => t.transaction_type === "deposit")
-    .reduce((sum, t) => sum + Number(t.amount), 0);
-  const totalExpensesAll = transactions
-    .filter(t => t.transaction_type !== "deposit")
-    .reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalDepositsAll = transactions.
+  filter((t) => t.transaction_type === "deposit").
+  reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalExpensesAll = transactions.
+  filter((t) => t.transaction_type !== "deposit").
+  reduce((sum, t) => sum + Number(t.amount), 0);
   const totalBalance = totalDepositsAll - totalExpensesAll;
 
   const handleRefresh = () => {
@@ -66,20 +66,20 @@ export function PartnerCards({ accounts, transactions = [], clienteId }: Partner
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {accounts.map((acc) => {
           // Calcula saldo automático, depósitos e despesas baseado em transações
-          const accountTransactions = transactions.filter(t => t.partner_cpf === acc.partner_cpf);
-          const totalDeposits = accountTransactions
-            .filter(t => t.transaction_type === "deposit")
-            .reduce((sum, t) => sum + Number(t.amount), 0);
-          const totalExpenses = accountTransactions
-            .filter(t => t.transaction_type !== "deposit")
-            .reduce((sum, t) => sum + Number(t.amount), 0);
+          const accountTransactions = transactions.filter((t) => t.partner_cpf === acc.partner_cpf);
+          const totalDeposits = accountTransactions.
+          filter((t) => t.transaction_type === "deposit").
+          reduce((sum, t) => sum + Number(t.amount), 0);
+          const totalExpenses = accountTransactions.
+          filter((t) => t.transaction_type !== "deposit").
+          reduce((sum, t) => sum + Number(t.amount), 0);
           const calculatedBalance = totalDeposits - totalExpenses;
-          
+
           return (
             <Card
               key={acc.id}
-              className={`bg-gradient-to-br ${PARTNER_COLORS[acc.partner_name] || "from-muted/20 to-muted/10 border-muted/30"} border`}
-            >
+              className={`bg-gradient-to-br ${PARTNER_COLORS[acc.partner_name] || "from-muted/20 to-muted/10 border-muted/30"} border`}>
+
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className={`font-bold text-lg ${PARTNER_TEXT[acc.partner_name] || "text-foreground"}`}>
@@ -101,8 +101,8 @@ export function PartnerCards({ accounts, transactions = [], clienteId }: Partner
                   </span>
                 </div>
               </CardContent>
-            </Card>
-          );
+            </Card>);
+
         })}
       </div>
       <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20">
@@ -113,20 +113,20 @@ export function PartnerCards({ accounts, transactions = [], clienteId }: Partner
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xl font-bold text-primary">{fmt(totalBalance)}</span>
-            {clienteId && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleRefresh}
-                title="Atualizar saldos"
-                className="h-8 w-8 p-0"
-              >
-                <RotateCw className="h-4 w-4" />
+            {clienteId &&
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRefresh}
+              title="Atualizar saldos"
+              className="h-8 w-8 p-0">
+
+                
               </Button>
-            )}
+            }
           </div>
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>);
+
 }
