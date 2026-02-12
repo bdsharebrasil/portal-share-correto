@@ -21,7 +21,7 @@ export const useAeronaves = () => {
         const { data, error: supabaseError } = await supabase
           .from('aircraft')
           .select('*')
-          .neq('status', 'Deletada')
+          .eq('status', 'ativa')
           .order('registration', { ascending: true });
 
         if (supabaseError) {
