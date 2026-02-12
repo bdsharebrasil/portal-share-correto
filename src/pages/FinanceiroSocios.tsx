@@ -34,25 +34,25 @@ export default function FinanceiroSocios() {
 
   // Memoizar clientes com partners para evitar recalcular a cada render
   const clientesComPartners = useMemo(
-    () => clientesComSocios.filter(cliente =>
-      cliente.socios && cliente.socios.length > 0
+    () => clientesComSocios.filter((cliente) =>
+    cliente.socios && cliente.socios.length > 0
     ),
     [clientesComSocios]
   );
 
   // Filtrar lista de seleção por termo de busca
   const clientesFiltrados = useMemo(
-    () => clientesComPartners.filter(cliente =>
-      cliente.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.proprietario?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.cnpj?.includes(searchTerm)
+    () => clientesComPartners.filter((cliente) =>
+    cliente.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cliente.proprietario?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    cliente.cnpj?.includes(searchTerm)
     ),
     [clientesComPartners, searchTerm]
   );
 
   // Encontrar o objeto do cliente selecionado para exibir no Header
   const selectedClientData = useMemo(
-    () => clientesComSocios.find(c => c.id === clienteSelecionado),
+    () => clientesComSocios.find((c) => c.id === clienteSelecionado),
     [clientesComSocios, clienteSelecionado]
   );
 
@@ -83,17 +83,17 @@ export default function FinanceiroSocios() {
                   placeholder="Buscar por nome, CPF/CNPJ..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+                  className="pl-10" />
+
               </div>
             </CardContent>
           </Card>
 
           {/* Grid de Clientes */}
-          {loadingClientes ? (
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-             {[...Array(6)].map((_, i) => (
-               <Card key={i} className="border-border/50 bg-card/60">
+          {loadingClientes ?
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+             {[...Array(6)].map((_, i) =>
+            <Card key={i} className="border-border/50 bg-card/60">
                  <CardHeader>
                    <div className="h-6 bg-muted rounded w-3/4 animate-pulse" />
                  </CardHeader>
@@ -104,26 +104,26 @@ export default function FinanceiroSocios() {
                    </div>
                  </CardContent>
                </Card>
-             ))}
-           </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {clientesFiltrados.map((cliente) => (
-                <Card
-                  key={cliente.id}
-                  className="border-border/50 bg-card/60 backdrop-blur-sm hover:bg-card/80 transition-colors cursor-pointer group"
-                >
+            )}
+           </div> :
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {clientesFiltrados.map((cliente) =>
+            <Card
+              key={cliente.id}
+              className="border-border/50 bg-card/60 backdrop-blur-sm hover:bg-card/80 transition-colors cursor-pointer group">
+
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
                         <CardTitle className="text-base truncate group-hover:text-primary transition-colors">
                           {cliente.company_name || cliente.proprietario}
                         </CardTitle>
-                        {cliente.cnpj && (
-                          <p className="text-xs text-muted-foreground mt-1">
+                        {cliente.cnpj &&
+                    <p className="text-xs text-muted-foreground mt-1">
                             CNPJ: {cliente.cnpj}
                           </p>
-                        )}
+                    }
                       </div>
                       <Users className="h-5 w-5 text-muted-foreground flex-shrink-0 ml-2" />
                     </div>
@@ -134,16 +134,16 @@ export default function FinanceiroSocios() {
                     <div className="space-y-2">
                       <p className="text-xs font-semibold text-muted-foreground uppercase">Sócios</p>
                       <div className="flex flex-wrap gap-2">
-                        {cliente.socios.map((socio: any) => (
-                          <Badge
-                            key={socio.id}
-                            variant="secondary"
-                            className="text-xs"
-                          >
+                        {cliente.socios.map((socio: any) =>
+                    <Badge
+                      key={socio.id}
+                      variant="secondary"
+                      className="text-xs">
+
                             <span className="truncate">{socio.nome}</span>
                             <span className="ml-1 font-semibold">{socio.percentual?.toFixed(1)}%</span>
                           </Badge>
-                        ))}
+                    )}
                       </div>
                     </div>
 
@@ -154,40 +154,40 @@ export default function FinanceiroSocios() {
                       </p>
 
                       <Button
-                        onClick={() => setClienteSelecionado(cliente.id)}
-                        className="w-full group/btn"
-                        size="sm"
-                      >
+                    onClick={() => setClienteSelecionado(cliente.id)}
+                    className="w-full group/btn"
+                    size="sm">
+
                         <span>Selecionar</span>
                         <ArrowRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
                       </Button>
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+            )}
             </div>
-          )}
+          }
 
           {/* Empty State */}
-          {!loadingClientes && clientesFiltrados.length === 0 && (
-            <Card className="border-border/50 bg-card/60">
+          {!loadingClientes && clientesFiltrados.length === 0 &&
+          <Card className="border-border/50 bg-card/60">
               <CardContent className="pt-12 pb-12 text-center">
                 <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
                 <h3 className="text-lg font-semibold text-foreground mb-2">
                   {searchTerm ? 'Nenhum cliente encontrado' : 'Nenhum cliente com sócios'}
                 </h3>
                 <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                  {searchTerm
-                    ? 'Tente ajustar sua busca'
-                    : 'Não há clientes com sócios registrados no sistema'
-                  }
+                  {searchTerm ?
+                'Tente ajustar sua busca' :
+                'Não há clientes com sócios registrados no sistema'
+                }
                 </p>
               </CardContent>
             </Card>
-          )}
+          }
         </div>
-      </Layout>
-    );
+      </Layout>);
+
   }
 
   // --- LOADER DO DASHBOARD ---
@@ -197,8 +197,8 @@ export default function FinanceiroSocios() {
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
-      </Layout>
-    );
+      </Layout>);
+
   }
 
   // --- DASHBOARD DO CLIENTE ---
@@ -224,15 +224,15 @@ export default function FinanceiroSocios() {
              <Button
               variant="outline"
               onClick={() => setClienteSelecionado(null)}
-              size="sm"
-            >
+              size="sm">
+
               ← Voltar para Seleção
             </Button>
             <Button
               onClick={() => navigate(`/financeiro/relatorio-socios/${clienteSelecionado}`)}
               className="gap-2"
-              size="sm"
-            >
+              size="sm">
+
               <BarChart3 className="h-4 w-4" />
               Relatório Mensal
             </Button>
@@ -246,15 +246,15 @@ export default function FinanceiroSocios() {
         </div>
 
         {/* Cards de Resumo dos Sócios */}
-        <PartnerCards 
-          accounts={accounts} 
+        <PartnerCards
+          accounts={accounts}
           transactions={transactions}
-          clienteId={clienteSelecionado} 
-        />
+          clienteId={clienteSelecionado} />
+
 
         {/* Seção de Parceiros (Sócios) Cadastrados */}
-        {!loadingPartners && partners.length > 0 && (
-          <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
+        {!loadingPartners && partners.length > 0 &&
+        <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
@@ -267,70 +267,70 @@ export default function FinanceiroSocios() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {partners.map((partner) => (
-                  <div
-                    key={partner.id}
-                    className="rounded-lg border border-border/50 bg-muted/30 p-4 hover:bg-muted/50 transition-colors"
-                  >
-                    {/* Nome e CPF */}
-                    <div className="mb-3">
-                      <h3 className="font-semibold text-foreground truncate">{partner.name}</h3>
-                      <p className="text-xs text-muted-foreground font-mono">
-                        {partner.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}
-                      </p>
-                    </div>
+              
 
-                    {/* Percentual de Participação */}
-                    {partner.share_percentage && (
-                      <div className="mb-3 pb-3 border-b border-border/50">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-muted-foreground">Participação:</span>
-                          <span className="font-semibold text-sm text-primary">
-                            {partner.share_percentage}%
-                          </span>
-                        </div>
-                      </div>
-                    )}
 
-                    {/* Saldo do Sócio */}
-                    {accounts.find((a) => a.partner_cpf === partner.cpf) && (
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Saldo:</span>
-                          <span className="font-semibold text-green-600">
-                            R$ {Number(
-                              accounts.find((a) => a.partner_cpf === partner.cpf)?.current_balance || 0
-                            ).toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground text-xs">Total Depositado:</span>
-                          <span className="font-medium text-xs">
-                            R$ {Number(
-                              accounts.find((a) => a.partner_cpf === partner.cpf)?.total_deposited || 0
-                            ).toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
             </CardContent>
           </Card>
-        )}
+        }
 
         {/* Cards com as 2 Últimas Transações */}
-        {!loadingTransactions && transactions.length > 0 && (
-          <TransactionsTable
-            transactions={transactions}
-            clienteId={clienteSelecionado}
-            clienteName={selectedClientData?.company_name || selectedClientData?.proprietario || 'Cliente'}
-          />
-        )}
+        {!loadingTransactions && transactions.length > 0 &&
+        <TransactionsTable
+          transactions={transactions}
+          clienteId={clienteSelecionado}
+          clienteName={selectedClientData?.company_name || selectedClientData?.proprietario || 'Cliente'} />
+
+        }
 
       </div>
-    </Layout>
-  );
+    </Layout>);
+
 }
