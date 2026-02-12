@@ -44,11 +44,14 @@ function calculatePartnerBalance(partnerCpf: string, transactions: PartnerTransa
 export function PartnerCards({ accounts, transactions = [], clienteId }: PartnerCardsProps) {
   const queryClient = useQueryClient();
   
-  // Calcula o saldo de cada sócio automaticamente baseado em transações
-  const totalBalance = accounts.reduce((s, a) => {
-    const balance = calculatePartnerBalance(a.partner_cpf, transactions);
-    return s + balance;
-  }, 0);
+  // Calcula o saldo total automaticamente baseado em TODAS as transações
+  const totalDepositsAll = transactions
+    .filter(t => t.transaction_type === "deposit")
+    .reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalExpensesAll = transactions
+    .filter(t => t.transaction_type !== "deposit")
+    .reduce((sum, t) => sum + Number(t.amount), 0);
+  const totalBalance = totalDepositsAll - totalExpensesAll;
 
   const handleRefresh = () => {
     if (clienteId) {
