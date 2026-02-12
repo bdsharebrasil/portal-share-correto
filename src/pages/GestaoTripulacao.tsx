@@ -19,6 +19,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { User, Plane, Calendar, Award, AlertTriangle, Plus, Edit, Trash2, Phone, Mail, MapPin, Clock, FileText, Eye, Lock, Users, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { CrewMemberCard } from "@/components/tripulacao/TripulacaoCard";
+import { CrewRegistrationForm } from "@/components/tripulacao/CrewRegistrationForm";
 interface CrewMember {
   id: string;
   full_name: string;
@@ -67,6 +68,7 @@ interface FlightSchedule {
 }
 export default function GestaoDeTripulacao() {
   const navigate = useNavigate();
+  const [activeMainTab, setActiveMainTab] = useState<'members' | 'registration'>('members');
   const [crewMembers, setCrewMembers] = useState<CrewMember[]>([]);
   const [selectedCrew, setSelectedCrew] = useState<CrewMember | null>(null);
   const [flightHours, setFlightHours] = useState<CrewFlightHours[]>([]);
@@ -286,7 +288,7 @@ export default function GestaoDeTripulacao() {
   return <Layout>
     <div className="p-4 md:p-6 space-y-6 bg-background min-h-screen">
       {/* Header com busca integrada */}
-      <div className="space-y-4">
+      <div>
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
@@ -300,47 +302,56 @@ export default function GestaoDeTripulacao() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">Gestão de Tripulação</h1>
             <p className="text-sm text-muted-foreground mt-1">
-              {filteredCrewMembers.length} tripulante{filteredCrewMembers.length !== 1 ? 's' : ''} {statusFilter === 'ativo' ? 'ativos' : 'inativos'}
+              Gerencie membros da Share Brasil e tripulantes externos
             </p>
-          </div>
-        </div>
-
-        {/* Barra de busca e filtros */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome ou CANAC..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="pl-10 bg-zinc-900/50 border-zinc-700/50 focus:border-primary h-10"
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setStatusFilter('ativo')}
-              className={`h-10 px-4 ${statusFilter === 'ativo'
-                ? 'bg-primary/10 text-primary border-primary/30 hover:bg-primary/20'
-                : 'bg-zinc-900/50 border-zinc-700/50 text-muted-foreground hover:text-foreground hover:bg-zinc-800'}`}
-            >
-              Ativos
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setStatusFilter('inativo')}
-              className={`h-10 px-4 ${statusFilter === 'inativo'
-                ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
-                : 'bg-zinc-900/50 border-zinc-700/50 text-muted-foreground hover:text-foreground hover:bg-zinc-800'}`}
-            >
-              Inativos
-            </Button>
           </div>
         </div>
       </div>
 
-      {/* Grid de Cards de Tripulantes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Tabs Principais */}
+      <Tabs value={activeMainTab} onValueChange={(v) => setActiveMainTab(v as 'members' | 'registration')} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="members">Gerenciar Tripulantes</TabsTrigger>
+          <TabsTrigger value="registration">Cadastro de Tripulantes</TabsTrigger>
+        </TabsList>
+
+        {/* Aba: Gerenciar Tripulantes (crew_members) */}
+        <TabsContent value="members" className="space-y-6">
+          {/* Barra de busca e filtros */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome ou CANAC..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="pl-10 bg-zinc-900/50 border-zinc-700/50 focus:border-primary h-10"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setStatusFilter('ativo')}
+                className={`h-10 px-4 ${statusFilter === 'ativo'
+                  ? 'bg-primary/10 text-primary border-primary/30 hover:bg-primary/20'
+                  : 'bg-zinc-900/50 border-zinc-700/50 text-muted-foreground hover:text-foreground hover:bg-zinc-800'}`}
+              >
+                Ativos
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setStatusFilter('inativo')}
+                className={`h-10 px-4 ${statusFilter === 'inativo'
+                  ? 'bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/20'
+                  : 'bg-zinc-900/50 border-zinc-700/50 text-muted-foreground hover:text-foreground hover:bg-zinc-800'}`}
+              >
+                Inativos
+              </Button>
+            </div>
+          </div>
+
+          {/* Grid de Cards de Tripulantes */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {filteredCrewMembers.length === 0 ? (
           <div className="col-span-full text-center py-20">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-zinc-800/50 flex items-center justify-center">
@@ -353,11 +364,11 @@ export default function GestaoDeTripulacao() {
           filteredCrewMembers.map(crew => (
             <CrewMemberCard key={crew.id} member={crew} />
           ))
-        )}
-      </div>
+          )}
+          </div>
 
-      {/* Dialog de Detalhes do Tripulante */}
-      <Dialog open={!!selectedCrew} onOpenChange={open => !open && setSelectedCrew(null)}>
+          {/* Dialog de Detalhes do Tripulante */}
+          <Dialog open={!!selectedCrew} onOpenChange={open => !open && setSelectedCrew(null)}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -649,6 +660,13 @@ export default function GestaoDeTripulacao() {
           </Tabs> : null}
         </DialogContent>
       </Dialog>
+        </TabsContent>
+
+        {/* Aba: Cadastro de Tripulantes (crew) */}
+        <TabsContent value="registration">
+          <CrewRegistrationForm />
+        </TabsContent>
+      </Tabs>
     </div>
   </Layout>;
 }

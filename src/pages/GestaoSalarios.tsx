@@ -96,7 +96,8 @@ export const GestaoSalariosContent = () => {
       // Busca dados básicos de aeronaves
       const { data: aircraft, error: aircraftError } = await supabase
         .from("aircraft")
-        .select("id, registration");
+        .select("id, registration")
+        .eq("status", "ativa");
 
       if (aircraftError) throw aircraftError;
 

@@ -74,7 +74,8 @@ export default function VencimentosDocumentos() {
       // Carregar aeronaves para obter informações
       const { data: aircraft, error: aircraftError } = await supabase
         .from('aircraft')
-        .select('*');
+        .select('*')
+        .eq('status', 'ativa');
 
       if (aircraftError) throw aircraftError;
 

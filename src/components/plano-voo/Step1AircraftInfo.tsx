@@ -77,7 +77,7 @@ export function Step1AircraftInfo({ formData, updateFormData, onViewMap }: Step1
         supabase
           .from('aircraft')
           .select('id, registration, model, manufacturer')
-          .eq('status', 'Ativa'),
+          .eq('status', 'ativa'),
         supabase.from('aerodromes').select('*').order('designativo'),
       ]);
 

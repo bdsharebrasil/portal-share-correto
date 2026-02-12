@@ -87,6 +87,7 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ aircraftId, onBack }) => {
       const { data, error } = await supabase
         .from('aircraft')
         .select('*')
+        .eq('status', 'ativa')
         .order('registration', { ascending: true });
 
       if (error) throw error;

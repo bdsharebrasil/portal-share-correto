@@ -34,6 +34,7 @@ export default function CTMDashboardPage() {
       const { data: aircraftData, error: aircraftError } = await supabase
         .from('aircraft')
         .select('id, registration, model, status, cell_hours_current')
+        .eq('status', 'ativa')
         .order('registration');
 
       if (aircraftError) throw aircraftError;

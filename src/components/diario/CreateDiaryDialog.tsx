@@ -19,6 +19,7 @@ export function CreateDiaryDialog({ open, onOpenChange, onCreate }: CreateDiaryD
       const { data, error } = await supabase
         .from('aircraft')
         .select('id, registration, model')
+        .eq('status', 'ativa')
         .order('registration');
       if (error) throw error;
       return data;

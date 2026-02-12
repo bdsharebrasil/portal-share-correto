@@ -105,7 +105,7 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
     const { data } = await supabase
       .from('aircraft')
       .select('*')
-      .eq('status', 'Ativa')
+      .eq('status', 'ativa')
       .order('registration');
     if (data) setAircraft(data);
   };

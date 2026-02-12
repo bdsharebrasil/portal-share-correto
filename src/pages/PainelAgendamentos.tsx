@@ -126,7 +126,7 @@ export default function PainelAgendamentos() {
       const { data, error } = await supabase
         .from("aircraft")
         .select("*")
-        .eq("status", "Ativa")
+        .eq("status", "ativa")
         .order("registration");
       if (error) throw error;
       return data || [];
