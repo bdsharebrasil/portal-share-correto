@@ -199,7 +199,7 @@ Densidade usada: ${density} kg/L
     setLoading(true);
     try {
       const [aircraftRes, crewRes, clientsRes] = await Promise.all([
-        supabase.from("aircraft").select("id, registration, model"),
+        supabase.from("aircraft").select("id, registration, model").eq("status", "ativa"),
         supabase.from("crew_members").select("id, full_name, canac").eq("status", "active"),
         supabase.from("clients").select("id, company_name, cnpj"),
       ]);

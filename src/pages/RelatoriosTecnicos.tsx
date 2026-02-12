@@ -53,6 +53,7 @@ export default function RelatoriosTecnicos() {
       const { data } = await supabase
         .from("aircraft")
         .select("id, registration")
+        .eq("status", "ativa")
         .order("registration");
       setAircraftList(data || []);
     } catch (e) {

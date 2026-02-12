@@ -75,7 +75,7 @@ export function AircraftSalariesMonthly() {
       const { data, error } = await supabase
         .from("aircraft")
         .select("id, registration, model, status")
-        .eq("status", "Ativa")
+        .eq("status", "ativa")
         .order("registration", { ascending: true });
       if (error) throw error;
       return data as AircraftData[];

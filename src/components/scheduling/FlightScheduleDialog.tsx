@@ -71,7 +71,7 @@ export function FlightScheduleDialog({ open, onOpenChange, onSuccess }: FlightSc
     setLoading(true);
     try {
       const [aircraftRes, crewRes, clientsRes, aerodromeRes] = await Promise.all([
-        supabase.from("aircraft").select("id, registration, model"),
+        supabase.from("aircraft").select("id, registration, model").eq("status", "ativa"),
         supabase.from("crew_members").select("id, full_name").eq("status", "ativo"),
         supabase.from("clients").select("id, company_name"),
         supabase.from("aerodromes").select("id, name, designativo"),

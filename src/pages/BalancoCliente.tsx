@@ -52,21 +52,21 @@ function BalancoClienteContent() {
   const { data: aeronaves = [] } = useQuery({
     queryKey: ['aeronaves-balanco', clienteId],
     queryFn: async () => {
-      let query = supabase.from('aircraft').select('id, registration, model');
-      
+      let query = supabase.from('aircraft').select('id, registration, model').eq('status', 'ativa');
+
       if (clienteId) {
         // Buscar aeronaves vinculadas ao cliente
         const { data: clientAircraft } = await supabase
           .from('client_aircraft')
           .select('aircraft_id')
           .eq('client_id', clienteId);
-        
+
         if (clientAircraft && clientAircraft.length > 0) {
           const aircraftIds = clientAircraft.map(ca => ca.aircraft_id);
           query = query.in('id', aircraftIds);
         }
       }
-      
+
       const { data, error } = await query.order('registration');
       if (error) throw error;
       return data || [];

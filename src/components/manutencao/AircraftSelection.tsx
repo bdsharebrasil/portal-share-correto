@@ -41,7 +41,7 @@ const AircraftSelection: React.FC<AircraftSelectionProps> = ({ onSelect }) => {
       const { data, error } = await supabase
         .from('aircraft')
         .select('id, registration, model, status')
-        .eq('status', 'Ativa')
+        .eq('status', 'ativa')
         .order('registration');
 
       if (error) throw error;

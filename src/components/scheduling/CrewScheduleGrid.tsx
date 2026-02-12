@@ -72,7 +72,7 @@ export function CrewScheduleGrid({ daysToShow = 14 }: CrewScheduleGridProps) {
       const { data, error } = await supabase
         .from("aircraft")
         .select("id, registration, model")
-        .eq("status", "Ativa")
+        .eq("status", "ativa")
         .order("registration");
       if (error) throw error;
       return (data || []) as Aircraft[];

@@ -36,6 +36,7 @@ export function FleetStatusCards() {
       const { data, error } = await supabase
         .from("aircraft")
         .select("*")
+        .eq("status", "ativa")
         .order("registration");
       if (error) throw error;
       return data || [];

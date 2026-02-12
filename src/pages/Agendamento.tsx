@@ -135,7 +135,7 @@ export default function Agendamentos() {
       const { data, error } = await supabase
         .from("aircraft")
         .select("id, registration, model")
-        .eq("status", "Ativa");
+        .eq("status", "ativa");
       if (error) throw error;
       return data;
     },
