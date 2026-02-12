@@ -431,7 +431,7 @@ export function NotasFiscaisSaida() {
             ...notaData,
             atualizado_em: new Date().toISOString(),
           })
-          .eq("id", editingNota.id);
+          .eq("id", String(editingNota.id).trim());
 
         if (error) throw error;
 
@@ -477,7 +477,7 @@ export function NotasFiscaisSaida() {
       const { error } = await supabase
         .from("notas_fiscais_saida")
         .delete()
-        .eq("id", deleteId);
+        .eq("id", String(deleteId).trim());
 
       if (error) throw error;
       toast({
@@ -603,6 +603,17 @@ export function NotasFiscaisSaida() {
   };
 
   const handleChangeStatus = async (notaId: string, newStatus: string) => {
+    // Validar ID
+    if (!notaId || typeof notaId !== 'string' || notaId.trim() === '') {
+      console.error("ID de nota inválido:", notaId);
+      toast({
+        title: "Erro",
+        description: "ID de nota inválido",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const statusValidos = ["pendente", "recebido", "cancelado"];
     if (!statusValidos.includes(newStatus)) {
       toast({
@@ -614,13 +625,15 @@ export function NotasFiscaisSaida() {
     }
 
     try {
+      console.log("Atualizando nota:", { notaId: notaId.trim(), newStatus });
+
       const { error } = await supabase
         .from("notas_fiscais_saida")
         .update({
           status: newStatus,
           atualizado_em: new Date().toISOString(),
         })
-        .eq("id", notaId);
+        .eq("id", notaId.trim());
 
       if (error) {
         console.error("Erro ao atualizar status:", error);
@@ -933,7 +946,7 @@ export function NotasFiscaisSaida() {
           nf_url: nfUrl,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", pendingReciboUpdate.id);
+        .eq("id", String(pendingReciboUpdate.id).trim());
 
       if (error) throw error;
 
@@ -968,7 +981,7 @@ export function NotasFiscaisSaida() {
       const { error } = await supabase
         .from("bank_reconciliations")
         .delete()
-        .eq("id", deleteReciboId);
+        .eq("id", String(deleteReciboId).trim());
 
       if (error) throw error;
 
@@ -991,6 +1004,17 @@ export function NotasFiscaisSaida() {
   };
 
   const handleUpdateReciboStatus = async (reciboId: string, newStatus: string) => {
+    // Validar ID
+    if (!reciboId || typeof reciboId !== 'string' || reciboId.trim() === '') {
+      console.error("ID de recibo inválido:", reciboId);
+      toast({
+        title: "Erro",
+        description: "ID de recibo inválido",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const statusValidos = ["enviado", "pendente", "recebido"];
     if (!statusValidos.includes(newStatus)) {
       toast({
@@ -1002,13 +1026,15 @@ export function NotasFiscaisSaida() {
     }
 
     try {
+      console.log("Atualizando recibo:", { reciboId: reciboId.trim(), newStatus });
+
       const { error } = await supabase
         .from("bank_reconciliations")
         .update({
           status: newStatus,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", reciboId);
+        .eq("id", reciboId.trim());
 
       if (error) {
         console.error("Erro ao atualizar status do recibo:", error);
