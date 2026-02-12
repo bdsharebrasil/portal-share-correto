@@ -1047,66 +1047,64 @@ export function NotasFiscaisSaida() {
         newStatus
       });
 
-      // Tentar atualizar diretamente na tabela bank_reconciliations
-      let { error, data } = await supabase
+      // Primeiro, buscar os dados completos do recibo para atualizar controle_bancario
+      console.log("📋 Buscando recibo...");
+      const { data: reciboData, error: searchError } = await supabase
         .from("bank_reconciliations")
-        .update({
-          status: newStatus,
-          updated_at: new Date().toISOString(),
-        })
+        .select("*")
         .eq("id", idLimpo)
-        .select();
+        .single();
 
-      // Se houver erro de UUID/tipo, tentar alternativa
-      if (error && error.code === "42883") {
-        console.warn("⚠️ Erro de tipo detectado. Tentando alternativa...");
+      if (searchError) {
+        console.error("❌ Erro ao buscar recibo:", searchError);
+        throw searchError;
+      }
 
-        // Buscar o controle_bancario_id associado
-        const { data: reciboData, error: searchError } = await supabase
+      if (!reciboData) {
+        throw new Error("Recibo não encontrado");
+      }
+
+      console.log("✅ Recibo encontrado:", { id: reciboData.id, status: reciboData.status });
+
+      // Se há um controle_bancario_id associado, atualizar lá
+      if (reciboData.controle_bancario_id) {
+        console.log("🔄 Atualizando controle_bancario...");
+        const { error: updateError, data: updateData } = await supabase
+          .from("controle_bancario")
+          .update({
+            status: newStatus,
+            data_atualizacao: new Date().toISOString(),
+          })
+          .eq("id", reciboData.controle_bancario_id)
+          .select();
+
+        if (updateError) {
+          console.error("❌ Erro ao atualizar controle_bancario:", updateError);
+          throw updateError;
+        }
+
+        console.log("✅ controle_bancario atualizado:", updateData);
+      } else {
+        // Se não há controle_bancario_id, tentar atualizar bank_reconciliations diretamente
+        console.log("🔄 Atualizando bank_reconciliations diretamente...");
+        const { error: updateError, data: updateData } = await supabase
           .from("bank_reconciliations")
-          .select("controle_bancario_id")
+          .update({
+            status: newStatus,
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", idLimpo)
-          .single();
+          .select();
 
-        if (searchError) {
-          throw searchError;
+        if (updateError) {
+          console.error("❌ Erro ao atualizar bank_reconciliations:", updateError);
+          throw updateError;
         }
 
-        if (reciboData?.controle_bancario_id) {
-          console.log("📋 Encontrado controle_bancario_id:", reciboData.controle_bancario_id);
-
-          // Atualizar na tabela controle_bancario em vez de bank_reconciliations
-          const { error: altError, data: altData } = await supabase
-            .from("controle_bancario")
-            .update({
-              status: newStatus,
-              data_atualizacao: new Date().toISOString(),
-            })
-            .eq("id", reciboData.controle_bancario_id)
-            .select();
-
-          if (altError) {
-            throw altError;
-          }
-
-          ({ error, data } = { error: altError, data: altData });
-          console.log("✅ Atualizado via controle_bancario");
-        } else {
-          throw error;
-        }
+        console.log("✅ bank_reconciliations atualizado:", updateData);
       }
 
-      if (error) {
-        console.error("❌ Erro Supabase ao atualizar status:", {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-        });
-        throw error;
-      }
-
-      console.log("✅ Recibo atualizado com sucesso:", data);
+      console.log("✅ Recibo atualizado com sucesso");
 
       toast({
         title: "Sucesso",
@@ -1130,10 +1128,19 @@ export function NotasFiscaisSaida() {
         errorMsg = error.details;
       }
 
-      // Se for erro de UUID, mostrar dica de debug
+      // Se for erro de UUID, isso é um bug no banco de dados
       if (errorMsg.includes("uuid = text") || errorMsg.includes("operator does not exist")) {
-        errorMsg = "Erro interno de tipo de dados. Tente recarregar a página.";
-        console.error("💡 Dica: Pode haver um trigger ou função no banco de dados causando este erro.");
+        console.error("🐛 BUG ENCONTRADO NO BANCO DE DADOS:");
+        console.error("   Há um trigger ou função SQL comparando UUID como TEXT.");
+        console.error("   Verifique as funções SQL:");
+        console.error("   - update_bank_reconciliation_from_controle_bancario()");
+        console.error("   - trigger_consolidar_rateio()");
+        console.error("   - update_bank_reconciliations_updated_at()");
+        console.error("   Procure por comparações como: WHERE id = NEW.id ou similar.");
+
+        errorMsg = "Erro no banco de dados: incompatibilidade de tipos UUID. " +
+                   "Entre em contato com o administrador do banco de dados. " +
+                   "O erro está em uma função SQL que está comparando UUID com texto.";
       }
 
       // Se for erro de constraint, mostrar mais detalhes
