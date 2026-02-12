@@ -35,7 +35,7 @@ export function ContasReceber() {
     vencimento: 110,
     valor: 130,
     status: 110,
-    acoes: 90,
+    acoes: 90
   };
 
   const { columnWidths, setColumnWidth } = useColumnWidths('contas-receber', defaultColumnWidths);
@@ -77,7 +77,7 @@ export function ContasReceber() {
     descricao: "",
     status: "pendente",
     aeronave: "",
-    referencia: "",
+    referencia: ""
   });
 
   const getCurrentMonth = () => {
@@ -106,10 +106,10 @@ export function ContasReceber() {
 
   const loadClients = async () => {
     try {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("id, company_name, cnpj")
-        .order("company_name", { ascending: true });
+      const { data, error } = await supabase.
+      from("clients").
+      select("id, company_name, cnpj").
+      order("company_name", { ascending: true });
 
       if (error) {
         console.error("Erro ao carregar clientes:", error);
@@ -124,11 +124,11 @@ export function ContasReceber() {
 
   const loadCategorias = async () => {
     try {
-      const { data, error } = await supabase
-        .from("categorias_movimentacao")
-        .select("id, nome")
-        .eq("tipo", "receita")
-        .order("nome", { ascending: true });
+      const { data, error } = await supabase.
+      from("categorias_movimentacao").
+      select("id, nome").
+      eq("tipo", "receita").
+      order("nome", { ascending: true });
 
       if (error) {
         console.error("Erro ao carregar categorias:", error);
@@ -143,11 +143,11 @@ export function ContasReceber() {
 
   const loadContasBancarias = async () => {
     try {
-      const { data, error } = await supabase
-        .from("contas_bancarias")
-        .select("id, banco, numero_conta, tipo_conta")
-        .eq("ativo", true)
-        .order("banco", { ascending: true });
+      const { data, error } = await supabase.
+      from("contas_bancarias").
+      select("id, banco, numero_conta, tipo_conta").
+      eq("ativo", true).
+      order("banco", { ascending: true });
 
       if (error) {
         console.error("Erro ao carregar contas bancárias:", error);
@@ -155,7 +155,7 @@ export function ContasReceber() {
         return;
       }
 
-      const filteredData = (data || []).filter(conta => conta.banco && conta.banco.trim() !== "");
+      const filteredData = (data || []).filter((conta) => conta.banco && conta.banco.trim() !== "");
       setContasBancarias(filteredData);
     } catch (error: any) {
       console.error("Erro ao carregar contas bancárias:", error.message);
@@ -167,9 +167,9 @@ export function ContasReceber() {
     setIsLoading(true);
     try {
       // 1. Carregar despesas aguardando reembolso do controle_bancario (com data_vencimento)
-      const { data: despesasReembolso, error: fluxoError } = await supabase
-        .from("controle_bancario")
-        .select(`
+      const { data: despesasReembolso, error: fluxoError } = await supabase.
+      from("controle_bancario").
+      select(`
           id,
           data,
           data_vencimento,
@@ -186,10 +186,10 @@ export function ContasReceber() {
           boleto_url,
           fornecedores_favoritos_id,
           colaborador_id
-        `)
-        .eq("status", "aguardando_reembolso")
-        .not("data_vencimento", "is", null)
-        .order("data_vencimento", { ascending: true });
+        `).
+      eq("status", "aguardando_reembolso").
+      not("data_vencimento", "is", null).
+      order("data_vencimento", { ascending: true });
 
       if (fluxoError) {
         console.error("Erro ao carregar despesas aguardando reembolso:", fluxoError);
@@ -197,9 +197,9 @@ export function ContasReceber() {
 
       // 2. Carregar despesas lançadas ao cliente de bank_reconciliations
       // IMPORTANTE: Excluir registros que já têm controle_bancario_id (já estão no fluxo de caixa)
-      const { data: bankRecData, error: bankRecError } = await supabase
-        .from("bank_reconciliations")
-        .select(`
+      const { data: bankRecData, error: bankRecError } = await supabase.
+      from("bank_reconciliations").
+      select(`
           id,
           date,
           description,
@@ -216,37 +216,37 @@ export function ContasReceber() {
           controle_bancario_id,
           clients:client_id (company_name),
           aircraft:aircraft_id (registration)
-        `)
-        .eq("type", "cliente")
-        .is("controle_bancario_id", null) // Só pegar os que NÃO têm vínculo com controle_bancario
-        .in("status", ["pendente", "enviado", "aberto"])
-        .order("date", { ascending: false });
+        `).
+      eq("type", "cliente").
+      is("controle_bancario_id", null) // Só pegar os que NÃO têm vínculo com controle_bancario
+      .in("status", ["pendente", "enviado", "aberto"]).
+      order("date", { ascending: false });
 
       if (bankRecError) {
         console.error("Erro ao carregar bank_reconciliations:", bankRecError);
       }
 
       // Carregar nomes dos fornecedores e colaboradores para referência
-      const fornecedorIds = (despesasReembolso || []).filter(d => d.fornecedores_favoritos_id).map(d => d.fornecedores_favoritos_id);
-      const colaboradorIds = (despesasReembolso || []).filter(d => d.colaborador_id).map(d => d.colaborador_id);
+      const fornecedorIds = (despesasReembolso || []).filter((d) => d.fornecedores_favoritos_id).map((d) => d.fornecedores_favoritos_id);
+      const colaboradorIds = (despesasReembolso || []).filter((d) => d.colaborador_id).map((d) => d.colaborador_id);
 
       let fornecedoresMap: Record<string, string> = {};
       let colaboradoresMap: Record<string, string> = {};
 
       if (fornecedorIds.length > 0) {
-        const { data: fornecedores } = await supabase
-          .from("fornecedores_favoritos")
-          .select("id, nome_completo")
-          .in("id", fornecedorIds);
-        fornecedores?.forEach(f => { fornecedoresMap[f.id] = f.nome_completo; });
+        const { data: fornecedores } = await supabase.
+        from("fornecedores_favoritos").
+        select("id, nome_completo").
+        in("id", fornecedorIds);
+        fornecedores?.forEach((f) => {fornecedoresMap[f.id] = f.nome_completo;});
       }
 
       if (colaboradorIds.length > 0) {
-        const { data: colaboradores } = await supabase
-          .from("user_profiles")
-          .select("id, full_name")
-          .in("id", colaboradorIds);
-        colaboradores?.forEach(c => { colaboradoresMap[c.id] = c.full_name || ""; });
+        const { data: colaboradores } = await supabase.
+        from("user_profiles").
+        select("id, full_name").
+        in("id", colaboradorIds);
+        colaboradores?.forEach((c) => {colaboradoresMap[c.id] = c.full_name || "";});
       }
 
       // Transformar despesas aguardando reembolso em formato compatível com contas a receber
@@ -307,10 +307,10 @@ export function ContasReceber() {
       });
 
       // 3. Carregar contas a receber manuais (que não vieram do fluxo ou bank_reconciliations)
-      const { data: contasData, error: contasError } = await (supabase
-        .from("contas_areceber") as any)
-        .select("*")
-        .order("data_vencimento", { ascending: true });
+      const { data: contasData, error: contasError } = await (supabase.
+      from("contas_areceber") as any).
+      select("*").
+      order("data_vencimento", { ascending: true });
 
       if (contasError) {
         toast.error(`Erro ao carregar: ${contasError.message}`);
@@ -318,8 +318,8 @@ export function ContasReceber() {
       }
 
       // Coletar todos os IDs já presentes para evitar duplicatas
-      const fluxoIds = new Set(contasFromFluxo.map(c => c.id));
-      const bankRecIds = new Set(contasFromBankRec.map(c => c.id));
+      const fluxoIds = new Set(contasFromFluxo.map((c) => c.id));
+      const bankRecIds = new Set(contasFromBankRec.map((c) => c.id));
 
       // Processar contas manuais - APENAS contas que foram criadas manualmente
       // Não devemos incluir aqui contas que vieram de outras fontes
@@ -334,11 +334,11 @@ export function ContasReceber() {
 
           // Se tem banco_conciliacao_id, pode estar vinculada a bank_reconciliations
           if (conta.banco_conciliacao_id) {
-            const { data: bancarioData } = await supabase
-              .from("bank_reconciliations")
-              .select("description, date")
-              .eq("id", conta.banco_conciliacao_id)
-              .single();
+            const { data: bancarioData } = await supabase.
+            from("bank_reconciliations").
+            select("description, date").
+            eq("id", conta.banco_conciliacao_id).
+            single();
 
             if (bancarioData) {
               referencia = bancarioData.description || referencia;
@@ -357,7 +357,7 @@ export function ContasReceber() {
       );
 
       // Filtrar manuais: APENAS incluir contas que NÃO foram importadas de fluxo ou bank_reconciliations
-      const contasManuaisFiltradas = contasManuals.filter(c => !c.isAlreadyImported);
+      const contasManuaisFiltradas = contasManuals.filter((c) => !c.isAlreadyImported);
 
       // Log para debug - verificar se há duplicatas
       const allIds = new Set<string>();
@@ -371,9 +371,9 @@ export function ContasReceber() {
         allIds.add(id);
       };
 
-      contasFromFluxo.forEach(c => checkDuplicates(c.id, 'Fluxo de Caixa'));
-      contasFromBankRec.forEach(c => checkDuplicates(c.id, 'Bank Reconciliations'));
-      contasManuaisFiltradas.forEach(c => checkDuplicates(c.id, 'Contas Manuais'));
+      contasFromFluxo.forEach((c) => checkDuplicates(c.id, 'Fluxo de Caixa'));
+      contasFromBankRec.forEach((c) => checkDuplicates(c.id, 'Bank Reconciliations'));
+      contasManuaisFiltradas.forEach((c) => checkDuplicates(c.id, 'Contas Manuais'));
 
       if (duplicateIds.size > 0) {
         console.error(`❌ ERRO: ${duplicateIds.size} duplicata(s) encontrada(s)!`, Array.from(duplicateIds));
@@ -386,8 +386,8 @@ export function ContasReceber() {
       // 5. Verificar contas vencidas e atualizar status para inadimplente
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
-      const contasVencidas = todasContas.filter(conta => {
+
+      const contasVencidas = todasContas.filter((conta) => {
         if (conta.status !== "pendente") return false;
         const vencimento = parseLocalDate(conta.data_vencimento);
         return vencimento < today;
@@ -397,18 +397,18 @@ export function ContasReceber() {
       for (const conta of contasVencidas) {
         if ((conta as any).isFromFluxoCaixa) {
           // Atualizar no controle_bancario
-          await supabase
-            .from("controle_bancario")
-            .update({ status: "inadimplente" })
-            .eq("id", (conta as any).fluxoCaixaId || conta.id);
+          await supabase.
+          from("controle_bancario").
+          update({ status: "inadimplente" }).
+          eq("id", (conta as any).fluxoCaixaId || conta.id);
         } else if ((conta as any).isFromBankReconciliation) {
+
           // Não atualizar status de bank_reconciliations aqui
-        } else {
-          // Atualizar na tabela contas_areceber
-          await supabase
-            .from("contas_areceber")
-            .update({ status: "inadimplente" })
-            .eq("id", conta.id);
+        } else {// Atualizar na tabela contas_areceber
+          await supabase.
+          from("contas_areceber").
+          update({ status: "inadimplente" }).
+          eq("id", conta.id);
         }
         // Atualizar localmente
         conta.status = "inadimplente";
@@ -435,18 +435,18 @@ export function ContasReceber() {
       const fileName = `nf_areceber_${Date.now()}_${formData.numero || 'sem_numero'}.pdf`;
       const filePath = `${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("nfs-share-saida")
-        .upload(filePath, file);
+      const { error: uploadError } = await supabase.storage.
+      from("nfs-share-saida").
+      upload(filePath, file);
 
       if (uploadError) {
         toast.error(`Erro ao fazer upload: ${uploadError.message}`);
         return;
       }
 
-      const { data: publicUrlData } = supabase.storage
-        .from("nfs-share-saida")
-        .getPublicUrl(filePath);
+      const { data: publicUrlData } = supabase.storage.
+      from("nfs-share-saida").
+      getPublicUrl(filePath);
 
       setPdfUrl(publicUrlData.publicUrl);
       toast.success("Arquivo enviado com sucesso!");
@@ -467,23 +467,23 @@ export function ContasReceber() {
     try {
       if (editingConta) {
         // Update existing
-        const { error } = await supabase
-          .from("contas_areceber")
-          .update({
-            numero: formData.numero,
-            cliente_nome: formData.cliente_nome,
-            cliente_cnpj: formData.cliente_cnpj || "",
-            data_vencimento: formData.data_vencimento,
-            valor: parseFloat(formData.valor),
-            categoria: formData.categoria || "Serviços",
-            descricao: formData.descricao || null,
-            status: formData.status,
-            arquivo_pdf_url: pdfUrl || null,
-            aeronave: formData.aeronave || null,
-            referencia: formData.referencia || null,
-            atualizado_em: new Date().toISOString()
-          })
-          .eq("id", editingConta.id);
+        const { error } = await supabase.
+        from("contas_areceber").
+        update({
+          numero: formData.numero,
+          cliente_nome: formData.cliente_nome,
+          cliente_cnpj: formData.cliente_cnpj || "",
+          data_vencimento: formData.data_vencimento,
+          valor: parseFloat(formData.valor),
+          categoria: formData.categoria || "Serviços",
+          descricao: formData.descricao || null,
+          status: formData.status,
+          arquivo_pdf_url: pdfUrl || null,
+          aeronave: formData.aeronave || null,
+          referencia: formData.referencia || null,
+          atualizado_em: new Date().toISOString()
+        }).
+        eq("id", editingConta.id);
 
         if (error) {
           toast.error(`Erro ao atualizar: ${error.message}`);
@@ -493,25 +493,25 @@ export function ContasReceber() {
         toast.success("Conta a receber atualizada com sucesso!");
       } else {
         // Insert new
-        const { error } = await supabase
-          .from("contas_areceber")
-          .insert([
-            {
-              numero: formData.numero,
-              cliente_nome: formData.cliente_nome,
-              cliente_cnpj: formData.cliente_cnpj || "",
-              data_criacao: formData.data_criacao,
-              data_vencimento: formData.data_vencimento,
-              valor: parseFloat(formData.valor),
-              categoria: formData.categoria || "Serviços",
-              descricao: formData.descricao || null,
-              status: formData.status,
-              arquivo_pdf_url: pdfUrl || null,
-              criado_por: user?.id,
-              aeronave: formData.aeronave || null,
-              referencia: formData.referencia || null,
-            }
-          ]);
+        const { error } = await supabase.
+        from("contas_areceber").
+        insert([
+        {
+          numero: formData.numero,
+          cliente_nome: formData.cliente_nome,
+          cliente_cnpj: formData.cliente_cnpj || "",
+          data_criacao: formData.data_criacao,
+          data_vencimento: formData.data_vencimento,
+          valor: parseFloat(formData.valor),
+          categoria: formData.categoria || "Serviços",
+          descricao: formData.descricao || null,
+          status: formData.status,
+          arquivo_pdf_url: pdfUrl || null,
+          criado_por: user?.id,
+          aeronave: formData.aeronave || null,
+          referencia: formData.referencia || null
+        }]
+        );
 
         if (error) {
           toast.error(`Erro ao salvar: ${error.message}`);
@@ -549,7 +549,7 @@ export function ContasReceber() {
       descricao: conta.descricao || "",
       status: conta.status || "pendente",
       aeronave: conta.aeronave || "",
-      referencia: conta.referencia || "",
+      referencia: conta.referencia || ""
     });
     setPdfUrl(conta.arquivo_pdf_url || "");
     setShowFormDialog(true);
@@ -567,7 +567,7 @@ export function ContasReceber() {
       descricao: "",
       status: "pendente",
       aeronave: "",
-      referencia: "",
+      referencia: ""
     });
     setPdfUrl("");
     setAeronaveSearch("");
@@ -575,11 +575,11 @@ export function ContasReceber() {
   };
 
   const filteredContas = useMemo(() => {
-    return contas.filter(conta => {
+    return contas.filter((conta) => {
       const searchMatch = filters.searchTerm === "" ||
-        conta.cliente_nome.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-        conta.numero.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-        (conta.referencia && conta.referencia.toLowerCase().includes(filters.searchTerm.toLowerCase()));
+      conta.cliente_nome.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+      conta.numero.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+      conta.referencia && conta.referencia.toLowerCase().includes(filters.searchTerm.toLowerCase());
 
       const statusMatch = filters.status === "all" || conta.status === filters.status;
 
@@ -601,17 +601,17 @@ export function ContasReceber() {
   const proximoVencimento = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const futureContas = filteredContas
-      .filter(conta => parseLocalDate(conta.data_vencimento) >= today && conta.status !== "recebido")
-      .sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime());
-    
+    const futureContas = filteredContas.
+    filter((conta) => parseLocalDate(conta.data_vencimento) >= today && conta.status !== "recebido").
+    sort((a, b) => new Date(a.data_vencimento).getTime() - new Date(b.data_vencimento).getTime());
+
     return futureContas.length > 0 ? futureContas[0].data_vencimento : null;
   }, [filteredContas]);
 
   const handleDelete = async () => {
     if (!deleteConfirmId) return;
 
-    const contaToDelete = contas.find(c => c.id === deleteConfirmId);
+    const contaToDelete = contas.find((c) => c.id === deleteConfirmId);
     if (contaToDelete?.isFromFluxoCaixa) {
       toast.error("Esta conta foi criada no Fluxo de Caixa. Exclua-a lá.");
       setDeleteConfirmId(null);
@@ -619,10 +619,10 @@ export function ContasReceber() {
     }
 
     try {
-      const { error } = await supabase
-        .from("contas_areceber")
-        .delete()
-        .eq("id", deleteConfirmId);
+      const { error } = await supabase.
+      from("contas_areceber").
+      delete().
+      eq("id", deleteConfirmId);
 
       if (error) {
         toast.error(`Erro ao deletar: ${error.message}`);
@@ -638,8 +638,8 @@ export function ContasReceber() {
   };
 
   const handleChangeStatus = async (contaId: string, newStatus: string) => {
-    const conta = contas.find(c => c.id === contaId);
-    
+    const conta = contas.find((c) => c.id === contaId);
+
     // Se vai mudar para "recebido", abrir dialog para selecionar banco
     if (newStatus === "recebido") {
       setContasReceberData(conta);
@@ -653,10 +653,10 @@ export function ContasReceber() {
     try {
       // Se veio do fluxo de caixa, atualizar no controle_bancario
       if (conta?.isFromFluxoCaixa && conta?.fluxoCaixaId) {
-        const { error } = await supabase
-          .from("controle_bancario")
-          .update({ status: newStatus, data_atualizacao: new Date().toISOString() })
-          .eq("id", conta.fluxoCaixaId);
+        const { error } = await supabase.
+        from("controle_bancario").
+        update({ status: newStatus, data_atualizacao: new Date().toISOString() }).
+        eq("id", conta.fluxoCaixaId);
 
         if (error) {
           toast.error(`Erro ao atualizar: ${error.message}`);
@@ -664,10 +664,10 @@ export function ContasReceber() {
         }
       } else {
         // Atualizar na tabela contas_areceber
-        const { error } = await supabase
-          .from("contas_areceber")
-          .update({ status: newStatus, atualizado_em: new Date().toISOString() })
-          .eq("id", contaId);
+        const { error } = await supabase.
+        from("contas_areceber").
+        update({ status: newStatus, atualizado_em: new Date().toISOString() }).
+        eq("id", contaId);
 
         if (error) {
           toast.error(`Erro ao atualizar: ${error.message}`);
@@ -696,7 +696,7 @@ export function ContasReceber() {
     }
 
     // Encontrar o nome do banco baseado no ID selecionado
-    const contaBancariaSelected = contasBancarias.find(c => c.id === selectedBank);
+    const contaBancariaSelected = contasBancarias.find((c) => c.id === selectedBank);
     const nomeBanco = contaBancariaSelected?.banco || selectedBank;
 
     setIsUploadingComprovante(true);
@@ -707,34 +707,34 @@ export function ContasReceber() {
       if (comprovanteFile) {
         const fileExt = comprovanteFile.name.split('.').pop();
         const fileName = `comprovante_recebimento_${Date.now()}_${contasReceberData.numero || 'sem_numero'}.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from("nfs-share-saida")
-          .upload(fileName, comprovanteFile);
+
+        const { error: uploadError } = await supabase.storage.
+        from("nfs-share-saida").
+        upload(fileName, comprovanteFile);
 
         if (uploadError) {
           console.error("Erro ao fazer upload do comprovante:", uploadError);
           toast.warning("Não foi possível enviar o comprovante, mas continuaremos com o registro.");
         } else {
-          const { data: publicUrlData } = supabase.storage
-            .from("nfs-share-saida")
-            .getPublicUrl(fileName);
+          const { data: publicUrlData } = supabase.storage.
+          from("nfs-share-saida").
+          getPublicUrl(fileName);
           comprovanteUrl = publicUrlData.publicUrl;
         }
       }
 
       // Se veio do fluxo de caixa, atualizar diretamente no controle_bancario
       if (contasReceberData.isFromFluxoCaixa && contasReceberData.fluxoCaixaId) {
-        const { error: updateError } = await supabase
-          .from("controle_bancario")
-          .update({
-            status: "recebido",
-            conta_banco: nomeBanco,
-            data_reembolso: dataRecebimento,
-            comprovante_url: comprovanteUrl || undefined,
-            data_atualizacao: new Date().toISOString()
-          })
-          .eq("id", contasReceberData.fluxoCaixaId);
+        const { error: updateError } = await supabase.
+        from("controle_bancario").
+        update({
+          status: "recebido",
+          conta_banco: nomeBanco,
+          data_reembolso: dataRecebimento,
+          comprovante_url: comprovanteUrl || undefined,
+          data_atualizacao: new Date().toISOString()
+        }).
+        eq("id", contasReceberData.fluxoCaixaId);
 
         if (updateError) {
           toast.error(`Erro ao atualizar: ${updateError.message}`);
@@ -755,15 +755,15 @@ export function ContasReceber() {
         banco_recebimento: nomeBanco,
         atualizado_em: new Date().toISOString()
       };
-      
+
       if (comprovanteUrl) {
         updateData.comprovante_recebimento_url = comprovanteUrl;
       }
 
-      const { error: updateError } = await supabase
-        .from("contas_areceber")
-        .update(updateData)
-        .eq("id", contasReceberData.id);
+      const { error: updateError } = await supabase.
+      from("contas_areceber").
+      update(updateData).
+      eq("id", contasReceberData.id);
 
       if (updateError) {
         toast.error(`Erro ao atualizar: ${updateError.message}`);
@@ -772,13 +772,13 @@ export function ContasReceber() {
 
       // 2. Atualizar status na conciliação bancária para "recebido" se houver referência
       if (contasReceberData.banco_conciliacao_id) {
-        const { error: updateConciliacao } = await supabase
-          .from("bank_reconciliations")
-          .update({ 
-            status: "recebido",
-            comprovante_url: comprovanteUrl || undefined
-          })
-          .eq("id", contasReceberData.banco_conciliacao_id);
+        const { error: updateConciliacao } = await supabase.
+        from("bank_reconciliations").
+        update({
+          status: "recebido",
+          comprovante_url: comprovanteUrl || undefined
+        }).
+        eq("id", contasReceberData.banco_conciliacao_id);
 
         if (updateConciliacao) {
           console.error("Erro ao atualizar conciliação:", updateConciliacao);
@@ -916,15 +916,15 @@ export function ContasReceber() {
       {/* Info sobre fonte automática */}
       <Card className="bg-blue-500/10 border-blue-500/30">
         <CardContent className="py-4 px-6">
-          <div className="flex items-start gap-3">
-            <CheckCircle2 className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-blue-400">Integração Automática com Fluxo de Caixa</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                As receitas lançadas no Fluxo de Caixa aparecem automaticamente aqui. Você também pode adicionar contas manuais se necessário.
-              </p>
-            </div>
-          </div>
+          
+
+
+
+
+
+
+
+
         </CardContent>
       </Card>
 
@@ -936,10 +936,10 @@ export function ContasReceber() {
               <Filter className="w-5 h-5" /> Filtros e Período
             </CardTitle>
             <Button
-              onClick={() => { resetForm(); setShowFormDialog(true); }}
+              onClick={() => {resetForm();setShowFormDialog(true);}}
               variant="outline"
-              className="w-full md:w-auto"
-            >
+              className="w-full md:w-auto">
+
               <Plus className="w-4 h-4 mr-2" />
               Adicionar Manual
             </Button>
@@ -953,44 +953,44 @@ export function ContasReceber() {
               <Button
                 variant={filters.periodo === "mes" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setFilters(prev => ({ ...prev, periodo: "mes" }))}
-              >
+                onClick={() => setFilters((prev) => ({ ...prev, periodo: "mes" }))}>
+
                 Mensal
               </Button>
                 <Button
-            variant={filters.periodo === "ano" ? "default" : "outline"}
-            size="sm"
-              onClick={() => setFilters(prev => ({ ...prev, periodo: "ano" }))}
-            className="min-w-[90px]"
-                          >
+                variant={filters.periodo === "ano" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFilters((prev) => ({ ...prev, periodo: "ano" }))}
+                className="min-w-[90px]">
+
                  Ano
                   </Button>
                  </div>
              
-                   {filters.periodo === "mes" ? (
-                           <Input
-                             type="month"
-                             value={filters.mes}
-                             onChange={(e) => setFilters(prev => ({ ...prev, mes: e.target.value }))}
-                             className="bg-background w-full lg:w-auto lg:min-w-[200px] h-10"
-                           />
-                         ) : (
-                           <Select value={filters.ano} onValueChange={(value) => setFilters(prev => ({ ...prev, ano: value }))}>
+                   {filters.periodo === "mes" ?
+            <Input
+              type="month"
+              value={filters.mes}
+              onChange={(e) => setFilters((prev) => ({ ...prev, mes: e.target.value }))}
+              className="bg-background w-full lg:w-auto lg:min-w-[200px] h-10" /> :
+
+
+            <Select value={filters.ano} onValueChange={(value) => setFilters((prev) => ({ ...prev, ano: value }))}>
                              <SelectTrigger className="bg-background w-full lg:w-[160px] h-10">
                                <SelectValue placeholder="Ano" />
                              </SelectTrigger>
                              <SelectContent>
                 {Array.from({ length: 5 }, (_, i) => {
-                                    const year = new Date().getFullYear() - i;
-                                    return (
-                                      <SelectItem key={year} value={year.toString()}>
+                  const year = new Date().getFullYear() - i;
+                  return (
+                    <SelectItem key={year} value={year.toString()}>
                                         {year}
-                                      </SelectItem>
-                                    );
-                                  })}
+                                      </SelectItem>);
+
+                })}
                                 </SelectContent>
                               </Select>
-            )}
+            }
           </div>
 
           {/* Filtros adicionais */}
@@ -1000,11 +1000,11 @@ export function ContasReceber() {
               <Input
                 placeholder="Buscar por cliente, documento ou referência..."
                 value={filters.searchTerm}
-                onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-                className="pl-10 bg-background"
-              />
+                onChange={(e) => setFilters((prev) => ({ ...prev, searchTerm: e.target.value }))}
+                className="pl-10 bg-background" />
+
             </div>
-            <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+            <Select value={filters.status} onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}>
               <SelectTrigger className="w-full md:w-[180px] bg-background">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
@@ -1020,7 +1020,7 @@ export function ContasReceber() {
       </Card>
 
       {/* Formulário Dialog */}
-      <Dialog open={showFormDialog} onOpenChange={(open) => { if (!open) { setShowFormDialog(false); resetForm(); } else { setShowFormDialog(true); } }}>
+      <Dialog open={showFormDialog} onOpenChange={(open) => {if (!open) {setShowFormDialog(false);resetForm();} else {setShowFormDialog(true);}}}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingConta ? "Editar Conta a Receber" : "Nova Conta a Receber"}</DialogTitle>
@@ -1035,9 +1035,9 @@ export function ContasReceber() {
                 <Input
                   placeholder="Ex: NF-1024"
                   value={formData.numero}
-                  onChange={(e) => setFormData(prev => ({ ...prev, numero: e.target.value }))}
-                  className="bg-background"
-                />
+                  onChange={(e) => setFormData((prev) => ({ ...prev, numero: e.target.value }))}
+                  className="bg-background" />
+
               </div>
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">
@@ -1045,23 +1045,23 @@ export function ContasReceber() {
                 </label>
                 <AutocompleteInput
                   value={formData.cliente_nome}
-                  onChange={(value) => setFormData(prev => ({ ...prev, cliente_nome: value }))}
+                  onChange={(value) => setFormData((prev) => ({ ...prev, cliente_nome: value }))}
                   onSelect={(option) => {
-                    const client = clients.find(c => c.id === option.id);
+                    const client = clients.find((c) => c.id === option.id);
                     if (client) {
-                      setFormData(prev => ({
+                      setFormData((prev) => ({
                         ...prev,
                         cliente_nome: client.company_name,
                         cliente_cnpj: client.cnpj || ""
                       }));
                     }
                   }}
-                  options={clients.map(c => ({
+                  options={clients.map((c) => ({
                     id: c.id,
                     label: c.company_name
                   }))}
-                  placeholder="Selecione ou digite o cliente"
-                />
+                  placeholder="Selecione ou digite o cliente" />
+
               </div>
             </div>
 
@@ -1073,9 +1073,9 @@ export function ContasReceber() {
               <Input
                 placeholder="Ex: REF-2023/10"
                 value={formData.referencia}
-                onChange={(e) => setFormData(prev => ({ ...prev, referencia: e.target.value }))}
-                className="bg-background"
-              />
+                onChange={(e) => setFormData((prev) => ({ ...prev, referencia: e.target.value }))}
+                className="bg-background" />
+
             </div>
 
             {/* Linha 3 - Datas e Valor */}
@@ -1087,9 +1087,9 @@ export function ContasReceber() {
                 <Input
                   type="date"
                   value={formData.data_criacao}
-                  onChange={(e) => setFormData(prev => ({ ...prev, data_criacao: e.target.value }))}
-                  className="bg-background"
-                />
+                  onChange={(e) => setFormData((prev) => ({ ...prev, data_criacao: e.target.value }))}
+                  className="bg-background" />
+
               </div>
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">
@@ -1098,9 +1098,9 @@ export function ContasReceber() {
                 <Input
                   type="date"
                   value={formData.data_vencimento}
-                  onChange={(e) => setFormData(prev => ({ ...prev, data_vencimento: e.target.value }))}
-                  className="bg-background"
-                />
+                  onChange={(e) => setFormData((prev) => ({ ...prev, data_vencimento: e.target.value }))}
+                  className="bg-background" />
+
               </div>
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">
@@ -1111,9 +1111,9 @@ export function ContasReceber() {
                   step="0.01"
                   placeholder="0,00"
                   value={formData.valor}
-                  onChange={(e) => setFormData(prev => ({ ...prev, valor: e.target.value }))}
-                  className="bg-background"
-                />
+                  onChange={(e) => setFormData((prev) => ({ ...prev, valor: e.target.value }))}
+                  className="bg-background" />
+
               </div>
             </div>
 
@@ -1135,44 +1135,44 @@ export function ContasReceber() {
                       placeholder="Buscar por prefixo, modelo..."
                       value={aeronaveSearch}
                       onValueChange={setAeronaveSearch}
-                      className="bg-background"
-                    />
+                      className="bg-background" />
+
                     <CommandList>
-                      {isLoadingAeronaves ? (
-                        <div className="text-center py-3 text-muted-foreground text-sm">
+                      {isLoadingAeronaves ?
+                      <div className="text-center py-3 text-muted-foreground text-sm">
                           Carregando aeronaves...
-                        </div>
-                      ) : (
-                        <>
+                        </div> :
+
+                      <>
                           <CommandEmpty className="text-muted-foreground py-3 text-center text-sm">
                             Nenhuma aeronave encontrada
                           </CommandEmpty>
                           <CommandGroup heading="Aeronaves" className="text-muted-foreground">
-                            {(Array.isArray(aeronaves) ? aeronaves : []).filter(a =>
-                              a.registration.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
-                              a.model.toLowerCase().includes(aeronaveSearch.toLowerCase())
-                            ).slice(0, 10).map((aero) => (
-                              <CommandItem
-                                key={aero.id}
-                                onSelect={() => {
-                                  setFormData({
-                                    ...formData,
-                                    aeronave: aero.registration
-                                  });
-                                  setOpenAeronavePopover(false);
-                                  setAeronaveSearch("");
-                                }}
-                                className="cursor-pointer hover:bg-muted"
-                              >
+                            {(Array.isArray(aeronaves) ? aeronaves : []).filter((a) =>
+                          a.registration.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
+                          a.model.toLowerCase().includes(aeronaveSearch.toLowerCase())
+                          ).slice(0, 10).map((aero) =>
+                          <CommandItem
+                            key={aero.id}
+                            onSelect={() => {
+                              setFormData({
+                                ...formData,
+                                aeronave: aero.registration
+                              });
+                              setOpenAeronavePopover(false);
+                              setAeronaveSearch("");
+                            }}
+                            className="cursor-pointer hover:bg-muted">
+
                                 <div>
                                   <p className="font-medium text-foreground">{aero.registration}</p>
                                   <p className="text-xs text-muted-foreground">{aero.manufacturer} {aero.model}</p>
                                 </div>
                               </CommandItem>
-                            ))}
+                          )}
                           </CommandGroup>
                         </>
-                      )}
+                      }
                     </CommandList>
                   </Command>
                 </PopoverContent>
@@ -1188,26 +1188,26 @@ export function ContasReceber() {
                 <AutocompleteInput
                   value={formData.categoria}
                   onChange={(value) => {
-                    setFormData(prev => ({ ...prev, categoria: value }));
+                    setFormData((prev) => ({ ...prev, categoria: value }));
                   }}
                   onSelect={(option) => {
-                    const categoria = categorias.find(c => c.id === option.id);
+                    const categoria = categorias.find((c) => c.id === option.id);
                     if (categoria) {
-                      setFormData(prev => ({ ...prev, categoria: categoria.nome }));
+                      setFormData((prev) => ({ ...prev, categoria: categoria.nome }));
                     }
                   }}
-                  options={categorias.map(c => ({
+                  options={categorias.map((c) => ({
                     id: c.id,
                     label: c.nome
                   }))}
-                  placeholder="Selecione ou digite uma categoria"
-                />
+                  placeholder="Selecione ou digite uma categoria" />
+
               </div>
               <div>
                 <label className="text-sm font-semibold text-foreground mb-2 block">
                   Status
                 </label>
-                <Select value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+                <Select value={formData.status} onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}>
                   <SelectTrigger className="bg-background">
                     <SelectValue />
                   </SelectTrigger>
@@ -1228,9 +1228,9 @@ export function ContasReceber() {
               <Input
                 placeholder="Descrição da conta a receber"
                 value={formData.descricao}
-                onChange={(e) => setFormData(prev => ({ ...prev, descricao: e.target.value }))}
-                className="bg-background"
-              />
+                onChange={(e) => setFormData((prev) => ({ ...prev, descricao: e.target.value }))}
+                className="bg-background" />
+
             </div>
 
             {/* Linha 7 - Anexar PDF */}
@@ -1238,49 +1238,49 @@ export function ContasReceber() {
               <label className="text-sm font-semibold text-foreground block">
                 Nota Fiscal (PDF)
               </label>
-              {pdfUrl ? (
-                <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+              {pdfUrl ?
+              <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                   <FileText className="h-5 w-5 text-primary" />
                   <a
-                    href={pdfUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline flex-1 truncate"
-                  >
+                  href={pdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:underline flex-1 truncate">
+
                     NF anexada
                   </a>
                   <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setPdfUrl("")}
-                    className="h-8 w-8 p-0"
-                  >
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPdfUrl("")}
+                  className="h-8 w-8 p-0">
+
                     <X className="h-4 w-4" />
                   </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
+                </div> :
+
+              <div className="flex items-center gap-2">
                   <Input
-                    type="file"
-                    accept=".pdf"
-                    onChange={handlePDFUpload}
-                    disabled={isUploadingPDF}
-                    className="hidden"
-                    id="pdf-upload"
-                  />
+                  type="file"
+                  accept=".pdf"
+                  onChange={handlePDFUpload}
+                  disabled={isUploadingPDF}
+                  className="hidden"
+                  id="pdf-upload" />
+
                   <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => document.getElementById('pdf-upload')?.click()}
-                    disabled={isUploadingPDF}
-                    className="w-full"
-                  >
+                  type="button"
+                  variant="outline"
+                  onClick={() => document.getElementById('pdf-upload')?.click()}
+                  disabled={isUploadingPDF}
+                  className="w-full">
+
                     <Upload className="h-4 w-4 mr-2" />
                     {isUploadingPDF ? "Enviando..." : "Anexar Nota Fiscal (PDF)"}
                   </Button>
                 </div>
-              )}
+              }
             </div>
 
             <p className="text-xs text-muted-foreground">* Campos obrigatórios</p>
@@ -1289,16 +1289,16 @@ export function ContasReceber() {
           <DialogFooter className="gap-3 sm:gap-2">
             <Button
               variant="outline"
-              onClick={() => { setShowFormDialog(false); resetForm(); }}
-              disabled={isSavingForm || isUploadingPDF}
-            >
+              onClick={() => {setShowFormDialog(false);resetForm();}}
+              disabled={isSavingForm || isUploadingPDF}>
+
               Cancelar
             </Button>
             <Button
               onClick={handleSaveForm}
               disabled={isSavingForm || isUploadingPDF}
-              className="bg-primary hover:bg-primary/90"
-            >
+              className="bg-primary hover:bg-primary/90">
+
               {isSavingForm ? "Salvando..." : editingConta ? "Atualizar Conta" : "Salvar Conta"}
             </Button>
           </DialogFooter>
@@ -1312,33 +1312,33 @@ export function ContasReceber() {
             <DialogTitle>Visualizar PDF</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-auto bg-gray-900 rounded-lg">
-            {pdfViewerUrl && (
-              <iframe
-                src={pdfViewerUrl}
-                className="w-full h-full border-0 rounded-lg"
-                title="PDF Viewer"
-              />
-            )}
+            {pdfViewerUrl &&
+            <iframe
+              src={pdfViewerUrl}
+              className="w-full h-full border-0 rounded-lg"
+              title="PDF Viewer" />
+
+            }
           </div>
           <div className="flex gap-2 pt-4">
             <Button
               variant="outline"
-              onClick={() => setShowPdfViewerDialog(false)}
-            >
+              onClick={() => setShowPdfViewerDialog(false)}>
+
               Fechar
             </Button>
-            {pdfViewerUrl && (
-              <a
-                href={pdfViewerUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1"
-              >
+            {pdfViewerUrl &&
+            <a
+              href={pdfViewerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1">
+
                 <Button className="w-full bg-primary hover:bg-primary/90">
                   Abrir em Nova Aba
                 </Button>
               </a>
-            )}
+            }
           </div>
         </DialogContent>
       </Dialog>
@@ -1357,110 +1357,110 @@ export function ContasReceber() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {isLoading ? (
-            <div className="flex justify-center items-center h-40">
+          {isLoading ?
+          <div className="flex justify-center items-center h-40">
               <p className="text-muted-foreground">Carregando...</p>
-            </div>
-          ) : (
-            <div className="space-y-0 overflow-x-auto">
+            </div> :
+
+          <div className="space-y-0 overflow-x-auto">
               {/* Cabeçalho Fixo - Desktop */}
-              <div className="hidden lg:grid items-center px-6 py-4 bg-muted/40 border-b border-border/50 font-semibold text-sm text-muted-foreground sticky top-0 z-10 select-none" style={{gridTemplateColumns: getGridTemplate()}}>
+              <div className="hidden lg:grid items-center px-6 py-4 bg-muted/40 border-b border-border/50 font-semibold text-sm text-muted-foreground sticky top-0 z-10 select-none" style={{ gridTemplateColumns: getGridTemplate() }}>
                 <div className="flex items-center justify-between pr-0 group">
                   <span>DOC</span>
                   <div
-                    onMouseDown={(e) => handleColumnResizeStart(e, "doc")}
-                    className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                      resizingColumn === "doc" ? "bg-primary" : ""
-                    }`}
-                    title="Arraste para redimensionar"
-                  />
+                  onMouseDown={(e) => handleColumnResizeStart(e, "doc")}
+                  className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                  resizingColumn === "doc" ? "bg-primary" : ""}`
+                  }
+                  title="Arraste para redimensionar" />
+
                 </div>
                 <div className="flex items-center justify-between pr-0 group">
                   <span>Categoria</span>
                   <div
-                    onMouseDown={(e) => handleColumnResizeStart(e, "categoria")}
-                    className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                      resizingColumn === "categoria" ? "bg-primary" : ""
-                    }`}
-                    title="Arraste para redimensionar"
-                  />
+                  onMouseDown={(e) => handleColumnResizeStart(e, "categoria")}
+                  className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                  resizingColumn === "categoria" ? "bg-primary" : ""}`
+                  }
+                  title="Arraste para redimensionar" />
+
                 </div>
                 <div className="flex items-center justify-between pr-0 group">
                   <span>Cliente</span>
                   <div
-                    onMouseDown={(e) => handleColumnResizeStart(e, "cliente")}
-                    className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                      resizingColumn === "cliente" ? "bg-primary" : ""
-                    }`}
-                    title="Arraste para redimensionar"
-                  />
+                  onMouseDown={(e) => handleColumnResizeStart(e, "cliente")}
+                  className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                  resizingColumn === "cliente" ? "bg-primary" : ""}`
+                  }
+                  title="Arraste para redimensionar" />
+
                 </div>
                 <div className="flex items-center justify-between pr-0 group">
                   <span>Descrição</span>
                   <div
-                    onMouseDown={(e) => handleColumnResizeStart(e, "descricao")}
-                    className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                      resizingColumn === "descricao" ? "bg-primary" : ""
-                    }`}
-                    title="Arraste para redimensionar"
-                  />
+                  onMouseDown={(e) => handleColumnResizeStart(e, "descricao")}
+                  className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                  resizingColumn === "descricao" ? "bg-primary" : ""}`
+                  }
+                  title="Arraste para redimensionar" />
+
                 </div>
                 <div className="flex items-center justify-between pr-0 group">
                   <span>Vencimento</span>
                   <div
-                    onMouseDown={(e) => handleColumnResizeStart(e, "vencimento")}
-                    className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                      resizingColumn === "vencimento" ? "bg-primary" : ""
-                    }`}
-                    title="Arraste para redimensionar"
-                  />
+                  onMouseDown={(e) => handleColumnResizeStart(e, "vencimento")}
+                  className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                  resizingColumn === "vencimento" ? "bg-primary" : ""}`
+                  }
+                  title="Arraste para redimensionar" />
+
                 </div>
                 <div className="flex items-center justify-between pr-0 group">
                   <span className="text-right flex-1">Valor</span>
                   <div
-                    onMouseDown={(e) => handleColumnResizeStart(e, "valor")}
-                    className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                      resizingColumn === "valor" ? "bg-primary" : ""
-                    }`}
-                    title="Arraste para redimensionar"
-                  />
+                  onMouseDown={(e) => handleColumnResizeStart(e, "valor")}
+                  className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                  resizingColumn === "valor" ? "bg-primary" : ""}`
+                  }
+                  title="Arraste para redimensionar" />
+
                 </div>
                 <div className="flex items-center justify-between pr-0 group">
                   <span className="text-center flex-1">Status</span>
                   <div
-                    onMouseDown={(e) => handleColumnResizeStart(e, "status")}
-                    className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                      resizingColumn === "status" ? "bg-primary" : ""
-                    }`}
-                    title="Arraste para redimensionar"
-                  />
+                  onMouseDown={(e) => handleColumnResizeStart(e, "status")}
+                  className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                  resizingColumn === "status" ? "bg-primary" : ""}`
+                  }
+                  title="Arraste para redimensionar" />
+
                 </div>
                 <div className="flex items-center justify-between pr-0 group">
                   <span className="text-right flex-1">Ações</span>
                   <div
-                    onMouseDown={(e) => handleColumnResizeStart(e, "acoes")}
-                    className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                      resizingColumn === "acoes" ? "bg-primary" : ""
-                    }`}
-                    title="Arraste para redimensionar"
-                  />
+                  onMouseDown={(e) => handleColumnResizeStart(e, "acoes")}
+                  className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                  resizingColumn === "acoes" ? "bg-primary" : ""}`
+                  }
+                  title="Arraste para redimensionar" />
+
                 </div>
               </div>
 
-              {filteredContas.length === 0 ? (
-                <div className="text-center py-20 px-6">
+              {filteredContas.length === 0 ?
+            <div className="text-center py-20 px-6">
                   <Wallet className="w-20 h-20 text-muted-foreground/20 mx-auto mb-6" />
                   <p className="text-muted-foreground text-lg font-medium">Nenhuma conta a receber encontrada</p>
                   <p className="text-muted-foreground text-sm mt-3">Registre receitas no Fluxo de Caixa para vê-las aqui automaticamente</p>
-                </div>
-              ) : (
-                filteredContas.map((conta) => {
-                  const isExpanded = expandedRows.has(conta.id);
-                  const isFromFluxoCaixa = conta.isFromFluxoCaixa;
-                  return (
-                    <div key={conta.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors last:border-b-0">
+                </div> :
+
+            filteredContas.map((conta) => {
+              const isExpanded = expandedRows.has(conta.id);
+              const isFromFluxoCaixa = conta.isFromFluxoCaixa;
+              return (
+                <div key={conta.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors last:border-b-0">
                       {/* Desktop Layout - Grid */}
-                      <div className="hidden lg:grid py-4 items-center px-6 text-sm" style={{gridTemplateColumns: getGridTemplate()}}>
+                      <div className="hidden lg:grid py-4 items-center px-6 text-sm" style={{ gridTemplateColumns: getGridTemplate() }}>
                         <div className={`font-medium truncate ${isFromFluxoCaixa ? 'text-blue-400' : 'text-orange-500'}`} title={conta.numero}>
                           {conta.numero}
                         </div>
@@ -1493,26 +1493,26 @@ export function ContasReceber() {
                           </Select>
                         </div>
                         <div className="flex gap-1 justify-end items-center">
-                          {conta.arquivo_pdf_url && (
-                            <TooltipProvider>
+                          {conta.arquivo_pdf_url &&
+                      <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <button
-                                    onClick={() => {
-                                      setPdfViewerUrl(conta.arquivo_pdf_url);
-                                      setShowPdfViewerDialog(true);
-                                    }}
-                                    className="text-muted-foreground hover:text-primary transition-colors p-1"
-                                  >
+                              onClick={() => {
+                                setPdfViewerUrl(conta.arquivo_pdf_url);
+                                setShowPdfViewerDialog(true);
+                              }}
+                              className="text-muted-foreground hover:text-primary transition-colors p-1">
+
                                     <FileText className="w-4 h-4" />
                                   </button>
                                 </TooltipTrigger>
                                 <TooltipContent>Ver PDF</TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
-                          )}
-                          {isFromFluxoCaixa ? (
-                            <TooltipProvider>
+                      }
+                          {isFromFluxoCaixa ?
+                      <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <span className="text-muted-foreground/50 p-1 cursor-not-allowed">
@@ -1521,16 +1521,16 @@ export function ContasReceber() {
                                 </TooltipTrigger>
                                 <TooltipContent>Editar no Fluxo de Caixa</TooltipContent>
                               </Tooltip>
-                            </TooltipProvider>
-                          ) : (
-                            <>
+                            </TooltipProvider> :
+
+                      <>
                               <TooltipProvider>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <button
-                                      className="text-muted-foreground hover:text-primary transition-colors p-1"
-                                      onClick={() => handleEditConta(conta)}
-                                    >
+                                className="text-muted-foreground hover:text-primary transition-colors p-1"
+                                onClick={() => handleEditConta(conta)}>
+
                                       <Edit2 className="w-4 h-4" />
                                     </button>
                                   </TooltipTrigger>
@@ -1541,9 +1541,9 @@ export function ContasReceber() {
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <button
-                                      className="text-muted-foreground hover:text-red-500 transition-colors p-1"
-                                      onClick={() => setDeleteConfirmId(conta.id)}
-                                    >
+                                className="text-muted-foreground hover:text-red-500 transition-colors p-1"
+                                onClick={() => setDeleteConfirmId(conta.id)}>
+
                                       <Trash2 className="w-4 h-4" />
                                     </button>
                                   </TooltipTrigger>
@@ -1551,16 +1551,16 @@ export function ContasReceber() {
                                 </Tooltip>
                               </TooltipProvider>
                             </>
-                          )}
+                      }
                         </div>
                       </div>
 
                       {/* Mobile/Tablet Layout - Card */}
                       <div className="lg:hidden px-5 py-5">
                         <button
-                          onClick={() => toggleRowExpand(conta.id)}
-                          className="w-full text-left"
-                        >
+                      onClick={() => toggleRowExpand(conta.id)}
+                      className="w-full text-left">
+
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
@@ -1569,9 +1569,9 @@ export function ContasReceber() {
                                 </p>
                               </div>
                               <p className={`text-xs mb-1 font-medium ${isFromFluxoCaixa ? 'text-blue-400' : 'text-orange-500'}`}>DOC: {conta.numero}</p>
-                              {conta.referencia && (
-                                <p className="text-xs text-muted-foreground mb-1">Ref: {conta.referencia}</p>
-                              )}
+                              {conta.referencia &&
+                          <p className="text-xs text-muted-foreground mb-1">Ref: {conta.referencia}</p>
+                          }
                               <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                                 <span>Venc: {format(parseLocalDate(conta.data_vencimento), "dd/MM/yyyy")}</span>
                               </div>
@@ -1589,73 +1589,73 @@ export function ContasReceber() {
                         </button>
 
                         {/* Expanded Details - Mobile */}
-                        {isExpanded && (
-                          <div className="mt-4 pt-4 border-t border-border space-y-3">
-                            {conta.descricao && (
-                              <div>
+                        {isExpanded &&
+                    <div className="mt-4 pt-4 border-t border-border space-y-3">
+                            {conta.descricao &&
+                      <div>
                                 <p className="text-muted-foreground text-xs font-semibold mb-1">Descrição</p>
                                 <p className="text-foreground text-sm">{conta.descricao}</p>
                               </div>
-                            )}
+                      }
                             
-                            {conta.cliente_cnpj && (
-                              <div>
+                            {conta.cliente_cnpj &&
+                      <div>
                                 <p className="text-muted-foreground text-xs font-semibold mb-1">CNPJ</p>
                                 <p className="text-foreground text-sm">{conta.cliente_cnpj}</p>
                               </div>
-                            )}
+                      }
 
-                            {conta.aeronave && (
-                              <div>
+                            {conta.aeronave &&
+                      <div>
                                 <p className="text-muted-foreground text-xs font-semibold mb-1">Aeronave</p>
                                 <p className="text-foreground text-sm">{conta.aeronave}</p>
                               </div>
-                            )}
+                      }
 
                             <div className="flex gap-2 pt-3 border-t border-border flex-wrap">
-                              {conta.arquivo_pdf_url && (
-                                <a
-                                  href={conta.arquivo_pdf_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-xs px-3 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 flex items-center gap-1"
-                                >
+                              {conta.arquivo_pdf_url &&
+                        <a
+                          href={conta.arquivo_pdf_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs px-3 py-1.5 rounded bg-primary/10 text-primary hover:bg-primary/20 flex items-center gap-1">
+
                                   <FileText className="w-3 h-3" />
                                   Ver PDF
                                 </a>
-                              )}
-                              {isFromFluxoCaixa ? (
-                                <span className="text-xs px-3 py-1.5 rounded bg-muted text-muted-foreground flex items-center gap-1">
+                        }
+                              {isFromFluxoCaixa ?
+                        <span className="text-xs px-3 py-1.5 rounded bg-muted text-muted-foreground flex items-center gap-1">
                                   <Lock className="w-3 h-3" />
                                   Via Fluxo de Caixa
-                                </span>
-                              ) : (
-                                <>
+                                </span> :
+
+                        <>
                                   <button
-                                    className="text-xs px-3 py-1.5 rounded bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 flex items-center gap-1"
-                                    onClick={() => handleEditConta(conta)}
-                                  >
+                            className="text-xs px-3 py-1.5 rounded bg-blue-500/10 text-blue-600 hover:bg-blue-500/20 flex items-center gap-1"
+                            onClick={() => handleEditConta(conta)}>
+
                                     <Edit2 className="w-3 h-3" />
                                     Editar
                                   </button>
                                   <button
-                                    className="text-xs px-3 py-1.5 rounded bg-red-500/10 text-red-600 hover:bg-red-500/20"
-                                    onClick={() => setDeleteConfirmId(conta.id)}
-                                  >
+                            className="text-xs px-3 py-1.5 rounded bg-red-500/10 text-red-600 hover:bg-red-500/20"
+                            onClick={() => setDeleteConfirmId(conta.id)}>
+
                                     Deletar
                                   </button>
                                 </>
-                              )}
+                        }
                             </div>
                           </div>
-                        )}
+                    }
                       </div>
-                    </div>
-                  );
-                })
-              )}
+                    </div>);
+
+            })
+            }
             </div>
-          )}
+          }
         </CardContent>
       </Card>
 
@@ -1666,8 +1666,8 @@ export function ContasReceber() {
             <DialogTitle>Selecionar Banco para Recebimento</DialogTitle>
           </DialogHeader>
 
-          {contasReceberData && (
-            <div className="space-y-4 py-4">
+          {contasReceberData &&
+          <div className="space-y-4 py-4">
               <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
                 <p className="text-sm text-muted-foreground mb-1">Cliente</p>
                 <p className="font-semibold text-foreground">{contasReceberData.cliente_nome}</p>
@@ -1685,17 +1685,17 @@ export function ContasReceber() {
                       <SelectValue placeholder="Selecione um banco" />
                     </SelectTrigger>
                     <SelectContent>
-                      {contasBancarias.length > 0 ? (
-                        contasBancarias.map((conta) => (
-                          <SelectItem key={conta.id} value={conta.id}>
+                      {contasBancarias.length > 0 ?
+                    contasBancarias.map((conta) =>
+                    <SelectItem key={conta.id} value={conta.id}>
                             {conta.banco} - {conta.numero_conta || 'Conta'} {conta.tipo_conta ? `(${conta.tipo_conta})` : ''}
                           </SelectItem>
-                        ))
-                      ) : (
-                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                    ) :
+
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
                           Nenhuma conta disponível
                         </div>
-                      )}
+                    }
                     </SelectContent>
                   </Select>
                 </div>
@@ -1705,11 +1705,11 @@ export function ContasReceber() {
                     Data do Recebimento *
                   </label>
                   <Input
-                    type="date"
-                    value={dataRecebimento}
-                    onChange={(e) => setDataRecebimento(e.target.value)}
-                    className="bg-background"
-                  />
+                  type="date"
+                  value={dataRecebimento}
+                  onChange={(e) => setDataRecebimento(e.target.value)}
+                  className="bg-background" />
+
                 </div>
               </div>
 
@@ -1717,62 +1717,62 @@ export function ContasReceber() {
                 <label className="text-sm font-semibold text-foreground mb-2 block">
                   Comprovante de Recebimento
                 </label>
-                {comprovanteFile ? (
-                  <div className="flex items-center gap-2 p-3 bg-success/10 border border-success/30 rounded-lg">
+                {comprovanteFile ?
+              <div className="flex items-center gap-2 p-3 bg-success/10 border border-success/30 rounded-lg">
                     <FileText className="h-5 w-5 text-success" />
                     <span className="text-sm text-success flex-1 truncate">
                       {comprovanteFile.name}
                     </span>
                     <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setComprovanteFile(null)}
-                      className="h-8 w-8 p-0 hover:bg-destructive/10"
-                    >
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setComprovanteFile(null)}
+                  className="h-8 w-8 p-0 hover:bg-destructive/10">
+
                       <X className="h-4 w-4" />
                     </Button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
+                  </div> :
+
+              <div className="flex items-center gap-2">
                     <Input
-                      type="file"
-                      accept=".pdf,.png,.jpg,.jpeg"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) setComprovanteFile(file);
-                      }}
-                      className="hidden"
-                      id="comprovante-upload"
-                    />
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) setComprovanteFile(file);
+                  }}
+                  className="hidden"
+                  id="comprovante-upload" />
+
                     <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => document.getElementById('comprovante-upload')?.click()}
-                      className="w-full"
-                    >
+                  type="button"
+                  variant="outline"
+                  onClick={() => document.getElementById('comprovante-upload')?.click()}
+                  className="w-full">
+
                       <Upload className="h-4 w-4 mr-2" />
                       Anexar Comprovante (PDF, PNG, JPG)
                     </Button>
                   </div>
-                )}
+              }
               </div>
             </div>
-          )}
+          }
 
           <DialogFooter className="gap-3 sm:gap-2">
             <Button
               variant="outline"
               onClick={resetBankDialog}
-              disabled={isUploadingComprovante}
-            >
+              disabled={isUploadingComprovante}>
+
               Cancelar
             </Button>
             <Button
               onClick={handleMarkAsReceived}
               disabled={isUploadingComprovante}
-              className="bg-green-600 hover:bg-green-700"
-            >
+              className="bg-green-600 hover:bg-green-700">
+
               {isUploadingComprovante ? "Processando..." : "Confirmar Recebimento"}
             </Button>
           </DialogFooter>
@@ -1796,6 +1796,6 @@ export function ContasReceber() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>);
+
 }
