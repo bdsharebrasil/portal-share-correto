@@ -614,6 +614,20 @@ export function NotasFiscaisSaida() {
       return;
     }
 
+    const idLimpo = notaId.trim();
+
+    // Validar que é um UUID válido
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(idLimpo)) {
+      console.error("ID não é um UUID válido:", idLimpo);
+      toast({
+        title: "Erro",
+        description: `ID inválido: "${idLimpo}"`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const statusValidos = ["pendente", "recebido", "cancelado"];
     if (!statusValidos.includes(newStatus)) {
       toast({
@@ -625,20 +639,24 @@ export function NotasFiscaisSaida() {
     }
 
     try {
-      console.log("Atualizando nota:", { notaId: notaId.trim(), newStatus });
+      console.log("🔵 Atualizando Nota Fiscal:", { notaId: idLimpo, newStatus });
 
-      const { error } = await supabase
+      // Tentar atualização direta
+      const { error, data } = await supabase
         .from("notas_fiscais_saida")
         .update({
           status: newStatus,
           atualizado_em: new Date().toISOString(),
         })
-        .eq("id", notaId.trim());
+        .eq("id", idLimpo)
+        .select();
 
       if (error) {
-        console.error("Erro ao atualizar status:", error);
+        console.error("❌ Erro ao atualizar NF:", error);
         throw error;
       }
+
+      console.log("✅ NF atualizada com sucesso:", data);
 
       toast({
         title: "Sucesso",
@@ -647,7 +665,7 @@ export function NotasFiscaisSaida() {
 
       loadNotas();
     } catch (error: any) {
-      console.error("Erro ao atualizar status:", error);
+      console.error("❌ Erro ao atualizar status da NF:", error);
 
       // Extrair mensagem de erro corretamente
       let errorMsg = "Erro ao atualizar status";
@@ -657,6 +675,16 @@ export function NotasFiscaisSaida() {
         errorMsg = error;
       } else if (error?.details) {
         errorMsg = error.details;
+      }
+
+      // Se for erro de UUID
+      if (errorMsg.includes("uuid = text") || errorMsg.includes("operator does not exist")) {
+        console.error("🐛 BUG NO BANCO DE DADOS:");
+        console.error("   Há um trigger ou função SQL com erro de tipo UUID");
+        console.error("   Tabela: notas_fiscais_saida");
+
+        errorMsg = "Erro no banco de dados: incompatibilidade de tipos. " +
+                   "Entre em contato com o administrador do banco de dados.";
       }
 
       toast({
