@@ -312,7 +312,7 @@ BEGIN
   END IF;
 
   -- Validar dados obrigatórios
-  IF NEW.valor IS NULL OR NEW.valor <= 0 OR NEW.numero_documento IS NULL THEN
+  IF NEW.valor IS NULL OR NEW.valor <= 0 OR NEW.numero_documento IS NULL OR NEW.criado_por IS NULL THEN
     RETURN NEW;
   END IF;
 
@@ -350,7 +350,7 @@ BEGIN
         prazo_pagamento,
         forma_pagamento,
         afeta_caixa_empresa,
-        created_by,
+        criado_por,
         partner_name,
         comprovante_url,
         nf_url,

@@ -371,10 +371,11 @@ export function NotasFiscaisSaida() {
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-      if (!currentUser) {
+      if (!currentUser || !currentUser.id) {
+        console.error("Erro de autenticação:", { currentUser });
         toast({
           title: "Erro",
-          description: "Usuário não autenticado",
+          description: "Usuário não autenticado ou ID não disponível",
           variant: "destructive",
         });
         return;
