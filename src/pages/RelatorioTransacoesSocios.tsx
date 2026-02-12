@@ -251,6 +251,8 @@ export default function RelatorioTransacoesSocios() {
       amount: parseFloat(editForm.amount),
       paymentDate: editForm.paymentDate,
       notes: editForm.notes || null,
+      bankName: editForm.bank_name || null,
+      prazo: editForm.prazo || null,
     });
     setEditTarget(null);
   };
