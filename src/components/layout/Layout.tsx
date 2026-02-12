@@ -15,7 +15,7 @@ export const Layout: React.FC<LayoutProps> = ({
         <Sidebar isOpen={sidebarOpen} />
 
         {/* Canvas surface - elevated content container */}
-        <main className="flex-1 ml-20 p-6 custom-scrollbar overflow-y-auto transition-all duration-300" style={{
+        <main className="flex-1 ml-20 p-6 custom-scrollbar overflow-y-auto transition-all duration-300 rounded-2xl" style={{
         height: 'calc(100vh - 4rem)'
       }}>
           <div className="min-h-full flex flex-col">
