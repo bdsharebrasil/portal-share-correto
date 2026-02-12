@@ -236,6 +236,16 @@ export function NotasFiscaisSaida() {
   const [isGeneratingPdfEdit, setIsGeneratingPdfEdit] = useState(false);
   const [pendingReciboUpdate, setPendingReciboUpdate] = useState<any | null>(null);
 
+  // Estados para confirmação de recebimento de NF
+  const [showRecebimentoDialog, setShowRecebimentoDialog] = useState(false);
+  const [pendingNotaRecebimento, setPendingNotaRecebimento] = useState<{ notaId: string; numeroNota: string } | null>(null);
+  const [recebimentoData, setRecebimentoData] = useState({
+    banco: "",
+    data_recebimento: new Date().toISOString().split("T")[0],
+    comprovante_url: "",
+  });
+  const [isUploadingComprovante, setIsUploadingComprovante] = useState(false);
+
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -346,129 +356,129 @@ export function NotasFiscaisSaida() {
     }
   };
 
-  
-const handleSave = async () => {
-  const erroValidacao = validarNotaFiscal(formData);
-  if (erroValidacao) {
-    toast({
-      title: "Validação",
-      description: erroValidacao,
-      variant: "destructive",
-    });
-    return;
-  }
 
-  try {
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-
-    if (!currentUser) {
+  const handleSave = async () => {
+    const erroValidacao = validarNotaFiscal(formData);
+    if (erroValidacao) {
       toast({
-        title: "Erro",
-        description: "Usuário não autenticado",
+        title: "Validação",
+        description: erroValidacao,
         variant: "destructive",
       });
       return;
     }
 
-    // Debug: Log dos dados antes de salvar
-    console.log("[NotasFiscal] FormData antes de salvar:", {
-      client_id: formData.client_id,
-      cliente_nome: formData.cliente_nome,
-      cliente_cnpj: formData.cliente_cnpj,
-      categoria_id: formData.categoria,
-    });
+    try {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-    // **BUSCAR O NOME DA CATEGORIA PRIMEIRO** ← NOVA FUNCIONALIDADE
-    const { data: categoriaData, error: categoriaError } = await supabase
-      .from("categorias_movimentacao")
-      .select("nome, grupo_categoria")
-      .eq("id", formData.categoria)
-      .single();
+      if (!currentUser) {
+        toast({
+          title: "Erro",
+          description: "Usuário não autenticado",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    if (categoriaError) {
-      console.error("Erro ao buscar categoria:", categoriaError);
+      // Debug: Log dos dados antes de salvar
+      console.log("[NotasFiscal] FormData antes de salvar:", {
+        client_id: formData.client_id,
+        cliente_nome: formData.cliente_nome,
+        cliente_cnpj: formData.cliente_cnpj,
+        categoria_id: formData.categoria,
+      });
+
+      // **BUSCAR O NOME DA CATEGORIA PRIMEIRO** ← NOVA FUNCIONALIDADE
+      const { data: categoriaData, error: categoriaError } = await supabase
+        .from("categorias_movimentacao")
+        .select("nome, grupo_categoria")
+        .eq("id", formData.categoria)
+        .single();
+
+      if (categoriaError) {
+        console.error("Erro ao buscar categoria:", categoriaError);
+        toast({
+          title: "Erro",
+          description: "Erro ao buscar informações da categoria",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const categoriaNome = categoriaData?.nome?.trim() || "NF de Saída";
+      const grupoCategoria = categoriaData?.grupo_categoria || null;
+
+      console.log("[NotasFiscal] Categoria encontrada:", {
+        id: formData.categoria,
+        nome: categoriaNome,
+        grupo: grupoCategoria
+      });
+
+      // Preparar dados da NF
+      const notaData: any = {
+        numero: formData.numero.trim(),
+        cliente_nome: formData.cliente_nome.trim(),
+        cliente_cnpj: formData.cliente_cnpj.trim(),
+        client_id: formData.client_id,
+        data_criacao: formData.data_criacao,
+        data_vencimento: formData.data_vencimento,
+        valor: parseFloat(formData.valor),
+        categoria: categoriaNome,  // ← MUDANÇA PRINCIPAL: USA O NOME, NÃO O ID
+        descricao: formData.descricao || null,
+        status: formData.status,
+        arquivo_pdf_url: pdfUrl || null,
+        aeronave: formData.aeronave_registro || null,
+        aircraft_id: formData.aeronave_id || null,
+        criado_por: currentUser.id,
+      };
+
+      console.log("[NotasFiscal] NotaData preparada para salvar:", notaData);
+
+      if (editingNota) {
+        const { error } = await supabase
+          .from("notas_fiscais_saida")
+          .update({
+            ...notaData,
+            atualizado_em: new Date().toISOString(),
+          })
+          .eq("id", String(editingNota.id).trim());
+
+        if (error) throw error;
+
+        toast({
+          title: "Sucesso",
+          description: "Nota fiscal atualizada com sucesso",
+        });
+      } else {
+        // INSERIR NF (triggers vão criar em controle_bancario e contas_areceber)
+        const { error } = await supabase
+          .from("notas_fiscais_saida")
+          .insert([notaData])
+          .select();
+
+        if (error) throw error;
+
+        toast({
+          title: "Sucesso",
+          description: "Nota fiscal criada com sucesso",
+        });
+      }
+
+      setOpenDialog(false);
+      resetForm();
+      loadNotas();
+      loadRecibos(); // Recarregar recibos também pois NF cria em bank_reconciliations
+    } catch (error: any) {
+      console.error("Erro ao salvar nota:", error);
+      console.error("Erro completo:", JSON.stringify(error, null, 2));
+      const errorMsg = error?.message || "Erro ao salvar nota fiscal";
       toast({
         title: "Erro",
-        description: "Erro ao buscar informações da categoria",
+        description: errorMsg,
         variant: "destructive",
       });
-      return;
     }
-
-    const categoriaNome = categoriaData?.nome?.trim() || "NF de Saída";
-    const grupoCategoria = categoriaData?.grupo_categoria || null;
-
-    console.log("[NotasFiscal] Categoria encontrada:", {
-      id: formData.categoria,
-      nome: categoriaNome,
-      grupo: grupoCategoria
-    });
-
-    // Preparar dados da NF
-    const notaData: any = {
-      numero: formData.numero.trim(),
-      cliente_nome: formData.cliente_nome.trim(),
-      cliente_cnpj: formData.cliente_cnpj.trim(),
-      client_id: formData.client_id,
-      data_criacao: formData.data_criacao,
-      data_vencimento: formData.data_vencimento,
-      valor: parseFloat(formData.valor),
-      categoria: categoriaNome,  // ← MUDANÇA PRINCIPAL: USA O NOME, NÃO O ID
-      descricao: formData.descricao || null,
-      status: formData.status,
-      arquivo_pdf_url: pdfUrl || null,
-      aeronave: formData.aeronave_registro || null,
-      aircraft_id: formData.aeronave_id || null,
-      criado_por: currentUser.id,
-    };
-
-    console.log("[NotasFiscal] NotaData preparada para salvar:", notaData);
-
-    if (editingNota) {
-      const { error } = await supabase
-        .from("notas_fiscais_saida")
-        .update({
-          ...notaData,
-          atualizado_em: new Date().toISOString(),
-        })
-        .eq("id", editingNota.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Sucesso",
-        description: "Nota fiscal atualizada com sucesso",
-      });
-    } else {
-      // INSERIR NF (triggers vão criar em controle_bancario e contas_areceber)
-      const { error } = await supabase
-        .from("notas_fiscais_saida")
-        .insert([notaData])
-        .select();
-
-      if (error) throw error;
-
-      toast({
-        title: "Sucesso",
-        description: "Nota fiscal criada com sucesso",
-      });
-    }
-
-    setOpenDialog(false);
-    resetForm();
-    loadNotas();
-    loadRecibos(); // Recarregar recibos também pois NF cria em bank_reconciliations
-  } catch (error: any) {
-    console.error("Erro ao salvar nota:", error);
-    console.error("Erro completo:", JSON.stringify(error, null, 2));
-    const errorMsg = error?.message || "Erro ao salvar nota fiscal";
-    toast({
-      title: "Erro",
-      description: errorMsg,
-      variant: "destructive",
-      });
-  }
-};
+  };
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -477,7 +487,7 @@ const handleSave = async () => {
       const { error } = await supabase
         .from("notas_fiscais_saida")
         .delete()
-        .eq("id", deleteId);
+        .eq("id", String(deleteId).trim());
 
       if (error) throw error;
       toast({
@@ -510,8 +520,8 @@ const handleSave = async () => {
       categoria: nota.categoria,
       descricao: nota.descricao || "",
       status: nota.status,
-      aeronave_id: nota.aeronave_id || "",
-      aeronave_registro: nota.aeronave_registro || "",
+      aeronave_id: nota.aircraft_id || nota.aeronave_id || "",
+      aeronave_registro: nota.aeronave || nota.aeronave_registro || "",
     });
     setPdfUrl(nota.arquivo_pdf_url || "");
     setOpenDialog(true);
@@ -603,6 +613,31 @@ const handleSave = async () => {
   };
 
   const handleChangeStatus = async (notaId: string, newStatus: string) => {
+    // Validar ID
+    if (!notaId || typeof notaId !== 'string' || notaId.trim() === '') {
+      console.error("ID de nota inválido:", notaId);
+      toast({
+        title: "Erro",
+        description: "ID de nota inválido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const idLimpo = notaId.trim();
+
+    // Validar que é um UUID válido
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(idLimpo)) {
+      console.error("ID não é um UUID válido:", idLimpo);
+      toast({
+        title: "Erro",
+        description: `ID inválido: "${idLimpo}"`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const statusValidos = ["pendente", "recebido", "cancelado"];
     if (!statusValidos.includes(newStatus)) {
       toast({
@@ -613,28 +648,75 @@ const handleSave = async () => {
       return;
     }
 
+    // Se for marcar como "recebido", abrir diálogo de confirmação
+    if (newStatus === "recebido") {
+      const nota = notas.find(n => n.id === idLimpo);
+      if (nota) {
+        setPendingNotaRecebimento({ notaId: idLimpo, numeroNota: nota.numero });
+        setRecebimentoData({
+          banco: "",
+          data_recebimento: new Date().toISOString().split("T")[0],
+          comprovante_url: "",
+        });
+        setShowRecebimentoDialog(true);
+      }
+      return;
+    }
+
     try {
-      const { error } = await supabase
+      console.log("🔵 Atualizando Nota Fiscal:", { notaId: idLimpo, newStatus });
+
+      // Tentar atualização direta
+      const { error, data } = await supabase
         .from("notas_fiscais_saida")
         .update({
           status: newStatus,
           atualizado_em: new Date().toISOString(),
         })
-        .eq("id", notaId);
+        .eq("id", idLimpo)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error("❌ Erro ao atualizar NF:", error);
+        throw error;
+      }
+
+      console.log("✅ NF atualizada com sucesso:", data);
 
       toast({
         title: "Sucesso",
-        description: "Status atualizado com sucesso",
+        description: `Status atualizado para ${newStatus === 'cancelado' ? 'Cancelado' : 'Pendente'}`,
       });
 
       loadNotas();
-    } catch (error) {
-      console.error("Erro ao atualizar status:", error);
+    } catch (error: any) {
+      console.error("❌ Erro ao atualizar status da NF:", error);
+
+      // Extrair mensagem de erro corretamente
+      let errorMsg = "Erro ao atualizar status";
+      if (error?.message) {
+        errorMsg = error.message;
+      } else if (typeof error === 'string') {
+        errorMsg = error;
+      } else if (error?.details) {
+        errorMsg = error.details;
+      }
+
+      // Se for erro de UUID
+      if (errorMsg.includes("uuid = text") || errorMsg.includes("operator does not exist")) {
+        console.error("🐛 BUG NO BANCO DE DADOS:");
+        console.error("   Há um trigger ou função SQL com erro de tipo UUID");
+        console.error("   Tabela: notas_fiscais_saida");
+
+        errorMsg = "Erro no banco de dados: incompatibilidade de tipos. " +
+                   "Entre em contato com o administrador do banco de dados.";
+      }
+
       toast({
         title: "Erro",
-        description: "Erro ao atualizar status",
+        description: errorMsg.includes("policy") || errorMsg.includes("permission")
+          ? "Sem permissão para atualizar. Verifique se seu perfil tem acesso (Admin, Gestor ou Financeiro)."
+          : errorMsg,
         variant: "destructive",
       });
     }
@@ -917,7 +999,7 @@ const handleSave = async () => {
           nf_url: nfUrl,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", pendingReciboUpdate.id);
+        .eq("id", String(pendingReciboUpdate.id).trim());
 
       if (error) throw error;
 
@@ -952,7 +1034,7 @@ const handleSave = async () => {
       const { error } = await supabase
         .from("bank_reconciliations")
         .delete()
-        .eq("id", deleteReciboId);
+        .eq("id", String(deleteReciboId).trim());
 
       if (error) throw error;
 
@@ -969,6 +1051,232 @@ const handleSave = async () => {
       toast({
         title: "Erro",
         description: errorMsg,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateReciboStatus = async (reciboId: string, newStatus: string) => {
+    // Validar ID
+    if (!reciboId || typeof reciboId !== 'string' || reciboId.trim() === '') {
+      console.error("ID de recibo inválido:", reciboId, "Type:", typeof reciboId);
+      toast({
+        title: "Erro",
+        description: "ID de recibo inválido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const idLimpo = reciboId.trim();
+
+    // Validar que é um UUID válido (36 caracteres com hífens)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(idLimpo)) {
+      console.error("ID não é um UUID válido:", idLimpo, "Length:", idLimpo.length);
+      toast({
+        title: "Erro",
+        description: `ID inválido: "${idLimpo}". Esperado um UUID válido.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const statusValidos = ["enviado", "pendente", "recebido", "aprovado", "pago", "cancelado", "reembolsado"];
+    if (!statusValidos.includes(newStatus)) {
+      toast({
+        title: "Erro",
+        description: `Status inválido: "${newStatus}". Status válidos: ${statusValidos.join(", ")}`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      console.log("🔵 Iniciando atualização de recibo:", {
+        reciboId: idLimpo,
+        reciboIdType: typeof idLimpo,
+        reciboIdLength: idLimpo.length,
+        newStatus
+      });
+
+      // Tentar usar RPC para atualizar (evita triggers problemáticos)
+      console.log("🔄 Tentando RPC update_recibo_status...");
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
+        'update_recibo_status',
+        {
+          p_recibo_id: idLimpo,
+          p_new_status: newStatus
+        }
+      );
+
+      if (rpcError) {
+        console.warn("⚠️ RPC não disponível, tentando método direto...", rpcError);
+
+        // Se RPC falhar, tentar atualização direta com SQL raw
+        const { data: updateData, error: updateError } = await supabase
+          .from("bank_reconciliations")
+          .update({
+            status: newStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", idLimpo);
+
+        if (updateError) {
+          console.error("❌ Erro ao atualizar (método direto):", updateError);
+          throw updateError;
+        }
+
+        console.log("✅ Atualizado com sucesso (método direto)");
+      } else {
+        console.log("✅ Atualizado com sucesso (RPC):", rpcData);
+      }
+
+      console.log("✅ Recibo atualizado com sucesso");
+
+      toast({
+        title: "Sucesso",
+        description: `Status atualizado para ${newStatus === 'recebido' ? 'Recebido' : newStatus === 'pendente' ? 'Pendente' : 'Enviado'}`,
+      });
+
+      loadRecibos();
+    } catch (error: any) {
+      console.error("❌ Erro completo ao atualizar status do recibo:", {
+        errorObj: error,
+        errorJson: JSON.stringify(error, null, 2),
+      });
+
+      // Extrair mensagem de erro corretamente
+      let errorMsg = "Erro ao atualizar status";
+      if (error?.message) {
+        errorMsg = error.message;
+      } else if (typeof error === 'string') {
+        errorMsg = error;
+      } else if (error?.details) {
+        errorMsg = error.details;
+      }
+
+      // Se for erro de UUID, isso é um bug no banco de dados
+      if (errorMsg.includes("uuid = text") || errorMsg.includes("operator does not exist")) {
+        console.error("🐛 BUG ENCONTRADO NO BANCO DE DADOS:");
+        console.error("   Há um trigger ou função SQL comparando UUID como TEXT.");
+        console.error("   Verifique as funções SQL:");
+        console.error("   - update_bank_reconciliation_from_controle_bancario()");
+        console.error("   - trigger_consolidar_rateio()");
+        console.error("   - update_bank_reconciliations_updated_at()");
+        console.error("   Procure por comparações como: WHERE id = NEW.id ou similar.");
+
+        errorMsg = "Erro no banco de dados: incompatibilidade de tipos UUID. " +
+                   "Entre em contato com o administrador do banco de dados. " +
+                   "O erro está em uma função SQL que está comparando UUID com texto.";
+      }
+
+      // Se for erro de constraint, mostrar mais detalhes
+      if (errorMsg.includes("violates check constraint")) {
+        errorMsg = `Status "${newStatus}" não é válido para esta tabela. Valores permitidos: ${statusValidos.join(", ")}`;
+      }
+
+      toast({
+        title: "Erro",
+        description: errorMsg.includes("policy") || errorMsg.includes("permission")
+          ? "Sem permissão para atualizar. Verifique se seu perfil tem acesso (Admin, Gestor ou Financeiro)."
+          : errorMsg,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleComprovanteUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploadingComprovante(true);
+
+      const fileName = `comprovantes/recebimento_${pendingNotaRecebimento?.numeroNota}_${Date.now()}${file.name.substring(file.name.lastIndexOf("."))}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("nfs-share-saida")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("nfs-share-saida")
+        .getPublicUrl(fileName);
+
+      setRecebimentoData({
+        ...recebimentoData,
+        comprovante_url: urlData.publicUrl,
+      });
+
+      toast({
+        title: "Sucesso",
+        description: "Comprovante anexado com sucesso",
+      });
+    } catch (error: any) {
+      console.error("Erro ao upload do comprovante:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao anexar comprovante",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploadingComprovante(false);
+    }
+  };
+
+  const handleConfirmRecebimento = async () => {
+    if (!pendingNotaRecebimento) return;
+
+    if (!recebimentoData.banco.trim()) {
+      toast({
+        title: "Erro",
+        description: "Banco é obrigatório",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!recebimentoData.data_recebimento) {
+      toast({
+        title: "Erro",
+        description: "Data de recebimento é obrigatória",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("notas_fiscais_saida")
+        .update({
+          status: "recebido",
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq("id", pendingNotaRecebimento.notaId);
+
+      if (error) {
+        console.error("Erro ao confirmar recebimento:", error);
+        throw error;
+      }
+
+      // Atualizar também a tabela de histórico/logs se existir
+      // Por enquanto, apenas atualizamos a nota fiscal
+
+      toast({
+        title: "Sucesso",
+        description: "Nota Fiscal marcada como recebida com sucesso",
+      });
+
+      setShowRecebimentoDialog(false);
+      setPendingNotaRecebimento(null);
+      loadNotas();
+    } catch (error: any) {
+      console.error("Erro ao confirmar recebimento:", error);
+      toast({
+        title: "Erro",
+        description: error?.message || "Erro ao confirmar recebimento",
         variant: "destructive",
       });
     }
@@ -997,847 +1305,849 @@ const handleSave = async () => {
         <TabsContent value="notas-fiscais" className="space-y-6 mt-6">
           {/* Cards de Resumo */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-gradient-to-br from-blue-500/10 via-card to-card border-blue-500/20 shadow-lg shadow-blue-500/5 hover:shadow-lg hover:shadow-blue-500/10 transition-shadow duration-300">
-          <CardContent className="p-6">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-muted-foreground text-sm font-medium">Total de Notas</p>
-                <div className="p-2.5 rounded-lg bg-blue-500/20 border border-blue-500/30">
-                  <FileUp className="w-5 h-5 text-blue-500" />
-                </div>
-              </div>
-              <p className="text-3xl font-bold text-foreground">{notas.length}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-yellow-500/10 via-card to-card border-yellow-500/20 shadow-lg shadow-yellow-500/5 hover:shadow-lg hover:shadow-yellow-500/10 transition-shadow duration-300">
-          <CardContent className="p-6">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-muted-foreground text-sm font-medium">Total Pendente</p>
-                <div className="p-2.5 rounded-lg bg-yellow-500/20 border border-yellow-500/30">
-                  <DollarSign className="w-5 h-5 text-yellow-500" />
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-yellow-500">
-                R$ {totalPendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-green-500/10 via-card to-card border-green-500/20 shadow-lg shadow-green-500/5 hover:shadow-lg hover:shadow-green-500/10 transition-shadow duration-300">
-          <CardContent className="p-6">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-muted-foreground text-sm font-medium">Total Recebido</p>
-                <div className="p-2.5 rounded-lg bg-green-500/20 border border-green-500/30">
-                  <DollarSign className="w-5 h-5 text-green-500" />
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-green-500">
-                R$ {totalRecebido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Formulário para Nova/Editar Nota - Renderizado Inline */}
-      {openDialog && (
-        <Card className="bg-gradient-to-br from-blue-600/10 to-card border-blue-500/30 shadow-lg mb-6">
-          <CardHeader className="border-b border-border/40 pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-foreground">
-                {editingNota ? "Editar Nota Fiscal" : "Nova Nota Fiscal de Saída"}
-              </CardTitle>
-              <Button
-                variant="ghost"
-                onClick={() => { setOpenDialog(false); resetForm(); }}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                ✕
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-foreground">Número da NF *</Label>
-                  <Input
-                    value={formData.numero}
-                    onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
-                    placeholder="NF-001/2025"
-                    className="bg-background border-border"
-                  />
-                </div>
-                <div>
-                  <Label className="text-foreground">Data de Criação *</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal bg-background border-border",
-                          !formData.data_criacao && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.data_criacao
-                          ? format(parse(formData.data_criacao, "yyyy-MM-dd", new Date()), "dd/MM/yyyy")
-                          : "Selecione a data"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={formData.data_criacao ? parse(formData.data_criacao, "yyyy-MM-dd", new Date()) : undefined}
-                        onSelect={(date) => setFormData({ ...formData, data_criacao: date ? format(date, "yyyy-MM-dd") : "" })}
-                        locale={ptBR}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-foreground">Cliente/Empresa *</Label>
-                  <Popover open={openClientePopover} onOpenChange={setOpenClientePopover}>
-                    <PopoverTrigger asChild>
-                      <div className="relative">
-                        <Input
-                          value={formData.cliente_nome}
-                          onChange={(e) => {
-                            setFormData({ ...formData, cliente_nome: e.target.value, client_id: "" });
-                            setClienteSearch(e.target.value);
-                            setOpenClientePopover(true);
-                          }}
-                          onFocus={() => setOpenClientePopover(true)}
-                          placeholder="Buscar cliente..."
-                          className="bg-background border-border pr-10"
-                        />
-                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      </div>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[300px] p-0 bg-card border-border" align="start">
-                      <Command className="bg-card">
-                        <CommandInput
-                          placeholder="Buscar..."
-                          value={clienteSearch}
-                          onValueChange={setClienteSearch}
-                          className="bg-background"
-                        />
-                        <CommandList>
-                          <CommandEmpty className="text-muted-foreground py-3 text-center text-sm">
-                            Nenhum cliente encontrado
-                          </CommandEmpty>
-                          <CommandGroup heading="Clientes" className="text-muted-foreground">
-                            {filteredClientes.length > 0 ? (
-                              filteredClientes.slice(0, 50).map((c) => (
-                                <CommandItem
-                                  key={c.id}
-                                  onSelect={() => {
-                                    console.log("[Cliente Selecionado]", { id: c.id, nome: c.nome, documento: c.documento });
-                                    setFormData({
-                                      ...formData,
-                                      client_id: c.id,
-                                      cliente_nome: c.nome,
-                                      cliente_cnpj: c.documento
-                                    });
-                                    setOpenClientePopover(false);
-                                  }}
-                                  className="cursor-pointer hover:bg-muted"
-                                >
-                                  <div>
-                                    <p className="font-medium text-foreground">{c.nome}</p>
-                                    {c.documento && <p className="text-xs text-muted-foreground">{c.documento}</p>}
-                                  </div>
-                                </CommandItem>
-                              ))
-                            ) : null}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div>
-                  <Label className="text-foreground">CNPJ/CPF *</Label>
-                  <Input
-                    value={formData.cliente_cnpj}
-                    onChange={(e) => setFormData({ ...formData, cliente_cnpj: e.target.value, client_id: "" })}
-                    placeholder="00.000.000/0000-00"
-                    className="bg-background border-border"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-foreground">Aeronave </Label>
-                  <Popover open={openAeronavePopover} onOpenChange={setOpenAeronavePopover}>
-                    <PopoverTrigger asChild>
-                      <div className="relative">
-                        <Input
-                          value={formData.aeronave_registro}
-                          onChange={(e) => {
-                            setAeronaveSearch(e.target.value);
-                            setOpenAeronavePopover(true);
-                          }}
-                          onFocus={() => setOpenAeronavePopover(true)}
-                          placeholder="Buscar aeronave..."
-                          className="bg-background border-border pr-10"
-                        />
-                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      </div>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[300px] p-0 bg-card border-border" align="start">
-                      <Command className="bg-card">
-                        <CommandInput
-                          placeholder="Buscar por prefixo, modelo..."
-                          value={aeronaveSearch}
-                          onValueChange={setAeronaveSearch}
-                          className="bg-background"
-                        />
-                        <CommandList>
-                          {isLoadingAeronaves ? (
-                            <div className="text-center py-3 text-muted-foreground text-sm">
-                              Carregando aeronaves...
-                            </div>
-                          ) : (
-                            <>
-                              <CommandEmpty className="text-muted-foreground py-3 text-center text-sm">
-                                Nenhuma aeronave encontrada
-                              </CommandEmpty>
-                              <CommandGroup heading="Aeronaves" className="text-muted-foreground">
-                                {(Array.isArray(aeronaves) ? aeronaves : []).filter(a =>
-                                  a.registration.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
-                                  a.model.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
-                                  a.manufacturer.toLowerCase().includes(aeronaveSearch.toLowerCase())
-                                ).slice(0, 10).map((aero) => (
-                                  <CommandItem
-                                    key={aero.id}
-                                    onSelect={() => {
-                                      setFormData({
-                                        ...formData,
-                                        aeronave_id: aero.id,
-                                        aeronave_registro: aero.registration
-                                      });
-                                      setOpenAeronavePopover(false);
-                                      setAeronaveSearch("");
-                                    }}
-                                    className="cursor-pointer hover:bg-muted"
-                                  >
-                                    <div>
-                                      <p className="font-medium text-foreground">{aero.registration}</p>
-                                      <p className="text-xs text-muted-foreground">{aero.manufacturer} {aero.model}</p>
-                                    </div>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </>
-                          )}
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="flex items-end">
-                  {formData.aeronave_registro && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setFormData({
-                          ...formData,
-                          aeronave_id: "",
-                          aeronave_registro: ""
-                        });
-                      }}
-                      className="w-full h-10"
-                    >
-                      <X className="w-4 h-4 mr-2" />
-                      Limpar Aeronave
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-foreground">Data de Vencimento *</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal bg-background border-border",
-                          !formData.data_vencimento && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.data_vencimento
-                          ? format(parse(formData.data_vencimento, "yyyy-MM-dd", new Date()), "dd/MM/yyyy")
-                          : "Selecione a data"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={formData.data_vencimento ? parse(formData.data_vencimento, "yyyy-MM-dd", new Date()) : undefined}
-                        onSelect={(date) => setFormData({ ...formData, data_vencimento: date ? format(date, "yyyy-MM-dd") : "" })}
-                        locale={ptBR}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div>
-                  <Label className="text-foreground">Valor (R$) *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={formData.valor}
-                    onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
-                    placeholder="0.00"
-                    className="bg-background border-border"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-foreground">Categoria *</Label>
-                  <Select value={formData.categoria} onValueChange={(value) => setFormData({ ...formData, categoria: value })}>
-                    <SelectTrigger className="w-full bg-background border-border">
-                      <SelectValue placeholder="Selecione uma categoria" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border" align="start">
-                      {categoriasReceita.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
-                          {cat.nome}
-                        </SelectItem>
-                      ))}
-                      {categoriasReceita.length === 0 && (
-                        <div className="text-center py-3 text-muted-foreground text-sm">
-                          Nenhuma categoria disponível
-                        </div>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-foreground">Status *</Label>
-                  <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as any })}>
-                    <SelectTrigger className="w-full bg-background border-border">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border" align="start">
-                      <SelectItem value="pendente">Pendente</SelectItem>
-                      <SelectItem value="recebido">Recebido</SelectItem>
-                      <SelectItem value="cancelado">Cancelado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-foreground">Descrição</Label>
-                <Input
-                  value={formData.descricao}
-                  onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
-                  placeholder="Descrição da nota fiscal"
-                  className="bg-background border-border"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-foreground">Nota Fiscal (PDF)</Label>
-                {pdfUrl ? (
-                  <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
-                    <FileText className="h-5 w-5 text-primary" />
-                    <a
-                      href={pdfUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-primary hover:underline flex-1 truncate"
-                    >
-                      NF anexada
-                    </a>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setPdfUrl("")}
-                      className="h-8 w-8 p-0"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+            <Card className="bg-gradient-to-br from-blue-500/10 via-card to-card border-blue-500/20 shadow-lg shadow-blue-500/5 hover:shadow-lg hover:shadow-blue-500/10 transition-shadow duration-300">
+              <CardContent className="p-6">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-muted-foreground text-sm font-medium">Total de Notas</p>
+                    <div className="p-2.5 rounded-lg bg-blue-500/20 border border-blue-500/30">
+                      <FileUp className="w-5 h-5 text-blue-500" />
+                    </div>
                   </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="file"
-                      accept=".pdf"
-                      onChange={handlePDFUpload}
-                      disabled={isUploadingPDF}
-                      className="hidden"
-                      id="pdf-upload"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => document.getElementById('pdf-upload')?.click()}
-                      disabled={isUploadingPDF}
-                      className="w-full"
-                    >
-                      <Upload className="h-4 w-4 mr-2" />
-                      {isUploadingPDF ? "Enviando..." : "Anexar Nota Fiscal (PDF)"}
-                    </Button>
+                  <p className="text-3xl font-bold text-foreground">{notas.length}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-yellow-500/10 via-card to-card border-yellow-500/20 shadow-lg shadow-yellow-500/5 hover:shadow-lg hover:shadow-yellow-500/10 transition-shadow duration-300">
+              <CardContent className="p-6">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-muted-foreground text-sm font-medium">Total Pendente</p>
+                    <div className="p-2.5 rounded-lg bg-yellow-500/20 border border-yellow-500/30">
+                      <DollarSign className="w-5 h-5 text-yellow-500" />
+                    </div>
                   </div>
-                )}
-              </div>
-
-              <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => { setOpenDialog(false); resetForm(); }} disabled={isUploadingPDF}>
-                  Cancelar
-                </Button>
-                <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSave} disabled={isUploadingPDF}>
-                  {editingNota ? "Atualizar" : "Criar"}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Botões de Ação */}
-      {!openDialog && !showReciboDialog && (
-        <div className="flex gap-3 mb-6">
-          <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/30 flex items-center gap-2 font-medium" onClick={() => setOpenDialog(true)}>
-            <Plus className="w-4 h-4" />
-            Nova Nota Fiscal de Saída
-          </Button>
-          <Button className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 shadow-lg shadow-emerald-500/30 flex items-center gap-2 font-medium" onClick={() => setShowReciboDialog(true)}>
-            <Plus className="w-4 h-4" />
-            Novo Recibo Saída
-          </Button>
-        </div>
-      )}
-
-      {/* Formulário para Novo Recibo - Renderizado Inline */}
-      {showReciboDialog && (
-        <Card className="bg-gradient-to-br from-emerald-600/10 to-card border-emerald-500/30 shadow-lg mb-6">
-          <CardHeader className="border-b border-border/40 pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-foreground">Novo Recibo Saída</CardTitle>
-              <Button
-                variant="ghost"
-                onClick={() => { 
-                  setShowReciboDialog(false);
-                  setReciboData({
-                    cliente_id: "",
-                    cliente_nome: "",
-                    cliente_cnpj: "",
-                    aeronave_registro: "",
-                    valor: "",
-                    data_vencimento: new Date().toISOString().split("T")[0],
-                    descricao: "",
-                  });
-                  setClienteSearch("");
-                  setAeronaveSearch("");
-                }}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                ✕
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-foreground font-medium mb-2 block">Cliente/Empresa *</Label>
-                  <Popover open={openClientePopover} onOpenChange={setOpenClientePopover}>
-                    <PopoverTrigger asChild>
-                      <div className="relative">
-                        <Input
-                          value={reciboData.cliente_nome}
-                          onChange={(e) => {
-                            setReciboData({ ...reciboData, cliente_nome: e.target.value });
-                            setClienteSearch(e.target.value);
-                            if (!openClientePopover) setOpenClientePopover(true);
-                          }}
-                          onFocus={() => setOpenClientePopover(true)}
-                          placeholder="Buscar cliente..."
-                          className="bg-background border-border pr-10"
-                          autoComplete="off"
-                        />
-                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      </div>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[300px] p-0 bg-card border-border" align="start">
-                      <Command className="bg-card">
-                        <CommandInput
-                          placeholder="Buscar..."
-                          value={clienteSearch}
-                          onValueChange={setClienteSearch}
-                          className="bg-background"
-                          autoComplete="off"
-                        />
-                        <CommandList>
-                          <CommandEmpty className="text-muted-foreground py-3 text-center text-sm">
-                            Nenhum cliente encontrado
-                          </CommandEmpty>
-                          <CommandGroup heading="Clientes" className="text-muted-foreground">
-                            {filteredClientes.length > 0 ? (
-                              filteredClientes.slice(0, 50).map((c) => (
-                                <CommandItem
-                                  key={c.id}
-                                  onSelect={() => handleSelectCliente(c)}
-                                  className="cursor-pointer hover:bg-muted"
-                                >
-                                  <div>
-                                    <p className="font-medium text-foreground">{c.nome}</p>
-                                    {c.documento && <p className="text-xs text-muted-foreground">{c.documento}</p>}
-                                  </div>
-                                </CommandItem>
-                              ))
-                            ) : null}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  <p className="text-2xl font-bold text-yellow-500">
+                    R$ {totalPendente.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </p>
                 </div>
+              </CardContent>
+            </Card>
 
-                <div>
-                  <Label className="text-foreground font-medium mb-2 block">Aeronave * (Obrigatório)</Label>
-                  <Popover open={openAeronavePopover} onOpenChange={setOpenAeronavePopover}>
-                    <PopoverTrigger asChild>
-                      <div className="relative">
-                        <Input
-                          value={reciboData.aeronave_registro}
-                          onChange={(e) => {
-                            setAeronaveSearch(e.target.value);
-                            if (!openAeronavePopover) setOpenAeronavePopover(true);
-                          }}
-                          onFocus={() => setOpenAeronavePopover(true)}
-                          placeholder="Buscar aeronave..."
-                          className="bg-background border-border pr-10"
-                          autoComplete="off"
-                        />
-                        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      </div>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[300px] p-0 bg-card border-border" align="start">
-                      <Command className="bg-card">
-                        <CommandInput
-                          placeholder="Buscar por prefixo, modelo..."
-                          value={aeronaveSearch}
-                          onValueChange={setAeronaveSearch}
-                          className="bg-background"
-                          autoComplete="off"
-                        />
-                        <CommandList>
-                          {isLoadingAeronaves ? (
-                            <div className="text-center py-3 text-muted-foreground text-sm">
-                              Carregando aeronaves...
-                            </div>
-                          ) : (
-                            <>
-                              <CommandEmpty className="text-muted-foreground py-3 text-center text-sm">
-                                Nenhuma aeronave encontrada
-                              </CommandEmpty>
-                              <CommandGroup heading="Aeronaves" className="text-muted-foreground">
-                                {(Array.isArray(aeronaves) ? aeronaves : []).filter(a =>
-                                  a.registration.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
-                                  a.model.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
-                                  a.manufacturer.toLowerCase().includes(aeronaveSearch.toLowerCase())
-                                ).slice(0, 10).map((aero) => (
-                                  <CommandItem
-                                    key={aero.id}
-                                    onSelect={() => {
-                                      setReciboData({
-                                        ...reciboData,
-                                        aeronave_registro: aero.registration,
-                                      });
-                                      setOpenAeronavePopover(false);
-                                      setAeronaveSearch("");
-                                    }}
-                                    className="cursor-pointer hover:bg-muted"
-                                  >
-                                    <div>
-                                      <p className="font-medium text-foreground">{aero.registration}</p>
-                                      <p className="text-xs text-muted-foreground">{aero.manufacturer} {aero.model}</p>
-                                    </div>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            </>
-                          )}
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+            <Card className="bg-gradient-to-br from-green-500/10 via-card to-card border-green-500/20 shadow-lg shadow-green-500/5 hover:shadow-lg hover:shadow-green-500/10 transition-shadow duration-300">
+              <CardContent className="p-6">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-muted-foreground text-sm font-medium">Total Recebido</p>
+                    <div className="p-2.5 rounded-lg bg-green-500/20 border border-green-500/30">
+                      <DollarSign className="w-5 h-5 text-green-500" />
+                    </div>
+                  </div>
+                  <p className="text-2xl font-bold text-green-500">
+                    R$ {totalRecebido.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </p>
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-foreground font-medium mb-2 block">Valor (R$) *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={reciboData.valor}
-                    onChange={(e) => setReciboData({ ...reciboData, valor: e.target.value })}
-                    placeholder="0.00"
-                    className="bg-background border-border"
-                  />
-                </div>
-
-                <div>
-                  <Label className="text-foreground font-medium mb-2 block">Data de Vencimento *</Label>
-                  <Input
-                    type="date"
-                    value={reciboData.data_vencimento}
-                    onChange={(e) => setReciboData({ ...reciboData, data_vencimento: e.target.value })}
-                    className="bg-background border-border"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-foreground font-medium mb-2 block">Descrição do Serviço</Label>
-                <Textarea
-                  value={reciboData.descricao}
-                  onChange={(e) => setReciboData({ ...reciboData, descricao: e.target.value })}
-                  placeholder="Ex: Prestação de serviços de administração e pilotagem"
-                  className="bg-background border-border resize-none"
-                  rows={3}
-                />
-              </div>
-
-              <div className="flex gap-2 justify-end mt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowReciboDialog(false);
-                    setReciboData({
-                    cliente_id: "",
-                    cliente_nome: "",
-                    cliente_cnpj: "",
-                    aeronave_registro: "",
-                    valor: "",
-                    data_vencimento: new Date().toISOString().split("T")[0],
-                    descricao: "",
-                  });
-                  setClienteSearch("");
-                  setAeronaveSearch("");
-                  }}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  className="bg-emerald-600 hover:bg-emerald-700"
-                  onClick={handleGenerarRecibo}
-                  disabled={isGeneratingRecibo}
-                >
-                  {isGeneratingRecibo ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                      Gerando...
-                    </>
-                  ) : (
-                    <>
-                      <FileUp className="w-4 h-4 mr-2" />
-                      Gerar Recibo
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Tabela de Notas */}
-      <Card className="bg-gradient-to-br from-card/80 to-card/40 border-border/60 shadow-lg">
-        <CardHeader className="border-b border-border/40 pb-4">
-          <CardTitle className="text-lg font-semibold text-foreground">Notas Fiscais de Saída</CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          {isLoading ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3"></div>
-              Carregando...
-            </div>
-          ) : notas.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <FileUp className="w-12 h-12 opacity-20 mx-auto mb-3" />
-              Nenhuma nota fiscal criada
-            </div>
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-border/40">
-              <Table>
-                <TableHeader className="bg-muted/30 border-b border-border/40">
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-muted-foreground font-semibold px-4 py-3">Número</TableHead>
-                    <TableHead className="text-muted-foreground font-semibold px-4 py-3">Cliente</TableHead>
-                    <TableHead className="text-muted-foreground font-semibold px-4 py-3">Aeronave</TableHead>
-                    <TableHead className="text-muted-foreground font-semibold px-4 py-3">Criação</TableHead>
-                    <TableHead className="text-muted-foreground font-semibold px-4 py-3">Vencimento</TableHead>
-                    <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-right">Valor</TableHead>
-                    <TableHead className="text-muted-foreground font-semibold px-4 py-3">Categoria</TableHead>
-                    <TableHead className="text-muted-foreground font-semibold px-4 py-3">Status</TableHead>
-                    <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-center">PDF</TableHead>
-                    <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {notas.map((nota, idx) => (
-                    <TableRow key={nota.id} className={`border-b border-border/30 hover:bg-muted/40 transition-colors ${idx % 2 === 0 ? 'bg-muted/10' : ''}`}>
-                      <TableCell className="font-semibold text-foreground px-4 py-3">{nota.numero}</TableCell>
-                      <TableCell className="text-foreground px-4 py-3">{nota.cliente_nome}</TableCell>
-                      <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                        {nota.aeronave || "-"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                        {formatDateSafe(nota.data_criacao)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                        {formatDateSafe(nota.data_vencimento)}
-                      </TableCell>
-                      <TableCell className="text-foreground font-semibold px-4 py-3 text-right text-emerald-500">
-                        R$ {nota.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground px-4 py-3 text-sm">{nota.categoria}</TableCell>
-                      <TableCell className="px-4 py-3">
-                        <Select
-                          value={nota.status}
-                          onValueChange={(value) => handleChangeStatus(nota.id, value)}
-                        >
-                          <SelectTrigger className={`w-[130px] h-8 text-xs font-medium border rounded-lg ${getStatusColor(nota.status)}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-card border-border">
-                            <SelectItem value="pendente">Pendente</SelectItem>
-                            <SelectItem value="recebido">Recebido</SelectItem>
-                            <SelectItem value="cancelado">Cancelado</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="px-4 py-3 text-center">
-                        {nota.arquivo_pdf_url ? (
-                          <a
-                            href={nota.arquivo_pdf_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-primary hover:bg-primary/10 transition-colors"
-                            title="Ver PDF"
-                          >
-                            <FileText className="w-4 h-4" />
-                          </a>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="px-4 py-3">
-                        <div className="flex gap-2 justify-end">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEdit(nota)}
-                            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors"
-                            title="Editar"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg transition-colors"
-                            onClick={() => setDeleteId(nota.id)}
-                            title="Deletar"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Dialog de Confirmação de Exclusão */}
-      <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent className="bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Confirmar Exclusão</DialogTitle>
-          </DialogHeader>
-          <p className="text-muted-foreground">Tem certeza que deseja excluir esta nota fiscal?</p>
-          <div className="flex gap-2 justify-end mt-4">
-            <Button variant="outline" onClick={() => setDeleteId(null)}>
-              Cancelar
-            </Button>
-            <Button variant="destructive" onClick={handleDelete}>
-              Excluir
-            </Button>
+              </CardContent>
+            </Card>
           </div>
-        </DialogContent>
-      </Dialog>
 
-      {/* Dialog para Visualizar Recibo */}
-      <Dialog open={showReciboViewer} onOpenChange={setShowReciboViewer}>
-        <DialogContent className="bg-card border-border max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Recibo Gerado</DialogTitle>
-          </DialogHeader>
-          {reciboViewUrl && (
-            <div className="space-y-4">
-              <div className="w-full h-[600px] border border-border rounded-lg overflow-hidden bg-background">
-                <iframe
-                  src={reciboViewUrl}
-                  className="w-full h-full"
-                  title="Visualizar Recibo"
-                  allow="fullscreen"
-                />
-              </div>
-              <div className="flex gap-2 justify-end">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowReciboViewer(false)}
-                >
-                  Fechar
-                </Button>
-                <Button
-                  className="bg-primary hover:bg-primary/90"
-                  onClick={() => {
-                    const link = document.createElement("a");
-                    link.href = reciboViewUrl;
-                    link.download = "recibo.pdf";
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                  }}
-                >
-                  Download
-                </Button>
-              </div>
+          {/* Formulário para Nova/Editar Nota - Renderizado Inline */}
+          {openDialog && (
+            <Card className="bg-gradient-to-br from-blue-600/10 to-card border-blue-500/30 shadow-lg mb-6">
+              <CardHeader className="border-b border-border/40 pb-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-foreground">
+                    {editingNota ? "Editar Nota Fiscal" : "Nova Nota Fiscal de Saída"}
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    onClick={() => { setOpenDialog(false); resetForm(); }}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    ✕
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-foreground">Número da NF *</Label>
+                      <Input
+                        value={formData.numero}
+                        onChange={(e) => setFormData({ ...formData, numero: e.target.value })}
+                        placeholder="NF-001/2025"
+                        className="bg-background border-border"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-foreground">Data de Criação *</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal bg-background border-border",
+                              !formData.data_criacao && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {formData.data_criacao
+                              ? format(parse(formData.data_criacao, "yyyy-MM-dd", new Date()), "dd/MM/yyyy")
+                              : "Selecione a data"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={formData.data_criacao ? parse(formData.data_criacao, "yyyy-MM-dd", new Date()) : undefined}
+                            onSelect={(date) => setFormData({ ...formData, data_criacao: date ? format(date, "yyyy-MM-dd") : "" })}
+                            locale={ptBR}
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-foreground">Cliente/Empresa *</Label>
+                      <Popover open={openClientePopover} onOpenChange={setOpenClientePopover}>
+                        <PopoverTrigger asChild>
+                          <div className="relative">
+                            <Input
+                              value={formData.cliente_nome}
+                              onChange={(e) => {
+                                setFormData({ ...formData, cliente_nome: e.target.value, client_id: "" });
+                                setClienteSearch(e.target.value);
+                                setOpenClientePopover(true);
+                              }}
+                              onFocus={() => setOpenClientePopover(true)}
+                              placeholder="Buscar cliente..."
+                              className="bg-background border-border pr-10"
+                            />
+                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[300px] p-0 bg-card border-border" align="start">
+                          <Command className="bg-card">
+                            <CommandInput
+                              placeholder="Buscar..."
+                              value={clienteSearch}
+                              onValueChange={setClienteSearch}
+                              className="bg-background"
+                            />
+                            <CommandList>
+                              <CommandEmpty className="text-muted-foreground py-3 text-center text-sm">
+                                Nenhum cliente encontrado
+                              </CommandEmpty>
+                              <CommandGroup heading="Clientes" className="text-muted-foreground">
+                                {filteredClientes.length > 0 ? (
+                                  filteredClientes.slice(0, 50).map((c) => (
+                                    <CommandItem
+                                      key={c.id}
+                                      onSelect={() => {
+                                        console.log("[Cliente Selecionado]", { id: c.id, nome: c.nome, documento: c.documento });
+                                        setFormData({
+                                          ...formData,
+                                          client_id: c.id,
+                                          cliente_nome: c.nome,
+                                          cliente_cnpj: c.documento
+                                        });
+                                        setOpenClientePopover(false);
+                                      }}
+                                      className="cursor-pointer hover:bg-muted"
+                                    >
+                                      <div>
+                                        <p className="font-medium text-foreground">{c.nome}</p>
+                                        {c.documento && <p className="text-xs text-muted-foreground">{c.documento}</p>}
+                                      </div>
+                                    </CommandItem>
+                                  ))
+                                ) : null}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div>
+                      <Label className="text-foreground">CNPJ/CPF *</Label>
+                      <Input
+                        value={formData.cliente_cnpj}
+                        onChange={(e) => setFormData({ ...formData, cliente_cnpj: e.target.value, client_id: "" })}
+                        placeholder="00.000.000/0000-00"
+                        className="bg-background border-border"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-foreground">Aeronave </Label>
+                      <Popover open={openAeronavePopover} onOpenChange={setOpenAeronavePopover}>
+                        <PopoverTrigger asChild>
+                          <div className="relative">
+                            <Input
+                              value={formData.aeronave_registro || aeronaveSearch}
+                              onChange={(e) => {
+                                setFormData({ ...formData, aeronave_registro: e.target.value, aeronave_id: "" });
+                                setAeronaveSearch(e.target.value);
+                                setOpenAeronavePopover(true);
+                              }}
+                              onFocus={() => setOpenAeronavePopover(true)}
+                              placeholder="Buscar aeronave..."
+                              className="bg-background border-border pr-10"
+                            />
+                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[300px] p-0 bg-card border-border" align="start">
+                          <Command className="bg-card">
+                            <CommandInput
+                              placeholder="Buscar por prefixo, modelo..."
+                              value={aeronaveSearch}
+                              onValueChange={setAeronaveSearch}
+                              className="bg-background"
+                            />
+                            <CommandList>
+                              {isLoadingAeronaves ? (
+                                <div className="text-center py-3 text-muted-foreground text-sm">
+                                  Carregando aeronaves...
+                                </div>
+                              ) : (
+                                <>
+                                  <CommandEmpty className="text-muted-foreground py-3 text-center text-sm">
+                                    Nenhuma aeronave encontrada
+                                  </CommandEmpty>
+                                  <CommandGroup heading="Aeronaves" className="text-muted-foreground">
+                                    {(Array.isArray(aeronaves) ? aeronaves : []).filter(a =>
+                                      a.registration.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
+                                      a.model.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
+                                      a.manufacturer.toLowerCase().includes(aeronaveSearch.toLowerCase())
+                                    ).slice(0, 10).map((aero) => (
+                                      <CommandItem
+                                        key={aero.id}
+                                        onSelect={() => {
+                                          setFormData({
+                                            ...formData,
+                                            aeronave_id: aero.id,
+                                            aeronave_registro: aero.registration
+                                          });
+                                          setOpenAeronavePopover(false);
+                                          setAeronaveSearch("");
+                                        }}
+                                        className="cursor-pointer hover:bg-muted"
+                                      >
+                                        <div>
+                                          <p className="font-medium text-foreground">{aero.registration}</p>
+                                          <p className="text-xs text-muted-foreground">{aero.manufacturer} {aero.model}</p>
+                                        </div>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </>
+                              )}
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="flex items-end">
+                      {formData.aeronave_registro && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setFormData({
+                              ...formData,
+                              aeronave_id: "",
+                              aeronave_registro: ""
+                            });
+                          }}
+                          className="w-full h-10"
+                        >
+                          <X className="w-4 h-4 mr-2" />
+                          Limpar Aeronave
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-foreground">Data de Vencimento *</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal bg-background border-border",
+                              !formData.data_vencimento && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {formData.data_vencimento
+                              ? format(parse(formData.data_vencimento, "yyyy-MM-dd", new Date()), "dd/MM/yyyy")
+                              : "Selecione a data"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={formData.data_vencimento ? parse(formData.data_vencimento, "yyyy-MM-dd", new Date()) : undefined}
+                            onSelect={(date) => setFormData({ ...formData, data_vencimento: date ? format(date, "yyyy-MM-dd") : "" })}
+                            locale={ptBR}
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div>
+                      <Label className="text-foreground">Valor (R$) *</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={formData.valor}
+                        onChange={(e) => setFormData({ ...formData, valor: e.target.value })}
+                        placeholder="0.00"
+                        className="bg-background border-border"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-foreground">Categoria *</Label>
+                      <Select value={formData.categoria} onValueChange={(value) => setFormData({ ...formData, categoria: value })}>
+                        <SelectTrigger className="w-full bg-background border-border">
+                          <SelectValue placeholder="Selecione uma categoria" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-card border-border" align="start">
+                          {categoriasReceita.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.id}>
+                              {cat.nome}
+                            </SelectItem>
+                          ))}
+                          {categoriasReceita.length === 0 && (
+                            <div className="text-center py-3 text-muted-foreground text-sm">
+                              Nenhuma categoria disponível
+                            </div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-foreground">Status *</Label>
+                      <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value as any })}>
+                        <SelectTrigger className="w-full bg-background border-border">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="bg-card border-border" align="start">
+                          <SelectItem value="pendente">Pendente</SelectItem>
+                          <SelectItem value="recebido">Recebido</SelectItem>
+                          <SelectItem value="cancelado">Cancelado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-foreground">Descrição</Label>
+                    <Input
+                      value={formData.descricao}
+                      onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                      placeholder="Descrição da nota fiscal"
+                      className="bg-background border-border"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-foreground">Nota Fiscal (PDF)</Label>
+                    {pdfUrl ? (
+                      <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                        <FileText className="h-5 w-5 text-primary" />
+                        <a
+                          href={pdfUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary hover:underline flex-1 truncate"
+                        >
+                          NF anexada
+                        </a>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setPdfUrl("")}
+                          className="h-8 w-8 p-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="file"
+                          accept=".pdf"
+                          onChange={handlePDFUpload}
+                          disabled={isUploadingPDF}
+                          className="hidden"
+                          id="pdf-upload"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => document.getElementById('pdf-upload')?.click()}
+                          disabled={isUploadingPDF}
+                          className="w-full"
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          {isUploadingPDF ? "Enviando..." : "Anexar Nota Fiscal (PDF)"}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="outline" onClick={() => { setOpenDialog(false); resetForm(); }} disabled={isUploadingPDF}>
+                      Cancelar
+                    </Button>
+                    <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSave} disabled={isUploadingPDF}>
+                      {editingNota ? "Atualizar" : "Criar"}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Botões de Ação */}
+          {!openDialog && !showReciboDialog && (
+            <div className="flex gap-3 mb-6">
+              <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/30 flex items-center gap-2 font-medium" onClick={() => setOpenDialog(true)}>
+                <Plus className="w-4 h-4" />
+                Nova Nota Fiscal de Saída
+              </Button>
+              <Button className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 shadow-lg shadow-emerald-500/30 flex items-center gap-2 font-medium" onClick={() => setShowReciboDialog(true)}>
+                <Plus className="w-4 h-4" />
+                Novo Recibo Saída
+              </Button>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+
+          {/* Formulário para Novo Recibo - Renderizado Inline */}
+          {showReciboDialog && (
+            <Card className="bg-gradient-to-br from-emerald-600/10 to-card border-emerald-500/30 shadow-lg mb-6">
+              <CardHeader className="border-b border-border/40 pb-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-foreground">Novo Recibo Saída</CardTitle>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setShowReciboDialog(false);
+                      setReciboData({
+                        cliente_id: "",
+                        cliente_nome: "",
+                        cliente_cnpj: "",
+                        aeronave_registro: "",
+                        valor: "",
+                        data_vencimento: new Date().toISOString().split("T")[0],
+                        descricao: "",
+                      });
+                      setClienteSearch("");
+                      setAeronaveSearch("");
+                    }}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    ✕
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-foreground font-medium mb-2 block">Cliente/Empresa *</Label>
+                      <Popover open={openClientePopover} onOpenChange={setOpenClientePopover}>
+                        <PopoverTrigger asChild>
+                          <div className="relative">
+                            <Input
+                              value={reciboData.cliente_nome}
+                              onChange={(e) => {
+                                setReciboData({ ...reciboData, cliente_nome: e.target.value });
+                                setClienteSearch(e.target.value);
+                                if (!openClientePopover) setOpenClientePopover(true);
+                              }}
+                              onFocus={() => setOpenClientePopover(true)}
+                              placeholder="Buscar cliente..."
+                              className="bg-background border-border pr-10"
+                              autoComplete="off"
+                            />
+                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[300px] p-0 bg-card border-border" align="start">
+                          <Command className="bg-card">
+                            <CommandInput
+                              placeholder="Buscar..."
+                              value={clienteSearch}
+                              onValueChange={setClienteSearch}
+                              className="bg-background"
+                              autoComplete="off"
+                            />
+                            <CommandList>
+                              <CommandEmpty className="text-muted-foreground py-3 text-center text-sm">
+                                Nenhum cliente encontrado
+                              </CommandEmpty>
+                              <CommandGroup heading="Clientes" className="text-muted-foreground">
+                                {filteredClientes.length > 0 ? (
+                                  filteredClientes.slice(0, 50).map((c) => (
+                                    <CommandItem
+                                      key={c.id}
+                                      onSelect={() => handleSelectCliente(c)}
+                                      className="cursor-pointer hover:bg-muted"
+                                    >
+                                      <div>
+                                        <p className="font-medium text-foreground">{c.nome}</p>
+                                        {c.documento && <p className="text-xs text-muted-foreground">{c.documento}</p>}
+                                      </div>
+                                    </CommandItem>
+                                  ))
+                                ) : null}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    <div>
+                      <Label className="text-foreground font-medium mb-2 block">Aeronave * (Obrigatório)</Label>
+                      <Popover open={openAeronavePopover} onOpenChange={setOpenAeronavePopover}>
+                        <PopoverTrigger asChild>
+                          <div className="relative">
+                            <Input
+                              value={reciboData.aeronave_registro || aeronaveSearch}
+                              onChange={(e) => {
+                                setReciboData({ ...reciboData, aeronave_registro: e.target.value });
+                                setAeronaveSearch(e.target.value);
+                                if (!openAeronavePopover) setOpenAeronavePopover(true);
+                              }}
+                              onFocus={() => setOpenAeronavePopover(true)}
+                              placeholder="Buscar aeronave..."
+                              className="bg-background border-border pr-10"
+                              autoComplete="off"
+                            />
+                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[300px] p-0 bg-card border-border" align="start">
+                          <Command className="bg-card">
+                            <CommandInput
+                              placeholder="Buscar por prefixo, modelo..."
+                              value={aeronaveSearch}
+                              onValueChange={setAeronaveSearch}
+                              className="bg-background"
+                              autoComplete="off"
+                            />
+                            <CommandList>
+                              {isLoadingAeronaves ? (
+                                <div className="text-center py-3 text-muted-foreground text-sm">
+                                  Carregando aeronaves...
+                                </div>
+                              ) : (
+                                <>
+                                  <CommandEmpty className="text-muted-foreground py-3 text-center text-sm">
+                                    Nenhuma aeronave encontrada
+                                  </CommandEmpty>
+                                  <CommandGroup heading="Aeronaves" className="text-muted-foreground">
+                                    {(Array.isArray(aeronaves) ? aeronaves : []).filter(a =>
+                                      a.registration.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
+                                      a.model.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
+                                      a.manufacturer.toLowerCase().includes(aeronaveSearch.toLowerCase())
+                                    ).slice(0, 10).map((aero) => (
+                                      <CommandItem
+                                        key={aero.id}
+                                        onSelect={() => {
+                                          setReciboData({
+                                            ...reciboData,
+                                            aeronave_registro: aero.registration,
+                                          });
+                                          setOpenAeronavePopover(false);
+                                          setAeronaveSearch("");
+                                        }}
+                                        className="cursor-pointer hover:bg-muted"
+                                      >
+                                        <div>
+                                          <p className="font-medium text-foreground">{aero.registration}</p>
+                                          <p className="text-xs text-muted-foreground">{aero.manufacturer} {aero.model}</p>
+                                        </div>
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </>
+                              )}
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-foreground font-medium mb-2 block">Valor (R$) *</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={reciboData.valor}
+                        onChange={(e) => setReciboData({ ...reciboData, valor: e.target.value })}
+                        placeholder="0.00"
+                        className="bg-background border-border"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="text-foreground font-medium mb-2 block">Data de Vencimento *</Label>
+                      <Input
+                        type="date"
+                        value={reciboData.data_vencimento}
+                        onChange={(e) => setReciboData({ ...reciboData, data_vencimento: e.target.value })}
+                        className="bg-background border-border"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-foreground font-medium mb-2 block">Descrição do Serviço</Label>
+                    <Textarea
+                      value={reciboData.descricao}
+                      onChange={(e) => setReciboData({ ...reciboData, descricao: e.target.value })}
+                      placeholder="Ex: Prestação de serviços de administração e pilotagem"
+                      className="bg-background border-border resize-none"
+                      rows={3}
+                    />
+                  </div>
+
+                  <div className="flex gap-2 justify-end mt-6">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowReciboDialog(false);
+                        setReciboData({
+                          cliente_id: "",
+                          cliente_nome: "",
+                          cliente_cnpj: "",
+                          aeronave_registro: "",
+                          valor: "",
+                          data_vencimento: new Date().toISOString().split("T")[0],
+                          descricao: "",
+                        });
+                        setClienteSearch("");
+                        setAeronaveSearch("");
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                      onClick={handleGenerarRecibo}
+                      disabled={isGeneratingRecibo}
+                    >
+                      {isGeneratingRecibo ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                          Gerando...
+                        </>
+                      ) : (
+                        <>
+                          <FileUp className="w-4 h-4 mr-2" />
+                          Gerar Recibo
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Tabela de Notas */}
+          <Card className="bg-gradient-to-br from-card/80 to-card/40 border-border/60 shadow-lg">
+            <CardHeader className="border-b border-border/40 pb-4">
+              <CardTitle className="text-lg font-semibold text-foreground">Notas Fiscais de Saída</CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              {isLoading ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3"></div>
+                  Carregando...
+                </div>
+              ) : notas.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <FileUp className="w-12 h-12 opacity-20 mx-auto mb-3" />
+                  Nenhuma nota fiscal criada
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-border/40">
+                  <Table>
+                    <TableHeader className="bg-muted/30 border-b border-border/40">
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Número</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Cliente</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Aeronave</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Criação</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Vencimento</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-right">Valor</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Categoria</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Status</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-center">PDF</TableHead>
+                        <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-right">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {notas.map((nota, idx) => (
+                        <TableRow key={nota.id} className={`border-b border-border/30 hover:bg-muted/40 transition-colors ${idx % 2 === 0 ? 'bg-muted/10' : ''}`}>
+                          <TableCell className="font-semibold text-foreground px-4 py-3">{nota.numero}</TableCell>
+                          <TableCell className="text-foreground px-4 py-3">{nota.cliente_nome}</TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">
+                            {nota.aeronave || "-"}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">
+                            {formatDateSafe(nota.data_criacao)}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">
+                            {formatDateSafe(nota.data_vencimento)}
+                          </TableCell>
+                          <TableCell className="text-foreground font-semibold px-4 py-3 text-right text-emerald-500">
+                            R$ {nota.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">{nota.categoria}</TableCell>
+                          <TableCell className="px-4 py-3">
+                            <Select
+                              value={nota.status}
+                              onValueChange={(value) => handleChangeStatus(nota.id, value)}
+                            >
+                              <SelectTrigger className={`w-[130px] h-8 text-xs font-medium border rounded-lg ${getStatusColor(nota.status)}`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="bg-card border-border">
+                                <SelectItem value="pendente">Pendente</SelectItem>
+                                <SelectItem value="recebido">Recebido</SelectItem>
+                                <SelectItem value="cancelado">Cancelado</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-center">
+                            {nota.arquivo_pdf_url ? (
+                              <a
+                                href={nota.arquivo_pdf_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-primary hover:bg-primary/10 transition-colors"
+                                title="Ver PDF"
+                              >
+                                <FileText className="w-4 h-4" />
+                              </a>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="px-4 py-3">
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEdit(nota)}
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors"
+                                title="Editar"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg transition-colors"
+                                onClick={() => setDeleteId(nota.id)}
+                                title="Deletar"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Dialog de Confirmação de Exclusão */}
+          <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+            <DialogContent className="bg-card border-border">
+              <DialogHeader>
+                <DialogTitle className="text-foreground">Confirmar Exclusão</DialogTitle>
+              </DialogHeader>
+              <p className="text-muted-foreground">Tem certeza que deseja excluir esta nota fiscal?</p>
+              <div className="flex gap-2 justify-end mt-4">
+                <Button variant="outline" onClick={() => setDeleteId(null)}>
+                  Cancelar
+                </Button>
+                <Button variant="destructive" onClick={handleDelete}>
+                  Excluir
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Dialog para Visualizar Recibo */}
+          <Dialog open={showReciboViewer} onOpenChange={setShowReciboViewer}>
+            <DialogContent className="bg-card border-border max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-foreground">Recibo Gerado</DialogTitle>
+              </DialogHeader>
+              {reciboViewUrl && (
+                <div className="space-y-4">
+                  <div className="w-full h-[600px] border border-border rounded-lg overflow-hidden bg-background">
+                    <iframe
+                      src={reciboViewUrl}
+                      className="w-full h-full"
+                      title="Visualizar Recibo"
+                      allow="fullscreen"
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowReciboViewer(false)}
+                    >
+                      Fechar
+                    </Button>
+                    <Button
+                      className="bg-primary hover:bg-primary/90"
+                      onClick={() => {
+                        const link = document.createElement("a");
+                        link.href = reciboViewUrl;
+                        link.download = "recibo.pdf";
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                    >
+                      Download
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         {/* TAB 2: Histórico de Recibos de Saída */}
@@ -1896,19 +2206,23 @@ const handleSave = async () => {
                           <TableCell className="px-4 py-3">
                             <Select
                               value={recibo.status || "enviado"}
-                              onValueChange={() => {}}
+                              onValueChange={(newStatus) => handleUpdateReciboStatus(recibo.id, newStatus)}
                             >
-                              <SelectTrigger className={`w-[130px] h-8 text-xs font-medium border rounded-lg ${
-                                recibo.status === "enviado" ? "bg-green-500/10 text-green-600 border-green-500/30" :
-                                recibo.status === "pendente" ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/30" :
-                                "bg-red-500/10 text-red-600 border-red-500/30"
-                              }`}>
+                              <SelectTrigger className={`w-[130px] h-8 text-xs font-medium border rounded-lg ${recibo.status === "enviado" ? "bg-green-500/10 text-green-600 border-green-500/30" :
+                                  recibo.status === "pendente" ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/30" :
+                                  recibo.status === "recebido" ? "bg-blue-500/10 text-blue-600 border-blue-500/30" :
+                                    "bg-gray-500/10 text-gray-600 border-gray-500/30"
+                                }`}>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent className="bg-card border-border">
-                                <SelectItem value="enviado">Enviado</SelectItem>
                                 <SelectItem value="pendente">Pendente</SelectItem>
+                                <SelectItem value="enviado">Enviado</SelectItem>
+                                <SelectItem value="aprovado">Aprovado</SelectItem>
                                 <SelectItem value="recebido">Recebido</SelectItem>
+                                <SelectItem value="pago">Pago</SelectItem>
+                                <SelectItem value="reembolsado">Reembolsado</SelectItem>
+                                <SelectItem value="cancelado">Cancelado</SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>
@@ -2029,8 +2343,12 @@ const handleSave = async () => {
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
                     <SelectItem value="pendente">Pendente</SelectItem>
-                    <SelectItem value="pagamento">Pagamento</SelectItem>
-                    <SelectItem value="reembolso">Reembolso</SelectItem>
+                    <SelectItem value="enviado">Enviado</SelectItem>
+                    <SelectItem value="aprovado">Aprovado</SelectItem>
+                    <SelectItem value="recebido">Recebido</SelectItem>
+                    <SelectItem value="pago">Pago</SelectItem>
+                    <SelectItem value="reembolsado">Reembolsado</SelectItem>
+                    <SelectItem value="cancelado">Cancelado</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -2103,6 +2421,107 @@ const handleSave = async () => {
               )}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Confirmação de Recebimento de NF */}
+      <Dialog open={showRecebimentoDialog} onOpenChange={setShowRecebimentoDialog}>
+        <DialogContent className="bg-card border-border max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Confirmar Recebimento da NF</DialogTitle>
+          </DialogHeader>
+          {pendingNotaRecebimento && (
+            <div className="space-y-4">
+              <div className="bg-muted/30 rounded-lg p-4 border border-border/40">
+                <p className="text-sm text-muted-foreground">Número da NF</p>
+                <p className="text-lg font-semibold text-foreground">{pendingNotaRecebimento.numeroNota}</p>
+              </div>
+
+              <div>
+                <Label className="text-foreground mb-2 block">Banco *</Label>
+                <Input
+                  value={recebimentoData.banco}
+                  onChange={(e) => setRecebimentoData({ ...recebimentoData, banco: e.target.value })}
+                  placeholder="Ex: Itaú, Bradesco, etc."
+                  className="bg-background border-border"
+                />
+              </div>
+
+              <div>
+                <Label className="text-foreground mb-2 block">Data de Recebimento *</Label>
+                <Input
+                  type="date"
+                  value={recebimentoData.data_recebimento}
+                  onChange={(e) => setRecebimentoData({ ...recebimentoData, data_recebimento: e.target.value })}
+                  className="bg-background border-border"
+                />
+              </div>
+
+              <div>
+                <Label className="text-foreground mb-2 block">Comprovante de Recebimento</Label>
+                {recebimentoData.comprovante_url ? (
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                    <FileText className="h-5 w-5 text-primary" />
+                    <a
+                      href={recebimentoData.comprovante_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline flex-1 truncate"
+                    >
+                      Comprovante anexado
+                    </a>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setRecebimentoData({ ...recebimentoData, comprovante_url: "" })}
+                      className="h-8 w-8 p-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="file"
+                      onChange={handleComprovanteUpload}
+                      disabled={isUploadingComprovante}
+                      className="hidden"
+                      id="comprovante-upload"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById("comprovante-upload")?.click()}
+                      disabled={isUploadingComprovante}
+                      className="w-full"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {isUploadingComprovante ? "Enviando..." : "Anexar Comprovante"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-2 justify-end mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowRecebimentoDialog(false);
+                    setPendingNotaRecebimento(null);
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={handleConfirmRecebimento}
+                >
+                  Confirmar Recebimento
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
