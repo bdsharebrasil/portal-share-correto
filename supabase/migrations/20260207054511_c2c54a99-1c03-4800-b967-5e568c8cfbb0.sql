@@ -1,4 +1,3 @@
-
 -- Corrigir o trigger create_bank_reconciliation_from_nf_saida
 -- para incluir client_id e aircraft_id obrigatórios
 
@@ -85,7 +84,7 @@ BEGIN
       'NF Saída ' || COALESCE(NEW.numero, '') || ' - ' || COALESCE(NEW.cliente_nome, ''),
       NEW.valor,
       v_status_br,
-      NEW.categoria,
+      v_categoria_id,
       NEW.cliente_nome,
       NEW.criado_por,
       'recibo',

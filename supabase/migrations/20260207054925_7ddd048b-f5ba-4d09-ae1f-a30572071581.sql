@@ -1,4 +1,3 @@
-
 -- Corrigir o trigger para usar reference_id como UUID (não text)
 CREATE OR REPLACE FUNCTION public.create_bank_reconciliation_from_nf_saida()
  RETURNS trigger
@@ -81,7 +80,7 @@ BEGIN
       'NF Saída ' || COALESCE(NEW.numero, '') || ' - ' || COALESCE(NEW.cliente_nome, ''),
       NEW.valor,
       v_status_br,
-      NEW.categoria,
+      v_categoria_id,
       NEW.cliente_nome,
       NEW.criado_por,
       'recibo',

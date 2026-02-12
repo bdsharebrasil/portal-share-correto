@@ -124,7 +124,7 @@ BEGIN
       CASE WHEN NEW.aeronave IS NOT NULL THEN ' (' || NEW.aeronave || ')' ELSE '' END,
       NEW.valor,
       v_status_br,
-      NEW.categoria,
+      v_categoria_id,
       NEW.cliente_nome,
       NEW.criado_por,
       'recibo',
@@ -134,7 +134,7 @@ BEGIN
       true,
       v_categoria_id,
       'nf_saida',
-      NEW.id,
+      NEW.id::text,
       NEW.arquivo_pdf_url
     );
   END IF;
