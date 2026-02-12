@@ -94,9 +94,9 @@ BEGIN
 
   -- Verificar se já existe registro em bank_reconciliations para esta NF
   IF NOT EXISTS (
-    SELECT 1 FROM public.bank_reconciliations 
+    SELECT 1 FROM public.bank_reconciliations
     WHERE reference_type = 'nf_saida'
-    AND reference_id = NEW.id::text
+    AND reference_id::text = NEW.id::text
   ) THEN
     -- Inserir entrada em bank_reconciliations
     INSERT INTO public.bank_reconciliations (
@@ -186,7 +186,7 @@ BEGIN
       status = NEW.status,
       updated_at = CURRENT_TIMESTAMP
     WHERE reference_type = 'nf_saida'
-    AND reference_id = NEW.id::text;
+    AND reference_id::text = NEW.id::text;
   END IF;
 
   RETURN NEW;
@@ -318,9 +318,9 @@ BEGIN
 
   -- Verificar se já existe registro em bank_reconciliations
   IF NOT EXISTS (
-    SELECT 1 FROM public.bank_reconciliations 
+    SELECT 1 FROM public.bank_reconciliations
     WHERE reference_type = 'controle_bancario'
-    AND reference_id = NEW.id
+    AND reference_id::text = NEW.id::text
   ) THEN
     -- Buscar aircraft_id se houver aeronave_registro
     DECLARE
@@ -418,7 +418,7 @@ BEGIN
   IF EXISTS (
     SELECT 1 FROM public.bank_reconciliations
     WHERE reference_type = 'controle_bancario'
-    AND reference_id = NEW.id
+    AND reference_id::text = NEW.id::text
   ) THEN
     UPDATE public.bank_reconciliations
     SET
@@ -437,7 +437,7 @@ BEGIN
       boleto_url = NEW.boleto_url,
       updated_at = CURRENT_TIMESTAMP
     WHERE reference_type = 'controle_bancario'
-    AND reference_id = NEW.id;
+    AND reference_id::text = NEW.id::text;
   END IF;
 
   RETURN NEW;

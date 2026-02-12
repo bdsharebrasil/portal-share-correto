@@ -83,7 +83,7 @@ WHERE
   AND NOT EXISTS (
     SELECT 1 FROM public.bank_reconciliations br
     WHERE br.reference_type = 'controle_bancario'
-    AND br.reference_id = cb.id
+    AND br.reference_id::text = cb.id::text
   )
   -- Apenas registros com numero_documento preenchido (recibos/NFs)
   AND cb.numero_documento IS NOT NULL
