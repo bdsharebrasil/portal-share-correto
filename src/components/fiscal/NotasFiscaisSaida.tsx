@@ -1006,10 +1006,24 @@ export function NotasFiscaisSaida() {
   const handleUpdateReciboStatus = async (reciboId: string, newStatus: string) => {
     // Validar ID
     if (!reciboId || typeof reciboId !== 'string' || reciboId.trim() === '') {
-      console.error("ID de recibo inválido:", reciboId);
+      console.error("ID de recibo inválido:", reciboId, "Type:", typeof reciboId);
       toast({
         title: "Erro",
         description: "ID de recibo inválido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const idLimpo = reciboId.trim();
+
+    // Validar que é um UUID válido (36 caracteres com hífens)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(idLimpo)) {
+      console.error("ID não é um UUID válido:", idLimpo, "Length:", idLimpo.length);
+      toast({
+        title: "Erro",
+        description: `ID inválido: "${idLimpo}". Esperado um UUID válido.`,
         variant: "destructive",
       });
       return;
@@ -1026,19 +1040,64 @@ export function NotasFiscaisSaida() {
     }
 
     try {
-      console.log("Atualizando recibo:", { reciboId: reciboId.trim(), newStatus });
+      console.log("🔵 Iniciando atualização de recibo:", {
+        reciboId: idLimpo,
+        reciboIdType: typeof idLimpo,
+        reciboIdLength: idLimpo.length,
+        newStatus
+      });
 
-      const { error, data } = await supabase
+      // Tentar atualizar diretamente na tabela bank_reconciliations
+      let { error, data } = await supabase
         .from("bank_reconciliations")
         .update({
           status: newStatus,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", reciboId.trim())
+        .eq("id", idLimpo)
         .select();
 
+      // Se houver erro de UUID/tipo, tentar alternativa
+      if (error && error.code === "42883") {
+        console.warn("⚠️ Erro de tipo detectado. Tentando alternativa...");
+
+        // Buscar o controle_bancario_id associado
+        const { data: reciboData, error: searchError } = await supabase
+          .from("bank_reconciliations")
+          .select("controle_bancario_id")
+          .eq("id", idLimpo)
+          .single();
+
+        if (searchError) {
+          throw searchError;
+        }
+
+        if (reciboData?.controle_bancario_id) {
+          console.log("📋 Encontrado controle_bancario_id:", reciboData.controle_bancario_id);
+
+          // Atualizar na tabela controle_bancario em vez de bank_reconciliations
+          const { error: altError, data: altData } = await supabase
+            .from("controle_bancario")
+            .update({
+              status: newStatus,
+              data_atualizacao: new Date().toISOString(),
+            })
+            .eq("id", reciboData.controle_bancario_id)
+            .select();
+
+          if (altError) {
+            throw altError;
+          }
+
+          ({ error, data } = { error: altError, data: altData });
+          console.log("✅ Atualizado via controle_bancario");
+        } else {
+          throw error;
+        }
+      }
+
       if (error) {
-        console.error("Erro ao atualizar status do recibo - Erro Supabase:", {
+        console.error("❌ Erro Supabase ao atualizar status:", {
           message: error.message,
           details: error.details,
           hint: error.hint,
@@ -1047,7 +1106,7 @@ export function NotasFiscaisSaida() {
         throw error;
       }
 
-      console.log("Recibo atualizado com sucesso:", data);
+      console.log("✅ Recibo atualizado com sucesso:", data);
 
       toast({
         title: "Sucesso",
@@ -1056,7 +1115,10 @@ export function NotasFiscaisSaida() {
 
       loadRecibos();
     } catch (error: any) {
-      console.error("Erro completo ao atualizar status do recibo:", JSON.stringify(error, null, 2));
+      console.error("❌ Erro completo ao atualizar status do recibo:", {
+        errorObj: error,
+        errorJson: JSON.stringify(error, null, 2),
+      });
 
       // Extrair mensagem de erro corretamente
       let errorMsg = "Erro ao atualizar status";
@@ -1066,6 +1128,12 @@ export function NotasFiscaisSaida() {
         errorMsg = error;
       } else if (error?.details) {
         errorMsg = error.details;
+      }
+
+      // Se for erro de UUID, mostrar dica de debug
+      if (errorMsg.includes("uuid = text") || errorMsg.includes("operator does not exist")) {
+        errorMsg = "Erro interno de tipo de dados. Tente recarregar a página.";
+        console.error("💡 Dica: Pode haver um trigger ou função no banco de dados causando este erro.");
       }
 
       // Se for erro de constraint, mostrar mais detalhes
