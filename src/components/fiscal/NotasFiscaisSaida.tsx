@@ -614,14 +614,13 @@ export function NotasFiscaisSaida() {
     }
 
     try {
-      const { error, count } = await supabase
+      const { error } = await supabase
         .from("notas_fiscais_saida")
         .update({
           status: newStatus,
           atualizado_em: new Date().toISOString(),
         })
-        .eq("id", notaId)
-        .select();
+        .eq("id", notaId);
 
       if (error) {
         console.error("Erro ao atualizar status:", error);
@@ -636,12 +635,22 @@ export function NotasFiscaisSaida() {
       loadNotas();
     } catch (error: any) {
       console.error("Erro ao atualizar status:", error);
-      const msg = error?.message || "Erro ao atualizar status";
+
+      // Extrair mensagem de erro corretamente
+      let errorMsg = "Erro ao atualizar status";
+      if (error?.message) {
+        errorMsg = error.message;
+      } else if (typeof error === 'string') {
+        errorMsg = error;
+      } else if (error?.details) {
+        errorMsg = error.details;
+      }
+
       toast({
         title: "Erro",
-        description: msg.includes("policy") || msg.includes("permission")
+        description: errorMsg.includes("policy") || errorMsg.includes("permission")
           ? "Sem permissão para atualizar. Verifique se seu perfil tem acesso (Admin, Gestor ou Financeiro)."
-          : msg,
+          : errorMsg,
         variant: "destructive",
       });
     }
@@ -976,6 +985,60 @@ export function NotasFiscaisSaida() {
       toast({
         title: "Erro",
         description: errorMsg,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateReciboStatus = async (reciboId: string, newStatus: string) => {
+    const statusValidos = ["enviado", "pendente", "recebido"];
+    if (!statusValidos.includes(newStatus)) {
+      toast({
+        title: "Erro",
+        description: "Status inválido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("bank_reconciliations")
+        .update({
+          status: newStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", reciboId);
+
+      if (error) {
+        console.error("Erro ao atualizar status do recibo:", error);
+        throw error;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: `Status atualizado para ${newStatus === 'recebido' ? 'Recebido' : newStatus === 'pendente' ? 'Pendente' : 'Enviado'}`,
+      });
+
+      loadRecibos();
+    } catch (error: any) {
+      console.error("Erro ao atualizar status do recibo:", error);
+
+      // Extrair mensagem de erro corretamente
+      let errorMsg = "Erro ao atualizar status";
+      if (error?.message) {
+        errorMsg = error.message;
+      } else if (typeof error === 'string') {
+        errorMsg = error;
+      } else if (error?.details) {
+        errorMsg = error.details;
+      }
+
+      toast({
+        title: "Erro",
+        description: errorMsg.includes("policy") || errorMsg.includes("permission")
+          ? "Sem permissão para atualizar. Verifique se seu perfil tem acesso (Admin, Gestor ou Financeiro)."
+          : errorMsg,
         variant: "destructive",
       });
     }
@@ -1905,7 +1968,7 @@ export function NotasFiscaisSaida() {
                           <TableCell className="px-4 py-3">
                             <Select
                               value={recibo.status || "enviado"}
-                              onValueChange={() => { }}
+                              onValueChange={(newStatus) => handleUpdateReciboStatus(recibo.id, newStatus)}
                             >
                               <SelectTrigger className={`w-[130px] h-8 text-xs font-medium border rounded-lg ${recibo.status === "enviado" ? "bg-green-500/10 text-green-600 border-green-500/30" :
                                   recibo.status === "pendente" ? "bg-yellow-500/10 text-yellow-600 border-yellow-500/30" :
