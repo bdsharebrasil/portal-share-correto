@@ -2084,7 +2084,6 @@ export function NotasFiscaisSaida() {
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3">Vencimento</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-right">Valor</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3">Categoria</TableHead>
-                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Status</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-center">PDF</TableHead>
                         <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-right">Ações</TableHead>
                       </TableRow>
@@ -2107,21 +2106,6 @@ export function NotasFiscaisSaida() {
                             R$ {nota.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </TableCell>
                           <TableCell className="text-muted-foreground px-4 py-3 text-sm">{nota.categoria}</TableCell>
-                          <TableCell className="px-4 py-3">
-                            <Select
-                              value={nota.status}
-                              onValueChange={(value) => handleChangeStatus(nota.id, value)}
-                            >
-                              <SelectTrigger className={`w-[130px] h-8 text-xs font-medium border rounded-lg ${getStatusColor(nota.status)}`}>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent className="bg-card border-border">
-                                <SelectItem value="pendente">Pendente</SelectItem>
-                                <SelectItem value="recebido">Recebido</SelectItem>
-                                <SelectItem value="cancelado">Cancelado</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
                           <TableCell className="px-4 py-3 text-center">
                             {nota.arquivo_pdf_url ? (
                               <a
