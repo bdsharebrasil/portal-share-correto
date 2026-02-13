@@ -794,7 +794,64 @@ export function ContasReceber() {
         }
       }
 
-      // 3. Chamar função RPC para criar entrada no controle_bancario
+      // 2B. Atualizar notas_fiscais_saida vinculadas a essa conta a receber
+      // As notas fiscais de saída estão vinculadas por número ou cliente
+      const { data: notasFiscaisLinked, error: notasError } = await supabase.
+      from("notas_fiscais_saida").
+      select("id").
+      or(
+        `numero.eq.${contasReceberData.numero},` +
+        `cliente_nome.eq.${contasReceberData.cliente_nome}`
+      ).
+      eq("status", "pendente");
+
+      if (!notasError && notasFiscaisLinked && notasFiscaisLinked.length > 0) {
+        for (const nota of notasFiscaisLinked) {
+          const { error: updateNotaError } = await supabase.
+          from("notas_fiscais_saida").
+          update({
+            status: "recebido",
+            atualizado_em: new Date().toISOString()
+          }).
+          eq("id", nota.id);
+
+          if (updateNotaError) {
+            console.error("Erro ao atualizar nota fiscal:", updateNotaError);
+          }
+        }
+      }
+
+      // 3. Atualizar controle_bancario vinculado a essa conta (se houver)
+      // Buscar por número do documento ou descrição
+      const { data: controleBancarioLinked, error: controleBancarioError } = await supabase.
+      from("controle_bancario").
+      select("id").
+      or(
+        `numero_documento.eq.${contasReceberData.numero},` +
+        `client_name.eq.${contasReceberData.cliente_nome}`
+      ).
+      eq("status", "pendente");
+
+      if (!controleBancarioError && controleBancarioLinked && controleBancarioLinked.length > 0) {
+        for (const registro of controleBancarioLinked) {
+          const { error: updateControleError } = await supabase.
+          from("controle_bancario").
+          update({
+            status: "recebido",
+            data_reembolso: dataRecebimento,
+            conta_banco: nomeBanco,
+            comprovante_url: comprovanteUrl || undefined,
+            data_atualizacao: new Date().toISOString()
+          }).
+          eq("id", registro.id);
+
+          if (updateControleError) {
+            console.error("Erro ao atualizar controle bancário:", updateControleError);
+          }
+        }
+      }
+
+      // 4. Chamar função RPC para criar entrada no controle_bancario (se necessário)
       const { error: rpcError } = await (supabase.rpc as any)('create_entrada_bancaria_from_conta_receber', {
         p_conta_receber_id: contasReceberData.id,
         p_conta_banco: nomeBanco
