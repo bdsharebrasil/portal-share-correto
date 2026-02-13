@@ -3162,9 +3162,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 </tr> : filteredEntries.map((e, idx) => {
                   const picCrew = crew.find(c => c.id === e.pic_canac);
                   const sicCrew = crew.find(c => c.id === e.sic_canac);
-                  // Exibir sempre o cliente do voo (client_id)
-                  // Se tiver partner_name, é um sócio desse cliente
-                  const displayClientName = e.partner_name || clients.find(c => c.id === e.client_id)?.company_name;
+                  // Exibir apenas o cliente do voo (client_id) - nunca o partner_name
+                  // (partner_name em empréstimo contém quem pegou emprestado, não o dono)
+                  const displayClientName = clients.find(c => c.id === e.client_id)?.company_name;
                   return <tr key={e.id} className="hover:bg-slate-800/30 transition-colors group border-b border-slate-800/50">
                     <td className="p-2 whitespace-nowrap text-center text-xs" style={{ width: `${columnWidths.date}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <div className="flex items-center justify-center gap-1">
