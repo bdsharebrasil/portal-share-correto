@@ -173,6 +173,7 @@ export function FluxoCaixaInlineForm({
       numero_documento: "",
       referencia: "",
       status: "pago",
+      metodo_pagamento: "",
       observacoes: "",
       aeronave: "",
       client_id: "",
@@ -334,6 +335,7 @@ export function FluxoCaixaInlineForm({
       setValue("conta_banco", movimentacao.conta_banco || "");
       setValue("numero_documento", movimentacao.numero_documento || "");
       setValue("status", movimentacao.status);
+      setValue("metodo_pagamento", movimentacao.metodo_pagamento || "");
       setValue("observacoes", movimentacao.observacoes || "");
       setValue("aeronave", movimentacao.aeronave_registro || "");
       setValue("client_id", movimentacao.client_id || "");
@@ -464,6 +466,7 @@ export function FluxoCaixaInlineForm({
   conta_banco: formData.conta_banco || null,
   numero_documento: formData.numero_documento || null,
   status: formData.status,
+  metodo_pagamento: formData.metodo_pagamento || null,
   observacoes: formData.observacoes || null,
   aeronave_id: aeronaveObj?.id || null,
   aeronave_registro: formData.aeronave || null,
@@ -1190,8 +1193,8 @@ export function FluxoCaixaInlineForm({
           </div>
         </div>
 
-        {/* Row 4: Status e Observações */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* Row 4: Status, Método de Pagamento e Observações */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div>
             <Label htmlFor="status" className="text-sm font-semibold text-foreground mb-2">
               Status
@@ -1210,6 +1213,23 @@ export function FluxoCaixaInlineForm({
                   <SelectItem value="pago">Pago</SelectItem>
                 )}
                 <SelectItem value="cancelado">Cancelado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="metodo_pagamento" className="text-sm font-semibold text-foreground mb-2">
+              Método de Pagamento
+            </Label>
+            <Select value={watch("metodo_pagamento")} onValueChange={(value) => setValue("metodo_pagamento", value)}>
+              <SelectTrigger className="h-10 w-full bg-background">
+                <SelectValue placeholder="Selecione" />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value="pix">PIX</SelectItem>
+                <SelectItem value="ted">TED</SelectItem>
+                <SelectItem value="boleto">Boleto</SelectItem>
+                <SelectItem value="dinheiro">Dinheiro</SelectItem>
               </SelectContent>
             </Select>
           </div>
