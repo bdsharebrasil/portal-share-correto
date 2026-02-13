@@ -363,11 +363,13 @@ export function useCreateExpense() {
       assignedPartnerCpf?: string | null;
       assignedPartnerName?: string | null;
       supplierName?: string | null;
+      paidDate?: string;
       dueDate?: string;
       invoiceNumber?: string | null;
       invoiceUrl?: string;
       paymentMethod?: string | null;
       notes?: string | null;
+      status?: string;
       referenceType?: string | null;
       referenceId?: string | null;
       bankName?: string | null;
@@ -381,15 +383,16 @@ export function useCreateExpense() {
         assigned_partner_cpf: data.assignedPartnerCpf || null,
         assigned_partner_name: data.assignedPartnerName || null,
         supplier_name: data.supplierName || null,
+        paid_date: data.paidDate || null,
         due_date: data.dueDate || null,
         invoice_number: data.invoiceNumber || null,
         invoice_url: data.invoiceUrl || null,
         payment_method: data.paymentMethod || null,
         notes: data.notes || null,
-        status: "pending",
-        reference_type: data.referenceType || null,
-        reference_id: data.referenceId || null,
-        prazo: data.prazo || null,
+        status: data.status || "pago",
+        category: data.category || "outros",
+        bank_name: data.bankName || "bradesco",
+        prazo: data.prazo || "extra",
       });
       if (error) throw error;
 
@@ -399,10 +402,10 @@ export function useCreateExpense() {
       queryClient.invalidateQueries({ queryKey: ["partner-expenses", clientId] });
       queryClient.invalidateQueries({ queryKey: ["partner-accounts", clientId] });
       queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
-      toast.success("Despesa criada com sucesso!");
+      toast.success("Despesa registrada com sucesso!");
     },
     onError: (err: any) => {
-      toast.error("Erro ao criar despesa: " + err.message);
+      toast.error("Erro ao registrar despesa: " + err.message);
     },
   });
 }
