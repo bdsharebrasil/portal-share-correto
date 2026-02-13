@@ -371,10 +371,11 @@ export function NotasFiscaisSaida() {
     try {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-      if (!currentUser) {
+      if (!currentUser || !currentUser.id) {
+        console.error("Erro de autenticação:", { currentUser });
         toast({
           title: "Erro",
-          description: "Usuário não autenticado",
+          description: "Usuário não autenticado ou ID não disponível",
           variant: "destructive",
         });
         return;
@@ -388,18 +389,43 @@ export function NotasFiscaisSaida() {
         categoria_id: formData.categoria,
       });
 
+      // Validar se categoria está preenchida
+      if (!formData.categoria || formData.categoria.trim() === "") {
+        toast({
+          title: "Erro",
+          description: "Por favor, selecione uma categoria",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // **BUSCAR O NOME DA CATEGORIA PRIMEIRO** ← NOVA FUNCIONALIDADE
+      // Garantir que o UUID é válido antes da comparação
+      const categoriaId = formData.categoria.trim();
+
+      // Validar formato UUID (padrão básico)
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidPattern.test(categoriaId)) {
+        console.error("UUID inválido para categoria:", categoriaId);
+        toast({
+          title: "Erro",
+          description: "Categoria inválida. Por favor, selecione novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { data: categoriaData, error: categoriaError } = await supabase
         .from("categorias_movimentacao")
         .select("nome, grupo_categoria")
-        .eq("id", formData.categoria)
+        .eq("id", categoriaId)
         .single();
 
       if (categoriaError) {
         console.error("Erro ao buscar categoria:", categoriaError);
         toast({
           title: "Erro",
-          description: "Erro ao buscar informações da categoria",
+          description: `Erro ao buscar informações da categoria: ${categoriaError.message}`,
           variant: "destructive",
         });
         return;
@@ -415,11 +441,37 @@ export function NotasFiscaisSaida() {
       });
 
       // Preparar dados da NF
+      // Validar UUIDs opcionais
+      const clientId = formData.client_id?.trim() || null;
+      const aircraftId = formData.aeronave_id?.trim() || null;
+
+      // Se client_id foi fornecido, validar formato
+      if (clientId && !uuidPattern.test(clientId)) {
+        console.error("UUID inválido para cliente:", clientId);
+        toast({
+          title: "Erro",
+          description: "ID do cliente inválido. Por favor, selecione um cliente válido.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Se aircraft_id foi fornecido, validar formato
+      if (aircraftId && !uuidPattern.test(aircraftId)) {
+        console.error("UUID inválido para aeronave:", aircraftId);
+        toast({
+          title: "Erro",
+          description: "ID da aeronave inválido. Por favor, selecione uma aeronave válida.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const notaData: any = {
         numero: formData.numero.trim(),
         cliente_nome: formData.cliente_nome.trim(),
         cliente_cnpj: formData.cliente_cnpj.trim(),
-        client_id: formData.client_id,
+        client_id: clientId,
         data_criacao: formData.data_criacao,
         data_vencimento: formData.data_vencimento,
         valor: parseFloat(formData.valor),
@@ -428,20 +480,33 @@ export function NotasFiscaisSaida() {
         status: formData.status,
         arquivo_pdf_url: pdfUrl || null,
         aeronave: formData.aeronave_registro || null,
-        aircraft_id: formData.aeronave_id || null,
+        aircraft_id: aircraftId,
         criado_por: currentUser.id,
       };
 
       console.log("[NotasFiscal] NotaData preparada para salvar:", notaData);
 
       if (editingNota) {
+        const editingNotaId = String(editingNota.id).trim();
+
+        // Validar UUID do documento a ser editado
+        if (!uuidPattern.test(editingNotaId)) {
+          console.error("UUID inválido para nota a editar:", editingNotaId);
+          toast({
+            title: "Erro",
+            description: "ID da nota inválido. Recarregue a página e tente novamente.",
+            variant: "destructive",
+          });
+          return;
+        }
+
         const { error } = await supabase
           .from("notas_fiscais_saida")
           .update({
             ...notaData,
             atualizado_em: new Date().toISOString(),
           })
-          .eq("id", String(editingNota.id).trim());
+          .eq("id", editingNotaId);
 
         if (error) throw error;
 
@@ -484,10 +549,24 @@ export function NotasFiscaisSaida() {
     if (!deleteId) return;
 
     try {
+      const deleteUuid = String(deleteId).trim();
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+      // Validar UUID antes de deletar
+      if (!uuidPattern.test(deleteUuid)) {
+        console.error("UUID inválido para delete:", deleteUuid);
+        toast({
+          title: "Erro",
+          description: "ID da nota inválido. Recarregue a página e tente novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from("notas_fiscais_saida")
         .delete()
-        .eq("id", String(deleteId).trim());
+        .eq("id", deleteUuid);
 
       if (error) throw error;
       toast({

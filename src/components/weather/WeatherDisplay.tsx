@@ -18,7 +18,7 @@ import thunderstormsIcon from "@/assets/meteocons/thunderstorms.svg";
 import fogIcon from "@/assets/meteocons/fog.svg";
 
 export function WeatherDisplay() {
-  const { coords } = useGeolocation();
+  const { coords, loading: geoLoading } = useGeolocation();
   const { nearest, findNearest } = useFindNearestAirport();
   const { weather, loading, error, refetch, currentIcao, changeAirport } = useWeather();
   const [isOpen, setIsOpen] = useState(false);
@@ -28,16 +28,26 @@ export function WeatherDisplay() {
   const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
-    if (coords && !weather) {
+    if (coords) {
       findNearest(coords.latitude, coords.longitude);
     }
-  }, [coords, weather, findNearest]);
+  }, [coords, findNearest]);
 
   useEffect(() => {
     if (nearest && !weather) {
       changeAirport(nearest.airport.icao);
     }
   }, [nearest, weather, changeAirport]);
+
+  // Fallback para SBGR se não conseguir geolocalização após 5 segundos
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!weather && !nearest) {
+        changeAirport('SBGR');
+      }
+    }, 5000);
+    return () => clearTimeout(timeout);
+  }, [weather, nearest, changeAirport]);
 
   const isDayTime = (): boolean => {
     const hours = new Date().getHours();
@@ -145,10 +155,10 @@ export function WeatherDisplay() {
     return String(wdir).padStart(3, "0") + "°";
   };
 
-  if (loading && !weather)
-    return <div className="text-xs p-2 animate-pulse">Buscando...</div>;
+  if ((loading || geoLoading) && !weather)
+    return <div className="text-xs p-2 animate-pulse">Detectando localização...</div>;
   if (error || !weather)
-    return <div className="text-xs p-2 text-red-400">Offline</div>;
+    return <div className="text-xs p-2 text-red-400">Sem dados</div>;
 
   const gradient = getWeatherGradient(weather.temp, weather.rawOb);
   const weatherType = getWeatherIconType(weather.rawOb, isDayTime());
