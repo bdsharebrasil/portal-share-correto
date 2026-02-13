@@ -81,6 +81,7 @@ export function FluxoCaixa() {
     categoria: 130,
     cliente: 130,
     valor: 110,
+    pagamento: 110,
     conta: 120,
     aeronave: 110,
     nDoc: 100,
@@ -116,6 +117,7 @@ export function FluxoCaixa() {
       "categoria",
       "cliente",
       "valor",
+      "pagamento",
       "conta",
       "aeronave",
       "nDoc",
@@ -215,6 +217,7 @@ export function FluxoCaixa() {
       categoria: "Cat",
       cliente: "Cl",
       valor: "V",
+      pagamento: "Pag",
       conta: "C",
       aeronave: "A",
       nDoc: "Doc",
@@ -764,6 +767,33 @@ export function FluxoCaixa() {
                       </div>
                     </TableHead>
                   )}
+                  {expandedColumns.has("pagamento") && (
+                    <TableHead className="text-foreground/70 group relative select-none" style={{
+                        width: `${columnWidths.pagamento}px`,
+                        minWidth: `${columnWidths.pagamento}px`,
+                        maxWidth: `${columnWidths.pagamento}px`,
+                      }}>
+                      <div className="flex items-center justify-between h-full pr-0">
+                        <div className="flex items-center gap-1 flex-1 truncate">
+                          <span>Pagamento</span>
+                          <button
+                            onClick={() => toggleColumnVisibility("pagamento")}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
+                            title="Ocultar coluna"
+                          >
+                            <EyeOff className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div
+                          onMouseDown={(e) => handleColumnResizeStart(e, "pagamento")}
+                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
+                            resizingColumn === "pagamento" ? "bg-primary" : ""
+                          }`}
+                          title="Arraste para redimensionar"
+                        />
+                      </div>
+                    </TableHead>
+                  )}
                   {expandedColumns.has("cliente") && (
                     <TableHead className="text-foreground/70 group relative select-none" style={{
                         width: `${columnWidths.cliente}px`,
@@ -1069,6 +1099,21 @@ export function FluxoCaixa() {
                           maxWidth: `${columnWidths.categoria}px`,
                         }}>
                           {transacao.categoria_nome || "-"}
+                        </TableCell>
+                      )}
+                      {expandedColumns.has("pagamento") && (
+                        <TableCell className="text-foreground/80" style={{
+                          width: `${columnWidths.pagamento}px`,
+                          minWidth: `${columnWidths.pagamento}px`,
+                          maxWidth: `${columnWidths.pagamento}px`,
+                        }}>
+                          {transacao.metodo_pagamento ? (
+                            <Badge variant="outline" className="text-xs capitalize">
+                              {transacao.metodo_pagamento}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </TableCell>
                       )}
                       {expandedColumns.has("cliente") && (
