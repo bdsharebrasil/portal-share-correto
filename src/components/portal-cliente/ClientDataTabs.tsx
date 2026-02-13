@@ -527,7 +527,16 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                               <div>
                                 <p className="text-xs text-muted-foreground mb-0.5">Data</p>
                                 <p className="text-foreground font-medium">
-                                  {new Date(record.date).toLocaleDateString('pt-BR')}
+                                  {(() => {
+                                    if (!record.date) return '';
+                                    try {
+                                      const [year, month, day] = record.date.split('T')[0].split('-');
+                                      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                                      return date.toLocaleDateString('pt-BR');
+                                    } catch {
+                                      return record.date;
+                                    }
+                                  })()}
                                 </p>
                               </div>
 
@@ -542,31 +551,28 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                                 <div>
                                   <p className="text-xs text-muted-foreground mb-0.5">Prazo Pagamento</p>
                                   <p className="text-foreground font-medium">
-                                    {new Date(record.prazo_pagamento).toLocaleDateString('pt-BR')}
+                                    {(() => {
+                                      if (!record.prazo_pagamento) return '';
+                                      try {
+                                        const [year, month, day] = record.prazo_pagamento.split('T')[0].split('-');
+                                        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                                        return date.toLocaleDateString('pt-BR');
+                                      } catch {
+                                        return record.prazo_pagamento;
+                                      }
+                                    })()}
                                   </p>
                                 </div>
                               )}
                             </div>
                           </div>
 
-                          {/* Valor e Ações */}
-                          <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                            <div className="text-right">
-                              <p className="text-xs text-muted-foreground mb-1">Valor</p>
-                              <p className="text-lg font-bold text-emerald-400">
-                                R$ {Number(record.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                              </p>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-muted-foreground hover:text-foreground"
-                            >
-                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M10.5 1.5H9.5V3h1V1.5zM4 10.5H2.5v1H4v-1zm12.5 0H15v1h1.5v-1zM10.5 15H9.5v1.5h1V15z"/>
-                                <path d="M10 3a7 7 0 100 14 7 7 0 000-14zm0 12.5a5.5 5.5 0 110-11 5.5 5.5 0 0111 0z"/>
-                              </svg>
-                            </Button>
+                          {/* Valor */}
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-xs text-muted-foreground mb-1">Valor</p>
+                            <p className="text-lg font-bold text-emerald-400">
+                              R$ {Number(record.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </p>
                           </div>
                         </div>
                       </div>
