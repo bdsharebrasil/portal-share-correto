@@ -58,6 +58,7 @@ export function ContasReceber() {
   const [contasBancarias, setContasBancarias] = useState<any[]>([]);
   const [editingConta, setEditingConta] = useState<any>(null);
   const [dataRecebimento, setDataRecebimento] = useState(new Date().toISOString().split("T")[0]);
+  const [metodo_pagamento, setMetodo_pagamento] = useState("");
   const [comprovanteFile, setComprovanteFile] = useState<File | null>(null);
   const [isUploadingComprovante, setIsUploadingComprovante] = useState(false);
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
@@ -739,6 +740,7 @@ export function ContasReceber() {
         update({
           status: "recebido",
           conta_banco: nomeBanco,
+          metodo_pagamento: metodo_pagamento || null,
           data_reembolso: dataRecebimento,
           comprovante_url: comprovanteUrl || undefined,
           data_atualizacao: new Date().toISOString()
@@ -762,6 +764,7 @@ export function ContasReceber() {
         status: "recebido",
         data_recebimento: dataRecebimento,
         banco_recebimento: nomeBanco,
+        metodo_pagamento: metodo_pagamento || null,
         atualizado_em: new Date().toISOString()
       };
 
@@ -785,6 +788,7 @@ export function ContasReceber() {
         from("bank_reconciliations").
         update({
           status: "recebido",
+          metodo_pagamento: metodo_pagamento || null,
           comprovante_url: comprovanteUrl || undefined
         }).
         eq("id", contasReceberData.banco_conciliacao_id);
@@ -811,6 +815,7 @@ export function ContasReceber() {
           from("notas_fiscais_saida").
           update({
             status: "recebido",
+            metodo_pagamento: metodo_pagamento || null,
             atualizado_em: new Date().toISOString()
           }).
           eq("id", nota.id);
@@ -840,6 +845,7 @@ export function ContasReceber() {
             status: "recebido",
             data_reembolso: dataRecebimento,
             conta_banco: nomeBanco,
+            metodo_pagamento: metodo_pagamento || null,
             comprovante_url: comprovanteUrl || undefined,
             data_atualizacao: new Date().toISOString()
           }).
@@ -866,6 +872,7 @@ export function ContasReceber() {
     setContasReceberData(null);
     setSelectedBank("");
     setDataRecebimento(new Date().toISOString().split("T")[0]);
+    setMetodo_pagamento("");
     setComprovanteFile(null);
   };
 
@@ -1715,7 +1722,7 @@ export function ContasReceber() {
 
       {/* Dialog de seleção de banco para recebimento */}
       <Dialog open={showBankDialog} onOpenChange={setShowBankDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Selecionar Banco para Recebimento</DialogTitle>
           </DialogHeader>
@@ -1765,6 +1772,23 @@ export function ContasReceber() {
                   className="bg-background" />
 
                 </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-foreground mb-2 block">
+                  Método de Pagamento
+                </label>
+                <Select value={metodo_pagamento} onValueChange={setMetodo_pagamento}>
+                  <SelectTrigger className="bg-background">
+                    <SelectValue placeholder="Selecione o método" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pix">PIX</SelectItem>
+                    <SelectItem value="ted">TED</SelectItem>
+                    <SelectItem value="boleto">Boleto</SelectItem>
+                    <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>

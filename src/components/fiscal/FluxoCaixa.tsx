@@ -79,9 +79,9 @@ export function FluxoCaixa() {
     tipo: 100,
     descricao: 180,
     categoria: 130,
-    referencia: 130,
     cliente: 130,
     valor: 110,
+    pagamento: 110,
     conta: 120,
     aeronave: 110,
     nDoc: 100,
@@ -115,9 +115,9 @@ export function FluxoCaixa() {
       "tipo",
       "descricao",
       "categoria",
-      "referencia",
       "cliente",
       "valor",
+      "pagamento",
       "conta",
       "aeronave",
       "nDoc",
@@ -161,7 +161,7 @@ export function FluxoCaixa() {
       .map((c: any) => c.nome);
   }, [contasData, filterGrupos]);
 
-  const tipos: string[] = ["entrada", "saída"];
+  const tipos: string[] = ["entrada", "saida"];
   // Bancos únicos da tabela contas_bancarias
   const bancos: string[] = useMemo(() => {
     const bancosUnicos = [...new Set(contasBancarias.map((c: any) => c.banco).filter(Boolean))];
@@ -215,9 +215,9 @@ export function FluxoCaixa() {
       tipo: "T",
       descricao: "Desc",
       categoria: "Cat",
-      referencia: "Ref",
       cliente: "Cl",
       valor: "V",
+      pagamento: "Pag",
       conta: "C",
       aeronave: "A",
       nDoc: "Doc",
@@ -429,14 +429,29 @@ export function FluxoCaixa() {
   };
 
   const getStatusColor = (status: string, tipoMovimento?: string) => {
-    if (tipoMovimento === "entrada" && status === "pendente") {
-      return "bg-orange-900/20 text-orange-400 border-orange-600";
-    }
-    switch (status) {
-      case "recebido":
-        return "bg-purple-900/20 text-purple-400 border-purple-600";
-      case "pago":
+    // Entrada (recebimento)
+    if (tipoMovimento === "entrada") {
+      if (status === "recebido") {
+        return "bg-blue-900/20 text-blue-400 border-blue-600";
+      }
+      if (status === "pago") {
         return "bg-green-900/20 text-green-400 border-green-600";
+      }
+      if (status === "pendente") {
+        return "bg-orange-900/20 text-orange-400 border-orange-600";
+      }
+    }
+    // Saída (pagamento)
+    if (tipoMovimento === "saida") {
+      if (status === "recebido") {
+        return "bg-blue-900/20 text-blue-400 border-blue-600";
+      }
+      if (status === "pago") {
+        return "bg-red-900/20 text-red-400 border-red-600";
+      }
+    }
+    // Status padrão
+    switch (status) {
       case "pendente":
         return "bg-yellow-900/20 text-yellow-400 border-yellow-600";
       case "cancelado":
@@ -767,17 +782,17 @@ export function FluxoCaixa() {
                       </div>
                     </TableHead>
                   )}
-                  {expandedColumns.has("referencia") && (
+                  {expandedColumns.has("pagamento") && (
                     <TableHead className="text-foreground/70 group relative select-none" style={{
-                        width: `${columnWidths.referencia}px`,
-                        minWidth: `${columnWidths.referencia}px`,
-                        maxWidth: `${columnWidths.referencia}px`,
+                        width: `${columnWidths.pagamento}px`,
+                        minWidth: `${columnWidths.pagamento}px`,
+                        maxWidth: `${columnWidths.pagamento}px`,
                       }}>
                       <div className="flex items-center justify-between h-full pr-0">
                         <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Referência</span>
+                          <span>Pagamento</span>
                           <button
-                            onClick={() => toggleColumnVisibility("referencia")}
+                            onClick={() => toggleColumnVisibility("pagamento")}
                             className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
                             title="Ocultar coluna"
                           >
@@ -785,9 +800,9 @@ export function FluxoCaixa() {
                           </button>
                         </div>
                         <div
-                          onMouseDown={(e) => handleColumnResizeStart(e, "referencia")}
+                          onMouseDown={(e) => handleColumnResizeStart(e, "pagamento")}
                           className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                            resizingColumn === "referencia" ? "bg-primary" : ""
+                            resizingColumn === "pagamento" ? "bg-primary" : ""
                           }`}
                           title="Arraste para redimensionar"
                         />
@@ -1067,15 +1082,15 @@ export function FluxoCaixa() {
                         }}>
                           <div className="flex items-center gap-2">
                             {isEntrada ? (
-                              <ArrowUpCircle className={`w-4 h-4 ${isPendente ? "text-orange-400" : "text-green-400"}`} />
+                              <ArrowUpCircle className={`w-4 h-4 ${transacao.status === "recebido" ? "text-blue-400" : isPendente ? "text-orange-400" : "text-green-400"}`} />
                             ) : (
-                              <ArrowDownCircle className="w-4 h-4 text-red-400" />
+                              <ArrowDownCircle className={`w-4 h-4 ${transacao.status === "recebido" ? "text-blue-400" : "text-red-400"}`} />
                             )}
                             <span
                               className={
                                 isEntrada
-                                  ? (isPendente ? "text-orange-400" : "text-green-400")
-                                  : "text-red-400"
+                                  ? (transacao.status === "recebido" ? "text-blue-400" : isPendente ? "text-orange-400" : "text-green-400")
+                                  : (transacao.status === "recebido" ? "text-blue-400" : "text-red-400")
                               }
                             >
                               {isEntrada ? "Entrada" : "Saída"}
@@ -1101,13 +1116,19 @@ export function FluxoCaixa() {
                           {transacao.categoria_nome || "-"}
                         </TableCell>
                       )}
-                      {expandedColumns.has("referencia") && (
-                        <TableCell className="text-foreground/80 truncate" title={transacao.referencia || ""}style={{
-                          width: `${columnWidths.referencia}px`,
-                          minWidth: `${columnWidths.referencia}px`,
-                          maxWidth: `${columnWidths.referencia}px`,
+                      {expandedColumns.has("pagamento") && (
+                        <TableCell className="text-foreground/80" style={{
+                          width: `${columnWidths.pagamento}px`,
+                          minWidth: `${columnWidths.pagamento}px`,
+                          maxWidth: `${columnWidths.pagamento}px`,
                         }}>
-                          {transacao.referencia || "-"}
+                          {transacao.metodo_pagamento ? (
+                            <Badge variant="outline" className="text-xs capitalize">
+                              {transacao.metodo_pagamento}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </TableCell>
                       )}
                       {expandedColumns.has("cliente") && (
@@ -1170,7 +1191,7 @@ export function FluxoCaixa() {
                         }}>
                           <TooltipProvider>
                             <div className="flex items-center gap-1">
-                              {transacao.comprovante_url && (
+                              {transacao.comprovante_url && (transacao.status === "recebido" || transacao.status === "pago") && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <a
@@ -1204,11 +1225,11 @@ export function FluxoCaixa() {
                                   </TooltipContent>
                                 </Tooltip>
                               )}
-                              {transacao.comprovante_url && (
+                              {transacao.recibo_url && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <a
-                                      href={transacao.comprovante_url}
+                                      href={transacao.recibo_url}
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="p-1 rounded hover:bg-muted/50 transition-colors"
@@ -1238,7 +1259,7 @@ export function FluxoCaixa() {
                                   </TooltipContent>
                                 </Tooltip>
                               )}
-                              {!transacao.comprovante_url && !transacao.nf_url && !transacao.boleto_url && (
+                              {!transacao.comprovante_url && !transacao.nf_url && !transacao.recibo_url && !transacao.boleto_url && (
                                 <span className="text-muted-foreground">-</span>
                               )}
                             </div>
