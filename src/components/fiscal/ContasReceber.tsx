@@ -197,6 +197,7 @@ export function ContasReceber() {
 
       // 2. Carregar despesas lançadas ao cliente de bank_reconciliations
       // IMPORTANTE: Excluir registros que já têm controle_bancario_id (já estão no fluxo de caixa)
+      // Também excluir registros com status "recebido" pois não devem aparecer em Contas a Receber
       const { data: bankRecData, error: bankRecError } = await supabase.
       from("bank_reconciliations").
       select(`
@@ -220,6 +221,7 @@ export function ContasReceber() {
       eq("type", "cliente").
       is("controle_bancario_id", null) // Só pegar os que NÃO têm vínculo com controle_bancario
       .in("status", ["pendente", "enviado", "aberto"]).
+      neq("status", "recebido").
       order("date", { ascending: false });
 
       if (bankRecError) {
@@ -307,9 +309,11 @@ export function ContasReceber() {
       });
 
       // 3. Carregar contas a receber manuais (que não vieram do fluxo ou bank_reconciliations)
+      // Excluir contas com status "recebido" pois não devem aparecer em Contas a Receber
       const { data: contasData, error: contasError } = await (supabase.
       from("contas_areceber") as any).
       select("*").
+      neq("status", "recebido").
       order("data_vencimento", { ascending: true });
 
       if (contasError) {
@@ -576,6 +580,11 @@ export function ContasReceber() {
 
   const filteredContas = useMemo(() => {
     return contas.filter((conta) => {
+      // Sempre excluir contas com status "recebido" - elas não aparecem em Contas a Receber
+      if (conta.status === "recebido") {
+        return false;
+      }
+
       const searchMatch = filters.searchTerm === "" ||
       conta.cliente_nome.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
       conta.numero.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
