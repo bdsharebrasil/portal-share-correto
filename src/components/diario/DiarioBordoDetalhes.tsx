@@ -3287,11 +3287,19 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               if (e.is_equal_split) {
                 splitHours += (e.time || 0);
               } else if (e.client_id) {
-                // Sempre agregar pelo cliente que fez/usou o voo (client_id)
                 const clientName = clients.find(c => c.id === e.client_id)?.company_name?.split(' ')[0] || 'Cliente';
 
-                // Se tem partner_name, significa que há sócio vinculado
-                if (e.partner_name) {
+                // Se é empréstimo (is_loan = true), NUNCA usar partner_name para agregação
+                // partner_name em empréstimo contém quem pegou emprestado, não quem é dono
+                if (e.is_loan || !e.partner_name) {
+                  // Agregar pelo cliente dono (client_id)
+                  if (!clientTotals[e.client_id]) {
+                    clientTotals[e.client_id] = { hours: 0, dailyRates: 0, name: clientName };
+                  }
+                  clientTotals[e.client_id].hours += (e.time || 0);
+                  clientTotals[e.client_id].dailyRates += (e.daily_rate || 0);
+                } else {
+                  // Voo normal com sócio (não é empréstimo)
                   // Usar o partner_name como chave (sócio do cliente)
                   if (!partnerTotals[e.partner_name]) {
                     partnerTotals[e.partner_name] = { hours: 0, dailyRates: 0, voos: 0 };
@@ -3299,13 +3307,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   partnerTotals[e.partner_name].hours += (e.time || 0);
                   partnerTotals[e.partner_name].dailyRates += (e.daily_rate || 0);
                   partnerTotals[e.partner_name].voos += 1;
-                } else {
-                  // Sem sócio, agregar pelo cliente
-                  if (!clientTotals[e.client_id]) {
-                    clientTotals[e.client_id] = { hours: 0, dailyRates: 0, name: clientName };
-                  }
-                  clientTotals[e.client_id].hours += (e.time || 0);
-                  clientTotals[e.client_id].dailyRates += (e.daily_rate || 0);
                 }
               }
             });
