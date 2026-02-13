@@ -523,6 +523,7 @@ export function useUpdateTransaction() {
       prazo?: string | null;
       status?: string;
       invoiceUrl?: string | null;
+      doc?: string | null;
     }) => {
       if (data.transactionType === "expense") {
         const { error } = await supabase
@@ -536,6 +537,7 @@ export function useUpdateTransaction() {
             prazo: data.prazo || null,
             status: data.status || "pago",
             invoice_url: data.invoiceUrl || null,
+            doc: data.doc || null,
           })
           .eq("id", data.id);
         if (error) throw error;

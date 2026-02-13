@@ -97,6 +97,7 @@ interface TransactionRow {
   due_date?: string;
   invoice_url?: string;
   category?: string;
+  doc?: string;
 }
 
 interface GroupedTransactions {
@@ -162,6 +163,7 @@ export default function RelatorioTransacoesSocios() {
     prazo: "",
     status: "pago",
     invoiceUrl: "",
+    doc: "",
   });
 
   // ── Hooks de dados ──────────────────────────────────────────────────────────
@@ -203,6 +205,7 @@ export default function RelatorioTransacoesSocios() {
         due_date: tx.due_date || null,
         invoice_url: tx.invoice_url || null,
         category: tx.category || null,
+        doc: tx.doc || null,
       };
     });
   }, [transactions]);
@@ -362,6 +365,7 @@ export default function RelatorioTransacoesSocios() {
       prazo: tx.prazo || "",
       status: tx.status || "pago",
       invoiceUrl: tx.invoice_url || "",
+      doc: tx.doc || "",
     });
   };
 
@@ -382,6 +386,7 @@ export default function RelatorioTransacoesSocios() {
       prazo: prazoValue,
       status: editForm.status || "pago",
       invoiceUrl: editForm.invoiceUrl || null,
+      doc: editForm.doc || null,
     });
     setEditTarget(null);
   };
@@ -681,6 +686,7 @@ export default function RelatorioTransacoesSocios() {
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Sócio</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Descrição</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Documento</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Status</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Banco</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Prazo</th>
@@ -698,6 +704,13 @@ export default function RelatorioTransacoesSocios() {
                         <td className="px-4 py-3 text-sm text-foreground">{tx.date}</td>
                         <td className="px-4 py-3 text-sm text-foreground font-medium">{tx.partner_name}</td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">{tx.description}</td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
+                          {tx.doc ? (
+                            <span className="bg-muted/50 px-2 py-1 rounded text-xs">{tx.doc}</span>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-sm">
                           {tx.status ? (
                             <Badge
@@ -811,14 +824,26 @@ export default function RelatorioTransacoesSocios() {
           </DialogHeader>
 
           <div className="space-y-4 mt-2">
-            <div>
-              <Label htmlFor="edit-desc">Descrição</Label>
-              <Input
-                id="edit-desc"
-                value={editForm.description}
-                onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
-                className="mt-1"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="edit-desc">Descrição</Label>
+                <Input
+                  id="edit-desc"
+                  value={editForm.description}
+                  onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-doc">Documento (Nº)</Label>
+                <Input
+                  id="edit-doc"
+                  value={editForm.doc}
+                  onChange={(e) => setEditForm((p) => ({ ...p, doc: e.target.value }))}
+                  placeholder="Ex: 2025180"
+                  className="mt-1"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
