@@ -1045,6 +1045,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       }
 
       // ✅ CORREÇÃO: Lógica corrigida para empréstimos com sócios
+      // Para empréstimos: client_id = dono da aeronave (quem emprestou)
+      // partner_name = nome de quem pegou emprestado (sócio ou empresa)
+      const borrowerClient = newEntry.is_loan
+        ? clients.find(c => c.id === newEntry.borrower_client_id)
+        : null;
+
       const { error } = await supabase.from('logbook_entries').insert([{
         logbook_month_id: logbookMonth.id,
         aircraft_id: aircraftId,
@@ -1059,15 +1065,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         pic_canac: newEntry.pic_canac,
         sic_canac: newEntry.sic_canac || null,
         sic_name: newEntry.sic_name || null,
-        // ✅ CORREÇÃO: client_id sempre aponta para quem USOU a aeronave
+        // ✅ CORREÇÃO: client_id sempre aponta para o cliente DO VOO (dono da aeronave se empréstimo)
         client_id: newEntry.is_equal_split
           ? null
-          : (newEntry.is_loan ? newEntry.borrower_client_id : newEntry.client_id),
-        // ✅ CORREÇÃO: partner_name contém o sócio que USOU
-        partner_name: newEntry.is_equal_split 
-          ? null 
-          : (newEntry.is_loan 
-              ? (newEntry.borrower_partner_name || null)  // Sócio de quem pegou emprestado
+          : newEntry.client_id,  // Sempre o cliente selecionado (dono da aeronave se for empréstimo)
+        // ✅ CORREÇÃO: partner_name contém o sócio DO VOO (quem usou se for empréstimo)
+        partner_name: newEntry.is_equal_split
+          ? null
+          : (newEntry.is_loan
+              ? (newEntry.borrower_partner_name || borrowerClient?.company_name || null)  // Sócio ou nome da empresa que pegou emprestado
               : (newEntry.partner_name || null)),          // Sócio normal
         is_equal_split: newEntry.is_equal_split,
         is_loan: newEntry.is_loan || false,
