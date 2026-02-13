@@ -161,7 +161,7 @@ export function FluxoCaixa() {
       .map((c: any) => c.nome);
   }, [contasData, filterGrupos]);
 
-  const tipos: string[] = ["entrada", "saída"];
+  const tipos: string[] = ["entrada", "saida"];
   // Bancos únicos da tabela contas_bancarias
   const bancos: string[] = useMemo(() => {
     const bancosUnicos = [...new Set(contasBancarias.map((c: any) => c.banco).filter(Boolean))];
