@@ -1176,7 +1176,7 @@ export function FluxoCaixa() {
                         }}>
                           <TooltipProvider>
                             <div className="flex items-center gap-1">
-                              {transacao.comprovante_url && (
+                              {transacao.comprovante_url && (transacao.status === "recebido" || transacao.status === "pago") && (
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <a
