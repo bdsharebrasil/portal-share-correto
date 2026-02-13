@@ -1722,7 +1722,7 @@ export function ContasReceber() {
 
       {/* Dialog de seleção de banco para recebimento */}
       <Dialog open={showBankDialog} onOpenChange={setShowBankDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Selecionar Banco para Recebimento</DialogTitle>
           </DialogHeader>
