@@ -30,7 +30,7 @@ export function AddAircraftDialog({ open, onOpenChange, aircraft }: AddAircraftD
     serial_number: "",
     owner_name: "",
     year: "",
-    status: "Ativa",
+    status: "ativa",
     fuel_consumption: "",
     base: "",
   });
@@ -44,7 +44,7 @@ export function AddAircraftDialog({ open, onOpenChange, aircraft }: AddAircraftD
         serial_number: aircraft.serial_number ?? "",
         owner_name: aircraft.owner_name ?? "",
         year: "",
-        status: aircraft.status ?? "Ativa",
+        status: aircraft.status ?? "ativa",
         fuel_consumption: aircraft.fuel_consumption != null ? String(aircraft.fuel_consumption) : "",
         base: (aircraft as any).base ?? "",
       });
@@ -56,7 +56,7 @@ export function AddAircraftDialog({ open, onOpenChange, aircraft }: AddAircraftD
         serial_number: "",
         owner_name: "",
         year: "",
-        status: "Ativa",
+        status: "ativa",
         fuel_consumption: "",
         base: "",
       });
@@ -254,9 +254,9 @@ export function AddAircraftDialog({ open, onOpenChange, aircraft }: AddAircraftD
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-slate-900 border-slate-600">
-                <SelectItem value="Ativa">Ativa</SelectItem>
-                <SelectItem value="Inativa">Inativa</SelectItem>
-                <SelectItem value="Manutenção">Manutenção</SelectItem>
+                <SelectItem value="ativa">Ativa</SelectItem>
+                <SelectItem value="inativa">Inativa</SelectItem>
+                <SelectItem value="manutenção">Manutenção</SelectItem>
               </SelectContent>
             </Select>
           </div>

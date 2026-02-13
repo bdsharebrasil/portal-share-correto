@@ -72,7 +72,7 @@ export const useAeronaves = () => {
       const { data, error } = await supabase
         .from("aircraft")
         .select("id, registration, model, manufacturer")
-        .eq("status", "Ativa")
+        .eq("status", "ativa")
         .order("registration", { ascending: true });
 
       if (error) {
