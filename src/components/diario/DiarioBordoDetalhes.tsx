@@ -3162,11 +3162,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 </tr> : filteredEntries.map((e, idx) => {
                   const picCrew = crew.find(c => c.id === e.pic_canac);
                   const sicCrew = crew.find(c => c.id === e.sic_canac);
-                  // Verificar se é empréstimo - se sim, mostrar o lender (sócio da aeronave)
-                  const loanForEntry = loans.find(l => l.logbook_entry_id === e.id);
-                  const displayClientName = loanForEntry
-                    ? (loanForEntry.lender_client?.company_name || clients.find(c => c.id === loanForEntry.lender_client_id)?.company_name)
-                    : (e.partner_name || clients.find(c => c.id === e.client_id)?.company_name);
+                  // Exibir sempre o cliente do voo (client_id)
+                  // Se tiver partner_name, é um sócio desse cliente
+                  const displayClientName = e.partner_name || clients.find(c => c.id === e.client_id)?.company_name;
                   return <tr key={e.id} className="hover:bg-slate-800/30 transition-colors group border-b border-slate-800/50">
                     <td className="p-2 whitespace-nowrap text-center text-xs" style={{ width: `${columnWidths.date}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <div className="flex items-center justify-center gap-1">
@@ -3288,29 +3286,21 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             filteredEntries.forEach(e => {
               if (e.is_equal_split) {
                 splitHours += (e.time || 0);
-              } else {
-                // Verificar se é empréstimo
-                const loanForEntry = loans.find(l => l.logbook_entry_id === e.id);
-                
-                if (loanForEntry) {
-                  // Empréstimo: acumular no nome do lender (sócio da aeronave)
-                  const lenderName = loanForEntry.lender_client?.company_name?.split(' ')[0] || 
-                    clients.find(c => c.id === loanForEntry.lender_client_id)?.company_name?.split(' ')[0] || 'Sócio';
-                  if (!partnerTotals[lenderName]) {
-                    partnerTotals[lenderName] = { hours: 0, dailyRates: 0, voos: 0 };
-                  }
-                  partnerTotals[lenderName].hours += (e.time || 0);
-                  partnerTotals[lenderName].dailyRates += (e.daily_rate || 0);
-                  partnerTotals[lenderName].voos += 1;
-                } else if (e.partner_name) {
+              } else if (e.client_id) {
+                // Sempre agregar pelo cliente que fez/usou o voo (client_id)
+                const clientName = clients.find(c => c.id === e.client_id)?.company_name?.split(' ')[0] || 'Cliente';
+
+                // Se tem partner_name, significa que há sócio vinculado
+                if (e.partner_name) {
+                  // Usar o partner_name como chave (sócio do cliente)
                   if (!partnerTotals[e.partner_name]) {
                     partnerTotals[e.partner_name] = { hours: 0, dailyRates: 0, voos: 0 };
                   }
                   partnerTotals[e.partner_name].hours += (e.time || 0);
                   partnerTotals[e.partner_name].dailyRates += (e.daily_rate || 0);
                   partnerTotals[e.partner_name].voos += 1;
-                } else if (e.client_id) {
-                  const clientName = clients.find(c => c.id === e.client_id)?.company_name || 'Outros';
+                } else {
+                  // Sem sócio, agregar pelo cliente
                   if (!clientTotals[e.client_id]) {
                     clientTotals[e.client_id] = { hours: 0, dailyRates: 0, name: clientName };
                   }
