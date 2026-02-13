@@ -851,19 +851,7 @@ export function ContasReceber() {
         }
       }
 
-      // 4. Chamar função RPC para criar entrada no controle_bancario (se necessário)
-      const { error: rpcError } = await (supabase.rpc as any)('create_entrada_bancaria_from_conta_receber', {
-        p_conta_receber_id: contasReceberData.id,
-        p_conta_banco: nomeBanco
-      });
-
-      if (rpcError) {
-        console.error("Erro ao criar entrada bancária:", rpcError);
-        toast.warning("Conta marcada como recebida, mas houve um pequeno erro ao registrar no fluxo bancário. Por favor, revise.");
-        return;
-      }
-
-      toast.success("Conta marcada como recebida e registrada no fluxo bancário!");
+      toast.success("Conta marcada como recebida e fluxo bancário atualizado!");
       resetBankDialog();
       loadContas();
     } catch (error: any) {
