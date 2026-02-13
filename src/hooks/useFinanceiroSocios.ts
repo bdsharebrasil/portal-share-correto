@@ -128,13 +128,20 @@ export function useSocioTransactions(
         description: exp.description,
         reference_type: "partner_expense",
         reference_id: exp.id,
-        payment_date: exp.due_date,
+        payment_date: exp.paid_date || exp.due_date,
+        paid_date: exp.paid_date,
+        due_date: exp.due_date,
         receipt_url: null,
         notes: exp.notes,
         created_by: null,
         created_at: exp.created_at,
         expense_type: exp.expense_type,
         status: exp.status,
+        bank_name: exp.bank_name || null,
+        prazo: exp.prazo || null,
+        invoice_url: exp.invoice_url || null,
+        doc: exp.doc || null,
+        category: exp.category || null,
       }));
 
       // Combinar e ordenar por data
