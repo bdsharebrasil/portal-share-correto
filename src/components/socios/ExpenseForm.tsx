@@ -50,17 +50,20 @@ const EMPTY_FORM = {
   category: "" as ExpenseCategoryId | "",
   expenseType: "",
   assignedPartnerCpf: "none",
-  // FIX #3: renomeado internamente para "paymentDate" — representa a data em
-  // que a despesa foi EFETUADA/PAGA (não uma data de vencimento futura).
-  paymentDate: format(new Date(), "yyyy-MM-dd"),
+  // paid_date: data em que a despesa foi EFETUADA/PAGA
+  paidDate: format(new Date(), "yyyy-MM-dd"),
+  // due_date: data de vencimento da despesa (opcional)
+  dueDate: format(new Date(), "yyyy-MM-dd"),
   supplierName: "",
   invoiceNumber: "",
+  invoiceUrl: "",
   paymentMethod: "nao_informado",
   notes: "",
+  status: "pago",
   abastecimentoId: "",
   criarNovoAbastecimento: false,
-  bankName: "nao_selecionado", // NOVO: Banco (com valor padrão válido)
-  prazo: "extra" as "mensal" | "extra", // NOVO: Prazo
+  bankName: "bradesco",
+  prazo: "extra" as "mensal" | "extra",
 };
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -100,19 +103,22 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       expenseType: form.expenseType || form.category,
       assignedPartnerCpf,
       assignedPartnerName: assignedPartner?.name || null,
-      // FIX #3: envia como dueDate (campo do banco), mas o valor
-      // representa a data real de pagamento efetuado
-      dueDate: form.paymentDate,
+      // paid_date: data em que a despesa foi efetivamente paga
+      paidDate: form.paidDate,
+      // due_date: data de vencimento da despesa
+      dueDate: form.dueDate,
       supplierName: form.supplierName || null,
       invoiceNumber: form.invoiceNumber || null,
+      invoiceUrl: form.invoiceUrl || null,
       paymentMethod: form.paymentMethod || null,
       notes: form.notes || null,
+      status: form.status || "pago",
       referenceType:
         form.category === "abastecimento" ? "abastecimento" : null,
       referenceId:
         form.category === "abastecimento" ? form.abastecimentoId || null : null,
-      bankName: form.bankName !== "nao_selecionado" ? form.bankName : null,
-      prazo: form.prazo || null,
+      bankName: form.bankName || "bradesco",
+      prazo: form.prazo || "extra",
     });
 
     setOpen(false);
@@ -305,9 +311,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             />
           </div>
 
-          {/* ── Valor + Data do Pagamento ─────────────────────────────────── */}
-          {/* FIX #3: label correto — "Data do Pagamento" sem "Vencimento" */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* ── Valor + Data de Pagamento + Data de Vencimento ─────────────── */}
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <Label htmlFor="exp-amount" className="font-semibold">
                 Valor (R$) *
@@ -326,15 +331,28 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
               />
             </div>
             <div>
-              <Label htmlFor="exp-payment-date" className="font-semibold">
-                Data do Pagamento *
+              <Label htmlFor="exp-paid-date" className="font-semibold">
+                Data de Pagamento *
               </Label>
               <Input
-                id="exp-payment-date"
+                id="exp-paid-date"
                 type="date"
-                value={form.paymentDate}
-                onChange={(e) => set("paymentDate")(e.target.value)}
+                value={form.paidDate}
+                onChange={(e) => set("paidDate")(e.target.value)}
                 required
+                disabled={addExpense.isPending}
+                className="mt-2"
+              />
+            </div>
+            <div>
+              <Label htmlFor="exp-due-date" className="font-semibold">
+                Data de Vencimento
+              </Label>
+              <Input
+                id="exp-due-date"
+                type="date"
+                value={form.dueDate}
+                onChange={(e) => set("dueDate")(e.target.value)}
                 disabled={addExpense.isPending}
                 className="mt-2"
               />
@@ -379,8 +397,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             </Select>
           </div>
 
-          {/* ── Fornecedor + Nº Nota ──────────────────────────────────────── */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* ── Fornecedor + Nº Nota + URL Nota Fiscal ────────────────────── */}
+          <div className="space-y-3">
             <div>
               <Label className="font-semibold">Fornecedor</Label>
               <Combobox
@@ -398,19 +416,50 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 className="mt-2"
               />
             </div>
-            <div>
-              <Label htmlFor="exp-invoice" className="font-semibold">
-                Nº Nota/NF
-              </Label>
-              <Input
-                id="exp-invoice"
-                value={form.invoiceNumber}
-                onChange={(e) => set("invoiceNumber")(e.target.value)}
-                placeholder="Ex: 2025180"
-                disabled={addExpense.isPending}
-                className="mt-2"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="exp-invoice-number" className="font-semibold">
+                  Nº Nota/NF
+                </Label>
+                <Input
+                  id="exp-invoice-number"
+                  value={form.invoiceNumber}
+                  onChange={(e) => set("invoiceNumber")(e.target.value)}
+                  placeholder="Ex: 2025180"
+                  disabled={addExpense.isPending}
+                  className="mt-2"
+                />
+              </div>
+              <div>
+                <Label htmlFor="exp-invoice-url" className="font-semibold">
+                  URL Nota Fiscal
+                </Label>
+                <Input
+                  id="exp-invoice-url"
+                  type="url"
+                  value={form.invoiceUrl}
+                  onChange={(e) => set("invoiceUrl")(e.target.value)}
+                  placeholder="https://..."
+                  disabled={addExpense.isPending}
+                  className="mt-2"
+                />
+              </div>
             </div>
+          </div>
+
+          {/* ── Status ────────────────────────────────────────────────────── */}
+          <div>
+            <Label className="font-semibold">Status da Despesa</Label>
+            <Select value={form.status} onValueChange={set("status")}>
+              <SelectTrigger className="mt-2">
+                <SelectValue placeholder="Selecione o status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pago">Pago</SelectItem>
+                <SelectItem value="pendente">Pendente</SelectItem>
+                <SelectItem value="cancelado">Cancelado</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* ── Forma de Pagamento ────────────────────────────────────────── */}
@@ -441,10 +490,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
               <Label className="font-semibold">Banco</Label>
               <Select value={form.bankName} onValueChange={set("bankName")}>
                 <SelectTrigger className="mt-2">
-                  <SelectValue placeholder="Selecione (opcional)" />
+                  <SelectValue placeholder="Selecione o banco" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="nao_selecionado">— Não selecionado —</SelectItem>
                   <SelectItem value="bradesco">Bradesco</SelectItem>
                   <SelectItem value="caixa">Caixa Econômica</SelectItem>
                   <SelectItem value="sicoob">Sicoob</SelectItem>
@@ -456,10 +504,10 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
               </Select>
             </div>
             <div>
-              <Label className="font-semibold">Prazo</Label>
+              <Label className="font-semibold">Tipo de Despesa (Prazo)</Label>
               <Select value={form.prazo} onValueChange={(v) => set("prazo")(v as "mensal" | "extra")}>
                 <SelectTrigger className="mt-2">
-                  <SelectValue placeholder="Selecione o prazo" />
+                  <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="mensal">
@@ -495,11 +543,10 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             />
           </div>
 
-          {/* ── Submit ────────────────────────────────────────────────────── */}
+          {/* ── Botão de Envio ──────────────────────────────────────────────── */}
           <Button
             type="submit"
-            variant="destructive"
-            className="w-full mt-2"
+            className="w-full mt-4 bg-green-600 hover:bg-green-700"
             disabled={
               addExpense.isPending ||
               !form.description ||

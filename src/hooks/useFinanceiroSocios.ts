@@ -128,13 +128,20 @@ export function useSocioTransactions(
         description: exp.description,
         reference_type: "partner_expense",
         reference_id: exp.id,
-        payment_date: exp.due_date,
+        payment_date: exp.paid_date || exp.due_date,
+        paid_date: exp.paid_date,
+        due_date: exp.due_date,
         receipt_url: null,
         notes: exp.notes,
         created_by: null,
         created_at: exp.created_at,
         expense_type: exp.expense_type,
         status: exp.status,
+        bank_name: exp.bank_name || null,
+        prazo: exp.prazo || null,
+        invoice_url: exp.invoice_url || null,
+        doc: exp.doc || null,
+        category: exp.category || null,
       }));
 
       // Combinar e ordenar por data
@@ -363,11 +370,13 @@ export function useCreateExpense() {
       assignedPartnerCpf?: string | null;
       assignedPartnerName?: string | null;
       supplierName?: string | null;
+      paidDate?: string;
       dueDate?: string;
       invoiceNumber?: string | null;
       invoiceUrl?: string;
       paymentMethod?: string | null;
       notes?: string | null;
+      status?: string;
       referenceType?: string | null;
       referenceId?: string | null;
       bankName?: string | null;
@@ -381,15 +390,16 @@ export function useCreateExpense() {
         assigned_partner_cpf: data.assignedPartnerCpf || null,
         assigned_partner_name: data.assignedPartnerName || null,
         supplier_name: data.supplierName || null,
+        paid_date: data.paidDate || null,
         due_date: data.dueDate || null,
         invoice_number: data.invoiceNumber || null,
         invoice_url: data.invoiceUrl || null,
         payment_method: data.paymentMethod || null,
         notes: data.notes || null,
-        status: "pending",
-        reference_type: data.referenceType || null,
-        reference_id: data.referenceId || null,
-        prazo: data.prazo || null,
+        status: data.status || "pago",
+        category: data.category || "outros",
+        bank_name: data.bankName || "bradesco",
+        prazo: data.prazo || "extra",
       });
       if (error) throw error;
 
@@ -399,10 +409,10 @@ export function useCreateExpense() {
       queryClient.invalidateQueries({ queryKey: ["partner-expenses", clientId] });
       queryClient.invalidateQueries({ queryKey: ["partner-accounts", clientId] });
       queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
-      toast.success("Despesa criada com sucesso!");
+      toast.success("Despesa registrada com sucesso!");
     },
     onError: (err: any) => {
-      toast.error("Erro ao criar despesa: " + err.message);
+      toast.error("Erro ao registrar despesa: " + err.message);
     },
   });
 }
@@ -514,9 +524,13 @@ export function useUpdateTransaction() {
       description: string;
       amount: number;
       paymentDate: string;
+      dueDate?: string | null;
       notes?: string | null;
       bankName?: string | null;
       prazo?: string | null;
+      status?: string;
+      invoiceUrl?: string | null;
+      doc?: string | null;
     }) => {
       if (data.transactionType === "expense") {
         const { error } = await supabase
@@ -524,9 +538,13 @@ export function useUpdateTransaction() {
           .update({
             description: data.description,
             total_amount: data.amount,
-            due_date: data.paymentDate,
+            paid_date: data.paymentDate,
+            due_date: data.dueDate || null,
             notes: data.notes || null,
             prazo: data.prazo || null,
+            status: data.status || "pago",
+            invoice_url: data.invoiceUrl || null,
+            doc: data.doc || null,
           })
           .eq("id", data.id);
         if (error) throw error;
