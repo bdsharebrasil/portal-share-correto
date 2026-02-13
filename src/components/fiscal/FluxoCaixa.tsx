@@ -429,14 +429,29 @@ export function FluxoCaixa() {
   };
 
   const getStatusColor = (status: string, tipoMovimento?: string) => {
-    if (tipoMovimento === "entrada" && status === "pendente") {
-      return "bg-orange-900/20 text-orange-400 border-orange-600";
-    }
-    switch (status) {
-      case "recebido":
-        return "bg-purple-900/20 text-purple-400 border-purple-600";
-      case "pago":
+    // Entrada (recebimento)
+    if (tipoMovimento === "entrada") {
+      if (status === "recebido") {
+        return "bg-blue-900/20 text-blue-400 border-blue-600";
+      }
+      if (status === "pago") {
         return "bg-green-900/20 text-green-400 border-green-600";
+      }
+      if (status === "pendente") {
+        return "bg-orange-900/20 text-orange-400 border-orange-600";
+      }
+    }
+    // Saída (pagamento)
+    if (tipoMovimento === "saida") {
+      if (status === "recebido") {
+        return "bg-blue-900/20 text-blue-400 border-blue-600";
+      }
+      if (status === "pago") {
+        return "bg-red-900/20 text-red-400 border-red-600";
+      }
+    }
+    // Status padrão
+    switch (status) {
       case "pendente":
         return "bg-yellow-900/20 text-yellow-400 border-yellow-600";
       case "cancelado":
