@@ -1082,15 +1082,15 @@ export function FluxoCaixa() {
                         }}>
                           <div className="flex items-center gap-2">
                             {isEntrada ? (
-                              <ArrowUpCircle className={`w-4 h-4 ${isPendente ? "text-orange-400" : "text-green-400"}`} />
+                              <ArrowUpCircle className={`w-4 h-4 ${transacao.status === "recebido" ? "text-blue-400" : isPendente ? "text-orange-400" : "text-green-400"}`} />
                             ) : (
-                              <ArrowDownCircle className="w-4 h-4 text-red-400" />
+                              <ArrowDownCircle className={`w-4 h-4 ${transacao.status === "recebido" ? "text-blue-400" : "text-red-400"}`} />
                             )}
                             <span
                               className={
                                 isEntrada
-                                  ? (isPendente ? "text-orange-400" : "text-green-400")
-                                  : "text-red-400"
+                                  ? (transacao.status === "recebido" ? "text-blue-400" : isPendente ? "text-orange-400" : "text-green-400")
+                                  : (transacao.status === "recebido" ? "text-blue-400" : "text-red-400")
                               }
                             >
                               {isEntrada ? "Entrada" : "Saída"}
