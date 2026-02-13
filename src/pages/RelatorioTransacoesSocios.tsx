@@ -92,6 +92,11 @@ interface TransactionRow {
   expense_type: string;
   transaction_type: "deposit" | "withdrawal" | "expense" | "payment" | string;
   notes: string | null;
+  status?: string;
+  paid_date?: string;
+  due_date?: string;
+  invoice_url?: string;
+  category?: string;
 }
 
 interface GroupedTransactions {
@@ -151,9 +156,12 @@ export default function RelatorioTransacoesSocios() {
     description: "",
     amount: "",
     paymentDate: "",
+    dueDate: "",
     notes: "",
     bank_name: "",
     prazo: "",
+    status: "pago",
+    invoiceUrl: "",
   });
 
   // ── Hooks de dados ──────────────────────────────────────────────────────────
@@ -170,7 +178,7 @@ export default function RelatorioTransacoesSocios() {
   // ── Transformar transações em TransactionRow ─────────────────────────────────
   const allRows = useMemo(() => {
     return transactions.map((tx: any) => {
-      const rawDate = tx.payment_date || tx.due_date || tx.created_at;
+      const rawDate = tx.paid_date || tx.payment_date || tx.due_date || tx.created_at;
       const dateStr = rawDate.split("T")[0];
       const [year, month, day] = dateStr.split("-");
       const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
@@ -190,6 +198,11 @@ export default function RelatorioTransacoesSocios() {
         expense_type: tx.expense_type || "",
         transaction_type: tx.transaction_type,
         notes: tx.notes || null,
+        status: tx.status || null,
+        paid_date: tx.paid_date || null,
+        due_date: tx.due_date || null,
+        invoice_url: tx.invoice_url || null,
+        category: tx.category || null,
       };
     });
   }, [transactions]);
@@ -336,13 +349,19 @@ export default function RelatorioTransacoesSocios() {
   const openEdit = (tx: TransactionRow) => {
     setEditTarget(tx);
     const [day, month, year] = tx.date.split("/");
+    const paidDateStr = tx.paid_date ? tx.paid_date.split("T")[0] : `${year}-${month}-${day}`;
+    const dueDateStr = tx.due_date ? tx.due_date.split("T")[0] : "";
+
     setEditForm({
       description: tx.description === "N/A" ? "" : tx.description,
       amount: tx.amount.toFixed(2),
-      paymentDate: `${year}-${month}-${day}`,
+      paymentDate: paidDateStr,
+      dueDate: dueDateStr,
       notes: tx.notes || "",
       bank_name: tx.bank_name || "",
       prazo: tx.prazo || "",
+      status: tx.status || "pago",
+      invoiceUrl: tx.invoice_url || "",
     });
   };
 
@@ -357,9 +376,12 @@ export default function RelatorioTransacoesSocios() {
       description: editForm.description,
       amount: parseFloat(editForm.amount),
       paymentDate: editForm.paymentDate,
+      dueDate: editForm.dueDate || null,
       notes: editForm.notes || null,
       bankName: editForm.bank_name || null,
       prazo: prazoValue,
+      status: editForm.status || "pago",
+      invoiceUrl: editForm.invoiceUrl || null,
     });
     setEditTarget(null);
   };
@@ -659,6 +681,7 @@ export default function RelatorioTransacoesSocios() {
                       </th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Sócio</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Descrição</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Status</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Banco</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Prazo</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Tipo</th>
@@ -675,6 +698,22 @@ export default function RelatorioTransacoesSocios() {
                         <td className="px-4 py-3 text-sm text-foreground">{tx.date}</td>
                         <td className="px-4 py-3 text-sm text-foreground font-medium">{tx.partner_name}</td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">{tx.description}</td>
+                        <td className="px-4 py-3 text-sm">
+                          {tx.status ? (
+                            <Badge
+                              variant="secondary"
+                              className={
+                                tx.status === "pago" ? "bg-green-500/20 text-green-600 border-green-500/30" :
+                                tx.status === "pendente" ? "bg-yellow-500/20 text-yellow-600 border-yellow-500/30" :
+                                "bg-red-500/20 text-red-600 border-red-500/30"
+                              }
+                            >
+                              {tx.status}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">{tx.bank_name || "—"}</td>
                         <td className="px-4 py-3 text-sm text-muted-foreground">{tx.prazo || "—"}</td>
                         <td className="px-4 py-3 text-sm">
@@ -796,12 +835,41 @@ export default function RelatorioTransacoesSocios() {
                 />
               </div>
               <div>
-                <Label htmlFor="edit-date">Data</Label>
+                <Label htmlFor="edit-status">Status</Label>
+                <Select
+                  value={editForm.status || "pago"}
+                  onValueChange={(value) => setEditForm((p) => ({ ...p, status: value }))}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Selecione o status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pago">Pago</SelectItem>
+                    <SelectItem value="pendente">Pendente</SelectItem>
+                    <SelectItem value="cancelado">Cancelado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="edit-paid-date">Data de Pagamento</Label>
                 <Input
-                  id="edit-date"
+                  id="edit-paid-date"
                   type="date"
                   value={editForm.paymentDate}
                   onChange={(e) => setEditForm((p) => ({ ...p, paymentDate: e.target.value }))}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-due-date">Data de Vencimento</Label>
+                <Input
+                  id="edit-due-date"
+                  type="date"
+                  value={editForm.dueDate}
+                  onChange={(e) => setEditForm((p) => ({ ...p, dueDate: e.target.value }))}
                   className="mt-1"
                 />
               </div>
@@ -819,24 +887,24 @@ export default function RelatorioTransacoesSocios() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Nenhum</SelectItem>
-                    <SelectItem value="Bradesco">Bradesco</SelectItem>
-                    <SelectItem value="Caixa">Caixa</SelectItem>
-                    <SelectItem value="Sicoob">Sicoob</SelectItem>
-                    <SelectItem value="Sicredi">Sicredi</SelectItem>
-                    <SelectItem value="Itaú">Itaú</SelectItem>
-                    <SelectItem value="Santander">Santander</SelectItem>
-                    <SelectItem value="Outros">Outros</SelectItem>
+                    <SelectItem value="bradesco">Bradesco</SelectItem>
+                    <SelectItem value="caixa">Caixa</SelectItem>
+                    <SelectItem value="sicoob">Sicoob</SelectItem>
+                    <SelectItem value="sicredi">Sicredi</SelectItem>
+                    <SelectItem value="itau">Itaú</SelectItem>
+                    <SelectItem value="santander">Santander</SelectItem>
+                    <SelectItem value="outros">Outros</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label htmlFor="edit-prazo">Prazo</Label>
+                <Label htmlFor="edit-prazo">Tipo de Despesa (Prazo)</Label>
                 <Select
                   value={editForm.prazo || "none"}
                   onValueChange={(value) => setEditForm((p) => ({ ...p, prazo: value === "none" ? "" : value }))}
                 >
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Selecione o prazo" />
+                    <SelectValue placeholder="Selecione o tipo" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Nenhum</SelectItem>
@@ -845,6 +913,18 @@ export default function RelatorioTransacoesSocios() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div>
+              <Label htmlFor="edit-invoice-url">URL Nota Fiscal</Label>
+              <Input
+                id="edit-invoice-url"
+                type="url"
+                value={editForm.invoiceUrl}
+                onChange={(e) => setEditForm((p) => ({ ...p, invoiceUrl: e.target.value }))}
+                placeholder="https://..."
+                className="mt-1"
+              />
             </div>
 
             <div>

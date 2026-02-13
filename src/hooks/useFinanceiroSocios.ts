@@ -517,9 +517,12 @@ export function useUpdateTransaction() {
       description: string;
       amount: number;
       paymentDate: string;
+      dueDate?: string | null;
       notes?: string | null;
       bankName?: string | null;
       prazo?: string | null;
+      status?: string;
+      invoiceUrl?: string | null;
     }) => {
       if (data.transactionType === "expense") {
         const { error } = await supabase
@@ -527,9 +530,12 @@ export function useUpdateTransaction() {
           .update({
             description: data.description,
             total_amount: data.amount,
-            due_date: data.paymentDate,
+            paid_date: data.paymentDate,
+            due_date: data.dueDate || null,
             notes: data.notes || null,
             prazo: data.prazo || null,
+            status: data.status || "pago",
+            invoice_url: data.invoiceUrl || null,
           })
           .eq("id", data.id);
         if (error) throw error;
