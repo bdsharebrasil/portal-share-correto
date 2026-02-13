@@ -197,6 +197,7 @@ export function ContasReceber() {
 
       // 2. Carregar despesas lançadas ao cliente de bank_reconciliations
       // IMPORTANTE: Excluir registros que já têm controle_bancario_id (já estão no fluxo de caixa)
+      // Também excluir registros com status "recebido" pois não devem aparecer em Contas a Receber
       const { data: bankRecData, error: bankRecError } = await supabase.
       from("bank_reconciliations").
       select(`
@@ -220,6 +221,7 @@ export function ContasReceber() {
       eq("type", "cliente").
       is("controle_bancario_id", null) // Só pegar os que NÃO têm vínculo com controle_bancario
       .in("status", ["pendente", "enviado", "aberto"]).
+      neq("status", "recebido").
       order("date", { ascending: false });
 
       if (bankRecError) {
@@ -307,9 +309,11 @@ export function ContasReceber() {
       });
 
       // 3. Carregar contas a receber manuais (que não vieram do fluxo ou bank_reconciliations)
+      // Excluir contas com status "recebido" pois não devem aparecer em Contas a Receber
       const { data: contasData, error: contasError } = await (supabase.
       from("contas_areceber") as any).
       select("*").
+      neq("status", "recebido").
       order("data_vencimento", { ascending: true });
 
       if (contasError) {
@@ -576,6 +580,11 @@ export function ContasReceber() {
 
   const filteredContas = useMemo(() => {
     return contas.filter((conta) => {
+      // Sempre excluir contas com status "recebido" - elas não aparecem em Contas a Receber
+      if (conta.status === "recebido") {
+        return false;
+      }
+
       const searchMatch = filters.searchTerm === "" ||
       conta.cliente_nome.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
       conta.numero.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
@@ -785,7 +794,64 @@ export function ContasReceber() {
         }
       }
 
-      // 3. Chamar função RPC para criar entrada no controle_bancario
+      // 2B. Atualizar notas_fiscais_saida vinculadas a essa conta a receber
+      // As notas fiscais de saída estão vinculadas por número ou cliente
+      const { data: notasFiscaisLinked, error: notasError } = await supabase.
+      from("notas_fiscais_saida").
+      select("id").
+      or(
+        `numero.eq.${contasReceberData.numero},` +
+        `cliente_nome.eq.${contasReceberData.cliente_nome}`
+      ).
+      eq("status", "pendente");
+
+      if (!notasError && notasFiscaisLinked && notasFiscaisLinked.length > 0) {
+        for (const nota of notasFiscaisLinked) {
+          const { error: updateNotaError } = await supabase.
+          from("notas_fiscais_saida").
+          update({
+            status: "recebido",
+            atualizado_em: new Date().toISOString()
+          }).
+          eq("id", nota.id);
+
+          if (updateNotaError) {
+            console.error("Erro ao atualizar nota fiscal:", updateNotaError);
+          }
+        }
+      }
+
+      // 3. Atualizar controle_bancario vinculado a essa conta (se houver)
+      // Buscar por número do documento ou descrição
+      const { data: controleBancarioLinked, error: controleBancarioError } = await supabase.
+      from("controle_bancario").
+      select("id").
+      or(
+        `numero_documento.eq.${contasReceberData.numero},` +
+        `client_name.eq.${contasReceberData.cliente_nome}`
+      ).
+      eq("status", "pendente");
+
+      if (!controleBancarioError && controleBancarioLinked && controleBancarioLinked.length > 0) {
+        for (const registro of controleBancarioLinked) {
+          const { error: updateControleError } = await supabase.
+          from("controle_bancario").
+          update({
+            status: "recebido",
+            data_reembolso: dataRecebimento,
+            conta_banco: nomeBanco,
+            comprovante_url: comprovanteUrl || undefined,
+            data_atualizacao: new Date().toISOString()
+          }).
+          eq("id", registro.id);
+
+          if (updateControleError) {
+            console.error("Erro ao atualizar controle bancário:", updateControleError);
+          }
+        }
+      }
+
+      // 4. Chamar função RPC para criar entrada no controle_bancario (se necessário)
       const { error: rpcError } = await (supabase.rpc as any)('create_entrada_bancaria_from_conta_receber', {
         p_conta_receber_id: contasReceberData.id,
         p_conta_banco: nomeBanco
