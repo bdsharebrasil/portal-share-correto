@@ -3156,7 +3156,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 </tr> : filteredEntries.map((e, idx) => {
                   const picCrew = crew.find(c => c.id === e.pic_canac);
                   const sicCrew = crew.find(c => c.id === e.sic_canac);
-                  const clientName = clients.find(c => c.id === e.client_id)?.company_name;
+                  // Verificar se é empréstimo - se sim, mostrar o lender (sócio da aeronave)
+                  const loanForEntry = loans.find(l => l.logbook_entry_id === e.id);
+                  const displayClientName = loanForEntry
+                    ? (loanForEntry.lender_client?.company_name || clients.find(c => c.id === loanForEntry.lender_client_id)?.company_name)
+                    : (e.partner_name || clients.find(c => c.id === e.client_id)?.company_name);
                   return <tr key={e.id} className="hover:bg-slate-800/30 transition-colors group border-b border-slate-800/50">
                     <td className="p-2 whitespace-nowrap text-center text-xs" style={{ width: `${columnWidths.date}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <div className="flex items-center justify-center gap-1">
@@ -3230,7 +3234,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.diarias}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {e.daily_rate > 0 ? (
                           <span className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-lg font-bold text-sm">
-                            {e.daily_rate}
+                            R${(e.daily_rate * (logbookMonth?.daily_rate || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
                           </span>
                         ) : (
                           <span className="text-slate-600">-</span>
@@ -3243,7 +3247,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                           Rateio
                         </span>
                       ) : (
-                        <span className="text-cyan-400 text-xs font-semibold">{shortenClientName(clientName)}</span>
+                        <span className="text-cyan-400 text-xs font-semibold">{shortenClientName(displayClientName)}</span>
                       )}
                     </td>
                     <td className="p-2 text-center" style={{ width: `${columnWidths.check}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -3278,21 +3282,35 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             filteredEntries.forEach(e => {
               if (e.is_equal_split) {
                 splitHours += (e.time || 0);
-              } else if (e.partner_name) {
-                // Se houver partner, adiciona aos totais do partner
-                if (!partnerTotals[e.partner_name]) {
-                  partnerTotals[e.partner_name] = { hours: 0, dailyRates: 0, voos: 0 };
+              } else {
+                // Verificar se é empréstimo
+                const loanForEntry = loans.find(l => l.logbook_entry_id === e.id);
+                
+                if (loanForEntry) {
+                  // Empréstimo: acumular no nome do lender (sócio da aeronave)
+                  const lenderName = loanForEntry.lender_client?.company_name?.split(' ')[0] || 
+                    clients.find(c => c.id === loanForEntry.lender_client_id)?.company_name?.split(' ')[0] || 'Sócio';
+                  if (!partnerTotals[lenderName]) {
+                    partnerTotals[lenderName] = { hours: 0, dailyRates: 0, voos: 0 };
+                  }
+                  partnerTotals[lenderName].hours += (e.time || 0);
+                  partnerTotals[lenderName].dailyRates += (e.daily_rate || 0);
+                  partnerTotals[lenderName].voos += 1;
+                } else if (e.partner_name) {
+                  if (!partnerTotals[e.partner_name]) {
+                    partnerTotals[e.partner_name] = { hours: 0, dailyRates: 0, voos: 0 };
+                  }
+                  partnerTotals[e.partner_name].hours += (e.time || 0);
+                  partnerTotals[e.partner_name].dailyRates += (e.daily_rate || 0);
+                  partnerTotals[e.partner_name].voos += 1;
+                } else if (e.client_id) {
+                  const clientName = clients.find(c => c.id === e.client_id)?.company_name || 'Outros';
+                  if (!clientTotals[e.client_id]) {
+                    clientTotals[e.client_id] = { hours: 0, dailyRates: 0, name: clientName };
+                  }
+                  clientTotals[e.client_id].hours += (e.time || 0);
+                  clientTotals[e.client_id].dailyRates += (e.daily_rate || 0);
                 }
-                partnerTotals[e.partner_name].hours += (e.time || 0);
-                partnerTotals[e.partner_name].dailyRates += (e.daily_rate || 0);
-                partnerTotals[e.partner_name].voos += 1;
-              } else if (e.client_id) {
-                const clientName = clients.find(c => c.id === e.client_id)?.company_name || 'Outros';
-                if (!clientTotals[e.client_id]) {
-                  clientTotals[e.client_id] = { hours: 0, dailyRates: 0, name: clientName };
-                }
-                clientTotals[e.client_id].hours += (e.time || 0);
-                clientTotals[e.client_id].dailyRates += (e.daily_rate || 0);
               }
             });
 
@@ -3348,7 +3366,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     <div>
                       <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Diárias</div>
                       <div className="text-lg font-black text-yellow-400">
-                        {filteredEntries.reduce((sum, e) => sum + (e.daily_rate || 0), 0)}
+                        R${(filteredEntries.reduce((sum, e) => sum + (e.daily_rate || 0), 0) * (logbookMonth?.daily_rate || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
                       </div>
                     </div>
                   )}
@@ -3365,7 +3383,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                           <div className="text-sm font-black text-orange-400 mb-0.5">{decimalToHHMM(pt.hours)}</div>
                           <div className="text-[8px] text-slate-500">{pt.voos} voo{pt.voos > 1 ? 's' : ''}</div>
                           {logbookMonth?.has_daily_rate && pt.dailyRates > 0 && (
-                            <div className="text-[8px] text-yellow-400 font-semibold mt-1">{pt.dailyRates} diária{pt.dailyRates > 1 ? 's' : ''}</div>
+                            <div className="text-[8px] text-yellow-400 font-semibold mt-1">R${(pt.dailyRates * (logbookMonth?.daily_rate || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
                           )}
                         </div>
                       ))}
@@ -3382,7 +3400,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                           <span className="text-cyan-400 font-semibold">{ct.name.split(' ')[0]}</span>
                           {' '}{decimalToHHMM(ct.hours)}h
                           {logbookMonth?.has_daily_rate && ct.dailyRates > 0 && (
-                            <span className="text-yellow-400"> • {ct.dailyRates} diária{ct.dailyRates > 1 ? 's' : ''}</span>
+                            <span className="text-yellow-400"> • R${(ct.dailyRates * (logbookMonth?.daily_rate || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</span>
                           )}
                         </span>
                       ))}
