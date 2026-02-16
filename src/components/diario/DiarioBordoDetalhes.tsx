@@ -362,6 +362,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [resizeStart, setResizeStart] = useState(0);
   const [editingEntry, setEditingEntry] = useState<any>(null);
+  const [editingEntryIdForm, setEditingEntryIdForm] = useState<string | null>(null);
   const [editingMonthInfo, setEditingMonthInfo] = useState(false);
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editFieldValue, setEditFieldValue] = useState<string>('');
@@ -971,6 +972,190 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     setEntries(data || []);
   };
 
+  const handleSaveEditedEntryForm = async () => {
+    if (!editingEntryIdForm) return;
+
+    try {
+      const oldEntry = entries.find((e: any) => e.id === editingEntryIdForm);
+
+      const periodEntriesForCalc = entries.filter((e: any) => {
+        const date = new Date(e.entry_date);
+        return date.getUTCMonth() + 1 === selectedMonth &&
+          date.getUTCFullYear() === selectedYear;
+      });
+
+      const allEntriesForCalc = periodEntriesForCalc.map((e: any) =>
+        e.id === editingEntryIdForm ? newEntry : e
+      );
+
+      const recalculatedDailyRate = calculateDailyAllowanceForEntry(
+        newEntry,
+        logbookMonth?.base_aerodrome || '',
+        allEntriesForCalc
+      );
+
+      let finalDailyRate = recalculatedDailyRate;
+      if (newEntry.daily_quantity > 0) {
+        finalDailyRate = newEntry.daily_quantity * (logbookMonth?.daily_rate || 0);
+      }
+
+      const borrowerClient = newEntry.is_loan
+        ? clients.find(c => c.id === newEntry.borrower_client_id)
+        : null;
+
+      const { error } = await supabase.from('logbook_entries').update({
+        entry_date: newEntry.entry_date,
+        departure_aerodrome: newEntry.departure_aerodrome,
+        arrival_aerodrome: newEntry.arrival_aerodrome,
+        crew_checkin_time: newEntry.crew_checkin_time,
+        ac_time: newEntry.ac_time,
+        dep_time: newEntry.dep_time,
+        pou_time: newEntry.pou_time,
+        cor_time: newEntry.cor_time,
+        pic_canac: newEntry.pic_canac,
+        sic_canac: newEntry.sic_canac || null,
+        sic_name: newEntry.sic_name || null,
+        client_id: newEntry.is_equal_split ? null : newEntry.client_id,
+        partner_name: newEntry.is_equal_split
+          ? null
+          : (newEntry.is_loan
+              ? (newEntry.borrower_partner_name || borrowerClient?.company_name || null)
+              : (newEntry.partner_name || null)),
+        is_equal_split: newEntry.is_equal_split,
+        is_loan: newEntry.is_loan || false,
+        total_time: newEntry.total_time,
+        time: newEntry.time,
+        day_time: newEntry.day_time,
+        night_hours: newEntry.night_hours,
+        ifr_time: newEntry.ifr_time,
+        pousos: newEntry.pousos,
+        fuel_added: newEntry.fuel_added,
+        fuel_liters: newEntry.fuel_liters,
+        fuel_type: newEntry.fuel_type || null,
+        fuel_location: newEntry.fuel_location || null,
+        fuel_price_per_liter: newEntry.fuel_price_per_liter || null,
+        refueled: newEntry.refueled,
+        celula: newEntry.celula,
+        distance_nm: newEntry.distance_nm,
+        passengers: newEntry.passengers,
+        cargo_kg: newEntry.cargo_kg,
+        flight_nature: newEntry.flight_nature,
+        daily_quantity: newEntry.daily_quantity,
+        daily_rate: finalDailyRate,
+        occurrences: newEntry.occurrences || null,
+        discrepancies: newEntry.discrepancies || null,
+        corrective_actions: newEntry.corrective_actions || null
+      }).eq('id', editingEntryIdForm);
+
+      if (error) throw error;
+
+      if (oldEntry) {
+        const oldDate = new Date(oldEntry.entry_date);
+        const newDate = new Date(newEntry.entry_date);
+
+        const crewChanged = oldEntry.pic_canac !== newEntry.pic_canac ||
+                           oldEntry.sic_canac !== newEntry.sic_canac;
+        const dateChanged = oldDate.getMonth() !== newDate.getMonth() ||
+                           oldDate.getFullYear() !== newDate.getFullYear();
+        const hoursChanged = oldEntry.total_time !== newEntry.total_time ||
+                            oldEntry.ifr_time !== newEntry.ifr_time ||
+                            oldEntry.night_hours !== newEntry.night_hours;
+
+        if (crewChanged || dateChanged || hoursChanged) {
+          if (oldEntry) {
+            await updateCrewFlightHours({
+              picId: oldEntry.pic_canac,
+              sicId: oldEntry.sic_canac || null,
+              aircraftId,
+              month: oldDate.getMonth() + 1,
+              year: oldDate.getFullYear(),
+              totalTime: oldEntry.total_time,
+              ifrTime: oldEntry.ifr_time || 0,
+              nightHours: oldEntry.night_hours || 0,
+              flightDay: oldEntry.entry_date,
+              operation: 'remove'
+            });
+          }
+
+          await updateCrewFlightHours({
+            picId: newEntry.pic_canac,
+            sicId: newEntry.sic_canac || null,
+            aircraftId,
+            month: newDate.getMonth() + 1,
+            year: newDate.getFullYear(),
+            totalTime: newEntry.total_time,
+            ifrTime: newEntry.ifr_time || 0,
+            nightHours: newEntry.night_hours || 0,
+            flightDay: newEntry.entry_date,
+            operation: 'add'
+          });
+        }
+      }
+
+      toast.success("Voo atualizado com sucesso!");
+
+      // Limpar formulário e estado
+      setEditingEntryIdForm(null);
+      setShowAddForm(false);
+      setNewEntry({
+        entry_date: format(new Date(), 'yyyy-MM-dd'),
+        pic_canac: '',
+        sic_canac: '',
+        sic_name: '',
+        crew_checkin_time: '',
+        departure_aerodrome: '',
+        arrival_aerodrome: '',
+        client_id: '',
+        borrower_client_id: '',
+        partner_name: '',
+        borrower_partner_name: '',
+        is_equal_split: false,
+        is_loan: false,
+        ac_time: '',
+        dep_time: '',
+        pou_time: '',
+        cor_time: '',
+        total_time: 0,
+        day_time: 0,
+        night_hours: 0,
+        time: 0,
+        ifr_time: 0,
+        pousos: 1,
+        fuel_added: 0,
+        fuel_liters: 0,
+        fuel_type: '',
+        fuel_location: '',
+        fuel_price_per_liter: 0,
+        refueled: false,
+        celula: 0,
+        distance_nm: 0,
+        passengers: 0,
+        cargo_kg: 0,
+        flight_nature: 'PV - Privado',
+        occurrences: '',
+        discrepancies: '',
+        corrective_actions: '',
+        daily_quantity: 0
+      });
+      setFlightType('cliente');
+
+      // Recarregar dados
+      const { data } = await supabase
+        .from('logbook_entries')
+        .select('*')
+        .eq('aircraft_id', aircraftId)
+        .order('logbook_month_id', { ascending: false })
+        .order('sequential_number', { ascending: true });
+      if (data) {
+        setEntries(data);
+        await updateCelulaAtual(data);
+      }
+    } catch (error: any) {
+      console.error("Erro ao atualizar voo:", error);
+      toast.error("Erro ao atualizar voo: " + (error.message || 'Erro desconhecido'));
+    }
+  };
+
   const handleSaveFlight = async () => {
     if (!newEntry.pic_canac || !newEntry.departure_aerodrome || !newEntry.arrival_aerodrome) {
       toast.error('Preencha todos os campos obrigatórios: PIC, Origem e Destino');
@@ -999,6 +1184,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     }
     if (!logbookMonth) {
       toast.error('Erro ao carregar período do diário. Recarregue a página.');
+      return;
+    }
+
+    // Se está em modo de edição, chamar a função de edição
+    if (editingEntryIdForm) {
+      await handleSaveEditedEntryForm();
       return;
     }
 
@@ -1237,13 +1428,67 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   };
 
   const handleEditEntry = (entry: any) => {
-    setEditingEntry({ ...entry });
-    setEditingEntryId(entry.id);
+    // Carregar dados da entrada no formulário de novo lançamento
+    setNewEntry({
+      entry_date: entry.entry_date,
+      pic_canac: entry.pic_canac || '',
+      sic_canac: entry.sic_canac || '',
+      sic_name: entry.sic_name || '',
+      crew_checkin_time: entry.crew_checkin_time || '',
+      departure_aerodrome: entry.departure_aerodrome || '',
+      arrival_aerodrome: entry.arrival_aerodrome || '',
+      client_id: entry.client_id || '',
+      borrower_client_id: entry.is_loan ? entry.client_id : '',
+      partner_name: entry.partner_name || '',
+      borrower_partner_name: entry.is_loan ? entry.partner_name : '',
+      is_equal_split: entry.is_equal_split || false,
+      is_loan: entry.is_loan || false,
+      ac_time: entry.ac_time || '',
+      dep_time: entry.dep_time || '',
+      pou_time: entry.pou_time || '',
+      cor_time: entry.cor_time || '',
+      total_time: entry.total_time || 0,
+      day_time: entry.day_time || 0,
+      night_hours: entry.night_hours || 0,
+      time: entry.time || 0,
+      ifr_time: entry.ifr_time || 0,
+      pousos: entry.pousos || 1,
+      fuel_added: entry.fuel_added || 0,
+      fuel_liters: entry.fuel_liters || 0,
+      fuel_type: entry.fuel_type || '',
+      fuel_location: entry.fuel_location || '',
+      fuel_price_per_liter: entry.fuel_price_per_liter || 0,
+      refueled: entry.refueled || false,
+      celula: entry.celula || 0,
+      distance_nm: entry.distance_nm || 0,
+      passengers: entry.passengers || 0,
+      cargo_kg: entry.cargo_kg || 0,
+      flight_nature: entry.flight_nature || 'PV - Privado',
+      occurrences: entry.occurrences || '',
+      discrepancies: entry.discrepancies || '',
+      corrective_actions: entry.corrective_actions || '',
+      daily_quantity: entry.daily_quantity || 0
+    });
+
+    // Definir tipo de voo
+    if (entry.is_equal_split) {
+      setFlightType('rateio');
+    } else if (entry.is_loan) {
+      setFlightType('emprestimo');
+    } else {
+      setFlightType('cliente');
+    }
+
+    // Abrir formulário em modo edição
+    setEditingEntryIdForm(entry.id);
+    setShowAddForm(true);
   };
 
   const handleCancelEdit = () => {
     setEditingEntryId(null);
     setEditingEntry(null);
+    setEditingEntryIdForm(null);
+    setShowAddForm(false);
   };
 
   const handleSaveEditedEntry = async () => {
@@ -2603,10 +2848,62 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 </div>
               )}
 
-              <Button onClick={handleSaveFlight} className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 h-14 font-black uppercase text-sm rounded-2xl">
-                <Save size={18} className="mr-2" />
-                Salvar Voo
-              </Button>
+              <div className={editingEntryIdForm ? 'grid grid-cols-2 gap-3' : ''}>
+                {editingEntryIdForm && (
+                  <Button onClick={() => {
+                    setEditingEntryIdForm(null);
+                    setShowAddForm(false);
+                    setNewEntry({
+                      entry_date: format(new Date(), 'yyyy-MM-dd'),
+                      pic_canac: '',
+                      sic_canac: '',
+                      sic_name: '',
+                      crew_checkin_time: '',
+                      departure_aerodrome: '',
+                      arrival_aerodrome: '',
+                      client_id: '',
+                      borrower_client_id: '',
+                      partner_name: '',
+                      borrower_partner_name: '',
+                      is_equal_split: false,
+                      is_loan: false,
+                      ac_time: '',
+                      dep_time: '',
+                      pou_time: '',
+                      cor_time: '',
+                      total_time: 0,
+                      day_time: 0,
+                      night_hours: 0,
+                      time: 0,
+                      ifr_time: 0,
+                      pousos: 1,
+                      fuel_added: 0,
+                      fuel_liters: 0,
+                      fuel_type: '',
+                      fuel_location: '',
+                      fuel_price_per_liter: 0,
+                      refueled: false,
+                      celula: 0,
+                      distance_nm: 0,
+                      passengers: 0,
+                      cargo_kg: 0,
+                      flight_nature: 'PV - Privado',
+                      occurrences: '',
+                      discrepancies: '',
+                      corrective_actions: '',
+                      daily_quantity: 0
+                    });
+                    setFlightType('cliente');
+                  }} className="bg-slate-800 hover:bg-slate-700 h-14 font-black uppercase text-sm rounded-2xl flex items-center justify-center">
+                    <X size={18} className="mr-2" />
+                    Cancelar
+                  </Button>
+                )}
+                <Button onClick={handleSaveFlight} className={`${editingEntryIdForm ? '' : 'w-full'} bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 h-14 font-black uppercase text-sm rounded-2xl`}>
+                  <Save size={18} className="mr-2" />
+                  {editingEntryIdForm ? 'Atualizar Voo' : 'Salvar Voo'}
+                </Button>
+              </div>
             </div>
 
             {/* SEÇÃO 6: OBSERVAÇÕES & MANUTENÇÃO */}
