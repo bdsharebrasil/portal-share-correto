@@ -2359,12 +2359,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       variant={flightType === 'cliente' ? 'default' : 'outline'}
                       className="flex-1 h-10 text-xs font-semibold"
                       onClick={() => {
+                        // Obter o primeiro cliente vinculado à aeronave (proprietário)
+                        const linkedClientId = sortedClients.find(c => c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId))?.id || '';
+
                         setFlightType('cliente');
                         setNewEntry({
                           ...newEntry,
                           is_equal_split: false,
                           is_loan: false,
-                          client_id: '',
+                          client_id: linkedClientId,
                           client_partner_id: null,
                           loan_recipient_client_id: null,
                           loan_recipient_partner_id: null,
