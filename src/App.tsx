@@ -31,6 +31,7 @@ import Invoices from "./pages/financeiro/Invoices";
 import ConciliacaoBancaria from "./pages/ConciliacaoBancaria";
 import ControleVencimentos from "./pages/ControleVencimentos";
 import DiarioBordo from "./pages/DiarioBordo";
+import BancodeHoras from './pages/BancodeHoras';
 import GestaoTripulacao from "./pages/GestaoTripulacao";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
@@ -69,7 +70,6 @@ import DashboardGestorPage from "./pages/DashboardGestorPage";
 import AprovacaoAgendamentos from "./pages/AprovacaoAgendamentos";
 import PainelAgendamentos from "./pages/PainelAgendamentos";
 import CartoesCorporativos from "./pages/CartoesCorporativos";
-import BancodeHoras from './pages/BancodeHoras';
 import BalancoCliente from "./pages/BalancoCliente";
 import MapaComponentes from "./pages/MapaComponentes";
 import ManutencaoPreventiva from "./pages/ManutencaoPreventiva";
@@ -96,17 +96,27 @@ const App = () => {
     <ProtectedRoute>{element}</ProtectedRoute>
   );
 
-  // Wrappers para capturar params da URL e onBack
-  const DiarioBordoWrapper = () => {
+// App.tsx
+ const DiarioBordoWrapper = () => {
     const navigate = useNavigate();
-    return <DiarioBordo aircraftId="" onBack={() => navigate(-1)} />;
+    return <DiarioBordo onBack={() => navigate('/')} aircraftId={""} />;
   };
 
+  // ✅ BancoHoras COM aircraftId (precisa dele)
   const BancoHorasWrapper = () => {
     const { aircraftId } = useParams<{ aircraftId: string }>();
     const navigate = useNavigate();
-    return <BancodeHoras aircraftId={aircraftId!} onBack={() => navigate(-1)} />;
+    
+    if (!aircraftId) {
+      navigate('/diario-bordo');
+      return null;
+    }
+
+    return <BancodeHoras aircraftId={aircraftId} onBack={() => navigate('/diario-bordo')} />;
   };
+
+
+ 
 
   return (
     <ErrorBoundary>
@@ -241,8 +251,10 @@ const App = () => {
                     <Route path="/abastecimento" element={renderProtected(<ControleAbastecimento />)} />
                     
                     {/* Diário de Bordo */}
-                    <Route path="/diario-bordo" element={renderProtected(<DiarioBordoWrapper />)} />
-                    <Route path="/diario-bordo/:aircraftId" element={renderProtected(<DiarioBordoWrapper />)} />
+                     <Route 
+                       path="/diario-bordo" 
+                         element={renderProtected(<DiarioBordoWrapper />)} 
+                         />
                     <Route path="/hora-banco/:aircraftId" element={renderProtected(<BancoHorasWrapper />)} />
 
                     <Route path="/aerodromos" element={renderProtected(<Aerodromos />)} />
