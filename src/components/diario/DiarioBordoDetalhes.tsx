@@ -3238,7 +3238,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.diarias}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {e.daily_rate > 0 ? (
                           <span className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-lg font-bold text-sm">
-                            R${(e.daily_rate * (logbookMonth?.daily_rate || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
+                            R${(e.daily_rate || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                           </span>
                         ) : (
                           <span className="text-slate-600">-</span>
