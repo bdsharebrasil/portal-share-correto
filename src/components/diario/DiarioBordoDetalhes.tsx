@@ -1109,7 +1109,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           console.log('✅ aircraft_loans criado:', loanData_result);
         }
 
-        // Registrar transação no banco de horas
+        // Registrar transação no banco de horas (com tratamento de erro 403)
         const transData = {
           aircraft_id: aircraftId,
           from_partner_id: newEntry.borrower_client_id,
@@ -1124,15 +1124,20 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
         const { error: transError } = await supabase.from('hour_transactions').insert([transData]);
         if (transError) {
-          console.error('❌ Erro ao criar transação:', transError);
+          if (transError.code === '403') {
+            console.warn('⚠️ Sem permissão para criar hour_transactions (erro 403), mas aircraft_loans foi criado com sucesso');
+          } else {
+            console.error('❌ Erro ao criar transação:', transError);
+          }
         } else {
           console.log('✅ Transação criada com sucesso');
         }
       } else if (wasLoan && isLoanNow) {
         // Continue sendo empréstimo → UPDATE
+        console.log('✏️ Atualizando aircraft_loans (continua empréstimo)');
         const picName = newEntry.pic_canac ? (crew.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null) : null;
 
-        await supabase.from('aircraft_loans').update({
+        const loanUpdateData = {
           hours_borrowed: newEntry.total_time,
           entry_date: newEntry.entry_date,
           departure_aerodrome: newEntry.departure_aerodrome,
@@ -1141,13 +1146,31 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           fuel_added: newEntry.fuel_added || null,
           pic_name: picName,
           borrower_client_id: newEntry.borrower_client_id,
-        }).eq('logbook_entry_id', editingEntryIdForm);
+        };
+
+        console.log('📝 Dados para UPDATE aircraft_loans:', loanUpdateData);
+
+        const { error: updateError, data: updateResult } = await supabase.from('aircraft_loans').update(loanUpdateData).eq('logbook_entry_id', editingEntryIdForm).select();
+
+        if (updateError) {
+          console.error('❌ Erro ao atualizar aircraft_loans:', updateError);
+          throw updateError;
+        } else {
+          console.log('✅ aircraft_loans atualizado:', updateResult);
+        }
 
         // Atualizar transação no banco de horas se as horas mudaram
         if ((oldEntry?.total_time || 0) !== newEntry.total_time || oldEntry?.borrower_client_id !== newEntry.borrower_client_id) {
-          await supabase.from('hour_transactions').delete().eq('logbook_entry_id', editingEntryIdForm).eq('type', 'loan');
+          console.log('🔄 Horas ou borrower mudaram, atualizando hour_transactions');
 
-          await supabase.from('hour_transactions').insert([{
+          // Tentar deletar transação antiga (com tratamento de erro)
+          const { error: deleteError } = await supabase.from('hour_transactions').delete().eq('logbook_entry_id', editingEntryIdForm).eq('type', 'loan');
+          if (deleteError && deleteError.code !== '403') {
+            console.error('Erro ao deletar hour_transactions:', deleteError);
+          }
+
+          // Tentar inserir nova transação (com tratamento de erro)
+          const transData = {
             aircraft_id: aircraftId,
             from_partner_id: newEntry.borrower_client_id,
             to_partner_id: newEntry.client_id,
@@ -1155,7 +1178,18 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             type: 'loan',
             description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
             logbook_entry_id: editingEntryIdForm,
-          }]);
+          };
+
+          const { error: insertError } = await supabase.from('hour_transactions').insert([transData]);
+          if (insertError) {
+            if (insertError.code === '403') {
+              console.warn('⚠️ Sem permissão para atualizar hour_transactions (erro 403 - permissão negada), mas aircraft_loans foi atualizado com sucesso');
+            } else {
+              console.error('❌ Erro ao atualizar hour_transactions:', insertError);
+            }
+          } else {
+            console.log('✅ hour_transactions atualizada com sucesso');
+          }
         }
       }
 
@@ -1767,7 +1801,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           console.log('✅ aircraft_loans criado:', loanData_result);
         }
 
-        // Registrar transação no banco de horas
+        // Registrar transação no banco de horas (com tratamento de erro 403)
         const transData = {
           aircraft_id: aircraftId,
           from_partner_id: editingEntry.borrower_client_id,
@@ -1782,15 +1816,20 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
         const { error: transError } = await supabase.from('hour_transactions').insert([transData]);
         if (transError) {
-          console.error('❌ Erro ao criar transação:', transError);
+          if (transError.code === '403') {
+            console.warn('⚠️ Sem permissão para criar hora_transactions (erro 403), mas aircraft_loans foi criado com sucesso');
+          } else {
+            console.error('❌ Erro ao criar transação:', transError);
+          }
         } else {
           console.log('✅ Transação criada com sucesso');
         }
       } else if (wasLoan && isLoanNow) {
         // Continue sendo empréstimo → UPDATE
+        console.log('✏️ Atualizando aircraft_loans (continua empréstimo) - handleSaveEditedEntry');
         const picName = editingEntry.pic_canac ? (crew.find((t: any) => t.canac === editingEntry.pic_canac)?.full_name || null) : null;
 
-        await supabase.from('aircraft_loans').update({
+        const loanUpdateData = {
           hours_borrowed: editingEntry.total_time,
           entry_date: editingEntry.entry_date,
           departure_aerodrome: editingEntry.departure_aerodrome,
@@ -1799,13 +1838,31 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           fuel_added: editingEntry.fuel_added || null,
           pic_name: picName,
           borrower_client_id: editingEntry.borrower_client_id,
-        }).eq('logbook_entry_id', editingEntryId);
+        };
+
+        console.log('📝 Dados para UPDATE aircraft_loans:', loanUpdateData);
+
+        const { error: updateError, data: updateResult } = await supabase.from('aircraft_loans').update(loanUpdateData).eq('logbook_entry_id', editingEntryId).select();
+
+        if (updateError) {
+          console.error('❌ Erro ao atualizar aircraft_loans:', updateError);
+          throw updateError;
+        } else {
+          console.log('✅ aircraft_loans atualizado:', updateResult);
+        }
 
         // Atualizar transação no banco de horas se as horas mudaram
         if ((oldEntry?.total_time || 0) !== editingEntry.total_time || oldEntry?.borrower_client_id !== editingEntry.borrower_client_id) {
-          await supabase.from('hour_transactions').delete().eq('logbook_entry_id', editingEntryId).eq('type', 'loan');
+          console.log('🔄 Horas ou borrower mudaram, atualizando hour_transactions');
 
-          await supabase.from('hour_transactions').insert([{
+          // Tentar deletar transação antiga (com tratamento de erro)
+          const { error: deleteError } = await supabase.from('hour_transactions').delete().eq('logbook_entry_id', editingEntryId).eq('type', 'loan');
+          if (deleteError && deleteError.code !== '403') {
+            console.error('Erro ao deletar hour_transactions:', deleteError);
+          }
+
+          // Tentar inserir nova transação (com tratamento de erro)
+          const transData = {
             aircraft_id: aircraftId,
             from_partner_id: editingEntry.borrower_client_id,
             to_partner_id: editingEntry.client_id,
@@ -1813,7 +1870,18 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             type: 'loan',
             description: `Empréstimo: ${editingEntry.departure_aerodrome} → ${editingEntry.arrival_aerodrome}`,
             logbook_entry_id: editingEntryId,
-          }]);
+          };
+
+          const { error: insertError } = await supabase.from('hour_transactions').insert([transData]);
+          if (insertError) {
+            if (insertError.code === '403') {
+              console.warn('⚠️ Sem permissão para atualizar hour_transactions (erro 403 - permissão negada), mas aircraft_loans foi atualizado com sucesso');
+            } else {
+              console.error('❌ Erro ao atualizar hour_transactions:', insertError);
+            }
+          } else {
+            console.log('✅ hour_transactions atualizada com sucesso');
+          }
         }
       }
 
