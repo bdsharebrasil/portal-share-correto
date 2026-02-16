@@ -405,9 +405,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     departure_aerodrome: '',
     arrival_aerodrome: '',
     client_id: '',
-    borrower_client_id: '',
-    partner_name: '',
-    borrower_partner_name: '',
+    client_partner_id: null as string | null,
+    loan_recipient_client_id: null as string | null,
+    loan_recipient_partner_id: null as string | null,
     is_equal_split: false,
     is_loan: false,
     ac_time: '',
@@ -530,8 +530,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           supabase.from('crew_members').select('*').eq('status', 'ativo').order('full_name', { ascending: true }),
           supabase.from('crew').select('id, full_name, canac, status').eq('status', 'ativo').order('full_name', { ascending: true }),
           supabase.from('aerodromes').select('*').order('designativo'),
-          supabase.from('clients').select('id, company_name, cnpj, partner_name, partner_name2, partner_name3, client_aircraft(aircraft_id)').order('company_name'),
-          supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('entry_date', { ascending: false }).order('created_at', { ascending: false }),
+          supabase.from('clients').select('id, company_name, cnpj').order('company_name'),
+          supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('sequential_number', { ascending: true }),
           supabase.from('logbook_months').select('month, year').eq('aircraft_id', aircraftId).eq('is_closed', false).order('year', { ascending: false }).order('month', { ascending: false }),
           supabase.from('aircraft_partners').select('*, clients(id, company_name)').eq('aircraft_id', aircraftId)
         ]);
@@ -555,8 +555,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         ];
         setCrew(mergedCrew);
         if (aeroRes.data) setAerodromes(aeroRes.data || []);
-        if (clientRes.data) setClients(clientRes.data || []);
-        if (entriesRes.data) setEntries(entriesRes.data || []);
+        if (clientRes.data) {
+          console.log('✅ Clientes carregados:', clientRes.data);
+          setClients(clientRes.data || []);
+        }
+        if (entriesRes.data) {
+          console.log('✅ Entradas carregadas:', entriesRes.data.map((e: any) => ({ id: e.id, client_id: e.client_id, loan_recipient_client_id: e.loan_recipient_client_id })));
+          setEntries(entriesRes.data || []);
+        }
         if (monthsRes.data) setAvailableMonths(monthsRes.data || []);
         if (partnersRes.data) setPartners(partnersRes.data || []);
 
@@ -747,10 +753,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       return matchesPeriod && matchesSearch;
     });
 
+    // Ordenar por sequential_number (ordem correta do diário)
     filtered.sort((a: any, b: any) => {
-      const dateA = new Date(a.entry_date).getTime();
-      const dateB = new Date(b.entry_date).getTime();
-      return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+      const seqA = a.sequential_number || 0;
+      const seqB = b.sequential_number || 0;
+      return sortDirection === 'asc' ? seqA - seqB : seqB - seqA;
     });
 
     return filtered;
@@ -999,10 +1006,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         finalDailyRate = newEntry.daily_quantity * (logbookMonth?.daily_rate || 0);
       }
 
-      const borrowerClient = newEntry.is_loan
-        ? clients.find(c => c.id === newEntry.borrower_client_id)
-        : null;
-
       const { error } = await supabase.from('logbook_entries').update({
         entry_date: newEntry.entry_date,
         departure_aerodrome: newEntry.departure_aerodrome,
@@ -1016,11 +1019,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         sic_canac: newEntry.sic_canac || null,
         sic_name: newEntry.sic_name || null,
         client_id: newEntry.is_equal_split ? null : newEntry.client_id,
-        partner_name: newEntry.is_equal_split
+        client_partner_id: newEntry.is_equal_split
           ? null
-          : (newEntry.is_loan
-              ? (newEntry.borrower_partner_name || borrowerClient?.company_name || null)
-              : (newEntry.partner_name || null)),
+          : (newEntry.is_loan ? null : newEntry.client_partner_id || null),
+        loan_recipient_client_id: newEntry.is_loan ? newEntry.loan_recipient_client_id || null : null,
+        loan_recipient_partner_id: newEntry.is_loan ? newEntry.loan_recipient_partner_id || null : null,
         is_equal_split: newEntry.is_equal_split,
         is_loan: newEntry.is_loan || false,
         total_time: newEntry.total_time,
@@ -1105,9 +1108,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         departure_aerodrome: '',
         arrival_aerodrome: '',
         client_id: '',
-        borrower_client_id: '',
-        partner_name: '',
-        borrower_partner_name: '',
+        client_partner_id: null as string | null,
+    loan_recipient_client_id: null as string | null,
+    loan_recipient_partner_id: null as string | null,
         is_equal_split: false,
         is_loan: false,
         ac_time: '',
@@ -1171,7 +1174,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         toast.error('Selecione o cotista que está emprestando a aeronave');
         return;
       }
-      if (!newEntry.borrower_client_id) {
+      if (!newEntry.loan_recipient_client_id) {
         toast.error('Selecione o cliente que está pegando emprestado (quem está usando a aeronave)');
         return;
       }
@@ -1234,13 +1237,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         });
       }
 
-      // ✅ CORREÇÃO: Lógica corrigida para empréstimos com sócios
-      // Para empréstimos: client_id = dono da aeronave (quem emprestou)
-      // partner_name = nome de quem pegou emprestado (sócio ou empresa)
-      const borrowerClient = newEntry.is_loan
-        ? clients.find(c => c.id === newEntry.borrower_client_id)
-        : null;
-
+      // Lógica para os 3 casos de voo
       const { error } = await supabase.from('logbook_entries').insert([{
         logbook_month_id: logbookMonth.id,
         aircraft_id: aircraftId,
@@ -1255,16 +1252,17 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         pic_canac: newEntry.pic_canac,
         sic_canac: newEntry.sic_canac || null,
         sic_name: newEntry.sic_name || null,
-        // ✅ CORREÇÃO: client_id sempre aponta para o cliente DO VOO (dono da aeronave se empréstimo)
-        client_id: newEntry.is_equal_split
+        // client_id é sempre o proprietário da aeronave
+        client_id: newEntry.is_equal_split ? null : newEntry.client_id,
+        // Para voos normais: parceiro do proprietário que voou (se houver)
+        // Para empréstimos: sempre null
+        client_partner_id: newEntry.is_equal_split
           ? null
-          : newEntry.client_id,  // Sempre o cliente selecionado (dono da aeronave se for empréstimo)
-        // ✅ CORREÇÃO: partner_name contém o sócio DO VOO (quem usou se for empréstimo)
-        partner_name: newEntry.is_equal_split
-          ? null
-          : (newEntry.is_loan
-              ? (newEntry.borrower_partner_name || borrowerClient?.company_name || null)  // Sócio ou nome da empresa que pegou emprestado
-              : (newEntry.partner_name || null)),          // Sócio normal
+          : (newEntry.is_loan ? null : newEntry.client_partner_id || null),
+        // Para empréstimos: cliente que pegou emprestado
+        loan_recipient_client_id: newEntry.is_loan ? newEntry.loan_recipient_client_id || null : null,
+        // Para empréstimos: parceiro do cliente que pegou emprestado (se houver)
+        loan_recipient_partner_id: newEntry.is_loan ? newEntry.loan_recipient_partner_id || null : null,
         is_equal_split: newEntry.is_equal_split,
         is_loan: newEntry.is_loan || false,
         total_time: newEntry.total_time,
@@ -1310,14 +1308,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           {
             lender_aircraft_id: aircraftId,
             lender_client_id: newEntry.client_id,
-            borrower_client_id: newEntry.borrower_client_id,
+            borrower_client_id: newEntry.loan_recipient_client_id,
             hours_borrowed: newEntry.total_time,
             entry_date: newEntry.entry_date,
             departure_aerodrome: newEntry.departure_aerodrome || '',
             arrival_aerodrome: newEntry.arrival_aerodrome || '',
             logbook_entry_id: insertedEntry.id,
             status: 'active',
-            notes: `Empréstimo registrado via diário de bordo - ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}${newEntry.partner_name ? ` | Cotista: ${newEntry.partner_name}` : ''}${newEntry.borrower_partner_name ? ` | Usado por: ${newEntry.borrower_partner_name}` : ''}`,
+            notes: `Empréstimo registrado via diário de bordo - ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
           },
         ]);
 
@@ -1328,7 +1326,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         const { error: transactionError } = await supabase.from('hour_transactions').insert([
           {
             aircraft_id: aircraftId,
-            from_partner_id: newEntry.borrower_client_id, // Quem usou (deve horas)
+            from_partner_id: newEntry.loan_recipient_client_id, // Quem usou (deve horas)
             to_partner_id: newEntry.client_id, // Quem emprestou (recebe crédito)
             hours: newEntry.total_time,
             type: 'loan',
@@ -1379,9 +1377,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         departure_aerodrome: '',
         arrival_aerodrome: '',
         client_id: '',
-        borrower_client_id: '',
-        partner_name: '',
-        borrower_partner_name: '',
+        client_partner_id: null as string | null,
+    loan_recipient_client_id: null as string | null,
+    loan_recipient_partner_id: null as string | null,
         is_equal_split: false,
         is_loan: false,
         ac_time: '',
@@ -1437,9 +1435,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       departure_aerodrome: entry.departure_aerodrome || '',
       arrival_aerodrome: entry.arrival_aerodrome || '',
       client_id: entry.client_id || '',
-      borrower_client_id: entry.is_loan ? entry.client_id : '',
-      partner_name: entry.partner_name || '',
-      borrower_partner_name: entry.is_loan ? entry.partner_name : '',
+      client_partner_id: entry.client_partner_id || null,
+      loan_recipient_client_id: entry.loan_recipient_client_id || null,
+      loan_recipient_partner_id: entry.loan_recipient_partner_id || null,
       is_equal_split: entry.is_equal_split || false,
       is_loan: entry.is_loan || false,
       ac_time: entry.ac_time || '',
@@ -1549,7 +1547,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         sic_canac: editingEntry.sic_canac || null,
         sic_name: editingEntry.sic_name || null,
         client_id: editingEntry.is_equal_split ? null : editingEntry.client_id,
-        partner_name: editingEntry.partner_name || null,
+        client_partner_id: editingEntry.is_equal_split
+          ? null
+          : editingEntry.client_partner_id || null,
         is_equal_split: editingEntry.is_equal_split,
         is_loan: editingEntry.is_loan || false,
         total_time: editingEntry.total_time,
@@ -1999,9 +1999,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
           // Determina qual field está sendo preenchido
           const isLoanFlow = flightType === 'emprestimo';
-          const currentPartnerName = isLoanFlow &&
-            (pendingClientId === newEntry.borrower_client_id ? newEntry.borrower_partner_name : newEntry.partner_name) ||
-            (!isLoanFlow ? newEntry.partner_name : '');
+          // Find the selected partner based on the current partner ID
+          const currentPartnerId = flightType === 'emprestimo' && pendingClientId === newEntry.loan_recipient_client_id
+            ? newEntry.loan_recipient_partner_id
+            : newEntry.client_partner_id;
+          const currentPartnerName = partners.find(p => p.id === currentPartnerId)?.name || '';
 
           return (
             <PartnerSelectModal
@@ -2011,26 +2013,31 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               partners={partners}
               selectedPartner={currentPartnerName}
               onSelectPartner={(partnerName) => {
+                // Find partner ID from name
+                const partner = partners.find(p => p.name === partnerName);
+                const partnerId = partner?.id || null;
+
                 // Verifica qual fluxo está ativo
                 if (flightType === 'emprestimo') {
                   if (pendingClientId === newEntry.client_id) {
-                    // Selecionando parceiro do cliente que empresta
+                    // Selecionando parceiro do cliente que empresta - mas não usamos para empréstimos
+                    // client_partner_id deve ser null para empréstimos
                     setNewEntry({
                       ...newEntry,
-                      partner_name: partnerName
+                      client_partner_id: null
                     });
-                  } else if (pendingClientId === newEntry.borrower_client_id) {
+                  } else if (pendingClientId === newEntry.loan_recipient_client_id) {
                     // Selecionando parceiro do cliente que pega emprestado
                     setNewEntry({
                       ...newEntry,
-                      borrower_partner_name: partnerName
+                      loan_recipient_partner_id: partnerId
                     });
                   }
                 } else {
-                  // Fluxo de cliente normal
+                  // Fluxo de cliente normal - set client_partner_id
                   setNewEntry({
                     ...newEntry,
-                    partner_name: partnerName
+                    client_partner_id: partnerId
                   });
                 }
                 setShowPartnerModal(false);
@@ -2340,8 +2347,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                           is_equal_split: false,
                           is_loan: false,
                           client_id: '',
-                          borrower_client_id: '',
-                          partner_name: '',
+                          client_partner_id: null,
+                          loan_recipient_client_id: null,
+                          loan_recipient_partner_id: null,
                         });
                       }}
                     >
@@ -2358,8 +2366,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                           is_equal_split: true,
                           is_loan: false,
                           client_id: '',
-                          borrower_client_id: '',
-                          partner_name: '',
+                          client_partner_id: null,
+                          loan_recipient_client_id: null,
+                          loan_recipient_partner_id: null,
                         });
                       }}
                     >
@@ -2376,8 +2385,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                           is_equal_split: false,
                           is_loan: true,
                           flight_nature: 'PV - Privado',
-                          partner_name: '',
-                          borrower_client_id: '',
+                          client_partner_id: null,
+                          loan_recipient_client_id: null,
+                          loan_recipient_partner_id: null,
                         });
                       }}
                     >
@@ -2398,7 +2408,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         setNewEntry({
                           ...newEntry,
                           client_id: v,
-                          partner_name: ''
+                          client_partner_id: null,
+                          loan_recipient_client_id: null,
+                          loan_recipient_partner_id: null
                         });
 
                         // Se o cliente tem parceiros, abre o modal
@@ -2429,12 +2441,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       const selectedClient = clients.find(c => c.id === newEntry.client_id);
                       const partners = getPartnersFromClient(selectedClient);
 
-                      if (newEntry.partner_name && partners.length > 0) {
+                      if (newEntry.client_partner_id && partners.length > 0) {
                         return (
                           <div className="space-y-1 mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
                             <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Sócio Selecionado</Label>
                             <div className="flex items-center justify-between">
-                              <p className="text-sm font-bold text-amber-400">{newEntry.partner_name}</p>
+                              <p className="text-sm font-bold text-amber-400">{partners.find(p => p.id === newEntry.client_partner_id)?.name || 'Selecionado'}</p>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -2498,19 +2510,17 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       <Label className="text-[9px] uppercase text-amber-400 ml-1 block">Cliente que Empresta a Aeronave *</Label>
                       <Select value={newEntry.client_id} onValueChange={v => {
                         const selectedClient = clients.find(c => c.id === v);
-                        const partners = getPartnersFromClient(selectedClient);
 
                         setNewEntry({
                           ...newEntry,
                           client_id: v,
-                          partner_name: ''
+                          client_partner_id: null,
+                          loan_recipient_client_id: null,
+                          loan_recipient_partner_id: null
                         });
 
-                        // Se o cliente tem parceiros, abre o modal
-                        if (partners.length > 0) {
-                          setPendingClientId(v);
-                          setShowPartnerModal(true);
-                        }
+                        // Note: Para empréstimos, não usamos partner_name do lender
+                        // client_partner_id deve ser null para empréstimos
                       }}>
                         <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
                           <SelectValue placeholder="Selecione o Cliente" />
@@ -2519,15 +2529,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                           {sortedClients.map(cl => {
                             // Verificar se o cliente está vinculado à aeronave
                             const isLinkedToAircraft = cl.client_aircraft?.some(ca => ca.aircraft_id === aircraftId);
-                            // Verificar se o cliente tem sócio
-                            const hasSocio = cl.partner_name || cl.partner_name2 || cl.partner_name3;
                             // Mostrar apenas clientes vinculados à aeronave (sócios)
                             const shouldShow = isLinkedToAircraft;
 
                             return shouldShow ? (
                               <SelectItem key={cl.id} value={cl.id}>
                                 {cl.company_name}
-                                {hasSocio && <span className="text-emerald-400"> (com sócio)</span>}
                               </SelectItem>
                             ) : null;
                           })}
@@ -2535,33 +2542,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       </Select>
                     </div>
 
-                    {/* Sócio/Cotista responsável pelo empréstimo */}
-                    {newEntry.client_id && (() => {
-                      const selectedClient = clients.find(c => c.id === newEntry.client_id);
-                      const partners = getPartnersFromClient(selectedClient);
-
-                      if (newEntry.partner_name && partners.length > 0) {
-                        return (
-                          <div className="space-y-1 mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Cotista Responsável (Aeronave)</Label>
-                            <div className="flex items-center justify-between">
-                              <p className="text-sm font-bold text-amber-400">{newEntry.partner_name}</p>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setPendingClientId(newEntry.client_id);
-                                  setShowPartnerModal(true);
-                                }}
-                                className="text-xs px-2 py-1 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/50 text-amber-400 rounded transition-all"
-                              >
-                                Alterar
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
 
                     {/* Cliente que está usando a aeronave emprestada (deve aparecer TODOS os clientes) */}
                     <div className="space-y-1 mt-2">
@@ -2569,15 +2549,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         Cliente que Pega Emprestado (Usa a Aeronave) *
                       </Label>
                       <Select
-                        value={newEntry.borrower_client_id}
+                        value={newEntry.loan_recipient_client_id || ''}
                         onValueChange={(v) => {
                           const selectedBorrowerClient = clients.find(c => c.id === v);
                           const borrowerPartners = getPartnersFromClient(selectedBorrowerClient);
 
                           setNewEntry({
                             ...newEntry,
-                            borrower_client_id: v,
-                            borrower_partner_name: '',
+                            loan_recipient_client_id: v,
+                            loan_recipient_partner_id: null,
                           });
 
                           // Se o cliente tem parceiros, abre o modal para seleção de parceiro do cliente que pega emprestado
@@ -2601,20 +2581,20 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     </div>
 
                     {/* Sócio/Cotista do cliente que pega emprestado (se houver) */}
-                    {newEntry.borrower_client_id && (() => {
-                      const selectedBorrowerClient = clients.find(c => c.id === newEntry.borrower_client_id);
+                    {newEntry.loan_recipient_client_id && (() => {
+                      const selectedBorrowerClient = clients.find(c => c.id === newEntry.loan_recipient_client_id);
                       const borrowerPartners = getPartnersFromClient(selectedBorrowerClient);
 
-                      if (newEntry.borrower_partner_name && borrowerPartners.length > 0) {
+                      if (newEntry.loan_recipient_partner_id && borrowerPartners.length > 0) {
                         return (
                           <div className="space-y-1 mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
                             <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Cotista que Pega Emprestado</Label>
                             <div className="flex items-center justify-between">
-                              <p className="text-sm font-bold text-amber-400">{newEntry.borrower_partner_name}</p>
+                              <p className="text-sm font-bold text-amber-400">{borrowerPartners.find(p => p.id === newEntry.loan_recipient_partner_id)?.name || 'Selecionado'}</p>
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setPendingClientId(newEntry.borrower_client_id);
+                                  setPendingClientId(newEntry.loan_recipient_client_id);
                                   setShowPartnerModal(true);
                                 }}
                                 className="text-xs px-2 py-1 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/50 text-amber-400 rounded transition-all"
@@ -2860,9 +2840,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       departure_aerodrome: '',
                       arrival_aerodrome: '',
                       client_id: '',
-                      borrower_client_id: '',
-                      partner_name: '',
-                      borrower_partner_name: '',
+                      client_partner_id: null as string | null,
+    loan_recipient_client_id: null as string | null,
+    loan_recipient_partner_id: null as string | null,
                       is_equal_split: false,
                       is_loan: false,
                       ac_time: '',
@@ -3302,8 +3282,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 // Recarregar entries
                 const {
                   data
-                } = await supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('entry_date', {
-                  ascending: false
+                } = await supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('sequential_number', {
+                  ascending: true
                 });
                 setEntries(data || []);
                 setTechnicalStatus({
@@ -3434,7 +3414,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     Diárias
                     <div onMouseDown={(e) => handleResizeMouseDown('diarias', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
                   </th>}
-                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.voo_para}px` }}>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.voo_para}px` }} title="Cliente proprietário da aeronave (Client ID). Para empréstimos: mostra proprietário → tomador">
                     Voo Para
                     <div onMouseDown={(e) => handleResizeMouseDown('voo_para', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
                   </th>
@@ -3464,7 +3444,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   const sicCrew = crew.find(c => c.id === e.sic_canac);
                   // Exibir apenas o cliente do voo (client_id) - nunca o partner_name
                   // (partner_name em empréstimo contém quem pegou emprestado, não o dono)
-                  const displayClientName = clients.find(c => c.id === e.client_id)?.company_name;
+                  const lenderClient = clients.find(c => c.id === e.client_id);
+                  const displayClientName = lenderClient?.company_name;
+                  const borrowerClient = e.loan_recipient_client_id ? clients.find(c => c.id === e.loan_recipient_client_id) : null;
+                  const displayBorrowerName = borrowerClient?.company_name;
                   return <tr key={e.id} className="hover:bg-slate-800/30 transition-colors group border-b border-slate-800/50">
                     <td className="p-2 whitespace-nowrap text-center text-xs" style={{ width: `${columnWidths.date}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <div className="flex items-center justify-center gap-1">
@@ -3550,8 +3533,23 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         <span className="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded text-xs font-bold uppercase">
                           Rateio
                         </span>
+                      ) : e.is_loan ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-amber-400 text-xs font-bold" title={`Proprietário: ${displayClientName || 'Desconhecido'}`}>
+                            {shortenClientName(displayClientName || 'Desconhecido')}
+                          </span>
+                          {borrowerClient && (
+                            <span className="text-amber-300 text-xs font-semibold" title={`Tomador: ${displayBorrowerName || 'Desconhecido'}`}>
+                              → {shortenClientName(displayBorrowerName || 'Desconhecido')}
+                            </span>
+                          )}
+                        </div>
+                      ) : displayClientName ? (
+                        <span className="text-cyan-400 text-xs font-semibold" title={`Cliente: ${displayClientName}`}>
+                          {shortenClientName(displayClientName)}
+                        </span>
                       ) : (
-                        <span className="text-cyan-400 text-xs font-semibold">{shortenClientName(displayClientName)}</span>
+                        <span className="text-slate-500 text-xs">-</span>
                       )}
                     </td>
                     <td className="p-2 text-center" style={{ width: `${columnWidths.check}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
