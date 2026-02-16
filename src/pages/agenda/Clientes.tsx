@@ -974,7 +974,7 @@ export default function Clientes() {
           </Card>}
 
           {/* Additional Information */}
-          {(viewingCliente.proprietario || viewingCliente.inscricao_estadual || viewingCliente.aircraft_ownerships?.length || viewingCliente.observations) && <Card>
+          {(viewingCliente.proprietario || viewingCliente.inscricao_estadual || viewingCliente.aircraft_ownerships?.length || viewingCliente.has_partner || viewingCliente.observations) && <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold flex items-center gap-3">
                 <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -1008,6 +1008,17 @@ export default function Clientes() {
                       </div>)}
                   </div>
                 </div>}
+              {viewingCliente.has_partner && (viewingCliente as any).partners && Array.isArray((viewingCliente as any).partners) && (viewingCliente as any).partners.length > 0 && <div>
+                  <p className="text-xs text-muted-foreground mb-3 font-semibold">👥 Sócios / Cotistas</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(viewingCliente as any).partners.map((partner: any, idx: number) => <div key={idx} className="p-3 bg-muted/50 rounded-lg border border-border">
+                        <p className="text-sm font-medium text-foreground">{partner.name}</p>
+                        <p className="text-xs text-muted-foreground font-mono mt-1">CPF: {partner.cpf}</p>
+                        {partner.share_percentage && <p className="text-xs text-cyan-400 font-semibold mt-1">Participação: {partner.share_percentage}%</p>}
+                      </div>)}
+                  </div>
+                </div>}
+
 
 
               {viewingCliente.observations && <div>
@@ -1371,6 +1382,19 @@ export default function Clientes() {
 
                   {hasPartner && (
                     <div className="space-y-3 mt-4">
+                      {editingCliente?.has_partner && (editingCliente as any).partners && Array.isArray((editingCliente as any).partners) && (editingCliente as any).partners.length > 0 && (
+                        <div className="p-3 bg-slate-900/70 border border-slate-600 rounded-lg">
+                          <p className="text-xs text-cyan-400 font-semibold mb-2">📋 Sócios Salvos no Banco de Dados:</p>
+                          <div className="space-y-2">
+                            {(editingCliente as any).partners.map((savedPartner: any, idx: number) => (
+                              <div key={idx} className="text-xs text-slate-400 p-2 bg-slate-800 rounded">
+                                <span className="font-medium text-slate-300">{savedPartner.name}</span> - <span className="font-mono">{savedPartner.cpf}</span> {savedPartner.share_percentage && <span className="text-cyan-400 ml-2">({savedPartner.share_percentage}%)</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <p className="text-sm text-slate-400">
                         Adicione os sócios/cotistas da empresa
                       </p>
