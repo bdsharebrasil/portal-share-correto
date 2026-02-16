@@ -3408,7 +3408,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     Diárias
                     <div onMouseDown={(e) => handleResizeMouseDown('diarias', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
                   </th>}
-                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.voo_para}px` }}>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.voo_para}px` }} title="Cliente proprietário da aeronave (Client ID). Para empréstimos: mostra proprietário → tomador">
                     Voo Para
                     <div onMouseDown={(e) => handleResizeMouseDown('voo_para', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
                   </th>
@@ -3524,8 +3524,24 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         <span className="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded text-xs font-bold uppercase">
                           Rateio
                         </span>
+                      ) : e.is_loan ? (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-amber-400 text-xs font-bold" title={`Proprietário: ${displayClientName}`}>
+                            {shortenClientName(displayClientName)}
+                          </span>
+                          {e.loan_recipient_client_id && (() => {
+                            const borrowerName = clients.find(c => c.id === e.loan_recipient_client_id)?.company_name;
+                            return (
+                              <span className="text-amber-300 text-xs font-semibold" title={`Tomador: ${borrowerName}`}>
+                                → {shortenClientName(borrowerName)}
+                              </span>
+                            );
+                          })()}
+                        </div>
                       ) : (
-                        <span className="text-cyan-400 text-xs font-semibold">{shortenClientName(displayClientName)}</span>
+                        <span className="text-cyan-400 text-xs font-semibold" title={`Cliente: ${displayClientName}`}>
+                          {shortenClientName(displayClientName)}
+                        </span>
                       )}
                     </td>
                     <td className="p-2 text-center" style={{ width: `${columnWidths.check}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
