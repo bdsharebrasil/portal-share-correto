@@ -3341,7 +3341,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             {showAddForm ? <X className="mr-2 inline" size={16} /> : <Plus className="mr-2 inline" size={16} />}
             {showAddForm ? "Cancelar" : "Novo lançamento"}
           </button>
-        </div>{'}'}
+        </div>
 
         {/* TABELA DE REGISTROS */}
         <div className="bg-slate-900 border border-slate-800 overflow-hidden shadow-2xl rounded">
@@ -3713,7 +3713,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               </div>
             );
           })()}
-        </div>{'}'}
+        </div>
 
         {/* MODAL DE EDIÇÃO DE LANÇAMENTO */}
         {editingEntry && <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
