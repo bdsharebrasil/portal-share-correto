@@ -555,8 +555,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         ];
         setCrew(mergedCrew);
         if (aeroRes.data) setAerodromes(aeroRes.data || []);
-        if (clientRes.data) setClients(clientRes.data || []);
-        if (entriesRes.data) setEntries(entriesRes.data || []);
+        if (clientRes.data) {
+          console.log('✅ Clientes carregados:', clientRes.data);
+          setClients(clientRes.data || []);
+        }
+        if (entriesRes.data) {
+          console.log('✅ Entradas carregadas:', entriesRes.data.map((e: any) => ({ id: e.id, client_id: e.client_id, loan_recipient_client_id: e.loan_recipient_client_id })));
+          setEntries(entriesRes.data || []);
+        }
         if (monthsRes.data) setAvailableMonths(monthsRes.data || []);
         if (partnersRes.data) setPartners(partnersRes.data || []);
 
@@ -3438,7 +3444,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   const sicCrew = crew.find(c => c.id === e.sic_canac);
                   // Exibir apenas o cliente do voo (client_id) - nunca o partner_name
                   // (partner_name em empréstimo contém quem pegou emprestado, não o dono)
-                  const displayClientName = clients.find(c => c.id === e.client_id)?.company_name;
+                  const lenderClient = clients.find(c => c.id === e.client_id);
+                  const displayClientName = lenderClient?.company_name;
+                  const borrowerClient = e.loan_recipient_client_id ? clients.find(c => c.id === e.loan_recipient_client_id) : null;
+                  const displayBorrowerName = borrowerClient?.company_name;
                   return <tr key={e.id} className="hover:bg-slate-800/30 transition-colors group border-b border-slate-800/50">
                     <td className="p-2 whitespace-nowrap text-center text-xs" style={{ width: `${columnWidths.date}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <div className="flex items-center justify-center gap-1">
@@ -3526,22 +3535,21 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         </span>
                       ) : e.is_loan ? (
                         <div className="flex flex-col gap-0.5">
-                          <span className="text-amber-400 text-xs font-bold" title={`Proprietário: ${displayClientName}`}>
-                            {shortenClientName(displayClientName)}
+                          <span className="text-amber-400 text-xs font-bold" title={`Proprietário: ${displayClientName || 'Desconhecido'}`}>
+                            {shortenClientName(displayClientName || 'Desconhecido')}
                           </span>
-                          {e.loan_recipient_client_id && (() => {
-                            const borrowerName = clients.find(c => c.id === e.loan_recipient_client_id)?.company_name;
-                            return (
-                              <span className="text-amber-300 text-xs font-semibold" title={`Tomador: ${borrowerName}`}>
-                                → {shortenClientName(borrowerName)}
-                              </span>
-                            );
-                          })()}
+                          {borrowerClient && (
+                            <span className="text-amber-300 text-xs font-semibold" title={`Tomador: ${displayBorrowerName || 'Desconhecido'}`}>
+                              → {shortenClientName(displayBorrowerName || 'Desconhecido')}
+                            </span>
+                          )}
                         </div>
-                      ) : (
+                      ) : displayClientName ? (
                         <span className="text-cyan-400 text-xs font-semibold" title={`Cliente: ${displayClientName}`}>
                           {shortenClientName(displayClientName)}
                         </span>
+                      ) : (
+                        <span className="text-slate-500 text-xs">-</span>
                       )}
                     </td>
                     <td className="p-2 text-center" style={{ width: `${columnWidths.check}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
