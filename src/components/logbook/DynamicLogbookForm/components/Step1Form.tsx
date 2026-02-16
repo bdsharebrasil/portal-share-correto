@@ -1,75 +1,84 @@
-import { useState, useEffect } from 'react';
+// components/Step1Form.tsx
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SICComboBoxManual } from '@/components/diario/SICComboBoxManual';
-import { cn } from '@/lib/utils';
-import { CalendarIcon, MapPin, Clock, Check, Users, ArrowRight } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, ArrowRight, Users, Check } from 'lucide-react';
 import { format } from 'date-fns';
-import { pt } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import { FlightCategorySelector } from './FlightCategorySelector';
-import { SPECIAL_FLIGHT_TYPES, TIME_FIELDS } from '../constants';
-import type { FlightFormData, FlightCategory, CrewMember, ClientData, Partner } from '../types';
-import type { Aerodrome } from '@/types';
+import { SICComboBoxManual } from './SICComboBoxManual';
+import { SPECIAL_FLIGHT_TYPES } from '../constants';
+import type { FlightFormData, FlightCategory, Aerodrome, ClientData, CrewMember, Partner } from '../types';
 
 interface Step1FormProps {
-  formData: FlightFormData;
-  updateField: (field: keyof FlightFormData, value: string) => void;
+  // Date
   date: Date | undefined;
   dateText: string;
   onDateChange: (date: Date | undefined) => void;
   onDateTextChange: (text: string) => void;
+  
+  // Form data
+  formData: FlightFormData;
+  onFieldChange: (field: keyof FlightFormData, value: string) => void;
+  
+  // Flight category
   flightCategory: FlightCategory;
   onFlightCategoryChange: (category: FlightCategory) => void;
   specialFlightType: string;
   onSpecialFlightTypeChange: (type: string) => void;
+  
+  // Clients
   selectedClient: string;
-  onSelectedClientChange: (client: string) => void;
+  onClientChange: (clientId: string) => void;
   selectedBorrowerClient: string;
-  onSelectedBorrowerClientChange: (client: string) => void;
-  selectedPic: string;
-  onSelectedPicChange: (pic: string) => void;
-  selectedSic: string;
-  onSelectedSicChange: (sic: string) => void;
-  sicName: string;
-  onSicNameChange: (name: string) => void;
-  selectedClientPartner: string | null;
-  onClientPartnerModalOpen: () => void;
-  selectedLenderPartner: string | null;
-  onLenderPartnerModalOpen: () => void;
-  selectedBorrowerPartner: string | null;
-  onBorrowerPartnerModalOpen: () => void;
-  aerodromes: Aerodrome[];
-  allCrew: CrewMember[];
-  clients: any[];
-  allClients: { id: string; company_name: string; proprietario?: string }[];
+  onBorrowerClientChange: (clientId: string) => void;
+  clients: ClientData[];
+  allClients: any[];
+  getClientName: (clientId: string) => string;
+  
+  // Partners
   clientPartners: Partner[];
   lenderPartners: Partner[];
   borrowerPartners: Partner[];
-  getClientName: (clientId: string) => string;
+  selectedClientPartner: string | null;
+  selectedLenderPartner: string | null;
+  selectedBorrowerPartner: string | null;
+  onClientPartnerModalOpen: () => void;
+  onLenderPartnerModalOpen: () => void;
+  onBorrowerPartnerModalOpen: () => void;
+  
+  // Crew
+  selectedPic: string;
+  onPicChange: (picId: string) => void;
+  selectedSic: string;
+  sicName: string;
+  onSicChange: (sicId: string | null, sicNameValue: string) => void;
+  allCrew: CrewMember[];
+  
+  // Aerodromes
+  aerodromes: Aerodrome[];
 }
 
 export function Step1Form(props: Step1FormProps) {
   const {
-    formData, updateField,
     date, dateText, onDateChange, onDateTextChange,
+    formData, onFieldChange,
     flightCategory, onFlightCategoryChange,
     specialFlightType, onSpecialFlightTypeChange,
-    selectedClient, onSelectedClientChange,
-    selectedBorrowerClient, onSelectedBorrowerClientChange,
-    selectedPic, onSelectedPicChange,
-    selectedSic, onSelectedSicChange,
-    sicName, onSicNameChange,
-    selectedClientPartner, onClientPartnerModalOpen,
-    selectedLenderPartner, onLenderPartnerModalOpen,
-    selectedBorrowerPartner, onBorrowerPartnerModalOpen,
-    aerodromes, allCrew, clients, allClients,
+    selectedClient, onClientChange,
+    selectedBorrowerClient, onBorrowerClientChange,
+    clients, allClients, getClientName,
     clientPartners, lenderPartners, borrowerPartners,
-    getClientName,
+    selectedClientPartner, selectedLenderPartner, selectedBorrowerPartner,
+    onClientPartnerModalOpen, onLenderPartnerModalOpen, onBorrowerPartnerModalOpen,
+    selectedPic, onPicChange,
+    selectedSic, sicName, onSicChange,
+    allCrew, aerodromes,
   } = props;
 
   const [departureOpen, setDepartureOpen] = useState(false);
@@ -78,23 +87,9 @@ export function Step1Form(props: Step1FormProps) {
   const [borrowerClientOpen, setBorrowerClientOpen] = useState(false);
   const [picOpen, setPicOpen] = useState(false);
 
-  const borrowerClients = allClients;
-
-  const handleDateTextChange = (input: string) => {
-    const cleaned = input.replace(/[^\d/]/g, '').slice(0, 10);
-    onDateTextChange(cleaned);
-    if (/^\d{2}\/\d{2}\/\d{4}$/.test(cleaned)) {
-      const [d, m, y] = cleaned.split('/').map(Number);
-      const parsed = new Date(y, m - 1, d);
-      if (!isNaN(parsed.getTime())) {
-        onDateChange(parsed);
-      }
-    }
-  };
-
   return (
     <div className="space-y-6">
-      {/* Data e Categoria */}
+      {/* Data e Categoria do Voo */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label className="flex items-center gap-2">
@@ -105,13 +100,43 @@ export function Step1Form(props: Step1FormProps) {
             <Input
               type="text"
               value={dateText}
-              onChange={(e) => handleDateTextChange(e.target.value)}
+              onChange={(e) => {
+                const input = e.target.value;
+                const cleaned = input.replace(/[^\d/]/g, '').slice(0, 10);
+                onDateTextChange(cleaned);
+
+                if (cleaned.length === 10 && /^\d{2}\/\d{2}\/\d{4}$/.test(cleaned)) {
+                  const [day, month, year] = cleaned.split('/');
+                  const newDate = new Date(Number(year), Number(month) - 1, Number(day));
+                  if (!isNaN(newDate.getTime())) {
+                    onDateChange(newDate);
+                  }
+                }
+              }}
+              onBlur={() => {
+                if (!dateText) return;
+
+                if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateText)) {
+                  const [day, month, year] = dateText.split('/');
+                  const newDate = new Date(Number(year), Number(month) - 1, Number(day));
+                  if (!isNaN(newDate.getTime())) {
+                    onDateChange(newDate);
+                    onDateTextChange(format(newDate, 'dd/MM/yyyy'));
+                    return;
+                  }
+                }
+
+                onDateTextChange(date ? format(date, 'dd/MM/yyyy') : '');
+              }}
               placeholder="DD/MM/AAAA"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={10}
               className="flex-1 h-11"
             />
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" size="icon" className="h-11 w-11 shrink-0">
+                <Button type="button" variant="outline" size="icon" className="h-11 w-11">
                   <CalendarIcon className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
@@ -119,24 +144,24 @@ export function Step1Form(props: Step1FormProps) {
                 <Calendar
                   mode="single"
                   selected={date}
-                  onSelect={(d) => {
-                    onDateChange(d);
-                    if (d) onDateTextChange(format(d, 'dd/MM/yyyy'));
-                  }}
-                  locale={pt}
+                  onSelect={onDateChange}
+                  defaultMonth={date}
+                  initialFocus
+                  className="pointer-events-auto"
                 />
               </PopoverContent>
             </Popover>
           </div>
         </div>
 
+        {/* Categoria */}
         <FlightCategorySelector
           value={flightCategory}
           onChange={onFlightCategoryChange}
         />
       </div>
 
-      {/* Client selector for 'cliente' category */}
+      {/* Seleção de Cliente */}
       {flightCategory === 'cliente' && (
         <div className="space-y-2 animate-in slide-in-from-top-2">
           <Label>Selecione o Cliente</Label>
@@ -159,7 +184,10 @@ export function Step1Form(props: Step1FormProps) {
                         <CommandItem
                           key={item.client_id}
                           value={clientData.company_name || clientData.proprietario}
-                          onSelect={() => { onSelectedClientChange(item.client_id); setClientOpen(false); }}
+                          onSelect={() => {
+                            onClientChange(item.client_id);
+                            setClientOpen(false);
+                          }}
                         >
                           <Check className={cn("mr-2 h-4 w-4", selectedClient === item.client_id ? "opacity-100" : "opacity-0")} />
                           <span>{clientData.company_name || clientData.proprietario}</span>
@@ -173,19 +201,29 @@ export function Step1Form(props: Step1FormProps) {
             </PopoverContent>
           </Popover>
 
+          {/* Parceiro do Cliente */}
           {selectedClient && clientPartners.length > 0 && (
             <div className="space-y-2 mt-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg animate-in slide-in-from-top-2">
               <Label className="text-sm">Parceiro do Cliente (Opcional)</Label>
-              <Button type="button" variant="outline" className="w-full justify-between h-10 font-normal text-sm" onClick={onClientPartnerModalOpen}>
-                {selectedClientPartner ? clientPartners.find(p => p.id === selectedClientPartner)?.name : 'Selecione um parceiro...'}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-between h-10 font-normal text-sm"
+                onClick={onClientPartnerModalOpen}
+              >
+                {selectedClientPartner
+                  ? clientPartners.find(p => p.id === selectedClientPartner)?.name
+                  : 'Selecione um parceiro...'}
               </Button>
-              <p className="text-xs text-muted-foreground">💡 Se o cliente tem sócios, você pode especificar qual deles está realizando o voo.</p>
+              <p className="text-xs text-muted-foreground">
+                💡 Se o cliente tem sócios, você pode especificar qual deles está realizando o voo.
+              </p>
             </div>
           )}
         </div>
       )}
 
-      {/* Rateio */}
+      {/* Tipos de Voo Especiais para Rateio */}
       {flightCategory === 'rateio' && (
         <div className="space-y-3 animate-in slide-in-from-top-2">
           <Label>Tipo de Voo (Rateio Igual entre Sócios)</Label>
@@ -218,7 +256,7 @@ export function Step1Form(props: Step1FormProps) {
             <span className="text-sm font-semibold">Configurar Empréstimo</span>
           </div>
 
-          {/* Lender */}
+          {/* Cotista que empresta */}
           <div className="space-y-2">
             <Label>Cotista que empresta a aeronave</Label>
             <Popover open={clientOpen} onOpenChange={setClientOpen}>
@@ -240,7 +278,10 @@ export function Step1Form(props: Step1FormProps) {
                           <CommandItem
                             key={item.client_id}
                             value={clientData.company_name || clientData.proprietario}
-                            onSelect={() => { onSelectedClientChange(item.client_id); setClientOpen(false); }}
+                            onSelect={() => {
+                              onClientChange(item.client_id);
+                              setClientOpen(false);
+                            }}
                           >
                             <Check className={cn("mr-2 h-4 w-4", selectedClient === item.client_id ? "opacity-100" : "opacity-0")} />
                             <span>{clientData.company_name || clientData.proprietario}</span>
@@ -255,23 +296,31 @@ export function Step1Form(props: Step1FormProps) {
             </Popover>
           </div>
 
+          {/* Parceiro do Lender */}
           {selectedClient && lenderPartners.length > 0 && (
-            <div className="space-y-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg animate-in slide-in-from-top-2">
+            <div className="space-y-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
               <Label className="text-sm">Parceiro do Cotista (Opcional)</Label>
-              <Button type="button" variant="outline" className="w-full justify-between h-10 font-normal text-sm" onClick={onLenderPartnerModalOpen}>
-                {selectedLenderPartner ? lenderPartners.find(p => p.id === selectedLenderPartner)?.name : 'Selecione um parceiro...'}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-between h-10 font-normal text-sm"
+                onClick={onLenderPartnerModalOpen}
+              >
+                {selectedLenderPartner
+                  ? lenderPartners.find(p => p.id === selectedLenderPartner)?.name
+                  : 'Selecione um parceiro...'}
               </Button>
             </div>
           )}
 
-          {/* Borrower */}
+          {/* Cliente que pega emprestado */}
           <div className="space-y-2">
             <Label>Cliente que pega emprestado</Label>
             <Popover open={borrowerClientOpen} onOpenChange={setBorrowerClientOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" role="combobox" className="w-full justify-between h-11 font-normal border-amber-500/30">
                   {selectedBorrowerClient
-                    ? borrowerClients.find(c => c.id === selectedBorrowerClient)?.company_name || 'Cliente selecionado'
+                    ? allClients.find(c => c.id === selectedBorrowerClient)?.company_name || 'Cliente selecionado'
                     : 'Selecione quem pega emprestado...'}
                 </Button>
               </PopoverTrigger>
@@ -279,30 +328,44 @@ export function Step1Form(props: Step1FormProps) {
                 <Command>
                   <CommandInput placeholder="Buscar cliente..." />
                   <CommandList>
-                    <CommandEmpty>Nenhum cliente disponível.</CommandEmpty>
-                    <CommandGroup heading="Clientes disponíveis">
-                      {borrowerClients.map((client) => (
-                        <CommandItem
-                          key={client.id}
-                          value={client.company_name || client.proprietario || ''}
-                          onSelect={() => { onSelectedBorrowerClientChange(client.id); setBorrowerClientOpen(false); }}
-                        >
-                          <Check className={cn("mr-2 h-4 w-4", selectedBorrowerClient === client.id ? "opacity-100" : "opacity-0")} />
-                          <span>{client.company_name || client.proprietario}</span>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
+                    {allClients.length === 0 ? (
+                      <CommandEmpty>Nenhum cliente disponível.</CommandEmpty>
+                    ) : (
+                      <CommandGroup>
+                        {allClients.map((client) => (
+                          <CommandItem
+                            key={client.id}
+                            value={client.company_name || client.proprietario || ''}
+                            onSelect={() => {
+                              onBorrowerClientChange(client.id);
+                              setBorrowerClientOpen(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", selectedBorrowerClient === client.id ? "opacity-100" : "opacity-0")} />
+                            <span>{client.company_name || client.proprietario}</span>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    )}
                   </CommandList>
                 </Command>
               </PopoverContent>
             </Popover>
           </div>
 
+          {/* Parceiro do Borrower */}
           {selectedBorrowerClient && borrowerPartners.length > 0 && (
-            <div className="space-y-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg animate-in slide-in-from-top-2">
+            <div className="space-y-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
               <Label className="text-sm">Parceiro do Cliente que Pega Emprestado (Opcional)</Label>
-              <Button type="button" variant="outline" className="w-full justify-between h-10 font-normal text-sm" onClick={onBorrowerPartnerModalOpen}>
-                {selectedBorrowerPartner ? borrowerPartners.find(p => p.id === selectedBorrowerPartner)?.name : 'Selecione um parceiro...'}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-between h-10 font-normal text-sm"
+                onClick={onBorrowerPartnerModalOpen}
+              >
+                {selectedBorrowerPartner
+                  ? borrowerPartners.find(p => p.id === selectedBorrowerPartner)?.name
+                  : 'Selecione um parceiro...'}
               </Button>
             </div>
           )}
@@ -320,19 +383,23 @@ export function Step1Form(props: Step1FormProps) {
           Tripulação *
         </Label>
         <div className="grid grid-cols-2 gap-3">
+          {/* PIC */}
           <div className="space-y-2">
             <Label className="text-sm text-muted-foreground">PIC (Piloto em Comando)</Label>
             <Popover open={picOpen} onOpenChange={setPicOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" role="combobox" className="w-full justify-between h-11 font-normal">
                   {selectedPic
-                    ? (() => { const pic = allCrew.find(t => t.id === selectedPic); return pic ? `${pic.full_name} (${pic.canac})` : 'PIC selecionado'; })()
+                    ? (() => {
+                        const pic = allCrew.find(t => t.id === selectedPic);
+                        return pic ? `${pic.full_name} (${pic.canac})` : 'PIC selecionado';
+                      })()
                     : 'Selecione o PIC...'}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-full p-0" align="start">
                 <Command>
-                  <CommandInput placeholder="Buscar piloto por nome ou CANAC..." />
+                  <CommandInput placeholder="Buscar piloto..." />
                   <CommandList>
                     <CommandEmpty>Nenhum piloto encontrado.</CommandEmpty>
                     <CommandGroup>
@@ -340,7 +407,10 @@ export function Step1Form(props: Step1FormProps) {
                         <CommandItem
                           key={tripulante.id}
                           value={`${tripulante.full_name} ${tripulante.canac}`}
-                          onSelect={() => { onSelectedPicChange(tripulante.id); setPicOpen(false); }}
+                          onSelect={() => {
+                            onPicChange(tripulante.id);
+                            setPicOpen(false);
+                          }}
                         >
                           <Check className={cn("mr-2 h-4 w-4", selectedPic === tripulante.id ? "opacity-100" : "opacity-0")} />
                           <div className="flex flex-col gap-0.5">
@@ -356,94 +426,152 @@ export function Step1Form(props: Step1FormProps) {
             </Popover>
           </div>
 
+          {/* SIC */}
           <SICComboBoxManual
-            value={selectedSic ?? ''}
-            sicName={sicName ?? ''}
+            value={selectedSic}
+            sicName={sicName}
             crew={allCrew}
-            onChange={(sicCanac, sicNameValue) => { onSelectedSicChange(sicCanac ?? ''); onSicNameChange(sicNameValue ?? ''); }}
+            onChange={onSicChange}
             label="SIC (Segundo Piloto)"
             placeholder="Selecione ou digite o SIC..."
           />
         </div>
       </div>
 
-      {/* Route */}
-      <div className="space-y-3">
+      {/* Rota */}
+      <div className="space-y-2">
         <Label className="flex items-center gap-2">
           <MapPin className="h-4 w-4 text-muted-foreground" />
-          Rota *
+          Rota
         </Label>
-        <div className="grid grid-cols-2 gap-3">
-          {(['departure_airport', 'arrival_airport'] as const).map((field, idx) => (
-            <div key={field} className="space-y-1">
-              <Label className="text-xs text-muted-foreground">{idx === 0 ? 'DE' : 'PARA'}</Label>
-              <Popover
-                open={idx === 0 ? departureOpen : arrivalOpen}
-                onOpenChange={idx === 0 ? setDepartureOpen : setArrivalOpen}
-              >
-                <PopoverTrigger asChild>
-                  <Button variant="outline" role="combobox" className="w-full justify-between h-11 font-mono">
-                    {formData[field] || (idx === 0 ? 'Selecione...' : 'Selecione...')}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-full p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Buscar aeródromo..." />
-                    <CommandList>
-                      <CommandEmpty>Não encontrado.</CommandEmpty>
-                      <CommandGroup>
-                        {aerodromes.map((a) => (
-                          <CommandItem
-                            key={a.id}
-                            value={`${a.designativo} ${a.name}`}
-                            onSelect={() => {
-                              updateField(field, a.designativo);
-                              if (idx === 0) setDepartureOpen(false);
-                              else setArrivalOpen(false);
-                            }}
-                          >
-                            <Check className={cn("mr-2 h-4 w-4", formData[field] === a.designativo ? "opacity-100" : "opacity-0")} />
-                            <span className="font-mono mr-2">{a.designativo}</span>
-                            <span className="text-xs text-muted-foreground truncate">{a.name}</span>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            </div>
-          ))}
+        <div className="flex items-center gap-2">
+          <Popover open={departureOpen} onOpenChange={setDepartureOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" role="combobox" className="flex-1 justify-between h-12 font-mono text-lg">
+                {formData.departure_airport || 'ICAO'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0" align="start">
+              <Command>
+                <CommandInput
+                  placeholder="Digite o código ICAO..."
+                  onValueChange={(value) => onFieldChange('departure_airport', value.toUpperCase())}
+                />
+                <CommandList>
+                  <CommandEmpty>Nenhum aeródromo encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    {aerodromes
+                      .filter(a =>
+                        !formData.departure_airport ||
+                        a.designativo.includes(formData.departure_airport.toUpperCase()) ||
+                        a.name.toUpperCase().includes(formData.departure_airport.toUpperCase())
+                      )
+                      .map(aerodrome => (
+                        <CommandItem
+                          key={aerodrome.id}
+                          value={aerodrome.designativo}
+                          onSelect={value => {
+                            onFieldChange('departure_airport', value.toUpperCase());
+                            setDepartureOpen(false);
+                          }}
+                        >
+                          <span className="font-mono font-medium">{aerodrome.designativo}</span>
+                          <span className="ml-2 text-muted-foreground truncate">{aerodrome.name}</span>
+                        </CommandItem>
+                      ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+
+          <div className="flex items-center justify-center w-10">
+            <ArrowRight className="h-5 w-5 text-muted-foreground" />
+          </div>
+
+          <Popover open={arrivalOpen} onOpenChange={setArrivalOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" role="combobox" className="flex-1 justify-between h-12 font-mono text-lg">
+                {formData.arrival_airport || 'ICAO'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0" align="end">
+              <Command>
+                <CommandInput
+                  placeholder="Digite o código ICAO..."
+                  onValueChange={(value) => onFieldChange('arrival_airport', value.toUpperCase())}
+                />
+                <CommandList>
+                  <CommandEmpty>Nenhum aeródromo encontrado.</CommandEmpty>
+                  <CommandGroup>
+                    {aerodromes
+                      .filter(a =>
+                        !formData.arrival_airport ||
+                        a.designativo.includes(formData.arrival_airport.toUpperCase()) ||
+                        a.name.toUpperCase().includes(formData.arrival_airport.toUpperCase())
+                      )
+                      .map(aerodrome => (
+                        <CommandItem
+                          key={aerodrome.id}
+                          value={aerodrome.designativo}
+                          onSelect={value => {
+                            onFieldChange('arrival_airport', value.toUpperCase());
+                            setArrivalOpen(false);
+                          }}
+                        >
+                          <span className="font-mono font-medium">{aerodrome.designativo}</span>
+                          <span className="ml-2 text-muted-foreground truncate">{aerodrome.name}</span>
+                        </CommandItem>
+                      ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
+        {formData.distance_nm && (
+          <p className="text-xs text-muted-foreground text-center">
+            Distância: <span className="font-medium text-foreground">{formData.distance_nm} NM</span>
+          </p>
+        )}
       </div>
 
-      {/* Time inputs */}
-      <div className="space-y-3">
+      {/* Horários */}
+      <div className="space-y-2">
         <Label className="flex items-center gap-2">
           <Clock className="h-4 w-4 text-muted-foreground" />
-          Horários UTC *
+          Horários (UTC)
         </Label>
-        <div className="grid grid-cols-4 gap-3">
-          {TIME_FIELDS.map(({ id, label, field }) => (
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            { id: 'ac', label: 'AC', field: 'ac_time' as const },
+            { id: 'dep', label: 'DEP', field: 'departure_time' as const },
+            { id: 'pou', label: 'POU', field: 'pou_time' as const },
+            { id: 'cor', label: 'COR', field: 'cor_time' as const },
+          ].map(({ id, label, field }) => (
             <div key={id} className="space-y-1">
-              <Label className="text-xs text-muted-foreground text-center block">{label}</Label>
+              <Label htmlFor={id} className="text-xs text-muted-foreground text-center block">
+                {label}
+              </Label>
               <div className="relative">
                 <Input
                   id={id}
                   type="time"
                   value={formData[field]}
-                  onChange={e => updateField(field, e.target.value)}
+                  onChange={e => onFieldChange(field, e.target.value)}
                   required
                   className="text-center h-11 font-mono pr-6"
                 />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground font-medium">Z</span>
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground font-medium">
+                  Z
+                </span>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Auto-calculated fields */}
+      {/* Apresentação e Distância */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label className="text-sm text-muted-foreground">Apresentação</Label>
