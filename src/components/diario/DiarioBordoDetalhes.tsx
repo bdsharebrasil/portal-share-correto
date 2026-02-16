@@ -3363,7 +3363,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     <div>
                       <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Diárias</div>
                       <div className="text-lg font-black text-yellow-400">
-                        R${(filteredEntries.reduce((sum, e) => sum + (e.daily_rate || 0), 0) * (logbookMonth?.daily_rate || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}
+                        R${(filteredEntries.reduce((sum, e) => sum + (e.daily_rate || 0), 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </div>
                     </div>
                   )}
@@ -3380,7 +3380,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                           <div className="text-sm font-black text-orange-400 mb-0.5">{decimalToHHMM(pt.hours)}</div>
                           <div className="text-[8px] text-slate-500">{pt.voos} voo{pt.voos > 1 ? 's' : ''}</div>
                           {logbookMonth?.has_daily_rate && pt.dailyRates > 0 && (
-                            <div className="text-[8px] text-yellow-400 font-semibold mt-1">R${(pt.dailyRates * (logbookMonth?.daily_rate || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</div>
+                            <div className="text-[8px] text-yellow-400 font-semibold mt-1">R${(pt.dailyRates).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                           )}
                         </div>
                       ))}
@@ -3397,7 +3397,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                           <span className="text-cyan-400 font-semibold">{ct.name.split(' ')[0]}</span>
                           {' '}{decimalToHHMM(ct.hours)}h
                           {logbookMonth?.has_daily_rate && ct.dailyRates > 0 && (
-                            <span className="text-yellow-400"> • R${(ct.dailyRates * (logbookMonth?.daily_rate || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</span>
+                            <span className="text-yellow-400"> • R${(ct.dailyRates).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                           )}
                         </span>
                       ))}
