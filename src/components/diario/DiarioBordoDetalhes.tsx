@@ -121,6 +121,12 @@ const shortenClientName = (fullName?: string): string => {
   return firstName.substring(0, 5);
 };
 
+// Função para obter o nome do parceiro por ID
+const getPartnerNameById = (partnerId: string | null, partnerMap: Record<string, any>): string | null => {
+  if (!partnerId) return null;
+  return partnerMap[partnerId]?.name || null;
+};
+
 // ===================== EXPANDIR CLIENTES COM PARCEIROS =====================
 const expandClientsWithPartners = (clients: any[]) => {
   const expanded: any[] = [];
@@ -320,6 +326,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   const [aerodromes, setAerodromes] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [partners, setPartners] = useState<any[]>([]);
+  const [clientPartners, setClientPartners] = useState<Record<string, any>>({});
   const [aircraft, setAircraft] = useState<any>(null);
   const [lastCelula, setLastCelula] = useState(0);
   const [logbookMonth, setLogbookMonth] = useState<any>(null);
@@ -525,7 +532,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [acRes, crewMembersRes, crewTableRes, aeroRes, clientRes, entriesRes, monthsRes, partnersRes] = await Promise.all([
+        const [acRes, crewMembersRes, crewTableRes, aeroRes, clientRes, entriesRes, monthsRes, partnersRes, clientPartnersRes] = await Promise.all([
           supabase.from('aircraft').select('*').eq('id', aircraftId).single(),
           supabase.from('crew_members').select('*').eq('status', 'ativo').order('full_name', { ascending: true }),
           supabase.from('crew').select('id, full_name, canac, status').eq('status', 'ativo').order('full_name', { ascending: true }),
@@ -533,7 +540,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           supabase.from('clients').select('id, company_name, cnpj').order('company_name'),
           supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('sequential_number', { ascending: true }),
           supabase.from('logbook_months').select('month, year').eq('aircraft_id', aircraftId).eq('is_closed', false).order('year', { ascending: false }).order('month', { ascending: false }),
-          supabase.from('aircraft_partners').select('*, clients(id, company_name)').eq('aircraft_id', aircraftId)
+          supabase.from('aircraft_partners').select('*, clients(id, company_name)').eq('aircraft_id', aircraftId),
+          supabase.from('client_partners').select('id, name')
         ]);
 
         if (acRes.data) {
@@ -565,6 +573,16 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         }
         if (monthsRes.data) setAvailableMonths(monthsRes.data || []);
         if (partnersRes.data) setPartners(partnersRes.data || []);
+
+        // Criar mapa de client_partners para busca rápida por ID
+        if (clientPartnersRes.data) {
+          const partnerMap: Record<string, any> = {};
+          clientPartnersRes.data.forEach((p: any) => {
+            partnerMap[p.id] = p;
+          });
+          setClientPartners(partnerMap);
+          console.log('✅ Client Partners carregados:', partnerMap);
+        }
 
         const loansRes = await supabase
           .from('aircraft_loans')
@@ -2649,12 +2667,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       variant={flightType === 'cliente' ? 'default' : 'outline'}
                       className="flex-1 h-10 text-xs font-semibold"
                       onClick={() => {
+                        // Obter o primeiro cliente vinculado à aeronave (proprietário)
+                        const linkedClientId = sortedClients.find(c => c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId))?.id || '';
+
                         setFlightType('cliente');
                         setNewEntry({
                           ...newEntry,
                           is_equal_split: false,
                           is_loan: false,
-                          client_id: '',
+                          client_id: linkedClientId,
                           client_partner_id: null,
                           loan_recipient_client_id: null,
                           loan_recipient_partner_id: null,
@@ -3756,6 +3777,16 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   const displayClientName = lenderClient?.company_name;
                   const borrowerClient = e.loan_recipient_client_id ? clients.find(c => c.id === e.loan_recipient_client_id) : null;
                   const displayBorrowerName = borrowerClient?.company_name;
+
+                  // Para empréstimos: buscar nome do parceiro do tomador se existir
+                  const borrowerPartnerName = e.is_loan && e.loan_recipient_partner_id
+                    ? getPartnerNameById(e.loan_recipient_partner_id, clientPartners)
+                    : null;
+
+                  // Para voos normais: buscar nome do parceiro do cliente se existir
+                  const clientPartnerName = !e.is_loan && e.client_partner_id
+                    ? getPartnerNameById(e.client_partner_id, clientPartners)
+                    : null;
                   return <tr key={e.id} className="hover:bg-slate-800/30 transition-colors group border-b border-slate-800/50">
                     <td className="p-2 whitespace-nowrap text-center text-xs" style={{ width: `${columnWidths.date}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <div className="flex items-center justify-center gap-1">
@@ -3847,14 +3878,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                             {shortenClientName(displayClientName || 'Desconhecido')}
                           </span>
                           {borrowerClient && (
-                            <span className="text-amber-300 text-xs font-semibold" title={`Tomador: ${displayBorrowerName || 'Desconhecido'}`}>
-                              → {shortenClientName(displayBorrowerName || 'Desconhecido')}
+                            <span className="text-amber-300 text-xs font-semibold" title={`Tomador: ${borrowerPartnerName || displayBorrowerName || 'Desconhecido'}`}>
+                              → {shortenClientName(borrowerPartnerName || displayBorrowerName || 'Desconhecido')}
                             </span>
                           )}
                         </div>
                       ) : displayClientName ? (
-                        <span className="text-cyan-400 text-xs font-semibold" title={`Cliente: ${displayClientName}`}>
-                          {shortenClientName(displayClientName)}
+                        <span className="text-cyan-400 text-xs font-semibold" title={`Cliente: ${displayClientName}${clientPartnerName ? ` - ${clientPartnerName}` : ''}`}>
+                          {shortenClientName(displayClientName)}{clientPartnerName ? ` - ${shortenClientName(clientPartnerName)}` : ''}
                         </span>
                       ) : (
                         <span className="text-slate-500 text-xs">-</span>
@@ -3886,7 +3917,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             // Calcular totais por cliente
             const clientTotals: Record<string, { hours: number; dailyRates: number; name: string }> = {};
             // Calcular totais por sócio/partner
-            const partnerTotals: Record<string, { hours: number; dailyRates: number; voos: number }> = {};
+            const partnerTotals: Record<string, { hours: number; dailyRates: number; voos: number; partnerName: string }> = {};
             let splitHours = 0;
 
             filteredEntries.forEach(e => {
@@ -3895,24 +3926,44 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               } else if (e.client_id) {
                 const clientName = clients.find(c => c.id === e.client_id)?.company_name?.split(' ')[0] || 'Cliente';
 
-                // Se é empréstimo (is_loan = true), NUNCA usar partner_name para agregação
-                // partner_name em empréstimo contém quem pegou emprestado, não quem é dono
-                if (e.is_loan || !e.partner_name) {
-                  // Agregar pelo cliente dono (client_id)
+                // Se é empréstimo (is_loan = true), agregar pelo cliente dono
+                if (e.is_loan) {
                   if (!clientTotals[e.client_id]) {
                     clientTotals[e.client_id] = { hours: 0, dailyRates: 0, name: clientName };
                   }
                   clientTotals[e.client_id].hours += (e.time || 0);
                   clientTotals[e.client_id].dailyRates += (e.daily_rate || 0);
                 } else {
-                  // Voo normal com sócio (não é empréstimo)
-                  // Usar o partner_name como chave (sócio do cliente)
-                  if (!partnerTotals[e.partner_name]) {
-                    partnerTotals[e.partner_name] = { hours: 0, dailyRates: 0, voos: 0 };
+                  // Voo normal: tentar agrupar por parceiro se houver
+                  const hasClientPartner = e.client_partner_id;
+
+                  if (hasClientPartner) {
+                    // Agregar pelo client_partner_id
+                    const partnerName = getPartnerNameById(e.client_partner_id, clientPartners) || 'Parceiro Desconhecido';
+                    const partnerKey = e.client_partner_id;
+
+                    if (!partnerTotals[partnerKey]) {
+                      partnerTotals[partnerKey] = { hours: 0, dailyRates: 0, voos: 0, partnerName };
+                    }
+                    partnerTotals[partnerKey].hours += (e.time || 0);
+                    partnerTotals[partnerKey].dailyRates += (e.daily_rate || 0);
+                    partnerTotals[partnerKey].voos += 1;
+                  } else if (e.partner_name) {
+                    // Fallback: usar partner_name se existir (compatibilidade com dados antigos)
+                    if (!partnerTotals[e.partner_name]) {
+                      partnerTotals[e.partner_name] = { hours: 0, dailyRates: 0, voos: 0, partnerName: e.partner_name };
+                    }
+                    partnerTotals[e.partner_name].hours += (e.time || 0);
+                    partnerTotals[e.partner_name].dailyRates += (e.daily_rate || 0);
+                    partnerTotals[e.partner_name].voos += 1;
+                  } else {
+                    // Sem parceiro: agregar pelo cliente
+                    if (!clientTotals[e.client_id]) {
+                      clientTotals[e.client_id] = { hours: 0, dailyRates: 0, name: clientName };
+                    }
+                    clientTotals[e.client_id].hours += (e.time || 0);
+                    clientTotals[e.client_id].dailyRates += (e.daily_rate || 0);
                   }
-                  partnerTotals[e.partner_name].hours += (e.time || 0);
-                  partnerTotals[e.partner_name].dailyRates += (e.daily_rate || 0);
-                  partnerTotals[e.partner_name].voos += 1;
                 }
               }
             });
@@ -3980,9 +4031,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   <div className="pt-2 border-t border-slate-800/50">
                     <div className="text-[9px] font-bold text-slate-500 uppercase mb-2">Horas por Sócio</div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                      {Object.entries(partnerTotals).map(([partnerName, pt], idx) => (
+                      {Object.entries(partnerTotals).map(([key, pt], idx) => (
                         <div key={idx} className="bg-slate-900/50 rounded-lg p-2.5 border border-slate-800/50">
-                          <div className="text-[9px] font-semibold text-slate-400 uppercase mb-1 truncate">{partnerName}</div>
+                          <div className="text-[9px] font-semibold text-slate-400 uppercase mb-1 truncate">{pt.partnerName}</div>
                           <div className="text-sm font-black text-orange-400 mb-0.5">{decimalToHHMM(pt.hours)}</div>
                           <div className="text-[8px] text-slate-500">{pt.voos} voo{pt.voos > 1 ? 's' : ''}</div>
                           {logbookMonth?.has_daily_rate && pt.dailyRates > 0 && (
