@@ -4,8 +4,10 @@ import { ViewType } from "./types";
 import { useAircraftList } from "./hooks/useAircraftList";
 import { useLogbookMonthData } from "./hooks/useLogbookMonthData";
 import { DiarioBordoDetalhes } from "@/components/DiarioBordoDetalhes";
+import { DynamicLogbookForm } from "@/components/logbook/DynamicLogbookForm";
 import { LottieAirplaneSpinner } from "@/components/ui/lottie-airplane-spinner";
-import { ArrowLeft, Layout } from "lucide-react";
+import { ArrowLeft, Layout, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "./components/EmptyState";
 import { AircraftCard } from "./components/AircraftCard";
 
@@ -18,6 +20,8 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ onBack }) => {
   const navigate = useNavigate();
   const [selectedAircraftId, setSelectedAircraftId] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<ViewType>('list');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [selectedAircraftForForm, setSelectedAircraftForForm] = useState<string | null>(null);
 
   // Custom hooks
   const { aircraft, loading: loadingAircraft, refetch: refetchAircraft } = useAircraftList();
@@ -38,6 +42,17 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ onBack }) => {
 
   const handleViewBanco = (id: string) => {
     navigate(`/banco-horas/${id}`);
+  };
+
+  const handleOpenAddForm = (aircraftId: string) => {
+    setSelectedAircraftForForm(aircraftId);
+    setShowAddForm(true);
+  };
+
+  const handleFormSuccess = () => {
+    setShowAddForm(false);
+    setSelectedAircraftForForm(null);
+    refetchAircraft();
   };
 
   // Views condicionais
@@ -72,10 +87,27 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ onBack }) => {
               <ArrowLeft className="w-4 h-4" />
               Voltar ao Dashboard
             </button>
+            <Button
+              onClick={() => handleOpenAddForm(aircraft[0]?.id || '')}
+              disabled={aircraft.length === 0}
+              className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white"
+            >
+              <Plus className="w-4 h-4" />
+              Novo Lançamento
+            </Button>
             {/* ... botão aeródromos ... */}
           </div>
           {/* ... resto do header ... */}
         </header>
+
+        {showAddForm && selectedAircraftForForm && (
+          <DynamicLogbookForm
+            open={showAddForm}
+            onOpenChange={setShowAddForm}
+            aircraftId={selectedAircraftForForm}
+            onSuccess={handleFormSuccess}
+          />
+        )}
 
         {aircraft.length === 0 ? (
           <EmptyState />
