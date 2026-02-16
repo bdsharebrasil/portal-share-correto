@@ -469,6 +469,13 @@ export function DynamicLogbookForm({
         entryClientId = selectedBorrowerClient;
       }
 
+      // Buscar nome do cliente que pegará emprestado (para preencher partner_name)
+      let borrowerPartnerName = '';
+      if (flightCategory === 'emprestimo' && selectedBorrowerClient) {
+        const borrowerClient = allClients.find(c => c.id === selectedBorrowerClient);
+        borrowerPartnerName = borrowerClient?.company_name || '';
+      }
+
       const { data: insertedEntry, error } = await supabase.from('logbook_entries').insert([
         {
           logbook_month_id: typeof logbookMonthId !== 'undefined' ? logbookMonthId : null,
@@ -478,7 +485,7 @@ export function DynamicLogbookForm({
           arrival_aerodrome: formData.arrival_airport,
           flight_nature: flightNature,
           client_id: entryClientId,
-          borrower_client_id: flightCategory === 'emprestimo' ? selectedBorrowerClient : null,
+          partner_name: flightCategory === 'emprestimo' ? borrowerPartnerName : null,
           is_equal_split: flightCategory === 'rateio',
           is_loan: flightCategory === 'emprestimo',
           pic_canac: selectedPic,
@@ -503,6 +510,7 @@ export function DynamicLogbookForm({
           cargo_kg: parseFloat(cargoKg) || 0,
           occurrences: occurrences || null,
           discrepancies: discrepancies || null,
+          trecho: `${formData.departure_airport || ''} → ${formData.arrival_airport || ''}`,
         },
       ]).select().single();
 
@@ -542,8 +550,8 @@ export function DynamicLogbookForm({
         const { error: loanError } = await supabase.from('aircraft_loans').insert([
           {
             lender_aircraft_id: aircraftId,
-            lender_client_id: selectedClient,
-            borrower_client_id: selectedBorrowerClient,
+            lender_client_id: selectedClient, // Quem emprestou
+            borrower_client_id: selectedBorrowerClient, // Quem pegou emprestado
             hours_borrowed: totalBlockTime,
             entry_date: format(date!, 'yyyy-MM-dd'),
             departure_aerodrome: formData.departure_airport || '',
@@ -1583,7 +1591,7 @@ export function DynamicLogbookForm({
                 <p className="text-muted-foreground text-xs">PIC</p>
                 <p className="font-medium text-xs">
                   {selectedPic
-                    ? tripulantes.find(t => t.id === selectedPic)?.full_name?.split(' ')[0] || 'PIC'
+                    ? allCrew.find(t => t.id === selectedPic)?.full_name?.split(' ')[0] || 'PIC'
                     : '-'
                   }
                 </p>

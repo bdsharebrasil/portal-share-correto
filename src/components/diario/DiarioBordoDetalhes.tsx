@@ -1007,7 +1007,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         entry_date: newEntry.entry_date,
         departure_aerodrome: newEntry.departure_aerodrome,
         arrival_aerodrome: newEntry.arrival_aerodrome,
-        borrower_client_id: newEntry.is_loan ? newEntry.borrower_client_id : null,
         crew_checkin_time: newEntry.crew_checkin_time,
         ac_time: newEntry.ac_time,
         dep_time: newEntry.dep_time,
@@ -1044,7 +1043,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         daily_rate: finalDailyRate,
         occurrences: newEntry.occurrences || null,
         discrepancies: newEntry.discrepancies || null,
-        corrective_actions: newEntry.corrective_actions || null
+        corrective_actions: newEntry.corrective_actions || null,
+        trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`,
       }).eq('id', editingEntryIdForm);
 
       if (error) throw error;
@@ -1058,7 +1058,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         await supabase.from('aircraft_loans').delete().eq('logbook_entry_id', editingEntryIdForm);
       } else if (!wasLoan && isLoanNow) {
         // Não era empréstimo, agora é → INSERT
-        const picName = newEntry.pic_canac ? (tripulantes.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null) : null;
+        const picName = newEntry.pic_canac ? (crew.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null) : null;
 
         await supabase.from('aircraft_loans').insert([{
           lender_aircraft_id: aircraftId,
@@ -1088,7 +1088,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         }]);
       } else if (wasLoan && isLoanNow) {
         // Continue sendo empréstimo → UPDATE
-        const picName = newEntry.pic_canac ? (tripulantes.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null) : null;
+        const picName = newEntry.pic_canac ? (crew.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null) : null;
 
         await supabase.from('aircraft_loans').update({
           hours_borrowed: newEntry.total_time,
@@ -1357,7 +1357,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         discrepancies: newEntry.discrepancies || null,
         corrective_actions: newEntry.corrective_actions || null,
         confirmed: false,
-        daily_rate: dailyAllowance
+        daily_rate: dailyAllowance,
+        trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`
       }]);
 
       if (error) throw error;
@@ -1500,6 +1501,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
   const handleEditEntry = (entry: any) => {
     // Carregar dados da entrada no formulário de novo lançamento
+    // Para empréstimos: partner_name contém o nome de quem pegou emprestado
     setNewEntry({
       entry_date: entry.entry_date,
       pic_canac: entry.pic_canac || '',
@@ -1509,7 +1511,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       departure_aerodrome: entry.departure_aerodrome || '',
       arrival_aerodrome: entry.arrival_aerodrome || '',
       client_id: entry.client_id || '',
-      borrower_client_id: entry.borrower_client_id || '',
+      borrower_client_id: '', // Será preenchido ao buscar o cliente que pega emprestado
       partner_name: entry.partner_name || '',
       borrower_partner_name: entry.is_loan ? entry.partner_name : '',
       is_equal_split: entry.is_equal_split || false,
@@ -1540,6 +1542,18 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       corrective_actions: entry.corrective_actions || '',
       daily_quantity: entry.daily_quantity || 0
     });
+
+    // Se for empréstimo, buscar o ID do cliente que pegou emprestado
+    if (entry.is_loan && entry.partner_name) {
+      // Buscar cliente pelo partner_name (company_name)
+      const borrower = clients.find((c: any) => c.company_name === entry.partner_name);
+      if (borrower) {
+        setNewEntry(prev => ({
+          ...prev,
+          borrower_client_id: borrower.id
+        }));
+      }
+    }
 
     // Definir tipo de voo
     if (entry.is_equal_split) {
@@ -1612,7 +1626,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         entry_date: editingEntry.entry_date,
         departure_aerodrome: editingEntry.departure_aerodrome,
         arrival_aerodrome: editingEntry.arrival_aerodrome,
-        borrower_client_id: editingEntry.is_loan ? editingEntry.borrower_client_id : null,
         crew_checkin_time: editingEntry.crew_checkin_time,
         ac_time: editingEntry.ac_time,
         dep_time: editingEntry.dep_time,
@@ -1645,7 +1658,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         daily_rate: finalDailyRate,
         occurrences: editingEntry.occurrences || null,
         discrepancies: editingEntry.discrepancies || null,
-        corrective_actions: editingEntry.corrective_actions || null
+        corrective_actions: editingEntry.corrective_actions || null,
+        trecho: `${editingEntry.departure_aerodrome || ''} → ${editingEntry.arrival_aerodrome || ''}`,
       }).eq('id', editingEntryId);
 
       if (error) throw error;
