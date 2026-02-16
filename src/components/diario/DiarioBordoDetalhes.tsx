@@ -560,20 +560,17 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     };
   }, [entries, selectedMonth, selectedYear, logbookMonth]);
 
-  // Sincronizar clientes das queries com estados
-  useEffect(() => {
-    // Construir lista de clientes com informações de client_aircraft
-    const enrichedClients = allClients.map(client => ({
+  // Usar dados das queries para enriquecer clientes
+  const enrichedClients = useMemo(() => {
+    return allClients.map(client => ({
       ...client,
       client_aircraft: linkedClients
         .filter((link: any) => link.client_id === client.id)
         .map((link: any) => ({ aircraft_id: link.aircraft_id, share_percentage: link.share_percentage }))
     }));
-    console.log('📊 Sincronizando clientes:', { allClientsLength: allClients.length, linkedClientsLength: linkedClients.length, enrichedClientsLength: enrichedClients.length });
-    setClients(enrichedClients);
   }, [allClients, linkedClients]);
 
-  // Sincronizar parceiros dos clientes
+  // Usar parceiros diretamente em useMemo
   useEffect(() => {
     const partnerMap: Record<string, any> = {};
     clientPartnersData.forEach((p: any) => {
@@ -820,12 +817,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   }, [entries, selectedMonth, selectedYear, searchTerm, crew, sortDirection]);
 
   const sortedClients = useMemo(() => {
-    if (!clients.length) return [];
-    const linkedClientsFiltered = clients.filter((c: any) => c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId));
-    const otherClients = clients.filter((c: any) => !c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId));
-    console.log('🔍 sortedClients:', { totalClients: clients.length, linkedClients: linkedClientsFiltered.length, otherClients: otherClients.length, aircraftId });
+    if (!enrichedClients.length) return [];
+    const linkedClientsFiltered = enrichedClients.filter((c: any) => c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId));
+    const otherClients = enrichedClients.filter((c: any) => !c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId));
     return [...linkedClientsFiltered, ...otherClients];
-  }, [clients, aircraftId]);
+  }, [enrichedClients, aircraftId]);
 
   const isMonthAvailable = (month: number, year: number): boolean => {
     return availableMonths.some(m => m.month === month && m.year === year);
@@ -2359,7 +2355,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
         {/* Modal para seleção de parceiro */}
         {(() => {
-          const selectedClient = clients.find(c => c.id === pendingClientId);
+          const selectedClient = enrichedClients.find(c => c.id === pendingClientId);
           const partners = clientPartnersData.filter((p: any) => p.client_id === pendingClientId);
 
           // Determina qual field está sendo preenchido
@@ -2936,7 +2932,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                           <SelectValue placeholder="Selecione o cliente que está usando" />
                         </SelectTrigger>
                         <SelectContent>
-                          {clients.map((cl) => (
+                          {enrichedClients.map((cl) => (
                             <SelectItem key={cl.id} value={cl.id}>
                               {cl.company_name}
                             </SelectItem>
