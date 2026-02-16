@@ -11,7 +11,7 @@ import { CalendarIcon, Clock, MapPin, ArrowRight, Users, Check } from 'lucide-re
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { FlightCategorySelector } from './FlightCategorySelector';
-import { SICComboBoxManual } from './SICComboBoxManual';
+import { SICComboBoxManual } from '@/components/diario/SICComboBoxManual';
 import { SPECIAL_FLIGHT_TYPES } from '../constants';
 import type { FlightFormData, FlightCategory, Aerodrome, ClientData, CrewMember, Partner } from '../types';
 
