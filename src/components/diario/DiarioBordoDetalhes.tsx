@@ -121,6 +121,12 @@ const shortenClientName = (fullName?: string): string => {
   return firstName.substring(0, 5);
 };
 
+// Função para obter o nome do parceiro por ID
+const getPartnerNameById = (partnerId: string | null, partnerMap: Record<string, any>): string | null => {
+  if (!partnerId) return null;
+  return partnerMap[partnerId]?.name || null;
+};
+
 // ===================== EXPANDIR CLIENTES COM PARCEIROS =====================
 const expandClientsWithPartners = (clients: any[]) => {
   const expanded: any[] = [];
@@ -320,6 +326,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   const [aerodromes, setAerodromes] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [partners, setPartners] = useState<any[]>([]);
+  const [clientPartners, setClientPartners] = useState<Record<string, any>>({});
   const [aircraft, setAircraft] = useState<any>(null);
   const [lastCelula, setLastCelula] = useState(0);
   const [logbookMonth, setLogbookMonth] = useState<any>(null);
@@ -525,7 +532,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [acRes, crewMembersRes, crewTableRes, aeroRes, clientRes, entriesRes, monthsRes, partnersRes] = await Promise.all([
+        const [acRes, crewMembersRes, crewTableRes, aeroRes, clientRes, entriesRes, monthsRes, partnersRes, clientPartnersRes] = await Promise.all([
           supabase.from('aircraft').select('*').eq('id', aircraftId).single(),
           supabase.from('crew_members').select('*').eq('status', 'ativo').order('full_name', { ascending: true }),
           supabase.from('crew').select('id, full_name, canac, status').eq('status', 'ativo').order('full_name', { ascending: true }),
@@ -533,7 +540,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           supabase.from('clients').select('id, company_name, cnpj').order('company_name'),
           supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('sequential_number', { ascending: true }),
           supabase.from('logbook_months').select('month, year').eq('aircraft_id', aircraftId).eq('is_closed', false).order('year', { ascending: false }).order('month', { ascending: false }),
-          supabase.from('aircraft_partners').select('*, clients(id, company_name)').eq('aircraft_id', aircraftId)
+          supabase.from('aircraft_partners').select('*, clients(id, company_name)').eq('aircraft_id', aircraftId),
+          supabase.from('client_partners').select('id, name')
         ]);
 
         if (acRes.data) {
@@ -565,6 +573,16 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         }
         if (monthsRes.data) setAvailableMonths(monthsRes.data || []);
         if (partnersRes.data) setPartners(partnersRes.data || []);
+
+        // Criar mapa de client_partners para busca rápida por ID
+        if (clientPartnersRes.data) {
+          const partnerMap: Record<string, any> = {};
+          clientPartnersRes.data.forEach((p: any) => {
+            partnerMap[p.id] = p;
+          });
+          setClientPartners(partnerMap);
+          console.log('✅ Client Partners carregados:', partnerMap);
+        }
 
         const loansRes = await supabase
           .from('aircraft_loans')
@@ -3448,6 +3466,16 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   const displayClientName = lenderClient?.company_name;
                   const borrowerClient = e.loan_recipient_client_id ? clients.find(c => c.id === e.loan_recipient_client_id) : null;
                   const displayBorrowerName = borrowerClient?.company_name;
+
+                  // Para empréstimos: buscar nome do parceiro do tomador se existir
+                  const borrowerPartnerName = e.is_loan && e.loan_recipient_partner_id
+                    ? getPartnerNameById(e.loan_recipient_partner_id, clientPartners)
+                    : null;
+
+                  // Para voos normais: buscar nome do parceiro do cliente se existir
+                  const clientPartnerName = !e.is_loan && e.client_partner_id
+                    ? getPartnerNameById(e.client_partner_id, clientPartners)
+                    : null;
                   return <tr key={e.id} className="hover:bg-slate-800/30 transition-colors group border-b border-slate-800/50">
                     <td className="p-2 whitespace-nowrap text-center text-xs" style={{ width: `${columnWidths.date}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <div className="flex items-center justify-center gap-1">
@@ -3539,14 +3567,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                             {shortenClientName(displayClientName || 'Desconhecido')}
                           </span>
                           {borrowerClient && (
-                            <span className="text-amber-300 text-xs font-semibold" title={`Tomador: ${displayBorrowerName || 'Desconhecido'}`}>
-                              → {shortenClientName(displayBorrowerName || 'Desconhecido')}
+                            <span className="text-amber-300 text-xs font-semibold" title={`Tomador: ${borrowerPartnerName || displayBorrowerName || 'Desconhecido'}`}>
+                              → {shortenClientName(borrowerPartnerName || displayBorrowerName || 'Desconhecido')}
                             </span>
                           )}
                         </div>
                       ) : displayClientName ? (
-                        <span className="text-cyan-400 text-xs font-semibold" title={`Cliente: ${displayClientName}`}>
-                          {shortenClientName(displayClientName)}
+                        <span className="text-cyan-400 text-xs font-semibold" title={`Cliente: ${displayClientName}${clientPartnerName ? ` - ${clientPartnerName}` : ''}`}>
+                          {shortenClientName(displayClientName)}{clientPartnerName ? ` - ${shortenClientName(clientPartnerName)}` : ''}
                         </span>
                       ) : (
                         <span className="text-slate-500 text-xs">-</span>
