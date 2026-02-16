@@ -1,20 +1,19 @@
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Users } from 'lucide-react';
-import type { FlightCategory } from '../types';
+import { FlightCategory } from '../types';
 
 interface FlightCategorySelectorProps {
   value: FlightCategory;
   onChange: (category: FlightCategory) => void;
-  onCategoryChange?: (category: FlightCategory) => void;
+  disabled?: boolean;
 }
 
-export function FlightCategorySelector({ value, onChange, onCategoryChange }: FlightCategorySelectorProps) {
-  const handleChange = (category: FlightCategory) => {
-    onChange(category);
-    onCategoryChange?.(category);
-  };
-
+export function FlightCategorySelector({
+  value,
+  onChange,
+  disabled = false
+}: FlightCategorySelectorProps) {
   return (
     <div className="space-y-2">
       <Label className="flex items-center gap-2">
@@ -26,7 +25,8 @@ export function FlightCategorySelector({ value, onChange, onCategoryChange }: Fl
           type="button"
           variant={value === 'cliente' ? 'default' : 'outline'}
           className="flex-1 h-11 text-xs sm:text-sm"
-          onClick={() => handleChange('cliente')}
+          onClick={() => onChange('cliente')}
+          disabled={disabled}
         >
           Cliente
         </Button>
@@ -34,7 +34,8 @@ export function FlightCategorySelector({ value, onChange, onCategoryChange }: Fl
           type="button"
           variant={value === 'rateio' ? 'default' : 'outline'}
           className="flex-1 h-11 text-xs sm:text-sm"
-          onClick={() => handleChange('rateio')}
+          onClick={() => onChange('rateio')}
+          disabled={disabled}
         >
           Rateio
         </Button>
@@ -42,7 +43,8 @@ export function FlightCategorySelector({ value, onChange, onCategoryChange }: Fl
           type="button"
           variant={value === 'emprestimo' ? 'default' : 'outline'}
           className="flex-1 h-11 text-xs sm:text-sm bg-amber-600/20 border-amber-500/30 hover:bg-amber-600/30"
-          onClick={() => handleChange('emprestimo')}
+          onClick={() => onChange('emprestimo')}
+          disabled={disabled}
         >
           Empréstimo
         </Button>
