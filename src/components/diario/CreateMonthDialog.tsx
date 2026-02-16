@@ -199,7 +199,7 @@ export function CreateMonthDialog({
           </div>
 
           {/* Célula Anterior */}
-          <div className="space-y-2">
+          <div className="space-y-2 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
             <Label className="text-sm font-bold text-emerald-400 flex items-center gap-2">
               <Gauge className="w-4 h-4" />
               Célula Anterior (horas) *
@@ -209,16 +209,18 @@ export function CreateMonthDialog({
               step="0.01"
               value={formData.celula_anterior || ""}
               onChange={(e) => setFormData({ ...formData, celula_anterior: parseFloat(e.target.value) || 0 })}
-              className="bg-slate-950 border-slate-700 text-white text-lg font-semibold"
+              className="bg-slate-900 border-emerald-500/50 text-white text-lg font-semibold focus:ring-emerald-500"
               placeholder="Ex: 3250.50"
             />
-            <p className="text-xs text-slate-500">
-              Total de horas de célula da aeronave no início deste mês
+            <p className="text-xs text-slate-400">
+              {previousMonthData?.celula_atual
+                ? `Preenchido automaticamente com o valor de "Célula Atual" do mês anterior: ${previousMonthData.celula_atual.toFixed(2)}h`
+                : 'Total de horas de célula da aeronave no início deste mês'}
             </p>
           </div>
 
           {/* Próxima Revisão */}
-          <div className="space-y-2">
+          <div className="space-y-2 p-4 bg-orange-500/10 border border-orange-500/30 rounded-xl">
             <Label className="text-sm font-bold text-orange-400 flex items-center gap-2">
               <Gauge className="w-4 h-4" />
               Próxima Revisão (horas) *
@@ -228,11 +230,13 @@ export function CreateMonthDialog({
               step="0.01"
               value={formData.celula_prox_revisao || ""}
               onChange={(e) => setFormData({ ...formData, celula_prox_revisao: parseFloat(e.target.value) || 0 })}
-              className="bg-slate-950 border-slate-700 text-white text-lg font-semibold"
+              className="bg-slate-900 border-orange-500/50 text-white text-lg font-semibold focus:ring-orange-500"
               placeholder="Ex: 3500.00"
             />
-            <p className="text-xs text-slate-500">
-              Horas de célula previstas para a próxima revisão da aeronave
+            <p className="text-xs text-slate-400">
+              {previousMonthData?.celula_prox_revisao
+                ? `Valor anterior sugerido: ${previousMonthData.celula_prox_revisao.toFixed(2)}h - Altere se necessário`
+                : 'Horas de célula previstas para a próxima revisão da aeronave'}
             </p>
           </div>
 
@@ -253,16 +257,16 @@ export function CreateMonthDialog({
           </div>
 
           {/* Base Aeródromo */}
-          <div className="space-y-2">
+          <div className="space-y-2 p-4 bg-violet-500/10 border border-violet-500/30 rounded-xl">
             <Label className="text-sm font-bold text-violet-400 flex items-center gap-2">
               <MapPin className="w-4 h-4" />
               Base Aeródromo
             </Label>
-            <Select 
-              value={formData.base_aerodrome} 
+            <Select
+              value={formData.base_aerodrome}
               onValueChange={(value) => setFormData({ ...formData, base_aerodrome: value })}
             >
-              <SelectTrigger className="bg-slate-950 border-slate-700 text-white">
+              <SelectTrigger className="bg-slate-900 border-violet-500/50 text-white focus:ring-violet-500">
                 <SelectValue placeholder="Selecione o aeródromo base" />
               </SelectTrigger>
               <SelectContent className="bg-slate-900 border-slate-700 max-h-60">
@@ -273,10 +277,15 @@ export function CreateMonthDialog({
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs text-slate-400">
+              {previousMonthData?.base_aerodrome
+                ? `Mantém o valor anterior: ${previousMonthData.base_aerodrome} - Editar se necessário`
+                : 'Selecione o aeródromo base da aeronave'}
+            </p>
           </div>
 
           {/* Consumo de Combustível */}
-          <div className="space-y-2">
+          <div className="space-y-2 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
             <Label className="text-sm font-bold text-amber-400 flex items-center gap-2">
               <Fuel className="w-4 h-4" />
               Consumo de Combustível (L/H)
@@ -285,21 +294,28 @@ export function CreateMonthDialog({
               type="text"
               value={formData.fuel_consumption}
               onChange={(e) => setFormData({ ...formData, fuel_consumption: e.target.value })}
-              className="bg-slate-950 border-slate-700 text-white"
+              className="bg-slate-900 border-amber-500/50 text-white focus:ring-amber-500"
               placeholder="Ex: 45"
             />
+            <p className="text-xs text-slate-400">
+              {previousMonthData?.fuel_consumption
+                ? `Mantém o valor anterior: ${previousMonthData.fuel_consumption} L/H - Editar se necessário`
+                : 'Consumo de combustível médio da aeronave (litros por hora)'}
+            </p>
           </div>
 
           {/* Sistema de Diária */}
-          <div className="space-y-4 p-4 bg-slate-950 rounded-xl border border-slate-800">
+          <div className="space-y-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl">
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <Label className="text-sm font-bold text-green-400 flex items-center gap-2">
                   <DollarSign className="w-4 h-4" />
                   Esta aeronave possui sistema de diárias?
                 </Label>
-                <p className="text-xs text-slate-500 mt-1">
-                  Ative se deseja calcular diárias para voos fora da base
+                <p className="text-xs text-slate-400 mt-1">
+                  {previousMonthData?.has_daily_rate !== undefined
+                    ? `Valor anterior: ${previousMonthData.has_daily_rate ? 'Ativado' : 'Desativado'} - Alterar se necessário`
+                    : 'Ative se deseja calcular diárias para voos fora da base'}
                 </p>
               </div>
               <Switch
@@ -307,18 +323,23 @@ export function CreateMonthDialog({
                 onCheckedChange={(checked) => setFormData({ ...formData, has_daily_rate: checked })}
               />
             </div>
-            
+
             {formData.has_daily_rate && (
-              <div className="space-y-2 pt-2 border-t border-slate-800">
+              <div className="space-y-2 pt-2 border-t border-green-500/30">
                 <Label className="text-xs text-slate-400">Valor da Diária (R$)</Label>
                 <Input
                   type="number"
                   step="0.01"
                   value={formData.daily_rate || ""}
                   onChange={(e) => setFormData({ ...formData, daily_rate: parseFloat(e.target.value) || 0 })}
-                  className="bg-slate-900 border-slate-700 text-white"
+                  className="bg-slate-900 border-green-500/50 text-white focus:ring-green-500"
                   placeholder="0.00"
                 />
+                {previousMonthData?.daily_rate && (
+                  <p className="text-xs text-slate-400">
+                    Valor anterior: R$ {previousMonthData.daily_rate.toFixed(2)}
+                  </p>
+                )}
               </div>
             )}
           </div>
