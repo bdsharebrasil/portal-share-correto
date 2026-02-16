@@ -478,6 +478,7 @@ export function DynamicLogbookForm({
           arrival_aerodrome: formData.arrival_airport,
           flight_nature: flightNature,
           client_id: entryClientId,
+          borrower_client_id: flightCategory === 'emprestimo' ? selectedBorrowerClient : null,
           is_equal_split: flightCategory === 'rateio',
           is_loan: flightCategory === 'emprestimo',
           pic_canac: selectedPic,
@@ -534,6 +535,9 @@ export function DynamicLogbookForm({
 
       // Se for empréstimo, registrar na tabela aircraft_loans E no banco de horas (hour_transactions)
       if (flightCategory === 'emprestimo' && insertedEntry) {
+        // Buscar nome do PIC se disponível
+        const picName = selectedPic ? (allCrew.find(p => p.id === selectedPic)?.full_name || null) : null;
+
         // Registrar na tabela aircraft_loans
         const { error: loanError } = await supabase.from('aircraft_loans').insert([
           {
@@ -544,6 +548,9 @@ export function DynamicLogbookForm({
             entry_date: format(date!, 'yyyy-MM-dd'),
             departure_aerodrome: formData.departure_airport || '',
             arrival_aerodrome: formData.arrival_airport || '',
+            trecho: `${formData.departure_airport || ''} → ${formData.arrival_airport || ''}`,
+            fuel_added: parseFloat(formData.fuel_added) || null,
+            pic_name: picName,
             logbook_entry_id: insertedEntry.id,
             status: 'active',
             notes: `Empréstimo registrado via diário de bordo - ${formData.departure_airport} → ${formData.arrival_airport}`,

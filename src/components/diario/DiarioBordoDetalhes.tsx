@@ -1007,6 +1007,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         entry_date: newEntry.entry_date,
         departure_aerodrome: newEntry.departure_aerodrome,
         arrival_aerodrome: newEntry.arrival_aerodrome,
+        borrower_client_id: newEntry.is_loan ? newEntry.borrower_client_id : null,
         crew_checkin_time: newEntry.crew_checkin_time,
         ac_time: newEntry.ac_time,
         dep_time: newEntry.dep_time,
@@ -1047,6 +1048,74 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       }).eq('id', editingEntryIdForm);
 
       if (error) throw error;
+
+      // Sincronizar dados de empréstimo na tabela aircraft_loans
+      const wasLoan = oldEntry?.is_loan || false;
+      const isLoanNow = newEntry.is_loan || false;
+
+      if (wasLoan && !isLoanNow) {
+        // Era empréstimo, não é mais → DELETE
+        await supabase.from('aircraft_loans').delete().eq('logbook_entry_id', editingEntryIdForm);
+      } else if (!wasLoan && isLoanNow) {
+        // Não era empréstimo, agora é → INSERT
+        const picName = newEntry.pic_canac ? (tripulantes.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null) : null;
+
+        await supabase.from('aircraft_loans').insert([{
+          lender_aircraft_id: aircraftId,
+          lender_client_id: newEntry.client_id,
+          borrower_client_id: newEntry.borrower_client_id,
+          hours_borrowed: newEntry.total_time,
+          entry_date: newEntry.entry_date,
+          departure_aerodrome: newEntry.departure_aerodrome,
+          arrival_aerodrome: newEntry.arrival_aerodrome,
+          trecho: `${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
+          fuel_added: newEntry.fuel_added || null,
+          pic_name: picName,
+          logbook_entry_id: editingEntryIdForm,
+          status: 'active',
+          notes: `Empréstimo registrado via edição de lançamento`,
+        }]);
+
+        // Registrar transação no banco de horas
+        await supabase.from('hour_transactions').insert([{
+          aircraft_id: aircraftId,
+          from_partner_id: newEntry.borrower_client_id,
+          to_partner_id: newEntry.client_id,
+          hours: newEntry.total_time,
+          type: 'loan',
+          description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
+          logbook_entry_id: editingEntryIdForm,
+        }]);
+      } else if (wasLoan && isLoanNow) {
+        // Continue sendo empréstimo → UPDATE
+        const picName = newEntry.pic_canac ? (tripulantes.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null) : null;
+
+        await supabase.from('aircraft_loans').update({
+          hours_borrowed: newEntry.total_time,
+          entry_date: newEntry.entry_date,
+          departure_aerodrome: newEntry.departure_aerodrome,
+          arrival_aerodrome: newEntry.arrival_aerodrome,
+          trecho: `${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
+          fuel_added: newEntry.fuel_added || null,
+          pic_name: picName,
+          borrower_client_id: newEntry.borrower_client_id,
+        }).eq('logbook_entry_id', editingEntryIdForm);
+
+        // Atualizar transação no banco de horas se as horas mudaram
+        if ((oldEntry?.total_time || 0) !== newEntry.total_time || oldEntry?.borrower_client_id !== newEntry.borrower_client_id) {
+          await supabase.from('hour_transactions').delete().eq('logbook_entry_id', editingEntryIdForm).eq('type', 'loan');
+
+          await supabase.from('hour_transactions').insert([{
+            aircraft_id: aircraftId,
+            from_partner_id: newEntry.borrower_client_id,
+            to_partner_id: newEntry.client_id,
+            hours: newEntry.total_time,
+            type: 'loan',
+            description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
+            logbook_entry_id: editingEntryIdForm,
+          }]);
+        }
+      }
 
       if (oldEntry) {
         const oldDate = new Date(oldEntry.entry_date);
@@ -1315,6 +1384,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             entry_date: newEntry.entry_date,
             departure_aerodrome: newEntry.departure_aerodrome || '',
             arrival_aerodrome: newEntry.arrival_aerodrome || '',
+            trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`,
+            fuel_added: newEntry.fuel_added || null,
+            pic_name: newEntry.pic_canac ? (tripulantes.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null) : null,
             logbook_entry_id: insertedEntry.id,
             status: 'active',
             notes: `Empréstimo registrado via diário de bordo - ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}${newEntry.partner_name ? ` | Cotista: ${newEntry.partner_name}` : ''}${newEntry.borrower_partner_name ? ` | Usado por: ${newEntry.borrower_partner_name}` : ''}`,
@@ -1437,7 +1509,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       departure_aerodrome: entry.departure_aerodrome || '',
       arrival_aerodrome: entry.arrival_aerodrome || '',
       client_id: entry.client_id || '',
-      borrower_client_id: entry.is_loan ? entry.client_id : '',
+      borrower_client_id: entry.borrower_client_id || '',
       partner_name: entry.partner_name || '',
       borrower_partner_name: entry.is_loan ? entry.partner_name : '',
       is_equal_split: entry.is_equal_split || false,
@@ -1540,6 +1612,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         entry_date: editingEntry.entry_date,
         departure_aerodrome: editingEntry.departure_aerodrome,
         arrival_aerodrome: editingEntry.arrival_aerodrome,
+        borrower_client_id: editingEntry.is_loan ? editingEntry.borrower_client_id : null,
         crew_checkin_time: editingEntry.crew_checkin_time,
         ac_time: editingEntry.ac_time,
         dep_time: editingEntry.dep_time,
@@ -1576,6 +1649,74 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       }).eq('id', editingEntryId);
 
       if (error) throw error;
+
+      // Sincronizar dados de empréstimo na tabela aircraft_loans
+      const wasLoan = oldEntry?.is_loan || false;
+      const isLoanNow = editingEntry.is_loan || false;
+
+      if (wasLoan && !isLoanNow) {
+        // Era empréstimo, não é mais → DELETE
+        await supabase.from('aircraft_loans').delete().eq('logbook_entry_id', editingEntryId);
+      } else if (!wasLoan && isLoanNow) {
+        // Não era empréstimo, agora é → INSERT
+        const picName = editingEntry.pic_canac ? (tripulantes.find((t: any) => t.canac === editingEntry.pic_canac)?.full_name || null) : null;
+
+        await supabase.from('aircraft_loans').insert([{
+          lender_aircraft_id: aircraftId,
+          lender_client_id: editingEntry.client_id,
+          borrower_client_id: editingEntry.borrower_client_id,
+          hours_borrowed: editingEntry.total_time,
+          entry_date: editingEntry.entry_date,
+          departure_aerodrome: editingEntry.departure_aerodrome,
+          arrival_aerodrome: editingEntry.arrival_aerodrome,
+          trecho: `${editingEntry.departure_aerodrome} → ${editingEntry.arrival_aerodrome}`,
+          fuel_added: editingEntry.fuel_added || null,
+          pic_name: picName,
+          logbook_entry_id: editingEntryId,
+          status: 'active',
+          notes: `Empréstimo registrado via edição de lançamento`,
+        }]);
+
+        // Registrar transação no banco de horas
+        await supabase.from('hour_transactions').insert([{
+          aircraft_id: aircraftId,
+          from_partner_id: editingEntry.borrower_client_id,
+          to_partner_id: editingEntry.client_id,
+          hours: editingEntry.total_time,
+          type: 'loan',
+          description: `Empréstimo: ${editingEntry.departure_aerodrome} → ${editingEntry.arrival_aerodrome}`,
+          logbook_entry_id: editingEntryId,
+        }]);
+      } else if (wasLoan && isLoanNow) {
+        // Continue sendo empréstimo → UPDATE
+        const picName = editingEntry.pic_canac ? (tripulantes.find((t: any) => t.canac === editingEntry.pic_canac)?.full_name || null) : null;
+
+        await supabase.from('aircraft_loans').update({
+          hours_borrowed: editingEntry.total_time,
+          entry_date: editingEntry.entry_date,
+          departure_aerodrome: editingEntry.departure_aerodrome,
+          arrival_aerodrome: editingEntry.arrival_aerodrome,
+          trecho: `${editingEntry.departure_aerodrome} → ${editingEntry.arrival_aerodrome}`,
+          fuel_added: editingEntry.fuel_added || null,
+          pic_name: picName,
+          borrower_client_id: editingEntry.borrower_client_id,
+        }).eq('logbook_entry_id', editingEntryId);
+
+        // Atualizar transação no banco de horas se as horas mudaram
+        if ((oldEntry?.total_time || 0) !== editingEntry.total_time || oldEntry?.borrower_client_id !== editingEntry.borrower_client_id) {
+          await supabase.from('hour_transactions').delete().eq('logbook_entry_id', editingEntryId).eq('type', 'loan');
+
+          await supabase.from('hour_transactions').insert([{
+            aircraft_id: aircraftId,
+            from_partner_id: editingEntry.borrower_client_id,
+            to_partner_id: editingEntry.client_id,
+            hours: editingEntry.total_time,
+            type: 'loan',
+            description: `Empréstimo: ${editingEntry.departure_aerodrome} → ${editingEntry.arrival_aerodrome}`,
+            logbook_entry_id: editingEntryId,
+          }]);
+        }
+      }
 
       if (oldEntry) {
         const oldDate = new Date(oldEntry.entry_date);
