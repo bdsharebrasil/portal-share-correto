@@ -196,8 +196,8 @@ export function WeatherDisplay() {
                 <div className="text-[10px] font-semibold tracking-tight opacity-90">
                   {weather.icao}
                 </div>
-                <div className="text-[8px] opacity-70 font-medium">
-                  BRASIL
+                <div className="text-[8px] opacity-70 font-medium truncate max-w-[80px]">
+                  {nearest?.airport?.name || weather.icao}
                 </div>
               </div>
 
