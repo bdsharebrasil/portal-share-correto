@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { updateCrewFlightHours } from '@/services/crewFlightHours';
 import { fetchManutencaoRevisao, fetchManutencaoRevisaoAtiva, updateManutencaoHoras, ensureRevisionMaintenance } from '@/services/manutencoes';
 import { MaintenanceStatusAlert } from './MaintenanceStatusAlert';
@@ -173,32 +174,6 @@ const expandClientsWithPartners = (clients: any[]) => {
   return expanded;
 };
 
-// ===================== EXTRAIR PARCEIROS DE UM CLIENTE =====================
-const getPartnersFromClient = (client: any) => {
-  const partners = [];
-  if (client?.partner_name) {
-    partners.push({
-      name: client.partner_name,
-      cpf: client.partner_cpf,
-      index: 1
-    });
-  }
-  if (client?.partner_name2) {
-    partners.push({
-      name: client.partner_name2,
-      cpf: client.partner_cpf2,
-      index: 2
-    });
-  }
-  if (client?.partner_name3) {
-    partners.push({
-      name: client.partner_name3,
-      cpf: client.partner_cpf3,
-      index: 3
-    });
-  }
-  return partners;
-};
 
 // ===================== CÁLCULO DE CUSTO COM RATEIO =====================
 const calculateCostPerPartner = (
@@ -305,6 +280,63 @@ const calculateDailyAllowanceForEntry = (
 // ===================== COMPONENTE PRINCIPAL =====================
 const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   const { isAdmin, isGestorMaster, isPilotoChefe, isCoordenadorVoo, isTripulante } = useUserRole();
+  const queryClient = useQueryClient();
+
+  // Buscar clientes vinculados à aeronave
+  const { data: linkedClients = [] } = useQuery({
+    queryKey: ['aircraft-clients', aircraftId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('client_aircraft')
+        .select(`
+          aircraft_id,
+          client_id,
+          share_percentage,
+          clients:client_id (
+            id,
+            company_name,
+            proprietario
+          )
+        `)
+        .eq('aircraft_id', aircraftId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!aircraftId,
+  });
+
+  // Buscar TODOS os clientes (para empréstimo)
+  const { data: allClients = [] } = useQuery({
+    queryKey: ['all-clients-for-loan'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, company_name, proprietario')
+        .order('company_name');
+      if (error) {
+        console.error('Erro ao buscar clientes:', error);
+        throw error;
+      }
+      return data || [];
+    },
+  });
+
+  // Buscar parceiros de todos os clientes
+  const { data: clientPartnersData = [] } = useQuery({
+    queryKey: ['client-partners-all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('client_partners')
+        .select('id, name, cpf, share_percentage, client_id')
+        .order('client_id')
+        .order('name');
+      if (error) {
+        console.error('Erro ao buscar parceiros:', error);
+        return [];
+      }
+      return data || [];
+    },
+  });
 
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -528,20 +560,40 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     };
   }, [entries, selectedMonth, selectedYear, logbookMonth]);
 
+  // Sincronizar clientes das queries com estados
+  useEffect(() => {
+    // Construir lista de clientes com informações de client_aircraft
+    const enrichedClients = allClients.map(client => ({
+      ...client,
+      client_aircraft: linkedClients
+        .filter((link: any) => link.client_id === client.id)
+        .map((link: any) => ({ aircraft_id: link.aircraft_id, share_percentage: link.share_percentage }))
+    }));
+    console.log('📊 Sincronizando clientes:', { allClientsLength: allClients.length, linkedClientsLength: linkedClients.length, enrichedClientsLength: enrichedClients.length });
+    setClients(enrichedClients);
+  }, [allClients, linkedClients]);
+
+  // Sincronizar parceiros dos clientes
+  useEffect(() => {
+    const partnerMap: Record<string, any> = {};
+    clientPartnersData.forEach((p: any) => {
+      partnerMap[p.id] = p;
+    });
+    setClientPartners(partnerMap);
+  }, [clientPartnersData]);
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [acRes, crewMembersRes, crewTableRes, aeroRes, clientRes, entriesRes, monthsRes, partnersRes, clientPartnersRes] = await Promise.all([
+        const [acRes, crewMembersRes, crewTableRes, aeroRes, entriesRes, monthsRes, partnersRes] = await Promise.all([
           supabase.from('aircraft').select('*').eq('id', aircraftId).single(),
           supabase.from('crew_members').select('*').eq('status', 'ativo').order('full_name', { ascending: true }),
           supabase.from('crew').select('id, full_name, canac, status').eq('status', 'ativo').order('full_name', { ascending: true }),
           supabase.from('aerodromes').select('*').order('designativo'),
-          supabase.from('clients').select('id, company_name, cnpj').order('company_name'),
           supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('sequential_number', { ascending: true }),
           supabase.from('logbook_months').select('month, year').eq('aircraft_id', aircraftId).eq('is_closed', false).order('year', { ascending: false }).order('month', { ascending: false }),
-          supabase.from('aircraft_partners').select('*, clients(id, company_name)').eq('aircraft_id', aircraftId),
-          supabase.from('client_partners').select('id, name')
+          supabase.from('aircraft_partners').select('*, clients(id, company_name)').eq('aircraft_id', aircraftId)
         ]);
 
         if (acRes.data) {
@@ -563,26 +615,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         ];
         setCrew(mergedCrew);
         if (aeroRes.data) setAerodromes(aeroRes.data || []);
-        if (clientRes.data) {
-          console.log('✅ Clientes carregados:', clientRes.data);
-          setClients(clientRes.data || []);
-        }
         if (entriesRes.data) {
           console.log('✅ Entradas carregadas:', entriesRes.data.map((e: any) => ({ id: e.id, client_id: e.client_id, loan_recipient_client_id: e.loan_recipient_client_id })));
           setEntries(entriesRes.data || []);
         }
         if (monthsRes.data) setAvailableMonths(monthsRes.data || []);
         if (partnersRes.data) setPartners(partnersRes.data || []);
-
-        // Criar mapa de client_partners para busca rápida por ID
-        if (clientPartnersRes.data) {
-          const partnerMap: Record<string, any> = {};
-          clientPartnersRes.data.forEach((p: any) => {
-            partnerMap[p.id] = p;
-          });
-          setClientPartners(partnerMap);
-          console.log('✅ Client Partners carregados:', partnerMap);
-        }
 
         const loansRes = await supabase
           .from('aircraft_loans')
@@ -783,9 +821,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
   const sortedClients = useMemo(() => {
     if (!clients.length) return [];
-    const linkedClients = clients.filter((c: any) => c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId));
+    const linkedClientsFiltered = clients.filter((c: any) => c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId));
     const otherClients = clients.filter((c: any) => !c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId));
-    return [...linkedClients, ...otherClients];
+    console.log('🔍 sortedClients:', { totalClients: clients.length, linkedClients: linkedClientsFiltered.length, otherClients: otherClients.length, aircraftId });
+    return [...linkedClientsFiltered, ...otherClients];
   }, [clients, aircraftId]);
 
   const isMonthAvailable = (month: number, year: number): boolean => {
@@ -2321,7 +2360,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         {/* Modal para seleção de parceiro */}
         {(() => {
           const selectedClient = clients.find(c => c.id === pendingClientId);
-          const partners = getPartnersFromClient(selectedClient);
+          const partners = clientPartnersData.filter((p: any) => p.client_id === pendingClientId);
 
           // Determina qual field está sendo preenchido
           const isLoanFlow = flightType === 'emprestimo';
@@ -2731,8 +2770,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     <div className="space-y-1">
                       <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Cliente / Cotista *</Label>
                       <Select value={newEntry.client_id} onValueChange={v => {
-                        const selectedClient = clients.find(c => c.id === v);
-                        const partners = getPartnersFromClient(selectedClient);
+                        const partners = clientPartnersData.filter((p: any) => p.client_id === v);
 
                         setNewEntry({
                           ...newEntry,
@@ -2767,8 +2805,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
                     {/* Seleção de Sócio/Partner - mostra apenas se foi selecionado */}
                     {newEntry.client_id && (() => {
-                      const selectedClient = clients.find(c => c.id === newEntry.client_id);
-                      const partners = getPartnersFromClient(selectedClient);
+                      const partners = clientPartnersData.filter((p: any) => p.client_id === newEntry.client_id);
 
                       if (newEntry.client_partner_id && partners.length > 0) {
                         return (
@@ -2880,8 +2917,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       <Select
                         value={newEntry.loan_recipient_client_id || ''}
                         onValueChange={(v) => {
-                          const selectedBorrowerClient = clients.find(c => c.id === v);
-                          const borrowerPartners = getPartnersFromClient(selectedBorrowerClient);
+                          const borrowerPartners = clientPartnersData.filter((p: any) => p.client_id === v);
 
                           setNewEntry({
                             ...newEntry,
@@ -2911,8 +2947,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
                     {/* Sócio/Cotista do cliente que pega emprestado (se houver) */}
                     {newEntry.loan_recipient_client_id && (() => {
-                      const selectedBorrowerClient = clients.find(c => c.id === newEntry.loan_recipient_client_id);
-                      const borrowerPartners = getPartnersFromClient(selectedBorrowerClient);
+                      const borrowerPartners = clientPartnersData.filter((p: any) => p.client_id === newEntry.loan_recipient_client_id);
 
                       if (newEntry.loan_recipient_partner_id && borrowerPartners.length > 0) {
                         return (
