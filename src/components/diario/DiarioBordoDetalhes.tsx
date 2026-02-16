@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useReducer } from 'react';
 import { format } from 'date-fns';
 import { Layout } from "../layout/Layout";
 import { ArrowLeft, Plus, CheckCircle, Loader2, Save, X, Clock, Navigation, Users, Fuel, Calendar, Search, ChevronLeft, ChevronRight, Plane, Info, AlertCircle, TrendingUp, DollarSign, Edit, Trash2, MapPin, Download, Check, ChevronDown } from 'lucide-react';
@@ -21,7 +21,17 @@ import { PartnerSelectModal } from './PartnerSelectModal';
 import { SICComboBoxManual } from './SICComboBoxManual';
 import { useUserRole } from '@/hooks/useUserRole';
 
-// ===================== CONSTANTES =====================
+// ===================== NOVOS IMPORTS - REFATORAÇÃO =====================
+import { timeStringToMinutes, minutesToTimeString, calculateTimeDiff, decimalToTimeString, timeStringToDecimal, calculateCrewCheckinTime, decimalToHHMM, decimalToHoursOnly } from '@/utils/timeUtils';
+import { calculateDistance, calculateCostPerPartner, calculateDayNightTimes, calculateDailyAllowanceForEntry } from '@/utils/calculationUtils';
+import { formatTimeFromTimestamp, formatDateFromISO, shortenClientName, formatFlightNature, getMonthName } from '@/utils/formatters';
+import { logger, logSuccess, logError, logInfo } from '@/utils/logger';
+import { validateFlightEntry, formatValidationErrors } from '@/validators/flightEntryValidator';
+import { FlightService } from '@/services/flightService';
+import { useFlightTimeCalculation } from '@/hooks/useFlightTimeCalculation';
+import { TimeInput, CompactTimeInput, TimeInputGroup } from './shared/TimeInput';
+
+// ===================== CONSTANTES LOCAIS =====================
 const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const FLIGHT_NATURE = ["AE - Aérea/Regular", "CQ - Cheque", "EX - Executivo", "NR - Não Remunerado", "RE - Retorno/Reposição", "PV - Privado", "SA - Serviço Aéreo", "TN - Transporte Não Regular/Táxi Aéreo", "TR - Traslado"];
 
@@ -32,105 +42,19 @@ const SPLIT_FLIGHT_TYPES = [
   { code: 'TN', label: 'TN - Teste (Manutenção/Teste)', description: 'Rateio igual entre sócios' }
 ];
 
-// ===================== FUNÇÕES AUXILIARES =====================
-const timeStringToMinutes = (timeStr: string): number => {
-  if (!timeStr) return 0;
-  const [h, m] = timeStr.split(':').map(Number);
-  return h * 60 + m;
-};
+// ===================== FUNÇÕES AUXILIARES ESPECÍFICAS DO COMPONENTE =====================
+// (Funções genéricas foram movidas para utils/)
 
-const minutesToTimeString = (minutes: number): string => {
-  const h = Math.floor(Math.abs(minutes) / 60);
-  const m = Math.abs(minutes) % 60;
-  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-};
-
-const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-  const R = 3440.065; // Raio da Terra em milhas náuticas
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
-
-const calculateTimeDiff = (start: string, end: string): number => {
-  if (!start || !end) return 0;
-  const [h1, m1] = start.split(':').map(Number);
-  const [h2, m2] = end.split(':').map(Number);
-  let diff = h2 * 60 + m2 - (h1 * 60 + m1);
-  if (diff < 0) diff += 24 * 60;
-  return parseFloat((diff / 60).toFixed(2));
-};
-
-const formatTimeFromTimestamp = (timestamp: string): string => {
-  if (!timestamp) return '-';
-  try {
-    if (timestamp.includes('T')) {
-      const date = new Date(timestamp);
-      const hours = date.getUTCHours().toString().padStart(2, '0');
-      const minutes = date.getUTCMinutes().toString().padStart(2, '0');
-      return `${hours}:${minutes}`;
-    }
-    return timestamp.split(':').slice(0, 2).join(':');
-  } catch {
-    return timestamp;
-  }
-};
-
-const formatDateFromISO = (dateString: string): string => {
-  if (!dateString) return '-';
-  try {
-    const [year, month, day] = dateString.split('-');
-    return `${day}/${month}`;
-  } catch {
-    return dateString;
-  }
-};
-
-const decimalToHHMM = (decimal?: number | null): string => {
-  if (!decimal || decimal === 0) return '-';
-  const hours = Math.floor(decimal);
-  const minutes = Math.round((decimal - hours) * 60);
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-};
-
-const decimalToHoursOnly = (decimal?: number | null): string => {
-  if (!decimal || decimal === 0) return '00:00';
-  const hours = Math.round(decimal);
-  return `${hours.toString().padStart(2, '0')}:00`;
-};
-
-const decimalToTimeString = (decimal: number): string => {
-  if (!decimal || decimal === 0) return '00:00';
-  const totalMinutes = Math.round(decimal * 60);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-};
-
-const timeStringToDecimal = (timeStr: string): number => {
-  if (!timeStr) return 0;
-  const [h, m] = timeStr.split(':').map(Number);
-  return parseFloat(((h * 60 + m) / 60).toFixed(2));
-};
-
-const shortenClientName = (fullName?: string): string => {
-  if (!fullName) return '-';
-  const firstName = fullName.split(' ')[0];
-  return firstName.substring(0, 5);
-};
-
-// Função para obter o nome do parceiro por ID
+// Obter o nome do parceiro por ID
 const getPartnerNameById = (partnerId: string | null, partnerMap: Record<string, any>): string | null => {
   if (!partnerId) return null;
   return partnerMap[partnerId]?.name || null;
 };
 
-// ===================== EXPANDIR CLIENTES COM PARCEIROS =====================
+// Expandir clientes com parceiros
 const expandClientsWithPartners = (clients: any[]) => {
   const expanded: any[] = [];
-  
+
   clients.forEach(client => {
     if (client.company_name) {
       expanded.push({
@@ -140,7 +64,7 @@ const expandClientsWithPartners = (clients: any[]) => {
         clientId: client.id
       });
     }
-    
+
     if (client.partner_name) {
       expanded.push({
         id: `${client.id}_partner1`,
@@ -169,11 +93,11 @@ const expandClientsWithPartners = (clients: any[]) => {
       });
     }
   });
-  
+
   return expanded;
 };
 
-// ===================== EXTRAIR PARCEIROS DE UM CLIENTE =====================
+// Extrair parceiros de um cliente
 const getPartnersFromClient = (client: any) => {
   const partners = [];
   if (client?.partner_name) {
@@ -200,106 +124,19 @@ const getPartnersFromClient = (client: any) => {
   return partners;
 };
 
-// ===================== CÁLCULO DE CUSTO COM RATEIO =====================
-const calculateCostPerPartner = (
-  totalCost: number,
-  isEqualSplit: boolean,
-  partnersCount: number
-): number => {
-  if (!isEqualSplit || partnersCount === 0) {
-    return totalCost;
-  }
-  return parseFloat((totalCost / partnersCount).toFixed(2));
-};
-
-// Função para calcular tempos diurno/noturno automaticamente
+// Calcular tempos dia/noite
 const calculateTimes = (entry: any) => {
-  if (!entry.dep_time || !entry.pou_time || entry.total_time <= 0) return entry;
-
-  const flightStartMin = timeStringToMinutes(entry.dep_time);
-  const flightEndMin = timeStringToMinutes(entry.pou_time);
-  const sunriseMin = 360; // 06:00
-  const sunsetMin = 1080; // 18:00
-
-  let nightTimeMinutes = 0;
-  const flightDurationMin = entry.total_time * 60;
-
-  if (flightStartMin < sunriseMin || flightEndMin > sunsetMin) {
-    if (flightStartMin < sunriseMin) {
-      nightTimeMinutes += Math.min(sunriseMin - flightStartMin, flightDurationMin);
-    }
-    if (flightEndMin > sunsetMin) {
-      nightTimeMinutes += Math.min(flightEndMin - sunsetMin, flightDurationMin - nightTimeMinutes);
-    }
-  }
-
-  const nightHours = parseFloat((nightTimeMinutes / 60).toFixed(2));
-  const dayHours = parseFloat((entry.total_time - nightHours).toFixed(2));
+  const result = calculateDayNightTimes({
+    dep_time: entry.dep_time,
+    pou_time: entry.pou_time,
+    total_time: entry.total_time
+  });
 
   return {
     ...entry,
-    night_hours: nightHours,
-    day_time: dayHours
+    night_hours: result.night_time,
+    day_time: result.dayTime
   };
-};
-
-// ===================== CÁLCULO DE DIÁRIAS =====================
-const calculateDailyAllowanceForEntry = (
-  entry: any,
-  baseAerodrome: string,
-  allEntries: any[]
-): number => {
-  if (!baseAerodrome) return 0;
-
-  const origin = entry.departure_aerodrome;
-  const destination = entry.arrival_aerodrome;
-
-  if (entry.is_equal_split) {
-    return 0;
-  }
-
-  if (entry.is_loan) {
-    return 0;
-  }
-
-  if (origin === baseAerodrome && destination !== baseAerodrome) {
-    return 0;
-  }
-
-  if (destination === baseAerodrome && origin !== baseAerodrome) {
-    return 1;
-  }
-
-  if (origin !== baseAerodrome && destination !== baseAerodrome) {
-    const sortedEntries = [...allEntries].sort(
-      (a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime()
-    );
-
-    const currentIndex = sortedEntries.findIndex(e =>
-      e.id === entry.id ||
-      (e.entry_date === entry.entry_date &&
-        e.departure_aerodrome === entry.departure_aerodrome &&
-        e.arrival_aerodrome === entry.arrival_aerodrome)
-    );
-
-    if (currentIndex === -1 || currentIndex === 0) {
-      return 0;
-    }
-
-    const currentEntry = sortedEntries[currentIndex];
-    const previousEntry = sortedEntries[currentIndex - 1];
-
-    const currentDate = new Date(currentEntry.entry_date);
-    const previousDate = new Date(previousEntry.entry_date);
-
-    if (currentDate.toDateString() !== previousDate.toDateString()) {
-      return 1;
-    }
-
-    return 0;
-  }
-
-  return 0;
 };
 
 // ===================== COMPONENTE PRINCIPAL =====================
@@ -564,11 +401,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         setCrew(mergedCrew);
         if (aeroRes.data) setAerodromes(aeroRes.data || []);
         if (clientRes.data) {
-          console.log('✅ Clientes carregados:', clientRes.data);
+          logSuccess('Clientes carregados', { count: clientRes.data.length });
           setClients(clientRes.data || []);
         }
         if (entriesRes.data) {
-          console.log('✅ Entradas carregadas:', entriesRes.data.map((e: any) => ({ id: e.id, client_id: e.client_id, loan_recipient_client_id: e.loan_recipient_client_id })));
+          logSuccess('Entradas carregadas', { count: entriesRes.data.length });
           setEntries(entriesRes.data || []);
         }
         if (monthsRes.data) setAvailableMonths(monthsRes.data || []);
@@ -581,7 +418,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             partnerMap[p.id] = p;
           });
           setClientPartners(partnerMap);
-          console.log('✅ Client Partners carregados:', partnerMap);
+          logSuccess('Client Partners carregados', { count: clientPartnersRes.data.length });
         }
 
         const loansRes = await supabase
@@ -639,7 +476,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           setLogbookMonth(null);
         }
       } catch (error) {
-        console.error("Erro ao carregar dados:", error);
+        logError("Erro ao carregar dados", error);
         toast.error("Erro ao carregar dados do sistema");
       } finally {
         setLoading(false);
@@ -708,7 +545,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           const distance = calculateDistance(lat1, lon1, lat2, lon2);
           setNewEntry(prev => ({ ...prev, distance_nm: Math.round(distance) }));
         } catch (e) {
-          console.error("Erro ao calcular distância:", e);
+          logError("Erro ao calcular distância", e);
         }
       }
     }
@@ -754,7 +591,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           night_hours: calculated.night_hours
         }));
       } catch (error) {
-        console.error("Erro ao calcular tempos:", error);
+        logError("Erro ao calcular tempos:", error);
       }
     }
   }, [newEntry.ac_time, newEntry.cor_time, newEntry.dep_time, newEntry.pou_time, lastCelula, entries]);
@@ -821,19 +658,19 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         .eq('id', logbookMonth.id);
 
       if (error) {
-        console.error('Erro ao atualizar célula_atual:', error);
+        logError('Erro ao atualizar célula_atual:', error);
       } else {
         setLogbookMonth({
           ...logbookMonth,
           celula_atual: newCelulaAtual,
           celula_disponivel: newCelulaDisponivel
         });
-        console.log(`✅ Célula_Atual atualizada: ${Number(newCelulaAtual).toFixed(2)} | Disponível: ${newCelulaDisponivel.toFixed(2)}`);
+        logInfo(`✅ Célula_Atual atualizada: ${Number(newCelulaAtual).toFixed(2)} | Disponível: ${newCelulaDisponivel.toFixed(2)}`);
 
         await updateMaintenanceHours(newCelulaAtual);
       }
     } catch (error) {
-      console.error('Erro ao recalcular célula:', error);
+      logError('Erro ao recalcular célula:', error);
     }
   };
 
@@ -851,10 +688,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
         await updateManutencaoHoras(manutencao.id, horasFinais);
 
-        console.log(`✅ Manutenção de revisão atualizada: ${horasFinais.toFixed(2)}h realizadas (limite: ${manutencao.vencimento_horas}h)`);
+        logInfo(`✅ Manutenção de revisão atualizada: ${horasFinais.toFixed(2)}h realizadas (limite: ${manutencao.vencimento_horas}h)`);
       }
     } catch (error) {
-      console.error('Erro ao atualizar horas de manutenção:', error);
+      logError('Erro ao atualizar horas de manutenção:', error);
     }
   };
 
@@ -903,7 +740,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       setEditingField(null);
       toast.success('Valor atualizado com sucesso!');
     } catch (error: any) {
-      console.error(`Erro ao atualizar ${field}:`, error);
+      logError(`Erro ao atualizar ${field}:`, error);
       toast.error(`Erro ao atualizar ${field}`);
     }
   };
@@ -982,7 +819,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       setShowMonthPicker(false);
       setShowCreateMonthDialog(true);
     } catch (error: any) {
-      console.error("Erro ao preparar criação do próximo mês:", error);
+      logError("Erro ao preparar criação do próximo mês:", error);
       toast.error(error.message || "Erro ao preparar criação do próximo mês");
     }
   };
@@ -997,342 +834,21 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     setEntries(data || []);
   };
 
-  const handleSaveEditedEntryForm = async () => {
-    if (!editingEntryIdForm) return;
+  /**
+   * Função unificada para salvar voo (novo ou edição)
+   * Consolidação de handleSaveFlightEntry + handleSaveEditedEntryForm
+   */
+  const handleSaveFlightEntry = async () => {
+    const isEdit = !!editingEntryIdForm;
 
-    console.log('🔵 handleSaveEditedEntryForm INICIADA', {
-      editingEntryIdForm,
+    logInfo(`${isEdit ? '✏️ Editando' : '✅ Criando'} voo`, {
+      entryId: editingEntryIdForm || 'novo',
       flightType,
-      newEntry_is_loan: newEntry.is_loan,
-      newEntry_client_id: newEntry.client_id,
-      newEntry_borrower_id: newEntry.borrower_client_id
+      is_loan: newEntry.is_loan,
+      is_equal_split: newEntry.is_equal_split
     });
 
-    try {
-      const oldEntry = entries.find((e: any) => e.id === editingEntryIdForm);
-      console.log('📋 oldEntry:', oldEntry);
-
-      const periodEntriesForCalc = entries.filter((e: any) => {
-        const date = new Date(e.entry_date);
-        return date.getUTCMonth() + 1 === selectedMonth &&
-          date.getUTCFullYear() === selectedYear;
-      });
-
-      const allEntriesForCalc = periodEntriesForCalc.map((e: any) =>
-        e.id === editingEntryIdForm ? newEntry : e
-      );
-
-      const recalculatedDailyRate = calculateDailyAllowanceForEntry(
-        newEntry,
-        logbookMonth?.base_aerodrome || '',
-        allEntriesForCalc
-      );
-
-      let finalDailyRate = recalculatedDailyRate;
-      if (newEntry.daily_quantity > 0) {
-        finalDailyRate = newEntry.daily_quantity * (logbookMonth?.daily_rate || 0);
-      }
-
-      const { error } = await supabase.from('logbook_entries').update({
-        entry_date: newEntry.entry_date,
-        departure_aerodrome: newEntry.departure_aerodrome,
-        arrival_aerodrome: newEntry.arrival_aerodrome,
-        crew_checkin_time: newEntry.crew_checkin_time,
-        ac_time: newEntry.ac_time,
-        dep_time: newEntry.dep_time,
-        pou_time: newEntry.pou_time,
-        cor_time: newEntry.cor_time,
-        pic_canac: newEntry.pic_canac,
-        sic_canac: newEntry.sic_canac || null,
-        sic_name: newEntry.sic_name || null,
-        client_id: newEntry.is_equal_split ? null : newEntry.client_id,
-        client_partner_id: newEntry.is_equal_split
-          ? null
-          : (newEntry.is_loan ? null : newEntry.client_partner_id || null),
-        loan_recipient_client_id: newEntry.is_loan ? newEntry.loan_recipient_client_id || null : null,
-        loan_recipient_partner_id: newEntry.is_loan ? newEntry.loan_recipient_partner_id || null : null,
-        is_equal_split: newEntry.is_equal_split,
-        is_loan: newEntry.is_loan || false,
-        total_time: newEntry.total_time,
-        time: newEntry.time,
-        day_time: newEntry.day_time,
-        night_hours: newEntry.night_hours,
-        ifr_time: newEntry.ifr_time,
-        pousos: newEntry.pousos,
-        fuel_added: newEntry.fuel_added,
-        fuel_liters: newEntry.fuel_liters,
-        fuel_type: newEntry.fuel_type || null,
-        fuel_location: newEntry.fuel_location || null,
-        fuel_price_per_liter: newEntry.fuel_price_per_liter || null,
-        refueled: newEntry.refueled,
-        celula: newEntry.celula,
-        distance_nm: newEntry.distance_nm,
-        passengers: newEntry.passengers,
-        cargo_kg: newEntry.cargo_kg,
-        flight_nature: newEntry.flight_nature,
-        daily_rate: finalDailyRate,
-        occurrences: newEntry.occurrences || null,
-        discrepancies: newEntry.discrepancies || null,
-        corrective_actions: newEntry.corrective_actions || null,
-        trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`,
-      }).eq('id', editingEntryIdForm);
-
-      if (error) throw error;
-
-      // Sincronizar dados de empréstimo na tabela aircraft_loans
-      const wasLoan = oldEntry?.is_loan === true;
-      const isLoanNow = newEntry.is_loan === true;
-
-      console.log('🔄 DEBUG Sincronização aircraft_loans:', {
-        entryId: editingEntryIdForm,
-        wasLoan,
-        isLoanNow,
-        oldEntry_is_loan: oldEntry?.is_loan,
-        newEntry_is_loan: newEntry.is_loan,
-        flightType,
-        newEntry_borrower_id: newEntry.borrower_client_id,
-        newEntry_client_id: newEntry.client_id
-      });
-
-      if (wasLoan && !isLoanNow) {
-        // Era empréstimo, não é mais → DELETE
-        console.log('🗑️ Deletando aircraft_loans por mudança de empréstimo → normal');
-        await supabase.from('aircraft_loans').delete().eq('logbook_entry_id', editingEntryIdForm);
-      } else if (!wasLoan && isLoanNow) {
-        // Não era empréstimo, agora é → INSERT
-        console.log('➕ Criando novo aircraft_loans por mudança de normal → empréstimo');
-        const picName = newEntry.pic_canac ? (crew.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null) : null;
-
-        const loanData = {
-          lender_aircraft_id: aircraftId,
-          lender_client_id: newEntry.client_id,
-          borrower_client_id: newEntry.borrower_client_id,
-          hours_borrowed: newEntry.total_time,
-          entry_date: newEntry.entry_date,
-          departure_aerodrome: newEntry.departure_aerodrome,
-          arrival_aerodrome: newEntry.arrival_aerodrome,
-          trecho: `${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
-          fuel_added: newEntry.fuel_added || null,
-          pic_name: picName,
-          logbook_entry_id: editingEntryIdForm,
-          status: 'active',
-          notes: `Empréstimo registrado via edição de lançamento`,
-        };
-
-        console.log('📝 Dados do aircraft_loans:', loanData);
-
-        const { error: loanInsertError, data: loanData_result } = await supabase.from('aircraft_loans').insert([loanData]).select();
-
-        if (loanInsertError) {
-          console.error('❌ Erro ao criar aircraft_loans:', loanInsertError);
-          throw loanInsertError;
-        } else {
-          console.log('✅ aircraft_loans criado:', loanData_result);
-        }
-
-        // Registrar transação no banco de horas (com tratamento de erro 403)
-        const transData = {
-          aircraft_id: aircraftId,
-          from_partner_id: newEntry.borrower_client_id,
-          to_partner_id: newEntry.client_id,
-          hours: newEntry.total_time,
-          type: 'loan',
-          description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
-          logbook_entry_id: editingEntryIdForm,
-        };
-
-        console.log('💳 Dados da transação:', transData);
-
-        const { error: transError } = await supabase.from('hour_transactions').insert([transData]);
-        if (transError) {
-          if (transError.code === '403') {
-            console.warn('⚠️ Sem permissão para criar hour_transactions (erro 403), mas aircraft_loans foi criado com sucesso');
-          } else {
-            console.error('❌ Erro ao criar transação:', transError);
-          }
-        } else {
-          console.log('✅ Transação criada com sucesso');
-        }
-      } else if (wasLoan && isLoanNow) {
-        // Continue sendo empréstimo → UPDATE
-        console.log('✏️ Atualizando aircraft_loans (continua empréstimo)');
-        const picName = newEntry.pic_canac ? (crew.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null) : null;
-
-        const loanUpdateData = {
-          hours_borrowed: newEntry.total_time,
-          entry_date: newEntry.entry_date,
-          departure_aerodrome: newEntry.departure_aerodrome,
-          arrival_aerodrome: newEntry.arrival_aerodrome,
-          trecho: `${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
-          fuel_added: newEntry.fuel_added || null,
-          pic_name: picName,
-          borrower_client_id: newEntry.borrower_client_id,
-        };
-
-        console.log('📝 Dados para UPDATE aircraft_loans:', loanUpdateData);
-
-        const { error: updateError, data: updateResult } = await supabase.from('aircraft_loans').update(loanUpdateData).eq('logbook_entry_id', editingEntryIdForm).select();
-
-        if (updateError) {
-          console.error('❌ Erro ao atualizar aircraft_loans:', updateError);
-          throw updateError;
-        } else {
-          console.log('✅ aircraft_loans atualizado:', updateResult);
-        }
-
-        // Atualizar transação no banco de horas se as horas mudaram
-        if ((oldEntry?.total_time || 0) !== newEntry.total_time || oldEntry?.borrower_client_id !== newEntry.borrower_client_id) {
-          console.log('🔄 Horas ou borrower mudaram, atualizando hour_transactions');
-
-          // Tentar deletar transação antiga (com tratamento de erro)
-          const { error: deleteError } = await supabase.from('hour_transactions').delete().eq('logbook_entry_id', editingEntryIdForm).eq('type', 'loan');
-          if (deleteError && deleteError.code !== '403') {
-            console.error('Erro ao deletar hour_transactions:', deleteError);
-          }
-
-          // Tentar inserir nova transação (com tratamento de erro)
-          const transData = {
-            aircraft_id: aircraftId,
-            from_partner_id: newEntry.borrower_client_id,
-            to_partner_id: newEntry.client_id,
-            hours: newEntry.total_time,
-            type: 'loan',
-            description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
-            logbook_entry_id: editingEntryIdForm,
-          };
-
-          const { error: insertError } = await supabase.from('hour_transactions').insert([transData]);
-          if (insertError) {
-            if (insertError.code === '403') {
-              console.warn('⚠️ Sem permissão para atualizar hour_transactions (erro 403 - permissão negada), mas aircraft_loans foi atualizado com sucesso');
-            } else {
-              console.error('❌ Erro ao atualizar hour_transactions:', insertError);
-            }
-          } else {
-            console.log('✅ hour_transactions atualizada com sucesso');
-          }
-        }
-      }
-
-      if (oldEntry) {
-        const oldDate = new Date(oldEntry.entry_date);
-        const newDate = new Date(newEntry.entry_date);
-
-        const crewChanged = oldEntry.pic_canac !== newEntry.pic_canac ||
-                           oldEntry.sic_canac !== newEntry.sic_canac;
-        const dateChanged = oldDate.getMonth() !== newDate.getMonth() ||
-                           oldDate.getFullYear() !== newDate.getFullYear();
-        const hoursChanged = oldEntry.total_time !== newEntry.total_time ||
-                            oldEntry.ifr_time !== newEntry.ifr_time ||
-                            oldEntry.night_hours !== newEntry.night_hours;
-
-        if (crewChanged || dateChanged || hoursChanged) {
-          if (oldEntry) {
-            await updateCrewFlightHours({
-              picId: oldEntry.pic_canac,
-              sicId: oldEntry.sic_canac || null,
-              aircraftId,
-              month: oldDate.getMonth() + 1,
-              year: oldDate.getFullYear(),
-              totalTime: oldEntry.total_time,
-              ifrTime: oldEntry.ifr_time || 0,
-              nightHours: oldEntry.night_hours || 0,
-              flightDay: oldEntry.entry_date,
-              operation: 'remove'
-            });
-          }
-
-          await updateCrewFlightHours({
-            picId: newEntry.pic_canac,
-            sicId: newEntry.sic_canac || null,
-            aircraftId,
-            month: newDate.getMonth() + 1,
-            year: newDate.getFullYear(),
-            totalTime: newEntry.total_time,
-            ifrTime: newEntry.ifr_time || 0,
-            nightHours: newEntry.night_hours || 0,
-            flightDay: newEntry.entry_date,
-            operation: 'add'
-          });
-        }
-      }
-
-      toast.success("Voo atualizado com sucesso!");
-
-      // Limpar formulário e estado
-      setEditingEntryIdForm(null);
-      setShowAddForm(false);
-      setNewEntry({
-        entry_date: format(new Date(), 'yyyy-MM-dd'),
-        pic_canac: '',
-        sic_canac: '',
-        sic_name: '',
-        crew_checkin_time: '',
-        departure_aerodrome: '',
-        arrival_aerodrome: '',
-        client_id: '',
-        client_partner_id: null as string | null,
-    loan_recipient_client_id: null as string | null,
-    loan_recipient_partner_id: null as string | null,
-        is_equal_split: false,
-        is_loan: false,
-        ac_time: '',
-        dep_time: '',
-        pou_time: '',
-        cor_time: '',
-        total_time: 0,
-        day_time: 0,
-        night_hours: 0,
-        time: 0,
-        ifr_time: 0,
-        pousos: 1,
-        fuel_added: 0,
-        fuel_liters: 0,
-        fuel_type: '',
-        fuel_location: '',
-        fuel_price_per_liter: 0,
-        refueled: false,
-        celula: 0,
-        distance_nm: 0,
-        passengers: 0,
-        cargo_kg: 0,
-        flight_nature: 'PV - Privado',
-        occurrences: '',
-        discrepancies: '',
-        corrective_actions: '',
-        daily_quantity: 0
-      });
-      setFlightType('cliente');
-
-      // Recarregar dados
-      const { data } = await supabase
-        .from('logbook_entries')
-        .select('*')
-        .eq('aircraft_id', aircraftId)
-        .order('logbook_month_id', { ascending: false })
-        .order('sequential_number', { ascending: true });
-      if (data) {
-        setEntries(data);
-        await updateCelulaAtual(data);
-      }
-    } catch (error: any) {
-      console.error("Erro ao atualizar voo:", error);
-      toast.error("Erro ao atualizar voo: " + (error.message || 'Erro desconhecido'));
-    }
-  };
-
-  const handleSaveFlight = async () => {
-    console.log('🟢 handleSaveFlight CHAMADO', {
-      flightType,
-      editingEntryIdForm,
-      newEntry: {
-        is_loan: newEntry.is_loan,
-        is_equal_split: newEntry.is_equal_split,
-        client_id: newEntry.client_id,
-        borrower_client_id: newEntry.borrower_client_id,
-      }
-    });
-
+    // ==================== VALIDAÇÃO ====================
     if (!newEntry.pic_canac || !newEntry.departure_aerodrome || !newEntry.arrival_aerodrome) {
       toast.error('Preencha todos os campos obrigatórios: PIC, Origem e Destino');
       return;
@@ -1349,7 +865,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         return;
       }
       if (!newEntry.loan_recipient_client_id) {
-        toast.error('Selecione o cliente que está pegando emprestado (quem está usando a aeronave)');
+        toast.error('Selecione o cliente que está pegando emprestado');
         return;
       }
     }
@@ -1358,61 +874,66 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       toast.error('Preencha os horários de acionamento e corte');
       return;
     }
+
     if (!logbookMonth) {
       toast.error('Erro ao carregar período do diário. Recarregue a página.');
       return;
     }
 
-    // Se está em modo de edição, chamar a função de edição
-    if (editingEntryIdForm) {
-      await handleSaveEditedEntryForm();
-      return;
-    }
-
     try {
+      // ==================== PREPARAR DADOS ====================
       const periodEntriesForCalc = entries.filter((e: any) => {
         const date = new Date(e.entry_date);
         return date.getUTCMonth() + 1 === selectedMonth &&
           date.getUTCFullYear() === selectedYear;
       });
 
-      const tempEntry = {
-        ...newEntry,
-        id: `temp-${Date.now()}`,
-        departure_aerodrome: newEntry.departure_aerodrome,
-        arrival_aerodrome: newEntry.arrival_aerodrome,
-        entry_date: newEntry.entry_date
-      };
+      // Preparar lista de entradas para cálculo de diárias
+      let allEntriesForCalc: any[];
+      let oldEntry: any = null;
 
-      const allEntriesForCalc = [...periodEntriesForCalc, tempEntry];
+      if (isEdit) {
+        oldEntry = entries.find((e: any) => e.id === editingEntryIdForm);
+        allEntriesForCalc = periodEntriesForCalc.map((e: any) =>
+          e.id === editingEntryIdForm ? newEntry : e
+        );
+      } else {
+        const tempEntry = {
+          ...newEntry,
+          id: `temp-${Date.now()}`,
+          departure_aerodrome: newEntry.departure_aerodrome,
+          arrival_aerodrome: newEntry.arrival_aerodrome,
+          entry_date: newEntry.entry_date
+        };
+        allEntriesForCalc = [...periodEntriesForCalc, tempEntry];
+      }
 
+      // ==================== CALCULAR DIÁRIAS ====================
       let dailyAllowance = 0;
 
       if (newEntry.daily_quantity > 0) {
         dailyAllowance = newEntry.daily_quantity * (logbookMonth.daily_rate || 0);
-        console.log('📋 Diárias (Manual):', {
+        logInfo('Diárias (Manual):', {
           quantidade: newEntry.daily_quantity,
           taxa_diaria: logbookMonth.daily_rate,
           total: dailyAllowance
         });
       } else {
         dailyAllowance = calculateDailyAllowanceForEntry(
-          tempEntry,
+          newEntry,
           logbookMonth.base_aerodrome || '',
           allEntriesForCalc
         );
-        console.log('🔍 DEBUG - Cálculo de Diárias (Automático):', {
+        logInfo('Diárias (Automático):', {
           base: logbookMonth.base_aerodrome,
           origem: newEntry.departure_aerodrome,
           destino: newEntry.arrival_aerodrome,
-          data: newEntry.entry_date,
-          diarias_calculadas: dailyAllowance,
-          total_voos_periodo: allEntriesForCalc.length
+          diarias_calculadas: dailyAllowance
         });
       }
 
-      // Lógica para os 3 casos de voo
-      const { error } = await supabase.from('logbook_entries').insert([{
+      // ==================== PREPARAR PAYLOAD ====================
+      const entryPayload = {
         logbook_month_id: logbookMonth.id,
         aircraft_id: aircraftId,
         entry_date: newEntry.entry_date,
@@ -1426,16 +947,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         pic_canac: newEntry.pic_canac,
         sic_canac: newEntry.sic_canac || null,
         sic_name: newEntry.sic_name || null,
-        // client_id é sempre o proprietário da aeronave
         client_id: newEntry.is_equal_split ? null : newEntry.client_id,
-        // Para voos normais: parceiro do proprietário que voou (se houver)
-        // Para empréstimos: sempre null
         client_partner_id: newEntry.is_equal_split
           ? null
           : (newEntry.is_loan ? null : newEntry.client_partner_id || null),
-        // Para empréstimos: cliente que pegou emprestado
         loan_recipient_client_id: newEntry.is_loan ? newEntry.loan_recipient_client_id || null : null,
-        // Para empréstimos: parceiro do cliente que pegou emprestado (se houver)
         loan_recipient_partner_id: newEntry.is_loan ? newEntry.loan_recipient_partner_id || null : null,
         is_equal_split: newEntry.is_equal_split,
         is_loan: newEntry.is_loan || false,
@@ -1459,28 +975,67 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         occurrences: newEntry.occurrences || null,
         discrepancies: newEntry.discrepancies || null,
         corrective_actions: newEntry.corrective_actions || null,
-        confirmed: false,
+        confirmed: isEdit ? (oldEntry?.confirmed || false) : false,
         daily_rate: dailyAllowance,
         trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`
-      }]);
+      };
 
-      if (error) throw error;
+      // ==================== SALVAR NO BANCO ====================
+      let savedEntry: any;
+      let insertedEntryId: string;
 
-      const { data: insertedEntry } = await supabase
-        .from('logbook_entries')
-        .select('id')
-        .eq('aircraft_id', aircraftId)
-        .eq('entry_date', newEntry.entry_date)
-        .eq('departure_aerodrome', newEntry.departure_aerodrome)
-        .eq('arrival_aerodrome', newEntry.arrival_aerodrome)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+      if (isEdit) {
+        // UPDATE
+        const { error } = await supabase
+          .from('logbook_entries')
+          .update(entryPayload)
+          .eq('id', editingEntryIdForm);
 
-      if (flightType === 'emprestimo' && insertedEntry?.id) {
-        // Registrar corretamente na tabela aircraft_loans
-        const { error: loanError } = await supabase.from('aircraft_loans').insert([
-          {
+        if (error) throw error;
+        insertedEntryId = editingEntryIdForm;
+        savedEntry = { ...entryPayload, id: editingEntryIdForm };
+        logSuccess('Voo atualizado no banco');
+      } else {
+        // INSERT
+        const { error } = await supabase
+          .from('logbook_entries')
+          .insert([entryPayload]);
+
+        if (error) throw error;
+
+        const { data: insertedData } = await supabase
+          .from('logbook_entries')
+          .select('id')
+          .eq('aircraft_id', aircraftId)
+          .eq('entry_date', newEntry.entry_date)
+          .eq('departure_aerodrome', newEntry.departure_aerodrome)
+          .eq('arrival_aerodrome', newEntry.arrival_aerodrome)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (!insertedData?.id) throw new Error('Falha ao recuperar ID do voo inserido');
+        insertedEntryId = insertedData.id;
+        savedEntry = { ...entryPayload, id: insertedEntryId };
+        logSuccess('Voo criado no banco');
+      }
+
+      // ==================== SINCRONIZAR EMPRÉSTIMOS ====================
+      if (isEdit && oldEntry) {
+        const wasLoan = oldEntry?.is_loan === true;
+        const isLoanNow = newEntry.is_loan === true;
+
+        logInfo('Sincronizando empréstimos:', { wasLoan, isLoanNow, entryId: editingEntryIdForm });
+
+        if (wasLoan && !isLoanNow) {
+          // Era empréstimo, não é mais → DELETE
+          await supabase.from('aircraft_loans').delete().eq('logbook_entry_id', editingEntryIdForm);
+          logSuccess('Empréstimo deletado');
+        } else if (!wasLoan && isLoanNow) {
+          // Não era empréstimo, agora é → INSERT
+          const picName = newEntry.pic_canac ? (crew.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null) : null;
+
+          const loanData = {
             lender_aircraft_id: aircraftId,
             lender_client_id: newEntry.client_id,
             borrower_client_id: newEntry.loan_recipient_client_id,
@@ -1490,62 +1045,200 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             arrival_aerodrome: newEntry.arrival_aerodrome || '',
             trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`,
             fuel_added: newEntry.fuel_added || null,
-            pic_name: newEntry.pic_canac ? (tripulantes.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null) : null,
-            logbook_entry_id: insertedEntry.id,
+            pic_name: picName,
+            logbook_entry_id: insertedEntryId,
             status: 'active',
-            notes: `Empréstimo registrado via diário de bordo - ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
-          },
-        ]);
+            notes: `Empréstimo ${isEdit ? 'editado' : 'criado'} via diário de bordo`,
+          };
 
-        if (loanError) {
-          console.error('Erro ao registrar empréstimo:', loanError);
-        }
+          const { error: loanError } = await supabase.from('aircraft_loans').insert([loanData]);
+          if (loanError) throw loanError;
 
-        const { error: transactionError } = await supabase.from('hour_transactions').insert([
-          {
+          const transData = {
             aircraft_id: aircraftId,
-            from_partner_id: newEntry.loan_recipient_client_id, // Quem usou (deve horas)
-            to_partner_id: newEntry.client_id, // Quem emprestou (recebe crédito)
+            from_partner_id: newEntry.loan_recipient_client_id,
+            to_partner_id: newEntry.client_id,
             hours: newEntry.total_time,
             type: 'loan',
-            description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}${newEntry.partner_name ? ` | Cotista: ${newEntry.partner_name}` : ''}${newEntry.borrower_partner_name ? ` | Usado por: ${newEntry.borrower_partner_name}` : ''}`,
-            logbook_entry_id: insertedEntry.id,
-          },
-        ]);
+            description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
+            logbook_entry_id: insertedEntryId,
+          };
 
-        if (transactionError) {
-          console.error('Erro ao registrar transação no banco de horas:', transactionError);
+          const { error: transError } = await supabase.from('hour_transactions').insert([transData]);
+          if (transError && transError.code !== '403') {
+            throw transError;
+          }
+          logSuccess('Empréstimo registrado');
+        } else if (wasLoan && isLoanNow) {
+          // Continue sendo empréstimo → UPDATE
+          const picName = newEntry.pic_canac ? (crew.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null) : null;
+
+          const loanUpdateData = {
+            hours_borrowed: newEntry.total_time,
+            entry_date: newEntry.entry_date,
+            departure_aerodrome: newEntry.departure_aerodrome,
+            arrival_aerodrome: newEntry.arrival_aerodrome,
+            trecho: `${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
+            fuel_added: newEntry.fuel_added || null,
+            pic_name: picName,
+            borrower_client_id: newEntry.loan_recipient_client_id,
+          };
+
+          const { error: updateError } = await supabase
+            .from('aircraft_loans')
+            .update(loanUpdateData)
+            .eq('logbook_entry_id', editingEntryIdForm);
+
+          if (updateError) throw updateError;
+
+          // Atualizar transação se horas mudaram
+          if ((oldEntry?.total_time || 0) !== newEntry.total_time) {
+            await supabase.from('hour_transactions').delete().eq('logbook_entry_id', editingEntryIdForm).eq('type', 'loan');
+
+            const transData = {
+              aircraft_id: aircraftId,
+              from_partner_id: newEntry.loan_recipient_client_id,
+              to_partner_id: newEntry.client_id,
+              hours: newEntry.total_time,
+              type: 'loan',
+              description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
+              logbook_entry_id: editingEntryIdForm,
+            };
+
+            const { error: transError } = await supabase.from('hour_transactions').insert([transData]);
+            if (transError && transError.code !== '403') {
+              logger.warning('Erro ao atualizar transação, mas empréstimo foi atualizado');
+            }
+          }
+          logSuccess('Empréstimo atualizado');
         }
+      } else if (!isEdit && newEntry.is_loan) {
+        // Novo voo é empréstimo → INSERT aircraft_loans
+        const picName = newEntry.pic_canac ? (crew.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null) : null;
+
+        const loanData = {
+          lender_aircraft_id: aircraftId,
+          lender_client_id: newEntry.client_id,
+          borrower_client_id: newEntry.loan_recipient_client_id,
+          hours_borrowed: newEntry.total_time,
+          entry_date: newEntry.entry_date,
+          departure_aerodrome: newEntry.departure_aerodrome || '',
+          arrival_aerodrome: newEntry.arrival_aerodrome || '',
+          trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`,
+          fuel_added: newEntry.fuel_added || null,
+          pic_name: picName,
+          logbook_entry_id: insertedEntryId,
+          status: 'active',
+          notes: `Empréstimo criado via diário de bordo`,
+        };
+
+        const { error: loanError } = await supabase.from('aircraft_loans').insert([loanData]);
+        if (loanError) throw loanError;
+
+        const transData = {
+          aircraft_id: aircraftId,
+          from_partner_id: newEntry.loan_recipient_client_id,
+          to_partner_id: newEntry.client_id,
+          hours: newEntry.total_time,
+          type: 'loan',
+          description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
+          logbook_entry_id: insertedEntryId,
+        };
+
+        const { error: transError } = await supabase.from('hour_transactions').insert([transData]);
+        if (transError && transError.code !== '403') {
+          throw transError;
+        }
+        logSuccess('Empréstimo registrado');
       }
 
-      const entryDate = new Date(newEntry.entry_date);
-      await updateCrewFlightHours({
-        picId: newEntry.pic_canac,
-        sicId: newEntry.sic_canac || null,
-        aircraftId,
-        month: entryDate.getMonth() + 1,
-        year: entryDate.getFullYear(),
-        totalTime: newEntry.total_time,
-        ifrTime: newEntry.ifr_time || 0,
-        nightHours: newEntry.night_hours || 0,
-        flightDay: newEntry.entry_date,
-        operation: 'add'
-      });
+      // ==================== ATUALIZAR HORAS DE TRIPULAÇÃO ====================
+      if (isEdit && oldEntry) {
+        const oldDate = new Date(oldEntry.entry_date);
+        const newDate = new Date(newEntry.entry_date);
 
-      toast.success(`Voo registrado! ${dailyAllowance > 0 ? `${dailyAllowance} diária(s)` : 'Sem diárias'}`);
-      setLastCelula(newEntry.celula);
+        const crewChanged = oldEntry.pic_canac !== newEntry.pic_canac ||
+                           oldEntry.sic_canac !== newEntry.sic_canac;
+        const dateChanged = oldDate.getMonth() !== newDate.getMonth() ||
+                           oldDate.getFullYear() !== newDate.getFullYear();
+        const hoursChanged = oldEntry.total_time !== newEntry.total_time ||
+                            oldEntry.ifr_time !== newEntry.ifr_time ||
+                            oldEntry.night_hours !== newEntry.night_hours;
 
+        if (crewChanged || dateChanged || hoursChanged) {
+          // Remover horas do voo anterior
+          await updateCrewFlightHours({
+            picId: oldEntry.pic_canac,
+            sicId: oldEntry.sic_canac || null,
+            aircraftId,
+            month: oldDate.getMonth() + 1,
+            year: oldDate.getFullYear(),
+            totalTime: oldEntry.total_time,
+            ifrTime: oldEntry.ifr_time || 0,
+            nightHours: oldEntry.night_hours || 0,
+            flightDay: oldEntry.entry_date,
+            operation: 'remove'
+          });
+
+          // Adicionar horas do novo voo
+          await updateCrewFlightHours({
+            picId: newEntry.pic_canac,
+            sicId: newEntry.sic_canac || null,
+            aircraftId,
+            month: newDate.getMonth() + 1,
+            year: newDate.getFullYear(),
+            totalTime: newEntry.total_time,
+            ifrTime: newEntry.ifr_time || 0,
+            nightHours: newEntry.night_hours || 0,
+            flightDay: newEntry.entry_date,
+            operation: 'add'
+          });
+          logSuccess('Horas de tripulação atualizadas');
+        }
+      } else {
+        // Novo voo - apenas adicionar horas
+        const entryDate = new Date(newEntry.entry_date);
+        await updateCrewFlightHours({
+          picId: newEntry.pic_canac,
+          sicId: newEntry.sic_canac || null,
+          aircraftId,
+          month: entryDate.getMonth() + 1,
+          year: entryDate.getFullYear(),
+          totalTime: newEntry.total_time,
+          ifrTime: newEntry.ifr_time || 0,
+          nightHours: newEntry.night_hours || 0,
+          flightDay: newEntry.entry_date,
+          operation: 'add'
+        });
+        logSuccess('Horas de tripulação adicionadas');
+      }
+
+      // ==================== ATUALIZAR CÉLULA ====================
+      if (!isEdit) {
+        setLastCelula(newEntry.celula);
+      }
+
+      // ==================== FEEDBACK E RESET ====================
+      toast.success(
+        isEdit
+          ? `Voo atualizado!`
+          : `Voo registrado! ${dailyAllowance > 0 ? `${dailyAllowance} diária(s)` : 'Sem diárias'}`
+      );
+
+      // Recarregar entradas
       const { data: updatedEntries } = await supabase
         .from('logbook_entries')
         .select('*')
         .eq('aircraft_id', aircraftId)
         .order('logbook_month_id', { ascending: false })
         .order('sequential_number', { ascending: true });
+
       if (updatedEntries) {
         setEntries(updatedEntries);
         await updateCelulaAtual(updatedEntries);
       }
 
+      // Resetar formulário
       setNewEntry({
         entry_date: format(new Date(), 'yyyy-MM-dd'),
         pic_canac: '',
@@ -1556,8 +1249,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         arrival_aerodrome: '',
         client_id: '',
         client_partner_id: null as string | null,
-    loan_recipient_client_id: null as string | null,
-    loan_recipient_partner_id: null as string | null,
+        loan_recipient_client_id: null as string | null,
+        loan_recipient_partner_id: null as string | null,
         is_equal_split: false,
         is_loan: false,
         ac_time: '',
@@ -1586,21 +1279,18 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         corrective_actions: '',
         daily_quantity: 0
       });
+
       setFlightType('cliente');
+      setEditingEntryIdForm(null);
       setShowAddForm(false);
 
-      const { data } = await supabase
-        .from('logbook_entries')
-        .select('*')
-        .eq('aircraft_id', aircraftId)
-        .order('logbook_month_id', { ascending: false })
-        .order('sequential_number', { ascending: true });
-      setEntries(data || []);
     } catch (error: any) {
-      console.error("Erro ao salvar voo:", error);
-      toast.error("Erro ao salvar voo: " + (error.message || 'Erro desconhecido'));
+      logError(`Erro ao ${isEdit ? 'atualizar' : 'criar'} voo:`, error);
+      toast.error(`Erro ao ${isEdit ? 'atualizar' : 'criar'} voo: ${error.message || 'Erro desconhecido'}`);
     }
   };
+
+
 
   const handleEditEntry = (entry: any) => {
     // Carregar dados da entrada no formulário de novo lançamento
@@ -1679,291 +1369,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     setShowAddForm(false);
   };
 
-  const handleSaveEditedEntry = async () => {
-    if (!editingEntry.pic_canac || !editingEntry.departure_aerodrome || !editingEntry.arrival_aerodrome) {
-      toast.error('Preencha todos os campos obrigatórios: PIC, Origem e Destino');
-      return;
-    }
-
-    if (!editingEntry.is_equal_split && !editingEntry.is_loan && !editingEntry.client_id) {
-      toast.error('Selecione um cliente para este voo ou marque como rateio/empréstimo');
-      return;
-    }
-
-    if (editingEntry.is_loan && !editingEntry.client_id) {
-      toast.error('Selecione o cotista que está emprestando a aeronave');
-      return;
-    }
-
-    if (!editingEntry.ac_time || !editingEntry.cor_time) {
-      toast.error('Preencha os horários de acionamento e corte');
-      return;
-    }
-
-    try {
-      const oldEntry = entries.find((e: any) => e.id === editingEntryId);
-
-      const periodEntriesForCalc = entries.filter((e: any) => {
-        const date = new Date(e.entry_date);
-        return date.getUTCMonth() + 1 === selectedMonth &&
-          date.getUTCFullYear() === selectedYear;
-      });
-
-      const allEntriesForCalc = periodEntriesForCalc.map((e: any) =>
-        e.id === editingEntryId ? editingEntry : e
-      );
-
-      const recalculatedDailyRate = calculateDailyAllowanceForEntry(
-        editingEntry,
-        logbookMonth?.base_aerodrome || '',
-        allEntriesForCalc
-      );
-
-      let finalDailyRate = recalculatedDailyRate;
-      if (editingEntry.daily_quantity > 0) {
-        finalDailyRate = editingEntry.daily_quantity * (logbookMonth?.daily_rate || 0);
-      }
-
-      // ✅ CORREÇÃO: Mesma lógica aplicada na edição
-      const { error } = await supabase.from('logbook_entries').update({
-        entry_date: editingEntry.entry_date,
-        departure_aerodrome: editingEntry.departure_aerodrome,
-        arrival_aerodrome: editingEntry.arrival_aerodrome,
-        crew_checkin_time: editingEntry.crew_checkin_time,
-        ac_time: editingEntry.ac_time,
-        dep_time: editingEntry.dep_time,
-        pou_time: editingEntry.pou_time,
-        cor_time: editingEntry.cor_time,
-        pic_canac: editingEntry.pic_canac,
-        sic_canac: editingEntry.sic_canac || null,
-        sic_name: editingEntry.sic_name || null,
-        client_id: editingEntry.is_equal_split ? null : editingEntry.client_id,
-        client_partner_id: editingEntry.is_equal_split
-          ? null
-          : editingEntry.client_partner_id || null,
-        is_equal_split: editingEntry.is_equal_split,
-        is_loan: editingEntry.is_loan || false,
-        total_time: editingEntry.total_time,
-        time: editingEntry.time,
-        day_time: editingEntry.day_time,
-        night_hours: editingEntry.night_hours,
-        ifr_time: editingEntry.ifr_time,
-        pousos: editingEntry.pousos,
-        fuel_added: editingEntry.fuel_added,
-        fuel_liters: editingEntry.fuel_liters,
-        fuel_type: editingEntry.fuel_type || null,
-        fuel_location: editingEntry.fuel_location || null,
-        fuel_price_per_liter: editingEntry.fuel_price_per_liter || null,
-        refueled: editingEntry.refueled,
-        celula: editingEntry.celula,
-        distance_nm: editingEntry.distance_nm,
-        passengers: editingEntry.passengers,
-        cargo_kg: editingEntry.cargo_kg,
-        flight_nature: editingEntry.flight_nature,
-        daily_rate: finalDailyRate,
-        occurrences: editingEntry.occurrences || null,
-        discrepancies: editingEntry.discrepancies || null,
-        corrective_actions: editingEntry.corrective_actions || null,
-        trecho: `${editingEntry.departure_aerodrome || ''} → ${editingEntry.arrival_aerodrome || ''}`,
-      }).eq('id', editingEntryId);
-
-      if (error) throw error;
-
-      // Sincronizar dados de empréstimo na tabela aircraft_loans
-      const wasLoan = oldEntry?.is_loan === true;
-      const isLoanNow = editingEntry.is_loan === true;
-
-      console.log('🔄 DEBUG Sincronização aircraft_loans (handleSaveEditedEntry):', {
-        entryId: editingEntryId,
-        wasLoan,
-        isLoanNow,
-        oldEntry_is_loan: oldEntry?.is_loan,
-        editingEntry_is_loan: editingEntry.is_loan,
-        editingEntry_borrower_id: editingEntry.borrower_client_id,
-        editingEntry_client_id: editingEntry.client_id
-      });
-
-      if (wasLoan && !isLoanNow) {
-        // Era empréstimo, não é mais → DELETE
-        console.log('🗑️ Deletando aircraft_loans por mudança de empréstimo → normal');
-        await supabase.from('aircraft_loans').delete().eq('logbook_entry_id', editingEntryId);
-      } else if (!wasLoan && isLoanNow) {
-        // Não era empréstimo, agora é → INSERT
-        console.log('➕ Criando novo aircraft_loans por mudança de normal → empréstimo');
-        const picName = editingEntry.pic_canac ? (crew.find((t: any) => t.canac === editingEntry.pic_canac)?.full_name || null) : null;
-
-        const loanData = {
-          lender_aircraft_id: aircraftId,
-          lender_client_id: editingEntry.client_id,
-          borrower_client_id: editingEntry.borrower_client_id,
-          hours_borrowed: editingEntry.total_time,
-          entry_date: editingEntry.entry_date,
-          departure_aerodrome: editingEntry.departure_aerodrome,
-          arrival_aerodrome: editingEntry.arrival_aerodrome,
-          trecho: `${editingEntry.departure_aerodrome} → ${editingEntry.arrival_aerodrome}`,
-          fuel_added: editingEntry.fuel_added || null,
-          pic_name: picName,
-          logbook_entry_id: editingEntryId,
-          status: 'active',
-          notes: `Empréstimo registrado via edição de lançamento`,
-        };
-
-        console.log('📝 Dados do aircraft_loans:', loanData);
-
-        const { error: loanInsertError, data: loanData_result } = await supabase.from('aircraft_loans').insert([loanData]).select();
-
-        if (loanInsertError) {
-          console.error('❌ Erro ao criar aircraft_loans:', loanInsertError);
-          throw loanInsertError;
-        } else {
-          console.log('✅ aircraft_loans criado:', loanData_result);
-        }
-
-        // Registrar transação no banco de horas (com tratamento de erro 403)
-        const transData = {
-          aircraft_id: aircraftId,
-          from_partner_id: editingEntry.borrower_client_id,
-          to_partner_id: editingEntry.client_id,
-          hours: editingEntry.total_time,
-          type: 'loan',
-          description: `Empréstimo: ${editingEntry.departure_aerodrome} → ${editingEntry.arrival_aerodrome}`,
-          logbook_entry_id: editingEntryId,
-        };
-
-        console.log('💳 Dados da transação:', transData);
-
-        const { error: transError } = await supabase.from('hour_transactions').insert([transData]);
-        if (transError) {
-          if (transError.code === '403') {
-            console.warn('⚠️ Sem permissão para criar hora_transactions (erro 403), mas aircraft_loans foi criado com sucesso');
-          } else {
-            console.error('❌ Erro ao criar transação:', transError);
-          }
-        } else {
-          console.log('✅ Transação criada com sucesso');
-        }
-      } else if (wasLoan && isLoanNow) {
-        // Continue sendo empréstimo → UPDATE
-        console.log('✏️ Atualizando aircraft_loans (continua empréstimo) - handleSaveEditedEntry');
-        const picName = editingEntry.pic_canac ? (crew.find((t: any) => t.canac === editingEntry.pic_canac)?.full_name || null) : null;
-
-        const loanUpdateData = {
-          hours_borrowed: editingEntry.total_time,
-          entry_date: editingEntry.entry_date,
-          departure_aerodrome: editingEntry.departure_aerodrome,
-          arrival_aerodrome: editingEntry.arrival_aerodrome,
-          trecho: `${editingEntry.departure_aerodrome} → ${editingEntry.arrival_aerodrome}`,
-          fuel_added: editingEntry.fuel_added || null,
-          pic_name: picName,
-          borrower_client_id: editingEntry.borrower_client_id,
-        };
-
-        console.log('📝 Dados para UPDATE aircraft_loans:', loanUpdateData);
-
-        const { error: updateError, data: updateResult } = await supabase.from('aircraft_loans').update(loanUpdateData).eq('logbook_entry_id', editingEntryId).select();
-
-        if (updateError) {
-          console.error('❌ Erro ao atualizar aircraft_loans:', updateError);
-          throw updateError;
-        } else {
-          console.log('✅ aircraft_loans atualizado:', updateResult);
-        }
-
-        // Atualizar transação no banco de horas se as horas mudaram
-        if ((oldEntry?.total_time || 0) !== editingEntry.total_time || oldEntry?.borrower_client_id !== editingEntry.borrower_client_id) {
-          console.log('🔄 Horas ou borrower mudaram, atualizando hour_transactions');
-
-          // Tentar deletar transação antiga (com tratamento de erro)
-          const { error: deleteError } = await supabase.from('hour_transactions').delete().eq('logbook_entry_id', editingEntryId).eq('type', 'loan');
-          if (deleteError && deleteError.code !== '403') {
-            console.error('Erro ao deletar hour_transactions:', deleteError);
-          }
-
-          // Tentar inserir nova transação (com tratamento de erro)
-          const transData = {
-            aircraft_id: aircraftId,
-            from_partner_id: editingEntry.borrower_client_id,
-            to_partner_id: editingEntry.client_id,
-            hours: editingEntry.total_time,
-            type: 'loan',
-            description: `Empréstimo: ${editingEntry.departure_aerodrome} → ${editingEntry.arrival_aerodrome}`,
-            logbook_entry_id: editingEntryId,
-          };
-
-          const { error: insertError } = await supabase.from('hour_transactions').insert([transData]);
-          if (insertError) {
-            if (insertError.code === '403') {
-              console.warn('⚠️ Sem permissão para atualizar hour_transactions (erro 403 - permissão negada), mas aircraft_loans foi atualizado com sucesso');
-            } else {
-              console.error('❌ Erro ao atualizar hour_transactions:', insertError);
-            }
-          } else {
-            console.log('✅ hour_transactions atualizada com sucesso');
-          }
-        }
-      }
-
-      if (oldEntry) {
-        const oldDate = new Date(oldEntry.entry_date);
-        const newDate = new Date(editingEntry.entry_date);
-
-        const crewChanged = oldEntry.pic_canac !== editingEntry.pic_canac ||
-                           oldEntry.sic_canac !== editingEntry.sic_canac;
-        const dateChanged = oldDate.getMonth() !== newDate.getMonth() ||
-                           oldDate.getFullYear() !== newDate.getFullYear();
-        const hoursChanged = oldEntry.total_time !== editingEntry.total_time ||
-                            oldEntry.ifr_time !== editingEntry.ifr_time ||
-                            oldEntry.night_hours !== editingEntry.night_hours;
-
-        if (crewChanged || dateChanged || hoursChanged) {
-          if (oldEntry) {
-            await updateCrewFlightHours({
-              picId: oldEntry.pic_canac,
-              sicId: oldEntry.sic_canac || null,
-              aircraftId,
-              month: oldDate.getMonth() + 1,
-              year: oldDate.getFullYear(),
-              totalTime: oldEntry.total_time,
-              ifrTime: oldEntry.ifr_time || 0,
-              nightHours: oldEntry.night_hours || 0,
-              flightDay: oldEntry.entry_date,
-              operation: 'remove'
-            });
-          }
-
-          await updateCrewFlightHours({
-            picId: editingEntry.pic_canac,
-            sicId: editingEntry.sic_canac || null,
-            aircraftId,
-            month: newDate.getMonth() + 1,
-            year: newDate.getFullYear(),
-            totalTime: editingEntry.total_time,
-            ifrTime: editingEntry.ifr_time || 0,
-            nightHours: editingEntry.night_hours || 0,
-            flightDay: editingEntry.entry_date,
-            operation: 'add'
-          });
-        }
-      }
-
-      toast.success("Voo atualizado com sucesso!");
-      handleCancelEdit();
-      const { data } = await supabase
-        .from('logbook_entries')
-        .select('*')
-        .eq('aircraft_id', aircraftId)
-        .order('logbook_month_id', { ascending: false })
-        .order('sequential_number', { ascending: true });
-      if (data) {
-        setEntries(data);
-        await updateCelulaAtual(data);
-      }
-    } catch (error: any) {
-      console.error("Erro ao atualizar voo:", error);
-      toast.error("Erro ao atualizar voo: " + (error.message || 'Erro desconhecido'));
-    }
-  };
-
   const handleDeleteEntry = async (id: string) => {
     const canDeleteEntry = isAdmin || isGestorMaster || isPilotoChefe || isCoordenadorVoo || isTripulante;
 
@@ -1994,7 +1399,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           .eq('logbook_entry_id', id);
 
         if (loansError) {
-          console.error('Erro ao deletar aircraft_loans:', loansError);
+          logError('Erro ao deletar aircraft_loans:', loansError);
         }
 
         const { error: transError } = await supabase
@@ -2003,7 +1408,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           .eq('logbook_entry_id', id);
 
         if (transError) {
-          console.error('Erro ao deletar hour_transactions:', transError);
+          logError('Erro ao deletar hour_transactions:', transError);
         }
       }
 
@@ -2037,7 +1442,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         await updateCelulaAtual(data);
       }
     } catch (error: any) {
-      console.error("Erro ao deletar lançamento:", error);
+      logError("Erro ao deletar lançamento:", error);
       toast.error("Erro ao deletar lançamento: " + (error.message || 'Erro desconhecido'));
     }
   };
@@ -2100,7 +1505,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       
       setShowCreateMonthDialog(true);
     } catch (error) {
-      console.error("Erro ao buscar dados do mês anterior:", error);
+      logError("Erro ao buscar dados do mês anterior:", error);
       setPreviousMonthData({
         celula_atual: aircraft?.cell_hours_current || 0,
         celula_prox_revisao: 0,
@@ -2125,7 +1530,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         .maybeSingle();
 
       if (checkError) {
-        console.error('Erro ao verificar diários existentes:', checkError);
+        logError('Erro ao verificar diários existentes:', checkError);
       }
 
       if (existingMonth) {
@@ -2156,9 +1561,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               monthData.celula_prox_revisao,
               MONTHS
             );
-            console.log("✅ Manutenção de revisão criada/atualizada automaticamente");
+            logInfo("✅ Manutenção de revisão criada/atualizada automaticamente");
           } catch (maintenanceError) {
-            console.error("Erro ao criar manutenção automática:", maintenanceError);
+            logError("Erro ao criar manutenção automática:", maintenanceError);
           }
         }
 
@@ -2167,7 +1572,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         setAvailableMonths(prev => [...prev, { month: targetMonth, year: targetYear }]);
       }
     } catch (error: any) {
-      console.error("Erro ao criar mês:", error);
+      logError("Erro ao criar mês:", error);
       toast.error("Erro ao criar diário do mês: " + (error.message || 'Erro desconhecido'));
       throw error;
     } finally {
@@ -3205,13 +2610,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     <X size={18} className="mr-2" />
                     Cancelar
                   </Button>
-                  <Button onClick={handleSaveFlight} className="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 h-14 font-black uppercase text-sm rounded-2xl">
+                  <Button onClick={handleSaveFlightEntry} className="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 h-14 font-black uppercase text-sm rounded-2xl">
                     <Save size={18} className="mr-2" />
                     Atualizar Voo
                   </Button>
                 </div>
               ) : (
-                <Button onClick={handleSaveFlight} className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 h-14 font-black uppercase text-sm rounded-2xl">
+                <Button onClick={handleSaveFlightEntry} className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 h-14 font-black uppercase text-sm rounded-2xl">
                   <Save size={18} className="mr-2" />
                   Salvar Voo
                 </Button>
@@ -3634,7 +3039,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   }]
                 });
               } catch (error) {
-                console.error("Erro ao salvar situação técnica:", error);
+                logError("Erro ao salvar situação técnica:", error);
                 toast.error("Erro ao salvar: " + error.message);
               }
             }} className="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 h-12 font-black uppercase text-sm rounded-2xl transition-all flex items-center justify-center shadow-xl">
@@ -4474,7 +3879,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <X size={18} className="mr-2" />
                 Cancelar
               </Button>
-              <Button onClick={handleSaveEditedEntry} className="flex-1 bg-gradient-to-r from-sky-600 to-sky-700 hover:from-sky-700 hover:to-sky-800 h-12 font-black uppercase text-sm rounded-2xl shadow-xl">
+              <Button onClick={handleSaveFlightEntry} className="flex-1 bg-gradient-to-r from-sky-600 to-sky-700 hover:from-sky-700 hover:to-sky-800 h-12 font-black uppercase text-sm rounded-2xl shadow-xl">
                 <Save size={18} className="mr-2" />
                 Salvar Alterações
               </Button>
