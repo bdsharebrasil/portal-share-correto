@@ -3606,7 +3606,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             // Calcular totais por cliente
             const clientTotals: Record<string, { hours: number; dailyRates: number; name: string }> = {};
             // Calcular totais por sócio/partner
-            const partnerTotals: Record<string, { hours: number; dailyRates: number; voos: number }> = {};
+            const partnerTotals: Record<string, { hours: number; dailyRates: number; voos: number; partnerName: string }> = {};
             let splitHours = 0;
 
             filteredEntries.forEach(e => {
@@ -3615,24 +3615,44 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               } else if (e.client_id) {
                 const clientName = clients.find(c => c.id === e.client_id)?.company_name?.split(' ')[0] || 'Cliente';
 
-                // Se é empréstimo (is_loan = true), NUNCA usar partner_name para agregação
-                // partner_name em empréstimo contém quem pegou emprestado, não quem é dono
-                if (e.is_loan || !e.partner_name) {
-                  // Agregar pelo cliente dono (client_id)
+                // Se é empréstimo (is_loan = true), agregar pelo cliente dono
+                if (e.is_loan) {
                   if (!clientTotals[e.client_id]) {
                     clientTotals[e.client_id] = { hours: 0, dailyRates: 0, name: clientName };
                   }
                   clientTotals[e.client_id].hours += (e.time || 0);
                   clientTotals[e.client_id].dailyRates += (e.daily_rate || 0);
                 } else {
-                  // Voo normal com sócio (não é empréstimo)
-                  // Usar o partner_name como chave (sócio do cliente)
-                  if (!partnerTotals[e.partner_name]) {
-                    partnerTotals[e.partner_name] = { hours: 0, dailyRates: 0, voos: 0 };
+                  // Voo normal: tentar agrupar por parceiro se houver
+                  const hasClientPartner = e.client_partner_id;
+
+                  if (hasClientPartner) {
+                    // Agregar pelo client_partner_id
+                    const partnerName = getPartnerNameById(e.client_partner_id, clientPartners) || 'Parceiro Desconhecido';
+                    const partnerKey = e.client_partner_id;
+
+                    if (!partnerTotals[partnerKey]) {
+                      partnerTotals[partnerKey] = { hours: 0, dailyRates: 0, voos: 0, partnerName };
+                    }
+                    partnerTotals[partnerKey].hours += (e.time || 0);
+                    partnerTotals[partnerKey].dailyRates += (e.daily_rate || 0);
+                    partnerTotals[partnerKey].voos += 1;
+                  } else if (e.partner_name) {
+                    // Fallback: usar partner_name se existir (compatibilidade com dados antigos)
+                    if (!partnerTotals[e.partner_name]) {
+                      partnerTotals[e.partner_name] = { hours: 0, dailyRates: 0, voos: 0, partnerName: e.partner_name };
+                    }
+                    partnerTotals[e.partner_name].hours += (e.time || 0);
+                    partnerTotals[e.partner_name].dailyRates += (e.daily_rate || 0);
+                    partnerTotals[e.partner_name].voos += 1;
+                  } else {
+                    // Sem parceiro: agregar pelo cliente
+                    if (!clientTotals[e.client_id]) {
+                      clientTotals[e.client_id] = { hours: 0, dailyRates: 0, name: clientName };
+                    }
+                    clientTotals[e.client_id].hours += (e.time || 0);
+                    clientTotals[e.client_id].dailyRates += (e.daily_rate || 0);
                   }
-                  partnerTotals[e.partner_name].hours += (e.time || 0);
-                  partnerTotals[e.partner_name].dailyRates += (e.daily_rate || 0);
-                  partnerTotals[e.partner_name].voos += 1;
                 }
               }
             });
@@ -3700,9 +3720,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   <div className="pt-2 border-t border-slate-800/50">
                     <div className="text-[9px] font-bold text-slate-500 uppercase mb-2">Horas por Sócio</div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                      {Object.entries(partnerTotals).map(([partnerName, pt], idx) => (
+                      {Object.entries(partnerTotals).map(([key, pt], idx) => (
                         <div key={idx} className="bg-slate-900/50 rounded-lg p-2.5 border border-slate-800/50">
-                          <div className="text-[9px] font-semibold text-slate-400 uppercase mb-1 truncate">{partnerName}</div>
+                          <div className="text-[9px] font-semibold text-slate-400 uppercase mb-1 truncate">{pt.partnerName}</div>
                           <div className="text-sm font-black text-orange-400 mb-0.5">{decimalToHHMM(pt.hours)}</div>
                           <div className="text-[8px] text-slate-500">{pt.voos} voo{pt.voos > 1 ? 's' : ''}</div>
                           {logbookMonth?.has_daily_rate && pt.dailyRates > 0 && (
