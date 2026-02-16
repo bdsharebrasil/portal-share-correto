@@ -536,23 +536,25 @@ export function DynamicLogbookForm({
         finalDailyRate = quantity * aircraftDailyRate;
       }
 
-      // Determinar client_id baseado na categoria
-      let entryClientId: string | null = null;
-      if (flightCategory === 'cliente') {
-        entryClientId = selectedClient;
-      } else if (flightCategory === 'emprestimo') {
-        // No empréstimo, o client_id é quem está pegando emprestado
-        entryClientId = selectedBorrowerClient;
-      }
+      // Determinar campos de acordo com as 3 cases
+      // client_id é SEMPRE o proprietário da aeronave
+      const entryClientId = selectedClient;
 
-      // Determinar client_partner_id baseado na categoria
+      // Inicializar campos de parceiros e loan_recipient
       let entryClientPartnerId: string | null = null;
+      let entryLoanRecipientClientId: string | null = null;
+      let entryLoanRecipientPartnerId: string | null = null;
+
       if (flightCategory === 'cliente') {
-        // Para cliente normal, usar o parceiro selecionado (se houver)
+        // Case 1 ou 2: Voos normais
+        // client_partner_id = parceiro do proprietário que voou (se houver)
         entryClientPartnerId = selectedClientPartner || null;
       } else if (flightCategory === 'emprestimo') {
-        // Para empréstimo, usar o parceiro do borrower (quem pegou emprestado)
-        entryClientPartnerId = selectedBorrowerPartner || null;
+        // Case 3: Voos de empréstimo
+        // loan_recipient_client_id = cliente que pegou emprestado
+        // loan_recipient_partner_id = parceiro do cliente que pegou emprestado (se houver)
+        entryLoanRecipientClientId = selectedBorrowerClient || null;
+        entryLoanRecipientPartnerId = selectedBorrowerPartner || null;
       }
 
       const { data: insertedEntry, error } = await supabase.from('logbook_entries').insert([
@@ -565,6 +567,8 @@ export function DynamicLogbookForm({
           flight_nature: flightNature,
           client_id: entryClientId,
           client_partner_id: entryClientPartnerId,
+          loan_recipient_client_id: entryLoanRecipientClientId,
+          loan_recipient_partner_id: entryLoanRecipientPartnerId,
           is_equal_split: flightCategory === 'rateio',
           is_loan: flightCategory === 'emprestimo',
           pic_canac: selectedPic,

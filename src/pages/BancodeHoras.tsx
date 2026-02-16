@@ -86,32 +86,93 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
 
       if (acRes.data) setAircraft(acRes.data);
 
-      const loansRes = await supabase
-        .from('aircraft_loans')
+      // Query logbook entries for loans of this aircraft
+      const logbookRes = await supabase
+        .from('logbook_entries')
         .select(`
-          *,
-          lender_client:clients!aircraft_loans_lender_client_id_fkey (
-            id,
-            company_name
-          ),
-          borrower_client:clients!aircraft_loans_borrower_client_id_fkey (
-            id,
-            company_name
-          ),
-          lender_partner:client_partners!aircraft_loans_lender_partner_fkey (
-            id,
-            name
-          ),
-          borrower_partner:client_partners!aircraft_loans_borrower_partner_fkey (
-            id,
-            name
-          )
+          id,
+          aircraft_id,
+          client_id,
+          loan_recipient_client_id,
+          loan_recipient_partner_id,
+          entry_date,
+          departure_aerodrome,
+          arrival_aerodrome,
+          total_time
         `)
-        .eq('lender_aircraft_id', aircraftId)
+        .eq('aircraft_id', aircraftId)
+        .eq('is_loan', true)
         .order('entry_date', { ascending: false });
 
-      if (loansRes.data) {
-        setLoans(loansRes.data as unknown as AircraftLoan[]);
+      if (logbookRes.data && logbookRes.data.length > 0) {
+        // Get associated aircraft_loans records
+        const logbookIds = logbookRes.data.map((e: any) => e.id);
+        const loansRes = await supabase
+          .from('aircraft_loans')
+          .select('*')
+          .in('logbook_entry_id', logbookIds);
+
+        // Create a map of logbook_entry_id -> aircraft_loan
+        const loansMap: Record<string, any> = {};
+        if (loansRes.data) {
+          loansRes.data.forEach((loan: any) => {
+            loansMap[loan.logbook_entry_id] = loan;
+          });
+        }
+
+        // Fetch client and partner info
+        const clientIds = [
+          ...new Set([
+            ...logbookRes.data.map((e: any) => e.client_id),
+            ...logbookRes.data.map((e: any) => e.loan_recipient_client_id)
+          ].filter(Boolean))
+        ];
+        const partnerIds = logbookRes.data
+          .map((e: any) => e.loan_recipient_partner_id)
+          .filter(Boolean);
+
+        const [clientsRes, partnersRes] = await Promise.all([
+          clientIds.length > 0
+            ? supabase.from('clients').select('id, company_name').in('id', clientIds)
+            : Promise.resolve({ data: [] }),
+          partnerIds.length > 0
+            ? supabase.from('client_partners').select('id, name').in('id', partnerIds)
+            : Promise.resolve({ data: [] })
+        ]);
+
+        const clientsMap: Record<string, any> = {};
+        const partnersMap: Record<string, any> = {};
+
+        (clientsRes.data || []).forEach((c: any) => {
+          clientsMap[c.id] = c;
+        });
+
+        (partnersRes.data || []).forEach((p: any) => {
+          partnersMap[p.id] = p;
+        });
+
+        // Combine logbook and aircraft_loans data
+        const transformedLoans = logbookRes.data.map((entry: any) => {
+          const loan = loansMap[entry.id];
+          return {
+            id: loan?.id || entry.id,
+            lender_aircraft_id: entry.aircraft_id,
+            lender_client_id: entry.client_id,
+            borrower_client_id: entry.loan_recipient_client_id,
+            lender_client: clientsMap[entry.client_id],
+            borrower_client: clientsMap[entry.loan_recipient_client_id],
+            borrower_partner: entry.loan_recipient_partner_id ? partnersMap[entry.loan_recipient_partner_id] : undefined,
+            hours_borrowed: loan?.hours_borrowed || entry.total_time || 0,
+            hours_paid_back: loan?.hours_paid_back || 0,
+            entry_date: loan?.entry_date || entry.entry_date,
+            departure_aerodrome: loan?.departure_aerodrome || entry.departure_aerodrome,
+            arrival_aerodrome: loan?.arrival_aerodrome || entry.arrival_aerodrome,
+            logbook_entry_id: entry.id,
+            status: loan?.status || 'pending'
+          };
+        });
+
+        setLoans(transformedLoans as unknown as AircraftLoan[]);
       }
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
