@@ -2848,8 +2848,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 </div>
               )}
 
-              <div className={editingEntryIdForm ? 'grid grid-cols-2 gap-3' : ''}>
-                {editingEntryIdForm && (
+              {editingEntryIdForm ? (
+                <div className="flex gap-3">
                   <Button onClick={() => {
                     setEditingEntryIdForm(null);
                     setShowAddForm(false);
@@ -2894,16 +2894,21 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       daily_quantity: 0
                     });
                     setFlightType('cliente');
-                  }} className="bg-slate-800 hover:bg-slate-700 h-14 font-black uppercase text-sm rounded-2xl flex items-center justify-center">
+                  }} className="flex-1 bg-slate-800 hover:bg-slate-700 h-14 font-black uppercase text-sm rounded-2xl flex items-center justify-center">
                     <X size={18} className="mr-2" />
                     Cancelar
                   </Button>
-                )}
-                <Button onClick={handleSaveFlight} className={`${editingEntryIdForm ? '' : 'w-full'} bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 h-14 font-black uppercase text-sm rounded-2xl`}>
+                  <Button onClick={handleSaveFlight} className="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 h-14 font-black uppercase text-sm rounded-2xl">
+                    <Save size={18} className="mr-2" />
+                    Atualizar Voo
+                  </Button>
+                </div>
+              ) : (
+                <Button onClick={handleSaveFlight} className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 h-14 font-black uppercase text-sm rounded-2xl">
                   <Save size={18} className="mr-2" />
-                  {editingEntryIdForm ? 'Atualizar Voo' : 'Salvar Voo'}
+                  Salvar Voo
                 </Button>
-              </div>
+              )}
             </div>
 
             {/* SEÇÃO 6: OBSERVAÇÕES & MANUTENÇÃO */}
