@@ -557,6 +557,13 @@ export function DynamicLogbookForm({
         entryLoanRecipientPartnerId = selectedBorrowerPartner || null;
       }
 
+      // Buscar nome do cliente que pegará emprestado (para preencher partner_name)
+      let borrowerPartnerName = '';
+      if (flightCategory === 'emprestimo' && selectedBorrowerClient) {
+        const borrowerClient = allClients.find(c => c.id === selectedBorrowerClient);
+        borrowerPartnerName = borrowerClient?.company_name || '';
+      }
+
       const { data: insertedEntry, error } = await supabase.from('logbook_entries').insert([
         {
           logbook_month_id: typeof logbookMonthId !== 'undefined' ? logbookMonthId : null,
@@ -566,9 +573,7 @@ export function DynamicLogbookForm({
           arrival_aerodrome: formData.arrival_airport,
           flight_nature: flightNature,
           client_id: entryClientId,
-          client_partner_id: entryClientPartnerId,
-          loan_recipient_client_id: entryLoanRecipientClientId,
-          loan_recipient_partner_id: entryLoanRecipientPartnerId,
+          partner_name: flightCategory === 'emprestimo' ? borrowerPartnerName : null,
           is_equal_split: flightCategory === 'rateio',
           is_loan: flightCategory === 'emprestimo',
           pic_canac: selectedPic,
@@ -593,6 +598,7 @@ export function DynamicLogbookForm({
           cargo_kg: parseFloat(cargoKg) || 0,
           occurrences: occurrences || null,
           discrepancies: discrepancies || null,
+          trecho: `${formData.departure_airport || ''} → ${formData.arrival_airport || ''}`,
         },
       ]).select().single();
 
@@ -625,26 +631,34 @@ export function DynamicLogbookForm({
 
       // Se for empréstimo, registrar na tabela aircraft_loans E no banco de horas (hour_transactions)
       if (flightCategory === 'emprestimo' && insertedEntry) {
+        // Buscar nome do PIC se disponível
+        const picName = selectedPic ? (allCrew.find(p => p.id === selectedPic)?.full_name || null) : null;
+
         // Registrar na tabela aircraft_loans
-        const { error: loanError } = await supabase.from('aircraft_loans').insert([
-          {
-            lender_aircraft_id: aircraftId,
-            lender_client_id: selectedClient,
-            lender_partner_id: selectedLenderPartner || null,
-            borrower_client_id: selectedBorrowerClient,
-            borrower_partner_id: selectedBorrowerPartner || null,
-            hours_borrowed: totalBlockTime,
-            entry_date: format(date!, 'yyyy-MM-dd'),
-            departure_aerodrome: formData.departure_airport || '',
-            arrival_aerodrome: formData.arrival_airport || '',
-            logbook_entry_id: insertedEntry.id,
-            status: 'active',
-            notes: `Empréstimo registrado via diário de bordo - ${formData.departure_airport} → ${formData.arrival_airport}`,
-          },
-        ]);
+        const loanData = {
+          lender_aircraft_id: aircraftId,
+          lender_client_id: selectedClient, // Quem emprestou
+          borrower_client_id: selectedBorrowerClient, // Quem pegou emprestado
+          hours_borrowed: totalBlockTime,
+          entry_date: format(date!, 'yyyy-MM-dd'),
+          departure_aerodrome: formData.departure_airport || '',
+          arrival_aerodrome: formData.arrival_airport || '',
+          trecho: `${formData.departure_airport || ''} → ${formData.arrival_airport || ''}`,
+          fuel_added: parseFloat(formData.fuel_added) || null,
+          pic_name: picName,
+          logbook_entry_id: insertedEntry.id,
+          status: 'active',
+          notes: `Empréstimo registrado via diário de bordo - ${formData.departure_airport} → ${formData.arrival_airport}`,
+        };
+
+        console.log('📝 Criando aircraft_loans:', loanData);
+
+        const { error: loanError, data: loanResult } = await supabase.from('aircraft_loans').insert([loanData]).select();
 
         if (loanError) {
-          console.error('Erro ao registrar empréstimo:', loanError);
+          console.error('❌ Erro ao registrar empréstimo:', loanError);
+        } else {
+          console.log('✅ aircraft_loans criado com sucesso:', loanResult);
         }
 
         // 2. Registrar no banco de horas (hour_transactions) - crédito para quem voou
@@ -663,12 +677,16 @@ export function DynamicLogbookForm({
         ]);
 
         if (transactionError) {
-          console.error('Erro ao registrar transação no banco de horas:', transactionError);
-          toast({
-            title: 'Atenção',
-            description: 'Voo registrado, mas houve erro ao registrar no banco de horas.',
-            variant: 'destructive',
-          });
+          if (transactionError.code === '403') {
+            console.warn('⚠️ Sem permissão para registrar transação (erro 403), mas aircraft_loans foi criado com sucesso');
+          } else {
+            console.error('Erro ao registrar transação no banco de horas:', transactionError);
+            toast({
+              title: 'Atenção',
+              description: 'Voo registrado, mas houve erro ao registrar no banco de horas.',
+              variant: 'destructive',
+            });
+          }
         } else {
           console.log('✅ Transação de empréstimo registrada no banco de horas');
         }
@@ -1771,7 +1789,7 @@ export function DynamicLogbookForm({
                 <p className="text-muted-foreground text-xs">PIC</p>
                 <p className="font-medium text-xs">
                   {selectedPic
-                    ? tripulantes.find(t => t.id === selectedPic)?.full_name?.split(' ')[0] || 'PIC'
+                    ? allCrew.find(t => t.id === selectedPic)?.full_name?.split(' ')[0] || 'PIC'
                     : '-'
                   }
                 </p>

@@ -31,12 +31,6 @@ interface Cliente {
   id: string;
   company_name: string;
   cnpj: string;
-  partner_name?: string;
-  partner_cpf?: string;
-  partner_name2?: string;
-  partner_cpf2?: string;
-  partner_name3?: string;
-  partner_cpf3?: string;
   proprietario?: string;
   inscricao_estadual?: string;
   address?: string;
@@ -50,6 +44,7 @@ interface Cliente {
   logo_url?: string;
   documents?: ClientDocument[];
   status?: string | null;
+  has_partner?: boolean;
 }
 interface AircraftOption {
   id: string;
@@ -113,15 +108,6 @@ export default function Clientes() {
   const [formData, setFormData] = useState({
     company_name: "",
     cnpj: "",
-    partner_name: "",
-    partner_cpf: "",
-    partner_percentage1: "33.33",
-    partner_name2: "",
-    partner_cpf2: "",
-    partner_percentage2: "33.33",
-    partner_name3: "",
-    partner_cpf3: "",
-    partner_percentage3: "33.34",
     proprietario: "",
     inscricao_estadual: "",
     address: "",
@@ -141,6 +127,8 @@ export default function Clientes() {
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<ClientDocument | null>(null);
   const [loadingAircraft, setLoadingAircraft] = useState(false);
+  const [hasPartner, setHasPartner] = useState(false);
+  const [partners, setPartners] = useState<Array<{name: string; cpf: string; share_percentage: number}>>([]);
   useEffect(() => {
     loadClientes();
     loadAircraftOptions();
@@ -164,13 +152,17 @@ export default function Clientes() {
       const rows = data as any[] || [];
       const clientIds = rows.map(r => r.id).filter(Boolean);
 
-      // Buscar as relações de aeronaves
+      // Buscar as relações de aeronaves e parceiros
       let clientAircraftMap: Record<string, AircraftOwnership[]> = {};
+      let clientPartnersMap: Record<string, Array<{name: string; cpf: string; share_percentage: number}>> = {};
+      
       if (clientIds.length > 0) {
+        // Buscar aeronaves
         const {
           data: clientAircraftData,
           error: caError
         } = await supabase.from("client_aircraft").select("client_id, aircraft_id, share_percentage, aircraft:aircraft_id(id, registration, model)").in("client_id", clientIds);
+        
         if (!caError && Array.isArray(clientAircraftData)) {
           clientAircraftData.forEach((ca: any) => {
             if (!clientAircraftMap[ca.client_id]) {
@@ -184,10 +176,30 @@ export default function Clientes() {
             });
           });
         }
+        
+        // Buscar parceiros/sócios
+        const {
+          data: clientPartnersData,
+          error: cpError
+        } = await supabase.from("client_partners").select("client_id, name, cpf, share_percentage").in("client_id", clientIds);
+        
+        if (!cpError && Array.isArray(clientPartnersData)) {
+          clientPartnersData.forEach((cp: any) => {
+            if (!clientPartnersMap[cp.client_id]) {
+              clientPartnersMap[cp.client_id] = [];
+            }
+            clientPartnersMap[cp.client_id].push({
+              name: cp.name,
+              cpf: cp.cpf,
+              share_percentage: cp.share_percentage || 0
+            });
+          });
+        }
       }
       const mapped: Cliente[] = rows.map((row: any) => ({
         ...row,
-        aircraft_ownerships: clientAircraftMap[row.id] || []
+        aircraft_ownerships: clientAircraftMap[row.id] || [],
+        partners: clientPartnersMap[row.id] || []
       })).sort((a, b) => (a.company_name || '').localeCompare(b.company_name || '', 'pt-BR'));
       setClientes(mapped);
     } catch (error) {
@@ -250,15 +262,6 @@ export default function Clientes() {
       setFormData({
         company_name: cliente.company_name || "",
         cnpj: cliente.cnpj || "",
-        partner_name: cliente.partner_name || "",
-        partner_cpf: cliente.partner_cpf || "",
-        partner_percentage1: String((cliente as any).partner_percentage1 || "33.33"),
-        partner_name2: cliente.partner_name2 || "",
-        partner_cpf2: cliente.partner_cpf2 || "",
-        partner_percentage2: String((cliente as any).partner_percentage2 || "33.33"),
-        partner_name3: cliente.partner_name3 || "",
-        partner_cpf3: cliente.partner_cpf3 || "",
-        partner_percentage3: String((cliente as any).partner_percentage3 || "33.34"),
         proprietario: cliente.proprietario || "",
         inscricao_estadual: cliente.inscricao_estadual || "",
         address: cliente.address || "",
@@ -272,20 +275,17 @@ export default function Clientes() {
       });
       setAircraftOwnerships(cliente.aircraft_ownerships || []);
       setLogoPreview(cliente.logo_url || null);
+      setHasPartner(cliente.has_partner || false);
+      if (cliente.has_partner && (cliente as any).partners && Array.isArray((cliente as any).partners)) {
+        setPartners((cliente as any).partners);
+      } else {
+        setPartners([]);
+      }
     } else {
       setEditingCliente(null);
       setFormData({
         company_name: "",
         cnpj: "",
-        partner_name: "",
-        partner_cpf: "",
-        partner_percentage1: "33.33",
-        partner_name2: "",
-        partner_cpf2: "",
-        partner_percentage2: "33.33",
-        partner_name3: "",
-        partner_cpf3: "",
-        partner_percentage3: "33.34",
         proprietario: "",
         inscricao_estadual: "",
         address: "",
@@ -299,6 +299,8 @@ export default function Clientes() {
       });
       setAircraftOwnerships([]);
       setLogoPreview(null);
+      setHasPartner(false);
+      setPartners([]);
     }
     setLogoFile(null);
     setDocumentFiles([]);
@@ -308,6 +310,9 @@ export default function Clientes() {
     setIsDialogOpen(false);
     setEditingCliente(null);
     setAircraftOwnerships([]);
+    setHasPartner(false);
+    setPartners([]);
+    setDocumentFiles([]);
   };
   const addAircraftOwnership = () => {
     setAircraftOwnerships([...aircraftOwnerships, {
@@ -341,6 +346,20 @@ export default function Clientes() {
     if (total === 100) return 'text-green-400';
     if (total > 100) return 'text-red-400';
     return 'text-yellow-400';
+  };
+  const addPartner = () => {
+    setPartners([...partners, {name: "", cpf: "", share_percentage: 0}]);
+  };
+  const removePartner = (index: number) => {
+    setPartners(partners.filter((_, i) => i !== index));
+  };
+  const updatePartner = (index: number, field: string, value: any) => {
+    const updated = [...partners];
+    updated[index] = {
+      ...updated[index],
+      [field]: value
+    };
+    setPartners(updated);
   };
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -482,12 +501,6 @@ export default function Clientes() {
       const updatedData = {
         company_name: formData.company_name,
         cnpj: formData.cnpj,
-        partner_name: formData.partner_name || null,
-        partner_cpf: formData.partner_cpf || null,
-        partner_name2: formData.partner_name2 || null,
-        partner_cpf2: formData.partner_cpf2 || null,
-        partner_name3: formData.partner_name3 || null,
-        partner_cpf3: formData.partner_cpf3 || null,
         proprietario: formData.proprietario,
         inscricao_estadual: formData.inscricao_estadual,
         address: formData.address,
@@ -499,7 +512,8 @@ export default function Clientes() {
         observations: formData.observations,
         status: (formData as any).status ?? "ativo",
         logo_url: logoUrl,
-        documents: [...existingDocs, ...newDocs]
+        documents: [...existingDocs, ...newDocs],
+        has_partner: hasPartner
       };
       let clientId = editingCliente?.id;
       if (editingCliente) {
@@ -563,6 +577,43 @@ export default function Clientes() {
           title: "Sucesso",
           description: "Cliente cadastrado com sucesso"
         });
+      }
+
+      // Save partners if has_partner is true
+      if (clientId && hasPartner && partners.length > 0) {
+        console.log("👥 SALVANDO SÓCIOS");
+
+        // Delete existing partners for this client
+        const { error: deletePartnersError } = await supabase.from("client_partners").delete().eq("client_id", clientId);
+        if (deletePartnersError) {
+          console.warn("Aviso ao deletar sócios anteriores:", deletePartnersError);
+        }
+
+        // Insert new partners
+        const partnersData = partners.map(p => ({
+          client_id: clientId,
+          name: p.name,
+          cpf: p.cpf.replace(/\D/g, ''),
+          share_percentage: p.share_percentage
+        }));
+
+        const { error: partnersError } = await supabase.from("client_partners").insert(partnersData);
+        if (partnersError) {
+          console.error("Erro ao salvar sócios:", partnersError);
+          toast({
+            title: "Aviso",
+            description: `Cliente salvo, mas houve erro ao salvar os sócios: ${partnersError.message || 'Erro desconhecido'}`,
+            variant: "destructive"
+          });
+        } else {
+          console.log("✅ Sócios salvos com sucesso");
+        }
+      } else if (clientId && !hasPartner) {
+        // Delete partners if has_partner was unchecked
+        const { error: deletePartnersError } = await supabase.from("client_partners").delete().eq("client_id", clientId);
+        if (deletePartnersError) {
+          console.warn("Aviso ao deletar sócios:", deletePartnersError);
+        }
       }
 
       // Save aircraft relationships
@@ -659,13 +710,7 @@ export default function Clientes() {
     cliente =>
       cliente.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cliente.cnpj?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.partner_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.partner_cpf?.replace(/\D/g, '').includes(searchTerm.replace(/\D/g, '')) ||
-      cliente.partner_name2?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.partner_cpf2?.replace(/\D/g, '').includes(searchTerm.replace(/\D/g, '')) ||
-      cliente.partner_name3?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.partner_cpf3?.replace(/\D/g, '').includes(searchTerm.replace(/\D/g, ''))
+      cliente.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
   const isActive = (status?: string | null) => {
     const s = String(status ?? '').toLowerCase();
@@ -929,7 +974,7 @@ export default function Clientes() {
           </Card>}
 
           {/* Additional Information */}
-          {(viewingCliente.proprietario || viewingCliente.inscricao_estadual || viewingCliente.aircraft_ownerships?.length || viewingCliente.observations) && <Card>
+          {(viewingCliente.proprietario || viewingCliente.inscricao_estadual || viewingCliente.aircraft_ownerships?.length || viewingCliente.has_partner || viewingCliente.observations) && <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold flex items-center gap-3">
                 <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -963,47 +1008,18 @@ export default function Clientes() {
                       </div>)}
                   </div>
                 </div>}
-
-              {(viewingCliente.partner_name || viewingCliente.partner_name2 || viewingCliente.partner_name3) && (
-                <div className="col-span-3">
-                  <p className="text-xs text-muted-foreground mb-3">Sócios / Cotistas</p>
-                  <div className="space-y-2">
-                    {viewingCliente.partner_name && (
-                      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{viewingCliente.partner_name}</p>
-                          {viewingCliente.partner_cpf && (
-                            <p className="text-xs text-muted-foreground font-mono">CPF: {viewingCliente.partner_cpf}</p>
-                          )}
-                        </div>
-                        <Badge variant="secondary">Sócio 1</Badge>
-                      </div>
-                    )}
-                    {viewingCliente.partner_name2 && (
-                      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{viewingCliente.partner_name2}</p>
-                          {viewingCliente.partner_cpf2 && (
-                            <p className="text-xs text-muted-foreground font-mono">CPF: {viewingCliente.partner_cpf2}</p>
-                          )}
-                        </div>
-                        <Badge variant="secondary">Sócio 2</Badge>
-                      </div>
-                    )}
-                    {viewingCliente.partner_name3 && (
-                      <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{viewingCliente.partner_name3}</p>
-                          {viewingCliente.partner_cpf3 && (
-                            <p className="text-xs text-muted-foreground font-mono">CPF: {viewingCliente.partner_cpf3}</p>
-                          )}
-                        </div>
-                        <Badge variant="secondary">Sócio 3</Badge>
-                      </div>
-                    )}
+              {viewingCliente.has_partner && (viewingCliente as any).partners && Array.isArray((viewingCliente as any).partners) && (viewingCliente as any).partners.length > 0 && <div>
+                  <p className="text-xs text-muted-foreground mb-3 font-semibold">👥 Sócios / Cotistas</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(viewingCliente as any).partners.map((partner: any, idx: number) => <div key={idx} className="p-3 bg-muted/50 rounded-lg border border-border">
+                        <p className="text-sm font-medium text-foreground">{partner.name}</p>
+                        <p className="text-xs text-muted-foreground font-mono mt-1">CPF: {partner.cpf}</p>
+                        {partner.share_percentage && <p className="text-xs text-cyan-400 font-semibold mt-1">Participação: {partner.share_percentage}%</p>}
+                      </div>)}
                   </div>
-                </div>
-              )}
+                </div>}
+
+
 
               {viewingCliente.observations && <div>
                   <p className="text-xs text-muted-foreground mb-2">Observações</p>
@@ -1155,149 +1171,6 @@ export default function Clientes() {
                 </div>
               </div>
 
-              {/* Seção de Sócios / Cotistas */}
-              <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
-                  <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">
-                    👥 Sócios / Cotistas
-                  </h3>
-                  <Badge variant="secondary" className="text-xs">
-                    Até 3 sócios
-                  </Badge>
-                </div>
-
-                <p className="text-sm text-slate-400 mb-4">
-                  Use quando múltiplos sócios compartilham o mesmo CNPJ
-                </p>
-
-                {/* Sócio 1 */}
-                <div className="space-y-3 p-4 border border-slate-600 rounded-lg bg-slate-900/50">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="outline" className="text-xs">Sócio 1</Badge>
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <Label htmlFor="partner_name" className="text-slate-300 mb-2 block">
-                        Nome Completo
-                      </Label>
-                      <Input
-                        id="partner_name"
-                        value={formData.partner_name}
-                        onChange={(e) => setFormData({ ...formData, partner_name: e.target.value })}
-                        placeholder="Ex: João Silva"
-                        className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="partner_cpf" className="text-slate-300 mb-2 block">
-                        CPF
-                      </Label>
-                      <Input
-                        id="partner_cpf"
-                        value={formData.partner_cpf}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          partner_cpf: formatCPF(e.target.value)
-                        })}
-                        placeholder="000.000.000-00"
-                        maxLength={14}
-                        className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="partner_percentage1" className="text-slate-300 mb-2 block">
-                        % Rateio
-                      </Label>
-                      <Input
-                        id="partner_percentage1"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="100"
-                        value={formData.partner_percentage1}
-                        onChange={(e) => setFormData({ ...formData, partner_percentage1: e.target.value })}
-                        placeholder="33.33"
-                        className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sócio 2 */}
-                <div className="space-y-3 p-4 border border-slate-600 rounded-lg bg-slate-900/50">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="outline" className="text-xs">Sócio 2</Badge>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="partner_name2" className="text-slate-300 mb-2 block">
-                        Nome Completo
-                      </Label>
-                      <Input
-                        id="partner_name2"
-                        value={formData.partner_name2}
-                        onChange={(e) => setFormData({ ...formData, partner_name2: e.target.value })}
-                        placeholder="Ex: Maria Santos"
-                        className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="partner_cpf2" className="text-slate-300 mb-2 block">
-                        CPF
-                      </Label>
-                      <Input
-                        id="partner_cpf2"
-                        value={formData.partner_cpf2}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          partner_cpf2: formatCPF(e.target.value)
-                        })}
-                        placeholder="000.000.000-00"
-                        maxLength={14}
-                        className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sócio 3 */}
-                <div className="space-y-3 p-4 border border-slate-600 rounded-lg bg-slate-900/50">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge variant="outline" className="text-xs">Sócio 3</Badge>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="partner_name3" className="text-slate-300 mb-2 block">
-                        Nome Completo
-                      </Label>
-                      <Input
-                        id="partner_name3"
-                        value={formData.partner_name3}
-                        onChange={(e) => setFormData({ ...formData, partner_name3: e.target.value })}
-                        placeholder="Ex: Pedro Costa"
-                        className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="partner_cpf3" className="text-slate-300 mb-2 block">
-                        CPF
-                      </Label>
-                      <Input
-                        id="partner_cpf3"
-                        value={formData.partner_cpf3}
-                        onChange={(e) => setFormData({
-                          ...formData,
-                          partner_cpf3: formatCPF(e.target.value)
-                        })}
-                        placeholder="000.000.000-00"
-                        maxLength={14}
-                        className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
 
               {/* Seção de Contato */}
               <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
@@ -1463,6 +1336,138 @@ export default function Clientes() {
                       observations: e.target.value
                     })} placeholder="Informações adicionais sobre o cliente" rows={3} className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500" />
                   </div>
+                </div>
+              </div>
+
+              {/* Seção de Sócios / Cotistas */}
+              <div className="bg-slate-800/30 border border-slate-700 rounded-xl p-6 space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="h-1 w-1 rounded-full bg-cyan-400"></div>
+                  <h3 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">
+                    👥 Sócios / Cotistas
+                  </h3>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-slate-300 font-semibold mb-3 block">
+                      Esse cliente é uma empresa de sociedade de cotistas?
+                    </Label>
+                    <div className="flex gap-4">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="has_partner"
+                          checked={hasPartner === false}
+                          onChange={() => {
+                            setHasPartner(false);
+                            setPartners([]);
+                          }}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-slate-300">Não</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="has_partner"
+                          checked={hasPartner === true}
+                          onChange={() => setHasPartner(true)}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-slate-300">Sim</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {hasPartner && (
+                    <div className="space-y-3 mt-4">
+                      {editingCliente?.has_partner && (editingCliente as any).partners && Array.isArray((editingCliente as any).partners) && (editingCliente as any).partners.length > 0 && (
+                        <div className="p-3 bg-slate-900/70 border border-slate-600 rounded-lg">
+                          <p className="text-xs text-cyan-400 font-semibold mb-2">📋 Sócios Salvos no Banco de Dados:</p>
+                          <div className="space-y-2">
+                            {(editingCliente as any).partners.map((savedPartner: any, idx: number) => (
+                              <div key={idx} className="text-xs text-slate-400 p-2 bg-slate-800 rounded">
+                                <span className="font-medium text-slate-300">{savedPartner.name}</span> - <span className="font-mono">{savedPartner.cpf}</span> {savedPartner.share_percentage && <span className="text-cyan-400 ml-2">({savedPartner.share_percentage}%)</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <p className="text-sm text-slate-400">
+                        Adicione os sócios/cotistas da empresa
+                      </p>
+
+                      {partners.length === 0 ? (
+                        <div className="p-4 border border-dashed border-slate-600 rounded-lg text-center text-slate-400">
+                          Nenhum sócio adicionado
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {partners.map((partner, index) => (
+                            <div key={index} className="space-y-3 p-4 border border-slate-600 rounded-lg bg-slate-900/50">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 grid grid-cols-3 gap-3">
+                                  <div>
+                                    <Label className="text-slate-300 mb-2 block text-xs">Nome</Label>
+                                    <Input
+                                      value={partner.name}
+                                      onChange={(e) => updatePartner(index, 'name', e.target.value)}
+                                      placeholder="Nome do sócio"
+                                      className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-slate-300 mb-2 block text-xs">CPF/CNPJ</Label>
+                                    <Input
+                                      value={partner.cpf}
+                                      onChange={(e) => updatePartner(index, 'cpf', formatCPF(e.target.value))}
+                                      placeholder="000.000.000-00"
+                                      className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-slate-300 mb-2 block text-xs">% Participação</Label>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      max="100"
+                                      value={partner.share_percentage}
+                                      onChange={(e) => updatePartner(index, 'share_percentage', parseFloat(e.target.value) || 0)}
+                                      placeholder="0.00"
+                                      className="bg-slate-900 border-slate-600 focus:border-cyan-400 text-slate-100 placeholder-slate-500"
+                                    />
+                                  </div>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => removePartner(index)}
+                                  className="h-9 w-9 p-0 mt-7 flex-shrink-0"
+                                  title="Remover sócio"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={addPartner}
+                        className="w-full bg-slate-900 border-slate-600 hover:bg-slate-800 text-cyan-400 hover:text-cyan-300"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Adicionar Sócio
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </TabsContent>
