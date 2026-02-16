@@ -82,6 +82,14 @@ export function DynamicLogbookForm({
   const [selectedBorrowerClient, setSelectedBorrowerClient] = useState<string>('');
   const [borrowerClientOpen, setBorrowerClientOpen] = useState(false);
 
+  // Parceiros
+  const [selectedLenderPartner, setSelectedLenderPartner] = useState<string | null>(null);
+  const [selectedBorrowerPartner, setSelectedBorrowerPartner] = useState<string | null>(null);
+  const [selectedClientPartner, setSelectedClientPartner] = useState<string | null>(null);
+  const [lenderPartnerModalOpen, setLenderPartnerModalOpen] = useState(false);
+  const [borrowerPartnerModalOpen, setBorrowerPartnerModalOpen] = useState(false);
+  const [clientPartnerModalOpen, setClientPartnerModalOpen] = useState(false);
+
   // Tripulação
   const [selectedPic, setSelectedPic] = useState<string>('');
   const [selectedSic, setSelectedSic] = useState<string>('');
@@ -184,6 +192,63 @@ export function DynamicLogbookForm({
   // O cliente que está usando a aeronave emprestada pode ser qualquer cliente cadastrado
   const borrowerClients = allClients;
 
+  // Buscar parceiros do cliente selecionado (para cliente normal)
+  const { data: clientPartners = [] } = useQuery({
+    queryKey: ['client-partners', selectedClient],
+    queryFn: async () => {
+      if (!selectedClient) return [];
+      const { data, error } = await supabase
+        .from('client_partners')
+        .select('id, name, cpf, share_percentage')
+        .eq('client_id', selectedClient)
+        .order('name');
+      if (error) {
+        console.error('Erro ao buscar parceiros do cliente:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!selectedClient && flightCategory === 'cliente',
+  });
+
+  // Buscar parceiros do cotista que empresta (para empréstimo)
+  const { data: lenderPartners = [] } = useQuery({
+    queryKey: ['lender-partners', selectedClient],
+    queryFn: async () => {
+      if (!selectedClient) return [];
+      const { data, error } = await supabase
+        .from('client_partners')
+        .select('id, name, cpf, share_percentage')
+        .eq('client_id', selectedClient)
+        .order('name');
+      if (error) {
+        console.error('Erro ao buscar parceiros do lender:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!selectedClient && flightCategory === 'emprestimo',
+  });
+
+  // Buscar parceiros do cliente que pega emprestado
+  const { data: borrowerPartners = [] } = useQuery({
+    queryKey: ['borrower-partners', selectedBorrowerClient],
+    queryFn: async () => {
+      if (!selectedBorrowerClient) return [];
+      const { data, error } = await supabase
+        .from('client_partners')
+        .select('id, name, cpf, share_percentage')
+        .eq('client_id', selectedBorrowerClient)
+        .order('name');
+      if (error) {
+        console.error('Erro ao buscar parceiros do borrower:', error);
+        return [];
+      }
+      return data || [];
+    },
+    enabled: !!selectedBorrowerClient && flightCategory === 'emprestimo',
+  });
+
   // Buscar dados do logbook_month para obter base_aerodrome, daily_rate e has_daily_rate
   const { data: logbookMonth } = useQuery({
     queryKey: ['logbook-month', logbookMonthId],
@@ -213,6 +278,17 @@ export function DynamicLogbookForm({
       setAircraftDailyRate(logbookMonth.daily_rate);
     }
   }, [logbookMonth]);
+
+  // Resetar parceiro quando cliente muda
+  useEffect(() => {
+    setSelectedClientPartner(null);
+    setSelectedLenderPartner(null);
+  }, [selectedClient]);
+
+  // Resetar parceiro do borrower quando muda
+  useEffect(() => {
+    setSelectedBorrowerPartner(null);
+  }, [selectedBorrowerClient]);
 
   const { formData, updateField, updateFields, resetForm } = useLogbookForm(aerodromes);
 
@@ -469,6 +545,16 @@ export function DynamicLogbookForm({
         entryClientId = selectedBorrowerClient;
       }
 
+      // Determinar client_partner_id baseado na categoria
+      let entryClientPartnerId: string | null = null;
+      if (flightCategory === 'cliente') {
+        // Para cliente normal, usar o parceiro selecionado (se houver)
+        entryClientPartnerId = selectedClientPartner || null;
+      } else if (flightCategory === 'emprestimo') {
+        // Para empréstimo, usar o parceiro do borrower (quem pegou emprestado)
+        entryClientPartnerId = selectedBorrowerPartner || null;
+      }
+
       const { data: insertedEntry, error } = await supabase.from('logbook_entries').insert([
         {
           logbook_month_id: typeof logbookMonthId !== 'undefined' ? logbookMonthId : null,
@@ -478,6 +564,7 @@ export function DynamicLogbookForm({
           arrival_aerodrome: formData.arrival_airport,
           flight_nature: flightNature,
           client_id: entryClientId,
+          client_partner_id: entryClientPartnerId,
           is_equal_split: flightCategory === 'rateio',
           is_loan: flightCategory === 'emprestimo',
           pic_canac: selectedPic,
@@ -539,7 +626,9 @@ export function DynamicLogbookForm({
           {
             lender_aircraft_id: aircraftId,
             lender_client_id: selectedClient,
+            lender_partner_id: selectedLenderPartner || null,
             borrower_client_id: selectedBorrowerClient,
+            borrower_partner_id: selectedBorrowerPartner || null,
             hours_borrowed: totalBlockTime,
             entry_date: format(date!, 'yyyy-MM-dd'),
             departure_aerodrome: formData.departure_airport || '',
@@ -601,6 +690,9 @@ export function DynamicLogbookForm({
         setSpecialFlightType('');
         setSelectedClient('');
         setSelectedBorrowerClient('');
+        setSelectedClientPartner(null);
+        setSelectedLenderPartner(null);
+        setSelectedBorrowerPartner(null);
         setSelectedPic('');
         setSelectedSic('');
         setSicName('');
@@ -760,6 +852,51 @@ export function DynamicLogbookForm({
       </DialogContent>
     </Dialog>
   );
+
+  // Modal de seleção de parceiro (cliente)
+  const PartnerSelectDialog = ({
+    open,
+    onOpenChange,
+    partners,
+    selectedPartner,
+    onSelect,
+    title = "Selecionar Parceiro"
+  }: any) => {
+    if (!open) return null;
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              {title}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[300px] overflow-y-auto">
+            {partners.map((partner: any) => (
+              <button
+                key={partner.id}
+                onClick={() => {
+                  onSelect(partner.id);
+                  onOpenChange(false);
+                }}
+                className={cn(
+                  "w-full text-left p-3 rounded-lg border-2 transition-all",
+                  selectedPartner === partner.id
+                    ? "border-primary bg-primary/10"
+                    : "border-input hover:border-primary/50 hover:bg-accent"
+                )}
+              >
+                <div className="font-semibold">{partner.name}</div>
+                {partner.cpf && <div className="text-xs text-muted-foreground">CPF: {partner.cpf}</div>}
+                {partner.share_percentage && <div className="text-xs text-muted-foreground">{partner.share_percentage}%</div>}
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
 
   // Conteúdo do formulário (função para evitar remount e perda de foco nos inputs)
   const renderFormContent = () => (
@@ -932,6 +1069,26 @@ export function DynamicLogbookForm({
                   </Command>
                 </PopoverContent>
               </Popover>
+
+              {/* Seleção de Parceiro (se cliente tiver parceiros) */}
+              {selectedClient && clientPartners.length > 0 && (
+                <div className="space-y-2 mt-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg animate-in slide-in-from-top-2">
+                  <Label className="text-sm">Parceiro do Cliente (Opcional)</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-between h-10 font-normal text-sm"
+                    onClick={() => setClientPartnerModalOpen(true)}
+                  >
+                    {selectedClientPartner
+                      ? clientPartners.find(p => p.id === selectedClientPartner)?.name
+                      : 'Selecione um parceiro...'}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    💡 Se o cliente tem sócios, você pode especificar qual deles está realizando o voo.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -1017,6 +1174,23 @@ export function DynamicLogbookForm({
                 </Popover>
               </div>
 
+              {/* Parceiro do Lender (se tiver) */}
+              {selectedClient && lenderPartners.length > 0 && (
+                <div className="space-y-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg animate-in slide-in-from-top-2">
+                  <Label className="text-sm">Parceiro do Cotista (Opcional)</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-between h-10 font-normal text-sm"
+                    onClick={() => setLenderPartnerModalOpen(true)}
+                  >
+                    {selectedLenderPartner
+                      ? lenderPartners.find(p => p.id === selectedLenderPartner)?.name
+                      : 'Selecione um parceiro...'}
+                  </Button>
+                </div>
+              )}
+
               {/* Cliente que está pegando emprestado */}
               <div className="space-y-2">
                 <Label>Cliente que pega emprestado</Label>
@@ -1063,6 +1237,23 @@ export function DynamicLogbookForm({
                   </PopoverContent>
                 </Popover>
               </div>
+
+              {/* Parceiro do Borrower (se tiver) */}
+              {selectedBorrowerClient && borrowerPartners.length > 0 && (
+                <div className="space-y-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg animate-in slide-in-from-top-2">
+                  <Label className="text-sm">Parceiro do Cliente que Pega Emprestado (Opcional)</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-between h-10 font-normal text-sm"
+                    onClick={() => setBorrowerPartnerModalOpen(true)}
+                  >
+                    {selectedBorrowerPartner
+                      ? borrowerPartners.find(p => p.id === selectedBorrowerPartner)?.name
+                      : 'Selecione um parceiro...'}
+                  </Button>
+                </div>
+              )}
 
               <p className="text-xs text-amber-200/80 bg-amber-500/20 p-3 rounded-lg">
                 ⚠️ Este voo será registrado como empréstimo. O cotista que emprestar receberá crédito no banco de horas
@@ -1738,6 +1929,40 @@ export function DynamicLogbookForm({
     );
   }
 
-  // Retornar Dialog normal
-  return renderDialog();
+  // Retornar Dialog normal com modais
+  return (
+    <>
+      {renderDialog()}
+
+      {/* Modal para seleção de parceiro do cliente (voo normal) */}
+      <PartnerSelectDialog
+        open={clientPartnerModalOpen}
+        onOpenChange={setClientPartnerModalOpen}
+        partners={clientPartners}
+        selectedPartner={selectedClientPartner}
+        onSelect={setSelectedClientPartner}
+        title="Selecionar Parceiro do Cliente"
+      />
+
+      {/* Modal para seleção de parceiro do lender (empréstimo) */}
+      <PartnerSelectDialog
+        open={lenderPartnerModalOpen}
+        onOpenChange={setLenderPartnerModalOpen}
+        partners={lenderPartners}
+        selectedPartner={selectedLenderPartner}
+        onSelect={setSelectedLenderPartner}
+        title="Selecionar Parceiro do Cotista"
+      />
+
+      {/* Modal para seleção de parceiro do borrower (empréstimo) */}
+      <PartnerSelectDialog
+        open={borrowerPartnerModalOpen}
+        onOpenChange={setBorrowerPartnerModalOpen}
+        partners={borrowerPartners}
+        selectedPartner={selectedBorrowerPartner}
+        onSelect={setSelectedBorrowerPartner}
+        title="Selecionar Parceiro do Cliente"
+      />
+    </>
+  );
 }

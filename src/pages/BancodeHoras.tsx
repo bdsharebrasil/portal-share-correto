@@ -97,6 +97,14 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
           borrower_client:clients!aircraft_loans_borrower_client_id_fkey (
             id,
             company_name
+          ),
+          lender_partner:client_partners!aircraft_loans_lender_partner_fkey (
+            id,
+            name
+          ),
+          borrower_partner:client_partners!aircraft_loans_borrower_partner_fkey (
+            id,
+            name
           )
         `)
         .eq('lender_aircraft_id', aircraftId)
@@ -134,14 +142,15 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
   // Dados dos tomadores para um sócio selecionado
   const borrowersForLender = useMemo(() => {
     if (!selectedLenderId) return [];
-    
+
     const borrowers: Record<string, ClientBalance> = {};
-    
+
     loans
       .filter(loan => loan.lender_client_id === selectedLenderId)
       .forEach(loan => {
         const borrowerId = loan.borrower_client_id;
-        const borrowerName = loan.borrower_client?.company_name || 'Cliente desconhecido';
+        // Se há um parceiro, usar o nome do parceiro, senão usar o nome da empresa
+        const borrowerName = loan.borrower_partner?.name || loan.borrower_client?.company_name || 'Cliente desconhecido';
         const hoursBorrowed = loan.hours_borrowed || 0;
         const hoursPaidBack = loan.hours_paid_back || 0;
 
