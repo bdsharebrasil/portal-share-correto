@@ -152,34 +152,17 @@ export default function Clientes() {
       const rows = data as any[] || [];
       const clientIds = rows.map(r => r.id).filter(Boolean);
 
-      // Buscar as relações de aeronaves
+      // Buscar as relações de aeronaves e parceiros
       let clientAircraftMap: Record<string, AircraftOwnership[]> = {};
-      if (clientIds.length > 0) {
-        const {
-        data: clientAircraftData,
-        error: caError
-      } = await supabase.from("client_aircraft").select("client_id, aircraft_id, share_percentage, aircraft:aircraft_id(id, registration, model)").in("client_id", clientIds);
-
-      // Buscar parceiros/sócios
       let clientPartnersMap: Record<string, Array<{name: string; cpf: string; share_percentage: number}>> = {};
+      
       if (clientIds.length > 0) {
+        // Buscar aeronaves
         const {
-          data: clientPartnersData,
-          error: cpError
-        } = await supabase.from("client_partners").select("client_id, name, cpf, share_percentage").in("client_id", clientIds);
-        if (!cpError && Array.isArray(clientPartnersData)) {
-          clientPartnersData.forEach((cp: any) => {
-            if (!clientPartnersMap[cp.client_id]) {
-              clientPartnersMap[cp.client_id] = [];
-            }
-            clientPartnersMap[cp.client_id].push({
-              name: cp.name,
-              cpf: cp.cpf,
-              share_percentage: cp.share_percentage || 0
-            });
-          });
-        }
-      }
+          data: clientAircraftData,
+          error: caError
+        } = await supabase.from("client_aircraft").select("client_id, aircraft_id, share_percentage, aircraft:aircraft_id(id, registration, model)").in("client_id", clientIds);
+        
         if (!caError && Array.isArray(clientAircraftData)) {
           clientAircraftData.forEach((ca: any) => {
             if (!clientAircraftMap[ca.client_id]) {
@@ -190,6 +173,25 @@ export default function Clientes() {
               aircraft_registration: ca.aircraft?.registration,
               aircraft_model: ca.aircraft?.model,
               ownership_percentage: ca.share_percentage
+            });
+          });
+        }
+        
+        // Buscar parceiros/sócios
+        const {
+          data: clientPartnersData,
+          error: cpError
+        } = await supabase.from("client_partners").select("client_id, name, cpf, share_percentage").in("client_id", clientIds);
+        
+        if (!cpError && Array.isArray(clientPartnersData)) {
+          clientPartnersData.forEach((cp: any) => {
+            if (!clientPartnersMap[cp.client_id]) {
+              clientPartnersMap[cp.client_id] = [];
+            }
+            clientPartnersMap[cp.client_id].push({
+              name: cp.name,
+              cpf: cp.cpf,
+              share_percentage: cp.share_percentage || 0
             });
           });
         }
