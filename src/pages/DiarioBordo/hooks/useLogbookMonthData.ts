@@ -6,11 +6,14 @@ import type { LogbookMonthData } from '../types';
 
 export function useLogbookMonthData(aircraft: Aircraft[]) {
   const [logbookMonthData, setLogbookMonthData] = useState<Record<string, LogbookMonthData | null>>({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(aircraft.length > 0);
 
   useEffect(() => {
-    if (aircraft.length === 0) return;
-    
+    if (aircraft.length === 0) {
+      setLoading(false);
+      return;
+    }
+
     fetchLogbookData();
   }, [aircraft]);
 

@@ -25,7 +25,7 @@ export function AircraftCard({
         <div className="p-2 bg-sky-500/20 rounded-lg">
           <BookOpen className="w-5 h-5 text-sky-500" />
         </div>
-        {aircraft.status === 'Ativo' && (
+        {aircraft.status && (aircraft.status === 'ativa' || aircraft.status === 'ativo' || aircraft.status === 'Ativa' || aircraft.status === 'Ativo') && (
           <span className="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-semibold rounded-lg uppercase">
             Ativa
           </span>
@@ -54,7 +54,7 @@ export function AircraftCard({
             <div className="flex-1 min-w-0">
               <p className="text-slate-500 text-xs uppercase">Célula Atual</p>
               <p className="text-emerald-400 font-semibold text-base">
-                {decimalToHM(aircraft.cell_hours_current)}
+                {aircraft.cell_hours_current ? decimalToHM(aircraft.cell_hours_current) : '---'}
               </p>
             </div>
           </div>

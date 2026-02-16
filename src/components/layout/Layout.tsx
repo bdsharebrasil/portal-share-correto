@@ -20,9 +20,9 @@ export const Layout: React.FC<LayoutProps> = ({
       }}>
           <div className="min-h-full flex flex-col">
             {/* Content wrapped in elevated canvas surface - dark contrast */}
-            <div className="flex-1 bg-gradient-to-br from-slate-800/80 via-slate-850/75 to-slate-900/80 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-700/50 overflow-hidden">
+            <div className="flex-1 bg-gradient-to-br from-slate-800/80 via-slate-850/75 to-slate-900/80 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-700/50 overflow-auto">
               <div className="h-full overflow-y-auto custom-scrollbar">
-                <div className="p-8 py-[7px]">
+                <div className="p-6">
                   {children}
                 </div>
               </div>

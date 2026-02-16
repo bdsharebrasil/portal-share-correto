@@ -29,6 +29,9 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ onBack }) => {
 
   const loading = loadingAircraft || loadingLogbook;
 
+  // Debug logging
+  console.log('DiarioBordo: loadingAircraft =', loadingAircraft, 'loadingLogbook =', loadingLogbook, 'aircraft count =', aircraft.length);
+
   // Handlers
   const handleBackToList = () => {
     setCurrentView('list');
