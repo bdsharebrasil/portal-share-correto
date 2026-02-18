@@ -8,6 +8,17 @@ export default defineConfig(({ mode }) => {
   const apiBaseUrl = process.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev';
 
   return {
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'pdf': ['pdfjs-dist'],
+            'react-pdf': ['react-pdf', '@react-pdf/renderer'],
+            'vendor': ['react', 'react-dom', 'react-router-dom'],
+          }
+        }
+      }
+    },
     server: {
       host: "::",
       port: 8080,

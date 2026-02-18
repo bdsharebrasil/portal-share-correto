@@ -264,16 +264,16 @@ function parseAndPrioritizeNOTAMs(rawData: any): NOTAMData[] {
       const msg = message.toLowerCase();
 
       if (msg.includes('closed') || msg.includes('fechado') ||
-          msg.includes('clsd') || msg.includes('unsafe') || msg.includes('não autorizado') ||
-          msg.includes('inoperacional') || msg.includes('closed') || msg.includes('closure')) {
+        msg.includes('clsd') || msg.includes('unsafe') || msg.includes('não autorizado') ||
+        msg.includes('inoperacional') || msg.includes('closed') || msg.includes('closure')) {
         priority = 'critical';
       } else if (msg.includes('restricted') || msg.includes('restrito') ||
-                 msg.includes('caution') || msg.includes('atenção') ||
-                 msg.includes('danger') || msg.includes('perigo') || msg.includes('limit')) {
+        msg.includes('caution') || msg.includes('atenção') ||
+        msg.includes('danger') || msg.includes('perigo') || msg.includes('limit')) {
         priority = 'high';
       } else if (msg.includes('tempo') || msg.includes('temporary') ||
-                 msg.includes('provisório') || msg.includes('experimental') ||
-                 msg.includes('test') || msg.includes('teste')) {
+        msg.includes('provisório') || msg.includes('experimental') ||
+        msg.includes('test') || msg.includes('teste')) {
         priority = 'medium';
       }
 
@@ -442,7 +442,7 @@ function parseROTAERData(rawData: any): ROTAERData | null {
             surface: String(rwy.surface?.['#text'] || rwy.surface || 'UNKN'),
             strength: String(rwy.surface_c?.['#text'] || ''),
             lighting: !!rwy.lights,
-          });
+          } as any);
         }
       });
     }
@@ -632,7 +632,7 @@ export function isAerodromeOperational(notams: NOTAMData[]): {
   warnings?: string[];
 } {
   const criticalNOTAMs = notams.filter(n => n.priority === 'critical');
-  
+
   for (const notam of criticalNOTAMs) {
     const msg = notam.message.toLowerCase();
     if (msg.includes('closed') || msg.includes('fechado')) {
@@ -643,7 +643,7 @@ export function isAerodromeOperational(notams: NOTAMData[]): {
       };
     }
   }
-  
+
   return {
     operational: true,
     reason: null,
@@ -663,30 +663,30 @@ export function calculateOptimalAltitude(
 } {
   const isIFR = flightRule === 'I';
   const warnings: string[] = [];
-  
+
   let baseAlt: number;
   if (bearing >= 0 && bearing < 180) {
     baseAlt = isIFR ? 7000 : 5500;
   } else {
     baseAlt = isIFR ? 8000 : 6500;
   }
-  
+
   const conflictingRestrictions = restrictions.filter(r => {
     const lower = parseAltitude(r.lowerLimit);
     const upper = parseAltitude(r.upperLimit);
     return baseAlt >= lower && baseAlt <= upper;
   });
-  
+
   if (conflictingRestrictions.length > 0) {
     warnings.push(
       `Altitude ${baseAlt}ft conflita com: ${conflictingRestrictions.map(r => r.name).join(', ')}`
     );
   }
-  
+
   const alternatives = isIFR
     ? ['FL070', 'FL090', 'FL110', 'FL130']
     : ['3500', '5500', '7500', '9500'];
-  
+
   return {
     suggested: isIFR ? `FL${Math.floor(baseAlt / 100)}` : baseAlt.toString(),
     alternatives,

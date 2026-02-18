@@ -61,6 +61,7 @@ export interface FlightEntry {
   time?: number;
   day_time?: number;
   night_time?: number;
+  night_hours?: number;      // alias usado internamente
   total_time?: number;
   ifr_time?: number;
   distance_nm?: number;
@@ -71,19 +72,27 @@ export interface FlightEntry {
   pic_canac: string;
   sic_canac?: string;
   sic_name?: string;
+  pic_name?: string;
   diarias?: number;
   extras?: string;
   voo_para?: string;
+  trecho?: string;
   confirmed?: boolean;
   remarks?: string;
   occurrences?: string;
   discrepancies?: string;
   // Campos de cliente/empréstimo
   client_id?: string;
+  client_company_name?: string;
   is_equal_split?: boolean;
   is_loan?: boolean;
   loan_recipient_client_id?: string;
   partner_name?: string;
+  // Campos extras usados no form
+  passengers?: number;
+  cargo_kg?: number;
+  daily_rate?: number;
+  flight_nature?: string;
 }
 
 /**

@@ -50,7 +50,7 @@ export function useFlightEdit(onSuccess: () => void) {
         oldNightHours !== newNightHours
       ) {
         const entryDate = new Date(editingEntry.entry_date);
-        
+
         // Remover horas antigas
         await updateCrewFlightHours({
           picId: editingEntry.pic_canac,
@@ -62,7 +62,7 @@ export function useFlightEdit(onSuccess: () => void) {
           ifrTime: oldIfrTime,
           nightHours: oldNightHours,
           flightDay: editingEntry.entry_date,
-          operation: 'subtract',
+          operation: 'remove',
         });
 
         // Adicionar horas novas

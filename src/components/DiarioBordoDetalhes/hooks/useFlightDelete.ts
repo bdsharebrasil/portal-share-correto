@@ -28,7 +28,7 @@ export function useFlightDelete(onSuccess: () => void) {
     try {
       // Remover horas de voo da tripulação
       const entryDate = new Date(entryToDelete.entry_date);
-      
+
       await updateCrewFlightHours({
         picId: entryToDelete.pic_canac,
         sicId: entryToDelete.sic_canac || null,
@@ -39,7 +39,7 @@ export function useFlightDelete(onSuccess: () => void) {
         ifrTime: entryToDelete.ifr_time,
         nightHours: entryToDelete.night_hours,
         flightDay: entryToDelete.entry_date,
-        operation: 'subtract',
+        operation: 'remove',
       });
 
       // Se for empréstimo, remover transações relacionadas

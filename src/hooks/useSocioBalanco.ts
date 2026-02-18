@@ -49,76 +49,57 @@ export function useClientesComSocios() {
   return useQuery({
     queryKey: ["clientes-com-socios"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Buscar todos os clientes
+      const { data: clientesData, error: clientesError } = await supabase
         .from("clients")
-        .select(`
-          id,
-          company_name,
-          proprietario,
-          cnpj,
-          partner_name,
-          partner_cpf,
-          partner_percentage1,
-          partner_name2,
-          partner_cpf2,
-          partner_percentage2,
-          partner_name3,
-          partner_cpf3,
-          partner_percentage3
-        `)
+        .select("id, company_name, proprietario, cnpj")
         .order("company_name");
 
-      if (error) throw error;
+      if (clientesError) throw clientesError;
+
+      // Buscar todos os parceiros
+      const { data: parceirosData, error: parceirosError } = await supabase
+        .from("client_partners")
+        .select("id, client_id, name, cpf, share_percentage");
+
+      if (parceirosError) throw parceirosError;
+
+      // Agrupar parceiros por cliente
+      const parceiroPorCliente = new Map<string, typeof parceirosData>();
+      (parceirosData || []).forEach((parceiro) => {
+        if (!parceiroPorCliente.has(parceiro.client_id)) {
+          parceiroPorCliente.set(parceiro.client_id, []);
+        }
+        parceiroPorCliente.get(parceiro.client_id)!.push(parceiro);
+      });
 
       // Transformar clientes em estrutura com sócios
-      const clientesComSocios: ClienteComSocios[] = (data || []).map((cliente) => {
-        const socios: Socio[] = [];
+      const clientesComSocios: ClienteComSocios[] = (clientesData || []).map(
+        (cliente) => {
+          const parceiros = parceiroPorCliente.get(cliente.id) || [];
+          const socios: Socio[] = parceiros
+            .sort((a, b) => new Date(a.id).getTime() - new Date(b.id).getTime())
+            .map((parceiro, indice) => ({
+              id: parceiro.id,
+              clienteId: cliente.id,
+              nome: parceiro.name,
+              cpf: parceiro.cpf,
+              percentual:
+                parceiro.share_percentage ||
+                Math.round(10000 / (parceiros.length || 1)) / 100, // Dividir igualmente se não especificado
+              indice: indice + 1,
+            }));
 
-        // Sócio 1
-        if (cliente.partner_name) {
-          socios.push({
-            id: `${cliente.id}-1`,
-            clienteId: cliente.id,
-            nome: cliente.partner_name,
-            cpf: cliente.partner_cpf,
-            percentual: cliente.partner_percentage1 || 33.33,
-            indice: 1,
-          });
+          return {
+            id: cliente.id,
+            company_name: cliente.company_name,
+            proprietario: cliente.proprietario,
+            cnpj: cliente.cnpj,
+            socios,
+            temMultiplosSocios: socios.length > 1,
+          };
         }
-
-        // Sócio 2
-        if (cliente.partner_name2) {
-          socios.push({
-            id: `${cliente.id}-2`,
-            clienteId: cliente.id,
-            nome: cliente.partner_name2,
-            cpf: cliente.partner_cpf2,
-            percentual: cliente.partner_percentage2 || 33.33,
-            indice: 2,
-          });
-        }
-
-        // Sócio 3
-        if (cliente.partner_name3) {
-          socios.push({
-            id: `${cliente.id}-3`,
-            clienteId: cliente.id,
-            nome: cliente.partner_name3,
-            cpf: cliente.partner_cpf3,
-            percentual: cliente.partner_percentage3 || 33.34,
-            indice: 3,
-          });
-        }
-
-        return {
-          id: cliente.id,
-          company_name: cliente.company_name,
-          proprietario: cliente.proprietario,
-          cnpj: cliente.cnpj,
-          socios,
-          temMultiplosSocios: socios.length > 1,
-        };
-      });
+      );
 
       return clientesComSocios;
     },
@@ -230,7 +211,7 @@ export function useSocioBalanco(
   aeronaveId: string | undefined,
   periodo: { inicio: string; fim: string }
 ) {
-  // Buscar dados do cliente com sócios
+  // Buscar dados do cliente
   const { data: clienteData } = useQuery({
     queryKey: ["cliente-socios-info", clienteId],
     queryFn: async () => {
@@ -238,26 +219,30 @@ export function useSocioBalanco(
 
       const { data, error } = await supabase
         .from("clients")
-        .select(`
-          id,
-          company_name,
-          proprietario,
-          cnpj,
-          partner_name,
-          partner_cpf,
-          partner_percentage1,
-          partner_name2,
-          partner_cpf2,
-          partner_percentage2,
-          partner_name3,
-          partner_cpf3,
-          partner_percentage3
-        `)
+        .select("id, company_name, proprietario, cnpj")
         .eq("id", clienteId)
         .single();
 
       if (error) throw error;
       return data;
+    },
+    enabled: !!clienteId,
+  });
+
+  // Buscar parceiros do cliente
+  const { data: parceirosData } = useQuery({
+    queryKey: ["cliente-parceiros", clienteId],
+    queryFn: async () => {
+      if (!clienteId) return [];
+
+      const { data, error } = await supabase
+        .from("client_partners")
+        .select("id, client_id, name, cpf, share_percentage")
+        .eq("client_id", clienteId)
+        .order("created_at");
+
+      if (error) throw error;
+      return data || [];
     },
     enabled: !!clienteId,
   });
@@ -309,40 +294,17 @@ export function useSocioBalanco(
     enabled: !!clienteId,
   });
 
-  // Extrair sócios do cliente
-  const socios: Socio[] = [];
-  if (clienteData) {
-    if (clienteData.partner_name) {
-      socios.push({
-        id: `${clienteData.id}-1`,
-        clienteId: clienteData.id,
-        nome: clienteData.partner_name,
-        cpf: clienteData.partner_cpf,
-        percentual: clienteData.partner_percentage1 || 33.33,
-        indice: 1,
-      });
-    }
-    if (clienteData.partner_name2) {
-      socios.push({
-        id: `${clienteData.id}-2`,
-        clienteId: clienteData.id,
-        nome: clienteData.partner_name2,
-        cpf: clienteData.partner_cpf2,
-        percentual: clienteData.partner_percentage2 || 33.33,
-        indice: 2,
-      });
-    }
-    if (clienteData.partner_name3) {
-      socios.push({
-        id: `${clienteData.id}-3`,
-        clienteId: clienteData.id,
-        nome: clienteData.partner_name3,
-        cpf: clienteData.partner_cpf3,
-        percentual: clienteData.partner_percentage3 || 33.34,
-        indice: 3,
-      });
-    }
-  }
+  // Extrair sócios do cliente usando dados dos parceiros
+  const socios: Socio[] = (parceirosData || []).map((parceiro, indice) => ({
+    id: parceiro.id,
+    clienteId: parceiro.client_id,
+    nome: parceiro.name,
+    cpf: parceiro.cpf,
+    percentual:
+      parceiro.share_percentage ||
+      Math.round(10000 / ((parceirosData?.length || 1))) / 100, // Dividir igualmente se não especificado
+    indice: indice + 1,
+  }));
 
   // Se um sócio específico foi selecionado, calcular apenas para ele
   // Se não, calcular para todos os sócios

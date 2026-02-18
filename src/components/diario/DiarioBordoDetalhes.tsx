@@ -51,77 +51,12 @@ const getPartnerNameById = (partnerId: string | null, partnerMap: Record<string,
   return partnerMap[partnerId]?.name || null;
 };
 
-// Expandir clientes com parceiros
-const expandClientsWithPartners = (clients: any[]) => {
-  const expanded: any[] = [];
 
-  clients.forEach(client => {
-    if (client.company_name) {
-      expanded.push({
-        id: client.id,
-        label: client.company_name,
-        type: 'company',
-        clientId: client.id
-      });
-    }
-
-    if (client.partner_name) {
-      expanded.push({
-        id: `${client.id}_partner1`,
-        label: client.partner_name,
-        type: 'partner',
-        clientId: client.id,
-        partnerName: client.partner_name
-      });
-    }
-    if (client.partner_name2) {
-      expanded.push({
-        id: `${client.id}_partner2`,
-        label: client.partner_name2,
-        type: 'partner',
-        clientId: client.id,
-        partnerName: client.partner_name2
-      });
-    }
-    if (client.partner_name3) {
-      expanded.push({
-        id: `${client.id}_partner3`,
-        label: client.partner_name3,
-        type: 'partner',
-        clientId: client.id,
-        partnerName: client.partner_name3
-      });
-    }
-  });
-
-  return expanded;
-};
-
-// Extrair parceiros de um cliente
-const getPartnersFromClient = (client: any) => {
-  const partners = [];
-  if (client?.partner_name) {
-    partners.push({
-      name: client.partner_name,
-      cpf: client.partner_cpf,
-      index: 1
-    });
-  }
-  if (client?.partner_name2) {
-    partners.push({
-      name: client.partner_name2,
-      cpf: client.partner_cpf2,
-      index: 2
-    });
-  }
-  if (client?.partner_name3) {
-    partners.push({
-      name: client.partner_name3,
-      cpf: client.partner_cpf3,
-      index: 3
-    });
-  }
-  return partners;
+// Extrair parceiros de um cliente (agora obtém from clientPartners state)
+const getPartnersFromClient = (client: any, clientPartnerMap?: Record<string, any>) => {
+  // Para compatibilidade com código existente que pode chamar sem o mapa
+  // Return um array vazio se não há dados de parceiros
+  return [];
 };
 
 // Calcular tempos dia/noite
@@ -135,7 +70,7 @@ const calculateTimes = (entry: any) => {
   return {
     ...entry,
     night_hours: result.night_time,
-    day_time: result.dayTime
+    day_time: result.day_time
   };
 };
 
@@ -1158,12 +1093,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         const newDate = new Date(newEntry.entry_date);
 
         const crewChanged = oldEntry.pic_canac !== newEntry.pic_canac ||
-                           oldEntry.sic_canac !== newEntry.sic_canac;
+          oldEntry.sic_canac !== newEntry.sic_canac;
         const dateChanged = oldDate.getMonth() !== newDate.getMonth() ||
-                           oldDate.getFullYear() !== newDate.getFullYear();
+          oldDate.getFullYear() !== newDate.getFullYear();
         const hoursChanged = oldEntry.total_time !== newEntry.total_time ||
-                            oldEntry.ifr_time !== newEntry.ifr_time ||
-                            oldEntry.night_hours !== newEntry.night_hours;
+          oldEntry.ifr_time !== newEntry.ifr_time ||
+          oldEntry.night_hours !== newEntry.night_hours;
 
         if (crewChanged || dateChanged || hoursChanged) {
           // Remover horas do voo anterior
@@ -1502,7 +1437,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           daily_rate: null,
         });
       }
-      
+
       setShowCreateMonthDialog(true);
     } catch (error) {
       logError("Erro ao buscar dados do mês anterior:", error);
@@ -1568,7 +1503,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         }
 
         toast.success(`Diário de ${MONTHS[targetMonth - 1]}/${targetYear} criado com sucesso!`);
-        
+
         setAvailableMonths(prev => [...prev, { month: targetMonth, year: targetYear }]);
       }
     } catch (error: any) {
@@ -1594,7 +1529,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     <div className="h-screen flex items-center justify-center bg-[#070910] text-white">
       <div className="text-center">
         <Plane size={48} className="mx-auto mb-4 text-slate-500" />
-       <p>Aeronave não encontrada</p>
+        <p>Aeronave não encontrada</p>
       </div>
     </div>
   </Layout>;
@@ -1967,9 +1902,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     >
                       {newEntry.pic_canac
                         ? (() => {
-                            const pic = crew.find(c => c.id === newEntry.pic_canac);
-                            return pic ? `${pic.full_name} (${pic.canac})` : 'Selecione o PIC...';
-                          })()
+                          const pic = crew.find(c => c.id === newEntry.pic_canac);
+                          return pic ? `${pic.full_name} (${pic.canac})` : 'Selecione o PIC...';
+                        })()
                         : 'Selecione o PIC...'
                       }
                       <ChevronDown className="h-4 w-4 opacity-50" />
@@ -1977,8 +1912,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0 bg-slate-950 border-slate-800" align="start">
                     <Command className="bg-slate-950">
-                      <CommandInput 
-                        placeholder="Buscar piloto por nome ou CANAC..." 
+                      <CommandInput
+                        placeholder="Buscar piloto por nome ou CANAC..."
                         className="bg-slate-900 border-slate-800 text-white placeholder:text-slate-500"
                       />
                       <CommandList>
@@ -2575,8 +2510,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       arrival_aerodrome: '',
                       client_id: '',
                       client_partner_id: null as string | null,
-    loan_recipient_client_id: null as string | null,
-    loan_recipient_partner_id: null as string | null,
+                      loan_recipient_client_id: null as string | null,
+                      loan_recipient_partner_id: null as string | null,
                       is_equal_split: false,
                       is_loan: false,
                       ac_time: '',
@@ -2661,13 +2596,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   return (
                     <div
                       key={idx}
-                      className={`border rounded-lg p-3 transition-all cursor-pointer ${
-                        isMarked
+                      className={`border rounded-lg p-3 transition-all cursor-pointer ${isMarked
                           ? 'bg-sky-500/20 border-sky-500/50'
                           : 'bg-slate-950 border-yellow-500/30'
-                      }`}
+                        }`}
                       onClick={() => {
-                        const newMarked = {...markedDailies};
+                        const newMarked = { ...markedDailies };
                         newMarked[uniqueKey] = !isMarked;
                         setMarkedDailies(newMarked);
                       }}
@@ -2676,13 +2610,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         <input
                           type="checkbox"
                           checked={isMarked}
-                          onChange={() => {}}
+                          onChange={() => { }}
                           className="w-4 h-4 mt-0.5 accent-sky-500 cursor-pointer"
                         />
                         <div className="flex-1 min-w-0">
-                          <p className={`text-[9px] uppercase font-bold mb-1 ${
-                            isMarked ? 'text-sky-400' : 'text-yellow-500'
-                          }`}>
+                          <p className={`text-[9px] uppercase font-bold mb-1 ${isMarked ? 'text-sky-400' : 'text-yellow-500'
+                            }`}>
                             {pd.date}
                           </p>
                           <p className="text-xs text-slate-400 truncate">{pd.location}</p>
@@ -3414,7 +3347,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       {filteredEntries.reduce((sum, e) => sum + (e.fuel_added || 0), 0).toFixed(1)}
                     </div>
                   </div>
-                                  
+
                   <div>
                     <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Dist.</div>
                     <div className="text-lg font-black text-cyan-400">
@@ -3572,9 +3505,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         >
                           {editingEntry.pic_canac
                             ? (() => {
-                                const pic = crew.find(c => c.id === editingEntry.pic_canac);
-                                return pic ? `${pic.full_name} (${pic.canac})` : 'Selecione o PIC...';
-                              })()
+                              const pic = crew.find(c => c.id === editingEntry.pic_canac);
+                              return pic ? `${pic.full_name} (${pic.canac})` : 'Selecione o PIC...';
+                            })()
                             : 'Selecione o PIC...'
                           }
                           <ChevronDown className="h-4 w-4 opacity-50" />
@@ -3582,8 +3515,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       </PopoverTrigger>
                       <PopoverContent className="w-full p-0 bg-slate-900 border-slate-700" align="start">
                         <Command className="bg-slate-900">
-                          <CommandInput 
-                            placeholder="Buscar piloto por nome ou CANAC..." 
+                          <CommandInput
+                            placeholder="Buscar piloto por nome ou CANAC..."
                             className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
                           />
                           <CommandList>

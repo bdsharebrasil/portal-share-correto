@@ -1,5 +1,19 @@
 export type FlightCategory = 'cliente' | 'rateio' | 'emprestimo';
 
+// Re-export shared types so components that import from '../types' keep working
+export type { FlightEntry, LogbookMonth } from '@/types/diarioTypes';
+
+export interface FlightMetrics {
+  totalFlights: number;
+  totalHours: number;
+  totalDistance: number;
+  totalFuel: number;
+  totalLandings: number;
+  dayHours: number;
+  nightHours: number;
+  ifrHours: number;
+}
+
 export interface FlightFormData {
   entry_date: string;
   departure_airport: string;

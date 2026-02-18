@@ -20,9 +20,9 @@ interface PartnerSelectorProps {
   onBack: () => void;
 }
 
-export function PartnerSelector({ 
-  clientId, 
-  clientName, 
+export function PartnerSelector({
+  clientId,
+  clientName,
   onSelectPartner,
   onBack
 }: PartnerSelectorProps) {
@@ -37,45 +37,23 @@ export function PartnerSelector({
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('clients')
-        .select('partner_name, partner_cpf, partner_percentage1, partner_name2, partner_cpf2, partner_percentage2, partner_name3, partner_cpf3, partner_percentage3')
-        .eq('id', clientId)
-        .single();
+        .from('client_partners')
+        .select('name, cpf, share_percentage')
+        .eq('client_id', clientId)
+        .order('created_at');
 
-      if (error || !data) {
+      if (error) {
         console.error('Erro ao buscar sócios:', error);
         setPartners([]);
         return;
       }
 
-      const partnersList: PartnerInfo[] = [];
-      
-      if (data.partner_name) {
-        partnersList.push({
-          index: 1,
-          name: data.partner_name,
-          cpf: data.partner_cpf || undefined,
-          percentage: Number(data.partner_percentage1) || 33.33
-        });
-      }
-      
-      if (data.partner_name2) {
-        partnersList.push({
-          index: 2,
-          name: data.partner_name2,
-          cpf: data.partner_cpf2 || undefined,
-          percentage: Number(data.partner_percentage2) || 33.33
-        });
-      }
-      
-      if (data.partner_name3) {
-        partnersList.push({
-          index: 3,
-          name: data.partner_name3,
-          cpf: data.partner_cpf3 || undefined,
-          percentage: Number(data.partner_percentage3) || 33.34
-        });
-      }
+      const partnersList: PartnerInfo[] = (data || []).map((partner, index) => ({
+        index: index + 1,
+        name: partner.name,
+        cpf: partner.cpf || undefined,
+        percentage: partner.share_percentage || 33.33
+      }));
 
       setPartners(partnersList);
 
@@ -111,7 +89,7 @@ export function PartnerSelector({
             </p>
           </div>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[1, 2, 3].map(i => (
             <Skeleton key={i} className="h-64 rounded-xl" />
@@ -197,9 +175,9 @@ export function PartnerSelector({
                 <p className="text-xs text-muted-foreground mb-2">
                   Clique para acessar seus dados e despesas específicas
                 </p>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="w-full justify-between hover:bg-emerald-500/20"
                   onClick={() => onSelectPartner(partner)}
                 >
@@ -248,9 +226,9 @@ export function PartnerSelector({
               <p className="text-xs text-muted-foreground mb-2">
                 Acesse uma visão consolidada com todos os dados e despesas da empresa
               </p>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="w-full justify-between hover:bg-blue-500/20"
                 onClick={() => onSelectPartner(null)}
               >
