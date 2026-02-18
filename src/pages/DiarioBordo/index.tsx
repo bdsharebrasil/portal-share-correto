@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { ViewType } from "./types";
 import { useAircraftList } from "./hooks/useAircraftList";
 import { useLogbookMonthData } from "./hooks/useLogbookMonthData";
-import { DiarioBordoDetalhes } from "@/components/DiarioBordoDetalhes";
+import { DiarioBordoDetalhes } from "@/components/diario/DiarioBordoDetalhes";
 import { DynamicLogbookForm } from "@/components/logbook/DynamicLogbookForm";
 import { LottieAirplaneSpinner } from "@/components/ui/lottie-airplane-spinner";
-import { ArrowLeft, Layout, Plus } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Layout } from "@/components/layout/Layout";
 import { EmptyState } from "./components/EmptyState";
 import { AircraftCard } from "./components/AircraftCard";
 
