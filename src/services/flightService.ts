@@ -105,7 +105,7 @@ export class FlightService {
   ): Promise<FlightEntry> {
     const { data, error } = await supabase
       .from('logbook_entries')
-      .insert([entry])
+      .insert([entry as any])
       .select()
       .single();
 
