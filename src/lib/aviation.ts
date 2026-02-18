@@ -264,16 +264,16 @@ function parseAndPrioritizeNOTAMs(rawData: any): NOTAMData[] {
       const msg = message.toLowerCase();
 
       if (msg.includes('closed') || msg.includes('fechado') ||
-          msg.includes('clsd') || msg.includes('unsafe') || msg.includes('não autorizado') ||
-          msg.includes('inoperacional') || msg.includes('closed') || msg.includes('closure')) {
+        msg.includes('clsd') || msg.includes('unsafe') || msg.includes('não autorizado') ||
+        msg.includes('inoperacional') || msg.includes('closed') || msg.includes('closure')) {
         priority = 'critical';
       } else if (msg.includes('restricted') || msg.includes('restrito') ||
-                 msg.includes('caution') || msg.includes('atenção') ||
-                 msg.includes('danger') || msg.includes('perigo') || msg.includes('limit')) {
+        msg.includes('caution') || msg.includes('atenção') ||
+        msg.includes('danger') || msg.includes('perigo') || msg.includes('limit')) {
         priority = 'high';
       } else if (msg.includes('tempo') || msg.includes('temporary') ||
-                 msg.includes('provisório') || msg.includes('experimental') ||
-                 msg.includes('test') || msg.includes('teste')) {
+        msg.includes('provisório') || msg.includes('experimental') ||
+        msg.includes('test') || msg.includes('teste')) {
         priority = 'medium';
       }
 
@@ -442,99 +442,100 @@ function parseROTAERData(rawData: any): ROTAERData | null {
             surface: String(rwy.surface?.['#text'] || rwy.surface || 'UNKN'),
             strength: String(rwy.surface_c?.['#text'] || ''),
             lighting: !!rwy.lights,
+          } as any);
+        });
+    }
+  });
+}
+
+// Parse frequências (frequencies)
+const frequencies: ROTAERData['frequencies'] = [];
+const servicesData = airport.services?.service;
+if (servicesData) {
+  const serviceArray = Array.isArray(servicesData) ? servicesData : [servicesData];
+  serviceArray.forEach((service: any) => {
+    if (service['@_type'] === 'COM' && service.freqs) {
+      const freqArray = Array.isArray(service.freqs.freq)
+        ? service.freqs.freq
+        : [service.freqs.freq];
+      freqArray.forEach((freq: any) => {
+        if (freq) {
+          frequencies.push({
+            type: service.type || 'Unknown',
+            frequency: String(freq['#text'] || freq || ''),
+            name: service.callsign || undefined,
           });
         }
       });
     }
+  });
+}
 
-    // Parse frequências (frequencies)
-    const frequencies: ROTAERData['frequencies'] = [];
-    const servicesData = airport.services?.service;
-    if (servicesData) {
-      const serviceArray = Array.isArray(servicesData) ? servicesData : [servicesData];
-      serviceArray.forEach((service: any) => {
-        if (service['@_type'] === 'COM' && service.freqs) {
-          const freqArray = Array.isArray(service.freqs.freq)
-            ? service.freqs.freq
-            : [service.freqs.freq];
-          freqArray.forEach((freq: any) => {
-            if (freq) {
-              frequencies.push({
-                type: service.type || 'Unknown',
-                frequency: String(freq['#text'] || freq || ''),
-                name: service.callsign || undefined,
-              });
-            }
-          });
-        }
+// Parse navaids
+const navaids: ROTAERData['navaids'] = [];
+const serviceArray = Array.isArray(servicesData) ? servicesData : [servicesData];
+if (serviceArray) {
+  serviceArray.forEach((service: any) => {
+    if (service['@_type'] === 'NAV' && service.type) {
+      navaids.push({
+        type: service.type || 'UNKNOWN',
+        identifier: service.ident || '',
+        frequency: String(service.freq || ''),
       });
     }
+  });
+}
 
-    // Parse navaids
-    const navaids: ROTAERData['navaids'] = [];
-    const serviceArray = Array.isArray(servicesData) ? servicesData : [servicesData];
-    if (serviceArray) {
-      serviceArray.forEach((service: any) => {
-        if (service['@_type'] === 'NAV' && service.type) {
-          navaids.push({
-            type: service.type || 'UNKNOWN',
-            identifier: service.ident || '',
-            frequency: String(service.freq || ''),
-          });
-        }
-      });
+// Parse serviços
+const services = {
+  fuel: false,
+  fuelTypes: [] as string[],
+  hangar: false,
+  maintenance: false,
+  customs: false,
+};
+
+if (serviceArray) {
+  serviceArray.forEach((service: any) => {
+    if (service['@_type'] === 'AirportSuppliesService' && service.fuel) {
+      services.fuel = true;
+      const fuelSpan = service.fuel.span?.['#text'] || '';
+      services.fuelTypes = fuelSpan.split(' ').filter((f: string) => f && f.length < 5);
     }
-
-    // Parse serviços
-    const services = {
-      fuel: false,
-      fuelTypes: [] as string[],
-      hangar: false,
-      maintenance: false,
-      customs: false,
-    };
-
-    if (serviceArray) {
-      serviceArray.forEach((service: any) => {
-        if (service['@_type'] === 'AirportSuppliesService' && service.fuel) {
-          services.fuel = true;
-          const fuelSpan = service.fuel.span?.['#text'] || '';
-          services.fuelTypes = fuelSpan.split(' ').filter((f: string) => f && f.length < 5);
-        }
-        if (service['@_type'] === 'AircraftGroundService') {
-          services.maintenance = true;
-        }
-      });
+    if (service['@_type'] === 'AircraftGroundService') {
+      services.maintenance = true;
     }
+  });
+}
 
-    // Build ROTAERData
-    return {
-      icao: (airport.AeroCode || airport.loc || airport.icao || 'UNKN').toUpperCase(),
-      name: airport.name || airport.aero || '',
-      city: airport.city || '',
-      state: airport.uf || airport.state || '',
-      country: 'BR',
-      type: airport.type || 'AD',
-      coordinates: {
-        lat: parseFloat(airport.lat || airport.latitude || '0'),
-        lng: parseFloat(airport.lng || airport.longitude || '0'),
-      },
-      elevation: parseInt(airport.altFt || airport.elevation || '0'),
-      runways,
-      frequencies,
-      navaids,
-      services,
-      operatingHours: airport.operatingHours || '24H',
-      restrictions: extractRestrictions(airport),
-      contact: {
-        phone: extractContact(airport, 'phone'),
-        email: extractContact(airport, 'email'),
-      },
-    };
+// Build ROTAERData
+return {
+  icao: (airport.AeroCode || airport.loc || airport.icao || 'UNKN').toUpperCase(),
+  name: airport.name || airport.aero || '',
+  city: airport.city || '',
+  state: airport.uf || airport.state || '',
+  country: 'BR',
+  type: airport.type || 'AD',
+  coordinates: {
+    lat: parseFloat(airport.lat || airport.latitude || '0'),
+    lng: parseFloat(airport.lng || airport.longitude || '0'),
+  },
+  elevation: parseInt(airport.altFt || airport.elevation || '0'),
+  runways,
+  frequencies,
+  navaids,
+  services,
+  operatingHours: airport.operatingHours || '24H',
+  restrictions: extractRestrictions(airport),
+  contact: {
+    phone: extractContact(airport, 'phone'),
+    email: extractContact(airport, 'email'),
+  },
+};
   } catch (error) {
-    console.error('[parseROTAERData] Error parsing ROTAER:', error);
-    return null;
-  }
+  console.error('[parseROTAERData] Error parsing ROTAER:', error);
+  return null;
+}
 }
 
 // Helper para extrair restrições dos remarks
@@ -632,7 +633,7 @@ export function isAerodromeOperational(notams: NOTAMData[]): {
   warnings?: string[];
 } {
   const criticalNOTAMs = notams.filter(n => n.priority === 'critical');
-  
+
   for (const notam of criticalNOTAMs) {
     const msg = notam.message.toLowerCase();
     if (msg.includes('closed') || msg.includes('fechado')) {
@@ -643,7 +644,7 @@ export function isAerodromeOperational(notams: NOTAMData[]): {
       };
     }
   }
-  
+
   return {
     operational: true,
     reason: null,
@@ -663,30 +664,30 @@ export function calculateOptimalAltitude(
 } {
   const isIFR = flightRule === 'I';
   const warnings: string[] = [];
-  
+
   let baseAlt: number;
   if (bearing >= 0 && bearing < 180) {
     baseAlt = isIFR ? 7000 : 5500;
   } else {
     baseAlt = isIFR ? 8000 : 6500;
   }
-  
+
   const conflictingRestrictions = restrictions.filter(r => {
     const lower = parseAltitude(r.lowerLimit);
     const upper = parseAltitude(r.upperLimit);
     return baseAlt >= lower && baseAlt <= upper;
   });
-  
+
   if (conflictingRestrictions.length > 0) {
     warnings.push(
       `Altitude ${baseAlt}ft conflita com: ${conflictingRestrictions.map(r => r.name).join(', ')}`
     );
   }
-  
+
   const alternatives = isIFR
     ? ['FL070', 'FL090', 'FL110', 'FL130']
     : ['3500', '5500', '7500', '9500'];
-  
+
   return {
     suggested: isIFR ? `FL${Math.floor(baseAlt / 100)}` : baseAlt.toString(),
     alternatives,
