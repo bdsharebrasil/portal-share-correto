@@ -144,7 +144,7 @@ export default function GestaoFiscal() {
         <Tabs defaultValue="fluxo" className="flex flex-col w-full">
           {/* Desktop Tab Navigation */}
           <div className="w-full hidden sm:block">
-            <div className="bg-gradient-to-r from-white/5 to-white/[0.02] backdrop-blur-xl rounded-xl p-2 border border-white/10 shadow-lg w-full inline-flex flex-wrap gap-2 h-auto justify-start overflow-x-auto">
+            <TabsList className="bg-gradient-to-r from-white/5 to-white/[0.02] backdrop-blur-xl rounded-xl p-2 border border-white/10 shadow-lg w-full justify-start overflow-x-auto h-auto gap-2">
               {tabs.map((tab) => {
                 const IconComponent = tab.icon;
                 return (
@@ -154,16 +154,13 @@ export default function GestaoFiscal() {
                     className="rounded-lg py-2.5 px-4 text-sm font-medium transition-all duration-300 whitespace-nowrap
                       data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-white/10
                       data-[state=active]:bg-gradient-to-r data-[state=active]:text-white data-[state=active]:shadow-md"
-                    style={{
-                      backgroundGradient: `linear-gradient(to right, var(--color-from), var(--color-to))`,
-                    }}
                   >
                     <IconComponent className="w-4 h-4 mr-2" />
                     {tab.label}
                   </TabsTrigger>
                 );
               })}
-            </div>
+            </TabsList>
           </div>
 
           {/* Mobile Menu */}
