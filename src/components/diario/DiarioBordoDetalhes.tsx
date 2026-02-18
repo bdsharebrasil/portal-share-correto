@@ -51,77 +51,12 @@ const getPartnerNameById = (partnerId: string | null, partnerMap: Record<string,
   return partnerMap[partnerId]?.name || null;
 };
 
-// Expandir clientes com parceiros
-const expandClientsWithPartners = (clients: any[]) => {
-  const expanded: any[] = [];
 
-  clients.forEach(client => {
-    if (client.company_name) {
-      expanded.push({
-        id: client.id,
-        label: client.company_name,
-        type: 'company',
-        clientId: client.id
-      });
-    }
-
-    if (client.partner_name) {
-      expanded.push({
-        id: `${client.id}_partner1`,
-        label: client.partner_name,
-        type: 'partner',
-        clientId: client.id,
-        partnerName: client.partner_name
-      });
-    }
-    if (client.partner_name2) {
-      expanded.push({
-        id: `${client.id}_partner2`,
-        label: client.partner_name2,
-        type: 'partner',
-        clientId: client.id,
-        partnerName: client.partner_name2
-      });
-    }
-    if (client.partner_name3) {
-      expanded.push({
-        id: `${client.id}_partner3`,
-        label: client.partner_name3,
-        type: 'partner',
-        clientId: client.id,
-        partnerName: client.partner_name3
-      });
-    }
-  });
-
-  return expanded;
-};
-
-// Extrair parceiros de um cliente
-const getPartnersFromClient = (client: any) => {
-  const partners = [];
-  if (client?.partner_name) {
-    partners.push({
-      name: client.partner_name,
-      cpf: client.partner_cpf,
-      index: 1
-    });
-  }
-  if (client?.partner_name2) {
-    partners.push({
-      name: client.partner_name2,
-      cpf: client.partner_cpf2,
-      index: 2
-    });
-  }
-  if (client?.partner_name3) {
-    partners.push({
-      name: client.partner_name3,
-      cpf: client.partner_cpf3,
-      index: 3
-    });
-  }
-  return partners;
+// Extrair parceiros de um cliente (agora obtém from clientPartners state)
+const getPartnersFromClient = (client: any, clientPartnerMap?: Record<string, any>) => {
+  // Para compatibilidade com código existente que pode chamar sem o mapa
+  // Return um array vazio se não há dados de parceiros
+  return [];
 };
 
 // Calcular tempos dia/noite

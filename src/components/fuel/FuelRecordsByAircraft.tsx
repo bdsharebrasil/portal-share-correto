@@ -16,12 +16,6 @@ import { ModernFileUpload } from "@/components/ui/modern-file-upload";
 interface Client {
   id: string;
   company_name: string;
-  partner_name?: string;
-  partner_cpf?: string;
-  partner_name2?: string;
-  partner_cpf2?: string;
-  partner_name3?: string;
-  partner_cpf3?: string;
 }
 interface Aircraft {
   id: string;
@@ -195,40 +189,14 @@ export function FuelRecordsByAircraft({
       console.error("Exception loading suppliers:", err);
     }
   };
-  const getClientPartners = (clientData: Client): Partner[] => {
-    const partners: Partner[] = [{
-      id: clientData.id,
-      name: clientData.company_name,
+  const getClientPartners = (clientId: string, clientName: string): Partner[] => {
+    // Main client is always included
+    return [{
+      id: clientId,
+      name: clientName,
       isMainClient: true,
       share_percentage: 0 // Will be updated after fetching from DB
     }];
-
-    // Add additional partners if they exist
-    if (clientData.partner_name) {
-      partners.push({
-        id: `${clientData.id}-partner1`,
-        name: clientData.partner_name,
-        cpf: clientData.partner_cpf,
-        share_percentage: 0
-      });
-    }
-    if (clientData.partner_name2) {
-      partners.push({
-        id: `${clientData.id}-partner2`,
-        name: clientData.partner_name2,
-        cpf: clientData.partner_cpf2,
-        share_percentage: 0
-      });
-    }
-    if (clientData.partner_name3) {
-      partners.push({
-        id: `${clientData.id}-partner3`,
-        name: clientData.partner_name3,
-        cpf: clientData.partner_cpf3,
-        share_percentage: 0
-      });
-    }
-    return partners;
   };
   const loadPartnerPercentages = async (partnersData: Partner[]): Promise<Partner[]> => {
     try {
@@ -276,9 +244,28 @@ export function FuelRecordsByAircraft({
         return;
       }
       setAllClients((data as any) || []);
+
       // Set the default client to the aircraft's associated client and load its partners
       const clientData = data?.find(c => c.id === client.id) || client;
-      const partners = getClientPartners(clientData as Client);
+      let partners = getClientPartners(clientData.id, clientData.company_name);
+
+      // Fetch additional partners from client_partners table
+      const { data: partnersData, error: partnersError } = await supabase
+        .from("client_partners")
+        .select("id, name, cpf, share_percentage")
+        .eq("client_id", client.id);
+
+      if (!partnersError && partnersData) {
+        partnersData.forEach((partner: any) => {
+          partners.push({
+            id: partner.id,
+            name: partner.name,
+            cpf: partner.cpf,
+            share_percentage: partner.share_percentage || 0
+          });
+        });
+      }
+
       const partnersWithPercentages = await loadPartnerPercentages(partners);
       setClientPartners(partnersWithPercentages);
       setFormData(prev => ({

@@ -37,46 +37,23 @@ export function PartnerSelector({
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('clients')
-        .select('partner_name, partner_cpf, partner_name2, partner_cpf2, partner_name3, partner_cpf3')
-        .eq('id', clientId)
-        .single();
+        .from('client_partners')
+        .select('name, cpf, share_percentage')
+        .eq('client_id', clientId)
+        .order('created_at');
 
-      if (error || !data) {
+      if (error) {
         console.error('Erro ao buscar sócios:', error);
         setPartners([]);
         return;
       }
 
-      const partnersList: PartnerInfo[] = [];
-
-      const d = data as any;
-      if (d.partner_name) {
-        partnersList.push({
-          index: 1,
-          name: d.partner_name,
-          cpf: d.partner_cpf || undefined,
-          percentage: 33.33
-        });
-      }
-
-      if (d.partner_name2) {
-        partnersList.push({
-          index: 2,
-          name: d.partner_name2,
-          cpf: d.partner_cpf2 || undefined,
-          percentage: 33.33
-        });
-      }
-
-      if (d.partner_name3) {
-        partnersList.push({
-          index: 3,
-          name: d.partner_name3,
-          cpf: d.partner_cpf3 || undefined,
-          percentage: 33.34
-        });
-      }
+      const partnersList: PartnerInfo[] = (data || []).map((partner, index) => ({
+        index: index + 1,
+        name: partner.name,
+        cpf: partner.cpf || undefined,
+        percentage: partner.share_percentage || 33.33
+      }));
 
       setPartners(partnersList);
 
