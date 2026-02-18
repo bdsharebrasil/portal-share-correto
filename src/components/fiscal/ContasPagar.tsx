@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AutocompleteInput, type AutocompleteOption } from "@/components/ui/autocomplete-input";
 import { Plus, Search, Filter, Trash2, Edit2, TrendingDown, Wallet, ChevronDown, Bell, AlertCircle, Clock, CheckCircle2, X, Upload, FileText } from "lucide-react";
+import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCategoriasConta } from "@/hooks/useCategoriasFinanceiro";
@@ -447,46 +448,77 @@ export function ContasPagar() {
   return (
     <div className="space-y-6 md:space-y-8 pb-8">
       {/* Cards de Totais */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6 auto-rows-max">
-        <Card className="bg-card border-border/50 hover:border-border transition-colors h-full">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-5 px-6">
-            <CardTitle className="text-sm font-semibold text-muted-foreground">Total a Pagar</CardTitle>
-            <TrendingDown className="h-5 w-5 text-red-500 flex-shrink-0" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl md:text-3xl font-bold text-red-500 mb-3">
-              R$ {totals.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </div>
-            <p className="text-xs text-muted-foreground">Período selecionado</p>
-          </CardContent>
-        </Card>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ staggerChildren: 0.1 }}
+        className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6 auto-rows-max"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          whileHover={{ y: -4 }}
+        >
+          <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] border-white/10 backdrop-blur-xl hover:border-white/20 transition-all h-full shadow-lg shadow-red-500/5">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-5 px-6">
+              <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Total a Pagar</CardTitle>
+              <div className="p-2 rounded-lg bg-red-500/20 border border-red-500/30">
+                <TrendingDown className="h-5 w-5 text-red-400 flex-shrink-0" />
+              </div>
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="text-2xl md:text-3xl font-bold text-red-400 mb-3">
+                R$ {totals.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </div>
+              <p className="text-xs text-muted-foreground">Período selecionado</p>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        <Card className="bg-card border-border/50 hover:border-border transition-colors h-full border-orange-500/20 bg-orange-500/5">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-5 px-6">
-            <CardTitle className="text-sm font-semibold text-muted-foreground">Contas Vencidas</CardTitle>
-            <AlertCircle className="h-5 w-5 text-orange-500 flex-shrink-0" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl md:text-3xl font-bold text-orange-500 mb-3">
-              {contasVencidas}
-            </div>
-            <p className="text-xs text-muted-foreground">Aguardando pagamento</p>
-          </CardContent>
-        </Card>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          whileHover={{ y: -4 }}
+        >
+          <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] border-white/10 backdrop-blur-xl hover:border-white/20 transition-all h-full shadow-lg shadow-orange-500/5">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-5 px-6">
+              <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Contas Vencidas</CardTitle>
+              <div className="p-2 rounded-lg bg-orange-500/20 border border-orange-500/30">
+                <AlertCircle className="h-5 w-5 text-orange-400 flex-shrink-0" />
+              </div>
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="text-2xl md:text-3xl font-bold text-orange-400 mb-3">
+                {contasVencidas}
+              </div>
+              <p className="text-xs text-muted-foreground">Aguardando pagamento</p>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        <Card className="bg-card border-border/50 hover:border-border transition-colors h-full">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-5 px-6">
-            <CardTitle className="text-sm font-semibold text-muted-foreground">Próximo Vencimento</CardTitle>
-            <Bell className="h-5 w-5 text-primary flex-shrink-0" />
-          </CardHeader>
-          <CardContent className="px-6 pb-6">
-            <div className="text-2xl md:text-3xl font-bold text-primary mb-3">
-              {proximoVencimento ? format(parseLocalDate(proximoVencimento), "dd/MM/yyyy") : "-"}
-            </div>
-            <p className="text-xs text-muted-foreground">Próxima data de vencimento</p>
-          </CardContent>
-        </Card>
-      </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          whileHover={{ y: -4 }}
+        >
+          <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] border-white/10 backdrop-blur-xl hover:border-white/20 transition-all h-full shadow-lg shadow-primary/5">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 pt-5 px-6">
+              <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Próximo Vencimento</CardTitle>
+              <div className="p-2 rounded-lg bg-primary/20 border border-primary/30">
+                <Bell className="h-5 w-5 text-primary flex-shrink-0" />
+              </div>
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="text-2xl md:text-3xl font-bold text-primary mb-3">
+                {proximoVencimento ? format(parseLocalDate(proximoVencimento), "dd/MM/yyyy") : "-"}
+              </div>
+              <p className="text-xs text-muted-foreground">Próxima data de vencimento</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </motion.div>
 
       {/* Filtros e Ações */}
       <Card className="bg-card border-border/50">

@@ -11,6 +11,7 @@ import {
   Plus, Search, Filter, Trash2, Edit2, TrendingUp, CheckCircle2,
   DollarSign, X, Upload, FileText, Lock, Clock, AlertTriangle, Bell
 } from "lucide-react";
+import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAeronaves } from "@/hooks/useAeronaves";
@@ -749,38 +750,57 @@ export function ContasReceber() {
   return (
     <div className="space-y-5">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="rounded-xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-teal-500/5 backdrop-blur-sm">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400/80">Total a Receber</p>
-              <DollarSign className="w-5 h-5 text-emerald-400/60" />
-            </div>
-            <p className="text-2xl font-bold text-emerald-400">
-              R$ {totals.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </p>
-          </CardContent>
-        </Card>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="grid grid-cols-1 md:grid-cols-3 gap-4"
+      >
+        <motion.div whileHover={{ y: -4 }}>
+          <Card className="rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl shadow-lg shadow-emerald-500/10 hover:border-white/20 transition-all">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-foreground/70">Total a Receber</p>
+                <div className="p-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30">
+                  <DollarSign className="w-4 h-4 text-emerald-400" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-emerald-400">
+                R$ {totals.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        <Card className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 to-blue-900/5 backdrop-blur-sm">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold uppercase tracking-wider text-primary/80">Contas Pendentes</p>
-              <Clock className="w-5 h-5 text-primary/60" />
-            </div>
-            <p className="text-2xl font-bold text-primary">{contasPendentes}</p>
-          </CardContent>
-        </Card>
+        <motion.div whileHover={{ y: -4 }} transition={{ delay: 0.1 }}>
+          <Card className="rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl shadow-lg shadow-primary/10 hover:border-white/20 transition-all">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-foreground/70">Contas Pendentes</p>
+                <div className="p-2 rounded-lg bg-primary/20 border border-primary/30">
+                  <Clock className="w-4 h-4 text-primary" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-primary">{contasPendentes}</p>
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        <Card className="rounded-xl border border-purple-500/20 bg-gradient-to-br from-purple-500/10 to-violet-900/5 backdrop-blur-sm">
-          <CardContent className="p-5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-purple-400/80 mb-3">Próximo Recebimento</p>
-            <p className="text-lg font-bold text-purple-400">
-              {proximoVencimento ? format(parseLocalDate(proximoVencimento), "dd/MM/yyyy") : "—"}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+        <motion.div whileHover={{ y: -4 }} transition={{ delay: 0.2 }}>
+          <Card className="rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-white/[0.02] backdrop-blur-xl shadow-lg shadow-purple-500/10 hover:border-white/20 transition-all">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-foreground/70">Próximo Recebimento</p>
+                <div className="p-2 rounded-lg bg-purple-500/20 border border-purple-500/30">
+                  <Bell className="w-4 h-4 text-purple-400" />
+                </div>
+              </div>
+              <p className="text-lg font-bold text-purple-400">
+                {proximoVencimento ? format(parseLocalDate(proximoVencimento), "dd/MM/yyyy") : "—"}
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </motion.div>
 
       {/* Filters Card */}
       <Card className="rounded-xl border border-border/40 bg-card/30 backdrop-blur-sm">
