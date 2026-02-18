@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ViewType } from "./types";
 import { useAircraftList } from "./hooks/useAircraftList";
 import { useLogbookMonthData } from "./hooks/useLogbookMonthData";
-import { DiarioBordoDetalhes } from "@/components/diario/DiarioBordoDetalhes";
+import DiarioBordoDetalhes from "@/components/diario/DiarioBordoDetalhes";
 import { DynamicLogbookForm } from "@/components/logbook/DynamicLogbookForm";
 import { LottieAirplaneSpinner } from "@/components/ui/lottie-airplane-spinner";
 import { ArrowLeft, Plus } from "lucide-react";
