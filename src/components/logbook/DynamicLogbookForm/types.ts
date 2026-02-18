@@ -1,5 +1,12 @@
 export type FlightCategory = 'cliente' | 'rateio' | 'emprestimo';
 
+export interface Aerodrome {
+  id: string;
+  designativo: string;
+  name: string;
+  coordenadas?: string;
+}
+
 export interface FlightFormData {
   entry_date: string;
   departure_airport: string;
