@@ -1,15 +1,7 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -17,24 +9,25 @@ import {
   ArrowUpCircle,
   ArrowDownCircle,
   Loader2,
-  ChevronUp,
-  ChevronDown,
   Trash2,
   BarChart3,
   Plus,
   Edit2,
+  Download,
   X,
-  CreditCard,
-  FileText,
-  Receipt,
-  Paperclip,
-  Eye,
-  EyeOff,
+  Filter,
 } from "lucide-react";
 import { FilterCombobox } from "./FilterCombobox";
 import { useControleBancario } from "@/hooks/useControleBancario";
 import { useCategorias } from "@/hooks/useCategorias";
 import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
+import { useDebounce } from "@/hooks/useDebounce";
+import { useExportTransactions } from "@/hooks/useExportTransactions";
+import { ActiveFiltersChips } from "./ActiveFiltersChips";
+import { EmptyTransactionsState } from "./EmptyTransactionsState";
+import { VirtualizedTransactionTable } from "./VirtualizedTransactionTable";
+import { ValueRangeFilter } from "./ValueRangeFilter";
+import { KPICard } from "@/components/ui/kpi-card";
 import { format, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,21 +41,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 import { FluxoCaixaInlineForm } from "./FluxoCaixaInlineForm";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { useColumnWidths } from "@/hooks/useColumnWidths";
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { motion, AnimatePresence } from "framer-motion";
 
 type SortField = "data" | "tipo_movimento" | "valor" | null;
 type SortDirection = "asc" | "desc";
@@ -73,25 +58,11 @@ export function FluxoCaixa() {
   const { data: categoriasData } = useCategorias();
   const { categorias: contasData } = useCategoriasFinanceiro();
   const { aeronaves } = useAeronaves();
+  const { exportToCSV } = useExportTransactions();
 
-  const defaultColumnWidths = {
-    data: 100,
-    tipo: 100,
-    descricao: 180,
-    categoria: 130,
-    cliente: 130,
-    valor: 110,
-    pagamento: 110,
-    conta: 120,
-    aeronave: 110,
-    nDoc: 100,
-    anexos: 80,
-    status: 100,
-  };
-
-  const { columnWidths, setColumnWidth } = useColumnWidths('fluxo-caixa', defaultColumnWidths);
-
+  // Filters state
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [filterTipos, setFilterTipos] = useState<Set<string>>(new Set());
   const [filterCategorias, setFilterCategorias] = useState<Set<string>>(
     new Set()
@@ -99,43 +70,25 @@ export function FluxoCaixa() {
   const [filterGrupos, setFilterGrupos] = useState<Set<string>>(new Set());
   const [filterBancos, setFilterBancos] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState<Set<string>>(new Set());
+  const [filterValueRange, setFilterValueRange] = useState<[number, number] | null>(null);
+
+  // UI state
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showReport, setShowReport] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [showInlineForm, setShowInlineForm] = useState(false);
   const [editingMovimentacao, setEditingMovimentacao] = useState<any>(null);
   const [contasBancarias, setContasBancarias] = useState<any[]>([]);
-  const [expandedColumns, setExpandedColumns] = useState<Set<string>>(
-    new Set([
-      "data",
-      "tipo",
-      "descricao",
-      "categoria",
-      "cliente",
-      "valor",
-      "pagamento",
-      "conta",
-      "aeronave",
-      "nDoc",
-      "anexos",
-      "status",
-    ])
-  );
-  const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set());
-  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
-  const startXRef = useRef(0);
-  const startWidthRef = useRef(0);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  // Fetch contas bancárias para obter os bancos
+  // Fetch contas bancárias
   React.useEffect(() => {
     const fetchContasBancarias = async () => {
       const { data } = await supabase
         .from("contas_bancarias")
-        .select("id, banco")
+        .select("id, banco, nome")
         .eq("ativo", true)
         .order("banco");
       setContasBancarias(data || []);
@@ -143,14 +96,32 @@ export function FluxoCaixa() {
     fetchContasBancarias();
   }, []);
 
-  // Grupos de categorias únicos
+  // Calculate KPIs
+  const kpis = useMemo(() => {
+    if (!transacoes) return { totalEntradas: 0, totalSaidas: 0, saldo: 0, totalTransacoes: 0 };
+    
+    const entradas = transacoes
+      .filter(t => t.tipo_movimento === "entrada")
+      .reduce((sum, t) => sum + Number(t.valor), 0);
+    const saidas = transacoes
+      .filter(t => t.tipo_movimento === "saida")
+      .reduce((sum, t) => sum + Number(t.valor), 0);
+    
+    return {
+      totalEntradas: entradas,
+      totalSaidas: saidas,
+      saldo: entradas - saidas,
+      totalTransacoes: transacoes.length,
+    };
+  }, [transacoes]);
+
+  // Group categories
   const gruposCategorias = useMemo(() => {
     if (!Array.isArray(contasData)) return [];
     const grupos = [...new Set(contasData.map((c: any) => c.grupo_categoria).filter(Boolean))];
     return grupos.sort();
   }, [contasData]);
 
-  // Categorias filtradas pelo grupo selecionado
   const categoriasDoGrupo = useMemo(() => {
     if (!Array.isArray(contasData)) return [];
     if (filterGrupos.size === 0) {
@@ -162,13 +133,13 @@ export function FluxoCaixa() {
   }, [contasData, filterGrupos]);
 
   const tipos: string[] = ["entrada", "saida"];
-  // Bancos únicos da tabela contas_bancarias
   const bancos: string[] = useMemo(() => {
     const bancosUnicos = [...new Set(contasBancarias.map((c: any) => c.banco).filter(Boolean))];
     return bancosUnicos.sort();
   }, [contasBancarias]);
   const statusOptions: string[] = ["recebido", "pago", "pendente", "aguardando_reembolso", "cancelado"];
 
+  // Helper functions
   const toggleFilter = (set: Set<string>, value: string) => {
     const newSet = new Set(set);
     if (newSet.has(value)) {
@@ -179,119 +150,30 @@ export function FluxoCaixa() {
     return newSet;
   };
 
-  const toggleSelectId = (id: string) => {
-    const newSet = new Set(selectedIds);
-    if (newSet.has(id)) {
-      newSet.delete(id);
-    } else {
-      newSet.add(id);
-    }
-    setSelectedIds(newSet);
-  };
-
-  const toggleColumnVisibility = (columnId: string) => {
-    if (expandedColumns.has(columnId)) {
-      // Recolher coluna
-      const newExpanded = new Set(expandedColumns);
-      newExpanded.delete(columnId);
-      setExpandedColumns(newExpanded);
-      setCollapsedColumns(new Set([...collapsedColumns, columnId]));
-    } else if (collapsedColumns.has(columnId)) {
-      // Expandir coluna novamente
-      const newCollapsed = new Set(collapsedColumns);
-      newCollapsed.delete(columnId);
-      setCollapsedColumns(newCollapsed);
-      setExpandedColumns(new Set([...expandedColumns, columnId]));
-    }
-  };
-
-  const calculateColSpan = () => {
-    return expandedColumns.size + collapsedColumns.size + 2; // +2 para checkbox e ações
-  };
-
-  const getColumnLabel = (columnId: string): string => {
-    const labels: Record<string, string> = {
-      data: "D",
-      tipo: "T",
-      descricao: "Desc",
-      categoria: "Cat",
-      cliente: "Cl",
-      valor: "V",
-      pagamento: "Pag",
-      conta: "C",
-      aeronave: "A",
-      nDoc: "Doc",
-      anexos: "Anx",
-      status: "St",
-    };
-    return labels[columnId] || columnId.charAt(0).toUpperCase();
-  };
-
-  const toggleSelectAll = () => {
-    if (
-      selectedIds.size === paginatedTransacoes.length &&
-      paginatedTransacoes.length > 0
-    ) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(paginatedTransacoes.map((t: any) => t.id)));
-    }
-  };
-
-  const handleColumnResizeStart = (e: React.MouseEvent, columnId: string) => {
-    e.preventDefault();
-    setResizingColumn(columnId);
-    startXRef.current = e.clientX;
-    startWidthRef.current = columnWidths[columnId] || defaultColumnWidths[columnId as keyof typeof defaultColumnWidths];
-
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      const diff = moveEvent.clientX - startXRef.current;
-      const newWidth = Math.max(60, startWidthRef.current + diff);
-      setColumnWidth(columnId, newWidth);
-    };
-
-    const handleMouseUp = () => {
-      setResizingColumn(null);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-  };
-
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
-    } else {
-      setSortField(field);
-      setSortDirection("asc");
-    }
-    setCurrentPage(1);
-  };
-
-  // Mapeamento de conta para banco
-  const contaToBanco = useMemo(() => {
-    const mapping: Record<string, string> = {};
-    contasBancarias.forEach((c: any) => {
-      if (c.nome && c.banco) {
-        mapping[c.nome] = c.banco;
+  const toggleSelectId = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
       }
+      return newSet;
     });
-    return mapping;
-  }, [contasBancarias]);
+  }, []);
 
+  // Filter and sort
   const filteredTransacoes = useMemo(() => {
     return (
       transacoes?.filter((transacao: any) => {
         const matchesSearch =
           transacao.descricao
             .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
+            .includes(debouncedSearchTerm.toLowerCase()) ||
           (transacao.numero_documento &&
             transacao.numero_documento
               .toLowerCase()
-              .includes(searchTerm.toLowerCase()));
+              .includes(debouncedSearchTerm.toLowerCase()));
         const matchesTipo =
           filterTipos.size === 0 || filterTipos.has(transacao.tipo_movimento);
         const matchesGrupo =
@@ -299,14 +181,17 @@ export function FluxoCaixa() {
           (transacao.grupo_categoria && filterGrupos.has(transacao.grupo_categoria));
         const matchesCategoria =
           filterCategorias.size === 0 ||
-          filterCategorias.has(transacao.categoria);
-        // Filtrar pelo banco - conta_banco agora contém diretamente o nome do banco
+          filterCategorias.has(transacao.categoria_nome);
         const matchesBanco =
           filterBancos.size === 0 ||
           (transacao.conta_banco && filterBancos.has(transacao.conta_banco));
         const matchesStatus =
           filterStatus.size === 0 ||
           (transacao.status && filterStatus.has(transacao.status));
+        const matchesValueRange =
+          !filterValueRange ||
+          (Number(transacao.valor) >= filterValueRange[0] &&
+            Number(transacao.valor) <= filterValueRange[1]);
 
         return (
           matchesSearch &&
@@ -314,11 +199,12 @@ export function FluxoCaixa() {
           matchesGrupo &&
           matchesCategoria &&
           matchesBanco &&
-          matchesStatus
+          matchesStatus &&
+          matchesValueRange
         );
       }) || []
     );
-  }, [transacoes, searchTerm, filterTipos, filterGrupos, filterCategorias, filterBancos, filterStatus]);
+  }, [transacoes, debouncedSearchTerm, filterTipos, filterGrupos, filterCategorias, filterBancos, filterStatus, filterValueRange]);
 
   const sortedTransacoes = useMemo(() => {
     const sorted = [...filteredTransacoes].sort((a: any, b: any) => {
@@ -342,42 +228,89 @@ export function FluxoCaixa() {
     return sorted;
   }, [filteredTransacoes, sortField, sortDirection]);
 
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(sortedTransacoes.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedTransacoes = sortedTransacoes.slice(
-    startIndex,
-    startIndex + itemsPerPage
-  );
-
-  const renderSortIcon = (field: SortField) => {
-    if (sortField !== field) return null;
-    return sortDirection === "asc" ? (
-      <ChevronUp className="w-4 h-4 inline ml-1" />
-    ) : (
-      <ChevronDown className="w-4 h-4 inline ml-1" />
-    );
-  };
-
-  const selectedTransacoes = sortedTransacoes.filter((t: any) =>
-    selectedIds.has(t.id)
-  );
-
-  const getGroupedReport = () => {
-    const grouped: {
-      [key: string]: { total: number; count: number; status?: string };
-    } = {};
-
-    selectedTransacoes.forEach((t: any) => {
-      const key = `${t.categoria} (${t.tipo_movimento})`;
-      if (!grouped[key]) {
-        grouped[key] = { total: 0, count: 0, status: t.status || "sem status" };
-      }
-      grouped[key].total += Number(t.valor);
-      grouped[key].count += 1;
+  // Build active filters list
+  const activeFiltersList = useMemo(() => {
+    const filters = [];
+    
+    Array.from(filterTipos).forEach((tipo) => {
+      filters.push({
+        id: `tipo-${tipo}`,
+        label: "Tipo",
+        value: tipo,
+        category: "tipo",
+      });
+    });
+    
+    Array.from(filterGrupos).forEach((grupo) => {
+      filters.push({
+        id: `grupo-${grupo}`,
+        label: "Grupo",
+        value: grupo,
+        category: "grupo",
+      });
+    });
+    
+    Array.from(filterCategorias).forEach((categoria) => {
+      filters.push({
+        id: `categoria-${categoria}`,
+        label: "Categoria",
+        value: categoria,
+        category: "categoria",
+      });
+    });
+    
+    Array.from(filterBancos).forEach((banco) => {
+      filters.push({
+        id: `banco-${banco}`,
+        label: "Banco",
+        value: banco,
+        category: "banco",
+      });
+    });
+    
+    Array.from(filterStatus).forEach((status) => {
+      filters.push({
+        id: `status-${status}`,
+        label: "Status",
+        value: status,
+        category: "status",
+      });
     });
 
-    return grouped;
+    return filters;
+  }, [filterTipos, filterGrupos, filterCategorias, filterBancos, filterStatus]);
+
+  const handleRemoveFilter = (filterId: string) => {
+    const [category, value] = filterId.split("-");
+    const actualCategory = category + (filterId.includes("-") ? `-${value.split("-").slice(0, -1).join("-")}` : "");
+    
+    switch (category) {
+      case "tipo":
+        setFilterTipos(toggleFilter(filterTipos, value));
+        break;
+      case "grupo":
+        setFilterGrupos(toggleFilter(filterGrupos, value));
+        break;
+      case "categoria":
+        setFilterCategorias(toggleFilter(filterCategorias, value));
+        break;
+      case "banco":
+        setFilterBancos(toggleFilter(filterBancos, value));
+        break;
+      case "status":
+        setFilterStatus(toggleFilter(filterStatus, value));
+        break;
+    }
+  };
+
+  const handleClearAllFilters = () => {
+    setFilterTipos(new Set());
+    setFilterGrupos(new Set());
+    setFilterCategorias(new Set());
+    setFilterBancos(new Set());
+    setFilterStatus(new Set());
+    setFilterValueRange(null);
+    setSearchTerm("");
   };
 
   const handleDelete = async (id: string) => {
@@ -394,7 +327,6 @@ export function FluxoCaixa() {
 
       toast.success("Movimentação deletada com sucesso!");
       setDeleteConfirmId(null);
-      // Refetch data
       window.location.reload();
     } catch (error: any) {
       toast.error(error.message || "Erro ao deletar");
@@ -420,957 +352,451 @@ export function FluxoCaixa() {
         `${selectedIds.size} movimentação(ões) deletada(s) com sucesso!`
       );
       setSelectedIds(new Set());
-      setCurrentPage(1);
-      // Refetch data
       window.location.reload();
     } catch (error: any) {
       toast.error(error.message || "Erro ao deletar movimentações");
     }
   };
 
-  const getStatusColor = (status: string, tipoMovimento?: string) => {
-    // Entrada (recebimento)
-    if (tipoMovimento === "entrada") {
-      if (status === "recebido") {
-        return "bg-blue-900/20 text-blue-400 border-blue-600";
-      }
-      if (status === "pago") {
-        return "bg-green-900/20 text-green-400 border-green-600";
-      }
-      if (status === "pendente") {
-        return "bg-orange-900/20 text-orange-400 border-orange-600";
-      }
-    }
-    // Saída (pagamento)
-    if (tipoMovimento === "saida") {
-      if (status === "recebido") {
-        return "bg-blue-900/20 text-blue-400 border-blue-600";
-      }
-      if (status === "pago") {
-        return "bg-red-900/20 text-red-400 border-red-600";
-      }
-    }
-    // Status padrão
-    switch (status) {
-      case "pendente":
-        return "bg-yellow-900/20 text-yellow-400 border-yellow-600";
-      case "cancelado":
-        return "bg-red-900/20 text-red-400 border-red-600";
-      default:
-        return "bg-gray-700 text-gray-300 border-gray-600";
-    }
-  };
+  const selectedTransacoes = sortedTransacoes.filter((t: any) =>
+    selectedIds.has(t.id)
+  );
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex items-center justify-center h-96"
+      >
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-sm text-foreground/60">Carregando transações...</p>
+        </div>
+      </motion.div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-center text-red-400 p-8">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="text-center text-red-400 p-8"
+      >
         Erro ao carregar transações. Verifique suas permissões.
-      </div>
+      </motion.div>
     );
   }
 
   return (
     <div className="space-y-6">
+      {/* KPI Cards */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+      >
+        <KPICard
+          label="Entradas"
+          value={`R$ ${kpis.totalEntradas.toLocaleString("pt-BR", {
+            minimumFractionDigits: 2,
+          })}`}
+          icon={<ArrowUpCircle className="w-6 h-6 text-emerald-400" />}
+          gradient={{ from: "from-emerald-500/20", to: "to-green-500/10" }}
+        />
+        <KPICard
+          label="Saídas"
+          value={`R$ ${kpis.totalSaidas.toLocaleString("pt-BR", {
+            minimumFractionDigits: 2,
+          })}`}
+          icon={<ArrowDownCircle className="w-6 h-6 text-red-400" />}
+          gradient={{ from: "from-red-500/20", to: "to-pink-500/10" }}
+        />
+        <KPICard
+          label="Saldo"
+          value={`R$ ${kpis.saldo.toLocaleString("pt-BR", {
+            minimumFractionDigits: 2,
+          })}`}
+          icon={<DollarSign className="w-6 h-6 text-primary" />}
+          gradient={{ from: "from-primary/20", to: "to-cyan-500/10" }}
+          trend={kpis.saldo > 0 ? 12 : -5}
+          trendLabel={kpis.saldo > 0 ? "vs. mês anterior" : "vs. mês anterior"}
+        />
+        <KPICard
+          label="Transações"
+          value={kpis.totalTransacoes}
+          icon={<Filter className="w-6 h-6 text-blue-400" />}
+          gradient={{ from: "from-blue-500/20", to: "to-indigo-500/10" }}
+        />
+      </motion.div>
+
       {/* Nova Movimentação Form */}
-      {showInlineForm && (
-        <Card className="bg-card/50 border-border/50 backdrop-blur-xl">
-          <CardContent className="pt-6">
-            <FluxoCaixaInlineForm
-              onSuccess={() => {
-                setShowInlineForm(false);
-                setEditingMovimentacao(null);
-                window.location.reload();
-              }}
-              onCancel={() => {
-                setShowInlineForm(false);
-                setEditingMovimentacao(null);
-              }}
-              movimentacao={editingMovimentacao}
-            />
-          </CardContent>
-        </Card>
-      )}
+      <AnimatePresence>
+        {showInlineForm && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] border-white/10 backdrop-blur-xl">
+              <CardContent className="pt-6">
+                <FluxoCaixaInlineForm
+                  onSuccess={() => {
+                    setShowInlineForm(false);
+                    setEditingMovimentacao(null);
+                    window.location.reload();
+                  }}
+                  onCancel={() => {
+                    setShowInlineForm(false);
+                    setEditingMovimentacao(null);
+                  }}
+                  movimentacao={editingMovimentacao}
+                />
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Filtros Card */}
-      <Card className="bg-card/50 border-border/50 backdrop-blur-xl">
-        <CardHeader className="pb-3">
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-lg font-semibold text-foreground">
-              Filtros
-            </CardTitle>
-            {!showInlineForm && (
-              <Button
-                onClick={() => setShowInlineForm(true)}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Nova Movimentação
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input
-              placeholder="Buscar descrição ou documento..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-background/50 border-border/60 text-foreground"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-            <FilterCombobox
-              title="Tipo"
-              options={tipos}
-              selectedValues={filterTipos}
-              onSelectionChange={(value) =>
-                setFilterTipos(toggleFilter(filterTipos, value))
-              }
-              onClear={() => setFilterTipos(new Set())}
-            />
-            <FilterCombobox
-              title="Grupo"
-              options={gruposCategorias}
-              selectedValues={filterGrupos}
-              onSelectionChange={(value) =>
-                setFilterGrupos(toggleFilter(filterGrupos, value))
-              }
-              onClear={() => setFilterGrupos(new Set())}
-            />
-            <FilterCombobox
-              title="Categoria"
-              options={categoriasDoGrupo}
-              selectedValues={filterCategorias}
-              onSelectionChange={(value) =>
-                setFilterCategorias(toggleFilter(filterCategorias, value))
-              }
-              onClear={() => setFilterCategorias(new Set())}
-            />
-            <FilterCombobox
-              title="Banco"
-              options={bancos}
-              selectedValues={filterBancos}
-              onSelectionChange={(value) =>
-                setFilterBancos(toggleFilter(filterBancos, value))
-              }
-              onClear={() => setFilterBancos(new Set())}
-            />
-            <FilterCombobox
-              title="Status"
-              options={statusOptions}
-              selectedValues={filterStatus}
-              onSelectionChange={(value) =>
-                setFilterStatus(toggleFilter(filterStatus, value))
-              }
-              onClear={() => setFilterStatus(new Set())}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Transações Table Card */}
-      <Card className="bg-card/50 border-border/50 backdrop-blur-xl">
-        <CardHeader className="pb-3">
-          <div className="flex justify-between items-center gap-4 flex-wrap">
-            <CardTitle className="text-lg font-semibold text-foreground">
-              Lista de Movimentações
-            </CardTitle>
-            {selectedIds.size > 0 && (
-              <div className="flex items-center gap-3">
-                <Badge variant="secondary" className="bg-blue-600 text-white">
-                  {selectedIds.size} selecionado{selectedIds.size !== 1 ? "s" : ""}
-                </Badge>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-4"
+      >
+        {/* Desktop Filters */}
+        <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] border-white/10 backdrop-blur-xl hidden md:block">
+          <CardHeader className="pb-3">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <Filter className="w-5 h-5" />
+                Filtros
+              </CardTitle>
+              {!showInlineForm && (
                 <Button
-                  onClick={() => setShowReport(!showReport)}
-                  variant="outline"
-                  className="bg-muted/50 border-border/60 text-foreground hover:bg-muted/80 gap-2"
+                  onClick={() => setShowInlineForm(true)}
+                  className="bg-gradient-to-r from-primary/90 to-primary/80 hover:from-primary hover:to-primary/90 gap-2"
                 >
-                  <BarChart3 className="w-4 h-4" />
-                  Agrupar
+                  <Plus className="w-4 h-4" />
+                  Nova Movimentação
                 </Button>
-                <Button
-                  onClick={() => {
-                    if (
-                      confirm(
-                        `Tem certeza que deseja excluir ${selectedIds.size} movimentação(ões)?`
-                      )
-                    ) {
-                      handleDeleteMultiple();
-                    }
-                  }}
-                  variant="outline"
-                  className="bg-red-900/20 border-red-700/40 text-red-400 hover:bg-red-900/30 gap-2"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Deletar
-                </Button>
-              </div>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {showReport && selectedIds.size > 0 && (
-            <div className="bg-blue-950/30 border border-blue-700/40 rounded-md p-4 mb-4">
-              <h3 className="text-white font-semibold mb-3">Relatório Agrupado</h3>
-              <div className="space-y-2">
-                {Object.entries(getGroupedReport()).map(([key, value]) => (
-                  <div
-                    key={key}
-                    className="flex justify-between items-center bg-muted/30 p-2 rounded text-sm"
-                  >
-                    <span className="text-foreground/80">{key}</span>
-                    <div className="flex gap-4 text-foreground">
-                      <span>
-                        {value.count} item{value.count !== 1 ? "ns" : ""}
-                      </span>
-                      <span className="font-semibold">
-                        R${" "}
-                        {value.total.toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              )}
             </div>
-          )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                placeholder="Buscar descrição ou documento..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 bg-background/50 border-border/60 text-foreground focus:border-primary/60"
+              />
+            </div>
 
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-border/40 hover:bg-transparent">
-                  <TableHead className="w-12">
-                    <Checkbox
-                      checked={
-                        paginatedTransacoes.length > 0 &&
-                        selectedIds.size === paginatedTransacoes.length
+            {/* Filter Combos */}
+            <div className="grid grid-cols-5 gap-3">
+              <FilterCombobox
+                title="Tipo"
+                options={tipos}
+                selectedValues={filterTipos}
+                onSelectionChange={(value) =>
+                  setFilterTipos(toggleFilter(filterTipos, value))
+                }
+                onClear={() => setFilterTipos(new Set())}
+              />
+              <FilterCombobox
+                title="Grupo"
+                options={gruposCategorias}
+                selectedValues={filterGrupos}
+                onSelectionChange={(value) =>
+                  setFilterGrupos(toggleFilter(filterGrupos, value))
+                }
+                onClear={() => setFilterGrupos(new Set())}
+              />
+              <FilterCombobox
+                title="Categoria"
+                options={categoriasDoGrupo}
+                selectedValues={filterCategorias}
+                onSelectionChange={(value) =>
+                  setFilterCategorias(toggleFilter(filterCategorias, value))
+                }
+                onClear={() => setFilterCategorias(new Set())}
+              />
+              <FilterCombobox
+                title="Banco"
+                options={bancos}
+                selectedValues={filterBancos}
+                onSelectionChange={(value) =>
+                  setFilterBancos(toggleFilter(filterBancos, value))
+                }
+                onClear={() => setFilterBancos(new Set())}
+              />
+              <FilterCombobox
+                title="Status"
+                options={statusOptions}
+                selectedValues={filterStatus}
+                onSelectionChange={(value) =>
+                  setFilterStatus(toggleFilter(filterStatus, value))
+                }
+                onClear={() => setFilterStatus(new Set())}
+              />
+            </div>
+
+            {/* Value Range Filter */}
+            {transacoes && transacoes.length > 0 && (
+              <ValueRangeFilter
+                min={0}
+                max={Math.max(...transacoes.map((t: any) => Number(t.valor)))}
+                step={100}
+                onRangeChange={(min, max) => setFilterValueRange([min, max])}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Mobile Filters Sheet */}
+        <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+          <SheetTrigger asChild className="md:hidden">
+            <Button variant="outline" size="sm" className="gap-2 w-full">
+              <Filter className="w-4 h-4" />
+              Abrir Filtros
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-full overflow-y-auto">
+            <div className="space-y-4 mt-6">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="Buscar..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              {/* Filter Combos */}
+              <FilterCombobox
+                title="Tipo"
+                options={tipos}
+                selectedValues={filterTipos}
+                onSelectionChange={(value) =>
+                  setFilterTipos(toggleFilter(filterTipos, value))
+                }
+                onClear={() => setFilterTipos(new Set())}
+              />
+              <FilterCombobox
+                title="Grupo"
+                options={gruposCategorias}
+                selectedValues={filterGrupos}
+                onSelectionChange={(value) =>
+                  setFilterGrupos(toggleFilter(filterGrupos, value))
+                }
+                onClear={() => setFilterGrupos(new Set())}
+              />
+              <FilterCombobox
+                title="Categoria"
+                options={categoriasDoGrupo}
+                selectedValues={filterCategorias}
+                onSelectionChange={(value) =>
+                  setFilterCategorias(toggleFilter(filterCategorias, value))
+                }
+                onClear={() => setFilterCategorias(new Set())}
+              />
+              <FilterCombobox
+                title="Banco"
+                options={bancos}
+                selectedValues={filterBancos}
+                onSelectionChange={(value) =>
+                  setFilterBancos(toggleFilter(filterBancos, value))
+                }
+                onClear={() => setFilterBancos(new Set())}
+              />
+              <FilterCombobox
+                title="Status"
+                options={statusOptions}
+                selectedValues={filterStatus}
+                onSelectionChange={(value) =>
+                  setFilterStatus(toggleFilter(filterStatus, value))
+                }
+                onClear={() => setFilterStatus(new Set())}
+              />
+
+              {/* Value Range */}
+              {transacoes && transacoes.length > 0 && (
+                <ValueRangeFilter
+                  min={0}
+                  max={Math.max(...transacoes.map((t: any) => Number(t.valor)))}
+                  step={100}
+                  onRangeChange={(min, max) => setFilterValueRange([min, max])}
+                />
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
+      </motion.div>
+
+      {/* Active Filters Chips */}
+      <AnimatePresence>
+        {activeFiltersList.length > 0 && (
+          <ActiveFiltersChips
+            filters={activeFiltersList}
+            onRemoveFilter={handleRemoveFilter}
+            onClearAll={handleClearAllFilters}
+            totalResults={sortedTransacoes.length}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Bulk Actions */}
+      <AnimatePresence>
+        {selectedIds.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+          >
+            <Card className="bg-gradient-to-r from-blue-900/20 to-blue-800/10 border-blue-700/40 backdrop-blur-xl">
+              <CardContent className="pt-6 flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <Badge variant="secondary" className="bg-blue-600 text-white">
+                    {selectedIds.size} selecionado{selectedIds.size !== 1 ? "s" : ""}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => setShowReport(!showReport)}
+                    variant="outline"
+                    size="sm"
+                    className="bg-muted/50 border-border/60 text-foreground hover:bg-muted/80 gap-2"
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    Agrupar
+                  </Button>
+                  <Button
+                    onClick={() => exportToCSV(selectedTransacoes)}
+                    variant="outline"
+                    size="sm"
+                    className="bg-muted/50 border-border/60 text-foreground hover:bg-muted/80 gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Exportar
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (
+                        confirm(
+                          `Tem certeza que deseja excluir ${selectedIds.size} movimentação(ões)?`
+                        )
+                      ) {
+                        handleDeleteMultiple();
                       }
-                      onCheckedChange={() => toggleSelectAll()}
-                      className="h-5 w-5"
-                    />
-                  </TableHead>
-                  {expandedColumns.has("data") && (
-                    <TableHead
-                      className="text-foreground/70 cursor-pointer hover:text-foreground transition-colors group relative select-none"
-                      onClick={() => handleSort("data")}
-                      style={{
-                        width: `${columnWidths.data}px`,
-                        minWidth: `${columnWidths.data}px`,
-                        maxWidth: `${columnWidths.data}px`,
-                      }}
-                    >
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Data {renderSortIcon("data")}</span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleColumnVisibility("data");
-                            }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                            title="Ocultar coluna"
-                          >
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div
-                          onMouseDown={(e) => handleColumnResizeStart(e, "data")}
-                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                            resizingColumn === "data" ? "bg-primary" : ""
-                          }`}
-                          title="Arraste para redimensionar"
-                        />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("tipo") && (
-                    <TableHead
-                      className="text-foreground/70 cursor-pointer hover:text-foreground transition-colors group relative select-none"
-                      onClick={() => handleSort("tipo_movimento")}
-                      style={{
-                        width: `${columnWidths.tipo}px`,
-                        minWidth: `${columnWidths.tipo}px`,
-                        maxWidth: `${columnWidths.tipo}px`,
-                      }}
-                    >
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Tipo {renderSortIcon("tipo_movimento")}</span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleColumnVisibility("tipo");
-                            }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                            title="Ocultar coluna"
-                          >
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div
-                          onMouseDown={(e) => handleColumnResizeStart(e, "tipo")}
-                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                            resizingColumn === "tipo" ? "bg-primary" : ""
-                          }`}
-                          title="Arraste para redimensionar"
-                        />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("descricao") && (
-                    <TableHead className="text-foreground/70 group relative select-none" style={{
-                        width: `${columnWidths.descricao}px`,
-                        minWidth: `${columnWidths.descricao}px`,
-                        maxWidth: `${columnWidths.descricao}px`,
-                      }}>
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Descrição</span>
-                          <button
-                            onClick={() => toggleColumnVisibility("descricao")}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
-                            title="Ocultar coluna"
-                          >
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div
-                          onMouseDown={(e) => handleColumnResizeStart(e, "descricao")}
-                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                            resizingColumn === "descricao" ? "bg-primary" : ""
-                          }`}
-                          title="Arraste para redimensionar"
-                        />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("categoria") && (
-                    <TableHead className="text-foreground/70 group relative select-none" style={{
-                        width: `${columnWidths.categoria}px`,
-                        minWidth: `${columnWidths.categoria}px`,
-                        maxWidth: `${columnWidths.categoria}px`,
-                      }}>
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Categoria</span>
-                          <button
-                            onClick={() => toggleColumnVisibility("categoria")}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
-                            title="Ocultar coluna"
-                          >
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div
-                          onMouseDown={(e) => handleColumnResizeStart(e, "categoria")}
-                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                            resizingColumn === "categoria" ? "bg-primary" : ""
-                          }`}
-                          title="Arraste para redimensionar"
-                        />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("pagamento") && (
-                    <TableHead className="text-foreground/70 group relative select-none" style={{
-                        width: `${columnWidths.pagamento}px`,
-                        minWidth: `${columnWidths.pagamento}px`,
-                        maxWidth: `${columnWidths.pagamento}px`,
-                      }}>
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Pagamento</span>
-                          <button
-                            onClick={() => toggleColumnVisibility("pagamento")}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
-                            title="Ocultar coluna"
-                          >
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div
-                          onMouseDown={(e) => handleColumnResizeStart(e, "pagamento")}
-                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                            resizingColumn === "pagamento" ? "bg-primary" : ""
-                          }`}
-                          title="Arraste para redimensionar"
-                        />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("cliente") && (
-                    <TableHead className="text-foreground/70 group relative select-none" style={{
-                        width: `${columnWidths.cliente}px`,
-                        minWidth: `${columnWidths.cliente}px`,
-                        maxWidth: `${columnWidths.cliente}px`,
-                      }}>
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Cliente</span>
-                          <button
-                            onClick={() => toggleColumnVisibility("cliente")}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
-                            title="Ocultar coluna"
-                          >
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div
-                          onMouseDown={(e) => handleColumnResizeStart(e, "cliente")}
-                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                            resizingColumn === "cliente" ? "bg-primary" : ""
-                          }`}
-                          title="Arraste para redimensionar"
-                        />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("valor") && (
-                    <TableHead
-                      className="text-foreground/70 cursor-pointer hover:text-foreground transition-colors group relative select-none"
-                      onClick={() => handleSort("valor")}
-                      style={{
-                        width: `${columnWidths.valor}px`,
-                        minWidth: `${columnWidths.valor}px`,
-                        maxWidth: `${columnWidths.valor}px`,
-                      }}
-                    >
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Valor {renderSortIcon("valor")}</span>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleColumnVisibility("valor");
-                            }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                            title="Ocultar coluna"
-                          >
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div
-                          onMouseDown={(e) => handleColumnResizeStart(e, "valor")}
-                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                            resizingColumn === "valor" ? "bg-primary" : ""
-                          }`}
-                          title="Arraste para redimensionar"
-                        />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("conta") && (
-                    <TableHead className="text-foreground/70 group relative select-none" style={{
-                        width: `${columnWidths.conta}px`,
-                        minWidth: `${columnWidths.conta}px`,
-                        maxWidth: `${columnWidths.conta}px`,
-                      }}>
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Conta</span>
-                          <button
-                            onClick={() => toggleColumnVisibility("conta")}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
-                            title="Ocultar coluna"
-                          >
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div
-                          onMouseDown={(e) => handleColumnResizeStart(e, "conta")}
-                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                            resizingColumn === "conta" ? "bg-primary" : ""
-                          }`}
-                          title="Arraste para redimensionar"
-                        />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("aeronave") && (
-                    <TableHead className="text-foreground/70 group relative select-none" style={{
-                        width: `${columnWidths.aeronave}px`,
-                        minWidth: `${columnWidths.aeronave}px`,
-                        maxWidth: `${columnWidths.aeronave}px`,
-                      }}>
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Aeronave</span>
-                          <button
-                            onClick={() => toggleColumnVisibility("aeronave")}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
-                            title="Ocultar coluna"
-                          >
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div
-                          onMouseDown={(e) => handleColumnResizeStart(e, "aeronave")}
-                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                            resizingColumn === "aeronave" ? "bg-primary" : ""
-                          }`}
-                          title="Arraste para redimensionar"
-                        />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("nDoc") && (
-                    <TableHead className="text-foreground/70 group relative select-none" style={{
-                        width: `${columnWidths.nDoc}px`,
-                        minWidth: `${columnWidths.nDoc}px`,
-                        maxWidth: `${columnWidths.nDoc}px`,
-                      }}>
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Nº Doc</span>
-                          <button
-                            onClick={() => toggleColumnVisibility("nDoc")}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
-                            title="Ocultar coluna"
-                          >
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div
-                          onMouseDown={(e) => handleColumnResizeStart(e, "nDoc")}
-                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                            resizingColumn === "nDoc" ? "bg-primary" : ""
-                          }`}
-                          title="Arraste para redimensionar"
-                        />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("anexos") && (
-                    <TableHead className="text-foreground/70 group relative select-none" style={{
-                        width: `${columnWidths.anexos}px`,
-                        minWidth: `${columnWidths.anexos}px`,
-                        maxWidth: `${columnWidths.anexos}px`,
-                      }}>
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Anexos</span>
-                          <button
-                            onClick={() => toggleColumnVisibility("anexos")}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
-                            title="Ocultar coluna"
-                          >
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div
-                          onMouseDown={(e) => handleColumnResizeStart(e, "anexos")}
-                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                            resizingColumn === "anexos" ? "bg-primary" : ""
-                          }`}
-                          title="Arraste para redimensionar"
-                        />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("status") && (
-                    <TableHead className="text-foreground/70 group relative select-none" style={{
-                        width: `${columnWidths.status}px`,
-                        minWidth: `${columnWidths.status}px`,
-                        maxWidth: `${columnWidths.status}px`,
-                      }}>
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Status</span>
-                          <button
-                            onClick={() => toggleColumnVisibility("status")}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
-                            title="Ocultar coluna"
-                          >
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div
-                          onMouseDown={(e) => handleColumnResizeStart(e, "status")}
-                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                            resizingColumn === "status" ? "bg-primary" : ""
-                          }`}
-                          title="Arraste para redimensionar"
-                        />
-                      </div>
-                    </TableHead>
-                  )}
-                  {collapsedColumns.size > 0 && (
-                    <TableHead className="text-foreground/70 group relative max-w-[120px]">
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {Array.from(collapsedColumns).map((colId) => (
-                          <button
-                            key={colId}
-                            onClick={() => toggleColumnVisibility(colId)}
-                            className="inline-flex items-center justify-center w-6 h-6 rounded bg-muted/50 hover:bg-muted text-xs font-semibold text-foreground/70 hover:text-foreground transition-colors border border-border/50 hover:border-border"
-                            title={`Expandir coluna - ${colId}`}
-                          >
-                            {getColumnLabel(colId)}
-                          </button>
-                        ))}
-                      </div>
-                    </TableHead>
-                  )}
-                  <TableHead className="text-right text-foreground/70">
-                    Ações
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedTransacoes.map((transacao: any, idx: number) => {
-                  const isEntrada =
-                    transacao.tipo_movimento === "entrada";
-                  const isSelected = selectedIds.has(transacao.id);
-                  const isPendente = transacao.status === "pendente";
-                  const lineNumber = startIndex + idx + 1;
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="bg-red-900/20 border-red-700/40 text-red-400 hover:bg-red-900/30 gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Deletar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-                  return (
-                    <TableRow
-                      key={transacao.id}
-                      className={`border-border/40 ${
-                        isSelected
-                          ? "bg-blue-900/20"
-                          : isEntrada && isPendente
-                          ? "bg-orange-900/20"
-                          : ""
-                      }`}
+      {/* Report */}
+      <AnimatePresence>
+        {showReport && selectedIds.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <Card className="bg-blue-950/30 border-blue-700/40 backdrop-blur-xl">
+              <CardHeader>
+                <CardTitle className="text-blue-400">Relatório Agrupado</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {Object.entries(
+                    selectedTransacoes.reduce(
+                      (
+                        grouped: any,
+                        t: any
+                      ) => {
+                        const key = `${t.categoria_nome} (${t.tipo_movimento})`;
+                        if (!grouped[key]) {
+                          grouped[key] = { total: 0, count: 0 };
+                        }
+                        grouped[key].total += Number(t.valor);
+                        grouped[key].count += 1;
+                        return grouped;
+                      },
+                      {}
+                    )
+                  ).map(([key, value]: any) => (
+                    <div
+                      key={key}
+                      className="flex justify-between items-center bg-muted/30 p-3 rounded text-sm"
                     >
-                      <TableCell className="text-center">
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => toggleSelectId(transacao.id)}
-                          className="h-5 w-5"
-                        />
-                      </TableCell>
-                      {expandedColumns.has("data") && (
-                        <TableCell className="text-foreground/80 whitespace-nowrap" style={{
-                          width: `${columnWidths.data}px`,
-                          minWidth: `${columnWidths.data}px`,
-                          maxWidth: `${columnWidths.data}px`,
-                        }}>
-                          <div className="flex items-center gap-1">
-                            <span className="text-foreground/50 text-xs font-semibold">#{lineNumber}</span>
-                            <span>
-                              {(() => {
-                                const dateStr = transacao.data;
-                                if (dateStr && dateStr.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-                                  const [year, month, day] = dateStr.split('-').map(Number);
-                                  const date = new Date(year, month - 1, day);
-                                  return format(date, "dd/MM/yyyy", { locale: ptBR });
-                                }
-                                return format(new Date(transacao.data), "dd/MM/yyyy", { locale: ptBR });
-                              })()}
-                            </span>
-                          </div>
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("tipo") && (
-                        <TableCell style={{
-                          width: `${columnWidths.tipo}px`,
-                          minWidth: `${columnWidths.tipo}px`,
-                          maxWidth: `${columnWidths.tipo}px`,
-                        }}>
-                          <div className="flex items-center gap-2">
-                            {isEntrada ? (
-                              <ArrowUpCircle className={`w-4 h-4 ${transacao.status === "recebido" ? "text-blue-400" : isPendente ? "text-orange-400" : "text-green-400"}`} />
-                            ) : (
-                              <ArrowDownCircle className={`w-4 h-4 ${transacao.status === "recebido" ? "text-blue-400" : "text-red-400"}`} />
-                            )}
-                            <span
-                              className={
-                                isEntrada
-                                  ? (transacao.status === "recebido" ? "text-blue-400" : isPendente ? "text-orange-400" : "text-green-400")
-                                  : (transacao.status === "recebido" ? "text-blue-400" : "text-red-400")
-                              }
-                            >
-                              {isEntrada ? "Entrada" : "Saída"}
-                            </span>
-                          </div>
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("descricao") && (
-                        <TableCell className="text-white font-medium truncate" style={{
-                          width: `${columnWidths.descricao}px`,
-                          minWidth: `${columnWidths.descricao}px`,
-                          maxWidth: `${columnWidths.descricao}px`,
-                        }}>
-                          {transacao.descricao}
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("categoria") && (
-                        <TableCell className="text-foreground/80" style={{
-                          width: `${columnWidths.categoria}px`,
-                          minWidth: `${columnWidths.categoria}px`,
-                          maxWidth: `${columnWidths.categoria}px`,
-                        }}>
-                          {transacao.categoria_nome || "-"}
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("pagamento") && (
-                        <TableCell className="text-foreground/80" style={{
-                          width: `${columnWidths.pagamento}px`,
-                          minWidth: `${columnWidths.pagamento}px`,
-                          maxWidth: `${columnWidths.pagamento}px`,
-                        }}>
-                          {transacao.metodo_pagamento ? (
-                            <Badge variant="outline" className="text-xs capitalize">
-                              {transacao.metodo_pagamento}
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("cliente") && (
-                        <TableCell className="text-foreground/80 truncate" title={transacao.cliente_nome || ""} style={{
-                          width: `${columnWidths.cliente}px`,
-                          minWidth: `${columnWidths.cliente}px`,
-                          maxWidth: `${columnWidths.cliente}px`,
-                        }}>
-                          {transacao.cliente_nome || "-"}
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("valor") && (
-                        <TableCell
-                          className={`font-semibold ${isEntrada ? (isPendente ? "text-orange-400" : "text-green-400") : "text-red-400"
-                            }`}
-                          style={{
-                            width: `${columnWidths.valor}px`,
-                            minWidth: `${columnWidths.valor}px`,
-                            maxWidth: `${columnWidths.valor}px`,
-                          }}
-                        >
+                      <span className="text-foreground/80">{key}</span>
+                      <div className="flex gap-4 text-foreground">
+                        <span>
+                          {value.count} item{value.count !== 1 ? "ns" : ""}
+                        </span>
+                        <span className="font-semibold">
                           R${" "}
-                          {Number(transacao.valor).toLocaleString("pt-BR", {
+                          {value.total.toLocaleString("pt-BR", {
                             minimumFractionDigits: 2,
                           })}
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("conta") && (
-                        <TableCell className="text-foreground/80" style={{
-                          width: `${columnWidths.conta}px`,
-                          minWidth: `${columnWidths.conta}px`,
-                          maxWidth: `${columnWidths.conta}px`,
-                        }}>
-                          {transacao.conta_banco || "-"}
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("aeronave") && (
-                        <TableCell className="text-foreground/80" style={{
-                          width: `${columnWidths.aeronave}px`,
-                          minWidth: `${columnWidths.aeronave}px`,
-                          maxWidth: `${columnWidths.aeronave}px`,
-                        }}>
-                          {transacao.aeronave_registro || "-"}
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("nDoc") && (
-                        <TableCell className="text-foreground/80" style={{
-                          width: `${columnWidths.nDoc}px`,
-                          minWidth: `${columnWidths.nDoc}px`,
-                          maxWidth: `${columnWidths.nDoc}px`,
-                        }}>
-                          {transacao.numero_documento || "-"}
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("anexos") && (
-                        <TableCell style={{
-                          width: `${columnWidths.anexos}px`,
-                          minWidth: `${columnWidths.anexos}px`,
-                          maxWidth: `${columnWidths.anexos}px`,
-                        }}>
-                          <TooltipProvider>
-                            <div className="flex items-center gap-1">
-                              {transacao.comprovante_url && (transacao.status === "recebido" || transacao.status === "pago") && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <a
-                                      href={transacao.comprovante_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="p-1 rounded hover:bg-muted/50 transition-colors"
-                                    >
-                                      <CreditCard className="w-4 h-4 text-green-400" />
-                                    </a>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Comprovante</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              )}
-                              {transacao.nf_url && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <a
-                                      href={transacao.nf_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="p-1 rounded hover:bg-muted/50 transition-colors"
-                                    >
-                                      <FileText className="w-4 h-4 text-blue-400" />
-                                    </a>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Nota Fiscal</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              )}
-                              {transacao.recibo_url && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <a
-                                      href={transacao.recibo_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="p-1 rounded hover:bg-muted/50 transition-colors"
-                                    >
-                                      <Receipt className="w-4 h-4 text-purple-400" />
-                                    </a>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Recibo</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              )}
-                              {transacao.boleto_url && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <a
-                                      href={transacao.boleto_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="p-1 rounded hover:bg-muted/50 transition-colors"
-                                    >
-                                      <Paperclip className="w-4 h-4 text-orange-400" />
-                                    </a>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Boleto</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              )}
-                              {!transacao.comprovante_url && !transacao.nf_url && !transacao.recibo_url && !transacao.boleto_url && (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </div>
-                          </TooltipProvider>
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("status") && (
-                        <TableCell style={{
-                          width: `${columnWidths.status}px`,
-                          minWidth: `${columnWidths.status}px`,
-                          maxWidth: `${columnWidths.status}px`,
-                        }}>
-                          {transacao.status ? (
-                            <Badge
-                              variant="outline"
-                              className={getStatusColor(transacao.status, transacao.tipo_movimento)}
-                            >
-                              {transacao.status}
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                      )}
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0"
-                            >
-                              <ChevronDown className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="end"
-                            className="w-48"
-                          >
-                            <DropdownMenuItem
-                              className="cursor-pointer"
-                              onClick={() => {
-                                setEditingMovimentacao(transacao);
-                                setShowInlineForm(true);
-                              }}
-                            >
-                              <Edit2 className="w-4 h-4 mr-2" />
-                              <span>Editar</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => setDeleteConfirmId(transacao.id)}
-                              className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              <span>Deletar</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-                {sortedTransacoes.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={calculateColSpan()}
-                      className="text-center text-foreground/40 py-8"
-                    >
-                      Nenhuma movimentação encontrada
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {sortedTransacoes.length > 0 && (
-            <div className="flex items-center justify-between mt-6 pt-6 border-t border-border/40">
-              <div className="text-sm text-foreground/60">
-                Exibindo {startIndex + 1} a{" "}
-                {Math.min(startIndex + itemsPerPage, sortedTransacoes.length)} de{" "}
-                {sortedTransacoes.length}
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                  disabled={currentPage === 1}
-                  variant="outline"
-                  className="bg-muted/30 border-border/60 hover:bg-muted/50"
-                >
-                  Anterior
-                </Button>
-                <div className="flex items-center gap-2 px-4 py-2 text-foreground/80">
-                  Página {currentPage} de {totalPages}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <Button
-                  onClick={() =>
-                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                  }
-                  disabled={currentPage >= totalPages}
-                  variant="outline"
-                  className="bg-muted/30 border-border/60 hover:bg-muted/50"
-                >
-                  Próxima
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Transações Table */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] border-white/10 backdrop-blur-xl">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-semibold text-foreground">
+              Movimentações
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {sortedTransacoes.length === 0 ? (
+              <EmptyTransactionsState
+                onCreateNew={() => setShowInlineForm(true)}
+                hasFiltersActive={activeFiltersList.length > 0}
+              />
+            ) : (
+              <VirtualizedTransactionTable
+                transactions={sortedTransacoes}
+                selectedIds={selectedIds}
+                onSelectChange={toggleSelectId}
+                onEdit={(transaction) => {
+                  setEditingMovimentacao(transaction);
+                  setShowInlineForm(true);
+                }}
+                onDelete={(id) => setDeleteConfirmId(id)}
+              />
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
