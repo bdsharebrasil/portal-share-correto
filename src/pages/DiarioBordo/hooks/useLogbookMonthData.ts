@@ -1,5 +1,5 @@
 // hooks/useLogbookMonthData.ts
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Aircraft } from '@/types';
 import type { LogbookMonthData } from '../types';
@@ -8,16 +8,12 @@ export function useLogbookMonthData(aircraft: Aircraft[]) {
   const [logbookMonthData, setLogbookMonthData] = useState<Record<string, LogbookMonthData | null>>({});
   const [loading, setLoading] = useState(aircraft.length > 0);
 
-  useEffect(() => {
+  const fetchLogbookData = useCallback(async () => {
     if (aircraft.length === 0) {
       setLoading(false);
       return;
     }
 
-    fetchLogbookData();
-  }, [aircraft]);
-
-  const fetchLogbookData = async () => {
     setLoading(true);
     try {
       const monthDataMap: Record<string, LogbookMonthData | null> = {};
@@ -73,7 +69,11 @@ export function useLogbookMonthData(aircraft: Aircraft[]) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [aircraft]);
+
+  useEffect(() => {
+    fetchLogbookData();
+  }, [fetchLogbookData]);
 
   return {
     logbookMonthData,

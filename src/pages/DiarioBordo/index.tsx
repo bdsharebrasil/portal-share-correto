@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { ViewType } from "./types";
 import { useAircraftList } from "./hooks/useAircraftList";
 import { useLogbookMonthData } from "./hooks/useLogbookMonthData";
-import { DiarioBordoDetalhes } from "@/components/DiarioBordoDetalhes";
+import DiarioBordoDetalhes from "@/components/diario/DiarioBordoDetalhes";
 import { DynamicLogbookForm } from "@/components/logbook/DynamicLogbookForm";
 import { LottieAirplaneSpinner } from "@/components/ui/lottie-airplane-spinner";
-import { ArrowLeft, Layout, Plus } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Layout } from "@/components/layout/Layout";
 import { EmptyState } from "./components/EmptyState";
 import { AircraftCard } from "./components/AircraftCard";
 
@@ -80,8 +81,8 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ onBack }) => {
   // Lista de aeronaves
   return (
     <Layout>
-      <div className="space-y-6 pb-20">
-        <header className="mb-6">
+      <div className="space-y-6">
+        <header className="mb-4">
           <div className="flex items-center justify-between mb-3 gap-3">
             <button
               onClick={onBack}
@@ -100,7 +101,8 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ onBack }) => {
             </Button>
             {/* ... botão aeródromos ... */}
           </div>
-          {/* ... resto do header ... */}
+          <h1 className="text-3xl font-black text-white mb-1">Diário de Bordo</h1>
+          <p className="text-slate-500 text-sm">Selecione uma aeronave para visualizar o histórico de voos</p>
         </header>
 
         {showAddForm && selectedAircraftForForm && (
@@ -115,7 +117,7 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ onBack }) => {
         {aircraft.length === 0 ? (
           <EmptyState />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {aircraft.map(ac => (
               <AircraftCard
                 key={ac.id}
