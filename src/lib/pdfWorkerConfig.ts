@@ -1,14 +1,9 @@
-import { pdfjs } from 'react-pdf';
+import { GlobalWorkerOptions } from 'pdfjs-dist';
 
-// Flag para rastrear se o worker já foi configurado
-let pdfWorkerConfigured = false;
-
-/**
- * Configura o worker do PDF.js com múltiplas estratégias de fallback
- * Garante que o worker seja carregado corretamente em desenvolvimento e produção
- * A configuração é feita apenas uma vez para evitar conflitos
- * Esta função é segura para ser chamada apenas no navegador (via useEffect)
- */
+GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url
+).toString();
 export function configurePDFWorker(): void {
   // Guard para ambiente servidor
   if (typeof window === 'undefined') {
