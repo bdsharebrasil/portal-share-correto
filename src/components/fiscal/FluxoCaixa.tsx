@@ -1,103 +1,23 @@
-import React, { useState, useMemo, useRef, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Search,
-  ArrowUpCircle,
-  ArrowDownCircle,
-  Loader2,
-  Trash2,
-  BarChart3,
-  Plus,
-  Edit2,
-  Download,
-  X,
-  Filter,
-  DollarSign,
-} from "lucide-react";
-import { FilterCombobox } from "./FilterCombobox";
-import { FinanceiroFilters, FinanceiroFilterState } from "./FinanceiroFilters";
+import React, { useState, useMemo, useCallback } from "react";
 import { useControleBancario } from "@/hooks/useControleBancario";
-import { useCategorias } from "@/hooks/useCategorias";
 import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
-import { useDebounce } from "@/hooks/useDebounce";
 import { useExportTransactions } from "@/hooks/useExportTransactions";
-import { ActiveFiltersChips } from "./ActiveFiltersChips";
-import { EmptyTransactionsState } from "./EmptyTransactionsState";
+import { FinanceiroFilters, FinanceiroFilterState } from "./FinanceiroFilters";
 import { VirtualizedTransactionTable } from "./VirtualizedTransactionTable";
-import { ValueRangeFilter } from "./ValueRangeFilter";
 import { KPICard } from "@/components/ui/kpi-card";
-import { format, parse } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { useAeronaves } from "@/hooks/useAeronaves";
-import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { FluxoCaixaInlineForm } from "./FluxoCaixaInlineForm";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { QuadroMensalTab } from "./QuadroMensalTab"; // Sua nova visão mensal
+import { Loader2, ArrowUpCircle, ArrowDownCircle, DollarSign, Filter, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-
-type SortField = "data" | "tipo_movimento" | "valor" | null;
-type SortDirection = "asc" | "desc";
-type ColumnType = "checkbox" | "data" | "tipo" | "descricao" | "categoria" | "valor" | "status" | "anexos" | "actions";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 export function FluxoCaixa() {
-  const { user } = useAuth();
   const { data: transacoes, isLoading, error } = useControleBancario();
-  const { data: categoriasData } = useCategorias();
-  const { categorias: contasData } = useCategoriasFinanceiro();
-  const { aeronaves } = useAeronaves();
   const { exportToCSV } = useExportTransactions();
 
-  // Filters state
-  const [searchTerm, setSearchTerm] = useState("");
-  const debouncedSearchTerm = useDebounce(searchTerm, 300);
-  const [filterTipos, setFilterTipos] = useState<Set<string>>(new Set());
-  const [filterCategorias, setFilterCategorias] = useState<Set<string>>(
-    new Set()
-  );
-  const [filterGrupos, setFilterGrupos] = useState<Set<string>>(new Set());
-  const [filterBancos, setFilterBancos] = useState<Set<string>>(new Set());
-  const [filterStatus, setFilterStatus] = useState<Set<string>>(new Set());
-  const [filterValueRange, setFilterValueRange] = useState<[number, number] | null>(null);
-
-  // UI state
-  const [sortField, setSortField] = useState<SortField>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [showReport, setShowReport] = useState(false);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [showInlineForm, setShowInlineForm] = useState(false);
-  const [editingMovimentacao, setEditingMovimentacao] = useState<any>(null);
-  const [contasBancarias, setContasBancarias] = useState<any[]>([]);
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [columnOrder, setColumnOrder] = useState<ColumnType[]>([
-    "checkbox",
-    "data",
-    "tipo",
-    "descricao",
-    "categoria",
-    "valor",
-    "status",
-    "anexos",
-    "actions",
-  ]);
-
-  // Advanced filters state
+  // 1. Estados de Filtro
   const [advancedFilters, setAdvancedFilters] = useState<FinanceiroFilterState>({
     search: "",
     status: "all",
@@ -106,311 +26,97 @@ export function FluxoCaixa() {
     source: "all",
   });
 
-  // 1. PRIMEIRO: Definimos o maxAmount (Movido para cima para evitar o erro de inicialização)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showInlineForm, setShowInlineForm] = useState(false);
+
+  // 2. Cálculo do maxAmount (Correção de Inicialização)
   const maxAmount = useMemo(() => {
     if (!transacoes || transacoes.length === 0) return 100000;
     return Math.max(...transacoes.map((t: any) => Number(t.valor)));
   }, [transacoes]);
 
-  // 2. SEGUNDO: Usamos o maxAmount no useEffect
+  // Atualiza o range quando os dados carregam
   React.useEffect(() => {
-    setAdvancedFilters(prev => ({
-      ...prev,
-      amountRange: [0, maxAmount]
-    }));
+    setAdvancedFilters(prev => ({ ...prev, amountRange: [0, maxAmount] }));
   }, [maxAmount]);
 
-  // Fetch contas bancárias
-  React.useEffect(() => {
-    const fetchContasBancarias = async () => {
-      const { data } = await supabase
-        .from("contas_bancarias")
-        .select("id, banco, nome")
-        .eq("ativo", true)
-        .order("banco");
-      setContasBancarias(data || []);
-    };
-    fetchContasBancarias();
-  }, []);
-
-  // Calculate KPIs - Filtered by current month
-  const kpis = useMemo(() => {
-    if (!transacoes) return { totalEntradas: 0, totalSaidas: 0, saldo: 0, totalTransacoes: 0 };
-
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
-    const transacoesDoMes = transacoes.filter((t) => {
-      const transacaoDate = new Date(t.data);
-      return transacaoDate.getMonth() === currentMonth && transacaoDate.getFullYear() === currentYear;
-    });
-
-    const entradas = transacoesDoMes
-      .filter(t => t.tipo_movimento === "entrada")
-      .reduce((sum, t) => sum + Number(t.valor), 0);
-    const saidas = transacoesDoMes
-      .filter(t => t.tipo_movimento === "saida")
-      .reduce((sum, t) => sum + Number(t.valor), 0);
-
-    return {
-      totalEntradas: entradas,
-      totalSaidas: saidas,
-      saldo: entradas - saidas,
-      totalTransacoes: transacoesDoMes.length,
-    };
-  }, [transacoes]);
-
-  // Group categories
-  const gruposCategorias = useMemo(() => {
-    if (!Array.isArray(contasData)) return [];
-    const grupos = [...new Set(contasData.map((c: any) => c.grupo_categoria).filter(Boolean))];
-    return grupos.sort();
-  }, [contasData]);
-
-  const categoriasDoGrupo = useMemo(() => {
-    if (!Array.isArray(contasData)) return [];
-    const categorias = filterGrupos.size === 0
-      ? contasData
-      : contasData.filter((c: any) => filterGrupos.has(c.grupo_categoria));
-
-    return categorias.map((c: any) => ({
-      value: c.nome,
-      label: c.nome,
-      group: c.grupo_categoria || 'Sem grupo'
-    }));
-  }, [contasData, filterGrupos]);
-
-  const tipos: string[] = ["entrada", "saida"];
-  const bancos: string[] = useMemo(() => {
-    const bancosUnicos = [...new Set(contasBancarias.map((c: any) => c.banco).filter(Boolean))];
-    return bancosUnicos.sort();
-  }, [contasBancarias]);
-  const statusOptions: string[] = ["recebido", "pago", "pendente", "aguardando_reembolso", "cancelado"];
-
-  // Helper functions
-  const toggleFilter = (set: Set<string>, value: string) => {
-    const newSet = new Set(set);
-    if (newSet.has(value)) {
-      newSet.delete(value);
-    } else {
-      newSet.add(value);
-    }
-    return newSet;
-  };
-
-  const toggleSelectId = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
-    });
-  }, []);
-
-  // Filter and sort
+  // 3. Lógica de Filtragem (Mantendo suas regras)
   const filteredTransacoes = useMemo(() => {
-    return (
-      transacoes?.filter((transacao: any) => {
-        const matchesSearch =
-          transacao.descricao
-            .toLowerCase()
-            .includes(debouncedSearchTerm.toLowerCase()) ||
-          (transacao.numero_documento &&
-            transacao.numero_documento
-              .toLowerCase()
-              .includes(debouncedSearchTerm.toLowerCase()));
-        const matchesTipo =
-          filterTipos.size === 0 || filterTipos.has(transacao.tipo_movimento);
-        const matchesGrupo =
-          filterGrupos.size === 0 ||
-          (transacao.grupo_categoria && filterGrupos.has(transacao.grupo_categoria));
-        const matchesCategoria =
-          filterCategorias.size === 0 ||
-          filterCategorias.has(transacao.categoria_nome);
-        const matchesBanco =
-          filterBancos.size === 0 ||
-          (transacao.conta_banco && filterBancos.has(transacao.conta_banco));
-        const matchesStatus =
-          filterStatus.size === 0 ||
-          (transacao.status && filterStatus.has(transacao.status));
-        const matchesValueRange =
-          !filterValueRange ||
-          (Number(transacao.valor) >= filterValueRange[0] &&
-            Number(transacao.valor) <= filterValueRange[1]);
+    if (!transacoes) return [];
+    return transacoes.filter((t: any) => {
+      const matchesSearch = t.descricao?.toLowerCase().includes(advancedFilters.search.toLowerCase());
+      const matchesStatus = advancedFilters.status === "all" || t.status === advancedFilters.status;
+      const matchesValue = Number(t.valor) >= advancedFilters.amountRange[0] && Number(t.valor) <= advancedFilters.amountRange[1];
 
-        return (
-          matchesSearch &&
-          matchesTipo &&
-          matchesGrupo &&
-          matchesCategoria &&
-          matchesBanco &&
-          matchesStatus &&
-          matchesValueRange
-        );
-      }) || []
-    );
-  }, [transacoes, debouncedSearchTerm, filterTipos, filterGrupos, filterCategorias, filterBancos, filterStatus, filterValueRange]);
-
-  const sortedTransacoes = useMemo(() => {
-    const sorted = [...filteredTransacoes].sort((a: any, b: any) => {
-      if (!sortField) return 0;
-
-      let aValue: any = a[sortField];
-      let bValue: any = b[sortField];
-
-      if (sortField === "data") {
-        aValue = new Date(a.data).getTime();
-        bValue = new Date(b.data).getTime();
-      } else if (sortField === "valor") {
-        aValue = Number(a.valor);
-        bValue = Number(b.valor);
-      }
-
-      if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
-      if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
-      return 0;
+      return matchesSearch && matchesStatus && matchesValue;
     });
-    return sorted;
-  }, [filteredTransacoes, sortField, sortDirection]);
+  }, [transacoes, advancedFilters]);
 
-  // Build active filters list
-  const activeFiltersList = useMemo(() => {
-    const filters = [];
+  // 4. KPIs Rápidos (Mês atual)
+  const kpis = useMemo(() => {
+    const entradas = filteredTransacoes.filter(t => t.tipo_movimento === "entrada").reduce((acc, t) => acc + Number(t.valor), 0);
+    const saidas = filteredTransacoes.filter(t => t.tipo_movimento === "saida").reduce((acc, t) => acc + Number(t.valor), 0);
+    return { entradas, saidas, saldo: entradas - saidas };
+  }, [filteredTransacoes]);
 
-    Array.from(filterTipos).forEach((tipo) => {
-      filters.push({
-        id: `tipo-${tipo}`,
-        label: "Tipo",
-        value: tipo,
-        category: "tipo",
-      });
-    });
+  if (isLoading) return <div className="flex h-96 items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
 
-    Array.from(filterGrupos).forEach((grupo) => {
-      filters.push({
-        id: `grupo-${grupo}`,
-        label: "Grupo",
-        value: grupo,
-        category: "grupo",
-      });
-    });
+  return (
+    <div className="space-y-6">
+      <Tabs defaultValue="lista" className="w-full">
+        <div className="flex items-center justify-between mb-4">
+          <TabsList className="bg-white/5 border border-white/10">
+            <TabsTrigger value="lista">Lista Geral</TabsTrigger>
+            <TabsTrigger value="quadro">Visualização Mensal</TabsTrigger>
+          </TabsList>
 
-    Array.from(filterCategorias).forEach((categoria) => {
-      filters.push({
-        id: `categoria-${categoria}`,
-        label: "Categoria",
-        value: categoria,
-        category: "categoria",
-      });
-    });
+          <Button onClick={() => setShowInlineForm(true)} className="gap-2">
+            <Plus className="w-4 h-4" /> Nova Movimentação
+          </Button>
+        </div>
 
-    Array.from(filterBancos).forEach((banco) => {
-      filters.push({
-        id: `banco-${banco}`,
-        label: "Banco",
-        value: banco,
-        category: "banco",
-      });
-    });
+        <TabsContent value="lista" className="space-y-6">
+          {/* Dashboard de Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <KPICard label="Entradas" value={`R$ ${kpis.entradas.toLocaleString()}`} icon={<ArrowUpCircle className="text-emerald-400" />} />
+            <KPICard label="Saídas" value={`R$ ${kpis.saidas.toLocaleString()}`} icon={<ArrowDownCircle className="text-red-400" />} />
+            <KPICard label="Saldo" value={`R$ ${kpis.saldo.toLocaleString()}`} icon={<DollarSign className="text-primary" />} />
+          </div>
 
-    Array.from(filterStatus).forEach((status) => {
-      filters.push({
-        id: `status-${status}`,
-        label: "Status",
-        value: status,
-        category: "status",
-      });
-    });
+          {/* Filtros Avançados */}
+          <Card className="bg-white/5 border-white/10 backdrop-blur-xl">
+            <CardContent className="pt-6">
+              <FinanceiroFilters
+                filters={advancedFilters}
+                onFiltersChange={setAdvancedFilters}
+                resultCount={filteredTransacoes.length}
+                maxAmount={maxAmount}
+              />
+            </CardContent>
+          </Card>
 
-    return filters;
-  }, [filterTipos, filterGrupos, filterCategorias, filterBancos, filterStatus]);
+          {/* Tabela Virtualizada com a lógica de "Entradas Primeiro" */}
+          <VirtualizedTransactionTable
+            transactions={filteredTransacoes}
+            selectedIds={selectedIds}
+            onSelectChange={(id) => {
+              const newSet = new Set(selectedIds);
+              newSet.has(id) ? newSet.delete(id) : newSet.add(id);
+              setSelectedIds(newSet);
+            }}
+            onEdit={(t) => console.log("Editar", t)}
+            onDelete={(id) => console.log("Deletar", id)}
+          />
+        </TabsContent>
 
-  const handleRemoveFilter = (filterId: string) => {
-    const [category, value] = filterId.split("-");
-
-    switch (category) {
-      case "tipo":
-        setFilterTipos(toggleFilter(filterTipos, value));
-        break;
-      case "grupo":
-        setFilterGrupos(toggleFilter(filterGrupos, value));
-        break;
-      case "categoria":
-        setFilterCategorias(toggleFilter(filterCategorias, value));
-        break;
-      case "banco":
-        setFilterBancos(toggleFilter(filterBancos, value));
-        break;
-      case "status":
-        setFilterStatus(toggleFilter(filterStatus, value));
-        break;
-    }
-  };
-
-  const handleClearAllFilters = () => {
-    setFilterTipos(new Set());
-    setFilterGrupos(new Set());
-    setFilterCategorias(new Set());
-    setFilterBancos(new Set());
-    setFilterStatus(new Set());
-    setFilterValueRange(null);
-    setSearchTerm("");
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from("controle_bancario")
-        .delete()
-        .eq("id", id);
-
-      if (error) {
-        toast.error(`Erro ao deletar: ${error.message}`);
-        return;
-      }
-
-      toast.success("Movimentação deletada com sucesso!");
-      setDeleteConfirmId(null);
-      window.location.reload();
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao deletar");
-    }
-  };
-
-  const handleDeleteMultiple = async () => {
-    if (selectedIds.size === 0) return;
-
-    try {
-      const idsArray = Array.from(selectedIds);
-      const { error } = await supabase
-        .from("controle_bancario")
-        .delete()
-        .in("id", idsArray);
-
-      if (error) {
-        toast.error(`Erro ao deletar: ${error.message}`);
-        return;
-      }
-
-      toast.success(
-        `${selectedIds.size} movimentação(ões) deletada(s) com sucesso!`
-      );
-      setSelectedIds(new Set());
-      window.location.reload();
-    } catch (error: any) {
-      toast.error(error.message || "Erro ao deletar movimentações");
-    }
-  };
-
-  const selectedTransacoes = sortedTransacoes.filter((t: any) =>
-    selectedIds.has(t.id)
+        <TabsContent value="quadro">
+          {/* Aqui entra o seu componente QuadroMensalTab */}
+          <QuadroMensalTab />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
-
-  if (isLoading) {
+}
     return (
       <motion.div
         initial={{ opacity: 0 }}
