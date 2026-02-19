@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight, Search, Download, ArrowUpCircle, ArrowDownCircle, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, Download, ArrowUpCircle, ArrowDownCircle, TrendingUp, TrendingDown, Minus, ArrowUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCategorias } from "@/hooks/useCategorias";
 import { useMemo, useState } from "react";
@@ -19,6 +19,14 @@ interface Transacao {
   categoria_id: string | null;
   observacoes: string | null;
   valor: number;
+  numero_documento?: string | null;
+  client_name?: string | null;
+  aeronave_registro?: string | null;
+  grupo_categoria?: string | null;
+  prazo?: string | null;
+  conta_banco?: string | null;
+  metodo_pagamento?: string | null;
+  status?: string | null;
 }
 
 function QuadroSkeleton() {
@@ -57,6 +65,7 @@ export function QuadroMensalTab() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategoria, setFilterCategoria] = useState("Todas");
   const [filterTipo, setFilterTipo] = useState<"todas" | "entrada" | "saida">("todas");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const mesKey = `${mesAtual.year}-${String(mesAtual.month + 1).padStart(2, "0")}`;
   const startDate = startOfMonth(new Date(mesAtual.year, mesAtual.month));
@@ -119,7 +128,7 @@ export function QuadroMensalTab() {
 
   const transacoesFiltradas = useMemo(() => {
     if (!transacoes) return [];
-    return transacoes.filter((t) => {
+    const filtered = transacoes.filter((t) => {
       const nome = getCategoriaName(t.categoria_id);
       const matchesSearch = t.descricao?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         nome.toLowerCase().includes(searchTerm.toLowerCase());
@@ -127,7 +136,14 @@ export function QuadroMensalTab() {
       const matchesTipo = filterTipo === "todas" || t.tipo_movimento === filterTipo;
       return matchesSearch && matchesCategoria && matchesTipo;
     });
-  }, [transacoes, searchTerm, filterCategoria, filterTipo, categoriasData]);
+
+    // Aplicar ordenação por data
+    return [...filtered].sort((a, b) => {
+      const dateA = new Date(a.data).getTime();
+      const dateB = new Date(b.data).getTime();
+      return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+    });
+  }, [transacoes, searchTerm, filterCategoria, filterTipo, categoriasData, sortOrder]);
 
   const totalReceitas = useMemo(() =>
     (transacoes || []).filter((t) => t.tipo_movimento === "entrada").reduce((acc, t) => acc + Number(t.valor), 0),
@@ -322,12 +338,26 @@ export function QuadroMensalTab() {
             <Table>
               <TableHeader className="sticky top-0 bg-card/80 backdrop-blur-sm z-10">
                 <TableRow className="border-border/40 hover:bg-transparent">
-                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Data</TableHead>
+                  <TableHead
+                    className="text-muted-foreground text-xs uppercase tracking-wider cursor-pointer hover:text-foreground transition-colors group"
+                    onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                  >
+                    <div className="flex items-center gap-1">
+                      Data
+                      <ArrowUp className={`w-3 h-3 transition-transform ${sortOrder === "desc" ? "rotate-180" : ""}`} />
+                    </div>
+                  </TableHead>
                   <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Tipo</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">N° Doc</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Cliente</TableHead>
                   <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Descrição</TableHead>
-                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Categoria</TableHead>
-                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Observações</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Aeronave</TableHead>
                   <TableHead className="text-muted-foreground text-xs uppercase tracking-wider text-right">Valor</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Grupo</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Prazo</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Banco</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Pagamento</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -348,15 +378,27 @@ export function QuadroMensalTab() {
                         </span>
                       </div>
                     </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{transacao.numero_documento || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{transacao.client_name || "—"}</TableCell>
                     <TableCell className="font-medium text-foreground text-sm">{transacao.descricao}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="border-border/60 text-muted-foreground text-xs">
-                        {getCategoriaName(transacao.categoria_id)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{transacao.observacoes || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{transacao.aeronave_registro || "—"}</TableCell>
                     <TableCell className={`font-semibold text-sm text-right ${transacao.tipo_movimento === "entrada" ? "text-emerald-400" : "text-destructive"}`}>
                       {formatCurrency(Number(transacao.valor))}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      <Badge variant="outline" className="border-border/60 text-muted-foreground text-xs">
+                        {transacao.grupo_categoria || getCategoriaName(transacao.categoria_id)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {transacao.prazo ? format(new Date(transacao.prazo), "dd/MM/yyyy") : "—"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{transacao.conta_banco || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{transacao.metodo_pagamento || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      <Badge variant="outline" className="border-border/60 text-muted-foreground text-xs">
+                        {transacao.status || "—"}
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))}
