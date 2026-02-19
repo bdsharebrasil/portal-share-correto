@@ -31,13 +31,14 @@ export function useGeolocation() {
         setLoading(false);
       },
       (err) => {
-        console.warn('[useGeolocation] Erro:', err.message);
+        // Silenciosamente falhar para erros de permissão
+        // O fallback para SBGR no WeatherDisplay será acionado após 5 segundos
         setError(err.message);
         setLoading(false);
       },
       {
-        timeout: 10000,
-        maximumAge: 0,
+        timeout: 5000,
+        maximumAge: Infinity,
         enableHighAccuracy: false,
       }
     );
