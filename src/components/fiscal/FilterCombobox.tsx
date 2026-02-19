@@ -4,9 +4,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, X } from "lucide-react";
 
+interface FilterOption {
+  value: string;
+  label: string;
+  group?: string;
+}
+
 interface FilterComboboxProps {
   title: string;
-  options: string[];
+  options: string[] | FilterOption[];
   selectedValues: Set<string>;
   onSelectionChange: (value: string) => void;
   onClear: () => void;
@@ -22,15 +28,25 @@ export function FilterCombobox({
   const [open, setOpen] = useState(false);
 
   const handleSelectAll = () => {
-    if (selectedValues.size === options.length) {
+    const optionValues = options.map(o => typeof o === 'string' ? o : o.value);
+    if (selectedValues.size === optionValues.length) {
       onClear();
     } else {
-      options.forEach(option => {
-        if (!selectedValues.has(option)) {
-          onSelectionChange(option);
+      optionValues.forEach(optionValue => {
+        if (!selectedValues.has(optionValue)) {
+          onSelectionChange(optionValue);
         }
       });
     }
+  };
+
+  const getOptionValue = (option: string | FilterOption) => {
+    return typeof option === 'string' ? option : option.value;
+  };
+
+  const getOptionLabel = (option: string | FilterOption) => {
+    if (typeof option === 'string') return option;
+    return option.group ? `${option.label} - ${option.group}` : option.label;
   };
 
   return (
@@ -76,19 +92,23 @@ export function FilterCombobox({
 
           <div className="max-h-[300px] overflow-y-auto space-y-2">
             {options.length > 0 ? (
-              options.map(option => (
-                <label
-                  key={option}
-                  className="flex items-center gap-3 cursor-pointer px-2 py-1.5 hover:bg-muted/20 rounded transition-colors"
-                >
-                  <Checkbox
-                    checked={selectedValues.has(option)}
-                    onCheckedChange={() => onSelectionChange(option)}
-                    className="h-4 w-4"
-                  />
-                  <span className="text-xs text-foreground/80 truncate">{option}</span>
-                </label>
-              ))
+              options.map(option => {
+                const value = getOptionValue(option);
+                const label = getOptionLabel(option);
+                return (
+                  <label
+                    key={value}
+                    className="flex items-center gap-3 cursor-pointer px-2 py-1.5 hover:bg-muted/20 rounded transition-colors"
+                  >
+                    <Checkbox
+                      checked={selectedValues.has(value)}
+                      onCheckedChange={() => onSelectionChange(value)}
+                      className="h-4 w-4"
+                    />
+                    <span className="text-xs text-foreground/80 truncate">{label}</span>
+                  </label>
+                );
+              })
             ) : (
               <p className="text-xs text-muted-foreground text-center py-2">
                 Nenhuma opção disponível

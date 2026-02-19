@@ -19,6 +19,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import { FilterCombobox } from "./FilterCombobox";
+import { FinanceiroFilters, FinanceiroFilterState } from "./FinanceiroFilters";
 import { useControleBancario } from "@/hooks/useControleBancario";
 import { useCategorias } from "@/hooks/useCategorias";
 import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
@@ -84,6 +85,23 @@ export function FluxoCaixa() {
   const [contasBancarias, setContasBancarias] = useState<any[]>([]);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
+  // Advanced filters state
+  const [advancedFilters, setAdvancedFilters] = useState<FinanceiroFilterState>({
+    search: "",
+    status: "all",
+    dateRange: undefined,
+    amountRange: [0, 100000],
+    source: "all",
+  });
+
+  // Update amountRange when maxAmount changes
+  React.useEffect(() => {
+    setAdvancedFilters(prev => ({
+      ...prev,
+      amountRange: [0, maxAmount]
+    }));
+  }, [maxAmount]);
+
   // Fetch contas bancárias
   React.useEffect(() => {
     const fetchContasBancarias = async () => {
@@ -135,12 +153,15 @@ export function FluxoCaixa() {
 
   const categoriasDoGrupo = useMemo(() => {
     if (!Array.isArray(contasData)) return [];
-    if (filterGrupos.size === 0) {
-      return contasData.map((c: any) => c.nome);
-    }
-    return contasData
-      .filter((c: any) => filterGrupos.has(c.grupo_categoria))
-      .map((c: any) => c.nome);
+    const categorias = filterGrupos.size === 0
+      ? contasData
+      : contasData.filter((c: any) => filterGrupos.has(c.grupo_categoria));
+
+    return categorias.map((c: any) => ({
+      value: c.nome,
+      label: c.nome,
+      group: c.grupo_categoria || 'Sem grupo'
+    }));
   }, [contasData, filterGrupos]);
 
   const tipos: string[] = ["entrada", "saida"];
@@ -149,6 +170,12 @@ export function FluxoCaixa() {
     return bancosUnicos.sort();
   }, [contasBancarias]);
   const statusOptions: string[] = ["recebido", "pago", "pendente", "aguardando_reembolso", "cancelado"];
+
+  // Calculate max amount for filters
+  const maxAmount = useMemo(() => {
+    if (!transacoes || transacoes.length === 0) return 100000;
+    return Math.max(...transacoes.map((t: any) => Number(t.valor)));
+  }, [transacoes]);
 
   // Helper functions
   const toggleFilter = (set: Set<string>, value: string) => {
@@ -470,14 +497,25 @@ export function FluxoCaixa() {
         )}
       </AnimatePresence>
 
-      {/* Filtros Card */}
+      {/* Advanced Filtros Card */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="space-y-4"
       >
-        {/* Desktop Filters */}
-        <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] border-white/10 backdrop-blur-xl hidden md:block">
+        <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] border-white/10 backdrop-blur-xl">
+          <CardContent className="pt-6">
+            <FinanceiroFilters
+              filters={advancedFilters}
+              onFiltersChange={setAdvancedFilters}
+              resultCount={sortedTransacoes.length}
+              maxAmount={maxAmount}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Legacy Desktop Filters */}
+        <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] border-white/10 backdrop-blur-xl hidden lg:block">
           <CardHeader className="pb-3">
             <div className="flex justify-between items-center">
               <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
