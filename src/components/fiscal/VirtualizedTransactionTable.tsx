@@ -211,7 +211,7 @@ const Row = ({
       </div>
 
       {/* Tipo */}
-      <div className="w-20 flex-shrink-0">
+      <div className="w-32 flex-shrink-0">
         <div className="flex items-center gap-1">
           {isEntrada ? (
             <ArrowUpCircle className="w-4 h-4 text-green-400" />
@@ -223,7 +223,7 @@ const Row = ({
               isEntrada ? "text-green-400" : "text-red-400"
             }`}
           >
-            {isEntrada ? "E" : "S"}
+            {isEntrada ? "Entrada" : "Saída"}
           </span>
         </div>
       </div>
@@ -486,7 +486,7 @@ export const VirtualizedTransactionTable = ({
   const columnConfigs = {
     checkbox: { label: "Seleção", width: "w-12", field: null },
     data: { label: "Data", width: "w-24", field: "data" as SortField },
-    tipo: { label: "Tipo", width: "w-20", field: null },
+    tipo: { label: "Tipo", width: "w-32", field: null },
     descricao: { label: "Descrição", width: "flex-1", field: null },
     categoria: { label: "Categoria", width: "w-32", field: null },
     valor: { label: "Valor", width: "w-28", field: "valor" as SortField },
