@@ -13,8 +13,9 @@ import {
   Menu,
   X,
   Wallet,
-  PieChart,
-} from "lucide-react";
+  PieChart
+} from
+  "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +29,7 @@ interface MenuItem {
   isExpandable?: boolean;
   isExternal?: boolean;
   externalUrl?: string;
-  subItems?: { title: string; href: string }[];
+  subItems?: { title: string; href: string; }[];
   itemId?: string;
 }
 
@@ -45,8 +46,8 @@ const baseMenuGroups: MenuGroup[] = [
     items: [
       { title: "Início", icon: Home, href: "/", isMain: true },
       { title: "Documentos", icon: FileText, href: "/documentos" },
-      { title: "Senhas", icon: Key, href: "/senhas" },
-    ],
+      { title: "Senhas", icon: Key, href: "/senhas" }]
+
   },
   {
     title: "Agenda & Contatos",
@@ -54,9 +55,9 @@ const baseMenuGroups: MenuGroup[] = [
       {
         title: "Agenda",
         icon: Calendar,
-        href: "/agenda",
-      },
-    ],
+        href: "/agenda"
+      }]
+
   },
   {
     title: "Financeiro & Cartões",
@@ -64,16 +65,16 @@ const baseMenuGroups: MenuGroup[] = [
       {
         title: "Solicitação de Compras",
         icon: CreditCard,
-        href: "/financeiro/compras",
+        href: "/financeiro/compras"
       },
       {
         title: "Cartões Corporativos",
         icon: Wallet,
-        href: "/cartoes-corporativos",
-      },
-    ],
-  },
-];
+        href: "/cartoes-corporativos"
+      }]
+
+  }];
+
 
 interface SidebarProps {
   isOpen: boolean;
@@ -120,195 +121,195 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   return (
     <>
       {/* Icon-only sidebar (always visible) */}
-      <aside className="fixed left-0 top-16 w-20 h-[calc(100vh-4rem)] bg-gradient-to-b from-slate-900/95 via-slate-950/95 to-slate-950/95 backdrop-blur-sm border-r border-slate-800/50 z-50 flex flex-col items-center py-6 gap-4">
+      <aside className="fixed left-0 top-16 w-20 h-[calc(100vh-4rem)] bg-gradient-to-b from-slate-900/95 via-slate-950/95 to-slate-950/95 backdrop-blur-sm border-r border-slate-800/50 z-50 flex flex-col items-center py-6 gap-4 bg-[#0f121a]">
         {/* Main navigation icons */}
         <nav className="flex flex-col w-full px-3.5" style={{ gap: '22px', margin: '59px 0' }}>
           {filteredMenuGroups.flatMap((group) =>
-            group.items.map((item) => (
+            group.items.map((item) =>
               <motion.div
                 key={item.title}
                 onMouseEnter={() => setHoveredItem(item.title)}
                 onMouseLeave={() => setHoveredItem(null)}
                 animate={{
                   scale: hoveredItem === item.title ? 1.2 : 1,
-                  y: hoveredItem === item.title ? -5 : 0,
+                  y: hoveredItem === item.title ? -5 : 0
                 }}
                 transition={{
                   type: "spring",
                   stiffness: 300,
-                  damping: 20,
-                }}
-              >
-                {item.isExternal ? (
+                  damping: 20
+                }}>
+
+                {item.isExternal ?
                   <a
                     href={item.externalUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-slate-800/40 hover:bg-slate-800/70 border border-slate-700/50 hover:border-primary/50 transition-all duration-300"
-                    title={item.title}
-                  >
+                    title={item.title}>
+
                     {item.icon && <item.icon className="h-5 w-5 text-foreground group-hover:text-primary transition-colors" />}
                     <motion.div
                       className="absolute left-20 px-3 py-1.5 bg-slate-800 rounded-lg text-xs font-medium text-foreground pointer-events-none whitespace-nowrap z-10"
                       animate={{
-                        opacity: hoveredItem === item.title ? 1 : 0,
+                        opacity: hoveredItem === item.title ? 1 : 0
                       }}
-                      transition={{ duration: 0.2 }}
-                    >
+                      transition={{ duration: 0.2 }}>
+
                       {item.title}
                     </motion.div>
-                  </a>
-                ) : item.isExpandable ? (
-                  <button
-                    onClick={handleMenuToggle}
-                    className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-slate-800/40 hover:bg-slate-800/70 border border-slate-700/50 hover:border-primary/50 transition-all duration-300"
-                    title={item.title}
-                  >
-                    {item.icon && <item.icon className="h-5 w-5 text-foreground group-hover:text-primary transition-colors" />}
-                    <motion.div
-                      className="absolute left-20 px-3 py-1.5 bg-slate-800 rounded-lg text-xs font-medium text-foreground pointer-events-none whitespace-nowrap z-10"
-                      animate={{
-                        opacity: hoveredItem === item.title ? 1 : 0,
-                      }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      {item.title}
-                    </motion.div>
-                  </button>
-                ) : (
-                  <NavLink
-                    to={item.href || "#"}
-                    className={({ isActive }) =>
-                      cn(
-                        "group relative flex items-center justify-center w-14 h-14 rounded-full border transition-all duration-300",
-                        isActive
-                          ? "bg-primary/40 border-primary/50 text-primary"
-                          : "bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/70 hover:border-primary/50 text-foreground hover:text-primary"
-                      )
-                    }
-                    title={item.title}
-                  >
-                    {item.icon && <item.icon className="h-5 w-5 transition-colors" />}
-                    <motion.div
-                      className="absolute left-20 px-3 py-1.5 bg-slate-800 rounded-lg text-xs font-medium text-foreground pointer-events-none whitespace-nowrap z-10"
-                      animate={{
-                        opacity: hoveredItem === item.title ? 1 : 0,
-                      }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      {item.title}
-                    </motion.div>
-                  </NavLink>
-                )}
+                  </a> :
+                  item.isExpandable ?
+                    <button
+                      onClick={handleMenuToggle}
+                      className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-slate-800/40 hover:bg-slate-800/70 border border-slate-700/50 hover:border-primary/50 transition-all duration-300"
+                      title={item.title}>
+
+                      {item.icon && <item.icon className="h-5 w-5 text-foreground group-hover:text-primary transition-colors" />}
+                      <motion.div
+                        className="absolute left-20 px-3 py-1.5 bg-slate-800 rounded-lg text-xs font-medium text-foreground pointer-events-none whitespace-nowrap z-10"
+                        animate={{
+                          opacity: hoveredItem === item.title ? 1 : 0
+                        }}
+                        transition={{ duration: 0.2 }}>
+
+                        {item.title}
+                      </motion.div>
+                    </button> :
+
+                    <NavLink
+                      to={item.href || "#"}
+                      className={({ isActive }) =>
+                        cn(
+                          "group relative flex items-center justify-center w-14 h-14 rounded-full border transition-all duration-300",
+                          isActive ?
+                            "bg-primary/40 border-primary/50 text-primary" :
+                            "bg-slate-800/40 border-slate-700/50 hover:bg-slate-800/70 hover:border-primary/50 text-foreground hover:text-primary"
+                        )
+                      }
+                      title={item.title}>
+
+                      {item.icon && <item.icon className="h-5 w-5 transition-colors" />}
+                      <motion.div
+                        className="absolute left-20 px-3 py-1.5 bg-slate-800 rounded-lg text-xs font-medium text-foreground pointer-events-none whitespace-nowrap z-10"
+                        animate={{
+                          opacity: hoveredItem === item.title ? 1 : 0
+                        }}
+                        transition={{ duration: 0.2 }}>
+
+                        {item.title}
+                      </motion.div>
+                    </NavLink>
+                }
               </motion.div>
-            ))
+            )
           )}
         </nav>
 
       </aside>
 
       {/* Expandable menu panel */}
-      {expandedMenu && (
+      {expandedMenu &&
         <>
           {/* Backdrop */}
           <div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 top-16"
-            onClick={() => setExpandedMenu(false)}
-          />
+            onClick={() => setExpandedMenu(false)} />
+
 
           {/* Expanded menu */}
           <div className="fixed left-20 top-16 w-64 h-[calc(100vh-4rem)] bg-gradient-to-b from-slate-900/98 via-slate-950/98 to-slate-950/98 backdrop-blur-md border-r border-slate-800/50 z-40 overflow-y-auto custom-scrollbar p-4">
             <nav className="space-y-4">
-              {filteredMenuGroups.map((group) => (
+              {filteredMenuGroups.map((group) =>
                 <Card
                   key={group.title}
-                  className="bg-slate-800/40 border-slate-700/50 shadow-none"
-                >
+                  className="bg-slate-800/40 border-slate-700/50 shadow-none">
+
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium text-foreground flex items-center">
                       {group.title}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-0 space-y-2">
-                    {group.items.map((item) => (
+                    {group.items.map((item) =>
                       <div key={item.title}>
-                        {item.isExternal ? (
+                        {item.isExternal ?
                           <a
                             href={item.externalUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center px-3 py-2 rounded-md text-sm font-medium border border-slate-700/50 hover:bg-slate-800/70 hover:border-primary/50 transition-smooth text-foreground"
-                          >
+                            className="flex items-center px-3 py-2 rounded-md text-sm font-medium border border-slate-700/50 hover:bg-slate-800/70 hover:border-primary/50 transition-smooth text-foreground">
+
                             {item.icon && <item.icon className="mr-3 h-4 w-4 text-primary" />}
                             {item.title}
-                          </a>
-                        ) : item.isExpandable ? (
-                          <Collapsible
-                            open={expandedItems.includes(item.title)}
-                            onOpenChange={() => toggleExpanded(item.title)}
-                          >
-                            <CollapsibleTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className="w-full justify-between border-slate-700/50 hover:bg-slate-800/70 hover:border-primary/50 transition-smooth rounded-md"
-                              >
-                                <div className="flex items-center">
-                                  {item.icon && <item.icon className="mr-3 h-4 w-4 text-primary" />}
-                                  {item.title}
-                                </div>
-                                {expandedItems.includes(item.title) ? (
-                                  <ChevronDown className="h-4 w-4" />
-                                ) : (
-                                  <ChevronRight className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </CollapsibleTrigger>
-                            <CollapsibleContent className="ml-4 mt-1 space-y-1">
-                              {item.subItems?.map((subItem) => (
-                                <NavLink
-                                  key={subItem.href}
-                                  to={subItem.href}
-                                  className={({ isActive }) =>
-                                    cn(
-                                      "block px-4 py-2 text-sm rounded-md border transition-smooth",
-                                      isActive
-                                        ? "bg-primary/40 text-white shadow-primary border-primary/50"
-                                        : "text-foreground border-slate-700/50 hover:bg-slate-800/70 hover:border-primary/50"
-                                    )
+                          </a> :
+                          item.isExpandable ?
+                            <Collapsible
+                              open={expandedItems.includes(item.title)}
+                              onOpenChange={() => toggleExpanded(item.title)}>
+
+                              <CollapsibleTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className="w-full justify-between border-slate-700/50 hover:bg-slate-800/70 hover:border-primary/50 transition-smooth rounded-md">
+
+                                  <div className="flex items-center">
+                                    {item.icon && <item.icon className="mr-3 h-4 w-4 text-primary" />}
+                                    {item.title}
+                                  </div>
+                                  {expandedItems.includes(item.title) ?
+                                    <ChevronDown className="h-4 w-4" /> :
+
+                                    <ChevronRight className="h-4 w-4" />
                                   }
-                                  onClick={() => setExpandedMenu(false)}
-                                >
-                                  {subItem.title}
-                                </NavLink>
-                              ))}
-                            </CollapsibleContent>
-                          </Collapsible>
-                        ) : (
-                          <NavLink
-                            to={item.href || "#"}
-                            className={({ isActive }) =>
-                              cn(
-                                "flex items-center px-3 py-2 rounded-md text-sm font-medium border transition-smooth",
-                                isActive
-                                  ? "bg-primary/40 text-white shadow-primary border-primary/50"
-                                  : "text-foreground border-slate-700/50 hover:bg-slate-800/70 hover:border-primary/50"
-                              )
-                            }
-                            onClick={() => setExpandedMenu(false)}
-                          >
-                            {item.icon && <item.icon className="mr-3 h-4 w-4 text-primary" />}
-                            {item.title}
-                          </NavLink>
-                        )}
+                                </Button>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent className="ml-4 mt-1 space-y-1">
+                                {item.subItems?.map((subItem) =>
+                                  <NavLink
+                                    key={subItem.href}
+                                    to={subItem.href}
+                                    className={({ isActive }) =>
+                                      cn(
+                                        "block px-4 py-2 text-sm rounded-md border transition-smooth",
+                                        isActive ?
+                                          "bg-primary/40 text-white shadow-primary border-primary/50" :
+                                          "text-foreground border-slate-700/50 hover:bg-slate-800/70 hover:border-primary/50"
+                                      )
+                                    }
+                                    onClick={() => setExpandedMenu(false)}>
+
+                                    {subItem.title}
+                                  </NavLink>
+                                )}
+                              </CollapsibleContent>
+                            </Collapsible> :
+
+                            <NavLink
+                              to={item.href || "#"}
+                              className={({ isActive }) =>
+                                cn(
+                                  "flex items-center px-3 py-2 rounded-md text-sm font-medium border transition-smooth",
+                                  isActive ?
+                                    "bg-primary/40 text-white shadow-primary border-primary/50" :
+                                    "text-foreground border-slate-700/50 hover:bg-slate-800/70 hover:border-primary/50"
+                                )
+                              }
+                              onClick={() => setExpandedMenu(false)}>
+
+                              {item.icon && <item.icon className="mr-3 h-4 w-4 text-primary" />}
+                              {item.title}
+                            </NavLink>
+                        }
                       </div>
-                    ))}
+                    )}
                   </CardContent>
                 </Card>
-              ))}
+              )}
             </nav>
           </div>
         </>
-      )}
-    </>
-  );
+      }
+    </>);
+
 };
