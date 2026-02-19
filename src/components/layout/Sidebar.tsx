@@ -86,6 +86,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const [expandedMenu, setExpandedMenu] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
+  // Fechar sidebar expandido ao clicar em um item
+  const handleItemClick = () => {
+    if (expandedMenu) {
+      setExpandedMenu(false);
+    }
+  };
+
   // Fechar menu ao rolar a página
   useEffect(() => {
     const handleScroll = () => {
@@ -145,6 +152,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                     href={item.externalUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={handleItemClick}
                     className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-slate-800/40 hover:bg-slate-800/70 border border-slate-700/50 hover:border-primary/50 transition-all duration-300"
                     title={item.title}>
 
@@ -179,6 +187,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
                     <NavLink
                       to={item.href || "#"}
+                      onClick={handleItemClick}
                       className={({ isActive }) =>
                         cn(
                           "group relative flex items-center justify-center w-14 h-14 rounded-full border transition-all duration-300",
@@ -238,6 +247,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                             href={item.externalUrl}
                             target="_blank"
                             rel="noopener noreferrer"
+                            onClick={handleItemClick}
                             className="flex items-center px-3 py-2 rounded-md text-sm font-medium border border-slate-700/50 hover:bg-slate-800/70 hover:border-primary/50 transition-smooth text-foreground">
 
                             {item.icon && <item.icon className="mr-3 h-4 w-4 text-primary" />}
@@ -277,7 +287,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                                           "text-foreground border-slate-700/50 hover:bg-slate-800/70 hover:border-primary/50"
                                       )
                                     }
-                                    onClick={() => setExpandedMenu(false)}>
+                                    onClick={handleItemClick}>
 
                                     {subItem.title}
                                   </NavLink>
@@ -295,7 +305,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                                     "text-foreground border-slate-700/50 hover:bg-slate-800/70 hover:border-primary/50"
                                 )
                               }
-                              onClick={() => setExpandedMenu(false)}>
+                              onClick={handleItemClick}>
 
                               {item.icon && <item.icon className="mr-3 h-4 w-4 text-primary" />}
                               {item.title}
