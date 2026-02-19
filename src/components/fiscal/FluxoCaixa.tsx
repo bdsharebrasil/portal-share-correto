@@ -97,22 +97,32 @@ export function FluxoCaixa() {
     fetchContasBancarias();
   }, []);
 
-  // Calculate KPIs
+  // Calculate KPIs - Filtered by current month
   const kpis = useMemo(() => {
     if (!transacoes) return { totalEntradas: 0, totalSaidas: 0, saldo: 0, totalTransacoes: 0 };
-    
-    const entradas = transacoes
+
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    // Filter transactions by current month
+    const transacoesDoMes = transacoes.filter((t) => {
+      const transacaoDate = new Date(t.data);
+      return transacaoDate.getMonth() === currentMonth && transacaoDate.getFullYear() === currentYear;
+    });
+
+    const entradas = transacoesDoMes
       .filter(t => t.tipo_movimento === "entrada")
       .reduce((sum, t) => sum + Number(t.valor), 0);
-    const saidas = transacoes
+    const saidas = transacoesDoMes
       .filter(t => t.tipo_movimento === "saida")
       .reduce((sum, t) => sum + Number(t.valor), 0);
-    
+
     return {
       totalEntradas: entradas,
       totalSaidas: saidas,
       saldo: entradas - saidas,
-      totalTransacoes: transacoes.length,
+      totalTransacoes: transacoesDoMes.length,
     };
   }, [transacoes]);
 
