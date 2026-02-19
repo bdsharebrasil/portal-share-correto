@@ -395,7 +395,7 @@ export function PagamentoSalarioDialog({
                     </SelectTrigger>
                     <SelectContent>
                       {categoriasSalario.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
+                        <SelectItem key={cat.id} value={cat.nome}>
                           {cat.nome}
                         </SelectItem>
                       ))}
@@ -434,7 +434,7 @@ export function PagamentoSalarioDialog({
                     </SelectTrigger>
                     <SelectContent>
                       {categoriasSalario.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
+                        <SelectItem key={cat.id} value={cat.nome}>
                           {cat.nome}
                         </SelectItem>
                       ))}
@@ -474,7 +474,7 @@ export function PagamentoSalarioDialog({
                     </SelectTrigger>
                     <SelectContent>
                       {categoriasSalario.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
+                        <SelectItem key={cat.id} value={cat.nome}>
                           {cat.nome}
                         </SelectItem>
                       ))}
@@ -514,7 +514,7 @@ export function PagamentoSalarioDialog({
                     </SelectTrigger>
                     <SelectContent>
                       {categoriasSalario.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
+                        <SelectItem key={cat.id} value={cat.nome}>
                           {cat.nome}
                         </SelectItem>
                       ))}

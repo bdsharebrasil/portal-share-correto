@@ -20,8 +20,6 @@ export interface CategoriaFinanceiro {
   descricao?: string;
   ativo?: boolean;
   reembolsavel?: boolean;
-  icone?: string | null;
-  cor?: string | null;
 }
 
 export interface Conta {
@@ -61,9 +59,7 @@ export function useCategoriasFinanceiro() {
         grupo_categoria: cat.grupo_categoria || null,
         descricao: cat.descricao || undefined,
         ativo: cat.ativo ?? true,
-        reembolsavel: cat.reembolsavel ?? false,
-        icone: (cat as any).icone || null,
-        cor: (cat as any).cor || null
+        reembolsavel: cat.reembolsavel ?? false
       }));
 
       setCategorias(mapped);
@@ -94,8 +90,6 @@ export function useCategoriasFinanceiro() {
           descricao: categoria.descricao || null,
           ativo: true,
           reembolsavel: categoria.reembolsavel ?? false,
-          icone: categoria.icone || null,
-          cor: categoria.cor || null,
           criado_por: user.id
         }]);
 
@@ -121,8 +115,6 @@ export function useCategoriasFinanceiro() {
       if (updates.grupo_categoria !== undefined) updateData.grupo_categoria = updates.grupo_categoria || null;
       if (updates.descricao !== undefined) updateData.descricao = updates.descricao || null;
       if (updates.reembolsavel !== undefined) updateData.reembolsavel = updates.reembolsavel;
-      if (updates.icone !== undefined) updateData.icone = updates.icone || null;
-      if (updates.cor !== undefined) updateData.cor = updates.cor || null;
 
       const { error } = await supabase
         .from("categorias_movimentacao")
