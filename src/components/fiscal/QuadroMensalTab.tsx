@@ -44,6 +44,57 @@ interface Transacao {
   recibo_url?: string | null;
 }
 
+// ─── Color helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Returns Tailwind text-color class for the valor cell.
+ *
+ * Entrada → sempre verde, EXCETO:
+ *   pendente → laranja
+ *   recebido → azul
+ *
+ * Saída → sempre vermelho, EXCETO:
+ *   recebido → azul
+ *   pendente → laranja
+ *   pago     → vermelho (padrão)
+ */
+function getValorColorClass(tipo: "entrada" | "saida", status: string | null | undefined): string {
+  const s = (status || "").toLowerCase();
+
+  if (tipo === "entrada") {
+    if (s === "pendente") return "text-orange-400";
+    if (s === "recebido") return "text-blue-400";
+    return "text-emerald-400"; // default entrada
+  }
+
+  // saida
+  if (s === "recebido") return "text-blue-400";
+  if (s === "pendente") return "text-orange-400";
+  return "text-destructive"; // pago ou sem status
+}
+
+/**
+ * Returns classes for the Status badge.
+ * Mesmas regras do valor.
+ */
+function getStatusBadgeClass(tipo: "entrada" | "saida", status: string | null | undefined): string {
+  const s = (status || "").toLowerCase();
+  const base = "text-xs font-medium border px-2 py-0.5 rounded-full";
+
+  if (tipo === "entrada") {
+    if (s === "pendente") return `${base} border-orange-400/40 bg-orange-400/10 text-orange-400`;
+    if (s === "recebido") return `${base} border-blue-400/40 bg-blue-400/10 text-blue-400`;
+    return `${base} border-emerald-500/40 bg-emerald-500/10 text-emerald-400`;
+  }
+
+  // saida
+  if (s === "recebido") return `${base} border-blue-400/40 bg-blue-400/10 text-blue-400`;
+  if (s === "pendente") return `${base} border-orange-400/40 bg-orange-400/10 text-orange-400`;
+  return `${base} border-destructive/40 bg-destructive/10 text-destructive`;
+}
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
 function QuadroSkeleton() {
   return (
     <div className="space-y-6">
@@ -72,6 +123,8 @@ function QuadroSkeleton() {
   );
 }
 
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 export function QuadroMensalTab() {
   const [mesAtual, setMesAtual] = useState(() => {
     const now = new Date();
@@ -82,7 +135,6 @@ export function QuadroMensalTab() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  // Advanced filters (FinanceiroFilters)
   const [advancedFilters, setAdvancedFilters] = useState<FinanceiroFilterState>({
     search: "",
     status: "all",
@@ -91,23 +143,63 @@ export function QuadroMensalTab() {
     source: "all",
   });
 
-  // Drag scroll for table header
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState(0);
+  // ── Drag-scroll refs ──────────────────────────────────────────────────────
+  // Header (month nav)
+  const headerScrollRef = useRef<HTMLDivElement>(null);
+  const [headerDragging, setHeaderDragging] = useState(false);
+  const [headerDragStart, setHeaderDragStart] = useState(0);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    setIsDragging(true);
-    setDragStart(e.clientX + (scrollContainerRef.current?.scrollLeft || 0));
+  // Table wrapper
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const [tableDragging, setTableDragging] = useState(false);
+  const [tableDragStart, setTableDragStart] = useState(0);
+
+  // Table title drag (syncs with table body)
+  const [titleDragging, setTitleDragging] = useState(false);
+  const [titleDragStart, setTitleDragStart] = useState(0);
+
+  const makeDragHandlers = (
+    ref: React.RefObject<HTMLDivElement>,
+    setDragging: (v: boolean) => void,
+    setStart: (v: number) => void,
+    dragging: boolean,
+    start: number
+  ) => ({
+    onMouseDown: (e: React.MouseEvent) => {
+      setDragging(true);
+      setStart(e.clientX + (ref.current?.scrollLeft || 0));
+    },
+    onMouseMove: (e: React.MouseEvent) => {
+      if (!dragging || !ref.current) return;
+      ref.current.scrollLeft = start - e.clientX;
+    },
+    onMouseUp: () => setDragging(false),
+    onMouseLeave: () => setDragging(false),
+  });
+
+  const headerDragHandlers = makeDragHandlers(
+    headerScrollRef, setHeaderDragging, setHeaderDragStart, headerDragging, headerDragStart
+  );
+
+  const tableDragHandlers = makeDragHandlers(
+    tableScrollRef, setTableDragging, setTableDragStart, tableDragging, tableDragStart
+  );
+
+  // Title drag: scroll the table body
+  const titleDragHandlers = {
+    onMouseDown: (e: React.MouseEvent) => {
+      setTitleDragging(true);
+      setTitleDragStart(e.clientX + (tableScrollRef.current?.scrollLeft || 0));
+    },
+    onMouseMove: (e: React.MouseEvent) => {
+      if (!titleDragging || !tableScrollRef.current) return;
+      tableScrollRef.current.scrollLeft = titleDragStart - e.clientX;
+    },
+    onMouseUp: () => setTitleDragging(false),
+    onMouseLeave: () => setTitleDragging(false),
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || !scrollContainerRef.current) return;
-    scrollContainerRef.current.scrollLeft = dragStart - e.clientX;
-  };
-
-  const handleMouseUp = () => setIsDragging(false);
-
+  // ── Data fetching ─────────────────────────────────────────────────────────
   const mesKey = `${mesAtual.year}-${String(mesAtual.month + 1).padStart(2, "0")}`;
   const startDate = startOfMonth(new Date(mesAtual.year, mesAtual.month));
   const endDate = endOfMonth(startDate);
@@ -144,7 +236,6 @@ export function QuadroMensalTab() {
 
   const { data: categoriasData } = useCategorias();
 
-  // Max amount for slider
   const maxAmount = useMemo(() => {
     if (!transacoes || transacoes.length === 0) return 100000;
     return Math.max(...transacoes.map((t) => Number(t.valor)));
@@ -169,6 +260,7 @@ export function QuadroMensalTab() {
     });
   };
 
+  // ── Filtering ─────────────────────────────────────────────────────────────
   const transacoesFiltradas = useMemo(() => {
     if (!transacoes) return [];
 
@@ -204,7 +296,6 @@ export function QuadroMensalTab() {
         }
       }
 
-      // source filter
       const matchesSource =
         advancedFilters.source === "all" ||
         (advancedFilters.source === "reconciliation" && t.conta_banco) ||
@@ -220,6 +311,7 @@ export function QuadroMensalTab() {
     });
   }, [transacoes, advancedFilters, filterTipo, categoriasData, sortOrder]);
 
+  // ── KPI totals ────────────────────────────────────────────────────────────
   const totalReceitas = useMemo(
     () =>
       (transacoes || [])
@@ -260,6 +352,40 @@ export function QuadroMensalTab() {
     return ((atual - anterior) / anterior) * 100;
   };
 
+  const DeltaBadge = ({
+    atual,
+    anterior,
+    invert = false,
+  }: {
+    atual: number;
+    anterior: number;
+    invert?: boolean;
+  }) => {
+    const delta = getDelta(atual, anterior);
+    if (delta === null) return null;
+    const positive = invert ? delta < 0 : delta > 0;
+    return (
+      <span
+        className={`inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded-full ${
+          positive
+            ? "bg-emerald-500/20 text-emerald-400"
+            : delta === 0
+            ? "bg-muted text-muted-foreground"
+            : "bg-destructive/20 text-destructive"
+        }`}
+      >
+        {delta > 0 ? (
+          <TrendingUp className="w-3 h-3" />
+        ) : delta < 0 ? (
+          <TrendingDown className="w-3 h-3" />
+        ) : (
+          <Minus className="w-3 h-3" />
+        )}
+        {Math.abs(delta).toFixed(1)}%
+      </span>
+    );
+  };
+
   const handleDelete = async (id: string) => {
     try {
       const { error } = await supabase.from("controle_bancario").delete().eq("id", id);
@@ -275,50 +401,14 @@ export function QuadroMensalTab() {
     }
   };
 
-  const DeltaBadge = ({
-    atual,
-    anterior,
-    invert = false,
-  }: {
-    atual: number;
-    anterior: number;
-    invert?: boolean;
-  }) => {
-    const delta = getDelta(atual, anterior);
-    if (delta === null) return null;
-    const positive = invert ? delta < 0 : delta > 0;
-    return (
-      <span
-        className={`inline-flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded-full ${positive
-            ? "bg-emerald-500/20 text-emerald-400"
-            : delta === 0
-              ? "bg-muted text-muted-foreground"
-              : "bg-destructive/20 text-destructive"
-          }`}
-      >
-        {delta > 0 ? (
-          <TrendingUp className="w-3 h-3" />
-        ) : delta < 0 ? (
-          <TrendingDown className="w-3 h-3" />
-        ) : (
-          <Minus className="w-3 h-3" />
-        )}
-        {Math.abs(delta).toFixed(1)}%
-      </span>
-    );
-  };
-
   if (isLoading) return <QuadroSkeleton />;
 
   return (
     <div className="space-y-5">
-      {/* Month Navigation — drag-scrollable like FluxoCaixa header */}
+      {/* ── Month Navigation ───────────────────────────────────────────── */}
       <div
-        ref={scrollContainerRef}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
+        ref={headerScrollRef}
+        {...headerDragHandlers}
         className="sticky top-0 z-20 flex items-center justify-between pb-2 bg-gradient-to-b from-black/80 to-black/0 backdrop-blur-sm cursor-grab active:cursor-grabbing select-none"
       >
         <div className="flex items-center gap-3">
@@ -352,15 +442,16 @@ export function QuadroMensalTab() {
         </Button>
       </div>
 
-      {/* KPI Cards — clicáveis para filtrar tipo */}
+      {/* ── KPI Cards ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Entradas */}
         <button
           onClick={() => setFilterTipo(filterTipo === "entrada" ? "todas" : "entrada")}
-          className={`text-left rounded-xl border backdrop-blur-sm p-5 transition-all ${filterTipo === "entrada"
+          className={`text-left rounded-xl border backdrop-blur-sm p-5 transition-all ${
+            filterTipo === "entrada"
               ? "border-emerald-500/40 bg-gradient-to-br from-emerald-500/20 to-teal-500/10 ring-2 ring-emerald-500/40"
               : "border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 to-teal-500/5 hover:border-emerald-500/30 hover:from-emerald-500/15"
-            }`}
+          }`}
         >
           <div className="flex items-start justify-between mb-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400/80">
@@ -377,10 +468,11 @@ export function QuadroMensalTab() {
         {/* Saídas */}
         <button
           onClick={() => setFilterTipo(filterTipo === "saida" ? "todas" : "saida")}
-          className={`text-left rounded-xl border backdrop-blur-sm p-5 transition-all ${filterTipo === "saida"
+          className={`text-left rounded-xl border backdrop-blur-sm p-5 transition-all ${
+            filterTipo === "saida"
               ? "border-destructive/40 bg-gradient-to-br from-destructive/20 to-red-900/10 ring-2 ring-destructive/40"
               : "border-destructive/20 bg-gradient-to-br from-destructive/10 to-red-900/5 hover:border-destructive/30 hover:from-destructive/15"
-            }`}
+          }`}
         >
           <div className="flex items-start justify-between mb-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-destructive/80">
@@ -394,13 +486,14 @@ export function QuadroMensalTab() {
           </p>
         </button>
 
-        {/* Mês atual */}
+        {/* Mês Atual */}
         <button
           onClick={() => setFilterTipo("todas")}
-          className={`text-left rounded-xl border backdrop-blur-sm p-5 transition-all ${filterTipo === "todas"
+          className={`text-left rounded-xl border backdrop-blur-sm p-5 transition-all ${
+            filterTipo === "todas"
               ? "border-primary/40 bg-gradient-to-br from-primary/20 to-blue-900/10 ring-2 ring-primary/40"
               : "border-primary/20 bg-gradient-to-br from-primary/10 to-blue-900/5 hover:border-primary/30 hover:from-primary/15"
-            }`}
+          }`}
         >
           <div className="flex items-start justify-between mb-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-primary/80">
@@ -416,7 +509,7 @@ export function QuadroMensalTab() {
         </button>
       </div>
 
-      {/* Advanced Filters — FinanceiroFilters */}
+      {/* ── Advanced Filters ───────────────────────────────────────────── */}
       <div className="rounded-xl border border-border/40 bg-card/30 backdrop-blur-sm p-4">
         <FinanceiroFilters
           filters={advancedFilters}
@@ -426,14 +519,11 @@ export function QuadroMensalTab() {
         />
       </div>
 
-      {/* Table */}
+      {/* ── Table ──────────────────────────────────────────────────────── */}
       <div className="rounded-xl border border-border/40 bg-card/30 backdrop-blur-sm overflow-hidden">
-        {/* Table title — drag-scrollable */}
+        {/* Table title — drag scrolls the table body */}
         <div
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
+          {...titleDragHandlers}
           className="px-5 py-4 border-b border-border/40 cursor-grab active:cursor-grabbing select-none"
         >
           <h3 className="font-semibold text-foreground">
@@ -462,7 +552,12 @@ export function QuadroMensalTab() {
             </p>
           </div>
         ) : (
-          <div className="overflow-auto max-h-[560px]">
+          /* Scrollable table wrapper — drag also works here */
+          <div
+            ref={tableScrollRef}
+            {...tableDragHandlers}
+            className="overflow-auto max-h-[560px] cursor-grab active:cursor-grabbing"
+          >
             <Table>
               <TableHeader className="sticky top-0 bg-card/80 backdrop-blur-sm z-10">
                 <TableRow className="border-border/40 hover:bg-transparent">
@@ -473,128 +568,114 @@ export function QuadroMensalTab() {
                     <div className="flex items-center gap-1">
                       Data
                       <ArrowUp
-                        className={`w-3 h-3 transition-transform ${sortOrder === "desc" ? "rotate-180" : ""
-                          }`}
+                        className={`w-3 h-3 transition-transform ${
+                          sortOrder === "desc" ? "rotate-180" : ""
+                        }`}
                       />
                     </div>
                   </TableHead>
-                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">
-                    Tipo
-                  </TableHead>
-                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">
-                    N° Doc
-                  </TableHead>
-                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">
-                    Cliente
-                  </TableHead>
-                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">
-                    Descrição
-                  </TableHead>
-                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">
-                    Aeronave
-                  </TableHead>
-                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider text-right">
-                    Valor
-                  </TableHead>
-                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">
-                    Grupo
-                  </TableHead>
-                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">
-                    Prazo
-                  </TableHead>
-                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">
-                    Banco
-                  </TableHead>
-                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">
-                    Pagamento
-                  </TableHead>
-                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">
-                    Status
-                  </TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Tipo</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">N° Doc</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Cliente</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Descrição</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Aeronave</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider text-right">Valor</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Grupo</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Prazo</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Banco</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Pagamento</TableHead>
+                  <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transacoesFiltradas.map((transacao) => (
-                  <TableRow
-                    key={transacao.id}
-                    className="border-border/40 hover:bg-accent/30 transition-colors"
-                  >
-                    <TableCell className="text-muted-foreground text-sm">
-                      {format(new Date(transacao.data), "dd/MM/yyyy")}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        {transacao.tipo_movimento === "entrada" ? (
-                          <ArrowUpCircle className="w-4 h-4 text-emerald-400 shrink-0" />
-                        ) : (
-                          <ArrowDownCircle className="w-4 h-4 text-destructive shrink-0" />
-                        )}
-                        <span
-                          className={`text-sm font-medium ${transacao.tipo_movimento === "entrada"
-                              ? "text-emerald-400"
-                              : "text-destructive"
-                            }`}
-                        >
-                          {transacao.tipo_movimento === "entrada" ? "Entrada" : "Saída"}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {transacao.numero_documento || "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {transacao.client_name || "—"}
-                    </TableCell>
-                    <TableCell className="font-medium text-foreground text-sm">
-                      {transacao.descricao}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {transacao.aeronave_registro || "—"}
-                    </TableCell>
-                    <TableCell
-                      className={`font-semibold text-sm text-right ${transacao.tipo_movimento === "entrada"
-                          ? "text-emerald-400"
-                          : "text-destructive"
-                        }`}
+                {transacoesFiltradas.map((transacao) => {
+                  const valorColor = getValorColorClass(transacao.tipo_movimento, transacao.status);
+                  const statusBadgeClass = getStatusBadgeClass(transacao.tipo_movimento, transacao.status);
+
+                  // Tipo icon/label: entrada sempre verde, saída sempre vermelho
+                  const tipoIsEntrada = transacao.tipo_movimento === "entrada";
+
+                  return (
+                    <TableRow
+                      key={transacao.id}
+                      className="border-border/40 hover:bg-accent/30 transition-colors"
                     >
-                      {formatCurrency(Number(transacao.valor))}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      <Badge
-                        variant="outline"
-                        className="border-border/60 text-muted-foreground text-xs"
-                      >
-                        {transacao.grupo_categoria || getCategoriaName(transacao.categoria_id)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {transacao.prazo
-                        ? format(new Date(transacao.prazo), "dd/MM/yyyy")
-                        : "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {transacao.conta_banco || "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {transacao.metodo_pagamento || "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      <Badge
-                        variant="outline"
-                        className="border-border/60 text-muted-foreground text-xs"
-                      >
-                        {transacao.status || "—"}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      <TableCell className="text-muted-foreground text-sm">
+                        {format(new Date(transacao.data), "dd/MM/yyyy")}
+                      </TableCell>
+
+                      {/* Tipo — cor fixa: entrada=verde, saída=vermelho */}
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          {tipoIsEntrada ? (
+                            <ArrowUpCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                          ) : (
+                            <ArrowDownCircle className="w-4 h-4 text-destructive shrink-0" />
+                          )}
+                          <span
+                            className={`text-sm font-medium ${
+                              tipoIsEntrada ? "text-emerald-400" : "text-destructive"
+                            }`}
+                          >
+                            {tipoIsEntrada ? "Entrada" : "Saída"}
+                          </span>
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-muted-foreground text-sm">
+                        {transacao.numero_documento || "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {transacao.client_name || "—"}
+                      </TableCell>
+                      <TableCell className="font-medium text-foreground text-sm">
+                        {transacao.descricao}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {transacao.aeronave_registro || "—"}
+                      </TableCell>
+
+                      {/* Valor — cor muda por status */}
+                      <TableCell className={`font-semibold text-sm text-right ${valorColor}`}>
+                        {formatCurrency(Number(transacao.valor))}
+                      </TableCell>
+
+                      <TableCell className="text-muted-foreground text-sm">
+                        <Badge
+                          variant="outline"
+                          className="border-border/60 text-muted-foreground text-xs"
+                        >
+                          {transacao.grupo_categoria || getCategoriaName(transacao.categoria_id)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {transacao.prazo
+                          ? format(new Date(transacao.prazo), "dd/MM/yyyy")
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {transacao.conta_banco || "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {transacao.metodo_pagamento || "—"}
+                      </TableCell>
+
+                      {/* Status — badge com cor por tipo+status */}
+                      <TableCell>
+                        <span className={statusBadgeClass}>
+                          {transacao.status || "—"}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
         )}
       </div>
 
-      {/* Delete Confirm Dialog */}
+      {/* ── Delete Confirm Dialog ──────────────────────────────────────── */}
       <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
         <DialogContent>
           <DialogHeader>
