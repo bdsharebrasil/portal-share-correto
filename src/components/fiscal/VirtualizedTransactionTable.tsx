@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { FixedSizeList as List } from "react-window";
 import { motion } from "framer-motion";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,6 +20,9 @@ import {
   FileText,
   File,
   Link2,
+  ArrowUp,
+  ArrowDown,
+  GripHorizontal,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -41,6 +44,10 @@ interface TransactionData {
   [key: string]: any;
 }
 
+type SortField = "data" | "tipo_movimento" | "valor" | null;
+type SortDirection = "asc" | "desc";
+type ColumnType = "checkbox" | "data" | "tipo" | "descricao" | "categoria" | "valor" | "status" | "anexos" | "actions";
+
 interface VirtualizedTransactionTableProps {
   transactions: TransactionData[];
   selectedIds: Set<string>;
@@ -48,6 +55,11 @@ interface VirtualizedTransactionTableProps {
   onEdit: (transaction: TransactionData) => void;
   onDelete: (id: string) => void;
   isLoading?: boolean;
+  sortField?: SortField;
+  sortDirection?: SortDirection;
+  onSortChange?: (field: SortField, direction: SortDirection) => void;
+  columnOrder?: ColumnType[];
+  onColumnOrderChange?: (order: ColumnType[]) => void;
 }
 
 const AttachmentLinks = ({ transaction }: { transaction: TransactionData }) => {
@@ -291,6 +303,18 @@ const Row = ({
   );
 };
 
+const defaultColumnOrder: ColumnType[] = [
+  "checkbox",
+  "data",
+  "tipo",
+  "descricao",
+  "categoria",
+  "valor",
+  "status",
+  "anexos",
+  "actions",
+];
+
 export const VirtualizedTransactionTable = ({
   transactions,
   selectedIds,
@@ -298,17 +322,147 @@ export const VirtualizedTransactionTable = ({
   onEdit,
   onDelete,
   isLoading = false,
+  sortField = null,
+  sortDirection = "asc",
+  onSortChange = () => {},
+  columnOrder = defaultColumnOrder,
+  onColumnOrderChange = () => {},
 }: VirtualizedTransactionTableProps) => {
+  const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  // Ordenar transações com entradas primeiro, depois saídas
+  const sortedTransactions = useMemo(() => {
+    const sorted = [...transactions];
+
+    // Primeiro separar entradas e saídas
+    const entradas = sorted.filter((t) => t.tipo_movimento === "entrada");
+    const saidas = sorted.filter((t) => t.tipo_movimento === "saida");
+
+    // Depois ordenar cada grupo
+    const sortGroup = (group: TransactionData[]) => {
+      if (!sortField) return group;
+
+      return group.sort((a: any, b: any) => {
+        let aValue: any = a[sortField];
+        let bValue: any = b[sortField];
+
+        if (sortField === "data") {
+          aValue = new Date(a.data).getTime();
+          bValue = new Date(b.data).getTime();
+        } else if (sortField === "valor") {
+          aValue = Number(a.valor);
+          bValue = Number(b.valor);
+        }
+
+        if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
+        if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
+        return 0;
+      });
+    };
+
+    return [...sortGroup(entradas), ...sortGroup(saidas)];
+  }, [transactions, sortField, sortDirection]);
+
+  const handleColumnClick = (field: SortField) => {
+    if (!field) return;
+
+    if (sortField === field) {
+      // Toggle direction
+      onSortChange(field, sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      // New field, start with asc
+      onSortChange(field, "asc");
+    }
+  };
+
+  const handleColumnDragStart = (e: React.DragEvent, column: ColumnType) => {
+    setDraggedColumn(column);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleColumnDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverIndex(index);
+  };
+
+  const handleColumnDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (!draggedColumn) return;
+
+    const dragIndex = columnOrder.indexOf(draggedColumn);
+    if (dragIndex === dropIndex) {
+      setDraggedColumn(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    const newOrder = [...columnOrder];
+    newOrder.splice(dragIndex, 1);
+    newOrder.splice(dropIndex, 0, draggedColumn);
+
+    onColumnOrderChange(newOrder);
+    setDraggedColumn(null);
+    setDragOverIndex(null);
+  };
+
+  const handleColumnDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
   const itemData = useMemo(
     () => ({
-      transactions,
+      transactions: sortedTransactions,
       selectedIds,
       onSelectChange,
       onEdit,
       onDelete,
     }),
-    [transactions, selectedIds, onSelectChange, onEdit, onDelete]
+    [sortedTransactions, selectedIds, onSelectChange, onEdit, onDelete]
   );
+
+  const renderColumnHeader = (label: string, field: SortField | null, index: number, column: ColumnType) => {
+    const isSorted = sortField === field && field !== null;
+    const isEntryColumn = field !== null && (field === "data" || field === "valor");
+
+    return (
+      <div
+        key={`header-${column}`}
+        draggable
+        onDragStart={(e) => handleColumnDragStart(e, column)}
+        onDragOver={(e) => handleColumnDragOver(e, index)}
+        onDrop={(e) => handleColumnDrop(e, index)}
+        onDragLeave={handleColumnDragLeave}
+        className={`flex items-center gap-2 cursor-move transition-colors ${
+          dragOverIndex === index ? "bg-primary/20" : ""
+        } ${column === draggedColumn ? "opacity-50" : ""}`}
+      >
+        <GripHorizontal className="w-3 h-3 text-foreground/30" />
+        {isEntryColumn ? (
+          <button
+            onClick={() => handleColumnClick(field)}
+            className="flex items-center gap-1 hover:text-primary transition-colors flex-1 text-left py-1"
+          >
+            <span className="text-xs uppercase tracking-wider text-foreground/60 font-medium flex items-center gap-1">
+              {label}
+              {isSorted && (
+                sortDirection === "asc" ? (
+                  <ArrowUp className="w-3 h-3 text-primary" />
+                ) : (
+                  <ArrowDown className="w-3 h-3 text-primary" />
+                )
+              )}
+            </span>
+          </button>
+        ) : (
+          <span className="text-xs uppercase tracking-wider text-foreground/60 font-medium">
+            {label}
+          </span>
+        )}
+      </div>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -322,47 +476,53 @@ export const VirtualizedTransactionTable = ({
     return null;
   }
 
+  const columnConfigs = {
+    checkbox: { label: "Seleção", width: "w-12", field: null },
+    data: { label: "Data", width: "w-24", field: "data" as SortField },
+    tipo: { label: "Tipo", width: "w-20", field: null },
+    descricao: { label: "Descrição", width: "flex-1", field: null },
+    categoria: { label: "Categoria", width: "w-32", field: null },
+    valor: { label: "Valor", width: "w-28", field: "valor" as SortField },
+    status: { label: "Status", width: "w-24", field: null },
+    anexos: { label: "Anexos", width: "w-48", field: null },
+    actions: { label: "", width: "w-12", field: null },
+  };
+
   return (
     <div className="border border-border/40 rounded-lg overflow-hidden">
       {/* Header */}
       <div className="sticky top-0 z-10 flex items-center gap-4 px-4 py-3 bg-muted/50 backdrop-blur-sm border-b border-border/40">
-        <div className="w-12 flex-shrink-0">
-          <Checkbox
-            checked={
-              transactions.length > 0 && selectedIds.size === transactions.length
-            }
-            onCheckedChange={() => {
-              if (selectedIds.size === transactions.length) {
-                transactions.forEach((t) => onSelectChange(t.id));
-              } else {
-                selectedIds.forEach((id) => onSelectChange(id));
-              }
-            }}
-            className="h-5 w-5"
-          />
-        </div>
-        <div className="w-24 flex-shrink-0 text-xs uppercase tracking-wider text-foreground/60 font-medium">
-          Data
-        </div>
-        <div className="w-20 flex-shrink-0 text-xs uppercase tracking-wider text-foreground/60 font-medium">
-          Tipo
-        </div>
-        <div className="flex-1 text-xs uppercase tracking-wider text-foreground/60 font-medium">
-          Descrição
-        </div>
-        <div className="w-32 flex-shrink-0 text-xs uppercase tracking-wider text-foreground/60 font-medium">
-          Categoria
-        </div>
-        <div className="w-28 flex-shrink-0 text-right text-xs uppercase tracking-wider text-foreground/60 font-medium">
-          Valor
-        </div>
-        <div className="w-24 flex-shrink-0 text-xs uppercase tracking-wider text-foreground/60 font-medium">
-          Status
-        </div>
-        <div className="w-48 flex-shrink-0 text-xs uppercase tracking-wider text-foreground/60 font-medium">
-          Anexos
-        </div>
-        <div className="w-12 flex-shrink-0" />
+        {columnOrder.map((column, index) => {
+          const config = columnConfigs[column];
+          if (!config) return null;
+
+          if (column === "checkbox") {
+            return (
+              <div key={column} className={config.width}>
+                <Checkbox
+                  checked={
+                    sortedTransactions.length > 0 &&
+                    selectedIds.size === sortedTransactions.length
+                  }
+                  onCheckedChange={() => {
+                    if (selectedIds.size === sortedTransactions.length) {
+                      sortedTransactions.forEach((t) => onSelectChange(t.id));
+                    } else {
+                      selectedIds.forEach((id) => onSelectChange(id));
+                    }
+                  }}
+                  className="h-5 w-5"
+                />
+              </div>
+            );
+          }
+
+          return (
+            <div key={column} className={`${config.width} flex-shrink-0`}>
+              {renderColumnHeader(config.label, config.field, index, column)}
+            </div>
+          );
+        })}
       </div>
 
       {/* Horizontal Scroll Container */}
@@ -370,7 +530,7 @@ export const VirtualizedTransactionTable = ({
         {/* Virtualized List */}
         <List
           height={600}
-          itemCount={transactions.length}
+          itemCount={sortedTransactions.length}
           itemSize={56}
           width="100%"
           itemData={itemData}

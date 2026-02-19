@@ -53,6 +53,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 type SortField = "data" | "tipo_movimento" | "valor" | null;
 type SortDirection = "asc" | "desc";
+type ColumnType = "checkbox" | "data" | "tipo" | "descricao" | "categoria" | "valor" | "status" | "anexos" | "actions";
 
 export function FluxoCaixa() {
   const { user } = useAuth();
@@ -84,6 +85,17 @@ export function FluxoCaixa() {
   const [editingMovimentacao, setEditingMovimentacao] = useState<any>(null);
   const [contasBancarias, setContasBancarias] = useState<any[]>([]);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [columnOrder, setColumnOrder] = useState<ColumnType[]>([
+    "checkbox",
+    "data",
+    "tipo",
+    "descricao",
+    "categoria",
+    "valor",
+    "status",
+    "anexos",
+    "actions",
+  ]);
 
   // Advanced filters state
   const [advancedFilters, setAdvancedFilters] = useState<FinanceiroFilterState>({
@@ -841,6 +853,14 @@ export function FluxoCaixa() {
                   setShowInlineForm(true);
                 }}
                 onDelete={(id) => setDeleteConfirmId(id)}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                onSortChange={(field, direction) => {
+                  setSortField(field);
+                  setSortDirection(direction);
+                }}
+                columnOrder={columnOrder}
+                onColumnOrderChange={setColumnOrder}
               />
             )}
           </CardContent>
