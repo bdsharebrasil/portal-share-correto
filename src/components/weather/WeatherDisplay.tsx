@@ -166,11 +166,11 @@ export function WeatherDisplay() {
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <button className="group relative overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105">
+        <button className="group relative overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105" style={{ borderRadius: '16px', marginLeft: '20px', marginRight: '20px', paddingLeft: '5px', paddingRight: '5px' }}>
           {/* Card compacto com gradiente - tamanho ajustado para header */}
-          <div className={`relative bg-gradient-to-br ${gradient} px-3 py-2 h-12 min-w-[120px]`}>
+          <div className={`relative bg-gradient-to-br ${gradient} h-12 min-w-[120px]`} style={{ borderRadius: '17px', overflow: 'hidden' }}>
             {/* Overlay com padrão decorativo */}
-            <div className="absolute inset-0 opacity-20">
+            <div className="absolute inset-0 opacity-20" style={{ borderRadius: '9px', overflow: 'hidden' }}>
               {weatherType.includes("rain") && (
                 <div className="absolute top-1 left-2 text-white/40">
                   <Droplets className="h-4 w-4" />
@@ -190,7 +190,7 @@ export function WeatherDisplay() {
             </div>
 
             {/* Conteúdo */}
-            <div className="relative z-10 h-full flex items-center justify-between gap-3 text-white">
+            <div className="relative z-10 h-full flex items-center justify-between gap-3 text-white" style={{ overflow: 'hidden', borderRadius: '7px' }}>
               {/* Info esquerda */}
               <div className="flex flex-col justify-center leading-none">
                 <div className="text-[10px] font-semibold tracking-tight opacity-90">
@@ -202,8 +202,8 @@ export function WeatherDisplay() {
               </div>
 
               {/* Temperatura e ícone */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-2xl font-black tracking-tighter leading-none">
+              <div className="flex items-center" style={{ marginLeft: '7px', marginRight: '7px', paddingLeft: '0px', paddingRight: '0px' }}>
+                <span className="font-bold tracking-tight" style={{ fontSize: '30px', letterSpacing: '2.6px', lineHeight: '31px', minHeight: '9px', maxWidth: '47px', boxShadow: '1px 1px 3px -3px rgba(0, 0, 0, 1)' }}>
                   {weather.temp}°
                 </span>
                 <div className="opacity-80">
@@ -214,7 +214,7 @@ export function WeatherDisplay() {
 
             {/* Badge de categoria (menor) */}
             <div className="absolute top-1 right-1">
-              <div className={`text-[7px] px-1 py-0.5 rounded-full font-bold backdrop-blur-sm ${getCategoryColor(weather.flightCategory)} bg-white/20`}>
+              <div className="text-[7px] px-1 py-0.5 rounded-full font-bold backdrop-blur-sm" style={{ backgroundColor: 'rgba(219, 131, 131, 1)', color: 'rgba(22, 128, 234, 1)' }}>
                 {weather.flightCategory}
               </div>
             </div>
