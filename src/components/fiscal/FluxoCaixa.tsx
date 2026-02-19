@@ -16,6 +16,7 @@ import {
   Download,
   X,
   Filter,
+  DollarSign,
 } from "lucide-react";
 import { FilterCombobox } from "./FilterCombobox";
 import { useControleBancario } from "@/hooks/useControleBancario";
