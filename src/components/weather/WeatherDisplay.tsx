@@ -89,36 +89,36 @@ export function WeatherDisplay() {
     const props = { className: size };
 
     switch (true) {
-      case type.includes("thunder"):       return <img src={thunderstormsIcon} {...props} />;
-      case type.includes("rain"):          return <img src={rainIcon} {...props} />;
-      case type.includes("fog"):           return <img src={fogIcon} {...props} />;
-      case type.includes("cloudy"):        return <img src={cloudyIcon} {...props} />;
+      case type.includes("thunder"): return <img src={thunderstormsIcon} {...props} />;
+      case type.includes("rain"): return <img src={rainIcon} {...props} />;
+      case type.includes("fog"): return <img src={fogIcon} {...props} />;
+      case type.includes("cloudy"): return <img src={cloudyIcon} {...props} />;
       case type.includes("partly-cloudy-d"): return <img src={partlyCloudyDayIcon} {...props} />;
       case type.includes("partly-cloudy-n"): return <img src={partlyCloudyNightIcon} {...props} />;
-      case type.includes("clear-n"):       return <img src={clearNightIcon} {...props} />;
-      default:                             return <img src={clearDayIcon} {...props} />;
+      case type.includes("clear-n"): return <img src={clearNightIcon} {...props} />;
+      default: return <img src={clearDayIcon} {...props} />;
     }
   };
 
   // Função para determinar o gradiente de fundo baseado na temperatura e condição
   const getWeatherGradient = (temp: number, rawMetar: string): string => {
     const type = getWeatherIconType(rawMetar, isDayTime());
-    
+
     // Noturno
     if (type.includes("clear-n") || type.includes("partly-cloudy-n")) {
       return "from-indigo-500 via-purple-500 to-indigo-700";
     }
-    
+
     // Chuvoso
     if (type.includes("rain") || type.includes("thunder")) {
       return "from-cyan-400 via-blue-500 to-cyan-600";
     }
-    
+
     // Nublado
     if (type.includes("cloudy") || type.includes("fog")) {
       return "from-slate-400 via-gray-500 to-slate-600";
     }
-    
+
     // Ensolarado - varia com temperatura
     if (temp >= 30) {
       return "from-orange-400 via-red-400 to-orange-500";
@@ -131,11 +131,11 @@ export function WeatherDisplay() {
 
   const getCategoryColor = (cat: string) => {
     switch (cat) {
-      case "VFR":  return "text-green-500 bg-green-500/10 border-green-500/20";
+      case "VFR": return "text-green-500 bg-green-500/10 border-green-500/20";
       case "MVFR": return "text-blue-500 bg-blue-500/10 border-blue-500/20";
-      case "IFR":  return "text-red-500 bg-red-500/10 border-red-500/20";
+      case "IFR": return "text-red-500 bg-red-500/10 border-red-500/20";
       case "LIFR": return "text-purple-500 bg-purple-500/10 border-purple-500/20";
-      default:     return "text-gray-500";
+      default: return "text-gray-500";
     }
   };
 
@@ -166,11 +166,11 @@ export function WeatherDisplay() {
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <button className="group relative overflow-hidden shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105" style={{ borderRadius: '16px', marginLeft: '20px', marginRight: '20px', paddingLeft: '5px', paddingRight: '5px' }}>
+        <button className="group relative overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105">
           {/* Card compacto com gradiente - tamanho ajustado para header */}
-          <div className={`relative bg-gradient-to-br ${gradient} h-12 min-w-[120px]`} style={{ borderRadius: '17px', overflow: 'hidden' }}>
+          <div className={`relative bg-gradient-to-br ${gradient} px-3 py-2 h-12 min-w-[120px]`}>
             {/* Overlay com padrão decorativo */}
-            <div className="absolute inset-0 opacity-20" style={{ borderRadius: '9px', overflow: 'hidden' }}>
+            <div className="absolute inset-0 opacity-20">
               {weatherType.includes("rain") && (
                 <div className="absolute top-1 left-2 text-white/40">
                   <Droplets className="h-4 w-4" />
@@ -190,7 +190,7 @@ export function WeatherDisplay() {
             </div>
 
             {/* Conteúdo */}
-            <div className="relative z-10 h-full flex items-center justify-between gap-3 text-white" style={{ overflow: 'hidden', borderRadius: '7px' }}>
+            <div className="relative z-10 h-full flex items-center justify-between gap-3 text-white">
               {/* Info esquerda */}
               <div className="flex flex-col justify-center leading-none">
                 <div className="text-[10px] font-semibold tracking-tight opacity-90">
@@ -202,8 +202,8 @@ export function WeatherDisplay() {
               </div>
 
               {/* Temperatura e ícone */}
-              <div className="flex items-center" style={{ marginLeft: '7px', marginRight: '7px', paddingLeft: '0px', paddingRight: '0px' }}>
-                <span className="font-bold tracking-tight" style={{ fontSize: '30px', letterSpacing: '2.6px', lineHeight: '31px', minHeight: '9px', maxWidth: '47px', boxShadow: '1px 1px 3px -3px rgba(0, 0, 0, 1)' }}>
+              <div className="flex items-center gap-1.5">
+                <span className="text-2xl font-black tracking-tighter leading-none">
                   {weather.temp}°
                 </span>
                 <div className="opacity-80">
@@ -214,7 +214,7 @@ export function WeatherDisplay() {
 
             {/* Badge de categoria (menor) */}
             <div className="absolute top-1 right-1">
-              <div className="text-[7px] px-1 py-0.5 rounded-full font-bold backdrop-blur-sm" style={{ backgroundColor: 'rgba(219, 131, 131, 1)', color: 'rgba(22, 128, 234, 1)' }}>
+              <div className={`text-[7px] px-1 py-0.5 rounded-full font-bold backdrop-blur-sm ${getCategoryColor(weather.flightCategory)} bg-white/20`}>
                 {weather.flightCategory}
               </div>
             </div>
