@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useRef } from "react";
 import { useControleBancario } from "@/hooks/useControleBancario";
 import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
 import { useExportTransactions } from "@/hooks/useExportTransactions";
@@ -16,6 +16,9 @@ import { toast } from "sonner";
 export function FluxoCaixa() {
   const { data: transacoes, isLoading, error } = useControleBancario();
   const { exportToCSV } = useExportTransactions();
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState(0);
 
   // 1. Estados de Filtro
   const [advancedFilters, setAdvancedFilters] = useState<FinanceiroFilterState>({
@@ -59,12 +62,35 @@ export function FluxoCaixa() {
     return { entradas, saidas, saldo: entradas - saidas };
   }, [filteredTransacoes]);
 
+  // Handlers para arrastar/scroll
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    setDragStart(e.clientX + (scrollContainerRef.current?.scrollLeft || 0));
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollContainerRef.current) return;
+    const scrollLeft = dragStart - e.clientX;
+    scrollContainerRef.current.scrollLeft = scrollLeft;
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
   if (isLoading) return <div className="flex h-96 items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
 
   return (
     <div className="space-y-6">
       <Tabs defaultValue="lista" className="w-full">
-        <div className="flex items-center justify-between mb-4">
+        <div
+          ref={scrollContainerRef}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          className="sticky top-0 z-20 flex items-center justify-between mb-4 pb-4 bg-gradient-to-b from-black/80 to-black/0 backdrop-blur-sm cursor-grab active:cursor-grabbing"
+        >
           <TabsList className="bg-white/5 border border-white/10">
             <TabsTrigger value="lista">Lista Geral</TabsTrigger>
             <TabsTrigger value="quadro">Visualização Mensal</TabsTrigger>
@@ -117,4 +143,3 @@ export function FluxoCaixa() {
     </div>
   );
 }
-    

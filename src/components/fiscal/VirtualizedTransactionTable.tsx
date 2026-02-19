@@ -211,7 +211,7 @@ const Row = ({
       </div>
 
       {/* Tipo */}
-      <div className="w-20 flex-shrink-0">
+      <div className="w-32 flex-shrink-0">
         <div className="flex items-center gap-1">
           {isEntrada ? (
             <ArrowUpCircle className="w-4 h-4 text-green-400" />
@@ -223,7 +223,7 @@ const Row = ({
               isEntrada ? "text-green-400" : "text-red-400"
             }`}
           >
-            {isEntrada ? "E" : "S"}
+            {isEntrada ? "Entrada" : "Saída"}
           </span>
         </div>
       </div>
@@ -337,6 +337,9 @@ export const VirtualizedTransactionTable = ({
 }: VirtualizedTransactionTableProps) => {
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [isDraggingTable, setIsDraggingTable] = useState(false);
+  const [dragStartTable, setDragStartTable] = useState(0);
+  const headerRef = React.useRef<HTMLDivElement>(null);
 
   // Ordenar transações com entradas primeiro, depois saídas
   const sortedTransactions = useMemo(() => {
@@ -418,6 +421,25 @@ export const VirtualizedTransactionTable = ({
     setDragOverIndex(null);
   };
 
+  const handleHeaderMouseDown = (e: React.MouseEvent) => {
+    // Não ativar drag se clicar em botões ou elementos interativos
+    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('[role="button"]')) {
+      return;
+    }
+    setIsDraggingTable(true);
+    setDragStartTable(e.clientX + (headerRef.current?.scrollLeft || 0));
+  };
+
+  const handleHeaderMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingTable || !headerRef.current) return;
+    const scrollLeft = dragStartTable - e.clientX;
+    headerRef.current.scrollLeft = scrollLeft;
+  };
+
+  const handleHeaderMouseUp = () => {
+    setIsDraggingTable(false);
+  };
+
   const itemData = useMemo(
     () => ({
       transactions: sortedTransactions,
@@ -486,7 +508,7 @@ export const VirtualizedTransactionTable = ({
   const columnConfigs = {
     checkbox: { label: "Seleção", width: "w-12", field: null },
     data: { label: "Data", width: "w-24", field: "data" as SortField },
-    tipo: { label: "Tipo", width: "w-20", field: null },
+    tipo: { label: "Tipo", width: "w-32", field: null },
     descricao: { label: "Descrição", width: "flex-1", field: null },
     categoria: { label: "Categoria", width: "w-32", field: null },
     valor: { label: "Valor", width: "w-28", field: "valor" as SortField },
@@ -498,7 +520,14 @@ export const VirtualizedTransactionTable = ({
   return (
     <div className="border border-border/40 rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="sticky top-0 z-10 flex items-center gap-4 px-4 py-3 bg-muted/50 backdrop-blur-sm border-b border-border/40">
+      <div
+        ref={headerRef}
+        onMouseDown={handleHeaderMouseDown}
+        onMouseMove={handleHeaderMouseMove}
+        onMouseUp={handleHeaderMouseUp}
+        onMouseLeave={handleHeaderMouseUp}
+        className="sticky top-0 z-10 flex items-center gap-4 px-4 py-3 bg-muted/50 backdrop-blur-sm border-b border-border/40 overflow-x-auto cursor-grab active:cursor-grabbing"
+      >
         {columnOrder.map((column, index) => {
           const config = columnConfigs[column];
           if (!config) return null;
