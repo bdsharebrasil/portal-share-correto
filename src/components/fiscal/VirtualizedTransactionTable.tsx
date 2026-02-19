@@ -17,6 +17,9 @@ import {
   ChevronDown,
   Edit2,
   Trash2,
+  FileText,
+  File,
+  Link2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -31,6 +34,10 @@ interface TransactionData {
   categoria_nome?: string;
   cliente_nome?: string;
   conta_banco?: string;
+  nf_url?: string;
+  boleto_url?: string;
+  recibo_url?: string;
+  comprovante_url?: string;
   [key: string]: any;
 }
 
@@ -42,6 +49,37 @@ interface VirtualizedTransactionTableProps {
   onDelete: (id: string) => void;
   isLoading?: boolean;
 }
+
+const AttachmentLinks = ({ transaction }: { transaction: TransactionData }) => {
+  const attachments = [
+    { label: "NF", url: transaction.nf_url, icon: FileText },
+    { label: "Boleto", url: transaction.boleto_url, icon: File },
+    { label: "Recibo", url: transaction.recibo_url, icon: File },
+    { label: "Comprovante", url: transaction.comprovante_url, icon: File },
+  ].filter(({ url }) => url);
+
+  if (attachments.length === 0) {
+    return <span className="text-xs text-muted-foreground">-</span>;
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      {attachments.map(({ label, url, icon: Icon }) => (
+        <a
+          key={label}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 px-2 py-1 rounded bg-muted/50 hover:bg-primary/20 text-xs text-foreground/80 hover:text-primary transition-colors"
+          title={label}
+        >
+          <Icon className="w-3 h-3" />
+          <span className="hidden sm:inline">{label}</span>
+        </a>
+      ))}
+    </div>
+  );
+};
 
 const getStatusColor = (status: string, tipoMovimento?: string): string => {
   if (tipoMovimento === "entrada") {
@@ -217,6 +255,11 @@ const Row = ({
         )}
       </div>
 
+      {/* Anexos */}
+      <div className="w-48 flex-shrink-0">
+        <AttachmentLinks transaction={transaction} />
+      </div>
+
       {/* Actions */}
       <div className="w-12 flex-shrink-0 flex justify-end">
         <DropdownMenu>
@@ -316,19 +359,25 @@ export const VirtualizedTransactionTable = ({
         <div className="w-24 flex-shrink-0 text-xs uppercase tracking-wider text-foreground/60 font-medium">
           Status
         </div>
+        <div className="w-48 flex-shrink-0 text-xs uppercase tracking-wider text-foreground/60 font-medium">
+          Anexos
+        </div>
         <div className="w-12 flex-shrink-0" />
       </div>
 
-      {/* Virtualized List */}
-      <List
-        height={600}
-        itemCount={transactions.length}
-        itemSize={56}
-        width="100%"
-        itemData={itemData}
-      >
-        {Row}
-      </List>
+      {/* Horizontal Scroll Container */}
+      <div className="overflow-x-auto">
+        {/* Virtualized List */}
+        <List
+          height={600}
+          itemCount={transactions.length}
+          itemSize={56}
+          width="100%"
+          itemData={itemData}
+        >
+          {Row}
+        </List>
+      </div>
     </div>
   );
 };
