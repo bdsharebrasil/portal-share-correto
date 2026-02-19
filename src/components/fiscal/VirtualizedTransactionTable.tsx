@@ -96,20 +96,52 @@ const AttachmentLinks = ({ transaction }: { transaction: TransactionData }) => {
 const getStatusColor = (status: string, tipoMovimento?: string): string => {
   if (tipoMovimento === "entrada") {
     if (status === "recebido") return "bg-blue-900/20 text-blue-400 border-blue-600";
-    if (status === "pago") return "bg-green-900/20 text-green-400 border-green-600";
     if (status === "pendente") return "bg-orange-900/20 text-orange-400 border-orange-600";
+    if (status === "pago") return "bg-green-900/20 text-green-400 border-green-600";
   }
   if (tipoMovimento === "saida") {
     if (status === "recebido") return "bg-blue-900/20 text-blue-400 border-blue-600";
     if (status === "pago") return "bg-red-900/20 text-red-400 border-red-600";
+    if (status === "pendente") return "bg-orange-900/20 text-orange-400 border-orange-600";
   }
   switch (status) {
     case "pendente":
-      return "bg-yellow-900/20 text-yellow-400 border-yellow-600";
+      return "bg-orange-900/20 text-orange-400 border-orange-600";
+    case "recebido":
+      return "bg-blue-900/20 text-blue-400 border-blue-600";
+    case "pago":
+      return "bg-red-900/20 text-red-400 border-red-600";
     case "cancelado":
       return "bg-red-900/20 text-red-400 border-red-600";
     default:
       return "bg-gray-700 text-gray-300 border-gray-600";
+  }
+};
+
+const getValueColor = (status: string, tipoMovimento: string): string => {
+  if (tipoMovimento === "entrada") {
+    switch (status) {
+      case "pendente":
+        return "text-orange-400";
+      case "recebido":
+        return "text-blue-400";
+      case "pago":
+        return "text-green-400";
+      default:
+        return "text-green-400";
+    }
+  } else {
+    // saida
+    switch (status) {
+      case "pendente":
+        return "text-orange-400";
+      case "recebido":
+        return "text-blue-400";
+      case "pago":
+        return "text-red-400";
+      default:
+        return "text-red-400";
+    }
   }
 };
 
@@ -182,35 +214,13 @@ const Row = ({
       <div className="w-20 flex-shrink-0">
         <div className="flex items-center gap-1">
           {isEntrada ? (
-            <ArrowUpCircle
-              className={`w-4 h-4 ${
-                transaction.status === "recebido"
-                  ? "text-blue-400"
-                  : isPendente
-                  ? "text-orange-400"
-                  : "text-green-400"
-              }`}
-            />
+            <ArrowUpCircle className="w-4 h-4 text-green-400" />
           ) : (
-            <ArrowDownCircle
-              className={`w-4 h-4 ${
-                transaction.status === "recebido"
-                  ? "text-blue-400"
-                  : "text-red-400"
-              }`}
-            />
+            <ArrowDownCircle className="w-4 h-4 text-red-400" />
           )}
           <span
             className={`text-xs font-medium ${
-              isEntrada
-                ? transaction.status === "recebido"
-                  ? "text-blue-400"
-                  : isPendente
-                  ? "text-orange-400"
-                  : "text-green-400"
-                : transaction.status === "recebido"
-                ? "text-blue-400"
-                : "text-red-400"
+              isEntrada ? "text-green-400" : "text-red-400"
             }`}
           >
             {isEntrada ? "E" : "S"}
@@ -235,13 +245,10 @@ const Row = ({
       {/* Valor */}
       <div className="w-28 flex-shrink-0 text-right">
         <p
-          className={`text-sm font-semibold ${
-            isEntrada
-              ? isPendente
-                ? "text-orange-400"
-                : "text-green-400"
-              : "text-red-400"
-          }`}
+          className={`text-sm font-semibold ${getValueColor(
+            transaction.status,
+            transaction.tipo_movimento
+          )}`}
         >
           R${" "}
           {transaction.valor.toLocaleString("pt-BR", {
