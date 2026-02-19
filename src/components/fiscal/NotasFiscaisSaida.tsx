@@ -174,6 +174,24 @@ const validarNotaFiscal = (formData: any): string | null => {
   return null;
 };
 
+// --- FUNÇÕES AUXILIARES ---
+
+const getStatusBadge = (status: string) => {
+  const statusConfig: { [key: string]: { label: string; color: string } } = {
+    pendente: { label: "Pendente", color: "bg-yellow-100 text-yellow-800" },
+    recebido: { label: "Recebido", color: "bg-green-100 text-green-800" },
+    cancelado: { label: "Cancelado", color: "bg-red-100 text-red-800" },
+  };
+
+  const config = statusConfig[status] || { label: status, color: "bg-gray-100 text-gray-800" };
+
+  return (
+    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${config.color}`}>
+      {config.label}
+    </span>
+  );
+};
+
 // --- COMPONENTE PRINCIPAL ---
 
 export function NotasFiscaisSaida() {
@@ -2073,46 +2091,50 @@ export function NotasFiscaisSaida() {
                   Nenhuma nota fiscal criada
                 </div>
               ) : (
-                <div className="overflow-x-auto rounded-lg border border-border/40">
+                <div className="overflow-x-auto rounded-lg border border-border">
                   <Table>
-                    <TableHeader className="bg-muted/30 border-b border-border/40">
+                    <TableHeader className="bg-muted border-b border-border">
                       <TableRow className="hover:bg-transparent">
-                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Número</TableHead>
-                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Cliente</TableHead>
-                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Aeronave</TableHead>
-                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Criação</TableHead>
-                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Vencimento</TableHead>
-                        <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-right">Valor</TableHead>
-                        <TableHead className="text-muted-foreground font-semibold px-4 py-3">Categoria</TableHead>
-                        <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-center">PDF</TableHead>
-                        <TableHead className="text-muted-foreground font-semibold px-4 py-3 text-right">Ações</TableHead>
+                        <TableHead className="text-foreground font-semibold px-4 py-4 text-sm">Número</TableHead>
+                        <TableHead className="text-foreground font-semibold px-4 py-4 text-sm">Cliente</TableHead>
+                        <TableHead className="text-foreground font-semibold px-4 py-4 text-sm">Aeronave</TableHead>
+                        <TableHead className="text-foreground font-semibold px-4 py-4 text-sm">Emissão</TableHead>
+                        <TableHead className="text-foreground font-semibold px-4 py-4 text-sm">Vencimento</TableHead>
+                        <TableHead className="text-foreground font-semibold px-4 py-4 text-sm text-right">Valor</TableHead>
+                        <TableHead className="text-foreground font-semibold px-4 py-4 text-sm">Categoria</TableHead>
+                        <TableHead className="text-foreground font-semibold px-4 py-4 text-sm">Status</TableHead>
+                        <TableHead className="text-foreground font-semibold px-4 py-4 text-sm text-center">PDF</TableHead>
+                        <TableHead className="text-foreground font-semibold px-4 py-4 text-sm text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {notas.map((nota, idx) => (
-                        <TableRow key={nota.id} className={`border-b border-border/30 hover:bg-muted/40 transition-colors ${idx % 2 === 0 ? 'bg-muted/10' : ''}`}>
-                          <TableCell className="font-semibold text-foreground px-4 py-3">{nota.numero}</TableCell>
-                          <TableCell className="text-foreground px-4 py-3">{nota.cliente_nome}</TableCell>
-                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">
-                            {nota.aeronave || "-"}
+                      {notas.map((nota) => (
+                        <TableRow key={nota.id} className="border-b border-border hover:bg-muted/50 transition-colors">
+                          <TableCell className="font-medium text-foreground px-4 py-4 text-sm">{nota.numero}</TableCell>
+                          <TableCell className="text-foreground px-4 py-4 text-sm">{nota.cliente_nome}</TableCell>
+                          <TableCell className="text-muted-foreground px-4 py-4 text-sm">
+                            {nota.aeronave || "—"}
                           </TableCell>
-                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">
+                          <TableCell className="text-muted-foreground px-4 py-4 text-sm">
                             {formatDateSafe(nota.data_criacao)}
                           </TableCell>
-                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">
+                          <TableCell className="text-muted-foreground px-4 py-4 text-sm">
                             {formatDateSafe(nota.data_vencimento)}
                           </TableCell>
-                          <TableCell className="text-foreground font-semibold px-4 py-3 text-right text-emerald-500">
+                          <TableCell className="text-foreground font-semibold px-4 py-4 text-right text-sm">
                             R$ {nota.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </TableCell>
-                          <TableCell className="text-muted-foreground px-4 py-3 text-sm">{nota.categoria}</TableCell>
-                          <TableCell className="px-4 py-3 text-center">
+                          <TableCell className="text-muted-foreground px-4 py-4 text-sm">{nota.categoria}</TableCell>
+                          <TableCell className="px-4 py-4 text-sm">
+                            {getStatusBadge(nota.status)}
+                          </TableCell>
+                          <TableCell className="px-4 py-4 text-center">
                             {nota.arquivo_pdf_url ? (
                               <a
                                 href={nota.arquivo_pdf_url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-primary hover:bg-primary/10 transition-colors"
+                                className="inline-flex items-center justify-center text-primary hover:text-primary/80 transition-colors"
                                 title="Ver PDF"
                               >
                                 <FileText className="w-4 h-4" />
@@ -2121,13 +2143,13 @@ export function NotasFiscaisSaida() {
                               <span className="text-xs text-muted-foreground">—</span>
                             )}
                           </TableCell>
-                          <TableCell className="px-4 py-3">
-                            <div className="flex gap-2 justify-end">
+                          <TableCell className="px-4 py-4">
+                            <div className="flex gap-1 justify-end">
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleEdit(nota)}
-                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors"
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
                                 title="Editar"
                               >
                                 <Edit2 className="w-4 h-4" />
@@ -2135,7 +2157,7 @@ export function NotasFiscaisSaida() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg transition-colors"
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
                                 onClick={() => setDeleteId(nota.id)}
                                 title="Deletar"
                               >
