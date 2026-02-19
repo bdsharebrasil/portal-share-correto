@@ -80,6 +80,24 @@ import FinanceiroSocios from "./pages/FinanceiroSocios";
 import RelatorioTransacoesSocios from "./pages/RelatorioTransacoesSocios";
 const queryClient = new QueryClient();
 
+// Componentes wrapper definidos FORA do App para evitar conflitos com hooks
+const DiarioBordoWrapper = () => {
+  const navigate = useNavigate();
+  return <DiarioBordo onBack={() => navigate('/')} />;
+};
+
+const BancoHorasWrapper = () => {
+  const { aircraftId } = useParams<{ aircraftId: string }>();
+  const navigate = useNavigate();
+
+  if (!aircraftId) {
+    navigate('/diario-bordo');
+    return null;
+  }
+
+  return <BancodeHoras aircraftId={aircraftId} onBack={() => navigate('/diario-bordo')} />;
+};
+
 const App = () => {
   // Configurar PDF worker apenas no cliente
   useEffect(() => {
@@ -95,25 +113,6 @@ const App = () => {
   const renderProtected = (element: JSX.Element) => (
     <ProtectedRoute>{element}</ProtectedRoute>
   );
-
-  // App.tsx
-  const DiarioBordoWrapper = () => {
-    const navigate = useNavigate();
-    return <DiarioBordo onBack={() => navigate('/')} />;
-  };
-
-  // ✅ BancoHoras COM aircraftId (precisa dele)
-  const BancoHorasWrapper = () => {
-    const { aircraftId } = useParams<{ aircraftId: string }>();
-    const navigate = useNavigate();
-
-    if (!aircraftId) {
-      navigate('/diario-bordo');
-      return null;
-    }
-
-    return <BancodeHoras aircraftId={aircraftId} onBack={() => navigate('/diario-bordo')} />;
-  };
 
 
 
