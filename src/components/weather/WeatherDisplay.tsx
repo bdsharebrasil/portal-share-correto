@@ -166,9 +166,9 @@ export function WeatherDisplay() {
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
-        <button className="group relative overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105" style={{ paddingLeft: '6px', paddingRight: '6px', marginLeft: '27px', marginRight: '27px' }}>
+        <button className="group relative overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105">
           {/* Card compacto com gradiente - tamanho ajustado para header */}
-          <div className={`relative bg-gradient-to-br ${gradient} h-12 min-w-[120px]`}>
+          <div className={`relative bg-gradient-to-br ${gradient} px-3 py-2 h-12 min-w-[120px]`}>
             {/* Overlay com padrão decorativo */}
             <div className="absolute inset-0 opacity-20">
               {weatherType.includes("rain") && (
@@ -192,7 +192,7 @@ export function WeatherDisplay() {
             {/* Conteúdo */}
             <div className="relative z-10 h-full flex items-center justify-between gap-3 text-white">
               {/* Info esquerda */}
-              <div className="flex flex-col justify-center leading-none" style={{ gap: '7px' }}>
+              <div className="flex flex-col justify-center leading-none">
                 <div className="text-[10px] font-semibold tracking-tight opacity-90">
                   {weather.icao}
                 </div>
@@ -202,8 +202,8 @@ export function WeatherDisplay() {
               </div>
 
               {/* Temperatura e ícone */}
-              <div className="flex items-center" style={{ marginLeft: '-9px', marginRight: '-9px', paddingLeft: '14px', paddingRight: '14px' }}>
-                <span className="text-[8px] font-black tracking-tighter leading-none">
+              <div className="flex items-center gap-1.5">
+                <span className="text-2xl font-black tracking-tighter leading-none">
                   {weather.temp}°
                 </span>
                 <div className="opacity-80">
