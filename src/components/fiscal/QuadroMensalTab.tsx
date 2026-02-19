@@ -6,9 +6,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronLeft, ChevronRight, Search, Download, ArrowUpCircle, ArrowDownCircle, TrendingUp, TrendingDown, Minus, ArrowUp, Edit2, Trash2, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useCategorias } from "@/hooks/useCategorias";
+import { FinanceiroFilters, FinanceiroFilterState } from "./FinanceiroFilters";
 import { useMemo, useState } from "react";
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -67,12 +69,19 @@ export function QuadroMensalTab() {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
   });
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterCategoria, setFilterCategoria] = useState("Todas");
   const [filterTipo, setFilterTipo] = useState<"todas" | "entrada" | "saida">("todas");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  // Filtros avançados
+  const [advancedFilters, setAdvancedFilters] = useState<FinanceiroFilterState>({
+    search: "",
+    status: "all",
+    dateRange: undefined,
+    amountRange: [0, 100000],
+    source: "all",
+  });
 
   const mesKey = `${mesAtual.year}-${String(mesAtual.month + 1).padStart(2, "0")}`;
   const startDate = startOfMonth(new Date(mesAtual.year, mesAtual.month));
@@ -110,6 +119,17 @@ export function QuadroMensalTab() {
 
   const { data: categoriasData } = useCategorias();
 
+  // Calcular maxAmount para os filtros
+  const maxAmount = useMemo(() => {
+    if (!transacoes || transacoes.length === 0) return 100000;
+    return Math.max(...transacoes.map((t: any) => Number(t.valor)));
+  }, [transacoes]);
+
+  // Atualizar o range quando os dados carregam
+  React.useEffect(() => {
+    setAdvancedFilters(prev => ({ ...prev, amountRange: [0, maxAmount] }));
+  }, [maxAmount]);
+
   const getCategoriaName = (id: string | null) => {
     if (!id || !categoriasData) return "-";
     return categoriasData.find((c) => c.id === id)?.nome || "-";
@@ -137,11 +157,35 @@ export function QuadroMensalTab() {
     if (!transacoes) return [];
     const filtered = transacoes.filter((t) => {
       const nome = getCategoriaName(t.categoria_id);
-      const matchesSearch = t.descricao?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        nome.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategoria = filterCategoria === "Todas" || t.categoria_id === filterCategoria;
+
+      // Filtros avançados
+      const matchesSearch = t.descricao?.toLowerCase().includes(advancedFilters.search.toLowerCase()) ||
+        nome.toLowerCase().includes(advancedFilters.search.toLowerCase());
+
+      const matchesStatus = advancedFilters.status === "all" || t.status === advancedFilters.status;
+
+      const matchesValue = Number(t.valor) >= advancedFilters.amountRange[0] &&
+        Number(t.valor) <= advancedFilters.amountRange[1];
+
       const matchesTipo = filterTipo === "todas" || t.tipo_movimento === filterTipo;
-      return matchesSearch && matchesCategoria && matchesTipo;
+
+      // Filtro de período (data)
+      let matchesDateRange = true;
+      if (advancedFilters.dateRange?.from) {
+        const transacaoDate = new Date(t.data);
+        const rangeStart = new Date(advancedFilters.dateRange.from);
+        rangeStart.setHours(0, 0, 0, 0);
+
+        matchesDateRange = transacaoDate >= rangeStart;
+
+        if (advancedFilters.dateRange.to) {
+          const rangeEnd = new Date(advancedFilters.dateRange.to);
+          rangeEnd.setHours(23, 59, 59, 999);
+          matchesDateRange = matchesDateRange && transacaoDate <= rangeEnd;
+        }
+      }
+
+      return matchesSearch && matchesStatus && matchesValue && matchesTipo && matchesDateRange;
     });
 
     // Aplicar ordenação por data
@@ -150,7 +194,7 @@ export function QuadroMensalTab() {
       const dateB = new Date(b.data).getTime();
       return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
     });
-  }, [transacoes, searchTerm, filterCategoria, filterTipo, categoriasData, sortOrder]);
+  }, [transacoes, advancedFilters, filterTipo, categoriasData, sortOrder]);
 
   const totalReceitas = useMemo(() =>
     (transacoes || []).filter((t) => t.tipo_movimento === "entrada").reduce((acc, t) => acc + Number(t.valor), 0),
