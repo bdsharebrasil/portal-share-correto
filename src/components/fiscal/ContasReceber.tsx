@@ -943,16 +943,19 @@ export function ContasReceber() {
                             </>
                           )}
                           {conta.status !== "recebido" && (
-                            <Select value={conta.status} onValueChange={(value) => handleChangeStatus(conta.id, value)}>
-                              <SelectTrigger className="h-7 w-24 text-xs border-0 bg-transparent p-0 hover:bg-muted/50">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="pendente">Pendente</SelectItem>
-                                <SelectItem value="recebido">Recebido</SelectItem>
-                                <SelectItem value="cancelado">Cancelado</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => handleChangeStatus(conta.id, "recebido")}
+                                    className="text-muted-foreground hover:text-emerald-400 p-1 transition-colors"
+                                  >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>Dar Baixa</TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           )}
                         </div>
                       </TableCell>
@@ -1142,6 +1145,30 @@ export function ContasReceber() {
                     className="bg-background"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-foreground mb-2 block">Comprovante (Opcional)</label>
+                <div className="flex gap-2">
+                  <Input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setComprovanteFile(file);
+                        toast.success(`Arquivo selecionado: ${file.name}`);
+                      }
+                    }}
+                    className="bg-background"
+                    disabled={isUploadingComprovante}
+                  />
+                </div>
+                {comprovanteFile && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Arquivo selecionado: {comprovanteFile.name}
+                  </p>
+                )}
               </div>
             </div>
           )}
