@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -78,12 +78,30 @@ import VencimentosTripulacao from "./pages/VencimentosTripulacao";
 import VencimentosDocumentos from "./pages/VencimentosDocumentos";
 import FinanceiroSocios from "./pages/FinanceiroSocios";
 import RelatorioTransacoesSocios from "./pages/RelatorioTransacoesSocios";
-const queryClient = new QueryClient();
+
+// Componentes wrapper definidos FORA do App para evitar conflitos com hooks
+const DiarioBordoWrapper = () => {
+  const navigate = useNavigate();
+  return <DiarioBordo onBack={() => navigate('/')} />;
+};
+
+const BancoHorasWrapper = () => {
+  const { aircraftId } = useParams<{ aircraftId: string }>();
+  const navigate = useNavigate();
+
+  if (!aircraftId) {
+    navigate('/diario-bordo');
+    return null;
+  }
+
+  return <BancodeHoras aircraftId={aircraftId} onBack={() => navigate('/diario-bordo')} />;
+};
 
 const App = () => {
-  // Configurar PDF worker apenas no cliente
+  // queryClient criado com useState para garantir instância única por componente
+  const [queryClient] = useState(() => new QueryClient());
+
   useEffect(() => {
-    // Dynamic import para evitar carregar react-pdf no servidor
     import("@/lib/pdfWorkerConfig")
       .then(({ configurePDFWorker }) => {
         configurePDFWorker();
@@ -92,31 +110,10 @@ const App = () => {
         console.warn('Aviso: Não foi possível configurar o worker de PDF. Será carregado do CDN.', err);
       });
   }, []);
+
   const renderProtected = (element: JSX.Element) => (
     <ProtectedRoute>{element}</ProtectedRoute>
   );
-
-  // App.tsx
-  const DiarioBordoWrapper = () => {
-    const navigate = useNavigate();
-    return <DiarioBordo onBack={() => navigate('/')} />;
-  };
-
-  // ✅ BancoHoras COM aircraftId (precisa dele)
-  const BancoHorasWrapper = () => {
-    const { aircraftId } = useParams<{ aircraftId: string }>();
-    const navigate = useNavigate();
-
-    if (!aircraftId) {
-      navigate('/diario-bordo');
-      return null;
-    }
-
-    return <BancodeHoras aircraftId={aircraftId} onBack={() => navigate('/diario-bordo')} />;
-  };
-
-
-
 
   return (
     <ErrorBoundary>
