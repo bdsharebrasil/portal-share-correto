@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, ArrowUp, ArrowDown, Wallet, Calendar, Users, DollarSign, Receipt, Settings, Repeat, ArrowLeft, Building2, Menu, AlertCircle } from "lucide-react";
 import { NotasFiscaisSaida } from "@/components/fiscal/NotasFiscaisSaida";
 import { FluxoCaixa } from "@/components/fiscal/FluxoCaixa";
+import { QuadroMensalTab } from "@/components/fiscal/QuadroMensalTab";
 import { ContasRecorrentesTab } from "@/components/fiscal/ContasRecorrentesTab";
 import { PagamentoSalarioTab } from "@/components/fiscal/PagamentoSalarioTab";
 import { PrestadoresServicoTab } from "@/components/fiscal/PrestadoresServicoTab";
@@ -206,7 +207,7 @@ export default function GestaoFiscal() {
               transition={{ duration: 0.3 }}
             >
               <TabsContent value="fluxo" className="mt-0 w-full">
-                <FluxoCaixa />
+                <QuadroMensalTab />
               </TabsContent>
 
               <TabsContent value="contas-recorrentes" className="mt-0">
