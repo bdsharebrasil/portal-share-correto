@@ -91,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({
       });
     }
   }, [navigate, toast, signOut]);
-  return <header className="fixed top-0 left-0 right-0 h-16 bg-gradient-to-r from-primary/5 to-secondary/5 border z-50 shadow-lg" style={{ borderColor: 'rgba(45, 52, 67, 0.09)' }}>
+  return <header className="fixed top-0 left-0 right-0 h-16 border z-50 overflow-hidden rounded-b-[10px]" style={{ backgroundColor: 'rgba(8, 7, 47, 1)', boxShadow: '0 0 0 9px rgba(0, 0, 0, 0)' }}>
       <div className="flex items-center justify-between h-full px-4 lg:px-6">
         {/* Seção Esquerda */}
         <div className="flex items-center gap-4">

@@ -2,17 +2,11 @@ import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   PieChart,
   Pie,
   Cell,
@@ -26,13 +20,8 @@ import {
   AreaChart,
 } from "recharts";
 import {
-  CheckCircle,
-  DollarSign,
   TrendingUp,
   TrendingDown,
-  Download,
-  ChevronLeft,
-  ChevronRight,
   Loader2,
   Wallet,
   Calendar,
@@ -40,6 +29,14 @@ import {
 import { useDashboardGestorData } from "@/hooks/useDashboardGestorData";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+// Import new components
+import { DashboardHeader } from "@/components/dashboard/gestor/DashboardHeader";
+import { MonthSelector } from "@/components/dashboard/gestor/MonthSelector";
+import { KPISection } from "@/components/dashboard/gestor/KPISection";
+import { ChartCard } from "@/components/dashboard/gestor/ChartCard";
+import { TransactionTable } from "@/components/dashboard/gestor/TransactionTable";
+import { FilterSection } from "@/components/dashboard/gestor/FilterSection";
 
 // Função para mapear status e cores
 const getStatusBadgeConfig = (status: string) => {
@@ -140,88 +137,24 @@ export default function DashboardGestor() {
     <Layout>
       <div className="space-y-6 p-4 sm:p-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard do Gestor</h1>
-            <p className="text-muted-foreground mt-1 text-sm">Visão consolidada das operações financeiras</p>
-          </div>
-          <Button variant="outline" className="border-border w-full sm:w-auto" size="sm">
-            <Download className="w-4 h-4 mr-2" />
-            Exportar
-          </Button>
-        </div>
+        <DashboardHeader onExport={() => console.log("Export")} />
 
         {/* Month Selector */}
-        <div className="flex items-center justify-center gap-2 sm:gap-4">
-          <Button variant="outline" size="sm" onClick={previousMonth} className="border-border">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <h2 className="text-base sm:text-lg font-semibold text-center text-foreground capitalize min-w-32 sm:min-w-48">{monthYear}</h2>
-          <Button variant="outline" size="sm" onClick={nextMonth} className="border-border">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+        <MonthSelector
+          monthYear={monthYear}
+          onPreviousMonth={previousMonth}
+          onNextMonth={nextMonth}
+        />
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Total Receitas */}
-          <Card className="bg-card/80 border-success/30 overflow-hidden">
-            <CardContent className="p-4 flex flex-col h-full">
-              <div className="flex items-start justify-between gap-3 flex-1">
-                <div className="flex-1 min-w-0">
-                  <p className="text-success text-xs font-medium uppercase tracking-wide">Receitas</p>
-                  <p className="text-lg sm:text-xl font-bold text-success mt-2 truncate">{formatCurrency(stats.totalReceitas)}</p>
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                    {formatCurrency(stats.receitasConferidas)} conf.
-                  </p>
-                </div>
-                <div className="p-2 rounded-lg bg-success/20 flex-shrink-0">
-                  <TrendingUp className="w-5 h-5 text-success" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Total Despesas */}
-          <Card className="bg-card/80 border-destructive/30 overflow-hidden">
-            <CardContent className="p-4 flex flex-col h-full">
-              <div className="flex items-start justify-between gap-3 flex-1">
-                <div className="flex-1 min-w-0">
-                  <p className="text-destructive text-xs font-medium uppercase tracking-wide">Despesas</p>
-                  <p className="text-lg sm:text-xl font-bold text-destructive mt-2 truncate">{formatCurrency(stats.totalDespesas)}</p>
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                    {formatCurrency(stats.despesasConferidas)} conf.
-                  </p>
-                </div>
-                <div className="p-2 rounded-lg bg-destructive/20 flex-shrink-0">
-                  <TrendingDown className="w-5 h-5 text-destructive" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Saldo */}
-          <Card className={`bg-card/80 overflow-hidden ${stats.saldoGeral >= 0 ? "border-primary/30" : "border-warning/30"}`}>
-            <CardContent className="p-4 flex flex-col h-full">
-              <div className="flex items-start justify-between gap-3 flex-1">
-                <div className="flex-1 min-w-0">
-                  <p className={`text-xs font-medium uppercase tracking-wide ${stats.saldoGeral >= 0 ? "text-primary" : "text-warning"}`}>
-                    Saldo
-                  </p>
-                  <p className={`text-lg sm:text-xl font-bold mt-2 truncate ${stats.saldoGeral >= 0 ? "text-primary" : "text-warning"}`}>
-                    {formatCurrency(stats.saldoGeral)}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                    Conferido
-                  </p>
-                </div>
-                <div className={`p-2 rounded-lg flex-shrink-0 ${stats.saldoGeral >= 0 ? "bg-primary/20" : "bg-warning/20"}`}>
-                  <DollarSign className={`w-5 h-5 ${stats.saldoGeral >= 0 ? "text-primary" : "text-warning"}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <KPISection
+          totalReceitas={stats.totalReceitas}
+          receitasConferidas={stats.receitasConferidas}
+          totalDespesas={stats.totalDespesas}
+          despesasConferidas={stats.despesasConferidas}
+          saldoGeral={stats.saldoGeral}
+          formatCurrency={formatCurrency}
+        />
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="bg-card border border-border">
@@ -243,205 +176,168 @@ export default function DashboardGestor() {
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Gráfico de Receitas vs Despesas */}
-              <Card className="bg-card/80 border-border">
-                <CardHeader>
-                  <CardTitle className="text-foreground flex items-center gap-2">
-                    <Wallet className="w-5 h-5 text-primary" />
-                    Receitas vs Despesas (últimos 6 meses)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {hasMonthlyData ? (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={monthlyData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis dataKey="monthLabel" stroke="hsl(var(--muted-foreground))" />
-                        <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: "hsl(var(--card))", 
-                            border: "1px solid hsl(var(--border))",
-                            borderRadius: "8px",
-                            color: "hsl(var(--foreground))"
-                          }}
-                          formatter={(value: number) => formatCurrency(value)}
-                        />
-                        <Legend />
-                        <Bar dataKey="receitas" fill="hsl(var(--success))" name="Receitas" radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="despesas" fill="hsl(var(--destructive))" name="Despesas" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                      <div className="text-center">
-                        <Calendar className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                        <p>Nenhum dado disponível para o período</p>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Distribuição de Despesas */}
-              <Card className="bg-card/80 border-border">
-                <CardHeader>
-                  <CardTitle className="text-foreground flex items-center gap-2">
-                    <TrendingDown className="w-5 h-5 text-destructive" />
-                    Distribuição de Despesas por Categoria
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {categoryData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={300}>
-                      <PieChart>
-                        <Pie
-                          data={categoryData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          label={({ name, value }) => `${value}%`}
-                          outerRadius={100}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {categoryData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip 
-                          contentStyle={{ 
-                            backgroundColor: "hsl(var(--card))", 
-                            border: "1px solid hsl(var(--border))",
-                            borderRadius: "8px"
-                          }}
-                          formatter={(value: number) => `${value}%`}
-                        />
-                        <Legend />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                      <div className="text-center">
-                        <TrendingDown className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                        <p>Nenhuma despesa registrada</p>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Tendência de Saldo */}
-            <Card className="bg-card/80 border-border">
-              <CardHeader>
-                <CardTitle className="text-foreground flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-primary" />
-                  Tendência de Saldo Mensal
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+              <ChartCard
+                title="Receitas vs Despesas (últimos 6 meses)"
+                icon={<Wallet className="w-5 h-5 text-primary" />}
+              >
                 {hasMonthlyData ? (
-                  <ResponsiveContainer width="100%" height={250}>
-                    <AreaChart data={monthlyData}>
-                      <defs>
-                        <linearGradient id="saldoGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                        </linearGradient>
-                      </defs>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={monthlyData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                       <XAxis dataKey="monthLabel" stroke="hsl(var(--muted-foreground))" />
                       <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
-                      <Tooltip 
-                        contentStyle={{ 
-                          backgroundColor: "hsl(var(--card))", 
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--card))",
                           border: "1px solid hsl(var(--border))",
                           borderRadius: "8px",
                           color: "hsl(var(--foreground))"
                         }}
                         formatter={(value: number) => formatCurrency(value)}
                       />
-                      <Area
-                        type="monotone"
-                        dataKey="saldo"
-                        stroke="hsl(var(--primary))"
-                        fill="url(#saldoGradient)"
-                        strokeWidth={2}
-                        name="Saldo"
-                      />
-                    </AreaChart>
+                      <Legend />
+                      <Bar dataKey="receitas" fill="hsl(var(--success))" name="Receitas" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="despesas" fill="hsl(var(--destructive))" name="Despesas" radius={[4, 4, 0, 0]} />
+                    </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex items-center justify-center h-[250px] text-muted-foreground">
+                  <div className="flex items-center justify-center h-[300px] text-muted-foreground">
                     <div className="text-center">
-                      <TrendingUp className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p>Nenhum dado de tendência disponível</p>
+                      <Calendar className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p>Nenhum dado disponível para o período</p>
                     </div>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </ChartCard>
+
+              {/* Distribuição de Despesas */}
+              <ChartCard
+                title="Distribuição de Despesas por Categoria"
+                icon={<TrendingDown className="w-5 h-5 text-destructive" />}
+              >
+                {categoryData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={categoryData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, value }) => `${value}%`}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {categoryData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: "8px"
+                        }}
+                        formatter={(value: number) => `${value}%`}
+                      />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                    <div className="text-center">
+                      <TrendingDown className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p>Nenhuma despesa registrada</p>
+                    </div>
+                  </div>
+                )}
+              </ChartCard>
+            </div>
+
+            {/* Tendência de Saldo */}
+            <ChartCard
+              title="Tendência de Saldo Mensal"
+              icon={<TrendingUp className="w-5 h-5 text-primary" />}
+            >
+              {hasMonthlyData ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <AreaChart data={monthlyData}>
+                    <defs>
+                      <linearGradient id="saldoGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="monthLabel" stroke="hsl(var(--muted-foreground))" />
+                    <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "hsl(var(--card))",
+                        border: "1px solid hsl(var(--border))",
+                        borderRadius: "8px",
+                        color: "hsl(var(--foreground))"
+                      }}
+                      formatter={(value: number) => formatCurrency(value)}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="saldo"
+                      stroke="hsl(var(--primary))"
+                      fill="url(#saldoGradient)"
+                      strokeWidth={2}
+                      name="Saldo"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[250px] text-muted-foreground">
+                  <div className="text-center">
+                    <TrendingUp className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>Nenhum dado de tendência disponível</p>
+                  </div>
+                </div>
+              )}
+            </ChartCard>
           </TabsContent>
 
           {/* Receitas */}
           <TabsContent value="receitas" className="space-y-6">
-            <Card className="bg-card/80 border-border overflow-hidden">
-              <CardHeader>
-                <CardTitle className="text-foreground">Todas as Entradas/Receitas</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0 sm:p-4">
-                <div className="overflow-x-auto -mx-4 sm:mx-0">
-                  <Table className="w-full">
-                    <TableHeader>
-                      <TableRow className="border-border">
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Data</TableHead>
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Descrição</TableHead>
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Categoria</TableHead>
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Valor</TableHead>
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {contasReceber.length > 0 ? (
-                        contasReceber
-                          .sort((a: any, b: any) => {
-                            const dateA = typeof a.data === 'string' ? parseISO(a.data) : new Date(a.data);
-                            const dateB = typeof b.data === 'string' ? parseISO(b.data) : new Date(b.data);
-                            return dateB.getTime() - dateA.getTime();
-                          })
-                          .slice(0, 50)
-                          .map((conta: any) => {
-                            const statusConfig = getStatusBadgeConfig(conta.status);
-                            return (
-                              <TableRow key={conta.id} className="border-border hover:bg-muted/50">
-                                <TableCell className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">
-                                  {conta.data ? format(typeof conta.data === 'string' ? parseISO(conta.data) : new Date(conta.data), "dd/MM/yyyy") : "-"}
-                                </TableCell>
-                                <TableCell className="text-foreground font-medium text-xs sm:text-sm px-3 sm:px-4">{conta.descricao || "Sem descrição"}</TableCell>
-                                <TableCell className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">{conta.categorias_movimentacao?.nome || conta.grupo_categoria || "-"}</TableCell>
-                                <TableCell className="text-success font-semibold text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
-                                  {formatCurrency(Math.abs(Number(conta.valor || 0)))}
-                                </TableCell>
-                                <TableCell className="text-xs sm:text-sm px-3 sm:px-4">
-                                  <Badge variant={statusConfig.variant} className="text-xs sm:text-sm">
-                                    {statusConfig.label}
-                                  </Badge>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                            Nenhuma receita registrada
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
+            <TransactionTable
+              title="Todas as Entradas/Receitas"
+              columns={[
+                { key: "data", label: "Data" },
+                { key: "descricao", label: "Descrição" },
+                { key: "categoria", label: "Categoria" },
+                { key: "valor", label: "Valor" },
+                { key: "status", label: "Status" },
+              ]}
+              data={contasReceber
+                .sort((a: any, b: any) => {
+                  const dateA = typeof a.data === 'string' ? parseISO(a.data) : new Date(a.data);
+                  const dateB = typeof b.data === 'string' ? parseISO(b.data) : new Date(b.data);
+                  return dateB.getTime() - dateA.getTime();
+                })
+                .slice(0, 50)}
+              emptyMessage="Nenhuma receita registrada"
+              renderCell={(column, value, row) => {
+                switch (column) {
+                  case "data":
+                    return row.data ? format(typeof row.data === 'string' ? parseISO(row.data) : new Date(row.data), "dd/MM/yyyy") : "-";
+                  case "descricao":
+                    return row.descricao || "Sem descrição";
+                  case "categoria":
+                    return row.categorias_movimentacao?.nome || row.grupo_categoria || "-";
+                  case "valor":
+                    return <span className="text-success font-semibold whitespace-nowrap">{formatCurrency(Math.abs(Number(row.valor || 0)))}</span>;
+                  case "status":
+                    const statusConfig = getStatusBadgeConfig(row.status);
+                    return <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>;
+                  default:
+                    return value;
+                }
+              }}
+            />
           </TabsContent>
 
           {/* Despesas */}
@@ -467,135 +363,61 @@ export default function DashboardGestor() {
               </Card>
             </div>
 
-            <Card className="bg-card/80 border-border overflow-hidden">
-              <CardHeader>
-                <CardTitle className="text-foreground">Todas as Saídas/Despesas</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0 sm:p-4">
-                <div className="overflow-x-auto -mx-4 sm:mx-0">
-                  <Table className="w-full">
-                    <TableHeader>
-                      <TableRow className="border-border">
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Data</TableHead>
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Descrição</TableHead>
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Categoria</TableHead>
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Valor</TableHead>
-                        <TableHead className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {contasPagar.length > 0 ? (
-                        contasPagar
-                          .sort((a: any, b: any) => {
-                            const dateA = typeof a.data === 'string' ? parseISO(a.data) : new Date(a.data);
-                            const dateB = typeof b.data === 'string' ? parseISO(b.data) : new Date(b.data);
-                            return dateB.getTime() - dateA.getTime();
-                          })
-                          .slice(0, 50)
-                          .map((conta: any) => {
-                            const statusConfig = getStatusBadgeConfig(conta.status);
-                            return (
-                              <TableRow key={conta.id} className="border-border hover:bg-muted/50">
-                                <TableCell className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">
-                                  {conta.data ? format(typeof conta.data === 'string' ? parseISO(conta.data) : new Date(conta.data), "dd/MM/yyyy") : "-"}
-                                </TableCell>
-                                <TableCell className="text-foreground font-medium text-xs sm:text-sm px-3 sm:px-4">{conta.descricao || "Sem descrição"}</TableCell>
-                                <TableCell className="text-muted-foreground text-xs sm:text-sm px-3 sm:px-4">{conta.categorias_movimentacao?.nome || conta.grupo_categoria || "-"}</TableCell>
-                                <TableCell className="text-destructive font-semibold text-xs sm:text-sm px-3 sm:px-4 whitespace-nowrap">
-                                  {formatCurrency(Math.abs(Number(conta.valor || 0)))}
-                                </TableCell>
-                                <TableCell className="text-xs sm:text-sm px-3 sm:px-4">
-                                  <Badge variant={statusConfig.variant} className="text-xs sm:text-sm">
-                                    {statusConfig.label}
-                                  </Badge>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                            Nenhuma despesa registrada
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
+            <TransactionTable
+              title="Todas as Saídas/Despesas"
+              columns={[
+                { key: "data", label: "Data" },
+                { key: "descricao", label: "Descrição" },
+                { key: "categoria", label: "Categoria" },
+                { key: "valor", label: "Valor" },
+                { key: "status", label: "Status" },
+              ]}
+              data={contasPagar
+                .sort((a: any, b: any) => {
+                  const dateA = typeof a.data === 'string' ? parseISO(a.data) : new Date(a.data);
+                  const dateB = typeof b.data === 'string' ? parseISO(b.data) : new Date(b.data);
+                  return dateB.getTime() - dateA.getTime();
+                })
+                .slice(0, 50)}
+              emptyMessage="Nenhuma despesa registrada"
+              renderCell={(column, value, row) => {
+                switch (column) {
+                  case "data":
+                    return row.data ? format(typeof row.data === 'string' ? parseISO(row.data) : new Date(row.data), "dd/MM/yyyy") : "-";
+                  case "descricao":
+                    return row.descricao || "Sem descrição";
+                  case "categoria":
+                    return row.categorias_movimentacao?.nome || row.grupo_categoria || "-";
+                  case "valor":
+                    return <span className="text-destructive font-semibold whitespace-nowrap">{formatCurrency(Math.abs(Number(row.valor || 0)))}</span>;
+                  case "status":
+                    const statusConfig = getStatusBadgeConfig(row.status);
+                    return <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>;
+                  default:
+                    return value;
+                }
+              }}
+            />
           </TabsContent>
 
 
           {/* Relatório Anual */}
           <TabsContent value="relatorio-anual" className="space-y-6">
             {/* Filtros */}
-            <Card className="bg-card/80 border-border">
-              <CardHeader>
-                <CardTitle className="text-foreground">Filtros</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Filtro de Data */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">Data Inicial</Label>
-                    <Input
-                      type="date"
-                      value={dataInicio}
-                      onChange={(e) => setDataInicio(e.target.value)}
-                      className="bg-background border-border"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-muted-foreground">Data Final</Label>
-                    <Input
-                      type="date"
-                      value={dataFim}
-                      onChange={(e) => setDataFim(e.target.value)}
-                      className="bg-background border-border"
-                    />
-                  </div>
-                </div>
-
-                {/* Filtro de Categorias */}
-                <div className="space-y-3">
-                  <Label className="text-muted-foreground">Categorias</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {categoriasUnicas.map((categoria) => (
-                      <div key={categoria} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={categoria}
-                          checked={categoriasPermitidas.has(categoria)}
-                          onCheckedChange={(checked) => handleCategoriaChange(categoria, checked as boolean)}
-                        />
-                        <label
-                          htmlFor={categoria}
-                          className="text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
-                        >
-                          {categoria}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                  {categoriasUnicas.length === 0 && (
-                    <p className="text-muted-foreground text-sm">Nenhuma categoria disponível</p>
-                  )}
-                </div>
-
-                {/* Botão para limpar filtros */}
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setDataInicio(new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]);
-                    setDataFim(new Date().toISOString().split('T')[0]);
-                    setCategoriasPermitidas(new Set());
-                  }}
-                  className="border-border"
-                >
-                  Limpar Filtros
-                </Button>
-              </CardContent>
-            </Card>
+            <FilterSection
+              dataInicio={dataInicio}
+              dataFim={dataFim}
+              onDataInicioChange={setDataInicio}
+              onDataFimChange={setDataFim}
+              categorias={categoriasUnicas}
+              categoriasPermitidas={categoriasPermitidas}
+              onCategoriaChange={handleCategoriaChange}
+              onClearFilters={() => {
+                setDataInicio(new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0]);
+                setDataFim(new Date().toISOString().split('T')[0]);
+                setCategoriasPermitidas(new Set());
+              }}
+            />
 
             {/* Resumo dos Filtros */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
