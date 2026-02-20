@@ -4,6 +4,7 @@ import { ActivityFeed } from "./ActivityFeed";
 import { QuickActions } from "./QuickActions";
 import { MonthlyPerformance } from "./MonthlyPerformance";
 import { PipelineTable } from "./PipelineTable";
+import { StatsGrid } from "./StatsGrid";
 import { LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -12,6 +13,13 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({ onExport }: DashboardHeaderProps) {
+  const currentDate = new Date().toLocaleDateString("pt-BR", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
   return (
     <div className="space-y-6 pb-8">
       {/* Header */}
@@ -61,4 +69,3 @@ export function DashboardHeader({ onExport }: DashboardHeaderProps) {
     </div>
   );
 }
-
