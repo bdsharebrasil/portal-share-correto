@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Bell, DollarSign, FileText, Loader2, ArrowLeft } from "lucide-react";
-import { useInadimplencia } from "@/hooks/useContasReceber";
+import { useInadimplencia } from "@/hooks/useInadimplencia";
 import { format, parseISO, differenceInDays } from "date-fns";
 
 interface InadimplenciaProps {
