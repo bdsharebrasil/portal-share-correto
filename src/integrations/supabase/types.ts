@@ -148,13 +148,6 @@ export type Database = {
             foreignKeyName: "abastecimentos_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "abastecimentos_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -177,13 +170,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "abastecimentos_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
         ]
@@ -596,8 +582,6 @@ export type Database = {
       aircraft_loans: {
         Row: {
           arrival_aerodrome: string | null
-          borrower_aircraft_id: string | null
-          borrower_client_id: string
           created_at: string | null
           departure_aerodrome: string
           entry_date: string
@@ -605,8 +589,6 @@ export type Database = {
           hours_borrowed: number
           hours_paid_back: number | null
           id: string
-          lender_aircraft_id: string
-          lender_client_id: string
           logbook_entry_id: string | null
           notes: string | null
           payback_entry_id: string | null
@@ -617,8 +599,6 @@ export type Database = {
         }
         Insert: {
           arrival_aerodrome?: string | null
-          borrower_aircraft_id?: string | null
-          borrower_client_id: string
           created_at?: string | null
           departure_aerodrome: string
           entry_date: string
@@ -626,8 +606,6 @@ export type Database = {
           hours_borrowed: number
           hours_paid_back?: number | null
           id?: string
-          lender_aircraft_id: string
-          lender_client_id: string
           logbook_entry_id?: string | null
           notes?: string | null
           payback_entry_id?: string | null
@@ -638,8 +616,6 @@ export type Database = {
         }
         Update: {
           arrival_aerodrome?: string | null
-          borrower_aircraft_id?: string | null
-          borrower_client_id?: string
           created_at?: string | null
           departure_aerodrome?: string
           entry_date?: string
@@ -647,8 +623,6 @@ export type Database = {
           hours_borrowed?: number
           hours_paid_back?: number | null
           id?: string
-          lender_aircraft_id?: string
-          lender_client_id?: string
           logbook_entry_id?: string | null
           notes?: string | null
           payback_entry_id?: string | null
@@ -658,202 +632,6 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "aircraft_loans_borrower_aircraft_id_fkey"
-            columns: ["borrower_aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_borrower_aircraft_id_fkey"
-            columns: ["borrower_aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft_availability"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_borrower_aircraft_id_fkey"
-            columns: ["borrower_aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_borrower_aircraft_id_fkey"
-            columns: ["borrower_aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_borrower_aircraft_id_fkey"
-            columns: ["borrower_aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_borrower_aircraft_id_fkey"
-            columns: ["borrower_aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_borrower_client_id_fkey"
-            columns: ["borrower_client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_borrower_client_id_fkey"
-            columns: ["borrower_client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_borrower_client_id_fkey"
-            columns: ["borrower_client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_borrower_client_id_fkey"
-            columns: ["borrower_client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_simples"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_borrower_client_id_fkey"
-            columns: ["borrower_client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_borrower_client_id_fkey"
-            columns: ["borrower_client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_borrower_client_id_fkey"
-            columns: ["borrower_client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_borrower_client_id_fkey"
-            columns: ["borrower_client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_lender_aircraft_id_fkey"
-            columns: ["lender_aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_lender_aircraft_id_fkey"
-            columns: ["lender_aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft_availability"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_lender_aircraft_id_fkey"
-            columns: ["lender_aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_lender_aircraft_id_fkey"
-            columns: ["lender_aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_lender_aircraft_id_fkey"
-            columns: ["lender_aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_lender_aircraft_id_fkey"
-            columns: ["lender_aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_lender_client_id_fkey"
-            columns: ["lender_client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_lender_client_id_fkey"
-            columns: ["lender_client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_lender_client_id_fkey"
-            columns: ["lender_client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_lender_client_id_fkey"
-            columns: ["lender_client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_simples"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_lender_client_id_fkey"
-            columns: ["lender_client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_lender_client_id_fkey"
-            columns: ["lender_client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_lender_client_id_fkey"
-            columns: ["lender_client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_loans_lender_client_id_fkey"
-            columns: ["lender_client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
           {
             foreignKeyName: "aircraft_loans_logbook_entry_id_fkey"
             columns: ["logbook_entry_id"]
@@ -1155,13 +933,6 @@ export type Database = {
             foreignKeyName: "aircraft_partners_partner_id_fkey"
             columns: ["partner_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_partners_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -1184,13 +955,6 @@ export type Database = {
             columns: ["partner_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_partners_partner_id_fkey"
-            columns: ["partner_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
         ]
@@ -1278,13 +1042,6 @@ export type Database = {
             foreignKeyName: "aircraft_shareholders_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_shareholders_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -1307,13 +1064,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "aircraft_shareholders_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
         ]
@@ -1387,6 +1137,7 @@ export type Database = {
           comprovante_url: string | null
           controle_bancario_id: string | null
           created_at: string | null
+          created_by: string | null
           criado_por: string
           data_reembolso: string | null
           date: string
@@ -1421,6 +1172,7 @@ export type Database = {
           comprovante_url?: string | null
           controle_bancario_id?: string | null
           created_at?: string | null
+          created_by?: string | null
           criado_por: string
           data_reembolso?: string | null
           date: string
@@ -1455,6 +1207,7 @@ export type Database = {
           comprovante_url?: string | null
           controle_bancario_id?: string | null
           created_at?: string | null
+          created_by?: string | null
           criado_por?: string
           data_reembolso?: string | null
           date?: string
@@ -1546,13 +1299,6 @@ export type Database = {
             foreignKeyName: "bank_reconciliations_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -1575,13 +1321,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
           {
@@ -1933,13 +1672,6 @@ export type Database = {
             foreignKeyName: "client_aircraft_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "client_aircraft_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -1962,13 +1694,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "client_aircraft_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
         ]
@@ -2035,13 +1760,6 @@ export type Database = {
             foreignKeyName: "client_contracts_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "client_contracts_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -2064,13 +1782,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "client_contracts_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
         ]
@@ -2122,13 +1833,6 @@ export type Database = {
             foreignKeyName: "client_partners_client_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "client_partners_client_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -2151,13 +1855,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "client_partners_client_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
         ]
@@ -2212,13 +1909,6 @@ export type Database = {
             foreignKeyName: "client_portal_auth_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "client_portal_auth_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -2241,13 +1931,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "client_portal_auth_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
         ]
@@ -2413,13 +2096,6 @@ export type Database = {
             foreignKeyName: "client_portal_files_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "client_portal_files_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -2444,13 +2120,6 @@ export type Database = {
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
           },
-          {
-            foreignKeyName: "client_portal_files_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
         ]
       }
       clients: {
@@ -2464,19 +2133,11 @@ export type Database = {
           documents: Json | null
           email: string | null
           financial_contact: string | null
+          has_partner: boolean
           id: string
           inscricao_estadual: string | null
           logo_url: string | null
           observations: string | null
-          partner_cpf: string | null
-          partner_cpf2: string | null
-          partner_cpf3: string | null
-          partner_name: string | null
-          partner_name2: string | null
-          partner_name3: string | null
-          partner_percentage1: number | null
-          partner_percentage2: number | null
-          partner_percentage3: number | null
           phone: string | null
           proprietario: string | null
           share_percentage: number | null
@@ -2494,19 +2155,11 @@ export type Database = {
           documents?: Json | null
           email?: string | null
           financial_contact?: string | null
+          has_partner?: boolean
           id?: string
           inscricao_estadual?: string | null
           logo_url?: string | null
           observations?: string | null
-          partner_cpf?: string | null
-          partner_cpf2?: string | null
-          partner_cpf3?: string | null
-          partner_name?: string | null
-          partner_name2?: string | null
-          partner_name3?: string | null
-          partner_percentage1?: number | null
-          partner_percentage2?: number | null
-          partner_percentage3?: number | null
           phone?: string | null
           proprietario?: string | null
           share_percentage?: number | null
@@ -2524,19 +2177,11 @@ export type Database = {
           documents?: Json | null
           email?: string | null
           financial_contact?: string | null
+          has_partner?: boolean
           id?: string
           inscricao_estadual?: string | null
           logo_url?: string | null
           observations?: string | null
-          partner_cpf?: string | null
-          partner_cpf2?: string | null
-          partner_cpf3?: string | null
-          partner_name?: string | null
-          partner_name2?: string | null
-          partner_name3?: string | null
-          partner_percentage1?: number | null
-          partner_percentage2?: number | null
-          partner_percentage3?: number | null
           phone?: string | null
           proprietario?: string | null
           share_percentage?: number | null
@@ -2994,6 +2639,7 @@ export type Database = {
           aeronave: string | null
           arquivo_pdf_url: string | null
           atualizado_em: string | null
+          banco_conciliacao_id: string | null
           banco_recebimento: string | null
           boleto_url: string | null
           categoria: string
@@ -3009,8 +2655,12 @@ export type Database = {
           fornecedor_id: string | null
           fornecedor_tipo: string | null
           id: string
+          metodo_pagamento: string | null
+          nf_saida_id: string | null
           nota_fiscal_url: string | null
           numero: string
+          reference_id: string | null
+          reference_type: string | null
           status: string
           valor: number
         }
@@ -3018,6 +2668,7 @@ export type Database = {
           aeronave?: string | null
           arquivo_pdf_url?: string | null
           atualizado_em?: string | null
+          banco_conciliacao_id?: string | null
           banco_recebimento?: string | null
           boleto_url?: string | null
           categoria: string
@@ -3033,8 +2684,12 @@ export type Database = {
           fornecedor_id?: string | null
           fornecedor_tipo?: string | null
           id?: string
+          metodo_pagamento?: string | null
+          nf_saida_id?: string | null
           nota_fiscal_url?: string | null
           numero: string
+          reference_id?: string | null
+          reference_type?: string | null
           status: string
           valor: number
         }
@@ -3042,6 +2697,7 @@ export type Database = {
           aeronave?: string | null
           arquivo_pdf_url?: string | null
           atualizado_em?: string | null
+          banco_conciliacao_id?: string | null
           banco_recebimento?: string | null
           boleto_url?: string | null
           categoria?: string
@@ -3057,8 +2713,12 @@ export type Database = {
           fornecedor_id?: string | null
           fornecedor_tipo?: string | null
           id?: string
+          metodo_pagamento?: string | null
+          nf_saida_id?: string | null
           nota_fiscal_url?: string | null
           numero?: string
+          reference_id?: string | null
+          reference_type?: string | null
           status?: string
           valor?: number
         }
@@ -3168,6 +2828,13 @@ export type Database = {
             referencedRelation: "fornecedores_favoritos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "contas_areceber_nf_saida_id_fkey"
+            columns: ["nf_saida_id"]
+            isOneToOne: false
+            referencedRelation: "notas_fiscais_saida"
+            referencedColumns: ["id"]
+          },
         ]
       }
       contas_bancarias: {
@@ -3177,7 +2844,6 @@ export type Database = {
           banco: string | null
           criado_em: string | null
           criado_por: string
-          empresa_id: string
           id: string
           numero_conta: string | null
           tipo_conta: string | null
@@ -3188,7 +2854,6 @@ export type Database = {
           banco?: string | null
           criado_em?: string | null
           criado_por: string
-          empresa_id: string
           id?: string
           numero_conta?: string | null
           tipo_conta?: string | null
@@ -3199,7 +2864,6 @@ export type Database = {
           banco?: string | null
           criado_em?: string | null
           criado_por?: string
-          empresa_id?: string
           id?: string
           numero_conta?: string | null
           tipo_conta?: string | null
@@ -3269,6 +2933,7 @@ export type Database = {
           categoria_id: string
           client_id: string | null
           client_name: string | null
+          client_partner_id: string | null
           colaborador_id: string | null
           comprovante_url: string | null
           conta_banco: string | null
@@ -3284,16 +2949,19 @@ export type Database = {
           grupo_categoria: string | null
           id: string
           lancamento_reembolso_id: string | null
+          metodo_pagamento: string | null
           nf_url: string | null
           numero_documento: string | null
           observacao_cliente: string | null
           observacoes: string | null
-          partner_name: string | null
+          prazo: string | null
           rateio_completo: boolean | null
           rateio_tipo: string | null
           recibo_url: string | null
           reembolsavel: boolean | null
           reembolso_recebido: boolean | null
+          reference_id: string | null
+          reference_type: string | null
           status: string | null
           tem_rateio: boolean | null
           tipo_movimento: string
@@ -3308,6 +2976,7 @@ export type Database = {
           categoria_id: string
           client_id?: string | null
           client_name?: string | null
+          client_partner_id?: string | null
           colaborador_id?: string | null
           comprovante_url?: string | null
           conta_banco?: string | null
@@ -3323,16 +2992,19 @@ export type Database = {
           grupo_categoria?: string | null
           id?: string
           lancamento_reembolso_id?: string | null
+          metodo_pagamento?: string | null
           nf_url?: string | null
           numero_documento?: string | null
           observacao_cliente?: string | null
           observacoes?: string | null
-          partner_name?: string | null
+          prazo?: string | null
           rateio_completo?: boolean | null
           rateio_tipo?: string | null
           recibo_url?: string | null
           reembolsavel?: boolean | null
           reembolso_recebido?: boolean | null
+          reference_id?: string | null
+          reference_type?: string | null
           status?: string | null
           tem_rateio?: boolean | null
           tipo_movimento: string
@@ -3347,6 +3019,7 @@ export type Database = {
           categoria_id?: string
           client_id?: string | null
           client_name?: string | null
+          client_partner_id?: string | null
           colaborador_id?: string | null
           comprovante_url?: string | null
           conta_banco?: string | null
@@ -3362,16 +3035,19 @@ export type Database = {
           grupo_categoria?: string | null
           id?: string
           lancamento_reembolso_id?: string | null
+          metodo_pagamento?: string | null
           nf_url?: string | null
           numero_documento?: string | null
           observacao_cliente?: string | null
           observacoes?: string | null
-          partner_name?: string | null
+          prazo?: string | null
           rateio_completo?: boolean | null
           rateio_tipo?: string | null
           recibo_url?: string | null
           reembolsavel?: boolean | null
           reembolso_recebido?: boolean | null
+          reference_id?: string | null
+          reference_type?: string | null
           status?: string | null
           tem_rateio?: boolean | null
           tipo_movimento?: string
@@ -3446,13 +3122,6 @@ export type Database = {
             foreignKeyName: "controle_bancario_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "controle_bancario_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -3478,11 +3147,11 @@ export type Database = {
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "controle_bancario_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "controle_bancario_client_partner_id_fkey"
+            columns: ["client_partner_id"]
             isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
-            referencedColumns: ["cliente_id"]
+            referencedRelation: "client_partners"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "controle_bancario_colaborador_id_fkey"
@@ -3555,6 +3224,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      crew: {
+        Row: {
+          address: string | null
+          avatar_url: string | null
+          birth_date: string | null
+          canac: string
+          cpf: string | null
+          created_at: string | null
+          full_name: string
+          id: string
+          phone: string | null
+          rg: string | null
+          status: string
+        }
+        Insert: {
+          address?: string | null
+          avatar_url?: string | null
+          birth_date?: string | null
+          canac: string
+          cpf?: string | null
+          created_at?: string | null
+          full_name: string
+          id?: string
+          phone?: string | null
+          rg?: string | null
+          status?: string
+        }
+        Update: {
+          address?: string | null
+          avatar_url?: string | null
+          birth_date?: string | null
+          canac?: string
+          cpf?: string | null
+          created_at?: string | null
+          full_name?: string
+          id?: string
+          phone?: string | null
+          rg?: string | null
+          status?: string
+        }
+        Relationships: []
       }
       crew_flight_hours: {
         Row: {
@@ -3902,13 +3613,6 @@ export type Database = {
             foreignKeyName: "ctm_cost_sharing_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "ctm_cost_sharing_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -3931,13 +3635,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "ctm_cost_sharing_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
           {
@@ -3990,13 +3687,6 @@ export type Database = {
             foreignKeyName: "ctm_flight_report_details_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "ctm_flight_report_details_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -4019,13 +3709,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "ctm_flight_report_details_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
           {
@@ -4466,13 +4149,6 @@ export type Database = {
             foreignKeyName: "ctm_tracking_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "ctm_tracking_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -4495,13 +4171,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "ctm_tracking_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
         ]
@@ -4749,13 +4418,6 @@ export type Database = {
             foreignKeyName: "despesas_cliente_direto_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "despesas_cliente_direto_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -4778,13 +4440,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "despesas_cliente_direto_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
           {
@@ -5773,13 +5428,6 @@ export type Database = {
             foreignKeyName: "flight_cycles_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "flight_cycles_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -5802,13 +5450,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "flight_cycles_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
           {
@@ -6266,13 +5907,6 @@ export type Database = {
             foreignKeyName: "flight_schedules_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "flight_schedules_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -6295,13 +5929,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "flight_schedules_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
         ]
@@ -6746,13 +6373,6 @@ export type Database = {
             foreignKeyName: "hour_transactions_from_partner_id_fkey"
             columns: ["from_partner_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "hour_transactions_from_partner_id_fkey"
-            columns: ["from_partner_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -6775,13 +6395,6 @@ export type Database = {
             columns: ["from_partner_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "hour_transactions_from_partner_id_fkey"
-            columns: ["from_partner_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
           {
@@ -6802,13 +6415,6 @@ export type Database = {
             foreignKeyName: "hour_transactions_to_partner_id_fkey"
             columns: ["to_partner_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "hour_transactions_to_partner_id_fkey"
-            columns: ["to_partner_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -6831,13 +6437,6 @@ export type Database = {
             columns: ["to_partner_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "hour_transactions_to_partner_id_fkey"
-            columns: ["to_partner_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
         ]
@@ -6940,6 +6539,7 @@ export type Database = {
           cargo_kg: number | null
           celula: number | null
           client_id: string | null
+          client_partner_id: string | null
           closed_at: string | null
           closed_by: string | null
           confirmed: boolean | null
@@ -6971,12 +6571,13 @@ export type Database = {
           is_equal_split: boolean | null
           is_loan: boolean | null
           last_maintenance_type: string | null
+          loan_recipient_client_id: string | null
+          loan_recipient_partner_id: string | null
           logbook_month_id: string
           maintenance_approval_responsible: string | null
           next_maintenance_type: string | null
           night_hours: number | null
           occurrences: string | null
-          partner_name: string | null
           passengers: number | null
           pic_canac: string
           pilot_signature_date: string | null
@@ -6998,6 +6599,7 @@ export type Database = {
           cargo_kg?: number | null
           celula?: number | null
           client_id?: string | null
+          client_partner_id?: string | null
           closed_at?: string | null
           closed_by?: string | null
           confirmed?: boolean | null
@@ -7029,12 +6631,13 @@ export type Database = {
           is_equal_split?: boolean | null
           is_loan?: boolean | null
           last_maintenance_type?: string | null
+          loan_recipient_client_id?: string | null
+          loan_recipient_partner_id?: string | null
           logbook_month_id: string
           maintenance_approval_responsible?: string | null
           next_maintenance_type?: string | null
           night_hours?: number | null
           occurrences?: string | null
-          partner_name?: string | null
           passengers?: number | null
           pic_canac: string
           pilot_signature_date?: string | null
@@ -7056,6 +6659,7 @@ export type Database = {
           cargo_kg?: number | null
           celula?: number | null
           client_id?: string | null
+          client_partner_id?: string | null
           closed_at?: string | null
           closed_by?: string | null
           confirmed?: boolean | null
@@ -7087,12 +6691,13 @@ export type Database = {
           is_equal_split?: boolean | null
           is_loan?: boolean | null
           last_maintenance_type?: string | null
+          loan_recipient_client_id?: string | null
+          loan_recipient_partner_id?: string | null
           logbook_month_id?: string
           maintenance_approval_responsible?: string | null
           next_maintenance_type?: string | null
           night_hours?: number | null
           occurrences?: string | null
-          partner_name?: string | null
           passengers?: number | null
           pic_canac?: string
           pilot_signature_date?: string | null
@@ -7167,13 +6772,6 @@ export type Database = {
             foreignKeyName: "logbook_entries_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "logbook_entries_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -7199,17 +6797,66 @@ export type Database = {
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "logbook_entries_client_id_fkey"
-            columns: ["client_id"]
+            foreignKeyName: "logbook_entries_client_partner_id_fkey"
+            columns: ["client_partner_id"]
             isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
-            referencedColumns: ["cliente_id"]
+            referencedRelation: "client_partners"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "logbook_entries_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "user_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "logbook_entries_loan_recipient_client_fkey"
+            columns: ["loan_recipient_client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "logbook_entries_loan_recipient_client_fkey"
+            columns: ["loan_recipient_client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "logbook_entries_loan_recipient_client_fkey"
+            columns: ["loan_recipient_client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente_simples"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "logbook_entries_loan_recipient_client_fkey"
+            columns: ["loan_recipient_client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "logbook_entries_loan_recipient_client_fkey"
+            columns: ["loan_recipient_client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "logbook_entries_loan_recipient_client_fkey"
+            columns: ["loan_recipient_client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_reembolsos_pendentes"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "logbook_entries_loan_recipient_partner_fkey"
+            columns: ["loan_recipient_partner_id"]
+            isOneToOne: false
+            referencedRelation: "client_partners"
             referencedColumns: ["id"]
           },
           {
@@ -7820,13 +7467,13 @@ export type Database = {
           aeronave: string | null
           aircraft_id: string | null
           arquivo_pdf_url: string | null
-          atualizado_em: string | null
           categoria: string
           client_id: string | null
           cliente_cnpj: string
           cliente_nome: string
           criado_em: string | null
           criado_por: string | null
+          data_atualizacao: string | null
           data_criacao: string
           data_vencimento: string
           descricao: string | null
@@ -7839,13 +7486,13 @@ export type Database = {
           aeronave?: string | null
           aircraft_id?: string | null
           arquivo_pdf_url?: string | null
-          atualizado_em?: string | null
           categoria: string
           client_id?: string | null
           cliente_cnpj: string
           cliente_nome: string
           criado_em?: string | null
           criado_por?: string | null
+          data_atualizacao?: string | null
           data_criacao: string
           data_vencimento: string
           descricao?: string | null
@@ -7858,13 +7505,13 @@ export type Database = {
           aeronave?: string | null
           aircraft_id?: string | null
           arquivo_pdf_url?: string | null
-          atualizado_em?: string | null
           categoria?: string
           client_id?: string | null
           cliente_cnpj?: string
           cliente_nome?: string
           criado_em?: string | null
           criado_por?: string | null
+          data_atualizacao?: string | null
           data_criacao?: string
           data_vencimento?: string
           descricao?: string | null
@@ -8032,13 +7679,6 @@ export type Database = {
             foreignKeyName: "notas_fiscais_saida_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "notas_fiscais_saida_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -8061,13 +7701,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "notas_fiscais_saida_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
         ]
@@ -8322,13 +7955,6 @@ export type Database = {
             foreignKeyName: "partner_accounts_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "partner_accounts_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -8353,13 +7979,6 @@ export type Database = {
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
           },
-          {
-            foreignKeyName: "partner_accounts_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
         ]
       }
       partner_expenses: {
@@ -8367,11 +7986,13 @@ export type Database = {
           aircraft_id: string | null
           assigned_partner_cpf: string | null
           assigned_partner_name: string | null
+          bank_name: string | null
           category: string | null
           client_id: string
           created_at: string | null
           created_by: string | null
           description: string
+          doc: string | null
           due_date: string | null
           expense_type: string
           id: string
@@ -8390,11 +8011,13 @@ export type Database = {
           aircraft_id?: string | null
           assigned_partner_cpf?: string | null
           assigned_partner_name?: string | null
+          bank_name?: string | null
           category?: string | null
           client_id: string
           created_at?: string | null
           created_by?: string | null
           description: string
+          doc?: string | null
           due_date?: string | null
           expense_type: string
           id?: string
@@ -8413,11 +8036,13 @@ export type Database = {
           aircraft_id?: string | null
           assigned_partner_cpf?: string | null
           assigned_partner_name?: string | null
+          bank_name?: string | null
           category?: string | null
           client_id?: string
           created_at?: string | null
           created_by?: string | null
           description?: string
+          doc?: string | null
           due_date?: string | null
           expense_type?: string
           id?: string
@@ -8493,13 +8118,6 @@ export type Database = {
             foreignKeyName: "partner_expenses_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "partner_expenses_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -8524,13 +8142,6 @@ export type Database = {
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
           },
-          {
-            foreignKeyName: "partner_expenses_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
         ]
       }
       partner_transactions: {
@@ -8543,6 +8154,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           description: string | null
+          doc: string | null
           id: string
           notes: string | null
           partner_cpf: string
@@ -8565,6 +8177,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          doc?: string | null
           id?: string
           notes?: string | null
           partner_cpf: string
@@ -8587,6 +8200,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          doc?: string | null
           id?: string
           notes?: string | null
           partner_cpf?: string
@@ -8619,13 +8233,6 @@ export type Database = {
             foreignKeyName: "partner_transactions_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "partner_transactions_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -8648,13 +8255,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "partner_transactions_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
         ]
@@ -9466,13 +9066,6 @@ export type Database = {
             foreignKeyName: "rateio_despesas_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "rateio_despesas_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -9495,13 +9088,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "rateio_despesas_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
         ]
@@ -9619,13 +9205,6 @@ export type Database = {
             foreignKeyName: "receipt_history_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "receipt_history_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -9648,13 +9227,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "receipt_history_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
         ]
@@ -9832,13 +9404,6 @@ export type Database = {
             foreignKeyName: "receipts_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "receipts_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -9861,13 +9426,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "receipts_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
         ]
@@ -10636,13 +10194,6 @@ export type Database = {
             foreignKeyName: "travel_expense_reports_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "travel_expense_reports_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -10665,13 +10216,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "travel_expense_reports_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
           {
@@ -10914,13 +10458,6 @@ export type Database = {
             foreignKeyName: "user_profiles_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "user_profiles_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -10943,13 +10480,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "user_profiles_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
         ]
@@ -11315,13 +10845,6 @@ export type Database = {
             foreignKeyName: "flight_cycles_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "flight_cycles_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -11344,13 +10867,6 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "flight_cycles_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
         ]
@@ -11495,13 +11011,6 @@ export type Database = {
             foreignKeyName: "partner_accounts_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "partner_accounts_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -11526,25 +11035,7 @@ export type Database = {
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
           },
-          {
-            foreignKeyName: "partner_accounts_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
         ]
-      }
-      v_partners: {
-        Row: {
-          client_id: string | null
-          cnpj: string | null
-          company_name: string | null
-          cpf: string | null
-          name: string | null
-          partner_position: number | null
-        }
-        Relationships: []
       }
       v_salary_comparison: {
         Row: {
@@ -11637,42 +11128,6 @@ export type Database = {
           total_despesas: number | null
           total_movimentacoes: number | null
           valor_cliente_pagou_direto: number | null
-          valor_empresa_adiantou: number | null
-          valor_reembolsado: number | null
-        }
-        Relationships: []
-      }
-      vw_balanco_cliente_completo: {
-        Row: {
-          aeronaves: string | null
-          cliente_cnpj: string | null
-          cliente_id: string | null
-          cliente_nome: string | null
-          despesas_por_categoria: Json | null
-          horas_totais_aeronave: number | null
-          horas_voadas: number | null
-          litros_consumidos: number | null
-          mes_ano: string | null
-          mes_referencia: string | null
-          percentual_uso: number | null
-          qtd_abastecimentos: number | null
-          qtd_aguardando: number | null
-          qtd_processado: number | null
-          qtd_reembolsado: number | null
-          saldo_pendente: number | null
-          socio1_cpf: string | null
-          socio1_nome: string | null
-          socio1_percentual: number | null
-          socio2_cpf: string | null
-          socio2_nome: string | null
-          socio2_percentual: number | null
-          socio3_cpf: string | null
-          socio3_nome: string | null
-          socio3_percentual: number | null
-          total_despesas: number | null
-          total_movimentacoes: number | null
-          valor_cliente_pagou_direto: number | null
-          valor_combustivel: number | null
           valor_empresa_adiantou: number | null
           valor_reembolsado: number | null
         }
@@ -11782,13 +11237,6 @@ export type Database = {
             foreignKeyName: "bank_reconciliations_client_id_fkey"
             columns: ["cliente_id"]
             isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_completo"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_client_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
             referencedRelation: "vw_balanco_cliente_simples"
             referencedColumns: ["cliente_id"]
           },
@@ -11811,13 +11259,6 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "bank_reconciliations_client_id_fkey"
-            columns: ["cliente_id"]
-            isOneToOne: false
-            referencedRelation: "vw_resumo_cliente_completo"
             referencedColumns: ["cliente_id"]
           },
         ]
@@ -11992,39 +11433,6 @@ export type Database = {
           status_legivel: string | null
           valor_ja_pago: number | null
           valor_total: number | null
-        }
-        Relationships: []
-      }
-      vw_resumo_cliente_completo: {
-        Row: {
-          aeronaves: string | null
-          ano: number | null
-          cliente_cnpj: string | null
-          cliente_id: string | null
-          cliente_nome: string | null
-          horas_totais_aeronave: number | null
-          horas_voadas: number | null
-          litros_consumidos: number | null
-          mes: number | null
-          mes_ano: string | null
-          percentual_uso: number | null
-          qtd_abastecimentos: number | null
-          saldo_pendente: number | null
-          socio1_cpf: string | null
-          socio1_nome: string | null
-          socio1_percentual: number | null
-          socio2_cpf: string | null
-          socio2_nome: string | null
-          socio2_percentual: number | null
-          socio3_cpf: string | null
-          socio3_nome: string | null
-          socio3_percentual: number | null
-          total_despesas: number | null
-          total_movimentacoes: number | null
-          valor_cliente_pagou_direto: number | null
-          valor_combustivel: number | null
-          valor_empresa_adiantou: number | null
-          valor_reembolsado: number | null
         }
         Relationships: []
       }
