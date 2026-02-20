@@ -78,6 +78,7 @@ import VencimentosTripulacao from "./pages/VencimentosTripulacao";
 import VencimentosDocumentos from "./pages/VencimentosDocumentos";
 import FinanceiroSocios from "./pages/FinanceiroSocios";
 import RelatorioTransacoesSocios from "./pages/RelatorioTransacoesSocios";
+import RelatoriosFinanceiros from "./pages/RelatoriosFinanceiros";
 
 // Componentes wrapper definidos FORA do App para evitar conflitos com hooks
 const DiarioBordoWrapper = () => {
@@ -134,6 +135,7 @@ const App = () => {
                           <Route path="/" element={renderProtected(<Index />)} />
                           <Route path="/operacoes" element={renderProtected(<DashboardOperacoes />)} />
                           <Route path="/financeiro" element={renderProtected(<DashboardFinanceiro />)} />
+                          <Route path="/relatorios" element={renderProtected(<RelatoriosFinanceiros />)} />
                           <Route path="/gestor" element={
                             renderProtected(
                               <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>

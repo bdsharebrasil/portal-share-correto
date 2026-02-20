@@ -1,12 +1,11 @@
 import React from "react";
 import { ChartSection } from "./ChartSection";
 import { ActivityFeed } from "./ActivityFeed";
-import { QuickActions } from "./QuickActions";
+import { TopMenu } from "./TopMenu";
 import { MonthlyPerformance } from "./MonthlyPerformance";
 import { PipelineTable } from "./PipelineTable";
 import { StatsGrid } from "./StatsGrid";
 import { LayoutDashboard } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 interface DashboardHeaderProps {
   onExport?: () => void;
@@ -35,6 +34,9 @@ export function DashboardHeader({ onExport }: DashboardHeaderProps) {
         </div>
       </div>
 
+      {/* Top Menu */}
+      <TopMenu />
+
       {/* KPI Cards */}
       <StatsGrid />
 
@@ -51,18 +53,8 @@ export function DashboardHeader({ onExport }: DashboardHeaderProps) {
         </div>
       </div>
 
-      {/* Secondary Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Activity Feed - 2 columns */}
-        <div className="lg:col-span-2">
-          <ActivityFeed />
-        </div>
-
-        {/* Quick Actions - 1 column */}
-        <div className="lg:col-span-1">
-          <QuickActions />
-        </div>
-      </div>
+      {/* Activity Feed */}
+      <ActivityFeed />
 
       {/* Pipeline Table - Full width */}
       <PipelineTable />

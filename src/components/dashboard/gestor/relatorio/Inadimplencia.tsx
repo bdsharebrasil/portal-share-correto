@@ -2,11 +2,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, Bell, DollarSign, FileText, Loader2 } from "lucide-react";
-import { useInadimplencia } from "@/hooks/useContasReceber";
+import { AlertTriangle, Bell, DollarSign, FileText, Loader2, ArrowLeft } from "lucide-react";
+import { useInadimplencia } from "@/hooks/useInadimplencia";
 import { format, parseISO, differenceInDays } from "date-fns";
 
-export function Inadimplencia() {
+interface InadimplenciaProps {
+  onBack?: () => void;
+}
+
+export function Inadimplencia({ onBack }: InadimplenciaProps) {
   const { data: inadimplentes, isLoading, error } = useInadimplencia();
 
   const calcularDiasAtraso = (vencimento: string) => {
@@ -72,9 +76,17 @@ export function Inadimplencia() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Inadimplência</h1>
-          <p className="text-gray-400 mt-1">Controle de contas em atraso</p>
+        <div className="flex items-center gap-4">
+          {onBack && (
+            <Button variant="ghost" onClick={onBack} className="text-gray-300">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Voltar
+            </Button>
+          )}
+          <div>
+            <h1 className="text-3xl font-bold text-white">Inadimplência</h1>
+            <p className="text-gray-400 mt-1">Controle de contas em atraso</p>
+          </div>
         </div>
         <Button onClick={handleExportarPDF} className="bg-blue-600 hover:bg-blue-700">
           <FileText className="w-4 h-4 mr-2" />
