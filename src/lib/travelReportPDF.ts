@@ -135,7 +135,14 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') 
              style="color:#1e3a8a;text-decoration:underline;font-size:11px;">
             Abrir comprovante PDF
           </a>
-        </p>`;
+        </p>
+        <embed
+          src="${url}"
+          type="application/pdf"
+          width="100%"
+          height="600px"
+          style="margin-top:10px; border:1px solid #ccc; display:block;"
+        />`;
     } else if (isImageUrl(url)) {
       comprovanteHtml = `
         <img
