@@ -36,7 +36,7 @@ const generatePDFConfig = (reportNumber: string) => {
     margin: 10,
     filename: `${reportNumber}-relatorio-viagem.pdf`,
     image: { type: 'jpeg' as const, quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, allowTaint: true },
+    html2canvas: { scale: 2, useCORS: true },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
   };
 };
@@ -46,8 +46,8 @@ export interface TravelExpense {
   descricao: string;
   valor: number;
   pago_por: string;
-  data?: string;
   comprovante_url?: string;
+  data?: string;
 }
 
 export interface TravelReport {
@@ -363,14 +363,7 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') 
                     </tr>
                 </thead>
                 <tbody>
-                    ${[...report.despesas]
-                      .sort((a, b) => {
-                        if (!a.data && !b.data) return 0;
-                        if (!a.data) return 1;
-                        if (!b.data) return -1;
-                        return a.data.localeCompare(b.data);
-                      })
-                      .map(d => `
+                    ${report.despesas.map(d => `
                         <tr>
                             <td>${d.categoria || 'Outros'}</td>
                             <td>${d.data ? formatDateBR(d.data) : '-'}</td>
@@ -415,15 +408,22 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') 
                 <h2>Comprovantes Anexados</h2>
                 ${report.despesas
         .filter(d => d.comprovante_url)
-        .map((d, index) => `
+        .map((d, index) => {
+          const url = d.comprovante_url || '';
+          const isPdf = url.toLowerCase().endsWith('.pdf');
+          return `
                         <div class="receipt-item">
                             <p><strong>Item Nº:</strong> ${index + 1}</p>
                             <p><strong>Descrição:</strong> ${d.descricao || 'N/A'}</p>
                             <p><strong>Categoria:</strong> ${d.categoria || 'Outros'}</p>
                             <p><strong>Valor:</strong> R$ ${(Number(d.valor) || 0).toFixed(2).replace('.', ',')}</p>
-                            <img class="receipt-image" src="${d.comprovante_url}" alt="Comprovante" crossorigin="anonymous" />
-                        </div>
-                    `).join('')}
+                            ${isPdf
+              ? `<p style="margin-top:12px;font-size:11px;color:#666;">📎 Comprovante em formato PDF (não renderizável como imagem)</p>
+                 <p><a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#1e3a8a;text-decoration:underline;">Abrir comprovante PDF</a></p>`
+              : `<img class="receipt-image" src="${url}" alt="Comprovante" crossorigin="anonymous" onerror="this.style.display='none'; this.insertAdjacentHTML('afterend','<p style=\\'color:red;font-size:11px;\\'>Imagem não disponível</p>')" />`
+            }
+                        </div>`;
+        }).join('')}
             </div>
         ` : ''}
 
