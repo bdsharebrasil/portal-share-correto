@@ -5,36 +5,13 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  Area,
-  AreaChart,
-} from "recharts";
-import {
-  TrendingUp,
-  TrendingDown,
   Loader2,
-  Wallet,
-  Calendar,
 } from "lucide-react";
 import { useDashboardGestorData } from "@/hooks/useDashboardGestorData";
 import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 // Import new components
 import { DashboardHeader } from "@/components/dashboard/gestor/DashboardHeader";
-import { MonthSelector } from "@/components/dashboard/gestor/MonthSelector";
-import { KPISection } from "@/components/dashboard/gestor/KPISection";
-import { ChartCard } from "@/components/dashboard/gestor/ChartCard";
 import { TransactionTable } from "@/components/dashboard/gestor/TransactionTable";
 import { FilterSection } from "@/components/dashboard/gestor/FilterSection";
 
@@ -74,27 +51,16 @@ export default function DashboardGestor() {
     return `${year}-${month}-${day}`;
   });
   const [categoriasPermitidas, setCategoriasPermitidas] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("receitas");
 
   const {
     transacoes,
-    monthlyData,
-    categoryData,
     stats,
     contasReceber,
     contasPagar,
     isLoading,
   } = useDashboardGestorData(currentDate);
 
-  const previousMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  };
-
-  const nextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  };
-
-  const monthYear = format(currentDate, "MMMM yyyy", { locale: ptBR });
 
   // Get unique categories from transacoes
   const categoriasUnicas = Array.from(new Set(transacoes
@@ -129,38 +95,14 @@ export default function DashboardGestor() {
     );
   }
 
-  // Verificar se há dados
-  const hasData = transacoes.length > 0;
-  const hasMonthlyData = monthlyData.some(m => m.receitas > 0 || m.despesas > 0);
-
   return (
     <Layout>
       <div className="space-y-6 p-4 sm:p-6">
         {/* Header */}
         <DashboardHeader onExport={() => console.log("Export")} />
 
-        {/* Month Selector */}
-        <MonthSelector
-          monthYear={monthYear}
-          onPreviousMonth={previousMonth}
-          onNextMonth={nextMonth}
-        />
-
-        {/* KPI Cards */}
-        <KPISection
-          totalReceitas={stats.totalReceitas}
-          receitasConferidas={stats.receitasConferidas}
-          totalDespesas={stats.totalDespesas}
-          despesasConferidas={stats.despesasConferidas}
-          saldoGeral={stats.saldoGeral}
-          formatCurrency={formatCurrency}
-        />
-
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="bg-card border border-border">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Visão Geral
-            </TabsTrigger>
             <TabsTrigger value="receitas" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Receitas
             </TabsTrigger>
@@ -171,135 +113,6 @@ export default function DashboardGestor() {
               Relatório Anual
             </TabsTrigger>
           </TabsList>
-
-          {/* Visão Geral */}
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Gráfico de Receitas vs Despesas */}
-              <ChartCard
-                title="Receitas vs Despesas (últimos 6 meses)"
-                icon={<Wallet className="w-5 h-5 text-primary" />}
-              >
-                {hasMonthlyData ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={monthlyData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="monthLabel" stroke="hsl(var(--muted-foreground))" />
-                      <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "hsl(var(--card))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: "8px",
-                          color: "hsl(var(--foreground))"
-                        }}
-                        formatter={(value: number) => formatCurrency(value)}
-                      />
-                      <Legend />
-                      <Bar dataKey="receitas" fill="hsl(var(--success))" name="Receitas" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="despesas" fill="hsl(var(--destructive))" name="Despesas" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                    <div className="text-center">
-                      <Calendar className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p>Nenhum dado disponível para o período</p>
-                    </div>
-                  </div>
-                )}
-              </ChartCard>
-
-              {/* Distribuição de Despesas */}
-              <ChartCard
-                title="Distribuição de Despesas por Categoria"
-                icon={<TrendingDown className="w-5 h-5 text-destructive" />}
-              >
-                {categoryData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
-                      <Pie
-                        data={categoryData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, value }) => `${value}%`}
-                        outerRadius={100}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {categoryData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "hsl(var(--card))",
-                          border: "1px solid hsl(var(--border))",
-                          borderRadius: "8px"
-                        }}
-                        formatter={(value: number) => `${value}%`}
-                      />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-[300px] text-muted-foreground">
-                    <div className="text-center">
-                      <TrendingDown className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p>Nenhuma despesa registrada</p>
-                    </div>
-                  </div>
-                )}
-              </ChartCard>
-            </div>
-
-            {/* Tendência de Saldo */}
-            <ChartCard
-              title="Tendência de Saldo Mensal"
-              icon={<TrendingUp className="w-5 h-5 text-primary" />}
-            >
-              {hasMonthlyData ? (
-                <ResponsiveContainer width="100%" height={250}>
-                  <AreaChart data={monthlyData}>
-                    <defs>
-                      <linearGradient id="saldoGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="monthLabel" stroke="hsl(var(--muted-foreground))" />
-                    <YAxis stroke="hsl(var(--muted-foreground))" tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                        color: "hsl(var(--foreground))"
-                      }}
-                      formatter={(value: number) => formatCurrency(value)}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="saldo"
-                      stroke="hsl(var(--primary))"
-                      fill="url(#saldoGradient)"
-                      strokeWidth={2}
-                      name="Saldo"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-[250px] text-muted-foreground">
-                  <div className="text-center">
-                    <TrendingUp className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p>Nenhum dado de tendência disponível</p>
-                  </div>
-                </div>
-              )}
-            </ChartCard>
-          </TabsContent>
 
           {/* Receitas */}
           <TabsContent value="receitas" className="space-y-6">
