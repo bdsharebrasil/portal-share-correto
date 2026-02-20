@@ -1,4 +1,10 @@
 import React from "react";
+import { ChartSection } from "./ChartSection";
+import { ActivityFeed } from "./ActivityFeed";
+import { QuickActions } from "./QuickActions";
+import { MonthlyPerformance } from "./MonthlyPerformance";
+import { PipelineTable } from "./PipelineTable";
+import { LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Download } from "lucide-react";
 
