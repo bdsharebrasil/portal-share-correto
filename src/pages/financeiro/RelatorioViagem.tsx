@@ -36,8 +36,8 @@ interface Expense {
   description: string;
   amount: number;
   paid_by: string;
-  date?: string;
   receipt_url?: string;
+  expense_date?: string;
   id?: string;
 }
 
@@ -260,7 +260,7 @@ export default function RelatorioViagem() {
       end_date: new Date().toISOString().split('T')[0],
       days_count: 1,
       observations: '',
-      expenses: [{ category: '', description: '', amount: 0, paid_by: '', date: '' }],
+      expenses: [{ category: '', description: '', amount: 0, paid_by: '' }],
       total_amount: 0,
       total_fuel: 0,
       total_lodging: 0,
@@ -349,8 +349,8 @@ export default function RelatorioViagem() {
           descricao: e.description,
           valor: e.amount,
           pago_por: e.paid_by,
-          data: e.date,
-          comprovante_url: e.receipt_url
+          comprovante_url: e.receipt_url,
+          data: e.expense_date
         })) as TravelExpense[],
         total_combustivel: correctedTotals.total_fuel,
         total_hospedagem: correctedTotals.total_lodging,
@@ -417,7 +417,7 @@ export default function RelatorioViagem() {
     if (!currentReport) return;
     setCurrentReport({
       ...currentReport,
-      expenses: [...currentReport.expenses, { category: '', description: '', amount: 0, paid_by: '', date: '' }]
+      expenses: [...currentReport.expenses, { category: '', description: '', amount: 0, paid_by: '', expense_date: '' }]
     });
   };
 
@@ -923,8 +923,8 @@ export default function RelatorioViagem() {
                                     descricao: e.description,
                                     valor: e.amount,
                                     pago_por: e.paid_by,
-                                    data: e.date,
-                                    comprovante_url: e.receipt_url
+                                    comprovante_url: e.receipt_url,
+                                    data: e.expense_date
                                   })) as TravelExpense[],
                                   total_combustivel: correctedTotals.total_fuel,
                                   total_hospedagem: correctedTotals.total_lodging,
@@ -1348,12 +1348,33 @@ export default function RelatorioViagem() {
                         </div>
 
                         <div className="space-y-2">
-                          <Label>Data</Label>
-                          <Input
-                            type="date"
-                            value={expense.date || ''}
-                            onChange={(e) => handleExpenseChange(index, 'date', e.target.value)}
-                          />
+                          <Label>Data *</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full justify-start text-left font-normal",
+                                  !expense.expense_date && "text-muted-foreground"
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {expense.expense_date
+                                  ? format(new Date(expense.expense_date + 'T12:00:00'), 'dd/MM/yyyy')
+                                  : 'Selecione'}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <CalendarComponent
+                                mode="single"
+                                selected={expense.expense_date ? new Date(expense.expense_date + 'T12:00:00') : undefined}
+                                onSelect={(date) => handleExpenseChange(index, 'expense_date', date ? format(date, 'yyyy-MM-dd') : '')}
+                                locale={ptBR}
+                                initialFocus
+                                className={cn("p-3 pointer-events-auto")}
+                              />
+                            </PopoverContent>
+                          </Popover>
                         </div>
 
                         <div className="space-y-2">
