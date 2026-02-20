@@ -80,6 +80,7 @@ export function TravelReportPdfModal({
           descricao: e.description,
           valor: e.amount,
           pago_por: e.paid_by,
+          data: e.date,
           comprovante_url: e.receipt_url,
         })),
         total_combustivel: correctedTotals.total_fuel,
@@ -151,28 +152,39 @@ export function TravelReportPdfModal({
 
         // Table header
         const col1 = 15;
-        const col2 = 70;
-        const col3 = 140;
-        const col4 = 175;
+        const col2 = 45;
+        const col3 = 75;
+        const col4 = 140;
+        const col5 = 175;
 
         doc.rect(col1 - 2, yPos - 5, 185, 6, "F");
         doc.text("Categoria", col1, yPos);
-        doc.text("Descrição", col2, yPos);
-        doc.text("Pago Por", col3, yPos);
-        doc.text("Valor", col4, yPos, { align: "right" });
+        doc.text("Data", col2, yPos);
+        doc.text("Descrição", col3, yPos);
+        doc.text("Pago Por", col4, yPos);
+        doc.text("Valor", col5, yPos, { align: "right" });
 
         yPos += 7;
 
-        pdfReport.despesas.forEach((expense: any) => {
+        // Sort expenses by date ascending
+        const sortedExpenses = [...pdfReport.despesas].sort((a: any, b: any) => {
+          if (!a.data && !b.data) return 0;
+          if (!a.data) return 1;
+          if (!b.data) return -1;
+          return a.data.localeCompare(b.data);
+        });
+
+        sortedExpenses.forEach((expense: any) => {
           if (yPos > 270) {
             doc.addPage();
             yPos = 15;
           }
 
           doc.text(expense.categoria || "-", col1, yPos);
-          doc.text(expense.descricao?.substring(0, 30) || "-", col2, yPos);
-          doc.text(expense.pago_por || "-", col3, yPos);
-          doc.text(`R$ ${parseFloat(expense.valor || 0).toFixed(2)}`, col4, yPos, { align: "right" });
+          doc.text(expense.data ? expense.data.split('-').reverse().join('/') : "-", col2, yPos);
+          doc.text(expense.descricao?.substring(0, 25) || "-", col3, yPos);
+          doc.text(expense.pago_por || "-", col4, yPos);
+          doc.text(`R$ ${parseFloat(expense.valor || 0).toFixed(2)}`, col5, yPos, { align: "right" });
           yPos += 6;
         });
       }
@@ -273,6 +285,7 @@ export function TravelReportPdfModal({
             descricao: e.description,
             valor: e.amount,
             pago_por: e.paid_by,
+            data: e.date,
             comprovante_url: e.receipt_url,
           })),
           total_combustivel: correctedTotals.total_fuel,
