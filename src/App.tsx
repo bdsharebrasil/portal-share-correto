@@ -76,8 +76,8 @@ import ManutencaoPreventiva from "./pages/ManutencaoPreventiva";
 import ManutencaoAeronave from "./pages/ManutencaoAeronave";
 import VencimentosTripulacao from "./pages/VencimentosTripulacao";
 import VencimentosDocumentos from "./pages/VencimentosDocumentos";
-import FinanceiroSocios from "./pages/FinanceiroSocios";
-import RelatorioTransacoesSocios from "./pages/RelatorioTransacoesSocios";
+// Módulo Sócios - importado do novo módulo
+import { SociosPage, RelatorioTransacoesSocios } from "@/modules/socios";
 import RelatoriosFinanceiros from "./pages/RelatoriosFinanceiros";
 
 // Componentes wrapper definidos FORA do App para evitar conflitos com hooks
@@ -229,11 +229,25 @@ const App = () => {
                           <Route path="/financeiro/financeiro-socios" element={
                             renderProtected(
                               <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <FinanceiroSocios />
+                                <SociosPage />
+                              </RoleProtected>
+                            )
+                          } />
+                          <Route path="/socios" element={
+                            renderProtected(
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                <SociosPage />
                               </RoleProtected>
                             )
                           } />
                           <Route path="/financeiro/relatorio-socios/:clienteId" element={
+                            renderProtected(
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                <RelatorioTransacoesSocios />
+                              </RoleProtected>
+                            )
+                          } />
+                          <Route path="/socios/relatorio/:clienteId" element={
                             renderProtected(
                               <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
                                 <RelatorioTransacoesSocios />
