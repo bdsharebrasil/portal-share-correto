@@ -36,7 +36,7 @@ const generatePDFConfig = (reportNumber: string) => {
     margin: 10,
     filename: `${reportNumber}-relatorio-viagem.pdf`,
     image: { type: 'jpeg' as const, quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true },
+    html2canvas: { scale: 2, useCORS: true, allowTaint: true },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
   };
 };
@@ -46,6 +46,7 @@ export interface TravelExpense {
   descricao: string;
   valor: number;
   pago_por: string;
+  data?: string;
   comprovante_url?: string;
 }
 
@@ -355,15 +356,24 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') 
                 <thead>
                     <tr>
                         <th>Categoria</th>
+                        <th>Data</th>
                         <th>Descrição</th>
                         <th class="text-right">Valor (R$)</th>
                         <th>Pago Por</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${report.despesas.map(d => `
+                    ${[...report.despesas]
+                      .sort((a, b) => {
+                        if (!a.data && !b.data) return 0;
+                        if (!a.data) return 1;
+                        if (!b.data) return -1;
+                        return a.data.localeCompare(b.data);
+                      })
+                      .map(d => `
                         <tr>
                             <td>${d.categoria || 'Outros'}</td>
+                            <td>${d.data ? formatDateBR(d.data) : '-'}</td>
                             <td>${d.descricao || 'N/A'}</td>
                             <td class="text-right">${(Number(d.valor) || 0).toFixed(2).replace('.', ',')}</td>
                             <td>${d.pago_por || 'N/A'}</td>
@@ -411,7 +421,7 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') 
                             <p><strong>Descrição:</strong> ${d.descricao || 'N/A'}</p>
                             <p><strong>Categoria:</strong> ${d.categoria || 'Outros'}</p>
                             <p><strong>Valor:</strong> R$ ${(Number(d.valor) || 0).toFixed(2).replace('.', ',')}</p>
-                            <img class="receipt-image" src="${d.comprovante_url}" alt="Comprovante" />
+                            <img class="receipt-image" src="${d.comprovante_url}" alt="Comprovante" crossorigin="anonymous" />
                         </div>
                     `).join('')}
             </div>
