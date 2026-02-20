@@ -498,7 +498,8 @@ export default function RelatorioViagem() {
     try {
       // Carrega pdf.js dinamicamente
       const pdfjsLib = await import('pdfjs-dist');
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+      // Configura o worker - usa arquivo local da pasta public
+      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
