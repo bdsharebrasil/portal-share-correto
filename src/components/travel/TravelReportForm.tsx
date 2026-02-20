@@ -204,11 +204,37 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
         .from('travel-reports')
         .getPublicUrl(filePath);
 
+      // Store metadata for later use when creating attachments table entry
       return publicUrl;
     } catch (error) {
       console.error('Erro ao fazer upload:', error);
       toast.error('Erro ao fazer upload do comprovante');
       return null;
+    }
+  };
+
+  const saveAttachment = async (reportId: string, expenseIndex: number, file: File, fileUrl: string) => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `receipts/${Math.random()}.${fileExt}`;
+
+      const { error } = await supabase
+        .from('travel_report_attachments')
+        .insert([{
+          travel_report_id: reportId,
+          expense_index: expenseIndex,
+          file_name: file.name,
+          file_path: filePath,
+          file_url: fileUrl,
+          file_type: file.type,
+          file_size: file.size
+        }]);
+
+      if (error) {
+        console.warn('Aviso ao salvar attachment:', error);
+      }
+    } catch (error) {
+      console.error('Erro ao salvar attachment:', error);
     }
   };
 
@@ -379,6 +405,16 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
         .single();
 
       if (reportError) throw reportError;
+
+      // Salvar attachments das despesas
+      if (report && report.id) {
+        for (let i = 0; i < expensesWithReceipts.length; i++) {
+          const expense = expensesWithReceipts[i];
+          if (expense.receipt_url && expenses[i].receipt_file) {
+            await saveAttachment(report.id, i, expenses[i].receipt_file, expense.receipt_url);
+          }
+        }
+      }
 
       // Criar entrada na conciliação bancária com categoria "RELATORIO DE DESPESA DE VIAGEM"
       if (report && report.id) {

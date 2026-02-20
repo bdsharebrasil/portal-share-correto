@@ -62,6 +62,47 @@ export function TravelReportPdfModal({
         }
       })();
 
+      // Fetch attachments from the database
+      const { data: attachments } = await supabase
+        .from("travel_report_attachments")
+        .select("*")
+        .eq("travel_report_id", reportId);
+
+      // Group attachments by expense index
+      const attachmentsByExpense: { [key: number]: any[] } = {};
+      if (attachments) {
+        attachments.forEach((att: any) => {
+          if (!attachmentsByExpense[att.expense_index]) {
+            attachmentsByExpense[att.expense_index] = [];
+          }
+          attachmentsByExpense[att.expense_index].push(att);
+        });
+      }
+
+      // Convert image URLs to data URLs for PDF embedding
+      const imageCache: { [key: string]: string } = {};
+      const getImageDataUrl = async (imageUrl: string): Promise<string | null> => {
+        if (imageCache[imageUrl]) {
+          return imageCache[imageUrl];
+        }
+        try {
+          const response = await fetch(imageUrl);
+          const blob = await response.blob();
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const dataUrl = reader.result as string;
+              imageCache[imageUrl] = dataUrl;
+              resolve(dataUrl);
+            };
+            reader.readAsDataURL(blob);
+          });
+        } catch (error) {
+          console.error("Erro ao carregar imagem:", error);
+          return null;
+        }
+      };
+
       const correctedTotals = calculateReportTotals(expenses);
 
       const pdfReport = {
@@ -174,7 +215,9 @@ export function TravelReportPdfModal({
           return a.data.localeCompare(b.data);
         });
 
-        sortedExpenses.forEach((expense: any) => {
+        for (let expenseIndex = 0; expenseIndex < sortedExpenses.length; expenseIndex++) {
+          const expense = sortedExpenses[expenseIndex];
+
           if (yPos > 270) {
             doc.addPage();
             yPos = 15;
@@ -186,7 +229,33 @@ export function TravelReportPdfModal({
           doc.text(expense.pago_por || "-", col4, yPos);
           doc.text(`R$ ${parseFloat(expense.valor || 0).toFixed(2)}`, col5, yPos, { align: "right" });
           yPos += 6;
-        });
+
+          // Add attachments/images for this expense
+          const expenseAttachments = attachmentsByExpense[expenseIndex] || [];
+          if (expenseAttachments.length > 0) {
+            yPos += 2;
+
+            for (const attachment of expenseAttachments) {
+              if (yPos > 250) {
+                doc.addPage();
+                yPos = 15;
+              }
+
+              try {
+                const imageDataUrl = await getImageDataUrl(attachment.file_url);
+                if (imageDataUrl) {
+                  // Add image with smaller dimensions
+                  const imgWidth = 50;
+                  const imgHeight = 40;
+                  doc.addImage(imageDataUrl, "JPEG", 20, yPos, imgWidth, imgHeight);
+                  yPos += imgHeight + 3;
+                }
+              } catch (error) {
+                console.error("Erro ao adicionar imagem ao PDF:", error);
+              }
+            }
+          }
+        }
       }
 
       // Summary
