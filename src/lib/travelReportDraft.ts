@@ -20,6 +20,7 @@ export interface TravelReportDraft {
     description: string;
     amount: number;
     paid_by: string;
+    date?: string;
     receipt_url?: string;
     id?: string;
   }>;
