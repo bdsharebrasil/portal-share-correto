@@ -449,14 +449,27 @@ export default function RelatorioViagem() {
 
     setUploadingIndex(index);
     try {
+      let fileToUpload = file;
+
+      // Converter PDF para imagem se necessário
+      if (file.type === 'application/pdf') {
+        toast.info('📄 Convertendo PDF para imagem...');
+        try {
+          fileToUpload = await convertPdfToImage(file);
+        } catch (err) {
+          console.warn('Não foi possível converter PDF, enviando original:', err);
+          fileToUpload = file; // fallback: envia o PDF mesmo
+        }
+      }
+
       toast.info('📤 Enviando comprovante...');
-      const fileExt = file.name.split('.').pop();
+      const fileExt = fileToUpload.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
       const filePath = `receipts/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('travel-reports')
-        .upload(filePath, file);
+        .upload(filePath, fileToUpload);
 
       if (uploadError) throw uploadError;
 
@@ -478,6 +491,39 @@ export default function RelatorioViagem() {
       toast.error(`❌ Erro ao fazer upload: ${error?.message || 'Tente novamente'}`);
     } finally {
       setUploadingIndex(null);
+    }
+  };
+
+  const convertPdfToImage = async (file: File): Promise<File> => {
+    try {
+      // Carrega pdf.js dinamicamente
+      const pdfjsLib = await import('pdfjs-dist');
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const page = await pdf.getPage(1); // Só a primeira página
+
+      const scale = 2.0; // Alta resolução
+      const viewport = page.getViewport({ scale });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      await page.render({
+        canvasContext: canvas.getContext('2d')!,
+        viewport
+      }).promise;
+
+      return new Promise((resolve) => {
+        canvas.toBlob((blob) => {
+          resolve(new File([blob!], file.name.replace('.pdf', '.jpg'), { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.92);
+      });
+    } catch (error) {
+      console.error('Erro ao converter PDF:', error);
+      throw error;
     }
   };
 
