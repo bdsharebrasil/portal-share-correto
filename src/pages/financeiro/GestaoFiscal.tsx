@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,8 +20,17 @@ import {
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { LucideIcon } from "lucide-react";
 
-const tabs = [
+interface Tab {
+  value: string;
+  label: string;
+  icon: LucideIcon;
+  color: string;
+  adminOnly?: boolean;
+}
+
+const allTabs: Tab[] = [
   {
     value: "fluxo",
     label: "Fluxo de Caixa",
@@ -69,6 +78,7 @@ const tabs = [
     label: "Configurações",
     icon: Settings,
     color: "from-slate-600/95 to-slate-500/85",
+    adminOnly: true,
   },
 ];
 
@@ -81,6 +91,16 @@ export default function GestaoFiscal() {
     isFinanceiroMaster
   } = useUserRole();
   const isAuthorized = isAdmin || isGestorMaster || isFinanceiroMaster;
+
+  // Filtrar abas baseado em permissões: apenas admin vê Configurações
+  const tabs = useMemo(() => {
+    return allTabs.filter(tab => {
+      if (tab.adminOnly) {
+        return isAdmin;
+      }
+      return true;
+    });
+  }, [isAdmin]);
 
   if (!isAuthorized) {
     return <Layout>

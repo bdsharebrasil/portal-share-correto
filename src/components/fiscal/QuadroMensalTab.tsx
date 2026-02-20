@@ -650,7 +650,10 @@ export function QuadroMensalTab() {
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {transacao.prazo
-                          ? format(new Date(transacao.prazo), "dd/MM/yyyy")
+                          ? (() => {
+                              const date = new Date(transacao.prazo);
+                              return isNaN(date.getTime()) ? "—" : format(date, "dd/MM/yyyy");
+                            })()
                           : "—"}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">

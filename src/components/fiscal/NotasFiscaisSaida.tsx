@@ -997,6 +997,9 @@ export function NotasFiscaisSaida() {
     c.documento.includes(clienteSearch)
   );
 
+  // Filtrar notas para exibição: apenas pendentes e canceladas (excluir recebidas)
+  const notasExibicao = notas.filter((n) => n.status !== "recebido");
+
   const totalPendente = notas
     .filter((n) => n.status === "pendente")
     .reduce((acc, n) => acc + n.valor, 0);
@@ -2085,10 +2088,10 @@ export function NotasFiscaisSaida() {
                   <div className="animate-spin w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3"></div>
                   Carregando...
                 </div>
-              ) : notas.length === 0 ? (
+              ) : notasExibicao.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <FileUp className="w-12 h-12 opacity-20 mx-auto mb-3" />
-                  Nenhuma nota fiscal criada
+                  Nenhuma nota fiscal aguardando recebimento
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-lg border border-border">
@@ -2108,7 +2111,7 @@ export function NotasFiscaisSaida() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {notas.map((nota) => (
+                      {notasExibicao.map((nota) => (
                         <TableRow key={nota.id} className="border-b border-border hover:bg-muted/50 transition-colors">
                           <TableCell className="font-medium text-foreground px-4 py-4 text-sm">{nota.numero}</TableCell>
                           <TableCell className="text-foreground px-4 py-4 text-sm">{nota.cliente_nome}</TableCell>
