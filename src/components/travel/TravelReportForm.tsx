@@ -351,6 +351,14 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
         return;
       }
 
+      // Criar mapa de arquivos antes de fazer upload
+      const filesMap = new Map<number, File>();
+      expenses.forEach((expense, index) => {
+        if (expense.receipt_file) {
+          filesMap.set(index, expense.receipt_file);
+        }
+      });
+
       const expensesWithReceipts = await Promise.all(
         expenses.map(async (expense) => {
           if (expense.receipt_file) {
@@ -414,12 +422,13 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
 
       if (reportError) throw reportError;
 
-      // Salvar attachments das despesas
+      // Salvar attachments das despesas usando o mapa de arquivos
       if (report && report.id) {
         for (let i = 0; i < expensesWithReceipts.length; i++) {
           const expense = expensesWithReceipts[i];
-          if (expense.receipt_url && expenses[i].receipt_file) {
-            await saveAttachment(report.id, i, expenses[i].receipt_file, expense.receipt_url);
+          const file = filesMap.get(i);
+          if (expense.receipt_url && file) {
+            await saveAttachment(report.id, i, file, expense.receipt_url);
           }
         }
       }

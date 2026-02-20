@@ -91,6 +91,7 @@ export default function RelatorioViagem() {
   const [hasSavedDraft, setHasSavedDraft] = useState(false);
   const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [clientPartners, setClientPartners] = useState<{name: string; cpf?: string; index: number}[]>([]);
+  const [attachmentsToSave, setAttachmentsToSave] = useState<Array<{expenseIndex: number; file: File; fileUrl: string}>>([]);
 
   const fetchClientPartners = async (clientId: string) => {
     const { data, error } = await supabase
@@ -279,6 +280,7 @@ export default function RelatorioViagem() {
     setIsCreating(true);
     setIsEditing(false);
     setShowSecondCrew(false);
+    setAttachmentsToSave([]);
   };
 
   const editReport = async (reportId: string) => {
@@ -447,14 +449,27 @@ export default function RelatorioViagem() {
 
     setUploadingIndex(index);
     try {
+      let fileToUpload = file;
+
+      // Converter PDF para imagem se necessário
+      if (file.type === 'application/pdf') {
+        toast.info('📄 Convertendo PDF para imagem...');
+        try {
+          fileToUpload = await convertPdfToImage(file);
+        } catch (err) {
+          console.warn('Não foi possível converter PDF, enviando original:', err);
+          fileToUpload = file; // fallback: envia o PDF mesmo
+        }
+      }
+
       toast.info('📤 Enviando comprovante...');
-      const fileExt = file.name.split('.').pop();
+      const fileExt = fileToUpload.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
       const filePath = `receipts/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('travel-reports')
-        .upload(filePath, file);
+        .upload(filePath, fileToUpload);
 
       if (uploadError) throw uploadError;
 
@@ -463,12 +478,78 @@ export default function RelatorioViagem() {
         .getPublicUrl(filePath);
 
       handleExpenseChange(index, 'receipt_url', publicUrl);
+
+      // Guardar informação do attachment para salvar na tabela depois
+      setAttachmentsToSave(prev => {
+        const updated = prev.filter(a => a.expenseIndex !== index);
+        return [...updated, { expenseIndex: index, file, fileUrl: publicUrl }];
+      });
+
       toast.success('✓ Comprovante enviado com sucesso!');
     } catch (error: any) {
       console.error('Erro ao fazer upload:', error);
       toast.error(`❌ Erro ao fazer upload: ${error?.message || 'Tente novamente'}`);
     } finally {
       setUploadingIndex(null);
+    }
+  };
+
+  const convertPdfToImage = async (file: File): Promise<File> => {
+    try {
+      // Carrega pdf.js dinamicamente
+      const pdfjsLib = await import('pdfjs-dist');
+      // Configura o worker - usa arquivo local da pasta public
+      pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const page = await pdf.getPage(1); // Só a primeira página
+
+      const scale = 2.0; // Alta resolução
+      const viewport = page.getViewport({ scale });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      await page.render({
+        canvasContext: canvas.getContext('2d')!,
+        viewport
+      }).promise;
+
+      return new Promise((resolve) => {
+        canvas.toBlob((blob) => {
+          resolve(new File([blob!], file.name.replace('.pdf', '.jpg'), { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.92);
+      });
+    } catch (error) {
+      console.error('Erro ao converter PDF:', error);
+      throw error;
+    }
+  };
+
+  const saveAttachment = async (reportId: string, expenseIndex: number, file: File, fileUrl: string) => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `receipts/${Date.now()}-${Math.random()}.${fileExt}`;
+
+      const { error } = await supabase
+        .from('travel_report_attachments')
+        .insert([{
+          travel_report_id: reportId,
+          expense_index: expenseIndex,
+          file_name: file.name,
+          file_path: filePath,
+          file_url: fileUrl,
+          file_type: file.type,
+          file_size: file.size
+        }]);
+
+      if (error) {
+        console.warn('Aviso ao salvar attachment:', error);
+      }
+    } catch (error) {
+      console.error('Erro ao salvar attachment:', error);
     }
   };
 
@@ -594,6 +675,14 @@ export default function RelatorioViagem() {
           .single();
         if (error) throw error;
         savedReport = data;
+      }
+
+      // Salvar attachments das despesas
+      if (savedReport && savedReport.id && attachmentsToSave.length > 0) {
+        for (const attachment of attachmentsToSave) {
+          await saveAttachment(savedReport.id, attachment.expenseIndex, attachment.file, attachment.fileUrl);
+        }
+        setAttachmentsToSave([]);
       }
 
       // Criar conciliações bancárias quando o relatório for finalizado
@@ -747,6 +836,7 @@ export default function RelatorioViagem() {
       setHasSavedDraft(false);
       setIsCreating(false);
       setCurrentReport(null);
+      setAttachmentsToSave([]);
       loadReports();
     } catch (error: any) {
       console.error('Erro ao salvar relatório:', error);
@@ -983,9 +1073,11 @@ export default function RelatorioViagem() {
                     draftStorage.clearDraft();
                     setHasSavedDraft(false);
                     setIsCreating(false);
+                    setAttachmentsToSave([]);
                   }
                 } else {
                   setIsCreating(false);
+                  setAttachmentsToSave([]);
                 }
               }}>
                 <ArrowLeft className="h-4 w-4 mr-2" />

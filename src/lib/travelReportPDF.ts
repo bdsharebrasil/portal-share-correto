@@ -75,6 +75,26 @@ export interface TravelReport {
   valor_total: number;
 }
 
+// Detecta se uma URL aponta para um PDF, ignorando query strings (ex: URLs do Supabase)
+const isPdfUrl = (url: string): boolean => {
+  try {
+    const pathname = new URL(url).pathname.toLowerCase();
+    return pathname.endsWith('.pdf');
+  } catch {
+    return url.toLowerCase().includes('.pdf');
+  }
+};
+
+// Detecta se uma URL aponta para uma imagem
+const isImageUrl = (url: string): boolean => {
+  try {
+    const pathname = new URL(url).pathname.toLowerCase();
+    return /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/.test(pathname);
+  } catch {
+    return /\.(jpg|jpeg|png|gif|webp|bmp|svg)/.test(url.toLowerCase());
+  }
+};
+
 const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') => {
   const calcDays = () => {
     if (report?.data_inicio && report?.data_fim) {
@@ -99,6 +119,69 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') 
   // Para compatibilidade, se T1 e T2 não existirem, usamos o total_tripulante no T1.
   const finalTotalT1 = (totalT1 === 0 && totalT2 === 0) ? report.total_tripulante : totalT1;
   const hasSecondCrew = report.tripulante2 && report.tripulante2.trim() !== '';
+
+  // Gera o HTML de cada comprovante
+  const renderReceipt = (d: TravelExpense, index: number): string => {
+    const url = d.comprovante_url || '';
+    const valor = (Number(d.valor) || 0).toFixed(2).replace('.', ',');
+
+    let comprovanteHtml: string;
+
+    if (isPdfUrl(url)) {
+      comprovanteHtml = `
+        <p style="margin-top:12px;font-size:11px;color:#666;">📎 Comprovante em formato PDF</p>
+        <p style="margin-top:4px;">
+          <a href="${url}" target="_blank" rel="noopener noreferrer"
+             style="color:#1e3a8a;text-decoration:underline;font-size:11px;">
+            Abrir comprovante PDF
+          </a>
+        </p>`;
+    } else if (isImageUrl(url)) {
+      comprovanteHtml = `
+        <img
+          class="receipt-image"
+          src="${url}"
+          alt="Comprovante"
+          crossorigin="anonymous"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+        />
+        <div style="display:none; margin-top:12px;">
+          <p style="font-size:11px;color:#e57300;">⚠️ Imagem não pôde ser exibida. Pode ser necessário abrir o link.</p>
+          <a href="${url}" target="_blank" rel="noopener noreferrer"
+             style="color:#1e3a8a;text-decoration:underline;font-size:11px;">
+            Abrir comprovante
+          </a>
+        </div>`;
+    } else {
+      // Tipo desconhecido — tenta como imagem primeiro, fallback para link
+      comprovanteHtml = `
+        <img
+          class="receipt-image"
+          src="${url}"
+          alt="Comprovante"
+          crossorigin="anonymous"
+          onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+        />
+        <div style="display:none; margin-top:12px;">
+          <p style="font-size:11px;color:#666;">📎 Comprovante anexado</p>
+          <a href="${url}" target="_blank" rel="noopener noreferrer"
+             style="color:#1e3a8a;text-decoration:underline;font-size:11px;">
+            Abrir comprovante
+          </a>
+        </div>`;
+    }
+
+    return `
+      <div class="receipt-item">
+        <p><strong>Item Nº:</strong> ${index + 1}</p>
+        <p><strong>Descrição:</strong> ${d.descricao || 'N/A'}</p>
+        <p><strong>Categoria:</strong> ${d.categoria || 'Outros'}</p>
+        <p><strong>Valor:</strong> R$ ${valor}</p>
+        ${comprovanteHtml}
+      </div>`;
+  };
+
+  const despesasComComprovante = report.despesas.filter(d => d.comprovante_url);
 
   return `
     <!DOCTYPE html>
@@ -343,8 +426,8 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') 
                 </div>
                 <div class="info-row">
                     <div class="info-item"><strong>Tripulante 1:</strong> ${(report.tripulante || 'N/A').toUpperCase()}</div>
-                    ${hasSecondCrew ?
-      `<div class="info-item"><strong>Tripulante 2:</strong> ${(report.tripulante2 || 'N/A').toUpperCase()}</div>`
+                    ${hasSecondCrew
+      ? `<div class="info-item"><strong>Tripulante 2:</strong> ${(report.tripulante2 || 'N/A').toUpperCase()}</div>`
       : ''
     }
                     <div class="info-item"><strong>Trecho:</strong> ${report.trecho || report.destino || 'N/A'}</div>
@@ -388,8 +471,8 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') 
                 <div class="totals-box">
                     <h3>Totais por Pagador (R$)</h3>
                     <div class="total-row"><span>Tripulante 1:</span> <span>${(finalTotalT1).toFixed(2).replace('.', ',')}</span></div>
-                    ${hasSecondCrew ?
-      `<div class="total-row"><span>Tripulante 2:</span> <span>${(totalT2).toFixed(2).replace('.', ',')}</span></div>`
+                    ${hasSecondCrew
+      ? `<div class="total-row"><span>Tripulante 2:</span> <span>${(totalT2).toFixed(2).replace('.', ',')}</span></div>`
       : ''
     }
                     <div class="total-row"><span>Cliente:</span> <span>${(report.total_cliente || 0).toFixed(2).replace('.', ',')}</span></div>
@@ -403,27 +486,10 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') 
             </div>
         </div>
 
-        ${report.despesas.some(d => d.comprovante_url) ? `
+        ${despesasComComprovante.length > 0 ? `
             <div class="report-container receipts-section">
                 <h2>Comprovantes Anexados</h2>
-                ${report.despesas
-        .filter(d => d.comprovante_url)
-        .map((d, index) => {
-          const url = d.comprovante_url || '';
-          const isPdf = url.toLowerCase().endsWith('.pdf');
-          return `
-                        <div class="receipt-item">
-                            <p><strong>Item Nº:</strong> ${index + 1}</p>
-                            <p><strong>Descrição:</strong> ${d.descricao || 'N/A'}</p>
-                            <p><strong>Categoria:</strong> ${d.categoria || 'Outros'}</p>
-                            <p><strong>Valor:</strong> R$ ${(Number(d.valor) || 0).toFixed(2).replace('.', ',')}</p>
-                            ${isPdf
-              ? `<p style="margin-top:12px;font-size:11px;color:#666;">📎 Comprovante em formato PDF (não renderizável como imagem)</p>
-                 <p><a href="${url}" target="_blank" rel="noopener noreferrer" style="color:#1e3a8a;text-decoration:underline;">Abrir comprovante PDF</a></p>`
-              : `<img class="receipt-image" src="${url}" alt="Comprovante" crossorigin="anonymous" onerror="this.style.display='none'; this.insertAdjacentHTML('afterend','<p style=\\'color:red;font-size:11px;\\'>Imagem não disponível</p>')" />`
-            }
-                        </div>`;
-        }).join('')}
+                ${despesasComComprovante.map((d, index) => renderReceipt(d, index)).join('')}
             </div>
         ` : ''}
 
@@ -451,7 +517,6 @@ const loadHtml2PdfFromCdn = () => {
     script.async = true;
     script.onload = () => {
       const w2 = window as any;
-      if (w2.html2pdf) return resolve(w2.html2pdf);
       if (w2.html2pdf) return resolve(w2.html2pdf);
       reject(new Error('html2pdf not available after script load'));
     };
