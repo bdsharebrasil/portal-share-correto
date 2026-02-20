@@ -5,6 +5,13 @@
 -- it automatically syncs with controle_bancario, bank_reconciliations, and notas_fiscais_saida
 
 -- =====================================================
+-- ADD COLUMNS: Ensure reference_type and reference_id exist
+-- =====================================================
+ALTER TABLE public.controle_bancario
+ADD COLUMN IF NOT EXISTS reference_type TEXT,
+ADD COLUMN IF NOT EXISTS reference_id UUID;
+
+-- =====================================================
 -- FUNCTION: Sync contas_areceber status change to related tables
 -- =====================================================
 CREATE OR REPLACE FUNCTION sync_contas_areceber_status_change()
@@ -155,7 +162,9 @@ EXECUTE FUNCTION sync_contas_areceber_status_change();
 ALTER TABLE public.contas_areceber
 ADD COLUMN IF NOT EXISTS nf_saida_id UUID REFERENCES public.notas_fiscais_saida(id) ON DELETE SET NULL,
 ADD COLUMN IF NOT EXISTS reference_type TEXT,
-ADD COLUMN IF NOT EXISTS reference_id UUID;
+ADD COLUMN IF NOT EXISTS reference_id UUID,
+ADD COLUMN IF NOT EXISTS metodo_pagamento TEXT,
+ADD COLUMN IF NOT EXISTS aeronave TEXT;
 
 -- =====================================================
 -- FUNCTION: Sync controle_bancario status change to contas_areceber
