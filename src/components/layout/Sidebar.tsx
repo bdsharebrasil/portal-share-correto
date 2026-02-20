@@ -20,6 +20,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useUserRole } from "@/hooks/useUserRole";
+import { getDashboardRouteFromRoles } from "@/lib/dashboard-routing";
 
 interface MenuItem {
   title: string;
@@ -85,6 +87,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [expandedMenu, setExpandedMenu] = useState(false);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const { userRoles } = useUserRole();
+
+  // Obter a rota correta do dashboard baseado nas roles do usuário
+  const dashboardRoute = useMemo(() => {
+    const { route } = getDashboardRouteFromRoles(userRoles);
+    return route;
+  }, [userRoles]);
 
   // Fechar sidebar expandido ao clicar em um item
   const handleItemClick = () => {
@@ -107,12 +116,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const filteredMenuGroups = useMemo(() => {
     const groups = baseMenuGroups.map((g) => ({
       ...g,
-      items: g.items.map((it) => ({ ...it }))
+      items: g.items.map((it) => {
+        // Atualizar o href do item "Início" para apontar ao dashboard correto
+        if (it.title === "Início") {
+          return { ...it, href: dashboardRoute };
+        }
+        return { ...it };
+      })
     }));
 
     // Remover grupos vazios
     return groups.filter((group) => group.items.length > 0);
-  }, []);
+  }, [dashboardRoute]);
 
   const toggleExpanded = (title: string) => {
     setExpandedItems((prev) =>

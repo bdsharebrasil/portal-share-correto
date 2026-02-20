@@ -48,12 +48,12 @@ export function GestorDashboard() {
     { icon: Users, label: "Gestão de Funcionários", route: "/gestao-funcionarios", color: "from-blue-500 to-blue-600", grid: 1 },
     { icon: Plane, label: "Controle de Aeronaves", route: "/aeronaves", textColor: "text-cyan-400", grid: 2 },
     { icon: PieChart, label: "Balanço Clientes", route: "/financeiro/balanco-cliente", textColor: "text-indigo-400", grid: 2 },
-    { icon: BarChart3, label: "Dashboard Gestor", route: "/financeiro/gestor", color: "from-orange-500 to-orange-600", restricted: true, grid: 3 },
+    { icon: BarChart3, label: "Gestor Master", route: "/financeiro/gestor", color: "from-orange-500 to-orange-600", restricted: true, grid: 3 },
     { icon: DollarSign, label: "Financeiro Sócios", route: "/financeiro/financeiro-socios", color: "from-purple-500 to-purple-600", restricted: true, grid: 3 },
   ];
 
   const quickTools = allQuickTools.filter(tool => !tool.restricted || isAdmin || isGestorMaster);
-  
+
   // Organizar ferramentas por grid
   const grid1Tools = quickTools.filter(tool => tool.grid === 1);
   const grid2Tools = quickTools.filter(tool => tool.grid === 2);
@@ -187,7 +187,7 @@ export function GestorDashboard() {
             ))}
           </div>
 
-          {/* Grid 3: Dashboard Gestor e Financeiro Sócios */}
+          {/* Grid 3: Gestor Master e Financeiro Sócios */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {grid3Tools.map((tool) => (
               <button
