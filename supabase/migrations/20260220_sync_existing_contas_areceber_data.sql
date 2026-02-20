@@ -37,10 +37,16 @@ WHERE cr.nf_saida_id = nfs.id
 -- =====================================================
 -- For each conta_areceber with status "recebido" and data_recebimento,
 -- create an entry in controle_bancario if it doesn't already exist
+-- Get categoria_id for "Receitas" category (you may need to adjust this ID)
+WITH categoria_receita AS (
+  SELECT id FROM public.categorias_movimentacao
+  WHERE nome = 'Receitas' OR tipo = 'receita'
+  LIMIT 1
+)
 INSERT INTO public.controle_bancario (
   data,
   tipo_movimento,
-  categoria,
+  categoria_id,
   descricao,
   valor,
   conta_banco,
@@ -50,12 +56,13 @@ INSERT INTO public.controle_bancario (
   reference_type,
   reference_id,
   data_reembolso,
+  data_criacao,
   data_atualizacao
 )
 SELECT
-  COALESCE(cr.data_recebimento, CURRENT_DATE),
+  COALESCE(cr.data_recebimento::date, CURRENT_DATE),
   'entrada',
-  cr.categoria,
+  (SELECT id FROM categoria_receita),
   'Recebimento - NF: ' || cr.numero || ' - Cliente: ' || cr.cliente_nome,
   cr.valor,
   cr.banco_recebimento,
@@ -64,7 +71,8 @@ SELECT
   cr.criado_por,
   'conta_areceber',
   cr.id,
-  cr.data_recebimento,
+  cr.data_recebimento::date,
+  CURRENT_TIMESTAMP,
   CURRENT_TIMESTAMP
 FROM public.contas_areceber cr
 WHERE cr.status = 'recebido'
