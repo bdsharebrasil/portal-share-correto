@@ -696,7 +696,7 @@ function AddDespesaForm({ parentReconciliation, clients, aircraft, onClose, onSu
           status: data.status,
           client_id: parentReconciliation.client_id,
           aircraft_id: parentReconciliation.aircraft_id,
-          created_by: user.id,
+          criado_por: user.id,
         }] as any)
         .select()
         .single();

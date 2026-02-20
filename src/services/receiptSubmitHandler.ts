@@ -308,7 +308,7 @@ export async function handleReceiptSubmit(
       fornecedor_dados: submissionData.fornecedor_dados || null,
       boleto_url: boleto_url,
       nf_url: nf_url,
-      created_by: userId,
+      criado_por: userId,
       reference_id: submissionData.reference_id || null,
       reference_type: submissionData.reference_type || null,
     };

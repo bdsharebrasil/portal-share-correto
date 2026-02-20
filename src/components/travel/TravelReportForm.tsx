@@ -343,6 +343,14 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
     setLoading(true);
 
     try {
+      // Obter o usuário logado
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Usuário não autenticado");
+        setLoading(false);
+        return;
+      }
+
       const expensesWithReceipts = await Promise.all(
         expenses.map(async (expense) => {
           if (expense.receipt_file) {
@@ -434,7 +442,7 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
             aircraft_id: formData.aeronave,
             status: 'pendente',
             prazo_pagamento: null,
-            criado_por: ''
+            criado_por: user.id
           }]);
 
         if (reconciliationError) {

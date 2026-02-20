@@ -581,7 +581,7 @@ function NewReconciliationInlineForm({ users, onClose, onSuccess }: NewReconcili
           amount: parseFloat(data.amount),
           status: data.status,
           receiver_id: data.receiverId,
-          created_by: user.id,
+          criado_por: user.id,
         }] as any)
         .select()
         .single();
