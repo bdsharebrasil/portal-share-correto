@@ -638,6 +638,7 @@ export function ContasReceber() {
         }
       }
 
+      // For accounts from fluxo_caixa, update controle_bancario directly
       if (contasReceberData.isFromFluxoCaixa && contasReceberData.fluxoCaixaId) {
         const { error: updateError } = await supabase.from("controle_bancario").update({
           status: "recebido",
@@ -659,6 +660,7 @@ export function ContasReceber() {
         return;
       }
 
+      // For other accounts, update contas_areceber (triggers will sync to related tables)
       const updateData: any = {
         status: "recebido",
         data_recebimento: dataRecebimento,
@@ -669,6 +671,11 @@ export function ContasReceber() {
 
       if (comprovanteUrl) {
         updateData.comprovante_recebimento_url = comprovanteUrl;
+      }
+
+      // If this account came from bank_reconciliations, link it
+      if (contasReceberData.isFromBankReconciliation && contasReceberData.bankReconciliationId) {
+        updateData.banco_conciliacao_id = contasReceberData.bankReconciliationId;
       }
 
       const { error: updateError } = await supabase.from("contas_areceber").update(updateData).eq("id", contasReceberData.id);
