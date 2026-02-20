@@ -29,7 +29,7 @@ export function DashboardHeader({ onExport }: DashboardHeaderProps) {
             <div className="p-2 rounded-lg bg-primary/10">
               <LayoutDashboard className="w-6 h-6 text-primary" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+            <h1 className="text-2xl font-bold text-foreground">Gestor Master</h1>
           </div>
           <p className="text-muted-foreground capitalize">{currentDate}</p>
         </div>
