@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { JSX, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RoleProtected } from "@/components/auth/RoleProtected";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LoadingProvider } from "@/contexts/LoadingContext";
 import { ViewModeProvider } from "@/contexts/ViewModeContext";
 import { VencimentosSyncProvider } from "@/contexts/VencimentosSyncContext";
@@ -81,6 +81,31 @@ import RelatorioTransacoesSocios from "./pages/RelatorioTransacoesSocios";
 import RelatoriosFinanceiros from "./pages/RelatoriosFinanceiros";
 
 // Componentes wrapper definidos FORA do App para evitar conflitos com hooks
+
+const HomeRedirect = () => {
+  const { roles, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (
+      roles.includes("admin") ||
+      roles.includes("gestor_master") ||
+      roles.includes("financeiro_master")
+    ) {
+      navigate("/gestor", { replace: true });
+    } else if (roles.includes("financeiro")) {
+      navigate("/financeiro", { replace: true });
+    } else {
+      // coordenador_de_voo, piloto_chefe, tripulante e demais
+      navigate("/operacoes", { replace: true });
+    }
+  }, [roles, isLoading, navigate]);
+
+  return <GlobalLoader />;
+};
+
 const DiarioBordoWrapper = () => {
   const navigate = useNavigate();
   return <DiarioBordo onBack={() => navigate('/')} />;
@@ -99,7 +124,6 @@ const BancoHorasWrapper = () => {
 };
 
 const App = () => {
-  // queryClient criado com useState para garantir instância única por componente
   const [queryClient] = useState(() => new QueryClient());
 
   useEffect(() => {
@@ -132,7 +156,7 @@ const App = () => {
                       <HashRouter>
                         <Routes>
                           <Route path="/login" element={<Login />} />
-                          <Route path="/" element={renderProtected(<Index />)} />
+                          <Route path="/" element={renderProtected(<HomeRedirect />)} />
                           <Route path="/operacoes" element={renderProtected(<DashboardOperacoes />)} />
                           <Route path="/financeiro" element={renderProtected(<DashboardFinanceiro />)} />
                           <Route path="/relatorios" element={renderProtected(<RelatoriosFinanceiros />)} />
