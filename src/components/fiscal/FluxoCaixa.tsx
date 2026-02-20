@@ -6,6 +6,7 @@ import { VirtualizedTransactionTable } from "./VirtualizedTransactionTable";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { QuadroMensalTab } from "./QuadroMensalTab";
+import { FluxoCaixaInlineForm } from "./FluxoCaixaInlineForm";
 import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -126,6 +127,22 @@ export function FluxoCaixa() {
           <QuadroMensalTab />
         </TabsContent>
       </Tabs>
+
+      {/* Formulário Inline de Nova Movimentação */}
+      {showInlineForm && (
+        <Card className="bg-white/5 border-white/10 backdrop-blur-xl">
+          <CardContent className="pt-6">
+            <FluxoCaixaInlineForm
+              onSuccess={() => {
+                setShowInlineForm(false);
+              }}
+              onCancel={() => {
+                setShowInlineForm(false);
+              }}
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

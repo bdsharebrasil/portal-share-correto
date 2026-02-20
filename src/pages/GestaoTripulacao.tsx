@@ -66,6 +66,37 @@ interface FlightSchedule {
   aircraft_id?: string;
   client_id?: string;
 }
+/**
+ * Converte um objeto de erro do Supabase para uma mensagem de string legível
+ */
+const getErrorMessage = (error: any): string => {
+  if (!error) return "Erro desconhecido";
+
+  // Se é uma string, retorna diretamente
+  if (typeof error === "string") return error;
+
+  // Tenta extrair mensagem dos campos conhecidos do erro do Supabase
+  if (error.message && typeof error.message === "string") return error.message;
+  if (error.hint && typeof error.hint === "string") return error.hint;
+  if (error.details && typeof error.details === "string") return error.details;
+
+  // Se details é um objeto, tenta converter
+  if (error.details && typeof error.details === "object") {
+    try {
+      return JSON.stringify(error.details);
+    } catch {
+      return "Erro nos detalhes da resposta";
+    }
+  }
+
+  // Último recurso: converte para string
+  try {
+    return String(error);
+  } catch {
+    return "Erro ao processar";
+  }
+};
+
 export default function GestaoDeTripulacao() {
   const navigate = useNavigate();
   const [activeMainTab, setActiveMainTab] = useState<'members' | 'registration'>('members');
@@ -210,8 +241,8 @@ export default function GestaoDeTripulacao() {
           error
         } = await (supabase as any).from('crew_licenses').update(payload).eq('id', editingLicense.id);
         if (error) {
+          const errorMsg = getErrorMessage(error);
           console.error("[License] Update error:", error);
-          const errorMsg = error?.message || error?.details || "Erro ao atualizar licença";
           toast({
             title: "Erro ao atualizar licença",
             description: errorMsg,
@@ -225,8 +256,8 @@ export default function GestaoDeTripulacao() {
           error
         } = await (supabase as any).from('crew_licenses').insert([payload]);
         if (error) {
+          const errorMsg = getErrorMessage(error);
           console.error("[License] Insert error:", error);
-          const errorMsg = error?.message || error?.details || "Erro ao criar licença";
           toast({
             title: "Erro ao criar licença",
             description: errorMsg,
@@ -243,7 +274,7 @@ export default function GestaoDeTripulacao() {
       loadCrewDetails(selectedCrew.id);
     } catch (error) {
       console.error("[License] Unexpected error:", error);
-      const errorMsg = error instanceof Error ? error.message : "Erro inesperado ao salvar licença";
+      const errorMsg = getErrorMessage(error);
       toast({
         title: "Erro ao salvar licença",
         description: errorMsg,
@@ -260,8 +291,8 @@ export default function GestaoDeTripulacao() {
         error
       } = await (supabase as any).from('crew_licenses').delete().eq('id', licenseId);
       if (error) {
+        const errorMsg = getErrorMessage(error);
         console.error("[License] Delete error:", error);
-        const errorMsg = error?.message || error?.details || "Erro ao excluir licença";
         toast({
           title: "Erro ao excluir licença",
           description: errorMsg,
@@ -275,7 +306,7 @@ export default function GestaoDeTripulacao() {
       if (selectedCrew) loadCrewDetails(selectedCrew.id);
     } catch (error) {
       console.error("[License] Unexpected error:", error);
-      const errorMsg = error instanceof Error ? error.message : "Erro inesperado ao excluir licença";
+      const errorMsg = getErrorMessage(error);
       toast({
         title: "Erro ao excluir licença",
         description: errorMsg,
