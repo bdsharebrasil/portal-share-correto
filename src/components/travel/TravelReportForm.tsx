@@ -23,6 +23,7 @@ interface Expense {
   description: string;
   amount: string;
   paid_by: string;
+  date?: string;
   receipt_url?: string;
   receipt_file?: File;
 }
@@ -65,7 +66,7 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
   });
 
   const [expenses, setExpenses] = useState<Expense[]>([
-    { category: "", description: "", amount: "", paid_by: "" }
+    { category: "", description: "", amount: "", paid_by: "", date: "" }
   ]);
 
   const [totals, setTotals] = useState({
@@ -170,7 +171,7 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
   };
 
   const addExpense = () => {
-    setExpenses([...expenses, { category: "", description: "", amount: "", paid_by: "" }]);
+    setExpenses([...expenses, { category: "", description: "", amount: "", paid_by: "", date: "" }]);
   };
 
   const removeExpense = (index: number) => {
@@ -636,6 +637,7 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
             <TableHeader>
               <TableRow>
                 <TableHead>Categoria</TableHead>
+                <TableHead>Data</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Valor (R$)</TableHead>
                 <TableHead>Pago Por</TableHead>
@@ -662,6 +664,13 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
                         <SelectItem value="Outros">Outros</SelectItem>
                       </SelectContent>
                     </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="date"
+                      value={expense.date || ''}
+                      onChange={(e) => updateExpense(index, 'date', e.target.value)}
+                    />
                   </TableCell>
                   <TableCell>
                     <Input
