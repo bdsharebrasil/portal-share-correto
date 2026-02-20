@@ -36,6 +36,7 @@ interface Expense {
   description: string;
   amount: number;
   paid_by: string;
+  date?: string;
   receipt_url?: string;
   id?: string;
 }
@@ -259,7 +260,7 @@ export default function RelatorioViagem() {
       end_date: new Date().toISOString().split('T')[0],
       days_count: 1,
       observations: '',
-      expenses: [{ category: '', description: '', amount: 0, paid_by: '' }],
+      expenses: [{ category: '', description: '', amount: 0, paid_by: '', date: '' }],
       total_amount: 0,
       total_fuel: 0,
       total_lodging: 0,
@@ -348,6 +349,7 @@ export default function RelatorioViagem() {
           descricao: e.description,
           valor: e.amount,
           pago_por: e.paid_by,
+          data: e.date,
           comprovante_url: e.receipt_url
         })) as TravelExpense[],
         total_combustivel: correctedTotals.total_fuel,
@@ -415,7 +417,7 @@ export default function RelatorioViagem() {
     if (!currentReport) return;
     setCurrentReport({
       ...currentReport,
-      expenses: [...currentReport.expenses, { category: '', description: '', amount: 0, paid_by: '' }]
+      expenses: [...currentReport.expenses, { category: '', description: '', amount: 0, paid_by: '', date: '' }]
     });
   };
 
@@ -921,6 +923,7 @@ export default function RelatorioViagem() {
                                     descricao: e.description,
                                     valor: e.amount,
                                     pago_por: e.paid_by,
+                                    data: e.date,
                                     comprovante_url: e.receipt_url
                                   })) as TravelExpense[],
                                   total_combustivel: correctedTotals.total_fuel,
@@ -1328,7 +1331,7 @@ export default function RelatorioViagem() {
                     <div key={expense.id || index} className="border p-4 rounded-lg shadow-sm relative">
                       <h3 className="text-md font-medium mb-3">Item de Despesa #{index + 1}</h3>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                         <div className="space-y-2">
                           <Label>Categoria *</Label>
                           <ControlledSelect
@@ -1342,6 +1345,15 @@ export default function RelatorioViagem() {
                               </ControlledSelectItem>
                             ))}
                           </ControlledSelect>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Data</Label>
+                          <Input
+                            type="date"
+                            value={expense.date || ''}
+                            onChange={(e) => handleExpenseChange(index, 'date', e.target.value)}
+                          />
                         </div>
 
                         <div className="space-y-2">
