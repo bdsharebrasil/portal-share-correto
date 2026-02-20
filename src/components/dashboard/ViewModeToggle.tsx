@@ -6,7 +6,7 @@ const modes: { id: ViewMode; label: string; path: string; separator?: boolean }[
   { id: 'portal-cliente', label: 'Portal Cliente', path: '/portal-cliente' },
   { id: 'operacoes', label: 'Operações', path: '/operacoes', separator: true },
   { id: 'financeiro', label: 'Financeiro', path: '/financeiro' },
-  { id: 'gestor', label: 'Gestor', path: '/gestor' },
+  { id: 'gestor', label: 'Gestor Master', path: '/gestor' },
 ];
 
 export function ViewModeToggle() {
