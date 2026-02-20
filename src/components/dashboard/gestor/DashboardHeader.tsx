@@ -6,7 +6,6 @@ import { MonthlyPerformance } from "./MonthlyPerformance";
 import { PipelineTable } from "./PipelineTable";
 import { LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
 
 interface DashboardHeaderProps {
   onExport?: () => void;
