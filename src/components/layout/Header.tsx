@@ -1,65 +1,134 @@
-import React, { useCallback, useMemo, useState, lazy, Suspense, useEffect } from 'react';
-import { Menu, LogOut, User, Users, Clock } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-import { useUserRole } from '@/hooks/useUserRole';
-import { useUserProfile } from '@/hooks/useUserProfile';
-import { WeatherDisplay } from '@/components/weather/WeatherDisplay';
-import { ViewModeToggle } from '@/components/dashboard/ViewModeToggle';
-import { BirthdayAlert } from '@/components/notifications/BirthdayAlert';
-const NotificationBell = lazy(() => import("@/components/notifications/NotificationBell"));
-interface HeaderProps {
-  onMenuClick: () => void;
+import { useState, useEffect } from "react";
+import { Clock, Thermometer, MapPin } from "lucide-react";
+interface LocationData {
+  lat: number;
+  lon: number;
+  city: string;
+  timezone: string;
 }
-const getInitials = (input: string | null | undefined) => {
-  if (!input) {
-    return "";
-  }
-  const parts = input.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) {
-    return input.slice(0, 2).toUpperCase();
-  }
-  if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase();
-  }
-  return `${parts[0][0] ?? ""}${parts[parts.length - 1][0] ?? ""}`.toUpperCase();
-};
-export const Header: React.FC<HeaderProps> = ({
-  onMenuClick
-}) => {
-  const navigate = useNavigate();
-  const {
-    toast
-  } = useToast();
-  const {
-    user,
-    roles,
-    signOut
-  } = useAuth();
-  const {
-    isAdmin,
-    isGestorMaster
-  } = useUserRole();
-  const {
-    profile
-  } = useUserProfile(user, {
-    skipCreation: Boolean(isAdmin || isGestorMaster)
-  });
-  const [searchQuery, setSearchQuery] = React.useState("");
+interface WeatherData {
+  temperature: number;
+  condition: string;
+  location: string;
+}
+export function Header() {
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [weather, setWeather] = useState<WeatherData>({
+    temperature: 24,
+    condition: "Carregando...",
+    location: "Localizando..."
+  });
+  const [userLocation, setUserLocation] = useState<LocationData | null>(null);
 
+  // Atualizar relógio baseado no fuso horário
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date());
+    const timer = setInterval(() => {
+      if (userLocation?.timezone) {
+        const now = new Date();
+        setCurrentTime(now);
+      } else {
+        setCurrentTime(new Date());
+      }
     }, 1000);
-    return () => clearInterval(interval);
+    return () => clearInterval(timer);
+  }, [userLocation]);
+
+  const API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY;
+
+  // Obter localização do usuário
+  useEffect(() => {
+    const getLocation = () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async position => {
+          const {
+            latitude,
+            longitude
+          } = position.coords;
+          try {
+            // Usar OpenWeatherMap API para obter dados climáticos e localização
+            const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${API_KEY}&units=metric&lang=pt_br`);
+            if (response.ok) {
+              const data = await response.json();
+              const locationData: LocationData = {
+                lat: latitude,
+                lon: longitude,
+                city: data.name,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+              };
+              setUserLocation(locationData);
+              setWeather({
+                temperature: Math.round(data.main.temp),
+                condition: data.weather[0].description,
+                location: data.name
+              });
+            } else {
+              // Fallback para dados simulados se a API falhar
+              setWeather({
+                temperature: 24,
+                condition: "Sem dados de clima",
+                location: "Localização não disponível"
+              });
+            }
+          } catch (error) {
+            console.log("Erro ao obter dados climáticos:", error);
+            // Fallback para simulação local
+            simulateLocalWeather();
+          }
+        }, error => {
+          console.log("Erro ao obter localização:", error);
+          simulateLocalWeather();
+        }, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 300000 // 5 minutos
+        });
+      } else {
+        simulateLocalWeather();
+      }
+    };
+    const simulateLocalWeather = () => {
+      const hour = new Date().getHours();
+      let temp = 20;
+      if (hour >= 6 && hour < 12) {
+        temp = 20 + (hour - 6) * 2;
+      } else if (hour >= 12 && hour < 18) {
+        temp = 32 - (hour - 12) * 1;
+      } else if (hour >= 18 && hour < 24) {
+        temp = 26 - (hour - 18) * 1;
+      } else {
+        temp = 20 - hour * 0.5;
+      }
+      setWeather({
+        temperature: Math.round(temp),
+        condition: "Simulado - Céu limpo",
+        location: "Local (simulado)"
+      });
+    };
+    getLocation();
   }, []);
 
+  // Atualizar dados climáticos a cada 10 minutos
+  useEffect(() => {
+    if (userLocation) {
+      const weatherTimer = setInterval(async () => {
+        try {
+          const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${userLocation.lat}&lon=${userLocation.lon}&appid=${API_KEY}&units=metric&lang=pt_br`);
+          if (response.ok) {
+            const data = await response.json();
+            setWeather({
+              temperature: Math.round(data.main.temp),
+              condition: data.weather[0].description,
+              location: data.name
+            });
+          }
+        } catch (error) {
+          console.log("Erro ao atualizar dados climáticos:", error);
+        }
+      }, 600000); // 10 minutos
+
+      return () => clearInterval(weatherTimer);
+    }
+  }, [userLocation]);
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('pt-BR', {
       hour: '2-digit',
@@ -67,112 +136,48 @@ export const Header: React.FC<HeaderProps> = ({
       second: '2-digit'
     });
   };
-
-  // Regras de acesso refinadas
-  const canManageUsersGlobal = useMemo(() => roles.includes("admin") || roles.includes("gestor_master"), [roles]);
-  const displayName = useMemo(() => profile?.display_name ?? profile?.full_name ?? user?.email ?? "Usuário", [profile?.display_name, profile?.full_name, user?.email]);
-  const email = profile?.email ?? user?.email ?? "";
-  const avatarInitials = useMemo(() => getInitials(displayName), [displayName]);
-  const handleLogout = useCallback(async () => {
-    try {
-      await signOut();
-      toast({
-        title: "Sessão encerrada",
-        description: "Você saiu do portal com sucesso."
-      });
-      navigate("/login", {
-        replace: true
-      });
-    } catch (error) {
-      toast({
-        title: "Erro ao sair",
-        description: "Não foi possível encerrar a sessão. Tente novamente.",
-        variant: "destructive"
-      });
-    }
-  }, [navigate, toast, signOut]);
-  return <header className="fixed top-0 left-0 right-0 h-16 bg-gradient-to-r from-primary/5 to-secondary/5 border z-50 shadow-lg" style={{ borderColor: 'rgba(45, 52, 67, 0.09)' }}>
-    <div className="flex items-center justify-between h-full px-4 lg:px-6 shadow-card bg-[#0f121a]/[0.86]">
-      {/* Seção Esquerda */}
-      <div className="flex items-center gap-4">
-      </div>
-
-      {/* View Mode Toggle - Center */}
-      <div className="hidden md:flex items-center gap-4">
-        <ViewModeToggle />
-        <div className="relative w-64">
-          <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <Input placeholder="Buscar aeronave, tripulante..." className="pl-10 bg-background/50 border-border" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('pt-BR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+  return <header className="h-[73px] bg-gray-900/95 backdrop-blur-sm border-b border-gray-700/50 px-6 flex items-center flex-shrink-0">
+      <div className="flex items-center justify-between w-full">
+        <div>
+          <h1 className="text-xl font-semibold text-white">Sistema de Gestão Financeira</h1>
+          
+        </div>
+        
+        <div className="flex items-center space-x-6">
+           {/* Localização e Temperatura */}
+           <div className="flex items-center space-x-2 text-white">
+             <div className="flex items-center space-x-1">
+               <MapPin className="w-4 h-4 text-green-400" />
+               <Thermometer className="w-5 h-5 text-orange-400" />
+             </div>
+             <div className="text-right">
+               <span className="text-xl font-bold">{weather.temperature}°C</span>
+               <p className="text-xs text-gray-400">{weather.location}</p>
+               <p className="text-xs text-gray-500 capitalize">{weather.condition}</p>
+             </div>
+           </div>
+          
+          {/* Relógio */}
+          <div className="text-right">
+            <div className="flex items-center space-x-2 text-white">
+              <Clock className="w-5 h-5 text-blue-400" />
+              <span className="text-2xl font-mono font-bold tracking-wider">
+                {formatTime(currentTime)}
+              </span>
+            </div>
+            <p className="text-xs text-gray-400 capitalize">
+              {formatDate(currentTime)}
+            </p>
+          </div>
         </div>
       </div>
-
-      {/* Clock */}
-      <div className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-lg bg-background/40 border border-border/50 backdrop-blur-sm">
-        <Clock className="h-4 w-4 text-primary" />
-        <p className="text-sm font-semibold text-foreground font-mono">
-          {formatTime(currentTime)}
-        </p>
-      </div>
-
-      {/* Seção Direita */}
-      <div className="flex items-center gap-2 lg:gap-4">
-        <BirthdayAlert />
-
-        <WeatherDisplay />
-
-        <Suspense fallback={null}>
-          <NotificationBell />
-        </Suspense>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 border-2 border-primary hover:bg-accent">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={profile?.avatar_url ?? undefined} alt={displayName} />
-                <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-                  {avatarInitials || <User className="h-4 w-4" />}
-                </AvatarFallback>
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-64 bg-card border-border shadow-elevated" align="end">
-            <DropdownMenuLabel className="space-y-1">
-              <p className="text-sm font-semibold text-foreground">{displayName}</p>
-              {email && <p className="text-xs text-muted-foreground">{email}</p>}
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-border" />
-
-            <DropdownMenuItem className="text-foreground hover:bg-accent cursor-pointer" onSelect={(event) => {
-              event.preventDefault();
-              navigate("/perfil");
-            }}>
-              <User className="mr-2 h-4 w-4" />
-              Meu Perfil
-            </DropdownMenuItem>
-
-            {canManageUsersGlobal && <DropdownMenuItem className="text-foreground hover:bg-accent cursor-pointer" onSelect={(event) => {
-              event.preventDefault();
-              navigate("/gerenciar-usuarios");
-            }}>
-              <Users className="mr-2 h-4 w-4" />
-              Gestão de Usuário
-            </DropdownMenuItem>}
-
-            <DropdownMenuSeparator className="bg-border" />
-
-            <DropdownMenuItem className="text-destructive hover:bg-destructive/10 cursor-pointer" onSelect={(event) => {
-              event.preventDefault();
-              void handleLogout();
-            }}>
-              <LogOut className="mr-2 h-4 w-4" />
-              Sair
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-      </div>
-    </div>
-  </header>;
-};
+    </header>;
+}

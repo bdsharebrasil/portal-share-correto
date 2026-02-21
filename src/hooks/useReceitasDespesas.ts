@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { format, parse } from "date-fns";
 
 interface MonthlyData {
   name: string;
@@ -10,50 +11,48 @@ interface MonthlyData {
 export function useReceitasDespesas() {
   return useQuery({
     queryKey: ["receitas-despesas"],
-    queryFn: async (): Promise<MonthlyData[]> => {
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("controle_bancario")
         .select("data, tipo_movimento, valor")
-        .order("data", { ascending: false })
-        .limit(100);
+        .order("data", { ascending: true });
 
       if (error) throw error;
 
-      // Agrupar dados por mês (últimos 6 meses)
-      const monthlyData: Record<string, { receita: number; despesa: number }> = {};
-      const now = new Date();
+      // Agrupar por mês
+      const monthlyMap = new Map<string, { receita: number; despesa: number }>();
 
-      // Inicializar últimos 6 meses
-      for (let i = 0; i < 6; i++) {
-        const date = new Date(now);
-        date.setMonth(date.getMonth() - i);
-        const monthKey = date.toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
-        monthlyData[monthKey] = { receita: 0, despesa: 0 };
-      }
+      (data || []).forEach((item: any) => {
+        if (!item.data || !item.tipo_movimento || item.valor === null) return;
 
-      // Processar dados
-      if (data) {
-        data.forEach((item: any) => {
-          const date = new Date(item.data);
-          const monthKey = date.toLocaleDateString("pt-BR", { month: "short", year: "numeric" });
+        const monthKey = format(new Date(item.data), "MMM").substring(0, 3);
+        const monthNum = format(new Date(item.data), "MM");
+        const fullKey = `${monthNum}-${monthKey}`;
 
-          if (monthlyData[monthKey]) {
-            if (item.tipo_movimento === "entrada") {
-              monthlyData[monthKey].receita += Number(item.valor);
-            } else {
-              monthlyData[monthKey].despesa += Number(item.valor);
-            }
-          }
-        });
-      }
+        if (!monthlyMap.has(fullKey)) {
+          monthlyMap.set(fullKey, { receita: 0, despesa: 0 });
+        }
 
-      return Object.entries(monthlyData)
-        .map(([name, data]) => ({
-          name,
-          receita: data.receita,
-          despesa: data.despesa,
+        const current = monthlyMap.get(fullKey)!;
+        if (item.tipo_movimento === "entrada") {
+          current.receita += Number(item.valor);
+        } else if (item.tipo_movimento === "saida") {
+          current.despesa += Number(item.valor);
+        }
+      });
+
+      // Converter para array ordenado
+      const result: MonthlyData[] = Array.from(monthlyMap.entries())
+        .map(([key, value]) => ({
+          name: key.split("-")[1],
+          ...value,
         }))
-        .reverse();
+        .sort((a, b) => {
+          const monthOrder = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+          return monthOrder.indexOf(a.name) - monthOrder.indexOf(b.name);
+        });
+
+      return result;
     },
   });
 }

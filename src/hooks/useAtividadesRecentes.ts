@@ -1,53 +1,44 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
-interface Atividade {
+export interface Atividade {
   id: string;
+  tipo_movimento: "entrada" | "saida";
   descricao: string;
   valor: number;
-  status: string;
-  tipo_movimento: string;
+  client_name?: string;
+  status: string | null;
+  data_criacao: string;
   timeAgo: string;
 }
 
-export function useAtividadesRecentes() {
+export function useAtividadesRecentes(limit: number = 5) {
   return useQuery({
     queryKey: ["atividades-recentes"],
-    queryFn: async (): Promise<Atividade[]> => {
+    queryFn: async () => {
       const { data, error } = await supabase
         .from("controle_bancario")
-        .select("id, descricao, valor, status, tipo_movimento, created_at")
-        .order("created_at", { ascending: false })
-        .limit(10);
+        .select("id, tipo_movimento, descricao, valor, client_name, status, data_criacao")
+        .order("data_criacao", { ascending: false })
+        .limit(limit);
 
       if (error) throw error;
 
-      return (
-        data?.map((item: any) => ({
-          id: item.id,
-          descricao: item.descricao,
-          valor: Number(item.valor),
-          status: item.status || "pending",
-          tipo_movimento: item.tipo_movimento,
-          timeAgo: getTimeAgo(item.created_at),
-        })) || []
-      );
+      return (data || []).map((item: any) => ({
+        id: item.id,
+        tipo_movimento: item.tipo_movimento,
+        descricao: item.descricao,
+        valor: Number(item.valor),
+        client_name: item.client_name,
+        status: item.status,
+        data_criacao: item.data_criacao,
+        timeAgo: formatDistanceToNow(new Date(item.data_criacao), {
+          addSuffix: true,
+          locale: ptBR,
+        }),
+      })) as Atividade[];
     },
   });
-}
-
-function getTimeAgo(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-  if (seconds < 60) return "Agora";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m atrás`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h atrás`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d atrás`;
-  
-  return date.toLocaleDateString("pt-BR");
 }

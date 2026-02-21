@@ -1,33 +1,29 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+export interface Categoria {
+  id: string;
+  nome: string;
+  tipo: string;
+  categoria_pai_id: string | null;
+  descricao: string | null;
+  ativo: boolean | null;
+  grupo_categoria: string | null;
+  reembolsavel: boolean | null;
+}
+
 export function useCategorias() {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["categorias"],
+  return useQuery({
+    queryKey: ["categorias-movimentacao"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("categorias_movimentacao")
-        .select("nome")
+        .select("*")
         .eq("ativo", true)
         .order("nome", { ascending: true });
 
-      if (error) {
-        console.error("Erro ao carregar categorias:", error);
-        throw error;
-      }
-
-      // Extrai apenas as categorias únicas
-      const categorias = Array.from(
-        new Set(
-          (data || [])
-            .map((item: any) => item.nome)
-            .filter((cat: string) => cat && cat.trim() !== "")
-        )
-      );
-
-      return categorias;
+      if (error) throw error;
+      return data as Categoria[];
     },
   });
-
-  return { data, isLoading, error };
 }

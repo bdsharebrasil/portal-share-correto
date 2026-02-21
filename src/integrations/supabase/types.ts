@@ -2639,7 +2639,6 @@ export type Database = {
           aeronave: string | null
           arquivo_pdf_url: string | null
           atualizado_em: string | null
-          banco_conciliacao_id: string | null
           banco_recebimento: string | null
           boleto_url: string | null
           categoria: string
@@ -2656,11 +2655,8 @@ export type Database = {
           fornecedor_tipo: string | null
           id: string
           metodo_pagamento: string | null
-          nf_saida_id: string | null
           nota_fiscal_url: string | null
           numero: string
-          reference_id: string | null
-          reference_type: string | null
           status: string
           valor: number
         }
@@ -2668,7 +2664,6 @@ export type Database = {
           aeronave?: string | null
           arquivo_pdf_url?: string | null
           atualizado_em?: string | null
-          banco_conciliacao_id?: string | null
           banco_recebimento?: string | null
           boleto_url?: string | null
           categoria: string
@@ -2685,11 +2680,8 @@ export type Database = {
           fornecedor_tipo?: string | null
           id?: string
           metodo_pagamento?: string | null
-          nf_saida_id?: string | null
           nota_fiscal_url?: string | null
           numero: string
-          reference_id?: string | null
-          reference_type?: string | null
           status: string
           valor: number
         }
@@ -2697,7 +2689,6 @@ export type Database = {
           aeronave?: string | null
           arquivo_pdf_url?: string | null
           atualizado_em?: string | null
-          banco_conciliacao_id?: string | null
           banco_recebimento?: string | null
           boleto_url?: string | null
           categoria?: string
@@ -2714,11 +2705,8 @@ export type Database = {
           fornecedor_tipo?: string | null
           id?: string
           metodo_pagamento?: string | null
-          nf_saida_id?: string | null
           nota_fiscal_url?: string | null
           numero?: string
-          reference_id?: string | null
-          reference_type?: string | null
           status?: string
           valor?: number
         }
@@ -2828,13 +2816,6 @@ export type Database = {
             referencedRelation: "fornecedores_favoritos"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "contas_areceber_nf_saida_id_fkey"
-            columns: ["nf_saida_id"]
-            isOneToOne: false
-            referencedRelation: "notas_fiscais_saida"
-            referencedColumns: ["id"]
-          },
         ]
       }
       contas_bancarias: {
@@ -2844,6 +2825,7 @@ export type Database = {
           banco: string | null
           criado_em: string | null
           criado_por: string
+          empresa_id: string
           id: string
           numero_conta: string | null
           tipo_conta: string | null
@@ -2854,6 +2836,7 @@ export type Database = {
           banco?: string | null
           criado_em?: string | null
           criado_por: string
+          empresa_id: string
           id?: string
           numero_conta?: string | null
           tipo_conta?: string | null
@@ -2864,6 +2847,7 @@ export type Database = {
           banco?: string | null
           criado_em?: string | null
           criado_por?: string
+          empresa_id?: string
           id?: string
           numero_conta?: string | null
           tipo_conta?: string | null
@@ -2933,7 +2917,6 @@ export type Database = {
           categoria_id: string
           client_id: string | null
           client_name: string | null
-          client_partner_id: string | null
           colaborador_id: string | null
           comprovante_url: string | null
           conta_banco: string | null
@@ -2954,14 +2937,12 @@ export type Database = {
           numero_documento: string | null
           observacao_cliente: string | null
           observacoes: string | null
-          prazo: string | null
+          partner_name: string | null
           rateio_completo: boolean | null
           rateio_tipo: string | null
           recibo_url: string | null
           reembolsavel: boolean | null
           reembolso_recebido: boolean | null
-          reference_id: string | null
-          reference_type: string | null
           status: string | null
           tem_rateio: boolean | null
           tipo_movimento: string
@@ -2976,7 +2957,6 @@ export type Database = {
           categoria_id: string
           client_id?: string | null
           client_name?: string | null
-          client_partner_id?: string | null
           colaborador_id?: string | null
           comprovante_url?: string | null
           conta_banco?: string | null
@@ -2997,14 +2977,12 @@ export type Database = {
           numero_documento?: string | null
           observacao_cliente?: string | null
           observacoes?: string | null
-          prazo?: string | null
+          partner_name?: string | null
           rateio_completo?: boolean | null
           rateio_tipo?: string | null
           recibo_url?: string | null
           reembolsavel?: boolean | null
           reembolso_recebido?: boolean | null
-          reference_id?: string | null
-          reference_type?: string | null
           status?: string | null
           tem_rateio?: boolean | null
           tipo_movimento: string
@@ -3019,7 +2997,6 @@ export type Database = {
           categoria_id?: string
           client_id?: string | null
           client_name?: string | null
-          client_partner_id?: string | null
           colaborador_id?: string | null
           comprovante_url?: string | null
           conta_banco?: string | null
@@ -3040,14 +3017,12 @@ export type Database = {
           numero_documento?: string | null
           observacao_cliente?: string | null
           observacoes?: string | null
-          prazo?: string | null
+          partner_name?: string | null
           rateio_completo?: boolean | null
           rateio_tipo?: string | null
           recibo_url?: string | null
           reembolsavel?: boolean | null
           reembolso_recebido?: boolean | null
-          reference_id?: string | null
-          reference_type?: string | null
           status?: string | null
           tem_rateio?: boolean | null
           tipo_movimento?: string
@@ -3145,13 +3120,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "controle_bancario_client_partner_id_fkey"
-            columns: ["client_partner_id"]
-            isOneToOne: false
-            referencedRelation: "client_partners"
-            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "controle_bancario_colaborador_id_fkey"
@@ -7467,13 +7435,13 @@ export type Database = {
           aeronave: string | null
           aircraft_id: string | null
           arquivo_pdf_url: string | null
+          atualizado_em: string | null
           categoria: string
           client_id: string | null
           cliente_cnpj: string
           cliente_nome: string
           criado_em: string | null
           criado_por: string | null
-          data_atualizacao: string | null
           data_criacao: string
           data_vencimento: string
           descricao: string | null
@@ -7486,13 +7454,13 @@ export type Database = {
           aeronave?: string | null
           aircraft_id?: string | null
           arquivo_pdf_url?: string | null
+          atualizado_em?: string | null
           categoria: string
           client_id?: string | null
           cliente_cnpj: string
           cliente_nome: string
           criado_em?: string | null
           criado_por?: string | null
-          data_atualizacao?: string | null
           data_criacao: string
           data_vencimento: string
           descricao?: string | null
@@ -7505,13 +7473,13 @@ export type Database = {
           aeronave?: string | null
           aircraft_id?: string | null
           arquivo_pdf_url?: string | null
+          atualizado_em?: string | null
           categoria?: string
           client_id?: string | null
           cliente_cnpj?: string
           cliente_nome?: string
           criado_em?: string | null
           criado_por?: string | null
-          data_atualizacao?: string | null
           data_criacao?: string
           data_vencimento?: string
           descricao?: string | null
