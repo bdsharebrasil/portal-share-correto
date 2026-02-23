@@ -47,8 +47,7 @@ export default defineConfig(({ mode }) => {
         configureServer(server: any) {
           return () => {
             server.middlewares.use((req: any, res: any, next: any) => {
-              res.setHeader('Permissions-Policy', 'geolocation=*');
-              res.setHeader('Feature-Policy', 'geolocation *');
+              res.setHeader('Permissions-Policy', 'geolocation=(self)');
               next();
             });
           };
