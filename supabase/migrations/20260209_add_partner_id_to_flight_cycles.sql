@@ -1,2 +1,0 @@
--- partner_id and partner_name columns already exist in flight_cycles table
--- This migration file is not needed
