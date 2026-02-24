@@ -57,7 +57,8 @@ function extractRawMetar(data: any) {
 }
 // ─── FALLBACK de aeroportos ───────────────────────
 const AIRPORTS_BR = [
-  { icao: "SBCY", name: "Cuiabá",         lat: -15.6500, lon: -56.117 },
+  { icao: "SBSP", name: "São Paulo",      lat: -23.6150, lon: -46.4730 },
+  { icao: "SBCY", name: "Cuiabá",         lat: -15.6500, lon: -56.1170 },
   { icao: "SBBR", name: "Brasília",       lat: -15.8711, lon: -47.9186 },
 ];
 
@@ -100,10 +101,20 @@ export default function WeatherWidget() {
     setWx({ status: "loading" });
 
     try {
-      const pos: any = await new Promise((res, rej) =>
-        navigator.geolocation.getCurrentPosition(res, rej, { timeout: 8000 })
-      );
-      const { latitude: lat, longitude: lon } = pos.coords;
+      let lat: number, lon: number;
+
+      // Tentar obter geolocalização, com fallback para São Paulo se falhar
+      try {
+        const pos: any = await new Promise((res, rej) =>
+          navigator.geolocation.getCurrentPosition(res, rej, { timeout: 8000 })
+        );
+        lat = pos.coords.latitude;
+        lon = pos.coords.longitude;
+      } catch {
+        // Fallback: usar coordenadas padrão de São Paulo
+        lat = -23.5505;
+        lon = -46.6333;
+      }
 
       let airport = null;
       try {
@@ -115,7 +126,7 @@ export default function WeatherWidget() {
 
       const wxData = await apiClient.getWeather(airport.icao);
       const raw = extractRawMetar(wxData);
-      
+
       setWx({
         status: "ok",
         icao: airport.icao,
