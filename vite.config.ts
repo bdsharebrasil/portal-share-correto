@@ -37,17 +37,6 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       mode === 'development' && componentTagger(),
-      {
-        name: 'add-permissions-policy',
-        configureServer(server: any) {
-          return () => {
-            server.middlewares.use((req: any, res: any, next: any) => {
-              res.setHeader('Permissions-Policy', 'geolocation=(self)');
-              next();
-            });
-          };
-        },
-      },
     ].filter(Boolean),
     resolve: {
       alias: {

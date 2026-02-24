@@ -439,13 +439,16 @@ const loadHtml2PdfFromCdn = () => {
     script.setAttribute('data-html2pdf', '1');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js';
     script.async = true;
+    script.type = 'text/javascript';
     script.onload = () => {
       const w2 = window as any;
       if (w2.html2pdf) return resolve(w2.html2pdf);
-      if (w2.html2pdf) return resolve(w2.html2pdf);
       reject(new Error('html2pdf not available after script load'));
     };
-    script.onerror = () => reject(new Error('Failed to load html2pdf script'));
+    script.onerror = (error) => {
+      console.error('[html2pdf] Erro ao carregar o script do CDN:', error);
+      reject(new Error('Failed to load html2pdf script from CDN'));
+    };
     document.head.appendChild(script);
   });
 };
