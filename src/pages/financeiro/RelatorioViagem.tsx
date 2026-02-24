@@ -27,6 +27,7 @@ import type { TravelReportDraft } from '@/lib/travelReportDraft';
 import { AutocompleteInput } from '@/components/ui/autocomplete-input';
 import { calculateReportTotals, enrichReportWithCorrectTotals, extractPayerTotals, getValidExpenses } from '@/lib/travelReportUtils';
 import { PartnerSelectModal } from '@/components/diario/PartnerSelectModal';
+import { ReceiptViewer } from '@/components/financeiro/ReceiptViewer';
 
 const EXPENSE_CATEGORIES = ['Combustível', 'Hospedagem', 'Alimentação', 'Transporte', 'Outros'];
 const REPORT_STATUSES = ['Rascunho', 'Finalizado', 'Enviado'];
@@ -90,6 +91,8 @@ export default function RelatorioViagem() {
   const [hasSavedDraft, setHasSavedDraft] = useState(false);
   const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [clientPartners, setClientPartners] = useState<{name: string; cpf?: string; index: number}[]>([]);
+  const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
+  const [receiptViewerUrl, setReceiptViewerUrl] = useState<string>('');
 
   const fetchClientPartners = async (clientId: string) => {
     const { data, error } = await supabase
@@ -1401,15 +1404,16 @@ export default function RelatorioViagem() {
                               disabled={uploadingIndex !== null}
                             />
                             {expense.receipt_url && (
-                              <a
-                                href={expense.receipt_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1.5 rounded-full hover:bg-accent"
+                              <button
+                                onClick={() => {
+                                  setReceiptViewerUrl(expense.receipt_url!);
+                                  setReceiptViewerOpen(true);
+                                }}
+                                className="p-1.5 rounded-full hover:bg-accent transition-colors"
                                 title="Ver Comprovante"
                               >
                                 <Eye className="h-5 w-5" />
-                              </a>
+                              </button>
                             )}
                           </div>
                         </div>
@@ -1533,6 +1537,12 @@ export default function RelatorioViagem() {
             draftStorage.saveDraft({ ...currentReport, partner_name: partnerName } as TravelReportDraft);
           }
         }}
+      />
+      <ReceiptViewer
+        open={receiptViewerOpen}
+        onOpenChange={setReceiptViewerOpen}
+        url={receiptViewerUrl}
+        title="Comprovante Anexado"
       />
     </Layout>
   );
