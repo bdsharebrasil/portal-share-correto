@@ -187,7 +187,7 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
     setExpenses(newExpenses);
   };
 
-  const handleFileUpload = async (file: File, expenseIndex: number): Promise<string | null> => {
+  const handleFileUpload = async (file: File, expenseIndex: number, toastId?: string | number): Promise<string | null> => {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
@@ -206,7 +206,11 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
       return publicUrl;
     } catch (error) {
       console.error('Erro ao fazer upload:', error);
-      toast.error('Erro ao fazer upload do comprovante');
+      if (toastId) {
+        toast.error('Erro ao fazer upload do comprovante', { id: toastId });
+      } else {
+        toast.error('Erro ao fazer upload do comprovante');
+      }
       return null;
     }
   };
@@ -314,12 +318,13 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
     }
 
     setLoading(true);
+    const toastId = toast.loading('📤 Carregando anexos e salvando relatório...');
 
     try {
       const expensesWithReceipts = await Promise.all(
         expenses.map(async (expense) => {
           if (expense.receipt_file) {
-            const url = await handleFileUpload(expense.receipt_file, 0);
+            const url = await handleFileUpload(expense.receipt_file, 0, toastId);
             return { ...expense, receipt_url: url || undefined, receipt_file: undefined };
           }
           return expense;
@@ -405,11 +410,11 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
         }
       }
 
-      toast.success("Relatório salvo como rascunho com sucesso!");
+      toast.success("✓ Relatório salvo como rascunho com sucesso!", { id: toastId });
       onSave();
     } catch (error: any) {
       console.error('Erro ao salvar:', error);
-      toast.error(error.message || "Erro ao salvar relatório");
+      toast.error(error.message || "Erro ao salvar relatório", { id: toastId });
     } finally {
       setLoading(false);
     }

@@ -447,8 +447,8 @@ export default function RelatorioViagem() {
     }
 
     setUploadingIndex(index);
+    const toastId = toast.loading('📤 Enviando comprovante...');
     try {
-      toast.info('📤 Enviando comprovante...');
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
       const filePath = `receipts/${fileName}`;
@@ -464,10 +464,10 @@ export default function RelatorioViagem() {
         .getPublicUrl(filePath);
 
       handleExpenseChange(index, 'receipt_url', publicUrl);
-      toast.success('✓ Comprovante enviado com sucesso!');
+      toast.success('✓ Comprovante enviado com sucesso!', { id: toastId });
     } catch (error: any) {
       console.error('Erro ao fazer upload:', error);
-      toast.error(`❌ Erro ao fazer upload: ${error?.message || 'Tente novamente'}`);
+      toast.error(`❌ Erro ao fazer upload: ${error?.message || 'Tente novamente'}`, { id: toastId });
     } finally {
       setUploadingIndex(null);
     }
