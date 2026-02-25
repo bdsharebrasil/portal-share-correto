@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
+import './lib/fetch-retry' // Initialize fetch retry interceptor
 
 // PWA registration - only if available
 if ('serviceWorker' in navigator) {
