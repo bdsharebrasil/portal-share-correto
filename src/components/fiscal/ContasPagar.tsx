@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select as RegularSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Select as GroupedSelect, SelectContent as GroupedSelectContent, SelectItem as GroupedSelectItem, SelectLabel, SelectTrigger as GroupedSelectTrigger, SelectValue as GroupedSelectValue, SelectGroup } from "@/components/ui/grouped-select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AutocompleteInput, type AutocompleteOption } from "@/components/ui/autocomplete-input";
@@ -14,6 +13,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCategoriasConta } from "@/hooks/useCategoriasFinanceiro";
 import { useAeronaves } from "@/hooks/useAeronaves";
 import { useGroupedCategories } from "@/hooks/useGroupedCategories";
+import { CategoryGroupSelect } from "./CategoryGroupSelect";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -629,6 +629,17 @@ export function ContasPagar() {
           </CardHeader>
           <CardContent className="pt-6">
           <div className="space-y-5">
+            {/* Categoria - PRIMEIRO CAMPO */}
+            <div className="space-y-4 pb-4 border-b border-border/50">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Selecione o grupo</h3>
+              <CategoryGroupSelect
+                groups={groupedCategories}
+                value={formData.categoria}
+                onSelect={(categoryName) => setFormData(prev => ({ ...prev, categoria: categoryName }))}
+                placeholder="Selecione uma categoria"
+              />
+            </div>
+
             {/* Informações Básicas */}
             <div className="space-y-4 pb-4 border-b border-border/50">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Informações da Nota Fiscal</h3>
@@ -766,43 +777,21 @@ export function ContasPagar() {
               </div>
             </div>
 
-            {/* Classificação */}
+            {/* Status */}
             <div className="space-y-4 pb-4 border-b border-border/50">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Classificação</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div>
-                  <label className="text-sm font-semibold text-foreground mb-2 block">Categoria</label>
-                  <GroupedSelect value={formData.categoria} onValueChange={(value) => setFormData(prev => ({ ...prev, categoria: value }))}>
-                    <GroupedSelectTrigger className="bg-background">
-                      <GroupedSelectValue placeholder="Selecione uma categoria" />
-                    </GroupedSelectTrigger>
-                    <GroupedSelectContent>
-                      {groupedCategories.map((group) => (
-                        <SelectGroup key={group.grupo}>
-                          <SelectLabel className="text-xs font-bold uppercase tracking-wider">{group.grupo}</SelectLabel>
-                          {group.categorias.map((cat) => (
-                            <GroupedSelectItem key={cat.id} value={cat.nome}>
-                              {cat.nome}
-                            </GroupedSelectItem>
-                          ))}
-                        </SelectGroup>
-                      ))}
-                    </GroupedSelectContent>
-                  </GroupedSelect>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-foreground mb-2 block">Status *</label>
-                  <RegularSelect value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
-                    <SelectTrigger className="bg-background">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="agendada">Agendada</SelectItem>
-                      <SelectItem value="paga">Paga</SelectItem>
-                      <SelectItem value="cancelada">Cancelada</SelectItem>
-                    </SelectContent>
-                  </RegularSelect>
-                </div>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Status</h3>
+              <div>
+                <label className="text-sm font-semibold text-foreground mb-2 block">Status *</label>
+                <RegularSelect value={formData.status} onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}>
+                  <SelectTrigger className="bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="agendada">Agendada</SelectItem>
+                    <SelectItem value="paga">Paga</SelectItem>
+                    <SelectItem value="cancelada">Cancelada</SelectItem>
+                  </SelectContent>
+                </RegularSelect>
               </div>
             </div>
 
