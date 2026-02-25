@@ -65,7 +65,9 @@ interface BankReconciliation {
   aircraft_id: string | null;
   prazo_pagamento: string | null;
   criado_por?: string;
+  client_partner: string | null;
   clients: { company_name: string } | null;
+  client_partners: { legal_name: string } | null;
   aircraft: { registration: string } | null;
 }
 
@@ -138,6 +140,7 @@ export function ConciliacaoClientes() {
         .select(`
           *,
           clients:client_id (company_name),
+          client_partners:client_partner (legal_name),
           aircraft:aircraft_id (registration)
         `)
         .eq('type', 'cliente' as any)
@@ -379,7 +382,20 @@ export function ConciliacaoClientes() {
                               <span className="truncate" title={item.description}>{item.description}</span>
                             </div>
                           </TableCell>
-                          <TableCell>{item.clients?.company_name || '-'}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <span className="text-sm font-medium">
+                                {item.client_partner && item.client_partners?.legal_name
+                                  ? item.client_partners.legal_name
+                                  : item.clients?.company_name || '-'}
+                              </span>
+                              {item.client_partner && item.client_partners?.legal_name && (
+                                <Badge variant="outline" className="w-fit text-xs">
+                                  Parceiro
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <Badge variant="outline">{item.aircraft?.registration || '-'}</Badge>
                           </TableCell>
@@ -641,6 +657,7 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
         status: data.status,
         client_id: parentReconciliation.client_id,
         aircraft_id: parentReconciliation.aircraft_id,
+        client_partner: parentReconciliation.client_partner,
         criado_por: user.id,
       }] as any)
         .select()
@@ -648,13 +665,33 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
 
       if (error) throw error;
 
-      if (parentReconciliation.client_id && inserted) {
+      if ((parentReconciliation.client_id || parentReconciliation.client_partner) && inserted) {
         try {
-          const { data: clientData } = await supabase
-            .from("clients")
-            .select("company_name, cnpj")
-            .eq("id", parentReconciliation.client_id)
-            .single();
+          let clienteNome = "Cliente";
+          let clienteCnpj = "";
+
+          // Se tem client_partner, buscar dados do partner, senão do client
+          if (parentReconciliation.client_partner) {
+            const { data: partnerData } = await supabase
+              .from("client_partners")
+              .select("legal_name, cnpj")
+              .eq("id", parentReconciliation.client_partner)
+              .single();
+            if (partnerData) {
+              clienteNome = partnerData.legal_name || "Cliente";
+              clienteCnpj = partnerData.cnpj || "";
+            }
+          } else if (parentReconciliation.client_id) {
+            const { data: clientData } = await supabase
+              .from("clients")
+              .select("company_name, cnpj")
+              .eq("id", parentReconciliation.client_id)
+              .single();
+            if (clientData) {
+              clienteNome = clientData.company_name || "Cliente";
+              clienteCnpj = clientData.cnpj || "";
+            }
+          }
 
           let aircraftRegistration = "";
           if (parentReconciliation.aircraft_id) {
@@ -667,13 +704,12 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
           }
 
           const numeroDocumento = `REIMB-${Date.now().toString().slice(-6)}`;
-          const clienteNome = clientData?.company_name || "Cliente";
 
           await supabase.from("contas_areceber").insert({
             numero: numeroDocumento,
             referencia: clienteNome,
             cliente_nome: clienteNome,
-            cliente_cnpj: clientData?.cnpj || "",
+            cliente_cnpj: clienteCnpj,
             data_criacao: data.date,
             data_vencimento: data.prazo_pagamento || data.date,
             valor: parseFloat(data.amount),
