@@ -23,6 +23,7 @@ interface Expense {
   description: string;
   amount: string;
   paid_by: string;
+  date?: string;
   receipt_url?: string;
   receipt_file?: File;
 }
@@ -65,7 +66,7 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
   });
 
   const [expenses, setExpenses] = useState<Expense[]>([
-    { category: "", description: "", amount: "", paid_by: "" }
+    { category: "", description: "", amount: "", paid_by: "", date: "" }
   ]);
 
   const [totals, setTotals] = useState({
@@ -170,7 +171,7 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
   };
 
   const addExpense = () => {
-    setExpenses([...expenses, { category: "", description: "", amount: "", paid_by: "" }]);
+    setExpenses([...expenses, { category: "", description: "", amount: "", paid_by: "", date: "" }]);
   };
 
   const removeExpense = (index: number) => {
@@ -187,7 +188,7 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
     setExpenses(newExpenses);
   };
 
-  const handleFileUpload = async (file: File, expenseIndex: number, toastId?: string | number): Promise<string | null> => {
+  const handleFileUpload = async (file: File, expenseIndex: number): Promise<string | null> => {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random()}.${fileExt}`;
@@ -206,11 +207,7 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
       return publicUrl;
     } catch (error) {
       console.error('Erro ao fazer upload:', error);
-      if (toastId) {
-        toast.error('Erro ao fazer upload do comprovante', { id: toastId });
-      } else {
-        toast.error('Erro ao fazer upload do comprovante');
-      }
+      toast.error('Erro ao fazer upload do comprovante');
       return null;
     }
   };
@@ -318,13 +315,12 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
     }
 
     setLoading(true);
-    const toastId = toast.loading('📤 Carregando anexos e salvando relatório...');
 
     try {
       const expensesWithReceipts = await Promise.all(
         expenses.map(async (expense) => {
           if (expense.receipt_file) {
-            const url = await handleFileUpload(expense.receipt_file, 0, toastId);
+            const url = await handleFileUpload(expense.receipt_file, 0);
             return { ...expense, receipt_url: url || undefined, receipt_file: undefined };
           }
           return expense;
@@ -410,11 +406,11 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
         }
       }
 
-      toast.success("✓ Relatório salvo como rascunho com sucesso!", { id: toastId });
+      toast.success("Relatório salvo como rascunho com sucesso!");
       onSave();
     } catch (error: any) {
       console.error('Erro ao salvar:', error);
-      toast.error(error.message || "Erro ao salvar relatório", { id: toastId });
+      toast.error(error.message || "Erro ao salvar relatório");
     } finally {
       setLoading(false);
     }
@@ -641,6 +637,7 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
             <TableHeader>
               <TableRow>
                 <TableHead>Categoria</TableHead>
+                <TableHead>Data</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Valor (R$)</TableHead>
                 <TableHead>Pago Por</TableHead>
@@ -667,6 +664,13 @@ export function TravelReportForm({ onSave, onCancel }: TravelReportFormProps) {
                         <SelectItem value="Outros">Outros</SelectItem>
                       </SelectContent>
                     </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="date"
+                      value={expense.date || ''}
+                      onChange={(e) => updateExpense(index, 'date', e.target.value)}
+                    />
                   </TableCell>
                   <TableCell>
                     <Input
