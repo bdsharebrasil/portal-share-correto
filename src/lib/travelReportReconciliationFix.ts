@@ -40,7 +40,8 @@ export async function fixTravelReportReconciliations(reportId: string) {
       .single();
 
     if (reportError || !report) {
-      console.error('❌ Relatório não encontrado:', reportError);
+      const errorMessage = reportError?.message || String(reportError);
+      console.error('❌ Relatório não encontrado:', errorMessage);
       return null;
     }
 
@@ -85,7 +86,8 @@ export async function fixTravelReportReconciliations(reportId: string) {
       .eq('reference_type', 'travel_report');
 
     if (reconcError) {
-      console.error('❌ Erro ao buscar conciliações:', reconcError);
+      const errorMessage = reconcError.message || String(reconcError);
+      console.error('❌ Erro ao buscar conciliações:', errorMessage);
       return null;
     }
 
@@ -110,7 +112,8 @@ export async function fixTravelReportReconciliations(reportId: string) {
           .eq('id', clientRecon.id);
 
         if (updateError) {
-          console.error('❌ Erro ao atualizar conciliação de cliente:', updateError);
+          const errorMessage = updateError.message || String(updateError);
+          console.error('❌ Erro ao atualizar conciliação de cliente:', errorMessage);
         } else {
           corrections.cliente = true;
           corrections.details.push({
@@ -137,7 +140,8 @@ export async function fixTravelReportReconciliations(reportId: string) {
           .eq('id', crew1Recon.id);
 
         if (updateError) {
-          console.error('❌ Erro ao atualizar reembolso tripulante 1:', updateError);
+          const errorMessage = updateError.message || String(updateError);
+          console.error('❌ Erro ao atualizar reembolso tripulante 1:', errorMessage);
         } else {
           corrections.crew1 = true;
           corrections.details.push({
@@ -164,7 +168,8 @@ export async function fixTravelReportReconciliations(reportId: string) {
           .eq('id', crew2Recon.id);
 
         if (updateError) {
-          console.error('❌ Erro ao atualizar reembolso tripulante 2:', updateError);
+          const errorMessage = updateError.message || String(updateError);
+          console.error('❌ Erro ao atualizar reembolso tripulante 2:', errorMessage);
         } else {
           corrections.crew2 = true;
           corrections.details.push({
@@ -187,7 +192,8 @@ export async function fixTravelReportReconciliations(reportId: string) {
 
     return corrections;
   } catch (error) {
-    console.error('❌ Erro na correção de conciliações:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('❌ Erro na correção de conciliações:', errorMessage);
     return null;
   }
 }
@@ -206,7 +212,8 @@ export async function findIncorrectReconciliations() {
       .in('status', ['Finalizado', 'Enviado']);
 
     if (reportsError || !reports) {
-      console.error('❌ Erro ao buscar relatórios:', reportsError);
+      const errorMessage = reportsError?.message || String(reportsError);
+      console.error('❌ Erro ao buscar relatórios:', errorMessage);
       return [];
     }
 
@@ -265,7 +272,8 @@ export async function findIncorrectReconciliations() {
 
     return incorrectReports;
   } catch (error) {
-    console.error('❌ Erro ao procurar conciliações incorretas:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('❌ Erro ao procurar conciliações incorretas:', errorMessage);
     return [];
   }
 }

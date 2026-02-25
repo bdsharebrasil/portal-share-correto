@@ -167,7 +167,8 @@ export function ConciliacaoClientes() {
 
       setConciliacaoClientes(filteredData as any);
     } catch (error) {
-      console.error('Erro ao buscar conciliações:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('Erro ao buscar conciliações:', errorMessage);
       toast({
         title: "Erro",
         description: "Não foi possível carregar os dados de conciliação.",
