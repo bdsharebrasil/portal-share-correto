@@ -45,7 +45,7 @@ interface ColaboradorReconciliation {
   category: string | null;
   receiver_id?: string | null;
   payment_term: string | null;
-  created_by?: string;
+  criado_por?: string;
   user_profiles?: { full_name: string } | null;
 }
 
@@ -382,8 +382,8 @@ export function ConciliacaoColaborador() {
                         <TableRow className={`hover:bg-muted/50 ${isFinalized ? 'bg-muted/10 opacity-80' : ''}`}>
                           <TableCell>{item.date ? format(new Date(item.date + 'T12:00:00'), 'dd/MM/yyyy') : '-'}</TableCell>
                           <TableCell>
-                            <Badge className={`${getIdBadgeColor(getShortUserId(item.created_by || ''))} font-semibold`}>
-                              {getShortUserId(item.created_by || '')}
+                            <Badge className={`${getIdBadgeColor(getShortUserId(item.criador_por || ''))} font-semibold`}>
+                              {getShortUserId(item.criado_por || '')}
                             </Badge>
                           </TableCell>
                           <TableCell className="max-w-xs">
@@ -581,7 +581,7 @@ function NewReconciliationInlineForm({ users, onClose, onSuccess }: NewReconcili
           amount: parseFloat(data.amount),
           status: data.status,
           receiver_id: data.receiverId,
-          created_by: user.id,
+          criado_por: user.id,
         }] as any)
         .select()
         .single();
