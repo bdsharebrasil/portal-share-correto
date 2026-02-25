@@ -51,7 +51,10 @@ export function useExpirationAlerts(userId: string | null) {
         .select('*')
         .order('updated_at', { ascending: false });
 
-      if (alertsError) throw alertsError;
+      if (alertsError) {
+        const errorMsg = alertsError.message || JSON.stringify(alertsError);
+        throw new Error(`Erro ao buscar alertas de expiração: ${errorMsg}`);
+      }
 
       // Fetch user preferences
       const { data: userPrefs, error: prefsError } = await supabase
@@ -59,7 +62,10 @@ export function useExpirationAlerts(userId: string | null) {
         .select('*')
         .eq('user_id', userId);
 
-      if (prefsError) throw prefsError;
+      if (prefsError) {
+        const errorMsg = prefsError.message || JSON.stringify(prefsError);
+        throw new Error(`Erro ao buscar preferências de alertas: ${errorMsg}`);
+      }
 
       // Filter alerts based on user preferences
       const now = new Date();

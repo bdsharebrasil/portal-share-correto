@@ -51,7 +51,10 @@ export function useAnniversaryAlerts(userId: string | null) {
         .gte('days_until_birthday', -1)
         .order('days_until_birthday', { ascending: true });
 
-      if (alertsError) throw alertsError;
+      if (alertsError) {
+        const errorMsg = alertsError.message || JSON.stringify(alertsError);
+        throw new Error(`Erro ao buscar alertas de aniversário: ${errorMsg}`);
+      }
 
       // Fetch user preferences
       const { data: userPrefs, error: prefsError } = await supabase
@@ -59,7 +62,10 @@ export function useAnniversaryAlerts(userId: string | null) {
         .select('*')
         .eq('user_id', userId);
 
-      if (prefsError) throw prefsError;
+      if (prefsError) {
+        const errorMsg = prefsError.message || JSON.stringify(prefsError);
+        throw new Error(`Erro ao buscar preferências de aniversário: ${errorMsg}`);
+      }
 
       // Filter alerts based on user preferences
       const filteredAlerts = (allAlerts || []).filter((alert) => {
