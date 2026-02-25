@@ -390,6 +390,54 @@ export default function RelatorioViagem() {
         savedReport = data;
       }
 
+      // Salvar anexos das despesas na tabela travel_report_attachments
+      try {
+        const attachmentsToInsert = validExpenses
+          .map((expense, index) => {
+            if (!expense.receipt_url) return null;
+
+            // Extrair informações do arquivo da URL
+            const urlParts = expense.receipt_url.split('/');
+            const fileName = urlParts[urlParts.length - 1] || 'comprovante';
+            const filePath = `receipts/${fileName}`;
+
+            // Detectar tipo de arquivo
+            let fileType = 'application/octet-stream';
+            if (expense.receipt_url.includes('.pdf')) fileType = 'application/pdf';
+            else if (expense.receipt_url.includes('.jpg') || expense.receipt_url.includes('.jpeg')) fileType = 'image/jpeg';
+            else if (expense.receipt_url.includes('.png')) fileType = 'image/png';
+            else if (expense.receipt_url.includes('.gif')) fileType = 'image/gif';
+            else if (expense.receipt_url.includes('.webp')) fileType = 'image/webp';
+
+            return {
+              travel_report_id: savedReport.id,
+              expense_index: index,
+              file_name: fileName,
+              file_path: filePath,
+              file_url: expense.receipt_url,
+              file_type: fileType,
+              file_size: null, // Não temos tamanho do arquivo neste momento
+            };
+          })
+          .filter(Boolean);
+
+        if (attachmentsToInsert.length > 0) {
+          const { error: attachmentError } = await supabase
+            .from('travel_report_attachments')
+            .insert(attachmentsToInsert);
+
+          if (attachmentError) {
+            console.error('Erro ao salvar attachments:', attachmentError);
+            toast.warning('⚠️ Relatório salvo, mas houve erro ao registrar os comprovantes');
+          } else {
+            console.log(`✓ ${attachmentsToInsert.length} comprovante(s) registrado(s)`);
+          }
+        }
+      } catch (attachmentError: any) {
+        console.error('Erro ao processar attachments:', attachmentError);
+        toast.warning('⚠️ Erro ao registrar os comprovantes do relatório');
+      }
+
       // Criar conciliações bancárias quando o relatório for finalizado
       if (newStatus === 'Finalizado' || newStatus === 'Enviado') {
         const { data: { user } } = await supabase.auth.getUser();
