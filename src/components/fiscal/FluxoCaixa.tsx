@@ -695,176 +695,179 @@ export function FluxoCaixa() {
             </div>
           )}
 
-          {/* ── TABELA ─────────────────────────────────────────────────────── */}
-          <div
-            ref={tableContainerRef}
-            onScroll={handleBottomScroll}
-            className={`overflow-x-auto ${isDragging ? "cursor-grabbing select-none" : "cursor-default"}`}
-            onMouseDown={handleTableDragStart}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow className="border-border/40 hover:bg-transparent">
-                  {/* Checkbox */}
-                  <TableHead className="w-12">
-                    <Checkbox
-                      checked={paginatedTransacoes.length > 0 && selectedIds.size === paginatedTransacoes.length}
-                      onCheckedChange={() => toggleSelectAll()}
-                      className="h-5 w-5"
-                    />
-                  </TableHead>
+          {/* ── TABELA COM SCROLL SINCRONIZADO ─────────────────────────────────────── */}
+          <div className="space-y-0">
+            {/* Scroll superior - sincronizado com a tabela */}
+            <div
+              ref={topScrollRef}
+              onScroll={handleTopScroll}
+              className="overflow-x-auto overflow-y-hidden"
+              style={{ height: 12 }}
+            >
+              {/* Elemento fantasma com a largura real da tabela */}
+              <div style={{ width: tableScrollWidth, height: 1 }} />
+            </div>
 
-                  {/* Colunas dinâmicas (respeitando columnOrder) */}
-                  {columnOrder.map((column, index) => {
-                    if (!expandedColumns.has(column)) return null;
-                    const config = columnConfig[column];
-                    const colWidth = columnWidths[column] ?? defaultColumnWidths[column as keyof typeof defaultColumnWidths];
-                    const isSorted = sortField === config.sortField;
+            {/* Tabela */}
+            <div
+              ref={tableContainerRef}
+              onScroll={handleBottomScroll}
+              className={`overflow-x-auto ${isDragging ? "cursor-grabbing select-none" : "cursor-default"}`}
+              onMouseDown={handleTableDragStart}
+            >
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border/40 hover:bg-transparent">
+                    {/* Checkbox */}
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={paginatedTransacoes.length > 0 && selectedIds.size === paginatedTransacoes.length}
+                        onCheckedChange={() => toggleSelectAll()}
+                        className="h-5 w-5"
+                      />
+                    </TableHead>
 
-                    return (
-                      <TableHead
-                        key={column}
-                        className="text-foreground/70 group relative select-none p-0"
-                        style={{ width: colWidth, minWidth: colWidth, maxWidth: colWidth }}
-                        onClick={() => config.sortField && handleSort(config.sortField)}
-                      >
-                        <div
-                          draggable
-                          onDragStart={(e) => handleColumnDragStart(e, column)}
-                          onDragOver={(e) => handleColumnDragOver(e, index)}
-                          onDrop={(e) => handleColumnDrop(e, index)}
-                          onDragLeave={handleColumnDragLeave}
-                          onDragEnd={handleColumnDragEnd}
-                          className={`
-                            flex items-center justify-between h-full px-2 py-3 transition-colors rounded
-                            ${dragOverIndex === index ? "bg-primary/20 outline outline-1 outline-primary/40" : ""}
-                            ${column === draggedColumn ? "opacity-40" : ""}
-                          `}
+                    {/* Colunas dinâmicas (respeitando columnOrder) */}
+                    {columnOrder.map((column, index) => {
+                      if (!expandedColumns.has(column)) return null;
+                      const config = columnConfig[column];
+                      const colWidth = columnWidths[column] ?? defaultColumnWidths[column as keyof typeof defaultColumnWidths];
+                      const isSorted = sortField === config.sortField;
+
+                      return (
+                        <TableHead
+                          key={column}
+                          className="text-foreground/70 group relative select-none p-0"
+                          style={{ width: colWidth, minWidth: colWidth, maxWidth: colWidth }}
+                          onClick={() => config.sortField && handleSort(config.sortField)}
                         >
-                          {/* Grip + label + sort + hide */}
-                          <div className="flex items-center gap-1 flex-1 truncate cursor-move min-w-0">
-                            <GripHorizontal className="w-3 h-3 text-foreground/30 flex-shrink-0" />
-                            <span className="text-xs uppercase tracking-wider text-foreground/60 font-medium truncate">
-                              {config.label}
-                            </span>
-                            {isSorted && (
-                              sortDirection === "asc"
-                                ? <ChevronUp className="w-3 h-3 text-primary flex-shrink-0" />
-                                : <ChevronDown className="w-3 h-3 text-primary flex-shrink-0" />
-                            )}
-                            <button
-                              onClick={(e) => { e.stopPropagation(); toggleColumnVisibility(column); }}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
-                              title="Ocultar coluna"
-                            >
-                              <EyeOff className="w-3 h-3" />
-                            </button>
-                          </div>
-
-                          {/* Resize handle */}
                           <div
-                            onMouseDown={(e) => handleColumnResizeStart(e, column)}
-                            onClick={(e) => e.stopPropagation()}
+                            draggable
+                            onDragStart={(e) => handleColumnDragStart(e, column)}
+                            onDragOver={(e) => handleColumnDragOver(e, index)}
+                            onDrop={(e) => handleColumnDrop(e, index)}
+                            onDragLeave={handleColumnDragLeave}
+                            onDragEnd={handleColumnDragEnd}
                             className={`
-                              w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0
-                              ${resizingColumn === column ? "bg-primary" : ""}
+                              flex items-center justify-between h-full px-2 py-3 transition-colors rounded
+                              ${dragOverIndex === index ? "bg-primary/20 outline outline-1 outline-primary/40" : ""}
+                              ${column === draggedColumn ? "opacity-40" : ""}
                             `}
-                          />
+                          >
+                            {/* Grip + label + sort + hide */}
+                            <div className="flex items-center gap-1 flex-1 truncate cursor-move min-w-0">
+                              <GripHorizontal className="w-3 h-3 text-foreground/30 flex-shrink-0" />
+                              <span className="text-xs uppercase tracking-wider text-foreground/60 font-medium truncate">
+                                {config.label}
+                              </span>
+                              {isSorted && (
+                                sortDirection === "asc"
+                                  ? <ChevronUp className="w-3 h-3 text-primary flex-shrink-0" />
+                                  : <ChevronDown className="w-3 h-3 text-primary flex-shrink-0" />
+                              )}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); toggleColumnVisibility(column); }}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                title="Ocultar coluna"
+                              >
+                                <EyeOff className="w-3 h-3" />
+                              </button>
+                            </div>
+
+                            {/* Resize handle */}
+                            <div
+                              onMouseDown={(e) => handleColumnResizeStart(e, column)}
+                              onClick={(e) => e.stopPropagation()}
+                              className={`
+                                w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0
+                                ${resizingColumn === column ? "bg-primary" : ""}
+                              `}
+                            />
+                          </div>
+                        </TableHead>
+                      );
+                    })}
+
+                    {/* Colunas ocultas (collapsed) */}
+                    {collapsedColumns.size > 0 && (
+                      <TableHead className="text-foreground/70 group relative max-w-[120px]">
+                        <div className="flex items-center gap-1 flex-wrap p-2">
+                          {Array.from(collapsedColumns).map((colId) => (
+                            <button
+                              key={colId}
+                              onClick={() => toggleColumnVisibility(colId)}
+                              className="inline-flex items-center justify-center w-6 h-6 rounded bg-muted/50 hover:bg-muted text-xs font-semibold text-foreground/70 hover:text-foreground transition-colors border border-border/50 hover:border-border"
+                              title={`Expandir coluna - ${colId}`}
+                            >
+                              {getColumnLabel(colId)}
+                            </button>
+                          ))}
                         </div>
                       </TableHead>
+                    )}
+
+                    <TableHead className="text-right text-foreground/70">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+
+                <TableBody>
+                  {paginatedTransacoes.map((transacao: any, idx: number) => {
+                    const isEntrada = transacao.tipo_movimento === "entrada";
+                    const isSelected = selectedIds.has(transacao.id);
+                    const isPendente = transacao.status === "pendente";
+                    const lineNumber = startIndex + idx + 1;
+
+                    return (
+                      <TableRow
+                        key={transacao.id}
+                        className={`border-border/40 ${isSelected ? "bg-blue-900/20"
+                            : isEntrada && isPendente ? "bg-orange-900/20"
+                              : ""
+                          }`}
+                      >
+                        <TableCell className="text-center">
+                          <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectId(transacao.id)} className="h-5 w-5" />
+                        </TableCell>
+
+                        {columnOrder.map((column) => {
+                          if (!expandedColumns.has(column)) return null;
+                          return renderCell(column, transacao, lineNumber);
+                        })}
+
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                <ChevronDown className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuItem className="cursor-pointer" onClick={() => { setEditingMovimentacao(transacao); setShowInlineForm(true); }}>
+                                <Edit2 className="w-4 h-4 mr-2" />
+                                <span>Editar</span>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => setDeleteConfirmId(transacao.id)} className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10">
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                <span>Deletar</span>
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
 
-                  {/* Colunas ocultas (collapsed) */}
-                  {collapsedColumns.size > 0 && (
-                    <TableHead className="text-foreground/70 group relative max-w-[120px]">
-                      <div className="flex items-center gap-1 flex-wrap p-2">
-                        {Array.from(collapsedColumns).map((colId) => (
-                          <button
-                            key={colId}
-                            onClick={() => toggleColumnVisibility(colId)}
-                            className="inline-flex items-center justify-center w-6 h-6 rounded bg-muted/50 hover:bg-muted text-xs font-semibold text-foreground/70 hover:text-foreground transition-colors border border-border/50 hover:border-border"
-                            title={`Expandir coluna - ${colId}`}
-                          >
-                            {getColumnLabel(colId)}
-                          </button>
-                        ))}
-                      </div>
-                    </TableHead>
-                  )}
-
-                  <TableHead className="text-right text-foreground/70">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-
-              {/* ── SCROLL SUPERIOR (sincronizado) - Logo após os títulos ─────────────────────────────── */}
-              <div
-                ref={topScrollRef}
-                onScroll={handleTopScroll}
-                className="overflow-x-auto overflow-y-hidden"
-                style={{ height: 12 }}
-              >
-                {/* Elemento fantasma com a largura real da tabela */}
-                <div style={{ width: tableScrollWidth, height: 1 }} />
-              </div>
-
-              <TableBody>
-                {paginatedTransacoes.map((transacao: any, idx: number) => {
-                  const isEntrada = transacao.tipo_movimento === "entrada";
-                  const isSelected = selectedIds.has(transacao.id);
-                  const isPendente = transacao.status === "pendente";
-                  const lineNumber = startIndex + idx + 1;
-
-                  return (
-                    <TableRow
-                      key={transacao.id}
-                      className={`border-border/40 ${isSelected ? "bg-blue-900/20"
-                          : isEntrada && isPendente ? "bg-orange-900/20"
-                            : ""
-                        }`}
-                    >
-                      <TableCell className="text-center">
-                        <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectId(transacao.id)} className="h-5 w-5" />
-                      </TableCell>
-
-                      {columnOrder.map((column) => {
-                        if (!expandedColumns.has(column)) return null;
-                        return renderCell(column, transacao, lineNumber);
-                      })}
-
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <ChevronDown className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem className="cursor-pointer" onClick={() => { setEditingMovimentacao(transacao); setShowInlineForm(true); }}>
-                              <Edit2 className="w-4 h-4 mr-2" />
-                              <span>Editar</span>
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => setDeleteConfirmId(transacao.id)} className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10">
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              <span>Deletar</span>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                  {sortedTransacoes.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={calculateColSpan()} className="text-center text-foreground/40 py-8">
+                        Nenhuma movimentação encontrada
                       </TableCell>
                     </TableRow>
-                  );
-                })}
-
-                {sortedTransacoes.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={calculateColSpan()} className="text-center text-foreground/40 py-8">
-                      Nenhuma movimentação encontrada
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
 
           {/* Paginação */}
