@@ -478,13 +478,11 @@ export default function RelatorioViagem() {
               hint: attachmentError.hint,
               code: attachmentError.code,
             });
-            toast.warning('⚠️ Relatório salvo, mas houve erro ao registrar os comprovantes. Verifique as permissões do banco de dados.');
           } else {
             console.log(`✅ ${attachmentsToInsert.length} comprovante(s) registrado(s) com sucesso!`);
             if (insertedData) {
               console.log('Anexos salvos:', insertedData);
             }
-            toast.success(`✓ ${attachmentsToInsert.length} comprovante(s) associado(s) ao relatório`);
           }
         } else {
           console.log('ℹ️ Nenhum comprovante com URL foi encontrado para registrar');
@@ -492,7 +490,6 @@ export default function RelatorioViagem() {
       } catch (attachmentError: any) {
         console.error('❌ Erro ao processar attachments:', attachmentError);
         console.error('Stack trace:', attachmentError.stack);
-        toast.warning('⚠️ Erro ao registrar os comprovantes do relatório. Verifique o console para mais detalhes.');
       }
 
       // Criar conciliações bancárias quando o relatório for finalizado
@@ -628,7 +625,6 @@ export default function RelatorioViagem() {
 
             if (paymentError) {
               console.error('Erro ao registrar conciliações:', paymentError);
-              toast.warning('⚠️ Relatório salvo, mas houve erro ao criar conciliações bancárias');
             }
           }
 
@@ -682,7 +678,6 @@ export default function RelatorioViagem() {
 
               if (pdfUploadError) {
                 console.error('Erro ao fazer upload do PDF:', pdfUploadError);
-                toast.warning('⚠️ Relatório salvo, mas houve erro ao salvar o PDF');
               } else {
                 // Obter URL pública do PDF
                 const { data: { publicUrl: pdfUrl } } = supabase.storage
@@ -697,7 +692,6 @@ export default function RelatorioViagem() {
 
                 if (updateError) {
                   console.error('Erro ao atualizar pdf_url:', updateError);
-                  toast.warning('⚠️ PDF gerado mas erro ao salvar URL no banco');
                 } else {
                   console.log('✅ PDF salvo com sucesso:', pdfUrl);
                 }
@@ -710,8 +704,7 @@ export default function RelatorioViagem() {
         }
       }
 
-      const messageStatus = newStatus === 'Rascunho' ? 'Rascunho' : newStatus === 'Finalizado' ? 'Finalizado' : 'Enviado';
-      toast.success(isUpdate ? `✓ Relatório atualizado para: ${messageStatus}` : `✓ Relatório criado com status: ${messageStatus}`);
+      toast.success('✓ Relatório salvo com sucesso!');
       draftStorage.clearDraft();
       setHasSavedDraft(false);
       setIsCreating(false);
