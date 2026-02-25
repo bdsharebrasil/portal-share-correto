@@ -540,7 +540,7 @@ export default function RelatorioViagem() {
                 category: 'relatório_viagem',
                 description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - A RECEBER DO CLIENTE`,
                 date: today,
-                created_by: user.id,
+                criado_por: user.id,
                 reference_id: savedReport.id,
                 reference_type: 'travel_report'
               });
@@ -576,7 +576,7 @@ export default function RelatorioViagem() {
                 category: 'relatório_viagem',
                 description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO TRIPULANTE 1 (${reportData.crew_member_name.toUpperCase()})`,
                 date: today,
-                created_by: user.id,
+                criado_por: user.id,
                 reference_id: savedReport.id,
                 reference_type: 'travel_report'
               });
@@ -612,7 +612,7 @@ export default function RelatorioViagem() {
                 category: 'relatório_viagem',
                 description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO TRIPULANTE 2 (${reportData.crew_member_name_2.toUpperCase()})`,
                 date: today,
-                created_by: user.id,
+                criado_por: user.id,
                 reference_id: savedReport.id,
                 reference_type: 'travel_report'
               });
