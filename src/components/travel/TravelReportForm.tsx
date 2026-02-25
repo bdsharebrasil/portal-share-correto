@@ -35,6 +35,7 @@ interface Expense {
   amount: number;
   paid_by: string;
   receipt_url?: string;
+  expense_date?: string;
 }
 
 interface TravelReport {
@@ -126,6 +127,7 @@ export function TravelReportForm({
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
+  const [expenseDateOpenIndex, setExpenseDateOpenIndex] = useState<number | null>(null);
 
   // Auto-save draft
   useEffect(() => {
@@ -163,13 +165,15 @@ export function TravelReportForm({
   };
 
   const addExpense = () => {
+    const today = format(new Date(), 'yyyy-MM-dd');
     setCurrentReport(prev => ({
       ...prev,
       expenses: [...prev.expenses, {
         category: '',
         description: '',
         amount: 0,
-        paid_by: ''
+        paid_by: '',
+        expense_date: today
       }]
     }));
   };
@@ -581,6 +585,42 @@ export function TravelReportForm({
                 </div>
 
                 <div className="space-y-2">
+                  <Label>Data da Despesa</Label>
+                  <Popover open={expenseDateOpenIndex === index} onOpenChange={(open) => setExpenseDateOpenIndex(open ? index : null)}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4 text-white" />
+                        {expense.expense_date
+                          ? format(new Date(expense.expense_date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })
+                          : "Selecione"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={4}>
+                      <UICalendar
+                        mode="single"
+                        selected={expense.expense_date ? new Date(expense.expense_date + 'T00:00:00') : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const formattedDate = `${year}-${month}-${day}`;
+                            handleExpenseChange(index, 'expense_date', formattedDate);
+                            setExpenseDateOpenIndex(null);
+                          }
+                        }}
+                        disabled={(date) => date > new Date()}
+                        locale={ptBR}
+                        defaultMonth={expense.expense_date ? new Date(expense.expense_date + 'T00:00:00') : new Date()}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-2">
                   <Label>Valor (R$) *</Label>
                   <Input
                     type="number"
@@ -609,6 +649,18 @@ export function TravelReportForm({
                     <ControlledSelectItem value="Cliente">Cliente</ControlledSelectItem>
                     <ControlledSelectItem value="ShareBrasil">ShareBrasil</ControlledSelectItem>
                   </ControlledSelect>
+                </div>
+
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Descrição Detalhada</Label>
+                  <Input
+                    value={expense.description}
+                    onChange={(e) => handleExpenseChange(index, 'description', e.target.value)}
+                    placeholder="Breve descrição da despesa"
+                  />
                 </div>
 
                 <div className="space-y-2">
@@ -651,15 +703,6 @@ export function TravelReportForm({
                     )}
                   </div>
                 </div>
-              </div>
-
-              <div className="mt-4 space-y-2">
-                <Label>Descrição Detalhada</Label>
-                <Input
-                  value={expense.description}
-                  onChange={(e) => handleExpenseChange(index, 'description', e.target.value)}
-                  placeholder="Breve descrição da despesa"
-                />
               </div>
 
               {currentReport.expenses.length > 0 && (

@@ -36,7 +36,13 @@ const generatePDFConfig = (reportNumber: string) => {
     margin: 10,
     filename: `${reportNumber}-relatorio-viagem.pdf`,
     image: { type: 'jpeg' as const, quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, allowTaint: true },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+    },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
   };
 };
@@ -307,6 +313,13 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') 
                 margin-top: 12px;
                 border: 1px solid #ccc;
                 object-fit: contain;
+                background-color: #f5f5f5;
+                padding: 4px;
+            }
+
+            .receipt-image-container {
+                page-break-inside: avoid;
+                margin-top: 12px;
             }
 
             hr {
@@ -417,15 +430,24 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') 
                 <h2>Comprovantes Anexados</h2>
                 ${report.despesas
         .filter(d => d.comprovante_url)
-        .map((d, index) => `
+        .map((d, index) => {
+          const isBase64 = d.comprovante_url && d.comprovante_url.startsWith('data:');
+          const isPDF = d.comprovante_url && (d.comprovante_url.includes('.pdf') || d.comprovante_url.startsWith('data:application/pdf'));
+          return `
                         <div class="receipt-item">
                             <p><strong>Item Nº:</strong> ${index + 1}</p>
                             <p><strong>Descrição:</strong> ${d.descricao || 'N/A'}</p>
                             <p><strong>Categoria:</strong> ${d.categoria || 'Outros'}</p>
                             <p><strong>Valor:</strong> R$ ${(Number(d.valor) || 0).toFixed(2).replace('.', ',')}</p>
-                            <img class="receipt-image" src="${d.comprovante_url}" alt="Comprovante" crossorigin="anonymous" />
+                            <div class="receipt-image-container">
+                                ${isPDF && isBase64
+                                  ? `<embed class="receipt-image" src="${d.comprovante_url}" type="application/pdf" />`
+                                  : `<img class="receipt-image" src="${d.comprovante_url}" alt="Comprovante" ${isBase64 ? '' : 'crossorigin="anonymous"'} />`
+                                }
+                            </div>
                         </div>
-                    `).join('')}
+                    `;
+        }).join('')}
             </div>
         ` : ''}
 
@@ -463,17 +485,86 @@ const loadHtml2PdfFromCdn = () => {
 };
 
 const fetchImageAsBase64 = async (url: string): Promise<string> => {
+  // Pula se já é base64
+  if (url.startsWith('data:')) {
+    return url;
+  }
+
   try {
-    const response = await fetch(url);
+    console.log('🔄 Tentando converter para base64:', url.substring(0, 60) + '...');
+
+    // Primeiro, tenta com modo CORS padrão
+    let response = await fetch(url, {
+      mode: 'cors',
+      credentials: 'omit',
+      headers: {
+        'Accept': '*/*',
+      }
+    }).catch(async (firstError) => {
+      // Se falhar com CORS, tenta sem CORS (pode não funcionar para algumas URLs)
+      console.warn('⚠️ CORS mode falhou, tentando no-cors...', firstError.message);
+      return fetch(url, {
+        mode: 'no-cors',
+        credentials: 'omit',
+      });
+    });
+
+    if (!response.ok && response.status !== 0) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
     const blob = await response.blob();
+
+    // Validar que o blob não está vazio
+    if (blob.size === 0) {
+      throw new Error('Blob vazio recebido');
+    }
+
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
+
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        if (result && result.length > 0) {
+          console.log('✅ Conversão bem-sucedida, tamanho:', (result.length / 1024).toFixed(2) + 'KB');
+          resolve(result);
+        } else {
+          reject(new Error('FileReader retornou resultado vazio'));
+        }
+      };
+
+      reader.onerror = () => {
+        console.error('❌ Erro ao ler arquivo:', reader.error);
+        reject(reader.error);
+      };
+
+      reader.abort = () => {
+        console.warn('⚠️ Leitura do arquivo foi abortada');
+        reject(new Error('Leitura abortada'));
+      };
+
+      // Define um timeout para leitura
+      const timeout = setTimeout(() => {
+        reader.abort();
+      }, 30000); // 30 segundos de timeout
+
+      reader.onloadend = () => {
+        clearTimeout(timeout);
+        const result = reader.result as string;
+        if (result && result.length > 0) {
+          console.log('✅ Conversão bem-sucedida, tamanho:', (result.length / 1024).toFixed(2) + 'KB');
+          resolve(result);
+        } else {
+          reject(new Error('FileReader retornou resultado vazio'));
+        }
+      };
+
       reader.readAsDataURL(blob);
     });
-  } catch (e) {
-    console.warn('Falha ao converter imagem para base64:', url, e);
+  } catch (e: any) {
+    console.warn('⚠️ Falha ao converter comprovante para base64:', url.substring(0, 60) + '...', e.message);
+    // Retorna URL original como fallback
+    // O html2pdf tentará carregar do URL original com allowTaint: true
     return url;
   }
 };
@@ -481,13 +572,28 @@ const fetchImageAsBase64 = async (url: string): Promise<string> => {
 export const generatePDF = async (report: TravelReport, currentFullName?: string): Promise<Blob> => {
   // Pre-convert all receipt images to base64 to avoid CORS issues
   const reportWithBase64 = { ...report, despesas: [...report.despesas] };
+
+  const totalComprovantes = report.despesas.filter(d => d.comprovante_url).length;
+  console.log(`📄 Iniciando conversão de ${totalComprovantes} comprovante(s) para base64...`);
+
   const imagePromises = reportWithBase64.despesas.map(async (d, i) => {
     if (d.comprovante_url) {
-      const base64 = await fetchImageAsBase64(d.comprovante_url);
-      reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
+      const isPDF = d.comprovante_url.includes('.pdf') || d.comprovante_url.startsWith('data:application/pdf');
+      const fileType = isPDF ? 'PDF' : 'Imagem';
+      console.log(`⏳ Convertendo comprovante ${i + 1} (${fileType}):`, d.comprovante_url.substring(0, 50) + '...');
+      try {
+        const base64 = await fetchImageAsBase64(d.comprovante_url);
+        reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
+        console.log(`✅ Comprovante ${i + 1} convertido com sucesso (${fileType})`);
+      } catch (error) {
+        console.error(`❌ Erro ao converter comprovante ${i + 1}:`, error);
+        // Mantém URL original como fallback
+      }
     }
   });
+
   await Promise.all(imagePromises);
+  console.log(`✅ Conversão de ${totalComprovantes} comprovante(s) concluída`);
 
   const htmlContent = generateHTMLReport(reportWithBase64, currentFullName);
 
@@ -503,8 +609,10 @@ export const generatePDF = async (report: TravelReport, currentFullName?: string
     iframeDoc.write(htmlContent);
     iframeDoc.close();
 
-    // Wait longer for base64 images to render
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Wait longer for base64 images to render (especialmente PDFs)
+    console.log('⏳ Aguardando renderização das imagens/PDFs (3 segundos)...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    console.log('✅ Imagens/PDFs renderizadas');
 
     const config = generatePDFConfig(report.numero);
     const html2pdf = (window as any).html2pdf ? (window as any).html2pdf : await loadHtml2PdfFromCdn();
@@ -515,14 +623,16 @@ export const generatePDF = async (report: TravelReport, currentFullName?: string
           ...config,
           useCORS: true,
           logging: false,
+          allowTaint: true,
         })
         .from(iframeDoc.body)
         .outputPdf('blob')
         .then((blob: Blob) => {
+          console.log('✅ PDF gerado com sucesso:', blob.size, 'bytes');
           resolve(blob);
         })
         .catch((err: any) => {
-          console.error('Erro ao gerar PDF:', err);
+          console.error('❌ Erro ao gerar PDF:', err);
           reject(err);
         });
     });
@@ -549,8 +659,27 @@ export const openPDFInNewWindow = async (report: TravelReport, currentFullName?:
   window.open(url, '_blank');
 };
 
-export const viewHTMLPreview = (report: TravelReport, currentFullName?: string) => {
-  const htmlContent = generateHTMLReport(report, currentFullName);
+export const viewHTMLPreview = async (report: TravelReport, currentFullName?: string) => {
+  // Convert receipts to base64 for better compatibility
+  const reportWithBase64 = { ...report, despesas: [...report.despesas] };
+
+  console.log('📄 Preparando prévia HTML com conversão de comprovantes...');
+
+  const imagePromises = reportWithBase64.despesas.map(async (d, i) => {
+    if (d.comprovante_url && !d.comprovante_url.startsWith('data:')) {
+      try {
+        const base64 = await fetchImageAsBase64(d.comprovante_url);
+        reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
+      } catch (error) {
+        console.warn('Erro ao converter para prévia HTML:', error);
+        // Mantém URL original
+      }
+    }
+  });
+
+  await Promise.all(imagePromises);
+
+  const htmlContent = generateHTMLReport(reportWithBase64, currentFullName);
   const newWindow = window.open('', '_blank');
   if (newWindow) {
     newWindow.document.write(htmlContent);
@@ -560,7 +689,23 @@ export const viewHTMLPreview = (report: TravelReport, currentFullName?: string) 
 
 export const previewPDFForPrint = async (report: TravelReport, currentFullName?: string) => {
   try {
-    const htmlContent = generateHTMLReport(report, currentFullName);
+    // Convert receipts to base64 for better compatibility
+    const reportWithBase64 = { ...report, despesas: [...report.despesas] };
+
+    const imagePromises = reportWithBase64.despesas.map(async (d, i) => {
+      if (d.comprovante_url && !d.comprovante_url.startsWith('data:')) {
+        try {
+          const base64 = await fetchImageAsBase64(d.comprovante_url);
+          reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
+        } catch (error) {
+          console.warn('Erro ao converter para prévia de impressão:', error);
+        }
+      }
+    });
+
+    await Promise.all(imagePromises);
+
+    const htmlContent = generateHTMLReport(reportWithBase64, currentFullName);
     const newWindow = window.open('', '_blank');
 
     if (!newWindow) {
