@@ -145,6 +145,28 @@ export function TravelReportForm({
     }
   }, [currentReport, onAutoSave, report]);
 
+  // Recalcular totais em tempo real quando as despesas mudam
+  useEffect(() => {
+    const validExpenses = getValidExpenses(currentReport.expenses);
+    const recalculatedTotals = calculateReportTotals(validExpenses);
+
+    // Atualizar apenas se os totais mudaram (evita re-renders desnecessários)
+    setCurrentReport(prev => ({
+      ...prev,
+      total_amount: recalculatedTotals.total_amount,
+      total_fuel: recalculatedTotals.total_fuel,
+      total_lodging: recalculatedTotals.total_lodging,
+      total_food: recalculatedTotals.total_food,
+      total_transport: recalculatedTotals.total_transport,
+      total_other: recalculatedTotals.total_other,
+      total_crew: recalculatedTotals.total_crew,
+      total_crew1: recalculatedTotals.total_crew1,
+      total_crew2: recalculatedTotals.total_crew2,
+      total_client: recalculatedTotals.total_client,
+      total_sharebrasil: recalculatedTotals.total_sharebrasil,
+    }));
+  }, [currentReport.expenses]);
+
   const handleInputChange = (field: keyof TravelReport, value: any) => {
     setCurrentReport(prev => ({
       ...prev,
