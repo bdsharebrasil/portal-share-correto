@@ -695,17 +695,6 @@ export function FluxoCaixa() {
             </div>
           )}
 
-          {/* ── SCROLL SUPERIOR (sincronizado) ─────────────────────────────── */}
-          <div
-            ref={topScrollRef}
-            onScroll={handleTopScroll}
-            className="overflow-x-auto overflow-y-hidden"
-            style={{ height: 12 }}
-          >
-            {/* Elemento fantasma com a largura real da tabela */}
-            <div style={{ width: tableScrollWidth, height: 1 }} />
-          </div>
-
           {/* ── TABELA ─────────────────────────────────────────────────────── */}
           <div
             ref={tableContainerRef}
@@ -807,6 +796,17 @@ export function FluxoCaixa() {
                   <TableHead className="text-right text-foreground/70">Ações</TableHead>
                 </TableRow>
               </TableHeader>
+
+              {/* ── SCROLL SUPERIOR (sincronizado) - Logo após os títulos ─────────────────────────────── */}
+              <div
+                ref={topScrollRef}
+                onScroll={handleTopScroll}
+                className="overflow-x-auto overflow-y-hidden"
+                style={{ height: 12 }}
+              >
+                {/* Elemento fantasma com a largura real da tabela */}
+                <div style={{ width: tableScrollWidth, height: 1 }} />
+              </div>
 
               <TableBody>
                 {paginatedTransacoes.map((transacao: any, idx: number) => {
