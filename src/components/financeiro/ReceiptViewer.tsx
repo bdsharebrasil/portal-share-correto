@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { X, Download, ExternalLink, ZoomIn, ZoomOut, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import * as pdfjsLib from 'pdfjs-dist';
+import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-// Configurar o worker do PDF.js
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Usa o worker local do bundle — evita dependência do CDN
+pdfjsLib.GlobalWorkerOptions.workerSrc = PdfWorker;
 
 interface ReceiptViewerProps {
   open: boolean;
@@ -54,6 +55,7 @@ export function ReceiptViewer({ open, onOpenChange, url, title = 'Comprovante' }
         await page.render({
           canvasContext: context,
           viewport: viewport,
+          canvas: canvas,
         }).promise;
 
         pages.push(canvas.toDataURL('image/png'));

@@ -352,6 +352,7 @@ export default function RelatorioViagem() {
           descricao: e.description,
           valor: e.amount,
           pago_por: e.paid_by,
+          data: (e as any).expense_date || '',
           comprovante_url: e.receipt_url
         })) as TravelExpense[],
         total_combustivel: correctedTotals.total_fuel,

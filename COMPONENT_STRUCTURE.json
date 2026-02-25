@@ -1,0 +1,151 @@
+{
+  "title": "Estrutura de Componentes do Repositório Portal Share",
+  "analysis_summary": {
+    "status": "INCOMPLETE",
+    "critical_issues": 3,
+    "warning_issues": 0,
+    "total_components_referenced": 166,
+    "total_components_existing": 163,
+    "coverage": "98.19%"
+  },
+  "critical_missing_components": [
+    {
+      "id": 1,
+      "component_name": "ConfiguracoesFiscais",
+      "category": "fiscal",
+      "priority": "HIGH",
+      "required_by": [
+        "src/modules/core-finance/pages/GestaoFiscal.tsx"
+      ],
+      "usage_context": "Tab content for 'Configurações' in fiscal management page",
+      "suggested_location": "src/components/fiscal/ConfiguracoesFiscais.tsx",
+      "creation_status": "NOT_CREATED",
+      "suggested_interface": {
+        "exports": ["ConfiguracoesFiscais (default export)"],
+        "props": ["Similar to other fiscal tabs"],
+        "reference_components": [
+          "ContasRecorrentesTab",
+          "PagamentoSalarioTab",
+          "PrestadoresServicoTab"
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "component_name": "ContasPagar",
+      "category": "fiscal",
+      "priority": "HIGH",
+      "required_by": [
+        "src/modules/core-finance/pages/GestaoFiscal.tsx"
+      ],
+      "usage_context": "Tab content for 'Contas a Pagar' in fiscal management page",
+      "suggested_location": "src/components/fiscal/ContasPagar.tsx",
+      "creation_status": "NOT_CREATED",
+      "suggested_interface": {
+        "exports": ["ContasPagar (default export)"],
+        "props": ["Similar to other fiscal tabs"],
+        "reference_components": [
+          "ContasRecorrentesTab",
+          "PagamentoSalarioTab",
+          "PrestadoresServicoTab"
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "component_name": "ContasReceber",
+      "category": "fiscal",
+      "priority": "HIGH",
+      "required_by": [
+        "src/modules/core-finance/pages/GestaoFiscal.tsx"
+      ],
+      "usage_context": "Tab content for 'Contas a Receber' in fiscal management page",
+      "suggested_location": "src/components/fiscal/ContasReceber.tsx",
+      "creation_status": "NOT_CREATED",
+      "suggested_interface": {
+        "exports": ["ContasReceber (default export)"],
+        "props": ["Similar to other fiscal tabs"],
+        "reference_components": [
+          "ContasRecorrentesTab",
+          "PagamentoSalarioTab",
+          "PrestadoresServicoTab"
+        ]
+      }
+    }
+  ],
+  "component_categories": {
+    "fiscal": {
+      "total_referenced": 8,
+      "existing": 5,
+      "missing": 3,
+      "existing_components": [
+        "CategoriasCrud",
+        "ContasBancarias",
+        "ContasRecorrentesTab",
+        "FluxoCaixa",
+        "MovimentacaoBancariaDialog",
+        "NotasFiscaisSaida",
+        "PagamentoSalarioTab",
+        "PrestadoresServicoTab"
+      ],
+      "missing_components": [
+        "ConfiguracoesFiscais",
+        "ContasPagar",
+        "ContasReceber"
+      ]
+    },
+    "ui": {
+      "total_referenced": 35,
+      "existing": 35,
+      "missing": 0
+    },
+    "layout": {
+      "total_referenced": 1,
+      "existing": 1,
+      "missing": 0
+    },
+    "dashboard": {
+      "total_referenced": 10,
+      "existing": 10,
+      "missing": 0
+    },
+    "other_custom_components": {
+      "total_referenced": 117,
+      "existing": 117,
+      "missing": 0
+    }
+  },
+  "action_items": [
+    {
+      "order": 1,
+      "task": "Create src/components/fiscal/ConfiguracoesFiscais.tsx",
+      "file_location": "src/components/fiscal/ConfiguracoesFiscais.tsx",
+      "priority": "HIGH",
+      "estimated_effort": "Medium",
+      "blocking_file": "src/modules/core-finance/pages/GestaoFiscal.tsx"
+    },
+    {
+      "order": 2,
+      "task": "Create src/components/fiscal/ContasPagar.tsx",
+      "file_location": "src/components/fiscal/ContasPagar.tsx",
+      "priority": "HIGH",
+      "estimated_effort": "Medium",
+      "blocking_file": "src/modules/core-finance/pages/GestaoFiscal.tsx"
+    },
+    {
+      "order": 3,
+      "task": "Create src/components/fiscal/ContasReceber.tsx",
+      "file_location": "src/components/fiscal/ContasReceber.tsx",
+      "priority": "HIGH",
+      "estimated_effort": "Medium",
+      "blocking_file": "src/modules/core-finance/pages/GestaoFiscal.tsx"
+    }
+  ],
+  "validation_notes": [
+    "All 163 existing components have been verified to exist in the filesystem",
+    "All imports are using the correct @/components/ alias pattern",
+    "No orphaned imports found (all imports that exist are used)",
+    "GestaoFiscal.tsx is the ONLY file with incomplete component dependencies",
+    "This is a non-critical issue - the app may still run but those tabs will fail at runtime"
+  ]
+}

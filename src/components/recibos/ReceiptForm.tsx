@@ -34,6 +34,13 @@ interface FavoriteDescription {
   description: string;
 }
 
+interface ClientPartner {
+  id: string;
+  name: string;
+  cpf: string;
+  share_percentage: number;
+}
+
 export function ReceiptForm({
   clientesAtivos,
   favoritePayers,
@@ -70,6 +77,8 @@ export function ReceiptForm({
   });
 
   const [aircrafts, setAircrafts] = useState<any[]>([]);
+  const [clientPartners, setClientPartners] = useState<ClientPartner[]>([]);
+  const [selectedPartnerId, setSelectedPartnerId] = useState<string>("");
   const [categoriasAgrupadas, setCategoriasAgrupadas] = useState<
     Record<string, Categoria[]>
   >({});
@@ -154,10 +163,13 @@ export function ReceiptForm({
   useEffect(() => {
     if (!formData.clienteId) {
       setAircrafts([]);
+      setClientPartners([]);
+      setSelectedPartnerId("");
       return;
     }
 
     loadAircrafts(formData.clienteId);
+    loadClientPartners(formData.clienteId);
 
     const client = clientesAtivos.find((c) => c.id === formData.clienteId);
     if (client) {
@@ -170,7 +182,35 @@ export function ReceiptForm({
         pagadorUF: client.uf || "",
       }));
     }
+    setSelectedPartnerId("");
   }, [formData.clienteId]);
+
+  // Quando seleciona um sócio, atualiza dados do pagador
+  useEffect(() => {
+    if (!selectedPartnerId) {
+      // Volta para dados do cliente principal
+      const client = clientesAtivos.find((c) => c.id === formData.clienteId);
+      if (client && formData.clienteId) {
+        setFormData((prev) => ({
+          ...prev,
+          pagadorNome: client.company_name || "",
+          pagadorDocumento: client.cnpj || "",
+          pagadorEndereco: client.address || "",
+          pagadorCidade: client.city || "",
+          pagadorUF: client.uf || "",
+        }));
+      }
+      return;
+    }
+    const partner = clientPartners.find((p) => p.id === selectedPartnerId);
+    if (partner) {
+      setFormData((prev) => ({
+        ...prev,
+        pagadorNome: partner.name || "",
+        pagadorDocumento: partner.cpf || "",
+      }));
+    }
+  }, [selectedPartnerId]);
 
   const loadAircrafts = async (clientId: string) => {
     const { data } = await supabase
@@ -181,6 +221,15 @@ export function ReceiptForm({
     if (data) {
       setAircrafts(data.map((c) => c.aircraft).filter(Boolean));
     }
+  };
+
+  const loadClientPartners = async (clientId: string) => {
+    const { data } = await supabase
+      .from("client_partners")
+      .select("id, name, cpf, share_percentage")
+      .eq("client_id", clientId)
+      .order("name");
+    setClientPartners(data || []);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -282,11 +331,39 @@ export function ReceiptForm({
             </div>
           </div>
 
+          {/* SÓCIO (PARTNER) - aparece quando o cliente tem sócios */}
+          {clientPartners.length > 0 && formData.clienteId && (
+            <div className="p-4 border border-border rounded-lg bg-muted/20 space-y-2">
+              <Label className="text-sm font-semibold">Sócio / Pagador</Label>
+              <p className="text-xs text-muted-foreground">
+                Este cliente possui sócios vinculados. Selecione o sócio que será o pagador do recibo.
+              </p>
+              <Select
+                value={selectedPartnerId}
+                onValueChange={setSelectedPartnerId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o sócio (pagador)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__client__">
+                    {clientesAtivos.find(c => c.id === formData.clienteId)?.company_name || "Cliente Principal"}
+                  </SelectItem>
+                  {clientPartners.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} {p.cpf ? `(${p.cpf})` : ""} — {p.share_percentage}%
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* DADOS DO PAGADOR - visível para ambos os tipos */}
           <div className="space-y-4 p-4 border border-border rounded-lg bg-muted/20">
             <Label className="text-sm font-semibold">Dados do Pagador</Label>
             <p className="text-xs text-muted-foreground -mt-2">
-              {formData.clienteId ? "Preenchido automaticamente pelo cliente selecionado" : "Preencha manualmente os dados do pagador"}
+              {selectedPartnerId ? "Preenchido pelo sócio selecionado" : formData.clienteId ? "Preenchido automaticamente pelo cliente selecionado" : "Preencha manualmente os dados do pagador"}
             </p>
             <div className="grid md:grid-cols-2 gap-4">
               <div>

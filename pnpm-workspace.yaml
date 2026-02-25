@@ -1,0 +1,10 @@
+packages:
+  - '.'
+
+ignoredBuiltDependencies:
+  - '@swc/core'
+  - core-js
+  - esbuild
+
+onlyBuiltDependencies:
+  - supabase

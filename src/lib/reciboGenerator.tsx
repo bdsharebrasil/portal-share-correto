@@ -6,11 +6,10 @@ import {
   View,
   Image,
   StyleSheet,
-  Font,
 } from '@react-pdf/renderer';
 import { formatDateToBR } from './date-utils';
 
-// Get logo URL - works on both server and client
+// Get logo URL
 const getLogoUrl = () => {
   if (typeof window !== 'undefined') {
     return `${window.location.origin}/logo.share.png`;
@@ -20,222 +19,202 @@ const getLogoUrl = () => {
 
 const logoUrl = getLogoUrl();
 
-// PDF Styles
 const styles = StyleSheet.create({
   page: {
     padding: 40,
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: 'Helvetica',
     backgroundColor: '#FFFFFF',
   },
-
-  // Header Styles
-  header: {
+  // Header
+  headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 30,
-    alignItems: 'flex-start',
-    borderBottom: '2px solid #E5E7EB',
-    paddingBottom: 20,
-  },
-  headerLeft: {
-    flexDirection: 'column',
-    justifyContent: 'center',
-    flex: 1,
-  },
-
-  // Logo Style
-  logoHeader: {
-    width: 120,
-    height: 50,
-    objectFit: 'contain',
+    alignItems: 'center',
     marginBottom: 10,
   },
-
+  logoHeader: {
+    width: 80,
+    height: 40,
+    objectFit: 'contain',
+  },
+  titleArea: {
+    flex: 1,
+    alignItems: 'center',
+  },
   reciboTitle: {
-    fontSize: 24,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginTop: 5,
+    textDecoration: 'underline',
   },
-
-  headerRight: {
-    alignItems: 'flex-end',
-    flex: 1,
-  },
-
-  label: {
-    color: '#6B7280',
-    fontSize: 8,
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-  },
-
-  valueBox: {
-    border: '2px solid #000000',
-    padding: 12,
-    width: 180,
+  valorBox: {
+    border: '1.5px solid #000000',
+    padding: 8,
+    minWidth: 100,
     alignItems: 'center',
-    marginTop: 10,
   },
-
-  valueText: {
-    fontSize: 16,
+  valorText: {
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#000000',
   },
-
-  // Content Styles
-  row: {
+  // Emissor / Pagador row
+  infoRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 25,
-    marginBottom: 15,
-    gap: 20,
-  },
-
-  column: {
-    flex: 1,
-    paddingRight: 10,
-  },
-
-  bold: {
-    fontWeight: 'bold',
-    fontSize: 11,
-    marginBottom: 4,
-    color: '#1F2937',
-  },
-
-  boldLabel: {
-    fontWeight: 'bold',
-    fontSize: 9,
-    marginBottom: 3,
-    color: '#1F2937',
-  },
-
-  text: {
-    fontSize: 10,
-    marginBottom: 3,
-    color: '#374151',
-    lineHeight: 1.4,
-  },
-
-  sectionHeader: {
-    backgroundColor: '#F3F4F6',
-    padding: 10,
-    marginTop: 20,
-    marginBottom: 10,
-    fontWeight: 'bold',
-    fontSize: 11,
-    color: '#1F2937',
-    borderLeft: '4px solid #3B82F6',
-  },
-
-  descriptionBox: {
-    fontSize: 10,
-    lineHeight: 1.6,
-    minHeight: 80,
-    padding: 10,
-    backgroundColor: '#F9FAFB',
-    border: '1px solid #E5E7EB',
-    borderRadius: 4,
     marginTop: 10,
     marginBottom: 10,
-    color: '#374151',
+    gap: 20,
   },
-
-  // Footer Styles
-  footer: {
-    marginTop: 50,
-    borderTop: '1px solid #E5E7EB',
-    paddingTop: 20,
+  infoColumn: {
+    flex: 1,
   },
-
-  disclaimer: {
-    fontSize: 8,
+  infoLabel: {
+    fontSize: 7,
     color: '#6B7280',
-    fontStyle: 'italic',
-    marginBottom: 20,
-    lineHeight: 1.5,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    marginBottom: 2,
   },
-
+  infoValue: {
+    fontSize: 9,
+    color: '#1F2937',
+    marginBottom: 1,
+    lineHeight: 1.4,
+  },
+  infoValueBold: {
+    fontSize: 10,
+    color: '#1F2937',
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  receiptNumberBox: {
+    alignItems: 'flex-end',
+  },
+  receiptNumberLabel: {
+    fontSize: 7,
+    color: '#6B7280',
+    fontWeight: 'bold',
+  },
+  receiptNumberValue: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  // Separator
+  separator: {
+    height: 1,
+    backgroundColor: '#D1D5DB',
+    marginVertical: 8,
+  },
+  separatorThick: {
+    height: 2,
+    backgroundColor: '#1F2937',
+    marginVertical: 8,
+  },
+  // Description section
+  descriptionHeader: {
+    backgroundColor: '#E5E7EB',
+    padding: 6,
+    marginBottom: 4,
+  },
+  descriptionHeaderText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  descriptionContent: {
+    padding: 8,
+    minHeight: 60,
+    border: '1px solid #E5E7EB',
+  },
+  descriptionText: {
+    fontSize: 9,
+    color: '#374151',
+    lineHeight: 1.6,
+  },
+  // Total row
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  totalBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  totalLabel: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    backgroundColor: '#E5E7EB',
+    padding: 6,
+    paddingHorizontal: 12,
+  },
+  totalValue: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    padding: 6,
+    border: '1px solid #E5E7EB',
+    minWidth: 100,
+    textAlign: 'right',
+  },
+  // OBS / Disclaimer
+  obsSection: {
+    marginTop: 15,
+    marginBottom: 15,
+  },
+  obsLabel: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  obsText: {
+    fontSize: 8,
+    color: '#374151',
+    lineHeight: 1.6,
+    fontStyle: 'italic',
+  },
+  // Signature
   signatureArea: {
     marginTop: 40,
     alignItems: 'center',
   },
-
+  signatureDateLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 30,
+  },
+  signatureDateText: {
+    fontSize: 10,
+    color: '#1F2937',
+  },
+  signatureDateUnderline: {
+    borderBottom: '1px solid #000',
+    minWidth: 40,
+    textAlign: 'center',
+    fontSize: 10,
+    paddingBottom: 2,
+  },
   signatureLine: {
     width: 200,
     borderBottom: '1px solid #000000',
-    marginBottom: 8,
-    marginTop: 15,
+    marginBottom: 5,
   },
-
-  signatureName: {
-    fontWeight: 'bold',
-    fontSize: 10,
-    color: '#1F2937',
-    marginTop: 5,
-  },
-
-  // Logo na Assinatura
   logoSignature: {
-    width: 80,
-    height: 32,
+    width: 70,
+    height: 28,
     objectFit: 'contain',
-    marginTop: 15,
-    opacity: 0.6,
+    marginTop: 8,
   },
-
-  // Info Box
-  infoBox: {
-    backgroundColor: '#EFF6FF',
-    border: '1px solid #93C5FD',
-    padding: 10,
-    marginTop: 15,
-    marginBottom: 15,
-    borderRadius: 4,
-  },
-
-  infoBoxText: {
-    fontSize: 9,
-    color: '#1E40AF',
-    lineHeight: 1.5,
-  },
-
-  // Separator
-  separator: {
-    height: 1,
-    backgroundColor: '#E5E7EB',
-    marginVertical: 15,
-  },
-
-  // Data Grid
-  dataGrid: {
-    display: 'flex',
-    flexDirection: 'row',
-    marginVertical: 10,
-    gap: 20,
-  },
-
-  dataItem: {
-    flex: 1,
-  },
-
-  dataLabel: {
+  signatureCaption: {
     fontSize: 8,
     color: '#6B7280',
-    marginBottom: 2,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-  },
-
-  dataValue: {
-    fontSize: 10,
-    color: '#1F2937',
-    fontWeight: '500',
+    marginTop: 2,
   },
 });
 
@@ -249,7 +228,6 @@ export const ReciboDocument = ({ data }: { data: any }) => {
   };
 
   const formatDocumento = (doc: string) => {
-    // Format CPF/CNPJ
     if (doc && doc.length === 11) {
       return doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/g, '$1.$2.$3-$4');
     }
@@ -263,151 +241,134 @@ export const ReciboDocument = ({ data }: { data: any }) => {
   };
 
   const isReembolso = data.receipt_type === 'reembolso';
+  const emissor = data.emissor;
+
+  // Parse issue date for signature
+  const issueDate = data.issue_date ? new Date(data.issue_date + 'T12:00:00') : new Date();
+  const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const day = issueDate.getDate();
+  const month = months[issueDate.getMonth()];
+  const year = issueDate.getFullYear();
+  const cityName = emissor?.cidade || 'Várzea Grande';
+
+  const disclaimerPagamento = 'Para maior clareza, firmo(amos) o presente recibo para que produza os seus efeitos legais, dando plena e rasa quitação.';
+  const disclaimerReembolso = `OBS: Declaro, para os devidos fins, que o presente recibo é emitido antecipadamente a título de solicitação de reembolso referente às despesas efetuadas por esta empresa em benefício do cliente acima identificado.\nRessalta-se que o presente documento somente terá validade e produzirá seus efeitos legais após a efetiva quitação do valor nele indicado, mediante comprovação do respectivo pagamento.\nPara maior clareza e segurança das partes, firmo o presente recibo, que permanecerá condicionado ao cumprimento integral da obrigação de pagamento até a data de quitação.`;
 
   return (
     <Document>
-        <Page size="A4" style={styles.page}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              <Image
-                src={logoUrl}
-                style={styles.logoHeader}
-                cache={false}
-              />
-              <Text style={styles.reciboTitle}>
-                {isReembolso ? 'RECIBO DE REEMBOLSO' : 'RECIBO DE PAGAMENTO'}
-              </Text>
-            </View>
-
-            <View style={styles.headerRight}>
-              <Text style={styles.label}>Nº DO RECIBO</Text>
-              <View style={styles.valueBox}>
-                <Text style={styles.valueText}>{data.receipt_number}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Data do Recibo */}
-          <View style={styles.dataGrid}>
-            <View style={styles.dataItem}>
-              <Text style={styles.dataLabel}>Data de Emissão</Text>
-              <Text style={styles.dataValue}>
-                {formatDateToBR(data.issue_date)}
-              </Text>
-            </View>
-            <View style={styles.dataItem}>
-              <Text style={styles.dataLabel}>Data do Documento</Text>
-              <Text style={styles.dataValue}>
-                {data.max_payment_date
-                  ? formatDateToBR(data.max_payment_date)
-                  : '—'}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.separator} />
-
-          {/* Pagador / Beneficiário */}
-          <Text style={styles.sectionHeader}>
-            {isReembolso ? 'BENEFICIÁRIO' : 'PAGADOR'}
-          </Text>
-
-          <View style={styles.row}>
-            <View style={styles.column}>
-              <Text style={styles.boldLabel}>Nome/Razão Social</Text>
-              <Text style={styles.text}>{data.payer_name}</Text>
-            </View>
-            <View style={styles.column}>
-              <Text style={styles.boldLabel}>CPF/CNPJ</Text>
-              <Text style={styles.text}>
-                {data.payer_document
-                  ? formatDocumento(data.payer_document)
-                  : '—'}
-              </Text>
-            </View>
-          </View>
-
-          {data.payer_address && (
-            <View style={styles.row}>
-              <View style={styles.column}>
-                <Text style={styles.boldLabel}>Endereço</Text>
-                <Text style={styles.text}>{data.payer_address}</Text>
-              </View>
-              <View style={styles.column}>
-                <Text style={styles.boldLabel}>Cidade/UF</Text>
-                <Text style={styles.text}>
-                  {data.payer_city} {data.payer_uf ? `- ${data.payer_uf}` : ''}
-                </Text>
-              </View>
-            </View>
-          )}
-
-          <View style={styles.separator} />
-
-          {/* Valor */}
-          <View style={styles.row}>
-            <View style={styles.column}>
-              <Text style={styles.boldLabel}>Valor do Recibo</Text>
-              <Text style={{ ...styles.text, fontSize: 16, fontWeight: 'bold', color: '#059669' }}>
-                {formatCurrency(data.amount)}
-              </Text>
-            </View>
-            <View style={styles.column}>
-              <Text style={styles.boldLabel}>Forma de Pagamento</Text>
-              <Text style={styles.text}>
-                {data.payment_method || '—'}
-              </Text>
-            </View>
-          </View>
-
-          {/* Descrição do Serviço */}
-          <Text style={styles.sectionHeader}>
-            {isReembolso ? 'DESCRIÇÃO DO REEMBOLSO' : 'DESCRIÇÃO DO SERVIÇO'}
-          </Text>
-          <View style={styles.descriptionBox}>
-            <Text style={styles.text}>{data.service_description}</Text>
-          </View>
-
-          {/* Reembolso Info */}
-          {isReembolso && data.doc_number && (
-            <View style={styles.infoBox}>
-              <Text style={styles.infoBoxText}>
-                <Text style={{ fontWeight: 'bold' }}>Nº do Documento: </Text>
-                {data.doc_number}
-              </Text>
-            </View>
-          )}
-
-          {/* Info Box */}
-          <View style={styles.infoBox}>
-            <Text style={styles.infoBoxText}>
-              Este recibo serve como comprovante de{' '}
-              {isReembolso ? 'reembolso' : 'pagamento'} e deve ser conservado como
-              documento de valor.
+      <Page size="A4" style={styles.page}>
+        {/* HEADER: Logo | Title | Valor */}
+        <View style={styles.headerRow}>
+          <Image src={logoUrl} style={styles.logoHeader} cache={false} />
+          <View style={styles.titleArea}>
+            <Text style={styles.reciboTitle}>
+              {isReembolso ? 'RECIBO DE REEMBOLSO' : 'RECIBO DE PAGAMENTO'}
             </Text>
           </View>
+          <View style={styles.valorBox}>
+            <Text style={styles.valorText}>{formatCurrency(data.amount)}</Text>
+          </View>
+        </View>
 
-          {/* Footer */}
-          <View style={styles.footer}>
-            <Text style={styles.disclaimer}>
-              O presente recibo é emitido de acordo com a Lei nº 9.069/1995 e
-              constitui prova de {isReembolso ? 'reembolso' : 'quitação'} do valor
-              acima especificado. Sem emendas ou rasuras.
+        <View style={styles.separatorThick} />
+
+        {/* EMISSOR / PAGADOR / Nº RECIBO */}
+        <View style={styles.infoRow}>
+          {/* Emissor */}
+          <View style={styles.infoColumn}>
+            <Text style={styles.infoLabel}>Emissor</Text>
+            {emissor ? (
+              <>
+                <Text style={styles.infoValueBold}>{emissor.razao_social || 'SHARE BRASIL SERVIÇOS AERONAUTICOS'}</Text>
+                <Text style={styles.infoValue}>CNPJ: {emissor.cnpj ? formatDocumento(emissor.cnpj.replace(/\D/g, '')) : '—'}</Text>
+                {emissor.telefone && <Text style={styles.infoValue}>{emissor.telefone}</Text>}
+                {emissor.endereco && <Text style={styles.infoValue}>{emissor.endereco}</Text>}
+                {emissor.cidade && <Text style={styles.infoValue}>{emissor.cidade}{emissor.cep ? ` - ${emissor.cep}` : ''}</Text>}
+              </>
+            ) : (
+              <Text style={styles.infoValue}>Dados do emissor não disponíveis</Text>
+            )}
+          </View>
+
+          {/* Pagador */}
+          <View style={{ ...styles.infoColumn, flex: 1.5 }}>
+            <Text style={styles.infoLabel}>Pagador</Text>
+            <Text style={styles.infoValueBold}>{data.payer_name || '—'}</Text>
+            <Text style={styles.infoValue}>
+              {data.payer_document ? `CNPJ: ${formatDocumento(data.payer_document)}` : ''}
             </Text>
-
-            <View style={styles.signatureArea}>
-              <View style={styles.signatureLine} />
-              <Text style={styles.signatureName}>
-                {isReembolso ? 'Beneficiário' : 'Pagador'}
+            {data.payer_address && <Text style={styles.infoValue}>{data.payer_address}</Text>}
+            {data.payer_city && (
+              <Text style={styles.infoValue}>
+                {data.payer_city}{data.payer_uf ? ` - ${data.payer_uf}` : ''}
               </Text>
+            )}
+          </View>
 
-              <Image
-                src={logoUrl}
-                style={styles.logoSignature}
-                cache={false}
-              />
+          {/* Nº do Recibo */}
+          <View style={styles.receiptNumberBox}>
+            <Text style={styles.receiptNumberLabel}>Número do recibo:</Text>
+            <Text style={styles.receiptNumberValue}>{data.receipt_number}</Text>
+          </View>
+        </View>
+
+        <View style={styles.separator} />
+
+        {/* DESCRIÇÃO */}
+        <View style={styles.descriptionHeader}>
+          <Text style={styles.descriptionHeaderText}>
+            {isReembolso ? 'DESCRIÇÃO' : 'DESCRIÇÃO'}
+          </Text>
+        </View>
+        <View style={{ flexDirection: 'row' }}>
+          <View style={{ ...styles.descriptionContent, flex: 1 }}>
+            <Text style={styles.descriptionText}>{data.service_description || '—'}</Text>
+          </View>
+          <View style={{ alignItems: 'flex-end', paddingLeft: 10 }}>
+            <View style={styles.totalBox}>
+              <Text style={styles.totalLabel}>TOTAL</Text>
+              <Text style={styles.totalValue}>{formatCurrency(data.amount)}</Text>
             </View>
+          </View>
+        </View>
+
+        {/* Reembolso - Doc Number */}
+        {isReembolso && data.doc_number && (
+          <View style={{ marginTop: 8, padding: 6, backgroundColor: '#F3F4F6', border: '1px solid #E5E7EB' }}>
+            <Text style={{ fontSize: 8, color: '#374151' }}>
+              <Text style={{ fontWeight: 'bold' }}>Nº do Documento: </Text>
+              {data.doc_number}
+            </Text>
+          </View>
+        )}
+
+        {/* OBS / DISCLAIMER */}
+        <View style={styles.obsSection}>
+          <Text style={styles.obsLabel}>
+            {isReembolso ? 'OBS:' : ''}
+          </Text>
+          <Text style={styles.obsText}>
+            {isReembolso ? disclaimerReembolso : disclaimerPagamento}
+          </Text>
+        </View>
+
+        {/* SIGNATURE AREA */}
+        <View style={styles.signatureArea}>
+          {/* Date line */}
+          <View style={styles.signatureDateLine}>
+            <Text style={styles.signatureDateText}>{cityName},</Text>
+            <Text style={styles.signatureDateUnderline}>{String(day).padStart(2, ' ')}</Text>
+            <Text style={styles.signatureDateText}>de</Text>
+            <Text style={styles.signatureDateUnderline}>{month}</Text>
+            <Text style={styles.signatureDateText}>de</Text>
+            <Text style={styles.signatureDateUnderline}>{year}</Text>
+          </View>
+
+          <View style={styles.signatureLine} />
+
+          {/* Logo at signature */}
+          <Image src={logoUrl} style={styles.logoSignature} cache={false} />
+          <Text style={styles.signatureCaption}>setor financeiro Share Brasil</Text>
         </View>
       </Page>
     </Document>

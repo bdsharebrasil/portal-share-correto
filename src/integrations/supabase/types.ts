@@ -2474,62 +2474,131 @@ export type Database = {
       }
       contas_apagar: {
         Row: {
-          aeronave: string
+          aeronave: string | null
+          aeronave_id: string | null
+          aeronave_registro: string | null
           arquivo_pdf_url: string | null
           atualizado_em: string | null
+          banco_pagamento: string | null
+          boleto_url: string | null
           categoria: string
+          client_id: string | null
+          client_partner_id: string | null
+          codigo_barras: string | null
+          competencia_decea: string | null
+          comprovante_pagamento_url: string | null
+          conta_pagamento_fornecedor: string | null
           criado_em: string | null
           criado_por: string | null
+          data_pagamento: string | null
           data_pagamento_agendado: string | null
+          data_prazo_pagamento: string | null
           data_recebimento: string
+          data_recebimento_boleto: string | null
           data_vencimento: string
           descricao: string | null
+          documento_url: string | null
+          empresa: string | null
+          empresa_id: string | null
           fornecedor_cnpj: string
+          fornecedor_favorito_id: string | null
           fornecedor_nome: string
           id: string
           metodo_pagamento: string | null
+          nf_numero: string | null
+          nf_url: string | null
           numero: string
+          numero_documento_decea: string | null
           observacoes: string | null
+          periodo_apuracao: string | null
+          possui_boleto: boolean | null
+          possui_nf: boolean | null
           status: string
           valor: number
         }
         Insert: {
-          aeronave: string
+          aeronave?: string | null
+          aeronave_id?: string | null
+          aeronave_registro?: string | null
           arquivo_pdf_url?: string | null
           atualizado_em?: string | null
+          banco_pagamento?: string | null
+          boleto_url?: string | null
           categoria: string
+          client_id?: string | null
+          client_partner_id?: string | null
+          codigo_barras?: string | null
+          competencia_decea?: string | null
+          comprovante_pagamento_url?: string | null
+          conta_pagamento_fornecedor?: string | null
           criado_em?: string | null
           criado_por?: string | null
+          data_pagamento?: string | null
           data_pagamento_agendado?: string | null
+          data_prazo_pagamento?: string | null
           data_recebimento: string
+          data_recebimento_boleto?: string | null
           data_vencimento: string
           descricao?: string | null
+          documento_url?: string | null
+          empresa?: string | null
+          empresa_id?: string | null
           fornecedor_cnpj: string
+          fornecedor_favorito_id?: string | null
           fornecedor_nome: string
           id?: string
           metodo_pagamento?: string | null
+          nf_numero?: string | null
+          nf_url?: string | null
           numero: string
+          numero_documento_decea?: string | null
           observacoes?: string | null
+          periodo_apuracao?: string | null
+          possui_boleto?: boolean | null
+          possui_nf?: boolean | null
           status: string
           valor: number
         }
         Update: {
-          aeronave?: string
+          aeronave?: string | null
+          aeronave_id?: string | null
+          aeronave_registro?: string | null
           arquivo_pdf_url?: string | null
           atualizado_em?: string | null
+          banco_pagamento?: string | null
+          boleto_url?: string | null
           categoria?: string
+          client_id?: string | null
+          client_partner_id?: string | null
+          codigo_barras?: string | null
+          competencia_decea?: string | null
+          comprovante_pagamento_url?: string | null
+          conta_pagamento_fornecedor?: string | null
           criado_em?: string | null
           criado_por?: string | null
+          data_pagamento?: string | null
           data_pagamento_agendado?: string | null
+          data_prazo_pagamento?: string | null
           data_recebimento?: string
+          data_recebimento_boleto?: string | null
           data_vencimento?: string
           descricao?: string | null
+          documento_url?: string | null
+          empresa?: string | null
+          empresa_id?: string | null
           fornecedor_cnpj?: string
+          fornecedor_favorito_id?: string | null
           fornecedor_nome?: string
           id?: string
           metodo_pagamento?: string | null
+          nf_numero?: string | null
+          nf_url?: string | null
           numero?: string
+          numero_documento_decea?: string | null
           observacoes?: string | null
+          periodo_apuracao?: string | null
+          possui_boleto?: boolean | null
+          possui_nf?: boolean | null
           status?: string
           valor?: number
         }
@@ -2631,6 +2700,111 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["aeronave"]
+          },
+          {
+            foreignKeyName: "contas_apagar_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aircraft"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_apagar_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "aircraft_availability"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_apagar_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "contas_apagar_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave_simples"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "contas_apagar_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "contas_apagar_aeronave_id_fkey"
+            columns: ["aeronave_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "contas_apagar_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_apagar_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "contas_apagar_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente_simples"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "contas_apagar_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "contas_apagar_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "contas_apagar_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_reembolsos_pendentes"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "contas_apagar_client_partner_id_fkey"
+            columns: ["client_partner_id"]
+            isOneToOne: false
+            referencedRelation: "client_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_apagar_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contas_apagar_fornecedor_favorito_id_fkey"
+            columns: ["fornecedor_favorito_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores_favoritos"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2879,6 +3053,7 @@ export type Database = {
           data_inicio: string
           descricao: string
           dia_recorrencia: number | null
+          empresa_id: string | null
           fornecedor: string
           frequencia_recorrencia: string
           id: string
@@ -2896,6 +3071,7 @@ export type Database = {
           data_inicio?: string
           descricao: string
           dia_recorrencia?: number | null
+          empresa_id?: string | null
           fornecedor: string
           frequencia_recorrencia?: string
           id?: string
@@ -2913,6 +3089,7 @@ export type Database = {
           data_inicio?: string
           descricao?: string
           dia_recorrencia?: number | null
+          empresa_id?: string | null
           fornecedor?: string
           frequencia_recorrencia?: string
           id?: string
@@ -2922,7 +3099,15 @@ export type Database = {
           updated_at?: string
           valor?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "contas_recorrentes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       controle_bancario: {
         Row: {
@@ -2945,6 +3130,7 @@ export type Database = {
           data_vencimento: string | null
           descricao: string
           despesa_original_id: string | null
+          empresa_id: string | null
           fornecedores_favoritos_id: string | null
           grupo_categoria: string | null
           id: string
@@ -2988,6 +3174,7 @@ export type Database = {
           data_vencimento?: string | null
           descricao: string
           despesa_original_id?: string | null
+          empresa_id?: string | null
           fornecedores_favoritos_id?: string | null
           grupo_categoria?: string | null
           id?: string
@@ -3031,6 +3218,7 @@ export type Database = {
           data_vencimento?: string | null
           descricao?: string
           despesa_original_id?: string | null
+          empresa_id?: string | null
           fornecedores_favoritos_id?: string | null
           grupo_categoria?: string | null
           id?: string
@@ -3180,6 +3368,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_financeiro_caixa"
             referencedColumns: ["lancamento_caixa_id"]
+          },
+          {
+            foreignKeyName: "controle_bancario_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresa"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "controle_bancario_fornecedor_id_fkey"
@@ -4833,6 +5028,24 @@ export type Database = {
           },
         ]
       }
+      empresa: {
+        Row: {
+          cnpj: string | null
+          id: string
+          razao_social: string | null
+        }
+        Insert: {
+          cnpj?: string | null
+          id?: string
+          razao_social?: string | null
+        }
+        Update: {
+          cnpj?: string | null
+          id?: string
+          razao_social?: string | null
+        }
+        Relationships: []
+      }
       expense_categories: {
         Row: {
           icon: string | null
@@ -5939,6 +6152,7 @@ export type Database = {
           atualizado_em: string
           categoria: string | null
           cidade: string | null
+          conta_pagamento: string | null
           criado_em: string
           criado_por: string
           documento: string | null
@@ -5951,6 +6165,7 @@ export type Database = {
           atualizado_em?: string
           categoria?: string | null
           cidade?: string | null
+          conta_pagamento?: string | null
           criado_em?: string
           criado_por: string
           documento?: string | null
@@ -5963,6 +6178,7 @@ export type Database = {
           atualizado_em?: string
           categoria?: string | null
           cidade?: string | null
+          conta_pagamento?: string | null
           criado_em?: string
           criado_por?: string
           documento?: string | null
@@ -11564,6 +11780,10 @@ export type Database = {
       }
     }
     Functions: {
+      authenticate_client_portal: {
+        Args: { p_email: string; p_password: string }
+        Returns: Json
+      }
       calculate_total_hours: {
         Args: {
           p_clock_in: string

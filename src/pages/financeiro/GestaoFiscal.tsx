@@ -96,11 +96,11 @@ export default function GestaoFiscal() {
   const tabs = useMemo(() => {
     return allTabs.filter(tab => {
       if (tab.adminOnly) {
-        return isAdmin;
+        return isAdmin || isFinanceiroMaster || isGestorMaster;
       }
       return true;
     });
-  }, [isAdmin]);
+  }, [isAdmin, isFinanceiroMaster, isGestorMaster]);
 
   if (!isAuthorized) {
     return <Layout>

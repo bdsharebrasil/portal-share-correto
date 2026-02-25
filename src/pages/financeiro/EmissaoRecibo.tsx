@@ -42,6 +42,7 @@ export default function EmissaoRecibo() {
   const [isLoadingPdf, setIsLoadingPdf] = useState(false);
   const [isPdfViewerOpen, setIsPdfViewerOpen] = useState(false);
   const [viewPdfUrl, setViewPdfUrl] = useState<string | null>(null);
+  const [companySettings, setCompanySettings] = useState<any>(null);
 
   // ===================== INIT =====================
   useEffect(() => {
@@ -50,7 +51,7 @@ export default function EmissaoRecibo() {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           setUserId(user.id);
-          await Promise.all([loadFavoritePayers(user.id), loadRecentReceipts(user.id), loadActiveClients()]);
+          await Promise.all([loadFavoritePayers(user.id), loadRecentReceipts(user.id), loadActiveClients(), loadCompanySettings()]);
         }
       } catch (err) {
         console.error("Erro ao inicializar:", err);
@@ -67,6 +68,15 @@ export default function EmissaoRecibo() {
       setClientesAtivos(data || []);
     } catch (err) {
       console.error("Erro ao carregar clientes:", err);
+    }
+  };
+
+  const loadCompanySettings = async () => {
+    try {
+      const { data } = await supabase.from("company_settings").select("*").limit(1).single();
+      if (data) setCompanySettings(data);
+    } catch (err) {
+      console.error("Erro ao carregar dados da empresa:", err);
     }
   };
 
@@ -273,6 +283,14 @@ export default function EmissaoRecibo() {
           ...receiptData,
           boleto_url: boletoUrl,
           nf_url: notaFiscalUrl,
+          emissor: companySettings ? {
+            razao_social: companySettings.razao_social,
+            cnpj: companySettings.cnpj,
+            telefone: companySettings.telefone,
+            endereco: companySettings.endereco,
+            cidade: companySettings.cidade,
+            cep: companySettings.cep,
+          } : null,
         };
 
         // Gerar o PDF usando @react-pdf/renderer

@@ -521,8 +521,8 @@ const convertPdfBase64ToImageBase64 = async (pdfBase64: string): Promise<string>
     console.log('🔄 Convertendo PDF em imagem...');
     const pdfjsLib = await loadPdfJs();
 
-    // Remove o prefixo data:application/pdf;base64,
-    const base64Data = pdfBase64.replace(/^data:application\/pdf;base64,/, '');
+    // Remove o prefixo data:application/...;base64,
+    const base64Data = pdfBase64.replace(/^data:[^;]+;base64,/, '');
     const binaryString = atob(base64Data);
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
@@ -661,8 +661,9 @@ export const generatePDF = async (report: TravelReport, currentFullName?: string
       try {
         let base64 = await fetchImageAsBase64(d.comprovante_url);
 
-        // Se é PDF, converte para imagem
-        if (isPDF && base64.startsWith('data:application/pdf')) {
+        // Se é PDF, converte para imagem (verificar tanto pelo URL quanto pelo conteúdo base64)
+        const isPdfContent = base64.startsWith('data:application/pdf') || base64.startsWith('data:application/octet-stream');
+        if ((isPDF || isPdfContent) && !base64.startsWith('data:image/')) {
           console.log(`🔄 PDF detectado, convertendo para imagem...`);
           base64 = await convertPdfBase64ToImageBase64(base64);
         }
@@ -755,8 +756,8 @@ export const viewHTMLPreview = async (report: TravelReport, currentFullName?: st
         let base64 = await fetchImageAsBase64(d.comprovante_url);
 
         // Se é PDF, converte para imagem
-        const isPDF = d.comprovante_url.includes('.pdf') || base64.startsWith('data:application/pdf');
-        if (isPDF && base64.startsWith('data:application/pdf')) {
+        const isPDF = d.comprovante_url.includes('.pdf') || base64.startsWith('data:application/pdf') || base64.startsWith('data:application/octet-stream');
+        if (isPDF && !base64.startsWith('data:image/')) {
           console.log('🔄 PDF detectado na prévia, convertendo para imagem...');
           base64 = await convertPdfBase64ToImageBase64(base64);
         }
@@ -790,8 +791,8 @@ export const previewPDFForPrint = async (report: TravelReport, currentFullName?:
           let base64 = await fetchImageAsBase64(d.comprovante_url);
 
           // Se é PDF, converte para imagem
-          const isPDF = d.comprovante_url.includes('.pdf') || base64.startsWith('data:application/pdf');
-          if (isPDF && base64.startsWith('data:application/pdf')) {
+          const isPDF = d.comprovante_url.includes('.pdf') || base64.startsWith('data:application/pdf') || base64.startsWith('data:application/octet-stream');
+          if (isPDF && !base64.startsWith('data:image/')) {
             console.log('🔄 PDF detectado na prévia de impressão, convertendo para imagem...');
             base64 = await convertPdfBase64ToImageBase64(base64);
           }
