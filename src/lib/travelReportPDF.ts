@@ -428,7 +428,13 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') 
         ${report.despesas.some(d => d.comprovante_url) ? `
             <div class="report-container receipts-section">
                 <h2>Comprovantes Anexados</h2>
-                ${report.despesas
+                ${[...report.despesas]
+        .sort((a, b) => {
+          if (!a.data && !b.data) return 0;
+          if (!a.data) return 1;
+          if (!b.data) return -1;
+          return a.data.localeCompare(b.data);
+        })
         .filter(d => d.comprovante_url)
         .map((d, index) => {
           const isBase64 = d.comprovante_url && d.comprovante_url.startsWith('data:');
