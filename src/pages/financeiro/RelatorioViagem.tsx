@@ -505,20 +505,42 @@ export default function RelatorioViagem() {
           const totalCrew1 = payerTotals.totalCrew1;
           const totalCrew2 = payerTotals.totalCrew2;
           const totalSharebrasil = payerTotals.totalSharebrasil;
+          const totalClientPaid = payerTotals.totalClient;
 
-          // Valor que o cliente deve = ShareBrasil + Tripulantes (tudo que não foi pago pelo cliente)
+          // ⚠️ IMPORTANTE: Valor que o cliente DEVE PAGAR (não confundir com total_amount)
+          // Fórmula: O cliente deve pagar = Tudo que não foi pago por ele
+          // = (Total geral) - (O que o cliente já pagou)
+          // = (totalCrew + totalSharebrasil + totalClient) - (totalClient)
+          // = totalCrew + totalSharebrasil
+          // = totalCrew1 + totalCrew2 + totalSharebrasil
           const totalClientOwes = totalSharebrasil + totalCrew1 + totalCrew2;
 
-          console.log('Totais para conciliação:', {
-            total_amount: recalculatedTotals.total_amount,
-            total_client: recalculatedTotals.total_client,
-            total_sharebrasil: totalSharebrasil,
-            totalCrew1,
-            totalCrew2,
-            totalClientOwes
+          // Validação: garantir que o valor calculado está correto
+          const expectedTotalAmount = recalculatedTotals.total_amount;
+          const calculatedTotal = totalClientPaid + totalClientOwes;
+
+          if (Math.abs(expectedTotalAmount - calculatedTotal) > 0.01) {
+            console.warn('⚠️ AVISO: Discrepância nos totais de conciliação:', {
+              expected: expectedTotalAmount,
+              calculated: calculatedTotal,
+              difference: expectedTotalAmount - calculatedTotal
+            });
+          }
+
+          console.log('Totais para conciliação (CLIENTE):', {
+            total_amount_despesas: recalculatedTotals.total_amount,
+            cliente_pagou: totalClientPaid,
+            cliente_deve_pagar: totalClientOwes,
+            tripulante_1_pagou: totalCrew1,
+            tripulante_2_pagou: totalCrew2,
+            sharebrasil_pagou: totalSharebrasil,
+            validacao_ok: Math.abs(expectedTotalAmount - calculatedTotal) < 0.01
           });
 
-          // 1. Criar conciliação para CLIENTE (valor que Share+Tripulantes pagaram)
+          // 1. Criar conciliação para CLIENTE (valor que ele deve pagar)
+          // IMPORTANTE: O amount DEVE ser totalClientOwes (o que cliente não pagou),
+          // NÃO o total_amount do relatório completo!
+          // Exemplo: Se total é 568.67 e cliente pagou 260, amount = 308.67
           if (totalClientOwes > 0 && reportData.client_id) {
             const { data: existingClientPayment } = await supabase
               .from('bank_reconciliations')
@@ -528,11 +550,12 @@ export default function RelatorioViagem() {
               .maybeSingle();
 
             if (!existingClientPayment) {
+              console.log(`✓ Criando conciliação para cliente: R$ ${totalClientOwes.toFixed(2)}`);
               reconciliationsToInsert.push({
                 type: 'cliente',
                 client_id: reportData.client_id,
                 aircraft_id: reportData.aircraft_id || null,
-                amount: totalClientOwes,
+                amount: totalClientOwes,  // ✓ CORRETO: valor que cliente deve pagar
                 status: 'pendente',
                 category: 'relatório_viagem',
                 description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - A RECEBER DO CLIENTE`,
@@ -544,7 +567,8 @@ export default function RelatorioViagem() {
             }
           }
 
-          // 2. Criar conciliação para TRIPULANTE 1 (valor que ele pagou e precisa ser reembolsado)
+          // 2. Criar conciliação para TRIPULANTE 1 (reembolso do que ele pagou)
+          // O amount DEVE ser totalCrew1 (reembolso das despesas pagas por ele)
           if (totalCrew1 > 0 && reportData.crew_member_id) {
             // Buscar o user_id do crew_member para usar como receiver_id
             const { data: crewMember } = await supabase
@@ -564,11 +588,12 @@ export default function RelatorioViagem() {
               .maybeSingle();
 
             if (!existingCrewPayment) {
+              console.log(`✓ Criando reembolso para tripulante 1: R$ ${totalCrew1.toFixed(2)}`);
               reconciliationsToInsert.push({
                 type: 'colaborador',
                 receiver_id: receiverId,
                 aircraft_id: reportData.aircraft_id || null,
-                amount: totalCrew1,
+                amount: totalCrew1,  // ✓ CORRETO: reembolso do que tripulante pagou
                 status: 'pendente',
                 category: 'relatório_viagem',
                 description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO TRIPULANTE 1 (${reportData.crew_member_name.toUpperCase()})`,
@@ -581,6 +606,7 @@ export default function RelatorioViagem() {
           }
 
           // 3. Criar conciliação para TRIPULANTE 2 (se houver)
+          // O amount DEVE ser totalCrew2 (reembolso das despesas pagas por ele)
           if (totalCrew2 > 0 && reportData.crew_member_name_2) {
             // Buscar o crew_member pelo nome e depois pegar o user_id
             const { data: secondCrew } = await supabase
@@ -600,11 +626,12 @@ export default function RelatorioViagem() {
               .maybeSingle();
 
             if (!existingCrewPayment2) {
+              console.log(`✓ Criando reembolso para tripulante 2: R$ ${totalCrew2.toFixed(2)}`);
               reconciliationsToInsert.push({
                 type: 'colaborador',
                 receiver_id: receiverId,
                 aircraft_id: reportData.aircraft_id || null,
-                amount: totalCrew2,
+                amount: totalCrew2,  // ✓ CORRETO: reembolso do que tripulante 2 pagou
                 status: 'pendente',
                 category: 'relatório_viagem',
                 description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO TRIPULANTE 2 (${reportData.crew_member_name_2.toUpperCase()})`,
