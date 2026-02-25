@@ -14,6 +14,7 @@ import {
 import { Calendar as UICalendar } from "@/components/ui/calendar";
 import { AutocompleteInput } from "@/components/ui/autocomplete-input";
 import { ControlledSelect, SelectItem as ControlledSelectItem } from "@/components/ui/controlled-select";
+import { ClientCombobox } from "@/components/ui/ClientCombobox";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Plus, Trash2, Save, Send, Upload, Eye, FileText, AlertTriangle, CalendarIcon } from "lucide-react";
@@ -343,32 +344,19 @@ export function TravelReportForm({
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <AutocompleteInput
-                label={`Cliente * ${isLoadingClientes ? '⏳ Carregando...' : ''}`}
-                value={currentReport.client || ''}
-                onChange={(value) => {
-                  handleInputChange('client', value);
-                  // limpar parceiros se o usuário digitar manualmente
-                  if (!value) setPartners([]);
-                }}
-                options={clientes.map(c => ({
+              <Label className="text-sm font-semibold text-slate-700">Cliente</Label>
+              <ClientCombobox
+                clients={clientes.map(c => ({
                   id: c.id,
-                  label: c.company_name
+                  name: c.company_name
                 }))}
-                placeholder="Digite o nome do cliente ou selecione"
-                isLoading={isLoadingClientes}
-                onSelect={async (option) => {
-                  const selectedClient = clientes.find(c => c.id === option.id);
-                  if (selectedClient) {
-                    handleInputChange('client_id', option.id);
-                    handleInputChange('client', selectedClient.company_name);
-                    handleInputChange('client_partner', null);
-                    // buscar parceiros para este cliente e exibir se existirem
-                    const fetched = await fetchPartnersForClient(option.id);
-                    if (!fetched || fetched.length === 0) {
-                      setPartners([]);
-                    }
-                  }
+                value={currentReport.client_id}
+                onChange={(clientId, clientName) => {
+                  handleInputChange('client_id', clientId);
+                  handleInputChange('client', clientName);
+                  handleInputChange('client_partner', null);
+                  // Buscar parceiros para este cliente
+                  fetchPartnersForClient(clientId);
                 }}
               />
               {partners.length > 0 && (
@@ -403,7 +391,7 @@ export function TravelReportForm({
                 <p className="text-xs text-amber-500">
                   👤 Sócio: <span className="font-semibold">{currentReport.client}</span>
                   {showPartnerModal && (
-                    <button 
+                    <button
                       type="button"
                       className="ml-1 underline text-amber-400 hover:text-amber-300"
                       onClick={showPartnerModal}
