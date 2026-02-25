@@ -432,6 +432,7 @@ export function TravelReportForm({
                 placeholder="Selecione o comandante..."
                 searchPlaceholder="Buscar tripulante..."
                 emptyMessage="Tripulante não encontrado."
+                allowFreeText={true}
               />
               {currentReport.crew_member_id && (
                 <p className="text-xs text-green-600">✓ Tripulante selecionado</p>
@@ -456,7 +457,7 @@ export function TravelReportForm({
                 <Label className="text-sm font-semibold text-slate-700">Co-piloto</Label>
                 <SearchableCombobox
                   items={tripulantes.map(t => ({ id: t.id, label: t.full_name || t.name || '' }))}
-                  value={tripulantes.find(t => t.full_name === currentReport.crew_member_name_2 || t.name === currentReport.crew_member_name_2)?.id || ''}
+                  value={tripulantes.find(t => t.full_name === currentReport.crew_member_name_2 || t.name === currentReport.crew_member_name_2)?.id || currentReport.crew_member_name_2 || ''}
                   onChange={(id, label) => {
                     handleInputChange('crew_member_name_2', label);
                   }}
@@ -464,6 +465,7 @@ export function TravelReportForm({
                   placeholder="Selecione o co-piloto..."
                   searchPlaceholder="Buscar tripulante..."
                   emptyMessage="Tripulante não encontrado."
+                  allowFreeText={true}
                 />
               </div>
             )}

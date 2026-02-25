@@ -30,6 +30,7 @@ interface SearchableComboboxProps {
   emptyMessage?: string;
   icon?: React.ReactNode;
   disabled?: boolean;
+  allowFreeText?: boolean;
 }
 
 export function SearchableCombobox({
@@ -40,12 +41,19 @@ export function SearchableCombobox({
   searchPlaceholder = "Buscar...",
   emptyMessage = "Nenhum item encontrado.",
   icon,
-  disabled
+  disabled,
+  allowFreeText = false
 }: SearchableComboboxProps) {
   const [open, setOpen] = React.useState(false)
+  const [searchValue, setSearchValue] = React.useState("")
 
   // Encontra o item selecionado
   const selectedItem = items.find((item) => item.id === value)
+
+  // Filtra items baseado no searchValue
+  const filteredItems = items.filter((item) =>
+    item.label.toLowerCase().includes(searchValue.toLowerCase())
+  )
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -65,32 +73,40 @@ export function SearchableCombobox({
           <div className="flex items-center gap-2 truncate">
             {icon && <span className="flex-shrink-0 text-muted-foreground/70">{icon}</span>}
             <span className="truncate text-sm tracking-tight">
-              {selectedItem ? selectedItem.label : placeholder}
+              {selectedItem ? selectedItem.label : (value ? value : placeholder)}
             </span>
           </div>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[300px] sm:w-[400px] p-0 rounded-xl shadow-lg border-border/50" align="start">
-        <Command className="overflow-hidden rounded-xl">
+        <Command className="overflow-hidden rounded-xl" shouldFilter={false}>
           <div className="flex items-center border-b border-border/50 px-3">
             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-            <CommandInput 
-              placeholder={searchPlaceholder} 
-              className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 border-0 focus:ring-0" 
+            <CommandInput
+              placeholder={searchPlaceholder}
+              value={searchValue}
+              onValueChange={setSearchValue}
+              className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 border-0 focus:ring-0"
             />
           </div>
           <CommandList className="max-h-[220px] overflow-y-auto p-1 scrollbar-thin scrollbar-thumb-muted-foreground/20">
-            <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
-              {emptyMessage}
-            </CommandEmpty>
+            {filteredItems.length === 0 && !allowFreeText && (
+              <CommandEmpty className="py-6 text-center text-sm text-muted-foreground">
+                {emptyMessage}
+              </CommandEmpty>
+            )}
+            {filteredItems.length === 0 && allowFreeText && searchValue.trim() && (
+              <CommandEmpty className="py-2" />
+            )}
             <CommandGroup>
-              {items.map((item) => (
+              {filteredItems.map((item) => (
                 <CommandItem
                   key={item.id}
-                  value={item.label} // O buscador olha para essa string
+                  value={item.label}
                   onSelect={() => {
                     onChange(item.id, item.label)
+                    setSearchValue("")
                     setOpen(false)
                   }}
                   className="flex items-center gap-2 px-3 py-2.5 text-sm rounded-lg cursor-pointer aria-selected:bg-primary/10 aria-selected:text-primary transition-colors"
@@ -109,6 +125,22 @@ export function SearchableCombobox({
                   </span>
                 </CommandItem>
               ))}
+              {allowFreeText && filteredItems.length === 0 && searchValue.trim() && (
+                <CommandItem
+                  value={searchValue}
+                  onSelect={() => {
+                    onChange(searchValue, searchValue)
+                    setSearchValue("")
+                    setOpen(false)
+                  }}
+                  className="flex items-center gap-2 px-3 py-2.5 text-sm rounded-lg cursor-pointer bg-primary/5 text-primary hover:bg-primary/10 transition-colors"
+                >
+                  <Check className="mr-1 h-4 w-4 opacity-0 scale-75" />
+                  <span className="truncate font-medium">
+                    ➕ Usar: <strong>{searchValue}</strong>
+                  </span>
+                </CommandItem>
+              )}
             </CommandGroup>
           </CommandList>
         </Command>
