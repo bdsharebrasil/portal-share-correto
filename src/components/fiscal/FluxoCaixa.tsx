@@ -762,7 +762,7 @@ export function FluxoCaixa() {
                           title="Arraste para redimensionar"
                         />
                       </div>
-                  
+                    </TableHead>
                   )}
                   {expandedColumns.has("cliente") && (
                     <TableHead className="text-foreground/70 group relative select-none" style={{
@@ -1069,7 +1069,7 @@ export function FluxoCaixa() {
                           maxWidth: `${columnWidths.categoria}px`,
                         }}>
                           {transacao.categoria_nome || "-"}
-                    
+                        </TableCell>
                       )}
                       {expandedColumns.has("cliente") && (
                         <TableCell className="text-foreground/80 truncate" title={transacao.cliente_nome || ""} style={{
