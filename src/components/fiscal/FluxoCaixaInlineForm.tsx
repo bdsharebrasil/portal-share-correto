@@ -55,57 +55,57 @@ interface RateioSocio {
 
 // Cores para os grupos de subcategorias
 const SUBCATEGORIA_COLORS: Record<string, { bg: string; border: string; text: string; badge: string }> = {
-  "Despesa Particular": { 
-    bg: "bg-orange-950/30", 
-    border: "border-orange-600/50", 
+  "Despesa Particular": {
+    bg: "bg-orange-950/30",
+    border: "border-orange-600/50",
     text: "text-orange-400",
     badge: "bg-orange-500/20 text-orange-300 border-orange-500/40"
   },
-  "Despesas Reembolsáveis Cliente": { 
-    bg: "bg-purple-950/30", 
-    border: "border-purple-600/50", 
+  "Despesas Reembolsáveis Cliente": {
+    bg: "bg-purple-950/30",
+    border: "border-purple-600/50",
     text: "text-purple-400",
     badge: "bg-purple-500/20 text-purple-300 border-purple-500/40"
   },
-  "Impostos": { 
-    bg: "bg-blue-950/30", 
-    border: "border-blue-600/50", 
+  "Impostos": {
+    bg: "bg-blue-950/30",
+    border: "border-blue-600/50",
     text: "text-blue-400",
     badge: "bg-blue-500/20 text-blue-300 border-blue-500/40"
   },
-  "Folha de Pagamento": { 
-    bg: "bg-green-950/30", 
-    border: "border-green-600/50", 
+  "Folha de Pagamento": {
+    bg: "bg-green-950/30",
+    border: "border-green-600/50",
     text: "text-green-400",
     badge: "bg-green-500/20 text-green-300 border-green-500/40"
   },
-  "Manutenção": { 
-    bg: "bg-yellow-950/30", 
-    border: "border-yellow-600/50", 
+  "Manutenção": {
+    bg: "bg-yellow-950/30",
+    border: "border-yellow-600/50",
     text: "text-yellow-400",
     badge: "bg-yellow-500/20 text-yellow-300 border-yellow-500/40"
   },
-  "Operacional": { 
-    bg: "bg-cyan-950/30", 
-    border: "border-cyan-600/50", 
+  "Operacional": {
+    bg: "bg-cyan-950/30",
+    border: "border-cyan-600/50",
     text: "text-cyan-400",
     badge: "bg-cyan-500/20 text-cyan-300 border-cyan-500/40"
   },
-  "Administrativo": { 
-    bg: "bg-pink-950/30", 
-    border: "border-pink-600/50", 
+  "Administrativo": {
+    bg: "bg-pink-950/30",
+    border: "border-pink-600/50",
     text: "text-pink-400",
     badge: "bg-pink-500/20 text-pink-300 border-pink-500/40"
   },
-  "Combustível": { 
-    bg: "bg-red-950/30", 
-    border: "border-red-600/50", 
+  "Combustível": {
+    bg: "bg-red-950/30",
+    border: "border-red-600/50",
     text: "text-red-400",
     badge: "bg-red-500/20 text-red-300 border-red-500/40"
   },
-  "default": { 
-    bg: "bg-slate-800/30", 
-    border: "border-slate-600/50", 
+  "default": {
+    bg: "bg-slate-800/30",
+    border: "border-slate-600/50",
     text: "text-slate-400",
     badge: "bg-slate-500/20 text-slate-300 border-slate-500/40"
   }
@@ -132,12 +132,12 @@ export function FluxoCaixaInlineForm({
   const [openReferenciaPopover, setOpenReferenciaPopover] = useState(false);
   const [selectedSubcategoria, setSelectedSubcategoria] = useState<string | null>(null);
   const [openCategoriaPopover, setOpenCategoriaPopover] = useState(false);
-  
+
   // Novos estados para reembolso e rateio
   const [isReembolsavel, setIsReembolsavel] = useState(false);
   const [temRateio, setTemRateio] = useState(false);
   const [rateioDialogOpen, setRateioDialogOpen] = useState(false);
-  
+
   // Estados para upload de arquivos
   const [comprovanteUrl, setComprovanteUrl] = useState<string | null>(null);
   const [nfUrl, setNfUrl] = useState<string | null>(null);
@@ -173,7 +173,6 @@ export function FluxoCaixaInlineForm({
       numero_documento: "",
       referencia: "",
       status: "pago",
-      metodo_pagamento: "",
       observacoes: "",
       aeronave: "",
       client_id: "",
@@ -190,12 +189,12 @@ export function FluxoCaixaInlineForm({
 
   // Agrupar categorias por subcategoria (campo 'categoria' na tabela)
   const categoriasPorSubcategoria = useMemo(() => {
-    const filteredByType = tipoMovimento === "saida" 
+    const filteredByType = tipoMovimento === "saida"
       ? allCategorias.filter(c => c.tipo === "despesa")
       : allCategorias.filter(c => c.tipo === "receita");
-    
+
     const grouped: Record<string, typeof allCategorias> = {};
-    
+
     filteredByType.forEach(cat => {
       const subcategoria = cat.grupo_categoria || "Sem Grupo";
       if (!grouped[subcategoria]) {
@@ -203,7 +202,7 @@ export function FluxoCaixaInlineForm({
       }
       grouped[subcategoria].push(cat);
     });
-    
+
     return grouped;
   }, [allCategorias, tipoMovimento]);
 
@@ -281,27 +280,27 @@ export function FluxoCaixaInlineForm({
       toast.error("Usuário não autenticado");
       return;
     }
-    
+
     setUploadingField(field);
-    
+
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${field}_${Date.now()}.${fileExt}`;
       const filePath = `fiscal/${user.id}/${fileName}`;
-      
+
       const { error: uploadError } = await supabase.storage
         .from('documents')
         .upload(filePath, file);
-        
+
       if (uploadError) {
         toast.error(`Erro ao fazer upload: ${uploadError.message}`);
         return;
       }
-      
+
       const { data: { publicUrl } } = supabase.storage
         .from('documents')
         .getPublicUrl(filePath);
-      
+
       switch (field) {
         case 'comprovante':
           setComprovanteUrl(publicUrl);
@@ -316,7 +315,7 @@ export function FluxoCaixaInlineForm({
           setBoletoUrl(publicUrl);
           break;
       }
-      
+
       toast.success("Arquivo enviado com sucesso!");
     } catch (error: any) {
       toast.error(error.message || "Erro ao fazer upload");
@@ -335,7 +334,6 @@ export function FluxoCaixaInlineForm({
       setValue("conta_banco", movimentacao.conta_banco || "");
       setValue("numero_documento", movimentacao.numero_documento || "");
       setValue("status", movimentacao.status);
-      setValue("metodo_pagamento", movimentacao.metodo_pagamento || "");
       setValue("observacoes", movimentacao.observacoes || "");
       setValue("aeronave", movimentacao.aeronave_registro || "");
       setValue("client_id", movimentacao.client_id || "");
@@ -344,7 +342,7 @@ export function FluxoCaixaInlineForm({
       setValue("fornecedores_favoritos_id", movimentacao.fornecedores_favoritos_id || "");
       setIsReembolsavel(movimentacao.reembolsavel || false);
       setTemRateio(movimentacao.tem_rateio || false);
-      
+
       // Carregar URLs dos arquivos
       setComprovanteUrl(movimentacao.comprovante_url || null);
       setNfUrl(movimentacao.nf_url || null);
@@ -353,7 +351,7 @@ export function FluxoCaixaInlineForm({
 
       // Carregar data de vencimento (se houver)
       setValue("data_vencimento", movimentacao.data_vencimento || movimentacao.data || "");
-      
+
       // Encontrar a subcategoria correspondente
       const cat = allCategorias.find(c => c.nome === movimentacao.categoria);
       if (cat && cat.grupo_categoria) {
@@ -392,8 +390,8 @@ export function FluxoCaixaInlineForm({
   // Atualiza o status para 'aguardando_reembolso' quando seleciona categoria de despesas reembolsáveis
   useEffect(() => {
     if (!movimentacao && tipoMovimento === "saida" && selectedSubcategoria) {
-      const isReembolsavelGroup = selectedSubcategoria.toLowerCase().includes("reembolsáve") || 
-                                   selectedSubcategoria.toLowerCase().includes("reembolsave");
+      const isReembolsavelGroup = selectedSubcategoria.toLowerCase().includes("reembolsáve") ||
+        selectedSubcategoria.toLowerCase().includes("reembolsave");
       if (isReembolsavelGroup) {
         const currentStatus = watch("status");
         if (currentStatus === "pago" || currentStatus === "pendente") {
@@ -447,7 +445,7 @@ export function FluxoCaixaInlineForm({
 
       // Encontrar o ID da categoria
       const categoriaId = categoriaObj?.id;
-      
+
       if (!categoriaId) {
         toast.error("Categoria não encontrada");
         return;
@@ -457,33 +455,32 @@ export function FluxoCaixaInlineForm({
       const aeronaveObj = aeronaves?.find(a => a.registration === formData.aeronave);
 
       const data = {
-  data: formData.data,
-  data_vencimento: formData.data_vencimento || null,
-  tipo_movimento: formData.tipo_movimento,
-  categoria_id: categoriaId,
-  descricao: formData.descricao,
-  valor,
-  conta_banco: formData.conta_banco || null,
-  numero_documento: formData.numero_documento || null,
-  status: formData.status,
-  metodo_pagamento: formData.metodo_pagamento || null,
-  observacoes: formData.observacoes || null,
-  aeronave_id: aeronaveObj?.id || null,
-  aeronave_registro: formData.aeronave || null,
-  client_id: formData.client_id || null,
-  client_name: isReembolsavel ? formData.client_name : null,
-  colaborador_id: formData.colaborador_id || null,
-  fornecedores_favoritos_id: formData.fornecedores_favoritos_id || null,
-  reembolsavel: isReembolsavel,
-  tem_rateio: temRateio,
-  rateio_tipo: rateioData?.tipo || null,
-  grupo_categoria: grupoCategoria,
-  atualizado_por: user.id,
-  comprovante_url: comprovanteUrl,
-  nf_url: nfUrl,
-  recibo_url: reciboUrl,  // ← CORRIGIDO: era "comprovante_url"
-  boleto_url: boletoUrl,
-};
+        data: formData.data,
+        data_vencimento: formData.data_vencimento || null,
+        tipo_movimento: formData.tipo_movimento,
+        categoria_id: categoriaId,
+        descricao: formData.descricao,
+        valor,
+        conta_banco: formData.conta_banco || null,
+        numero_documento: formData.numero_documento || null,
+        status: formData.status,
+        observacoes: formData.observacoes || null,
+        aeronave_id: aeronaveObj?.id || null,
+        aeronave_registro: formData.aeronave || null,
+        client_id: formData.client_id || null,
+        client_name: isReembolsavel ? formData.client_name : null,
+        colaborador_id: formData.colaborador_id || null,
+        fornecedores_favoritos_id: formData.fornecedores_favoritos_id || null,
+        reembolsavel: isReembolsavel,
+        tem_rateio: temRateio,
+        rateio_tipo: rateioData?.tipo || null,
+        grupo_categoria: grupoCategoria,
+        atualizado_por: user.id,
+        comprovante_url: comprovanteUrl,
+        nf_url: nfUrl,
+        recibo_url: reciboUrl,  // ← CORRIGIDO: era "comprovante_url"
+        boleto_url: boletoUrl,
+      };
 
       let lancamentoId: string | null = null;
 
@@ -496,14 +493,14 @@ export function FluxoCaixaInlineForm({
         const statusRecebido = formData.status === 'recebido';
         // Se o status anterior era diferente de recebido OU se nunca foi processado corretamente
         const statusMudouParaRecebido = movimentacao.status !== 'recebido' || aindaNaoRecebido;
-        
+
         console.log('=== Verificando reembolso ===');
         console.log('despesaReembolsavel:', despesaReembolsavel, '| movimentacao.reembolsavel:', movimentacao.reembolsavel);
         console.log('ehSaida:', ehSaida, '| movimentacao.tipo_movimento:', movimentacao.tipo_movimento);
         console.log('aindaNaoRecebido:', aindaNaoRecebido, '| movimentacao.reembolso_recebido:', movimentacao.reembolso_recebido);
         console.log('statusRecebido:', statusRecebido, '| formData.status:', formData.status);
         console.log('statusMudouParaRecebido:', statusMudouParaRecebido, '| movimentacao.status:', movimentacao.status);
-        
+
         const isMarkingAsReceived = despesaReembolsavel && ehSaida && aindaNaoRecebido && statusRecebido;
         console.log('isMarkingAsReceived:', isMarkingAsReceived);
 
@@ -517,7 +514,7 @@ export function FluxoCaixaInlineForm({
             comprovanteUrl,
             user.id
           );
-          
+
           console.log('Resultado marcarDespesaComoRecebida:', result);
 
           if (!result.success) {
@@ -779,8 +776,8 @@ export function FluxoCaixaInlineForm({
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
                 <div>
                   <Label className="text-xs text-muted-foreground mb-1">Cliente *</Label>
-                  <Select 
-                    value={watch("client_id")} 
+                  <Select
+                    value={watch("client_id")}
                     onValueChange={(value) => {
                       const cliente = clientes.find(c => c.id === value);
                       if (cliente) handleClienteSelect(cliente);
@@ -860,16 +857,16 @@ export function FluxoCaixaInlineForm({
                   className={cn(
                     "h-10 w-full justify-between bg-background",
                     !selectedCategoria ? "border-red-500/50" : "",
-                    selectedCategoria && selectedSubcategoria 
-                      ? getSubcategoriaColor(selectedSubcategoria).border 
+                    selectedCategoria && selectedSubcategoria
+                      ? getSubcategoriaColor(selectedSubcategoria).border
                       : ""
                   )}
                 >
                   {selectedCategoria ? (
                     <div className="flex items-center gap-2 overflow-hidden">
                       {selectedSubcategoria && (
-                        <Badge 
-                          variant="outline" 
+                        <Badge
+                          variant="outline"
                           className={cn("text-xs shrink-0", getSubcategoriaColor(selectedSubcategoria).badge)}
                         >
                           {selectedSubcategoria}
@@ -945,8 +942,8 @@ export function FluxoCaixaInlineForm({
                             variant="ghost"
                             className={cn(
                               "w-full justify-start h-auto py-2 px-3 rounded-lg",
-                              selectedCategoria === cat.nome 
-                                ? cn(colors.bg, colors.border, "border") 
+                              selectedCategoria === cat.nome
+                                ? cn(colors.bg, colors.border, "border")
                                 : "hover:bg-muted/50"
                             )}
                             onClick={() => {
@@ -1067,101 +1064,101 @@ export function FluxoCaixaInlineForm({
                       r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
                       r.documento.includes(referenciaSearch)
                     ) && (
-                      <CommandGroup heading="Clientes" className="text-muted-foreground">
-                        {referencias
-                          .filter(r => r.tipo === 'client')
-                          .filter(r =>
-                            r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                            r.documento.includes(referenciaSearch)
-                          )
-                          .slice(0, 10)
-                          .map((r) => (
-                            <CommandItem
-                              key={r.id}
-                              onSelect={() => {
-                                setValue("referencia", r.nome);
-                                setValue("client_id", r.id);
-                                setValue("colaborador_id", "");
-                                setValue("fornecedores_favoritos_id", "");
-                                setOpenReferenciaPopover(false);
-                                setReferenciaSearch("");
-                              }}
-                              className="cursor-pointer hover:bg-muted"
-                            >
-                              <div>
-                                <p className="font-medium text-foreground">{r.nome}</p>
-                                {r.documento && <p className="text-xs text-muted-foreground">{r.documento}</p>}
-                              </div>
-                            </CommandItem>
-                          ))}
-                      </CommandGroup>
-                    )}
+                        <CommandGroup heading="Clientes" className="text-muted-foreground">
+                          {referencias
+                            .filter(r => r.tipo === 'client')
+                            .filter(r =>
+                              r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
+                              r.documento.includes(referenciaSearch)
+                            )
+                            .slice(0, 10)
+                            .map((r) => (
+                              <CommandItem
+                                key={r.id}
+                                onSelect={() => {
+                                  setValue("referencia", r.nome);
+                                  setValue("client_id", r.id);
+                                  setValue("colaborador_id", "");
+                                  setValue("fornecedores_favoritos_id", "");
+                                  setOpenReferenciaPopover(false);
+                                  setReferenciaSearch("");
+                                }}
+                                className="cursor-pointer hover:bg-muted"
+                              >
+                                <div>
+                                  <p className="font-medium text-foreground">{r.nome}</p>
+                                  {r.documento && <p className="text-xs text-muted-foreground">{r.documento}</p>}
+                                </div>
+                              </CommandItem>
+                            ))}
+                        </CommandGroup>
+                      )}
                     {referencias.filter(r => r.tipo === 'fornecedor').some(r =>
                       r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
                       r.documento.includes(referenciaSearch)
                     ) && (
-                      <CommandGroup heading="Fornecedores Favoritos" className="text-muted-foreground">
-                        {referencias
-                          .filter(r => r.tipo === 'fornecedor')
-                          .filter(r =>
-                            r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                            r.documento.includes(referenciaSearch)
-                          )
-                          .slice(0, 10)
-                          .map((r) => (
-                            <CommandItem
-                              key={r.id}
-                              onSelect={() => {
-                                setValue("referencia", r.nome);
-                                setValue("fornecedores_favoritos_id", r.id);
-                                setValue("client_id", "");
-                                setValue("colaborador_id", "");
-                                setOpenReferenciaPopover(false);
-                                setReferenciaSearch("");
-                              }}
-                              className="cursor-pointer hover:bg-muted"
-                            >
-                              <div>
-                                <p className="font-medium text-foreground">{r.nome}</p>
-                                {r.documento && <p className="text-xs text-muted-foreground">{r.documento}</p>}
-                              </div>
-                            </CommandItem>
-                          ))}
-                      </CommandGroup>
-                    )}
+                        <CommandGroup heading="Fornecedores Favoritos" className="text-muted-foreground">
+                          {referencias
+                            .filter(r => r.tipo === 'fornecedor')
+                            .filter(r =>
+                              r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
+                              r.documento.includes(referenciaSearch)
+                            )
+                            .slice(0, 10)
+                            .map((r) => (
+                              <CommandItem
+                                key={r.id}
+                                onSelect={() => {
+                                  setValue("referencia", r.nome);
+                                  setValue("fornecedores_favoritos_id", r.id);
+                                  setValue("client_id", "");
+                                  setValue("colaborador_id", "");
+                                  setOpenReferenciaPopover(false);
+                                  setReferenciaSearch("");
+                                }}
+                                className="cursor-pointer hover:bg-muted"
+                              >
+                                <div>
+                                  <p className="font-medium text-foreground">{r.nome}</p>
+                                  {r.documento && <p className="text-xs text-muted-foreground">{r.documento}</p>}
+                                </div>
+                              </CommandItem>
+                            ))}
+                        </CommandGroup>
+                      )}
                     {referencias.filter(r => r.tipo === 'user').some(r =>
                       r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
                       r.documento.includes(referenciaSearch)
                     ) && (
-                      <CommandGroup heading="Colaboradores" className="text-muted-foreground">
-                        {referencias
-                          .filter(r => r.tipo === 'user')
-                          .filter(r =>
-                            r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
-                            r.documento.includes(referenciaSearch)
-                          )
-                          .slice(0, 10)
-                          .map((r) => (
-                            <CommandItem
-                              key={r.id}
-                              onSelect={() => {
-                                setValue("referencia", r.nome);
-                                setValue("colaborador_id", r.id);
-                                setValue("client_id", "");
-                                setValue("fornecedores_favoritos_id", "");
-                                setOpenReferenciaPopover(false);
-                                setReferenciaSearch("");
-                              }}
-                              className="cursor-pointer hover:bg-muted"
-                            >
-                              <div>
-                                <p className="font-medium text-foreground">{r.nome}</p>
-                                {r.documento && <p className="text-xs text-muted-foreground">{r.documento}</p>}
-                              </div>
-                            </CommandItem>
-                          ))}
-                      </CommandGroup>
-                    )}
+                        <CommandGroup heading="Colaboradores" className="text-muted-foreground">
+                          {referencias
+                            .filter(r => r.tipo === 'user')
+                            .filter(r =>
+                              r.nome.toLowerCase().includes(referenciaSearch.toLowerCase()) ||
+                              r.documento.includes(referenciaSearch)
+                            )
+                            .slice(0, 10)
+                            .map((r) => (
+                              <CommandItem
+                                key={r.id}
+                                onSelect={() => {
+                                  setValue("referencia", r.nome);
+                                  setValue("colaborador_id", r.id);
+                                  setValue("client_id", "");
+                                  setValue("fornecedores_favoritos_id", "");
+                                  setOpenReferenciaPopover(false);
+                                  setReferenciaSearch("");
+                                }}
+                                className="cursor-pointer hover:bg-muted"
+                              >
+                                <div>
+                                  <p className="font-medium text-foreground">{r.nome}</p>
+                                  {r.documento && <p className="text-xs text-muted-foreground">{r.documento}</p>}
+                                </div>
+                              </CommandItem>
+                            ))}
+                        </CommandGroup>
+                      )}
                   </CommandList>
                 </Command>
               </PopoverContent>
@@ -1193,8 +1190,8 @@ export function FluxoCaixaInlineForm({
           </div>
         </div>
 
-        {/* Row 4: Status, Método de Pagamento e Observações */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {/* Row 4: Status e Observações */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div>
             <Label htmlFor="status" className="text-sm font-semibold text-foreground mb-2">
               Status
@@ -1213,23 +1210,6 @@ export function FluxoCaixaInlineForm({
                   <SelectItem value="pago">Pago</SelectItem>
                 )}
                 <SelectItem value="cancelado">Cancelado</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="metodo_pagamento" className="text-sm font-semibold text-foreground mb-2">
-              Método de Pagamento
-            </Label>
-            <Select value={watch("metodo_pagamento")} onValueChange={(value) => setValue("metodo_pagamento", value)}>
-              <SelectTrigger className="h-10 w-full bg-background">
-                <SelectValue placeholder="Selecione" />
-              </SelectTrigger>
-              <SelectContent align="start">
-                <SelectItem value="pix">PIX</SelectItem>
-                <SelectItem value="ted">TED</SelectItem>
-                <SelectItem value="boleto">Boleto</SelectItem>
-                <SelectItem value="dinheiro">Dinheiro</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -1259,9 +1239,9 @@ export function FluxoCaixaInlineForm({
               <div className="flex items-center gap-2">
                 {comprovanteUrl ? (
                   <div className="flex items-center gap-2 flex-1">
-                    <a 
-                      href={comprovanteUrl} 
-                      target="_blank" 
+                    <a
+                      href={comprovanteUrl}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-sm text-green-400 hover:underline truncate"
                     >
@@ -1307,9 +1287,9 @@ export function FluxoCaixaInlineForm({
               <div className="flex items-center gap-2">
                 {nfUrl ? (
                   <div className="flex items-center gap-2 flex-1">
-                    <a 
-                      href={nfUrl} 
-                      target="_blank" 
+                    <a
+                      href={nfUrl}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-sm text-blue-400 hover:underline truncate"
                     >
@@ -1355,9 +1335,9 @@ export function FluxoCaixaInlineForm({
               <div className="flex items-center gap-2">
                 {reciboUrl ? (
                   <div className="flex items-center gap-2 flex-1">
-                    <a 
-                      href={reciboUrl} 
-                      target="_blank" 
+                    <a
+                      href={reciboUrl}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-sm text-purple-400 hover:underline truncate"
                     >
@@ -1403,9 +1383,9 @@ export function FluxoCaixaInlineForm({
               <div className="flex items-center gap-2">
                 {boletoUrl ? (
                   <div className="flex items-center gap-2 flex-1">
-                    <a 
-                      href={boletoUrl} 
-                      target="_blank" 
+                    <a
+                      href={boletoUrl}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-sm text-orange-400 hover:underline truncate"
                     >
