@@ -123,6 +123,10 @@ export function FluxoCaixa() {
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartXRef = useRef(0);
+  const scrollStartXRef = useRef(0);
 
   const toggleSelectId = (id: string) => {
     const newSet = new Set(selectedIds);
@@ -184,6 +188,33 @@ export function FluxoCaixa() {
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  const handleTableDragStart = (e: React.MouseEvent) => {
+    // Apenas iniciar drag se não está clicando em um elemento interativo
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('[role="button"]') || target.closest('input')) {
+      return;
+    }
+
+    // Se o container tiver scrollbar horizontal
+    if (tableContainerRef.current && tableContainerRef.current.scrollWidth > tableContainerRef.current.clientWidth) {
+      setIsDragging(true);
+      dragStartXRef.current = e.clientX;
+      scrollStartXRef.current = tableContainerRef.current.scrollLeft;
+      e.preventDefault();
+    }
+  };
+
+  const handleTableDragMove = (e: React.MouseEvent) => {
+    if (!isDragging || !tableContainerRef.current) return;
+
+    const delta = e.clientX - dragStartXRef.current;
+    tableContainerRef.current.scrollLeft = scrollStartXRef.current - delta;
+  };
+
+  const handleTableDragEnd = () => {
+    setIsDragging(false);
   };
 
   const handleSort = (field: SortField) => {
@@ -395,9 +426,14 @@ export function FluxoCaixa() {
       <Card className="bg-card/50 border-border/50 backdrop-blur-xl">
         <CardHeader className="pb-3">
           <div className="flex justify-between items-center gap-4 flex-wrap">
-            <CardTitle className="text-lg font-semibold text-foreground">
-              Lista de Movimentações
-            </CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-lg font-semibold text-foreground">
+                Lista de Movimentações
+              </CardTitle>
+              <span className="text-xs text-foreground/50 px-2 py-1 rounded bg-muted/50 border border-border/30">
+                Arraste para scroll horizontal →
+              </span>
+            </div>
             {selectedIds.size > 0 && (
               <div className="flex items-center gap-3">
                 <Badge variant="secondary" className="bg-blue-600 text-white">
@@ -447,7 +483,14 @@ export function FluxoCaixa() {
             </div>
           )}
 
-          <div className="overflow-x-auto">
+          <div
+            ref={tableContainerRef}
+            className={`overflow-x-auto ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+            onMouseDown={handleTableDragStart}
+            onMouseMove={handleTableDragMove}
+            onMouseUp={handleTableDragEnd}
+            onMouseLeave={handleTableDragEnd}
+          >
             <Table>
               <TableHeader>
                 <TableRow className="border-border/40 hover:bg-transparent">
