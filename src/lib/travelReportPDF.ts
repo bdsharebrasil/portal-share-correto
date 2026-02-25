@@ -432,7 +432,6 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') 
         .filter(d => d.comprovante_url)
         .map((d, index) => {
           const isBase64 = d.comprovante_url && d.comprovante_url.startsWith('data:');
-          const isPDF = d.comprovante_url && (d.comprovante_url.includes('.pdf') || d.comprovante_url.startsWith('data:application/pdf'));
           return `
                         <div class="receipt-item">
                             <p><strong>Item Nº:</strong> ${index + 1}</p>
@@ -440,10 +439,7 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') 
                             <p><strong>Categoria:</strong> ${d.categoria || 'Outros'}</p>
                             <p><strong>Valor:</strong> R$ ${(Number(d.valor) || 0).toFixed(2).replace('.', ',')}</p>
                             <div class="receipt-image-container">
-                                ${isPDF && isBase64
-                                  ? `<embed class="receipt-image" src="${d.comprovante_url}" type="application/pdf" />`
-                                  : `<img class="receipt-image" src="${d.comprovante_url}" alt="Comprovante" ${isBase64 ? '' : 'crossorigin="anonymous"'} />`
-                                }
+                                <img class="receipt-image" src="${d.comprovante_url}" alt="Comprovante" ${isBase64 ? '' : 'crossorigin="anonymous"'} />
                             </div>
                         </div>
                     `;
@@ -482,6 +478,87 @@ const loadHtml2PdfFromCdn = () => {
     script.onerror = () => reject(new Error('Failed to load html2pdf script'));
     document.head.appendChild(script);
   });
+};
+
+const loadPdfJs = (): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    const w = window as any;
+    if (w.pdfjsLib) {
+      w.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      return resolve(w.pdfjsLib);
+    }
+
+    const existing = document.querySelector('script[data-pdfjs]');
+    if (existing) {
+      const check = setInterval(() => {
+        if (w.pdfjsLib) {
+          clearInterval(check);
+          w.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+          resolve(w.pdfjsLib);
+        }
+      }, 100);
+      setTimeout(() => { clearInterval(check); reject(new Error('Timeout loading PDF.js')); }, 10000);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.setAttribute('data-pdfjs', '1');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.async = true;
+    script.onload = () => {
+      const lib = (window as any).pdfjsLib;
+      if (!lib) return reject(new Error('pdfjsLib not available'));
+      lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      resolve(lib);
+    };
+    script.onerror = () => reject(new Error('Failed to load PDF.js'));
+    document.head.appendChild(script);
+  });
+};
+
+const convertPdfBase64ToImageBase64 = async (pdfBase64: string): Promise<string> => {
+  try {
+    console.log('🔄 Convertendo PDF em imagem...');
+    const pdfjsLib = await loadPdfJs();
+
+    // Remove o prefixo data:application/pdf;base64,
+    const base64Data = pdfBase64.replace(/^data:application\/pdf;base64,/, '');
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+    const page = await pdf.getPage(1);
+
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Não foi possível obter contexto do canvas');
+
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (!blob) return reject(new Error('Falha ao converter canvas para blob'));
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const imageBase64 = reader.result as string;
+          console.log('✅ PDF convertido para imagem com sucesso');
+          resolve(imageBase64);
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      }, 'image/png');
+    });
+  } catch (error: any) {
+    console.error('❌ Erro ao converter PDF para imagem:', error.message);
+    throw error;
+  }
 };
 
 const fetchImageAsBase64 = async (url: string): Promise<string> => {
@@ -582,7 +659,14 @@ export const generatePDF = async (report: TravelReport, currentFullName?: string
       const fileType = isPDF ? 'PDF' : 'Imagem';
       console.log(`⏳ Convertendo comprovante ${i + 1} (${fileType}):`, d.comprovante_url.substring(0, 50) + '...');
       try {
-        const base64 = await fetchImageAsBase64(d.comprovante_url);
+        let base64 = await fetchImageAsBase64(d.comprovante_url);
+
+        // Se é PDF, converte para imagem
+        if (isPDF && base64.startsWith('data:application/pdf')) {
+          console.log(`🔄 PDF detectado, convertendo para imagem...`);
+          base64 = await convertPdfBase64ToImageBase64(base64);
+        }
+
         reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
         console.log(`✅ Comprovante ${i + 1} convertido com sucesso (${fileType})`);
       } catch (error) {
@@ -668,7 +752,15 @@ export const viewHTMLPreview = async (report: TravelReport, currentFullName?: st
   const imagePromises = reportWithBase64.despesas.map(async (d, i) => {
     if (d.comprovante_url && !d.comprovante_url.startsWith('data:')) {
       try {
-        const base64 = await fetchImageAsBase64(d.comprovante_url);
+        let base64 = await fetchImageAsBase64(d.comprovante_url);
+
+        // Se é PDF, converte para imagem
+        const isPDF = d.comprovante_url.includes('.pdf') || base64.startsWith('data:application/pdf');
+        if (isPDF && base64.startsWith('data:application/pdf')) {
+          console.log('🔄 PDF detectado na prévia, convertendo para imagem...');
+          base64 = await convertPdfBase64ToImageBase64(base64);
+        }
+
         reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
       } catch (error) {
         console.warn('Erro ao converter para prévia HTML:', error);
@@ -695,7 +787,15 @@ export const previewPDFForPrint = async (report: TravelReport, currentFullName?:
     const imagePromises = reportWithBase64.despesas.map(async (d, i) => {
       if (d.comprovante_url && !d.comprovante_url.startsWith('data:')) {
         try {
-          const base64 = await fetchImageAsBase64(d.comprovante_url);
+          let base64 = await fetchImageAsBase64(d.comprovante_url);
+
+          // Se é PDF, converte para imagem
+          const isPDF = d.comprovante_url.includes('.pdf') || base64.startsWith('data:application/pdf');
+          if (isPDF && base64.startsWith('data:application/pdf')) {
+            console.log('🔄 PDF detectado na prévia de impressão, convertendo para imagem...');
+            base64 = await convertPdfBase64ToImageBase64(base64);
+          }
+
           reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
         } catch (error) {
           console.warn('Erro ao converter para prévia de impressão:', error);
