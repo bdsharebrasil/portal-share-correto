@@ -62,7 +62,7 @@ interface BankReconciliation {
   categoria_movimentacao_id?: string | null; // Adicionado para corrigir a tipagem no filtro
   client_id: string | null;
   aircraft_id: string | null;
-  payment_term: string | null;
+  prazo_pagamento: string | null;
   criado_por?: string;
   clients: { company_name: string } | null;
   aircraft: { registration: string } | null;
@@ -75,7 +75,7 @@ const addDespesaSchema = z.object({
   amount: z.string().min(1, "Valor é obrigatório"),
   category: z.string().min(1, "Categoria é obrigatória"),
   status: z.enum(["pendente", "enviado", "recebido"]),
-  payment_term: z.string().optional().nullable(),
+  prazo_pagamento: z.string().optional().nullable(),
 });
 
 type AddDespesaFormValues = z.infer<typeof addDespesaSchema>;
@@ -420,8 +420,8 @@ export function ConciliacaoClientes() {
                                 reconciliation={item}
                                 onSave={fetchReconciliations}
                               />
-                            ) : item.payment_term ? (
-                              <span className="text-sm">{format(new Date(item.payment_term + 'T12:00:00'), 'dd/MM/yyyy')}</span>
+                            ) : item.prazo_pagamento ? (
+                                <span className="text-sm">{format(new Date(item.prazo_pagamento + 'T12:00:00'), 'dd/MM/yyyy')}</span>
                             ) : (
                               <span className="text-xs text-muted-foreground">-</span>
                             )}
@@ -524,7 +524,7 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
   };
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    parseLocalDate(reconciliation.payment_term)
+    parseLocalDate(reconciliation.prazo_pagamento)
   );
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
@@ -544,7 +544,7 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
 
       const { error } = await supabase
         .from('bank_reconciliations')
-        .update({ payment_term: dateStr } as any)
+        .update({ prazo_pagamento: dateStr } as any)
         .eq('id', reconciliation.id as any);
 
       if (error) throw error;
@@ -563,7 +563,7 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
           if (relatedReport) {
             await supabase
               .from('travel_expense_reports')
-              .update({ payment_term: dateStr } as any)
+              .update({ prazo_pagamento: dateStr } as any)
               .eq('id', (relatedReport as any).id as any);
           }
         }
@@ -606,7 +606,7 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
   if (!isEditing) {
     return (
       <button onClick={() => setIsEditing(true)} className="text-sm hover:text-blue-600 hover:underline flex items-center gap-1">
-        {reconciliation.payment_term ? formatDateForDisplay(reconciliation.payment_term) : <span className="text-xs text-muted-foreground italic flex items-center gap-1"><Plus className="w-3 h-3" />Prazo</span>}
+        {reconciliation.prazo_pagamento ? formatDateForDisplay(reconciliation.prazo_pagamento) : <span className="text-xs text-muted-foreground italic flex items-center gap-1"><Plus className="w-3 h-3" />Prazo</span>}
       </button>
     );
   }
@@ -698,7 +698,7 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
             cliente_nome: clienteNome,
             cliente_cnpj: clientData?.cnpj || "",
             data_criacao: data.date,
-            data_vencimento: data.payment_term || data.date,
+            data_vencimento: data.prazo_pagamento || data.date,
             valor: parseFloat(data.amount),
             categoria: data.category || "Reembolso de Despesa",
             descricao: data.description || "Conta a receber",
