@@ -392,6 +392,18 @@ export default function RelatorioViagem() {
 
       // Salvar anexos das despesas na tabela travel_report_attachments
       try {
+        // Se for atualização, remover attachments antigos primeiro
+        if (isUpdate) {
+          const { error: deleteError } = await supabase
+            .from('travel_report_attachments')
+            .delete()
+            .eq('travel_report_id', savedReport.id);
+
+          if (deleteError) {
+            console.warn('Aviso ao remover attachments antigos:', deleteError);
+          }
+        }
+
         const attachmentsToInsert = validExpenses
           .map((expense, index) => {
             if (!expense.receipt_url) return null;
@@ -416,26 +428,43 @@ export default function RelatorioViagem() {
               file_path: filePath,
               file_url: expense.receipt_url,
               file_type: fileType,
-              file_size: null, // Não temos tamanho do arquivo neste momento
+              file_size: null,
             };
           })
-          .filter(Boolean);
+          .filter((item): item is NonNullable<typeof item> => item !== null);
 
         if (attachmentsToInsert.length > 0) {
-          const { error: attachmentError } = await supabase
+          console.log(`📎 Preparando para salvar ${attachmentsToInsert.length} anexo(s) na tabela...`);
+          console.log('Dados dos anexos:', attachmentsToInsert);
+
+          const { error: attachmentError, data: insertedData } = await supabase
             .from('travel_report_attachments')
-            .insert(attachmentsToInsert);
+            .insert(attachmentsToInsert)
+            .select();
 
           if (attachmentError) {
-            console.error('Erro ao salvar attachments:', attachmentError);
-            toast.warning('⚠️ Relatório salvo, mas houve erro ao registrar os comprovantes');
+            console.error('❌ Erro ao salvar attachments na tabela travel_report_attachments:', attachmentError);
+            console.error('Detalhes do erro:', {
+              message: attachmentError.message,
+              details: attachmentError.details,
+              hint: attachmentError.hint,
+              code: attachmentError.code
+            });
+            toast.warning('⚠️ Relatório salvo, mas houve erro ao registrar os comprovantes. Verifique as permissões do banco de dados.');
           } else {
-            console.log(`✓ ${attachmentsToInsert.length} comprovante(s) registrado(s)`);
+            console.log(`✅ ${insertedData?.length || attachmentsToInsert.length} comprovante(s) registrado(s) com sucesso!`);
+            if (insertedData) {
+              console.log('Anexos salvos:', insertedData);
+            }
+            toast.success(`✓ ${attachmentsToInsert.length} comprovante(s) associado(s) ao relatório`);
           }
+        } else {
+          console.log('ℹ️ Nenhum comprovante com URL foi encontrado para registrar');
         }
       } catch (attachmentError: any) {
-        console.error('Erro ao processar attachments:', attachmentError);
-        toast.warning('⚠️ Erro ao registrar os comprovantes do relatório');
+        console.error('❌ Erro ao processar attachments:', attachmentError);
+        console.error('Stack trace:', attachmentError.stack);
+        toast.warning('⚠️ Erro ao registrar os comprovantes do relatório. Verifique o console para mais detalhes.');
       }
 
       // Criar conciliações bancárias quando o relatório for finalizado
