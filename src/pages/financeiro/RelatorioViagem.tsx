@@ -741,21 +741,23 @@ export default function RelatorioViagem() {
         {!isCreating ? (
           <>
             {hasSavedDraft && (
-              <Card className="border-yellow-200 bg-yellow-50">
-                <CardContent className="pt-6">
+              <Card className="border-amber-200/50 bg-gradient-to-r from-amber-50 to-orange-50 shadow-md rounded-xl">
+                <CardContent className="p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-3">
-                      <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-                      <div>
-                        <h3 className="font-semibold text-yellow-900">Você tem um rascunho salvo</h3>
-                        <p className="text-sm text-yellow-800 mt-1">Deseja continuar editando o relatório anterior?</p>
+                      <div className="p-2 rounded-lg bg-amber-100/50">
+                        <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 animate-pulse" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-amber-900 text-base">Rascunho salvo automaticamente</h3>
+                        <p className="text-sm text-amber-700/80 mt-1 leading-relaxed">Você tem um relatório anterior em rascunho. Deseja continuar editando?</p>
                       </div>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
-                      <Button size="sm" variant="outline" onClick={discardDraft} className="border-yellow-600 text-yellow-600 hover:bg-yellow-100">
+                      <Button size="sm" variant="ghost" onClick={discardDraft} className="text-amber-600 hover:bg-amber-100/50 hover:text-amber-700 rounded-lg transition-all duration-200">
                         Descartar
                       </Button>
-                      <Button size="sm" onClick={loadSavedDraft} className="bg-yellow-600 hover:bg-yellow-700">
+                      <Button size="sm" onClick={loadSavedDraft} className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
                         <RotateCcw className="h-4 w-4 mr-2" />
                         Restaurar
                       </Button>
@@ -765,159 +767,210 @@ export default function RelatorioViagem() {
               </Card>
             )}
 
-            <Card>
-              <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between">
+            <Card className="shadow-md rounded-xl border-border/50">
+              <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 p-6">
                 <div>
-                  <CardTitle>Histórico de Relatórios de Viagem</CardTitle>
-                  {reports.length === 0 && <p className="text-sm text-muted-foreground mt-1">Carregando relatórios...</p>}
+                  <CardTitle className="text-2xl font-bold text-foreground">Histórico de Relatórios</CardTitle>
+                  {reports.length === 0 && <p className="text-sm text-muted-foreground mt-2 leading-relaxed">Carregando relatórios...</p>}
                 </div>
-                <div className="mt-4 md:mt-0 flex space-x-2">
-                  <Button onClick={createNewReport}>
+                <div className="flex gap-3 w-full md:w-auto">
+                  <Button onClick={createNewReport} className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] w-full md:w-auto">
                     <Plus className="h-4 w-4 mr-2" />
                     Novo Relatório
                   </Button>
                 </div>
               </CardHeader>
 
-              <CardContent>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {['Todos', ...REPORT_STATUSES].map(status => (
-                    <Button
-                      key={status}
-                      variant={activeStatusFilter === status ? "default" : "outline"}
-                      onClick={() => setActiveStatusFilter(status as 'Todos' | TravelReport['status'])}
-                      className="text-sm"
-                    >
-                      {status}{' '}
-                      <span className="ml-2 px-2 py-0.5 bg-primary/20 text-primary rounded-full">
-                        {status === 'Todos' ? statusCounts.Todos : statusCounts[status as TravelReport['status']]}
-                      </span>
-                    </Button>
-                  ))}
+              <CardContent className="p-6">
+                <div className="flex flex-wrap gap-3 mb-6">
+                  {['Todos', ...REPORT_STATUSES].map(status => {
+                    const isActive = activeStatusFilter === status;
+                    const statusColors = {
+                      'Todos': { bg: 'bg-slate-100', text: 'text-slate-700', activeBg: 'bg-slate-200', activeText: 'text-slate-900' },
+                      'Rascunho': { bg: 'bg-amber-100/50', text: 'text-amber-700', activeBg: 'bg-amber-200', activeText: 'text-amber-900' },
+                      'Finalizado': { bg: 'bg-blue-100/50', text: 'text-blue-700', activeBg: 'bg-blue-200', activeText: 'text-blue-900' },
+                      'Enviado': { bg: 'bg-green-100/50', text: 'text-green-700', activeBg: 'bg-green-200', activeText: 'text-green-900' }
+                    };
+                    const colors = statusColors[status as keyof typeof statusColors] || statusColors['Todos'];
+
+                    return (
+                      <Button
+                        key={status}
+                        onClick={() => setActiveStatusFilter(status as 'Todos' | TravelReport['status'])}
+                        className={cn(
+                          'rounded-full px-4 py-2 h-auto transition-all duration-200 font-medium text-sm flex items-center gap-2',
+                          isActive
+                            ? `${colors.activeBg} ${colors.activeText} ring-2 ring-offset-2 ${colors.text.replace('text-', 'ring-')}`
+                            : `${colors.bg} ${colors.text} hover:${colors.activeBg.replace('bg-', 'hover:bg-')} active:scale-[0.98]`
+                        )}
+                      >
+                        <span>{status}</span>
+                        <span className={cn(
+                          'px-2 py-0.5 rounded-full text-xs font-semibold ring-1 ring-current ring-opacity-30',
+                          isActive ? 'bg-current/20' : 'bg-current/10'
+                        )}>
+                          {status === 'Todos' ? statusCounts.Todos : statusCounts[status as TravelReport['status']]}
+                        </span>
+                      </Button>
+                    );
+                  })}
                 </div>
 
                 {filteredReports.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">
-                    Nenhum relatório encontrado na pasta {activeStatusFilter}.
-                  </p>
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <FileText className="h-12 w-12 text-muted-foreground/40 mb-3" />
+                    <p className="text-center text-muted-foreground font-medium">Nenhum relatório encontrado</p>
+                    <p className="text-center text-muted-foreground text-sm">na pasta {activeStatusFilter}</p>
+                  </div>
                 ) : (
                   <div className="space-y-3">
-                    {filteredReports.map((report) => (
-                      <div
-                        key={report.id}
-                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg shadow-sm hover:bg-accent/50 transition-colors"
-                      >
-                        <div className="mb-2 sm:mb-0 min-w-[200px]">
-                          <p className="font-medium flex items-center">
-                            {report.report_number}
-                            <span className={`ml-3 text-xs font-bold px-2 py-0.5 rounded-full ${report.status === 'Rascunho' ? 'bg-yellow-100 text-yellow-800' :
-                                report.status === 'Finalizado' ? 'bg-blue-100 text-blue-800' :
-                                  'bg-green-100 text-green-800'
-                              }`}>
-                              {report.status}
-                            </span>
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {report.client} ({report.aircraft_registration})
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(report.start_date).toLocaleDateString()} a{' '}
-                            {new Date(report.end_date).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap items-center space-x-2 mt-2 sm:mt-0">
-                          <p className="font-bold text-lg text-green-600 min-w-[100px] text-right">
-                            R$ {report.total_amount.toFixed(2)}
-                          </p>
-                          {report.status === 'Rascunho' && (
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => {
-                                if (report.status !== 'Rascunho') {
-                                  toast.error(`Não é permitido editar relatórios com status "${report.status}". Apenas rascunhos podem ser editados.`);
-                                  return;
-                                }
-                                editReport(report.id!);
-                              }}
-                              title="Editar Relatório"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                    {filteredReports.map((report) => {
+                      const statusColors = {
+                        'Rascunho': 'border-l-4 border-l-amber-400',
+                        'Finalizado': 'border-l-4 border-l-blue-400',
+                        'Enviado': 'border-l-4 border-l-green-400'
+                      };
+                      const statusBadgeColors = {
+                        'Rascunho': 'bg-amber-100/80 text-amber-800 ring-amber-200',
+                        'Finalizado': 'bg-blue-100/80 text-blue-800 ring-blue-200',
+                        'Enviado': 'bg-green-100/80 text-green-800 ring-green-200'
+                      };
+
+                      return (
+                        <div
+                          key={report.id}
+                          className={cn(
+                            "flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 rounded-xl bg-card border border-border/50 shadow-sm hover:shadow-md transition-all duration-200 hover:border-border group",
+                            statusColors[report.status]
                           )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={async () => {
-                              try {
-                                const reportWithDetails = await loadReportDetails(report.id!);
+                        >
+                          <div className="mb-3 sm:mb-0 min-w-[240px] flex-1">
+                            <div className="flex items-start gap-3 mb-2">
+                              <FileText className="h-5 w-5 text-muted-foreground/60 mt-0.5 flex-shrink-0" />
+                              <div className="flex-1">
+                                <p className="font-semibold text-foreground text-base">
+                                  {report.report_number}
+                                </p>
+                                <span className={cn(
+                                  "inline-block text-xs font-bold px-3 py-1 rounded-full ring-1 mt-1",
+                                  statusBadgeColors[report.status]
+                                )}>
+                                  {report.status}
+                                </span>
+                              </div>
+                            </div>
+                            <p className="text-sm text-muted-foreground font-medium">
+                              {report.client}
+                              <span className="text-xs text-muted-foreground/70 ml-1">
+                                ({report.aircraft_registration})
+                              </span>
+                            </p>
+                            <p className="text-xs text-muted-foreground/70 mt-1">
+                              {format(new Date(report.start_date), "dd MMM", { locale: ptBR })} a {format(new Date(report.end_date), "dd MMM yyyy", { locale: ptBR })}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
+                            <div className="text-right">
+                              <p className="text-xs text-muted-foreground/70 font-medium">Total</p>
+                              <p className="font-bold text-lg text-green-600 font-mono">
+                                R$ {report.total_amount.toFixed(2).replace('.', ',')}
+                              </p>
+                            </div>
+                            <div className="flex gap-1 ml-auto sm:ml-0">
+                              {report.status === 'Rascunho' && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    if (report.status !== 'Rascunho') {
+                                      toast.error(`Não é permitido editar relatórios com status "${report.status}". Apenas rascunhos podem ser editados.`);
+                                      return;
+                                    }
+                                    editReport(report.id!);
+                                  }}
+                                  title="Editar Relatório"
+                                  className="rounded-lg transition-all duration-200 hover:bg-primary/10 hover:text-primary"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={async () => {
+                                  try {
+                                    const reportWithDetails = await loadReportDetails(report.id!);
 
-                                // IMPORTANTE: Recalcular os totais a partir das despesas
-                                // Isto garante que mesmo se o relatório foi salvo com totais errados,
-                                // a visualização mostrará os valores CORRETOS
-                                const correctedTotals = calculateReportTotals(reportWithDetails.expenses || []);
+                                    // IMPORTANTE: Recalcular os totais a partir das despesas
+                                    // Isto garante que mesmo se o relatório foi salvo com totais errados,
+                                    // a visualização mostrará os valores CORRETOS
+                                    const correctedTotals = calculateReportTotals(reportWithDetails.expenses || []);
 
-                                const pdfReport: PDFTravelReport = {
-                                  numero: reportWithDetails.report_number,
-                                  cliente_nome: reportWithDetails.client,
-                                  aeronave: reportWithDetails.aircraft_registration,
-                                  tripulante: reportWithDetails.crew_member_name,
-                                  tripulante2: reportWithDetails.crew_member_name_2,
-                                  trecho: reportWithDetails.route,
-                                  destino: reportWithDetails.route,
-                                  data_inicio: reportWithDetails.start_date,
-                                  data_fim: reportWithDetails.end_date,
-                                  observacoes: reportWithDetails.observations,
-                                  despesas: (reportWithDetails.expenses || []).map(e => ({
-                                    categoria: e.category,
-                                    descricao: e.description,
-                                    valor: e.amount,
-                                    pago_por: e.paid_by,
-                                    comprovante_url: e.receipt_url
-                                  })) as TravelExpense[],
-                                  total_combustivel: correctedTotals.total_fuel,
-                                  total_hospedagem: correctedTotals.total_lodging,
-                                  total_alimentacao: correctedTotals.total_food,
-                                  total_transporte: correctedTotals.total_transport,
-                                  total_outros: correctedTotals.total_other,
-                                  total_tripulante: correctedTotals.total_crew,
-                                  total_tripulante1: correctedTotals.total_crew1,
-                                  total_tripulante2: correctedTotals.total_crew2,
-                                  total_cliente: correctedTotals.total_client,
-                                  total_sharebrasil: correctedTotals.total_sharebrasil,
-                                  valor_total: correctedTotals.total_amount
-                                };
-                                const { data: { user } } = await supabase.auth.getUser();
-                                let userName = 'Usuário';
-                                if (user?.id) {
-                                  const { data: profile } = await supabase
-                                    .from('user_profiles')
-                                    .select('full_name')
-                                    .eq('id', user.id)
-                                    .single();
-                                  if (profile?.full_name) userName = profile.full_name;
-                                }
-                                await previewPDFForPrint(pdfReport, userName);
-                              } catch (error) {
-                                console.error('Erro ao visualizar PDF:', error);
-                                toast.error('Erro ao visualizar relatório');
-                              }
-                            }}
-                            title="Visualizar Relatório"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => deleteReport(report.id)}
-                            title="Excluir Relatório"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                                    const pdfReport: PDFTravelReport = {
+                                      numero: reportWithDetails.report_number,
+                                      cliente_nome: reportWithDetails.client,
+                                      aeronave: reportWithDetails.aircraft_registration,
+                                      tripulante: reportWithDetails.crew_member_name,
+                                      tripulante2: reportWithDetails.crew_member_name_2,
+                                      trecho: reportWithDetails.route,
+                                      destino: reportWithDetails.route,
+                                      data_inicio: reportWithDetails.start_date,
+                                      data_fim: reportWithDetails.end_date,
+                                      observacoes: reportWithDetails.observations,
+                                      despesas: (reportWithDetails.expenses || []).map(e => ({
+                                        categoria: e.category,
+                                        descricao: e.description,
+                                        valor: e.amount,
+                                        pago_por: e.paid_by,
+                                        comprovante_url: e.receipt_url
+                                      })) as TravelExpense[],
+                                      total_combustivel: correctedTotals.total_fuel,
+                                      total_hospedagem: correctedTotals.total_lodging,
+                                      total_alimentacao: correctedTotals.total_food,
+                                      total_transporte: correctedTotals.total_transport,
+                                      total_outros: correctedTotals.total_other,
+                                      total_tripulante: correctedTotals.total_crew,
+                                      total_tripulante1: correctedTotals.total_crew1,
+                                      total_tripulante2: correctedTotals.total_crew2,
+                                      total_cliente: correctedTotals.total_client,
+                                      total_sharebrasil: correctedTotals.total_sharebrasil,
+                                      valor_total: correctedTotals.total_amount
+                                    };
+                                    const { data: { user } } = await supabase.auth.getUser();
+                                    let userName = 'Usuário';
+                                    if (user?.id) {
+                                      const { data: profile } = await supabase
+                                        .from('user_profiles')
+                                        .select('full_name')
+                                        .eq('id', user.id)
+                                        .single();
+                                      if (profile?.full_name) userName = profile.full_name;
+                                    }
+                                    await previewPDFForPrint(pdfReport, userName);
+                                  } catch (error) {
+                                    console.error('Erro ao visualizar PDF:', error);
+                                    toast.error('Erro ao visualizar relatório');
+                                  }
+                                }}
+                                title="Visualizar Relatório"
+                                className="rounded-lg transition-all duration-200 hover:bg-primary/10 hover:text-primary"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteReport(report.id)}
+                                title="Excluir Relatório"
+                                className="rounded-lg transition-all duration-200 hover:bg-destructive/10 hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
