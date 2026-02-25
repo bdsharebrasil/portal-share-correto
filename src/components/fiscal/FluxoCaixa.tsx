@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,7 @@ import {
   Receipt,
   Paperclip,
   EyeOff,
+  GripHorizontal,
 } from "lucide-react";
 import { useControleBancario } from "@/hooks/useControleBancario";
 import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
@@ -61,28 +62,44 @@ import { FinanceiroFilters, FinanceiroFilterState } from "./FinanceiroFilters";
 type SortField = "data" | "tipo_movimento" | "valor" | null;
 type SortDirection = "asc" | "desc";
 
+// ─── Configuração das colunas ──────────────────────────────────────────────────
+const columnConfig: Record<string, { label: string; sortField?: SortField }> = {
+  data: { label: "Data", sortField: "data" },
+  tipo: { label: "Tipo", sortField: "tipo_movimento" },
+  descricao: { label: "Descrição" },
+  categoria: { label: "Categoria" },
+  cliente: { label: "Cliente" },
+  valor: { label: "Valor", sortField: "valor" },
+  conta: { label: "Conta" },
+  aeronave: { label: "Aeronave" },
+  nDoc: { label: "Nº Doc" },
+  anexos: { label: "Anexos" },
+  status: { label: "Status" },
+};
+
+const DEFAULT_COLUMN_ORDER = [
+  "data", "tipo", "descricao", "categoria", "cliente",
+  "valor", "conta", "aeronave", "nDoc", "anexos", "status",
+];
+
 export function FluxoCaixa() {
   const { user } = useAuth();
   const { data: transacoes, isLoading, error } = useControleBancario();
   const { categorias: contasData } = useCategoriasFinanceiro();
 
+  // ── Larguras das colunas ─────────────────────────────────────────────────────
   const defaultColumnWidths = {
-    data: 100,
-    tipo: 100,
-    descricao: 180,
-    categoria: 130,
-    cliente: 130,
-    valor: 110,
-    conta: 120,
-    aeronave: 110,
-    nDoc: 100,
-    anexos: 80,
-    status: 100,
+    data: 100, tipo: 100, descricao: 180, categoria: 130, cliente: 130,
+    valor: 110, conta: 120, aeronave: 110, nDoc: 100, anexos: 80, status: 100,
   };
+  const { columnWidths, setColumnWidth } = useColumnWidths("fluxo-caixa", defaultColumnWidths);
 
-  const { columnWidths, setColumnWidth } = useColumnWidths('fluxo-caixa', defaultColumnWidths);
+  // ── Ordem das colunas (drag-and-drop) ────────────────────────────────────────
+  const [columnOrder, setColumnOrder] = useState<string[]>(DEFAULT_COLUMN_ORDER);
+  const [draggedColumn, setDraggedColumn] = useState<string | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
-  // ── Advanced filters (replaces old individual filter states) ──────────────
+  // ── Filtros avançados ────────────────────────────────────────────────────────
   const maxAmount = useMemo(() => {
     if (!transacoes?.length) return 100000;
     return Math.ceil(Math.max(...transacoes.map((t: any) => Number(t.valor) || 0)) / 1000) * 1000 || 100000;
@@ -96,15 +113,14 @@ export function FluxoCaixa() {
     source: "all",
   });
 
-  // Keep amountRange ceiling in sync when data loads
-  React.useEffect(() => {
+  useEffect(() => {
     setAdvancedFilters((prev) => ({
       ...prev,
       amountRange: [prev.amountRange[0], maxAmount],
     }));
   }, [maxAmount]);
-  // ─────────────────────────────────────────────────────────────────────────
 
+  // ── Estado geral ─────────────────────────────────────────────────────────────
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [currentPage, setCurrentPage] = useState(1);
@@ -114,62 +130,125 @@ export function FluxoCaixa() {
   const [showInlineForm, setShowInlineForm] = useState(false);
   const [editingMovimentacao, setEditingMovimentacao] = useState<any>(null);
   const [expandedColumns, setExpandedColumns] = useState<Set<string>>(
-    new Set([
-      "data", "tipo", "descricao", "categoria", "cliente", "valor",
-      "conta", "aeronave", "nDoc", "anexos", "status",
-    ])
+    new Set(DEFAULT_COLUMN_ORDER)
   );
   const [collapsedColumns, setCollapsedColumns] = useState<Set<string>>(new Set());
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
+
+  // ── Refs para scroll sincronizado (top + bottom) ──────────────────────────────
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const isSyncingScroll = useRef(false);
+
+  // Largura total da tabela para o scroll superior
+  const [tableScrollWidth, setTableScrollWidth] = useState(0);
+
+  useEffect(() => {
+    const observer = new ResizeObserver(() => {
+      if (tableContainerRef.current) {
+        setTableScrollWidth(tableContainerRef.current.scrollWidth);
+      }
+    });
+    if (tableContainerRef.current) {
+      observer.observe(tableContainerRef.current);
+      setTableScrollWidth(tableContainerRef.current.scrollWidth);
+    }
+    return () => observer.disconnect();
+  }, [columnOrder, expandedColumns, columnWidths]);
+
+  // Sincroniza scroll superior ↔ inferior
+  const handleTopScroll = () => {
+    if (isSyncingScroll.current) return;
+    isSyncingScroll.current = true;
+    if (tableContainerRef.current && topScrollRef.current) {
+      tableContainerRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+    }
+    isSyncingScroll.current = false;
+  };
+
+  const handleBottomScroll = () => {
+    if (isSyncingScroll.current) return;
+    isSyncingScroll.current = true;
+    if (topScrollRef.current && tableContainerRef.current) {
+      topScrollRef.current.scrollLeft = tableContainerRef.current.scrollLeft;
+    }
+    isSyncingScroll.current = false;
+  };
+
+  // ── Drag para scroll horizontal (no container) ───────────────────────────────
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
-  const tableContainerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragStartXRef = useRef(0);
   const scrollStartXRef = useRef(0);
 
-  const toggleSelectId = (id: string) => {
-    const newSet = new Set(selectedIds);
-    if (newSet.has(id)) newSet.delete(id);
-    else newSet.add(id);
-    setSelectedIds(newSet);
-  };
+  const handleTableDragStart = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    // Ignora cliques em elementos interativos E em elementos draggable (cabeçalhos de coluna)
+    if (target.closest('button, input, [role="button"], a, select, [draggable="true"]')) {
+      return;
+    }
+    const container = tableContainerRef.current;
+    if (container && container.scrollWidth > container.clientWidth) {
+      setIsDragging(true);
+      dragStartXRef.current = e.clientX;
+      scrollStartXRef.current = container.scrollLeft;
 
-  const toggleColumnVisibility = (columnId: string) => {
-    if (expandedColumns.has(columnId)) {
-      const newExpanded = new Set(expandedColumns);
-      newExpanded.delete(columnId);
-      setExpandedColumns(newExpanded);
-      setCollapsedColumns(new Set([...collapsedColumns, columnId]));
-    } else if (collapsedColumns.has(columnId)) {
-      const newCollapsed = new Set(collapsedColumns);
-      newCollapsed.delete(columnId);
-      setCollapsedColumns(newCollapsed);
-      setExpandedColumns(new Set([...expandedColumns, columnId]));
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        if (!container) return;
+        const delta = moveEvent.clientX - dragStartXRef.current;
+        const newScroll = scrollStartXRef.current - delta;
+        container.scrollLeft = newScroll;
+        if (topScrollRef.current) topScrollRef.current.scrollLeft = newScroll;
+      };
+
+      const handleMouseUp = () => {
+        setIsDragging(false);
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+      };
+
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      e.preventDefault();
     }
   };
 
-  const calculateColSpan = () => expandedColumns.size + collapsedColumns.size + 2;
-
-  const getColumnLabel = (columnId: string): string => {
-    const labels: Record<string, string> = {
-      data: "D", tipo: "T", descricao: "Desc", categoria: "Cat",
-      cliente: "Cl", valor: "V", conta: "C", aeronave: "A",
-      nDoc: "Doc", anexos: "Anx", status: "St",
-    };
-    return labels[columnId] || columnId.charAt(0).toUpperCase();
+  // ── Handlers de drag-and-drop das colunas ────────────────────────────────────
+  const handleColumnDragStart = (e: React.DragEvent, column: string) => {
+    setDraggedColumn(column);
+    e.dataTransfer.effectAllowed = "move";
   };
 
-  const toggleSelectAll = () => {
-    if (selectedIds.size === paginatedTransacoes.length && paginatedTransacoes.length > 0) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(paginatedTransacoes.map((t: any) => t.id)));
-    }
+  const handleColumnDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverIndex(index);
   };
 
+  const handleColumnDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (!draggedColumn) return;
+    const sourceIndex = columnOrder.indexOf(draggedColumn);
+    if (sourceIndex === targetIndex) return;
+    const newOrder = [...columnOrder];
+    newOrder.splice(sourceIndex, 1);
+    newOrder.splice(targetIndex, 0, draggedColumn);
+    setColumnOrder(newOrder);
+    setDraggedColumn(null);
+    setDragOverIndex(null);
+  };
+
+  const handleColumnDragLeave = () => setDragOverIndex(null);
+  const handleColumnDragEnd = () => {
+    setDraggedColumn(null);
+    setDragOverIndex(null);
+  };
+
+  // ── Redimensionamento de colunas ─────────────────────────────────────────────
   const handleColumnResizeStart = (e: React.MouseEvent, columnId: string) => {
     e.preventDefault();
+    e.stopPropagation();
     setResizingColumn(columnId);
     startXRef.current = e.clientX;
     startWidthRef.current = columnWidths[columnId] || defaultColumnWidths[columnId as keyof typeof defaultColumnWidths];
@@ -182,47 +261,15 @@ export function FluxoCaixa() {
 
     const handleMouseUp = () => {
       setResizingColumn(null);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
   };
 
-  const handleTableDragStart = (e: React.MouseEvent) => {
-    // Apenas iniciar drag se não está clicando em um elemento interativo
-    const target = e.target as HTMLElement;
-    // Ignorar cliques em botões, checkboxes, inputs, links e selects
-    if (target.closest('button, input, [role="button"], a, select')) {
-      return;
-    }
-
-    const container = tableContainerRef.current;
-    // Se o container tiver scrollbar horizontal
-    if (container && container.scrollWidth > container.clientWidth) {
-      setIsDragging(true);
-      dragStartXRef.current = e.clientX;
-      scrollStartXRef.current = container.scrollLeft;
-
-      const handleMouseMove = (moveEvent: MouseEvent) => {
-        if (!container) return;
-        const delta = moveEvent.clientX - dragStartXRef.current;
-        container.scrollLeft = scrollStartXRef.current - delta;
-      };
-
-      const handleMouseUp = () => {
-        setIsDragging(false);
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-      };
-
-      document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
-      e.preventDefault();
-    }
-  };
-
+  // ── Sort ─────────────────────────────────────────────────────────────────────
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
@@ -233,32 +280,66 @@ export function FluxoCaixa() {
     setCurrentPage(1);
   };
 
-  // ── Filtering ─────────────────────────────────────────────────────────────
+  // ── Seleção ──────────────────────────────────────────────────────────────────
+  const toggleSelectId = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedIds(newSet);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === paginatedTransacoes.length && paginatedTransacoes.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginatedTransacoes.map((t: any) => t.id)));
+    }
+  };
+
+  // ── Visibilidade das colunas ─────────────────────────────────────────────────
+  const toggleColumnVisibility = (columnId: string) => {
+    if (expandedColumns.has(columnId)) {
+      setExpandedColumns((prev) => { const s = new Set(prev); s.delete(columnId); return s; });
+      setCollapsedColumns((prev) => new Set([...prev, columnId]));
+    } else if (collapsedColumns.has(columnId)) {
+      setCollapsedColumns((prev) => { const s = new Set(prev); s.delete(columnId); return s; });
+      setExpandedColumns((prev) => new Set([...prev, columnId]));
+    }
+  };
+
+  const getColumnLabel = (columnId: string): string => {
+    const labels: Record<string, string> = {
+      data: "D", tipo: "T", descricao: "Desc", categoria: "Cat",
+      cliente: "Cl", valor: "V", conta: "C", aeronave: "A",
+      nDoc: "Doc", anexos: "Anx", status: "St",
+    };
+    return labels[columnId] || columnId.charAt(0).toUpperCase();
+  };
+
+  const calculateColSpan = () => expandedColumns.size + collapsedColumns.size + 2;
+
+  // ── Filtragem ────────────────────────────────────────────────────────────────
   const filteredTransacoes = useMemo(() => {
     if (!transacoes) return [];
     return transacoes.filter((t: any) => {
-      // search
       const matchesSearch =
         !advancedFilters.search ||
         t.descricao?.toLowerCase().includes(advancedFilters.search.toLowerCase()) ||
         t.numero_documento?.toLowerCase().includes(advancedFilters.search.toLowerCase());
 
-      // status
       const matchesStatus =
         advancedFilters.status === "all" || t.status === advancedFilters.status;
 
-      // amount range
       const val = Number(t.valor);
       const matchesValue =
         val >= advancedFilters.amountRange[0] && val <= advancedFilters.amountRange[1];
 
-      // date range
       let matchesDate = true;
       if (advancedFilters.dateRange?.from) {
         const dateStr = t.data;
         let txDate: Date;
         if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-          const [y, m, d] = dateStr.split('-').map(Number);
+          const [y, m, d] = dateStr.split("-").map(Number);
           txDate = new Date(y, m - 1, d);
         } else {
           txDate = new Date(t.data);
@@ -268,17 +349,16 @@ export function FluxoCaixa() {
         matchesDate = txDate >= from && txDate <= to;
       }
 
-      // source filter (entrada vs saída)
       const matchesSource =
         advancedFilters.source === "all" || t.tipo_movimento === advancedFilters.source;
 
       return matchesSearch && matchesStatus && matchesValue && matchesDate && matchesSource;
     });
   }, [transacoes, advancedFilters]);
-  // ─────────────────────────────────────────────────────────────────────────
 
+  // ── Ordenação ────────────────────────────────────────────────────────────────
   const sortedTransacoes = useMemo(() => {
-    const sorted = [...filteredTransacoes].sort((a: any, b: any) => {
+    return [...filteredTransacoes].sort((a: any, b: any) => {
       if (!sortField) return 0;
       let aValue: any = a[sortField];
       let bValue: any = b[sortField];
@@ -293,25 +373,19 @@ export function FluxoCaixa() {
       if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
       return 0;
     });
-    return sorted;
   }, [filteredTransacoes, sortField, sortDirection]);
 
+  // ── Paginação ────────────────────────────────────────────────────────────────
   const itemsPerPage = 10;
   const totalPages = Math.ceil(sortedTransacoes.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedTransacoes = sortedTransacoes.slice(startIndex, startIndex + itemsPerPage);
 
-  const renderSortIcon = (field: SortField) => {
-    if (sortField !== field) return null;
-    return sortDirection === "asc"
-      ? <ChevronUp className="w-4 h-4 inline ml-1" />
-      : <ChevronDown className="w-4 h-4 inline ml-1" />;
-  };
-
+  // ── Relatório agrupado ───────────────────────────────────────────────────────
   const selectedTransacoes = sortedTransacoes.filter((t: any) => selectedIds.has(t.id));
 
   const getGroupedReport = () => {
-    const grouped: { [key: string]: { total: number; count: number } } = {};
+    const grouped: Record<string, { total: number; count: number }> = {};
     selectedTransacoes.forEach((t: any) => {
       const key = `${t.categoria} (${t.tipo_movimento})`;
       if (!grouped[key]) grouped[key] = { total: 0, count: 0 };
@@ -321,6 +395,7 @@ export function FluxoCaixa() {
     return grouped;
   };
 
+  // ── Delete ───────────────────────────────────────────────────────────────────
   const handleDelete = async (id: string) => {
     try {
       const { error } = await supabase.from("controle_bancario").delete().eq("id", id);
@@ -347,6 +422,7 @@ export function FluxoCaixa() {
     }
   };
 
+  // ── Status color ─────────────────────────────────────────────────────────────
   const getStatusColor = (status: string, tipoMovimento?: string) => {
     if (tipoMovimento === "entrada" && status === "pendente")
       return "bg-orange-900/20 text-orange-400 border-orange-600";
@@ -359,6 +435,7 @@ export function FluxoCaixa() {
     }
   };
 
+  // ─────────────────────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -375,6 +452,147 @@ export function FluxoCaixa() {
     );
   }
 
+  // ── Render da célula do body por coluna ──────────────────────────────────────
+  const renderCell = (column: string, transacao: any, lineNumber: number) => {
+    const isEntrada = transacao.tipo_movimento === "entrada";
+    const isPendente = transacao.status === "pendente";
+    const colWidth = columnWidths[column] ?? defaultColumnWidths[column as keyof typeof defaultColumnWidths];
+    const style = { width: colWidth, minWidth: colWidth, maxWidth: colWidth };
+
+    switch (column) {
+      case "data":
+        return (
+          <TableCell key="data" className="text-foreground/80 whitespace-nowrap" style={style}>
+            <div className="flex items-center gap-1">
+              <span className="text-foreground/50 text-xs font-semibold">#{lineNumber}</span>
+              <span>
+                {(() => {
+                  const ds = transacao.data;
+                  if (ds && /^\d{4}-\d{2}-\d{2}$/.test(ds)) {
+                    const [y, m, d] = ds.split("-").map(Number);
+                    return format(new Date(y, m - 1, d), "dd/MM/yyyy", { locale: ptBR });
+                  }
+                  return format(new Date(transacao.data), "dd/MM/yyyy", { locale: ptBR });
+                })()}
+              </span>
+            </div>
+          </TableCell>
+        );
+      case "tipo":
+        return (
+          <TableCell key="tipo" style={style}>
+            <div className="flex items-center gap-2">
+              {isEntrada
+                ? <ArrowUpCircle className={`w-4 h-4 ${isPendente ? "text-orange-400" : "text-green-400"}`} />
+                : <ArrowDownCircle className="w-4 h-4 text-red-400" />}
+              <span className={isEntrada ? (isPendente ? "text-orange-400" : "text-green-400") : "text-red-400"}>
+                {isEntrada ? "Entrada" : "Saída"}
+              </span>
+            </div>
+          </TableCell>
+        );
+      case "descricao":
+        return (
+          <TableCell key="descricao" className="text-white font-medium truncate" style={style}>
+            {transacao.descricao}
+          </TableCell>
+        );
+      case "categoria":
+        return (
+          <TableCell key="categoria" className="text-foreground/80" style={style}>
+            {transacao.categoria_nome || "-"}
+          </TableCell>
+        );
+      case "cliente":
+        return (
+          <TableCell key="cliente" className="text-foreground/80 truncate" title={transacao.cliente_nome || ""} style={style}>
+            {transacao.cliente_nome || "-"}
+          </TableCell>
+        );
+      case "valor":
+        return (
+          <TableCell key="valor" className={`font-semibold ${isEntrada ? (isPendente ? "text-orange-400" : "text-green-400") : "text-red-400"}`} style={style}>
+            R$ {Number(transacao.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+          </TableCell>
+        );
+      case "conta":
+        return (
+          <TableCell key="conta" className="text-foreground/80" style={style}>
+            {transacao.conta_banco || "-"}
+          </TableCell>
+        );
+      case "aeronave":
+        return (
+          <TableCell key="aeronave" className="text-foreground/80" style={style}>
+            {transacao.aeronave_registro || "-"}
+          </TableCell>
+        );
+      case "nDoc":
+        return (
+          <TableCell key="nDoc" className="text-foreground/80" style={style}>
+            {transacao.numero_documento || "-"}
+          </TableCell>
+        );
+      case "anexos":
+        return (
+          <TableCell key="anexos" style={style}>
+            <TooltipProvider>
+              <div className="flex items-center gap-1">
+                {transacao.comprovante_url && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <a href={transacao.comprovante_url} target="_blank" rel="noopener noreferrer" className="p-1 rounded hover:bg-muted/50 transition-colors">
+                        <CreditCard className="w-4 h-4 text-green-400" />
+                      </a>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Comprovante</p></TooltipContent>
+                  </Tooltip>
+                )}
+                {transacao.nf_url && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <a href={transacao.nf_url} target="_blank" rel="noopener noreferrer" className="p-1 rounded hover:bg-muted/50 transition-colors">
+                        <FileText className="w-4 h-4 text-blue-400" />
+                      </a>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Nota Fiscal</p></TooltipContent>
+                  </Tooltip>
+                )}
+                {transacao.boleto_url && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <a href={transacao.boleto_url} target="_blank" rel="noopener noreferrer" className="p-1 rounded hover:bg-muted/50 transition-colors">
+                        <Paperclip className="w-4 h-4 text-orange-400" />
+                      </a>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Boleto</p></TooltipContent>
+                  </Tooltip>
+                )}
+                {!transacao.comprovante_url && !transacao.nf_url && !transacao.boleto_url && (
+                  <span className="text-muted-foreground">-</span>
+                )}
+              </div>
+            </TooltipProvider>
+          </TableCell>
+        );
+      case "status":
+        return (
+          <TableCell key="status" style={style}>
+            {transacao.status ? (
+              <Badge variant="outline" className={getStatusColor(transacao.status, transacao.tipo_movimento)}>
+                {transacao.status}
+              </Badge>
+            ) : (
+              <span className="text-muted-foreground">-</span>
+            )}
+          </TableCell>
+        );
+      default:
+        return null;
+    }
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       {/* Nova Movimentação Form */}
@@ -382,28 +600,19 @@ export function FluxoCaixa() {
         <Card className="bg-card/50 border-border/50 backdrop-blur-xl">
           <CardContent className="pt-6">
             <FluxoCaixaInlineForm
-              onSuccess={() => {
-                setShowInlineForm(false);
-                setEditingMovimentacao(null);
-                window.location.reload();
-              }}
-              onCancel={() => {
-                setShowInlineForm(false);
-                setEditingMovimentacao(null);
-              }}
+              onSuccess={() => { setShowInlineForm(false); setEditingMovimentacao(null); window.location.reload(); }}
+              onCancel={() => { setShowInlineForm(false); setEditingMovimentacao(null); }}
               movimentacao={editingMovimentacao}
             />
           </CardContent>
         </Card>
       )}
 
-      {/* ── Filtros Avançados ───────────────────────────────────────────────── */}
+      {/* Filtros Avançados */}
       <Card className="bg-card/50 border-border/50 backdrop-blur-xl">
         <CardHeader className="pb-3">
           <div className="flex justify-between items-center">
-            <CardTitle className="text-lg font-semibold text-foreground">
-              Filtros
-            </CardTitle>
+            <CardTitle className="text-lg font-semibold text-foreground">Filtros</CardTitle>
             {!showInlineForm && (
               <Button
                 onClick={() => setShowInlineForm(true)}
@@ -418,17 +627,14 @@ export function FluxoCaixa() {
         <CardContent>
           <FinanceiroFilters
             filters={advancedFilters}
-            onFiltersChange={(f) => {
-              setAdvancedFilters(f);
-              setCurrentPage(1); // reset page on filter change
-            }}
+            onFiltersChange={(f) => { setAdvancedFilters(f); setCurrentPage(1); }}
             resultCount={filteredTransacoes.length}
             maxAmount={maxAmount}
           />
         </CardContent>
       </Card>
 
-      {/* ── Transações Table ────────────────────────────────────────────────── */}
+      {/* Tabela de Movimentações */}
       <Card className="bg-card/50 border-border/50 backdrop-blur-xl">
         <CardHeader className="pb-3">
           <div className="flex justify-between items-center gap-4 flex-wrap">
@@ -437,7 +643,7 @@ export function FluxoCaixa() {
                 Lista de Movimentações
               </CardTitle>
               <span className="text-xs text-foreground/50 px-2 py-1 rounded bg-muted/50 border border-border/30">
-                Arraste para scroll horizontal →
+                Arraste colunas para reordenar
               </span>
             </div>
             {selectedIds.size > 0 && (
@@ -469,7 +675,7 @@ export function FluxoCaixa() {
             )}
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-2">
           {showReport && selectedIds.size > 0 && (
             <div className="bg-blue-950/30 border border-blue-700/40 rounded-md p-4 mb-4">
               <h3 className="text-white font-semibold mb-3">Relatório Agrupado</h3>
@@ -489,14 +695,28 @@ export function FluxoCaixa() {
             </div>
           )}
 
+          {/* ── SCROLL SUPERIOR (sincronizado) ─────────────────────────────── */}
+          <div
+            ref={topScrollRef}
+            onScroll={handleTopScroll}
+            className="overflow-x-auto overflow-y-hidden"
+            style={{ height: 12 }}
+          >
+            {/* Elemento fantasma com a largura real da tabela */}
+            <div style={{ width: tableScrollWidth, height: 1 }} />
+          </div>
+
+          {/* ── TABELA ─────────────────────────────────────────────────────── */}
           <div
             ref={tableContainerRef}
-            className={`overflow-x-auto cursor-grab ${isDragging ? "cursor-grabbing select-none" : ""}`}
+            onScroll={handleBottomScroll}
+            className={`overflow-x-auto ${isDragging ? "cursor-grabbing select-none" : "cursor-default"}`}
             onMouseDown={handleTableDragStart}
           >
             <Table>
               <TableHeader>
                 <TableRow className="border-border/40 hover:bg-transparent">
+                  {/* Checkbox */}
                   <TableHead className="w-12">
                     <Checkbox
                       checked={paginatedTransacoes.length > 0 && selectedIds.size === paginatedTransacoes.length}
@@ -504,164 +724,72 @@ export function FluxoCaixa() {
                       className="h-5 w-5"
                     />
                   </TableHead>
-                  {expandedColumns.has("data") && (
-                    <TableHead
-                      className="text-foreground/70 cursor-pointer hover:text-foreground transition-colors group relative select-none"
-                      onClick={() => handleSort("data")}
-                      style={{ width: `${columnWidths.data}px`, minWidth: `${columnWidths.data}px`, maxWidth: `${columnWidths.data}px` }}
-                    >
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Data {renderSortIcon("data")}</span>
-                          <button onClick={(e) => { e.stopPropagation(); toggleColumnVisibility("data"); }} className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" title="Ocultar coluna">
-                            <EyeOff className="w-3 h-3" />
-                          </button>
+
+                  {/* Colunas dinâmicas (respeitando columnOrder) */}
+                  {columnOrder.map((column, index) => {
+                    if (!expandedColumns.has(column)) return null;
+                    const config = columnConfig[column];
+                    const colWidth = columnWidths[column] ?? defaultColumnWidths[column as keyof typeof defaultColumnWidths];
+                    const isSorted = sortField === config.sortField;
+
+                    return (
+                      <TableHead
+                        key={column}
+                        className="text-foreground/70 group relative select-none p-0"
+                        style={{ width: colWidth, minWidth: colWidth, maxWidth: colWidth }}
+                        onClick={() => config.sortField && handleSort(config.sortField)}
+                      >
+                        <div
+                          draggable
+                          onDragStart={(e) => handleColumnDragStart(e, column)}
+                          onDragOver={(e) => handleColumnDragOver(e, index)}
+                          onDrop={(e) => handleColumnDrop(e, index)}
+                          onDragLeave={handleColumnDragLeave}
+                          onDragEnd={handleColumnDragEnd}
+                          className={`
+                            flex items-center justify-between h-full px-2 py-3 transition-colors rounded
+                            ${dragOverIndex === index ? "bg-primary/20 outline outline-1 outline-primary/40" : ""}
+                            ${column === draggedColumn ? "opacity-40" : ""}
+                          `}
+                        >
+                          {/* Grip + label + sort + hide */}
+                          <div className="flex items-center gap-1 flex-1 truncate cursor-move min-w-0">
+                            <GripHorizontal className="w-3 h-3 text-foreground/30 flex-shrink-0" />
+                            <span className="text-xs uppercase tracking-wider text-foreground/60 font-medium truncate">
+                              {config.label}
+                            </span>
+                            {isSorted && (
+                              sortDirection === "asc"
+                                ? <ChevronUp className="w-3 h-3 text-primary flex-shrink-0" />
+                                : <ChevronDown className="w-3 h-3 text-primary flex-shrink-0" />
+                            )}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); toggleColumnVisibility(column); }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                              title="Ocultar coluna"
+                            >
+                              <EyeOff className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          {/* Resize handle */}
+                          <div
+                            onMouseDown={(e) => handleColumnResizeStart(e, column)}
+                            onClick={(e) => e.stopPropagation()}
+                            className={`
+                              w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0
+                              ${resizingColumn === column ? "bg-primary" : ""}
+                            `}
+                          />
                         </div>
-                        <div onMouseDown={(e) => handleColumnResizeStart(e, "data")} className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${resizingColumn === "data" ? "bg-primary" : ""}`} />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("tipo") && (
-                    <TableHead
-                      className="text-foreground/70 cursor-pointer hover:text-foreground transition-colors group relative select-none"
-                      onClick={() => handleSort("tipo_movimento")}
-                      style={{ width: `${columnWidths.tipo}px`, minWidth: `${columnWidths.tipo}px`, maxWidth: `${columnWidths.tipo}px` }}
-                    >
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Tipo {renderSortIcon("tipo_movimento")}</span>
-                          <button onClick={(e) => { e.stopPropagation(); toggleColumnVisibility("tipo"); }} className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" title="Ocultar coluna">
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div onMouseDown={(e) => handleColumnResizeStart(e, "tipo")} className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${resizingColumn === "tipo" ? "bg-primary" : ""}`} />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("descricao") && (
-                    <TableHead className="text-foreground/70 group relative select-none" style={{ width: `${columnWidths.descricao}px`, minWidth: `${columnWidths.descricao}px`, maxWidth: `${columnWidths.descricao}px` }}>
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Descrição</span>
-                          <button onClick={() => toggleColumnVisibility("descricao")} className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0" title="Ocultar coluna">
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div onMouseDown={(e) => handleColumnResizeStart(e, "descricao")} className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${resizingColumn === "descricao" ? "bg-primary" : ""}`} />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("categoria") && (
-                    <TableHead className="text-foreground/70 group relative select-none" style={{ width: `${columnWidths.categoria}px`, minWidth: `${columnWidths.categoria}px`, maxWidth: `${columnWidths.categoria}px` }}>
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Categoria</span>
-                          <button onClick={() => toggleColumnVisibility("categoria")} className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0" title="Ocultar coluna">
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div onMouseDown={(e) => handleColumnResizeStart(e, "categoria")} className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${resizingColumn === "categoria" ? "bg-primary" : ""}`} />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("cliente") && (
-                    <TableHead className="text-foreground/70 group relative select-none" style={{ width: `${columnWidths.cliente}px`, minWidth: `${columnWidths.cliente}px`, maxWidth: `${columnWidths.cliente}px` }}>
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Cliente</span>
-                          <button onClick={() => toggleColumnVisibility("cliente")} className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0" title="Ocultar coluna">
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div onMouseDown={(e) => handleColumnResizeStart(e, "cliente")} className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${resizingColumn === "cliente" ? "bg-primary" : ""}`} />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("valor") && (
-                    <TableHead
-                      className="text-foreground/70 cursor-pointer hover:text-foreground transition-colors group relative select-none"
-                      onClick={() => handleSort("valor")}
-                      style={{ width: `${columnWidths.valor}px`, minWidth: `${columnWidths.valor}px`, maxWidth: `${columnWidths.valor}px` }}
-                    >
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Valor {renderSortIcon("valor")}</span>
-                          <button onClick={(e) => { e.stopPropagation(); toggleColumnVisibility("valor"); }} className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" title="Ocultar coluna">
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div onMouseDown={(e) => handleColumnResizeStart(e, "valor")} className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${resizingColumn === "valor" ? "bg-primary" : ""}`} />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("conta") && (
-                    <TableHead className="text-foreground/70 group relative select-none" style={{ width: `${columnWidths.conta}px`, minWidth: `${columnWidths.conta}px`, maxWidth: `${columnWidths.conta}px` }}>
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Conta</span>
-                          <button onClick={() => toggleColumnVisibility("conta")} className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0" title="Ocultar coluna">
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div onMouseDown={(e) => handleColumnResizeStart(e, "conta")} className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${resizingColumn === "conta" ? "bg-primary" : ""}`} />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("aeronave") && (
-                    <TableHead className="text-foreground/70 group relative select-none" style={{ width: `${columnWidths.aeronave}px`, minWidth: `${columnWidths.aeronave}px`, maxWidth: `${columnWidths.aeronave}px` }}>
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Aeronave</span>
-                          <button onClick={() => toggleColumnVisibility("aeronave")} className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0" title="Ocultar coluna">
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div onMouseDown={(e) => handleColumnResizeStart(e, "aeronave")} className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${resizingColumn === "aeronave" ? "bg-primary" : ""}`} />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("nDoc") && (
-                    <TableHead className="text-foreground/70 group relative select-none" style={{ width: `${columnWidths.nDoc}px`, minWidth: `${columnWidths.nDoc}px`, maxWidth: `${columnWidths.nDoc}px` }}>
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Nº Doc</span>
-                          <button onClick={() => toggleColumnVisibility("nDoc")} className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0" title="Ocultar coluna">
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div onMouseDown={(e) => handleColumnResizeStart(e, "nDoc")} className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${resizingColumn === "nDoc" ? "bg-primary" : ""}`} />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("anexos") && (
-                    <TableHead className="text-foreground/70 group relative select-none" style={{ width: `${columnWidths.anexos}px`, minWidth: `${columnWidths.anexos}px`, maxWidth: `${columnWidths.anexos}px` }}>
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Anexos</span>
-                          <button onClick={() => toggleColumnVisibility("anexos")} className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0" title="Ocultar coluna">
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div onMouseDown={(e) => handleColumnResizeStart(e, "anexos")} className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${resizingColumn === "anexos" ? "bg-primary" : ""}`} />
-                      </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("status") && (
-                    <TableHead className="text-foreground/70 group relative select-none" style={{ width: `${columnWidths.status}px`, minWidth: `${columnWidths.status}px`, maxWidth: `${columnWidths.status}px` }}>
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Status</span>
-                          <button onClick={() => toggleColumnVisibility("status")} className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0" title="Ocultar coluna">
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div onMouseDown={(e) => handleColumnResizeStart(e, "status")} className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${resizingColumn === "status" ? "bg-primary" : ""}`} />
-                      </div>
-                    </TableHead>
-                  )}
+                      </TableHead>
+                    );
+                  })}
+
+                  {/* Colunas ocultas (collapsed) */}
                   {collapsedColumns.size > 0 && (
                     <TableHead className="text-foreground/70 group relative max-w-[120px]">
-                      <div className="flex items-center gap-1 flex-wrap">
+                      <div className="flex items-center gap-1 flex-wrap p-2">
                         {Array.from(collapsedColumns).map((colId) => (
                           <button
                             key={colId}
@@ -675,9 +803,11 @@ export function FluxoCaixa() {
                       </div>
                     </TableHead>
                   )}
+
                   <TableHead className="text-right text-foreground/70">Ações</TableHead>
                 </TableRow>
               </TableHeader>
+
               <TableBody>
                 {paginatedTransacoes.map((transacao: any, idx: number) => {
                   const isEntrada = transacao.tipo_movimento === "entrada";
@@ -696,125 +826,12 @@ export function FluxoCaixa() {
                       <TableCell className="text-center">
                         <Checkbox checked={isSelected} onCheckedChange={() => toggleSelectId(transacao.id)} className="h-5 w-5" />
                       </TableCell>
-                      {expandedColumns.has("data") && (
-                        <TableCell className="text-foreground/80 whitespace-nowrap" style={{ width: `${columnWidths.data}px`, minWidth: `${columnWidths.data}px`, maxWidth: `${columnWidths.data}px` }}>
-                          <div className="flex items-center gap-1">
-                            <span className="text-foreground/50 text-xs font-semibold">#{lineNumber}</span>
-                            <span>
-                              {(() => {
-                                const dateStr = transacao.data;
-                                if (dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-                                  const [y, m, d] = dateStr.split('-').map(Number);
-                                  return format(new Date(y, m - 1, d), "dd/MM/yyyy", { locale: ptBR });
-                                }
-                                return format(new Date(transacao.data), "dd/MM/yyyy", { locale: ptBR });
-                              })()}
-                            </span>
-                          </div>
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("tipo") && (
-                        <TableCell style={{ width: `${columnWidths.tipo}px`, minWidth: `${columnWidths.tipo}px`, maxWidth: `${columnWidths.tipo}px` }}>
-                          <div className="flex items-center gap-2">
-                            {isEntrada
-                              ? <ArrowUpCircle className={`w-4 h-4 ${isPendente ? "text-orange-400" : "text-green-400"}`} />
-                              : <ArrowDownCircle className="w-4 h-4 text-red-400" />}
-                            <span className={isEntrada ? (isPendente ? "text-orange-400" : "text-green-400") : "text-red-400"}>
-                              {isEntrada ? "Entrada" : "Saída"}
-                            </span>
-                          </div>
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("descricao") && (
-                        <TableCell className="text-white font-medium truncate" style={{ width: `${columnWidths.descricao}px`, minWidth: `${columnWidths.descricao}px`, maxWidth: `${columnWidths.descricao}px` }}>
-                          {transacao.descricao}
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("categoria") && (
-                        <TableCell className="text-foreground/80" style={{ width: `${columnWidths.categoria}px`, minWidth: `${columnWidths.categoria}px`, maxWidth: `${columnWidths.categoria}px` }}>
-                          {transacao.categoria_nome || "-"}
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("cliente") && (
-                        <TableCell className="text-foreground/80 truncate" title={transacao.cliente_nome || ""} style={{ width: `${columnWidths.cliente}px`, minWidth: `${columnWidths.cliente}px`, maxWidth: `${columnWidths.cliente}px` }}>
-                          {transacao.cliente_nome || "-"}
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("valor") && (
-                        <TableCell
-                          className={`font-semibold ${isEntrada ? (isPendente ? "text-orange-400" : "text-green-400") : "text-red-400"}`}
-                          style={{ width: `${columnWidths.valor}px`, minWidth: `${columnWidths.valor}px`, maxWidth: `${columnWidths.valor}px` }}
-                        >
-                          R$ {Number(transacao.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("conta") && (
-                        <TableCell className="text-foreground/80" style={{ width: `${columnWidths.conta}px`, minWidth: `${columnWidths.conta}px`, maxWidth: `${columnWidths.conta}px` }}>
-                          {transacao.conta_banco || "-"}
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("aeronave") && (
-                        <TableCell className="text-foreground/80" style={{ width: `${columnWidths.aeronave}px`, minWidth: `${columnWidths.aeronave}px`, maxWidth: `${columnWidths.aeronave}px` }}>
-                          {transacao.aeronave_registro || "-"}
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("nDoc") && (
-                        <TableCell className="text-foreground/80" style={{ width: `${columnWidths.nDoc}px`, minWidth: `${columnWidths.nDoc}px`, maxWidth: `${columnWidths.nDoc}px` }}>
-                          {transacao.numero_documento || "-"}
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("anexos") && (
-                        <TableCell style={{ width: `${columnWidths.anexos}px`, minWidth: `${columnWidths.anexos}px`, maxWidth: `${columnWidths.anexos}px` }}>
-                          <TooltipProvider>
-                            <div className="flex items-center gap-1">
-                              {transacao.comprovante_url && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <a href={transacao.comprovante_url} target="_blank" rel="noopener noreferrer" className="p-1 rounded hover:bg-muted/50 transition-colors">
-                                      <CreditCard className="w-4 h-4 text-green-400" />
-                                    </a>
-                                  </TooltipTrigger>
-                                  <TooltipContent><p>Comprovante</p></TooltipContent>
-                                </Tooltip>
-                              )}
-                              {transacao.nf_url && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <a href={transacao.nf_url} target="_blank" rel="noopener noreferrer" className="p-1 rounded hover:bg-muted/50 transition-colors">
-                                      <FileText className="w-4 h-4 text-blue-400" />
-                                    </a>
-                                  </TooltipTrigger>
-                                  <TooltipContent><p>Nota Fiscal</p></TooltipContent>
-                                </Tooltip>
-                              )}
-                              {transacao.boleto_url && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <a href={transacao.boleto_url} target="_blank" rel="noopener noreferrer" className="p-1 rounded hover:bg-muted/50 transition-colors">
-                                      <Paperclip className="w-4 h-4 text-orange-400" />
-                                    </a>
-                                  </TooltipTrigger>
-                                  <TooltipContent><p>Boleto</p></TooltipContent>
-                                </Tooltip>
-                              )}
-                              {!transacao.comprovante_url && !transacao.nf_url && !transacao.boleto_url && (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </div>
-                          </TooltipProvider>
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("status") && (
-                        <TableCell style={{ width: `${columnWidths.status}px`, minWidth: `${columnWidths.status}px`, maxWidth: `${columnWidths.status}px` }}>
-                          {transacao.status ? (
-                            <Badge variant="outline" className={getStatusColor(transacao.status, transacao.tipo_movimento)}>
-                              {transacao.status}
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                      )}
+
+                      {columnOrder.map((column) => {
+                        if (!expandedColumns.has(column)) return null;
+                        return renderCell(column, transacao, lineNumber);
+                      })}
+
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -838,6 +855,7 @@ export function FluxoCaixa() {
                     </TableRow>
                   );
                 })}
+
                 {sortedTransacoes.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={calculateColSpan()} className="text-center text-foreground/40 py-8">
@@ -849,19 +867,30 @@ export function FluxoCaixa() {
             </Table>
           </div>
 
+          {/* Paginação */}
           {sortedTransacoes.length > 0 && (
             <div className="flex items-center justify-between mt-6 pt-6 border-t border-border/40">
               <div className="text-sm text-foreground/60">
                 Exibindo {startIndex + 1} a {Math.min(startIndex + itemsPerPage, sortedTransacoes.length)} de {sortedTransacoes.length}
               </div>
               <div className="flex gap-2">
-                <Button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage === 1} variant="outline" className="bg-muted/30 border-border/60 hover:bg-muted/50">
+                <Button
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  variant="outline"
+                  className="bg-muted/30 border-border/60 hover:bg-muted/50"
+                >
                   Anterior
                 </Button>
                 <div className="flex items-center gap-2 px-4 py-2 text-foreground/80">
                   Página {currentPage} de {totalPages}
                 </div>
-                <Button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages} variant="outline" className="bg-muted/30 border-border/60 hover:bg-muted/50">
+                <Button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                  variant="outline"
+                  className="bg-muted/30 border-border/60 hover:bg-muted/50"
+                >
                   Próxima
                 </Button>
               </div>
@@ -870,7 +899,7 @@ export function FluxoCaixa() {
         </CardContent>
       </Card>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Dialog de confirmação de exclusão */}
       <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
         <DialogContent className="bg-card border-border/50">
           <DialogHeader>
