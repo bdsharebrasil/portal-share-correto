@@ -696,18 +696,7 @@ export function FluxoCaixa() {
           )}
 
           {/* ── TABELA COM SCROLL SINCRONIZADO ─────────────────────────────────────── */}
-          <div className="space-y-0">
-            {/* Scroll superior - sincronizado com a tabela */}
-            <div
-              ref={topScrollRef}
-              onScroll={handleTopScroll}
-              className="overflow-x-auto overflow-y-hidden"
-              style={{ height: 12 }}
-            >
-              {/* Elemento fantasma com a largura real da tabela */}
-              <div style={{ width: tableScrollWidth, height: 1 }} />
-            </div>
-
+          <div className="relative">
             {/* Tabela */}
             <div
               ref={tableContainerRef}
@@ -867,6 +856,17 @@ export function FluxoCaixa() {
                   )}
                 </TableBody>
               </Table>
+            </div>
+
+            {/* Scroll superior - sincronizado com a tabela - Posicionado após os títulos */}
+            <div
+              ref={topScrollRef}
+              onScroll={handleTopScroll}
+              className="overflow-x-auto overflow-y-hidden absolute top-0 left-0 right-0 pointer-events-auto"
+              style={{ height: 12, marginTop: 49 }}
+            >
+              {/* Elemento fantasma com a largura real da tabela */}
+              <div style={{ width: tableScrollWidth, height: 1 }} />
             </div>
           </div>
 
