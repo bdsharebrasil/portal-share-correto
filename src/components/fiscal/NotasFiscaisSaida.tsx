@@ -8,19 +8,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Edit2, Trash2, FileUp, DollarSign, Search, X, Upload, FileText, Eye, CalendarIcon } from "lucide-react";
+import { Plus, Edit2, Trash2, FileUp, DollarSign, Search, X, Upload, FileText, Eye, CalendarIcon, Building2, Plane } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
 import { useAeronaves } from "@/hooks/useAeronaves";
 import { format, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Document, Page, Text, View, StyleSheet, Image, pdf } from '@react-pdf/renderer';
+import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 
 // --- CONFIGURAÇÃO DO PDF (APENAS PARA RECIBOS) ---
 
@@ -121,6 +121,7 @@ const ReciboDocument = ({ data }: { data: any }) => (
 // --- TIPAGENS ---
 
 interface NotaFiscalSaida {
+  aircraft_id: string;
   id: string;
   numero: string;
   cliente_nome: string;
@@ -217,10 +218,6 @@ export function NotasFiscaisSaida() {
   const [editingNota, setEditingNota] = useState<NotaFiscalSaida | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [clienteSearch, setClienteSearch] = useState("");
-  const [openClientePopover, setOpenClientePopover] = useState(false);
-  const [aeronaveSearch, setAeronaveSearch] = useState("");
-  const [openAeronavePopover, setOpenAeronavePopover] = useState(false);
   const [isUploadingPDF, setIsUploadingPDF] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string>("");
   const [showReciboDialog, setShowReciboDialog] = useState(false);
@@ -332,7 +329,7 @@ export function NotasFiscaisSaida() {
         .order("data_criacao", { ascending: false });
 
       if (error) throw error;
-      setNotas((data || []) as NotaFiscalSaida[]);
+      setNotas((data || []) as unknown as NotaFiscalSaida[]);
     } catch (error) {
       console.error("Erro ao carregar notas:", error);
       toast({
@@ -399,14 +396,6 @@ export function NotasFiscaisSaida() {
         return;
       }
 
-      // Debug: Log dos dados antes de salvar
-      console.log("[NotasFiscal] FormData antes de salvar:", {
-        client_id: formData.client_id,
-        cliente_nome: formData.cliente_nome,
-        cliente_cnpj: formData.cliente_cnpj,
-        categoria_id: formData.categoria,
-      });
-
       // Validar se categoria está preenchida
       if (!formData.categoria || formData.categoria.trim() === "") {
         toast({
@@ -417,14 +406,11 @@ export function NotasFiscaisSaida() {
         return;
       }
 
-      // **BUSCAR O NOME DA CATEGORIA PRIMEIRO** ← NOVA FUNCIONALIDADE
-      // Garantir que o UUID é válido antes da comparação
+      // **BUSCAR O NOME DA CATEGORIA PRIMEIRO**
       const categoriaId = formData.categoria.trim();
 
-      // Validar formato UUID (padrão básico)
       const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidPattern.test(categoriaId)) {
-        console.error("UUID inválido para categoria:", categoriaId);
         toast({
           title: "Erro",
           description: "Categoria inválida. Por favor, selecione novamente.",
@@ -440,7 +426,6 @@ export function NotasFiscaisSaida() {
         .single();
 
       if (categoriaError) {
-        console.error("Erro ao buscar categoria:", categoriaError);
         toast({
           title: "Erro",
           description: `Erro ao buscar informações da categoria: ${categoriaError.message}`,
@@ -450,22 +435,11 @@ export function NotasFiscaisSaida() {
       }
 
       const categoriaNome = categoriaData?.nome?.trim() || "NF de Saída";
-      const grupoCategoria = categoriaData?.grupo_categoria || null;
 
-      console.log("[NotasFiscal] Categoria encontrada:", {
-        id: formData.categoria,
-        nome: categoriaNome,
-        grupo: grupoCategoria
-      });
-
-      // Preparar dados da NF
-      // Validar UUIDs opcionais
       const clientId = formData.client_id?.trim() || null;
       const aircraftId = formData.aeronave_id?.trim() || null;
 
-      // Se client_id foi fornecido, validar formato
       if (clientId && !uuidPattern.test(clientId)) {
-        console.error("UUID inválido para cliente:", clientId);
         toast({
           title: "Erro",
           description: "ID do cliente inválido. Por favor, selecione um cliente válido.",
@@ -474,9 +448,7 @@ export function NotasFiscaisSaida() {
         return;
       }
 
-      // Se aircraft_id foi fornecido, validar formato
       if (aircraftId && !uuidPattern.test(aircraftId)) {
-        console.error("UUID inválido para aeronave:", aircraftId);
         toast({
           title: "Erro",
           description: "ID da aeronave inválido. Por favor, selecione uma aeronave válida.",
@@ -493,7 +465,7 @@ export function NotasFiscaisSaida() {
         data_criacao: formData.data_criacao,
         data_vencimento: formData.data_vencimento,
         valor: parseFloat(formData.valor),
-        categoria: categoriaNome,  // ← MUDANÇA PRINCIPAL: USA O NOME, NÃO O ID
+        categoria: categoriaNome,
         descricao: formData.descricao || null,
         status: formData.status,
         arquivo_pdf_url: pdfUrl || null,
@@ -502,14 +474,10 @@ export function NotasFiscaisSaida() {
         criado_por: currentUser.id,
       };
 
-      console.log("[NotasFiscal] NotaData preparada para salvar:", notaData);
-
       if (editingNota) {
         const editingNotaId = String(editingNota.id).trim();
 
-        // Validar UUID do documento a ser editado
         if (!uuidPattern.test(editingNotaId)) {
-          console.error("UUID inválido para nota a editar:", editingNotaId);
           toast({
             title: "Erro",
             description: "ID da nota inválido. Recarregue a página e tente novamente.",
@@ -533,7 +501,6 @@ export function NotasFiscaisSaida() {
           description: "Nota fiscal atualizada com sucesso",
         });
       } else {
-        // INSERIR NF (triggers vão criar em controle_bancario e contas_areceber)
         const { error } = await supabase
           .from("notas_fiscais_saida")
           .insert([notaData])
@@ -550,10 +517,9 @@ export function NotasFiscaisSaida() {
       setOpenDialog(false);
       resetForm();
       loadNotas();
-      loadRecibos(); // Recarregar recibos também pois NF cria em bank_reconciliations
+      loadRecibos();
     } catch (error: any) {
       console.error("Erro ao salvar nota:", error);
-      console.error("Erro completo:", JSON.stringify(error, null, 2));
       const errorMsg = error?.message || "Erro ao salvar nota fiscal";
       toast({
         title: "Erro",
@@ -570,9 +536,7 @@ export function NotasFiscaisSaida() {
       const deleteUuid = String(deleteId).trim();
       const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-      // Validar UUID antes de deletar
       if (!uuidPattern.test(deleteUuid)) {
-        console.error("UUID inválido para delete:", deleteUuid);
         toast({
           title: "Erro",
           description: "ID da nota inválido. Recarregue a página e tente novamente.",
@@ -691,28 +655,11 @@ export function NotasFiscaisSaida() {
       aeronave_registro: "",
     });
     setEditingNota(null);
-    setClienteSearch("");
-    setAeronaveSearch("");
     setPdfUrl("");
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "recebido":
-        return "bg-green-500/20 text-green-400 border-green-500/30";
-      case "pendente":
-        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
-      case "cancelado":
-        return "bg-red-500/20 text-red-400 border-red-500/30";
-      default:
-        return "bg-muted text-muted-foreground";
-    }
-  };
-
   const handleChangeStatus = async (notaId: string, newStatus: string) => {
-    // Validar ID
     if (!notaId || typeof notaId !== 'string' || notaId.trim() === '') {
-      console.error("ID de nota inválido:", notaId);
       toast({
         title: "Erro",
         description: "ID de nota inválido",
@@ -723,10 +670,8 @@ export function NotasFiscaisSaida() {
 
     const idLimpo = notaId.trim();
 
-    // Validar que é um UUID válido
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(idLimpo)) {
-      console.error("ID não é um UUID válido:", idLimpo);
       toast({
         title: "Erro",
         description: `ID inválido: "${idLimpo}"`,
@@ -745,7 +690,6 @@ export function NotasFiscaisSaida() {
       return;
     }
 
-    // Se for marcar como "recebido", abrir diálogo de confirmação
     if (newStatus === "recebido") {
       const nota = notas.find(n => n.id === idLimpo);
       if (nota) {
@@ -761,10 +705,7 @@ export function NotasFiscaisSaida() {
     }
 
     try {
-      console.log("🔵 Atualizando Nota Fiscal:", { notaId: idLimpo, newStatus });
-
-      // Tentar atualização direta
-      const { error, data } = await supabase
+      const { error } = await supabase
         .from("notas_fiscais_saida")
         .update({
           status: newStatus,
@@ -773,12 +714,7 @@ export function NotasFiscaisSaida() {
         .eq("id", idLimpo)
         .select();
 
-      if (error) {
-        console.error("❌ Erro ao atualizar NF:", error);
-        throw error;
-      }
-
-      console.log("✅ NF atualizada com sucesso:", data);
+      if (error) throw error;
 
       toast({
         title: "Sucesso",
@@ -787,33 +723,14 @@ export function NotasFiscaisSaida() {
 
       loadNotas();
     } catch (error: any) {
-      console.error("❌ Erro ao atualizar status da NF:", error);
-
-      // Extrair mensagem de erro corretamente
-      let errorMsg = "Erro ao atualizar status";
-      if (error?.message) {
-        errorMsg = error.message;
-      } else if (typeof error === 'string') {
-        errorMsg = error;
-      } else if (error?.details) {
-        errorMsg = error.details;
-      }
-
-      // Se for erro de UUID
+      let errorMsg = error?.message || "Erro ao atualizar status";
       if (errorMsg.includes("uuid = text") || errorMsg.includes("operator does not exist")) {
-        console.error("🐛 BUG NO BANCO DE DADOS:");
-        console.error("   Há um trigger ou função SQL com erro de tipo UUID");
-        console.error("   Tabela: notas_fiscais_saida");
-
-        errorMsg = "Erro no banco de dados: incompatibilidade de tipos. " +
-                   "Entre em contato com o administrador do banco de dados.";
+        errorMsg = "Erro no banco de dados: incompatibilidade de tipos.";
       }
 
       toast({
         title: "Erro",
-        description: errorMsg.includes("policy") || errorMsg.includes("permission")
-          ? "Sem permissão para atualizar. Verifique se seu perfil tem acesso (Admin, Gestor ou Financeiro)."
-          : errorMsg,
+        description: errorMsg,
         variant: "destructive",
       });
     }
@@ -858,7 +775,6 @@ export function NotasFiscaisSaida() {
 
       const numeroRecibo = await generateReciboNumber(reciboData.cliente_nome);
 
-      // GERAR PDF DO RECIBO
       const dadosParaPDF = {
         numero_recibo: numeroRecibo,
         valor: reciboData.valor,
@@ -889,7 +805,6 @@ export function NotasFiscaisSaida() {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) throw new Error("Usuário não autenticado");
 
-      // Buscar categoria e IDs
       const CATEGORIA_ID = "2874b45b-a3bb-4bec-8f7e-74b328f8693c";
 
       let clientId = reciboData.cliente_id || null;
@@ -905,8 +820,7 @@ export function NotasFiscaisSaida() {
       const { data: categoriaData } = await supabase.from("categorias_movimentacao").select("grupo_categoria").eq("id", CATEGORIA_ID).single();
       const grupoCategoria = categoriaData?.grupo_categoria || null;
 
-      // 1. INSERIR EM CONTROLE_BANCARIO (trigger criará bank_reconciliations)
-      const { data: controleBancarioData, error: controleBancarioError } = await supabase
+      const { error: controleBancarioError } = await supabase
         .from("controle_bancario")
         .insert({
           data: new Date().toISOString().split("T")[0],
@@ -930,7 +844,6 @@ export function NotasFiscaisSaida() {
 
       if (controleBancarioError) throw new Error(`Erro controle_bancario: ${controleBancarioError.message}`);
 
-      // 2. INSERIR EM CONTAS_ARECEBER
       if (reciboData.aeronave_registro) {
         const { error: contasAreceberError } = await supabase.from("contas_areceber").insert({
           numero: numeroRecibo,
@@ -951,8 +864,6 @@ export function NotasFiscaisSaida() {
           console.warn("Aviso ao inserir em contas_areceber:", contasAreceberError.message);
         }
       }
-
-      // 3. O BANK_RECONCILIATIONS já foi criado pelo trigger de controle_bancario
 
       setReciboViewUrl(reciboUrl);
       setShowReciboViewer(true);
@@ -982,22 +893,6 @@ export function NotasFiscaisSaida() {
     });
   }
 
-  const handleSelectCliente = (cliente: Cliente) => {
-    setReciboData({
-      ...reciboData,
-      cliente_id: cliente.id,
-      cliente_nome: cliente.nome,
-      cliente_cnpj: cliente.documento,
-    });
-    setOpenClientePopover(false);
-  };
-
-  const filteredClientes = clientes.filter(c =>
-    c.nome.toLowerCase().includes(clienteSearch.toLowerCase()) ||
-    c.documento.includes(clienteSearch)
-  );
-
-  // Filtrar notas para exibição: apenas pendentes e canceladas (excluir recebidas)
   const notasExibicao = notas.filter((n) => n.status !== "recebido");
 
   const totalPendente = notas
@@ -1117,10 +1012,9 @@ export function NotasFiscaisSaida() {
       loadRecibos();
     } catch (error: any) {
       console.error("Erro ao atualizar recibo:", error);
-      const errorMsg = error?.message || "Erro ao atualizar recibo";
       toast({
         title: "Erro",
-        description: errorMsg,
+        description: error?.message || "Erro ao atualizar recibo",
         variant: "destructive",
       });
       setIsGeneratingPdfEdit(false);
@@ -1147,19 +1041,16 @@ export function NotasFiscaisSaida() {
       loadRecibos();
     } catch (error: any) {
       console.error("Erro ao deletar recibo:", error);
-      const errorMsg = error?.message || "Erro ao deletar recibo";
       toast({
         title: "Erro",
-        description: errorMsg,
+        description: error?.message || "Erro ao deletar recibo",
         variant: "destructive",
       });
     }
   };
 
   const handleUpdateReciboStatus = async (reciboId: string, newStatus: string) => {
-    // Validar ID
     if (!reciboId || typeof reciboId !== 'string' || reciboId.trim() === '') {
-      console.error("ID de recibo inválido:", reciboId, "Type:", typeof reciboId);
       toast({
         title: "Erro",
         description: "ID de recibo inválido",
@@ -1170,10 +1061,8 @@ export function NotasFiscaisSaida() {
 
     const idLimpo = reciboId.trim();
 
-    // Validar que é um UUID válido (36 caracteres com hífens)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(idLimpo)) {
-      console.error("ID não é um UUID válido:", idLimpo, "Length:", idLimpo.length);
       toast({
         title: "Erro",
         description: `ID inválido: "${idLimpo}". Esperado um UUID válido.`,
@@ -1186,101 +1075,36 @@ export function NotasFiscaisSaida() {
     if (!statusValidos.includes(newStatus)) {
       toast({
         title: "Erro",
-        description: `Status inválido: "${newStatus}". Status válidos: ${statusValidos.join(", ")}`,
+        description: `Status inválido: "${newStatus}".`,
         variant: "destructive",
       });
       return;
     }
 
     try {
-      console.log("🔵 Iniciando atualização de recibo:", {
-        reciboId: idLimpo,
-        reciboIdType: typeof idLimpo,
-        reciboIdLength: idLimpo.length,
-        newStatus
-      });
+      const { error: updateError } = await supabase
+        .from("bank_reconciliations")
+        .update({
+          status: newStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", idLimpo);
 
-      // Tentar usar RPC para atualizar (evita triggers problemáticos)
-      console.log("🔄 Tentando RPC update_recibo_status...");
-      const { data: rpcData, error: rpcError } = await supabase.rpc(
-        'update_recibo_status',
-        {
-          p_recibo_id: idLimpo,
-          p_new_status: newStatus
-        }
-      );
-
-      if (rpcError) {
-        console.warn("⚠️ RPC não disponível, tentando método direto...", rpcError);
-
-        // Se RPC falhar, tentar atualização direta com SQL raw
-        const { data: updateData, error: updateError } = await supabase
-          .from("bank_reconciliations")
-          .update({
-            status: newStatus,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", idLimpo);
-
-        if (updateError) {
-          console.error("❌ Erro ao atualizar (método direto):", updateError);
-          throw updateError;
-        }
-
-        console.log("✅ Atualizado com sucesso (método direto)");
-      } else {
-        console.log("✅ Atualizado com sucesso (RPC):", rpcData);
+      if (updateError) {
+        throw updateError;
       }
-
-      console.log("✅ Recibo atualizado com sucesso");
 
       toast({
         title: "Sucesso",
-        description: `Status atualizado para ${newStatus === 'recebido' ? 'Recebido' : newStatus === 'pendente' ? 'Pendente' : 'Enviado'}`,
+        description: `Status atualizado com sucesso`,
       });
 
       loadRecibos();
     } catch (error: any) {
-      console.error("❌ Erro completo ao atualizar status do recibo:", {
-        errorObj: error,
-        errorJson: JSON.stringify(error, null, 2),
-      });
-
-      // Extrair mensagem de erro corretamente
-      let errorMsg = "Erro ao atualizar status";
-      if (error?.message) {
-        errorMsg = error.message;
-      } else if (typeof error === 'string') {
-        errorMsg = error;
-      } else if (error?.details) {
-        errorMsg = error.details;
-      }
-
-      // Se for erro de UUID, isso é um bug no banco de dados
-      if (errorMsg.includes("uuid = text") || errorMsg.includes("operator does not exist")) {
-        console.error("🐛 BUG ENCONTRADO NO BANCO DE DADOS:");
-        console.error("   Há um trigger ou função SQL comparando UUID como TEXT.");
-        console.error("   Verifique as funções SQL:");
-        console.error("   - update_bank_reconciliation_from_controle_bancario()");
-        console.error("   - trigger_consolidar_rateio()");
-        console.error("   - update_bank_reconciliations_updated_at()");
-        console.error("   Procure por comparações como: WHERE id = NEW.id ou similar.");
-
-        errorMsg = "Erro no banco de dados: incompatibilidade de tipos UUID. " +
-                   "Entre em contato com o administrador do banco de dados. " +
-                   "O erro está em uma função SQL que está comparando UUID com texto.";
-      }
-
-      // Se for erro de constraint, mostrar mais detalhes
-      if (errorMsg.includes("violates check constraint")) {
-        errorMsg = `Status "${newStatus}" não é válido para esta tabela. Valores permitidos: ${statusValidos.join(", ")}`;
-      }
-
+      let errorMsg = error?.message || "Erro ao atualizar status";
       toast({
         title: "Erro",
-        description: errorMsg.includes("policy") || errorMsg.includes("permission")
-          ? "Sem permissão para atualizar. Verifique se seu perfil tem acesso (Admin, Gestor ou Financeiro)."
-          : errorMsg,
+        description: errorMsg,
         variant: "destructive",
       });
     }
@@ -1357,12 +1181,8 @@ export function NotasFiscaisSaida() {
         .eq("id", pendingNotaRecebimento.notaId);
 
       if (error) {
-        console.error("Erro ao confirmar recebimento:", error);
         throw error;
       }
-
-      // Atualizar também a tabela de histórico/logs se existir
-      // Por enquanto, apenas atualizamos a nota fiscal
 
       toast({
         title: "Sucesso",
@@ -1373,7 +1193,6 @@ export function NotasFiscaisSaida() {
       setPendingNotaRecebimento(null);
       loadNotas();
     } catch (error: any) {
-      console.error("Erro ao confirmar recebimento:", error);
       toast({
         title: "Erro",
         description: error?.message || "Erro ao confirmar recebimento",
@@ -1515,64 +1334,23 @@ export function NotasFiscaisSaida() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-foreground">Cliente/Empresa *</Label>
-                      <Popover open={openClientePopover} onOpenChange={setOpenClientePopover}>
-                        <PopoverTrigger asChild>
-                          <div className="relative">
-                            <Input
-                              value={formData.cliente_nome}
-                              onChange={(e) => {
-                                setFormData({ ...formData, cliente_nome: e.target.value, client_id: "" });
-                                setClienteSearch(e.target.value);
-                                setOpenClientePopover(true);
-                              }}
-                              onFocus={() => setOpenClientePopover(true)}
-                              placeholder="Buscar cliente..."
-                              className="bg-background border-border pr-10"
-                            />
-                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          </div>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[300px] p-0 bg-card border-border" align="start">
-                          <Command className="bg-card">
-                            <CommandInput
-                              placeholder="Buscar..."
-                              value={clienteSearch}
-                              onValueChange={setClienteSearch}
-                              className="bg-background"
-                            />
-                            <CommandList>
-                              <CommandEmpty className="text-muted-foreground py-3 text-center text-sm">
-                                Nenhum cliente encontrado
-                              </CommandEmpty>
-                              <CommandGroup heading="Clientes" className="text-muted-foreground">
-                                {filteredClientes.length > 0 ? (
-                                  filteredClientes.slice(0, 50).map((c) => (
-                                    <CommandItem
-                                      key={c.id}
-                                      onSelect={() => {
-                                        console.log("[Cliente Selecionado]", { id: c.id, nome: c.nome, documento: c.documento });
-                                        setFormData({
-                                          ...formData,
-                                          client_id: c.id,
-                                          cliente_nome: c.nome,
-                                          cliente_cnpj: c.documento
-                                        });
-                                        setOpenClientePopover(false);
-                                      }}
-                                      className="cursor-pointer hover:bg-muted"
-                                    >
-                                      <div>
-                                        <p className="font-medium text-foreground">{c.nome}</p>
-                                        {c.documento && <p className="text-xs text-muted-foreground">{c.documento}</p>}
-                                      </div>
-                                    </CommandItem>
-                                  ))
-                                ) : null}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                      <SearchableCombobox
+                        items={clientes.map(c => ({ id: c.id, label: c.nome }))}
+                        value={formData.client_id}
+                        onChange={(id, label) => {
+                          const clienteSelecionado = clientes.find(c => c.id === id);
+                          setFormData({
+                            ...formData,
+                            client_id: id,
+                            cliente_nome: label,
+                            cliente_cnpj: clienteSelecionado?.documento || ""
+                          });
+                        }}
+                        icon={<Building2 className="h-4 w-4" />}
+                        placeholder="Selecione um cliente..."
+                        searchPlaceholder="Buscar cliente pelo nome..."
+                        emptyMessage="Nenhum cliente encontrado."
+                      />
                     </div>
                     <div>
                       <Label className="text-foreground">CNPJ/CPF *</Label>
@@ -1588,73 +1366,24 @@ export function NotasFiscaisSaida() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-foreground">Aeronave </Label>
-                      <Popover open={openAeronavePopover} onOpenChange={setOpenAeronavePopover}>
-                        <PopoverTrigger asChild>
-                          <div className="relative">
-                            <Input
-                              value={formData.aeronave_registro || aeronaveSearch}
-                              onChange={(e) => {
-                                setFormData({ ...formData, aeronave_registro: e.target.value, aeronave_id: "" });
-                                setAeronaveSearch(e.target.value);
-                                setOpenAeronavePopover(true);
-                              }}
-                              onFocus={() => setOpenAeronavePopover(true)}
-                              placeholder="Buscar aeronave..."
-                              className="bg-background border-border pr-10"
-                            />
-                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          </div>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[300px] p-0 bg-card border-border" align="start">
-                          <Command className="bg-card">
-                            <CommandInput
-                              placeholder="Buscar por prefixo, modelo..."
-                              value={aeronaveSearch}
-                              onValueChange={setAeronaveSearch}
-                              className="bg-background"
-                            />
-                            <CommandList>
-                              {isLoadingAeronaves ? (
-                                <div className="text-center py-3 text-muted-foreground text-sm">
-                                  Carregando aeronaves...
-                                </div>
-                              ) : (
-                                <>
-                                  <CommandEmpty className="text-muted-foreground py-3 text-center text-sm">
-                                    Nenhuma aeronave encontrada
-                                  </CommandEmpty>
-                                  <CommandGroup heading="Aeronaves" className="text-muted-foreground">
-                                    {(Array.isArray(aeronaves) ? aeronaves : []).filter(a =>
-                                      a.registration.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
-                                      a.model.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
-                                      a.manufacturer.toLowerCase().includes(aeronaveSearch.toLowerCase())
-                                    ).slice(0, 10).map((aero) => (
-                                      <CommandItem
-                                        key={aero.id}
-                                        onSelect={() => {
-                                          setFormData({
-                                            ...formData,
-                                            aeronave_id: aero.id,
-                                            aeronave_registro: aero.registration
-                                          });
-                                          setOpenAeronavePopover(false);
-                                          setAeronaveSearch("");
-                                        }}
-                                        className="cursor-pointer hover:bg-muted"
-                                      >
-                                        <div>
-                                          <p className="font-medium text-foreground">{aero.registration}</p>
-                                          <p className="text-xs text-muted-foreground">{aero.manufacturer} {aero.model}</p>
-                                        </div>
-                                      </CommandItem>
-                                    ))}
-                                  </CommandGroup>
-                                </>
-                              )}
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                      <SearchableCombobox
+                        items={(Array.isArray(aeronaves) ? aeronaves : []).map(a => ({ 
+                          id: a.id, 
+                          label: a.registration 
+                        }))}
+                        value={formData.aeronave_id}
+                        onChange={(id, label) => {
+                          setFormData({
+                            ...formData,
+                            aeronave_id: id,
+                            aeronave_registro: label
+                          });
+                        }}
+                        icon={<Plane className="h-4 w-4" />}
+                        placeholder="Selecione a aeronave..."
+                        searchPlaceholder="Buscar por prefixo..."
+                        emptyMessage="Aeronave não encontrada."
+                      />
                     </div>
                     <div className="flex items-end">
                       {formData.aeronave_registro && (
@@ -1859,8 +1588,6 @@ export function NotasFiscaisSaida() {
                         data_vencimento: new Date().toISOString().split("T")[0],
                         descricao: "",
                       });
-                      setClienteSearch("");
-                      setAeronaveSearch("");
                     }}
                     className="text-muted-foreground hover:text-foreground"
                   >
@@ -1873,129 +1600,44 @@ export function NotasFiscaisSaida() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-foreground font-medium mb-2 block">Cliente/Empresa *</Label>
-                      <Popover open={openClientePopover} onOpenChange={setOpenClientePopover}>
-                        <PopoverTrigger asChild>
-                          <div className="relative">
-                            <Input
-                              value={reciboData.cliente_nome}
-                              onChange={(e) => {
-                                setReciboData({ ...reciboData, cliente_nome: e.target.value });
-                                setClienteSearch(e.target.value);
-                                if (!openClientePopover) setOpenClientePopover(true);
-                              }}
-                              onFocus={() => setOpenClientePopover(true)}
-                              placeholder="Buscar cliente..."
-                              className="bg-background border-border pr-10"
-                              autoComplete="off"
-                            />
-                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          </div>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[300px] p-0 bg-card border-border" align="start">
-                          <Command className="bg-card">
-                            <CommandInput
-                              placeholder="Buscar..."
-                              value={clienteSearch}
-                              onValueChange={setClienteSearch}
-                              className="bg-background"
-                              autoComplete="off"
-                            />
-                            <CommandList>
-                              <CommandEmpty className="text-muted-foreground py-3 text-center text-sm">
-                                Nenhum cliente encontrado
-                              </CommandEmpty>
-                              <CommandGroup heading="Clientes" className="text-muted-foreground">
-                                {filteredClientes.length > 0 ? (
-                                  filteredClientes.slice(0, 50).map((c) => (
-                                    <CommandItem
-                                      key={c.id}
-                                      onSelect={() => handleSelectCliente(c)}
-                                      className="cursor-pointer hover:bg-muted"
-                                    >
-                                      <div>
-                                        <p className="font-medium text-foreground">{c.nome}</p>
-                                        {c.documento && <p className="text-xs text-muted-foreground">{c.documento}</p>}
-                                      </div>
-                                    </CommandItem>
-                                  ))
-                                ) : null}
-                              </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                      <SearchableCombobox
+                        items={clientes.map(c => ({ id: c.id, label: c.nome }))}
+                        value={reciboData.cliente_id}
+                        onChange={(id, label) => {
+                          const clienteSelecionado = clientes.find(c => c.id === id);
+                          setReciboData({
+                            ...reciboData,
+                            cliente_id: id,
+                            cliente_nome: label,
+                            cliente_cnpj: clienteSelecionado?.documento || ""
+                          });
+                        }}
+                        icon={<Building2 className="h-4 w-4" />}
+                        placeholder="Selecione um cliente..."
+                        searchPlaceholder="Buscar cliente pelo nome..."
+                        emptyMessage="Nenhum cliente encontrado."
+                      />
                     </div>
 
                     <div>
                       <Label className="text-foreground font-medium mb-2 block">Aeronave * (Obrigatório)</Label>
-                      <Popover open={openAeronavePopover} onOpenChange={setOpenAeronavePopover}>
-                        <PopoverTrigger asChild>
-                          <div className="relative">
-                            <Input
-                              value={reciboData.aeronave_registro || aeronaveSearch}
-                              onChange={(e) => {
-                                setReciboData({ ...reciboData, aeronave_registro: e.target.value });
-                                setAeronaveSearch(e.target.value);
-                                if (!openAeronavePopover) setOpenAeronavePopover(true);
-                              }}
-                              onFocus={() => setOpenAeronavePopover(true)}
-                              placeholder="Buscar aeronave..."
-                              className="bg-background border-border pr-10"
-                              autoComplete="off"
-                            />
-                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          </div>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[300px] p-0 bg-card border-border" align="start">
-                          <Command className="bg-card">
-                            <CommandInput
-                              placeholder="Buscar por prefixo, modelo..."
-                              value={aeronaveSearch}
-                              onValueChange={setAeronaveSearch}
-                              className="bg-background"
-                              autoComplete="off"
-                            />
-                            <CommandList>
-                              {isLoadingAeronaves ? (
-                                <div className="text-center py-3 text-muted-foreground text-sm">
-                                  Carregando aeronaves...
-                                </div>
-                              ) : (
-                                <>
-                                  <CommandEmpty className="text-muted-foreground py-3 text-center text-sm">
-                                    Nenhuma aeronave encontrada
-                                  </CommandEmpty>
-                                  <CommandGroup heading="Aeronaves" className="text-muted-foreground">
-                                    {(Array.isArray(aeronaves) ? aeronaves : []).filter(a =>
-                                      a.registration.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
-                                      a.model.toLowerCase().includes(aeronaveSearch.toLowerCase()) ||
-                                      a.manufacturer.toLowerCase().includes(aeronaveSearch.toLowerCase())
-                                    ).slice(0, 10).map((aero) => (
-                                      <CommandItem
-                                        key={aero.id}
-                                        onSelect={() => {
-                                          setReciboData({
-                                            ...reciboData,
-                                            aeronave_registro: aero.registration,
-                                          });
-                                          setOpenAeronavePopover(false);
-                                          setAeronaveSearch("");
-                                        }}
-                                        className="cursor-pointer hover:bg-muted"
-                                      >
-                                        <div>
-                                          <p className="font-medium text-foreground">{aero.registration}</p>
-                                          <p className="text-xs text-muted-foreground">{aero.manufacturer} {aero.model}</p>
-                                        </div>
-                                      </CommandItem>
-                                    ))}
-                                  </CommandGroup>
-                                </>
-                              )}
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                      <SearchableCombobox
+                        items={(Array.isArray(aeronaves) ? aeronaves : []).map(a => ({ 
+                          id: a.registration, 
+                          label: a.registration 
+                        }))}
+                        value={reciboData.aeronave_registro}
+                        onChange={(val, label) => {
+                          setReciboData({
+                            ...reciboData,
+                            aeronave_registro: label
+                          });
+                        }}
+                        icon={<Plane className="h-4 w-4" />}
+                        placeholder="Selecione a aeronave..."
+                        searchPlaceholder="Buscar por prefixo..."
+                        emptyMessage="Aeronave não encontrada."
+                      />
                     </div>
                   </div>
 
@@ -2048,8 +1690,6 @@ export function NotasFiscaisSaida() {
                           data_vencimento: new Date().toISOString().split("T")[0],
                           descricao: "",
                         });
-                        setClienteSearch("");
-                        setAeronaveSearch("");
                       }}
                     >
                       Cancelar

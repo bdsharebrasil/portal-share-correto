@@ -365,13 +365,13 @@ export function ContasPagar() {
 
             {/* Dynamic form based on category */}
             {selectedCategoria === "DESPESAS EMPRESA" && (
-              <FormDespesasEmpresa form={formData} setForm={setFormData} fornecedores={fornecedores} />
+              <FormDespesasEmpresa form={formData} setForm={setFormData} fornecedores={fornecedores} onReloadFornecedores={loadFornecedores} />
             )}
             {selectedCategoria === "DESPESAS PARTICULARES" && (
-              <FormDespesasParticulares form={formData} setForm={setFormData} fornecedores={fornecedores} />
+              <FormDespesasParticulares form={formData} setForm={setFormData} fornecedores={fornecedores} onReloadFornecedores={loadFornecedores} />
             )}
             {selectedCategoria === "DESPESAS REEMBOLSAVEIS" && (
-              <FormDespesasReembolsaveis form={formData} setForm={setFormData} fornecedores={fornecedores} aeronaves={Array.isArray(aeronaves) ? aeronaves : []} />
+              <FormDespesasReembolsaveis form={formData} setForm={setFormData} fornecedores={fornecedores} aeronaves={Array.isArray(aeronaves) ? aeronaves : []} onReloadFornecedores={loadFornecedores} />
             )}
             {selectedCategoria === "IMPOSTOS" && (
               <FormImpostos form={formData} setForm={setFormData} />

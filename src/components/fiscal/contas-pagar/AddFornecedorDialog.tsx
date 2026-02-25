@@ -12,9 +12,10 @@ interface AddFornecedorDialogProps {
   onOpenChange: (open: boolean) => void;
   initialName?: string;
   onSaved: (fornecedor: { id: string; nome_completo: string; conta_pagamento?: string; categoria?: string }) => void;
+  onFornecedorAdded?: () => void;
 }
 
-export function AddFornecedorDialog({ open, onOpenChange, initialName = "", onSaved }: AddFornecedorDialogProps) {
+export function AddFornecedorDialog({ open, onOpenChange, initialName = "", onSaved, onFornecedorAdded }: AddFornecedorDialogProps) {
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
@@ -61,6 +62,8 @@ export function AddFornecedorDialog({ open, onOpenChange, initialName = "", onSa
         conta_pagamento: data.conta_pagamento,
         categoria: data.categoria
       });
+      // Recarregar lista de fornecedores no componente pai
+      onFornecedorAdded?.();
       onOpenChange(false);
     } catch (err: any) {
       toast.error(err.message || "Erro ao salvar fornecedor");

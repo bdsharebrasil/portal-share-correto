@@ -342,7 +342,7 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário', 
         <div class="report-container">
             <div class="header">
                 <div class="logo-box">
-                    <img src="${logoBase64 || '/logoshare.branco.png'}" alt="Share Brasil Logo" />
+                    <img src="${logoBase64 || '/logo.share.png'}" alt="Share Brasil" />
                 </div>
                 <div class="header-content">
                     <h1 class="header-title">Relatório de Despesa de Viagem</h1>
@@ -488,7 +488,7 @@ const loadHtml2PdfFromCdn = () => {
 
 const loadLogoAsBase64 = async (): Promise<string> => {
   try {
-    const response = await fetch('/logoshare.branco.png');
+    const response = await fetch('/logo.share.png');
     if (!response.ok) {
       console.warn('Logo não encontrado, usando caminho padrão');
       return '';
@@ -738,8 +738,29 @@ export const generatePDF = async (report: TravelReport, currentFullName?: string
 
   const htmlContent = generateHTMLReport(reportWithBase64, currentFullName, logoBase64);
 
+  const htmlDoc = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Relatório - ${report.numero}</title>
+      <style>
+        body { margin: 0; padding: 0; background: white; }
+        @page { size: A4; margin: 0; }
+      </style>
+    </head>
+    <body>
+      ${htmlContent}
+    </body>
+    </html>
+  `;
+
   const iframe = document.createElement('iframe');
   iframe.style.display = 'none';
+  iframe.style.position = 'fixed';
+  iframe.style.width = '210mm';
+  iframe.style.height = '297mm';
+  iframe.style.border = 'none';
   document.body.appendChild(iframe);
 
   try {
@@ -747,24 +768,32 @@ export const generatePDF = async (report: TravelReport, currentFullName?: string
     if (!iframeDoc) throw new Error('Não foi possível acessar o documento do iframe');
 
     iframeDoc.open();
-    iframeDoc.write(htmlContent);
+    iframeDoc.write(htmlDoc);
     iframeDoc.close();
 
-    // Wait longer for base64 images to render (especialmente PDFs)
-    console.log('⏳ Aguardando renderização das imagens/PDFs (3 segundos)...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    console.log('✅ Imagens/PDFs renderizadas');
+    // Wait for all content to render completely
+    console.log('⏳ Aguardando renderização completa (5 segundos)...');
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    console.log('✅ Renderização concluída');
 
-    const config = generatePDFConfig(report.numero);
     const html2pdf = (window as any).html2pdf ? (window as any).html2pdf : await loadHtml2PdfFromCdn();
 
     return new Promise((resolve, reject) => {
       html2pdf()
         .set({
-          ...config,
-          useCORS: true,
-          logging: false,
-          allowTaint: true,
+          margin: 0,
+          filename: `${report.numero.replace(/\//g, '-')}-relatorio-viagem.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            logging: false,
+            backgroundColor: '#ffffff',
+            windowHeight: iframeDoc.body.scrollHeight || 1200,
+            windowWidth: 794,
+          },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         })
         .from(iframeDoc.body)
         .outputPdf('blob')
@@ -778,7 +807,12 @@ export const generatePDF = async (report: TravelReport, currentFullName?: string
         });
     });
   } finally {
-    document.body.removeChild(iframe);
+    // Remover iframe somente após ter gerado o blob (Promise.all resolveu)
+    setTimeout(() => {
+      if (iframe.parentNode) {
+        document.body.removeChild(iframe);
+      }
+    }, 100);
   }
 };
 

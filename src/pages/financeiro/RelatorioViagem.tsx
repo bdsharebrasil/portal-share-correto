@@ -39,8 +39,9 @@ interface TravelReport {
   crew_member_id: string;
   crew_member_name: string;
   crew_member_source?: 'crew_members' | 'crew' | null;
-  crew_member_name_2: string;
-  crew_member_2_source?: 'crew_members' | 'crew' | null;
+  crew_member_id2: string;
+  crew_member_name2: string;
+  crew_member2_source?: 'crew_members' | 'crew' | null;
   route: string;
   start_date: string;
   end_date: string;
@@ -101,7 +102,7 @@ export default function RelatorioViagem() {
 
     const autoSaveInterval = setInterval(() => {
       if (currentReport && !isEditing) {
-        draftStorage.saveDraft(currentReport as TravelReportDraft);
+        draftStorage.saveDraft(currentReport as unknown as TravelReportDraft);
       }
     }, 30000);
 
@@ -116,7 +117,7 @@ export default function RelatorioViagem() {
   const loadSavedDraft = () => {
     const draft = draftStorage.getDraft();
     if (draft) {
-      setCurrentReport(draft as TravelReport);
+      setCurrentReport(draft as unknown as TravelReport);
       setIsCreating(true);
       setIsEditing(false);
       toast.success('✓ Rascunho restaurado com sucesso!');
@@ -258,7 +259,8 @@ export default function RelatorioViagem() {
       aircraft_registration: '',
       crew_member_id: '',
       crew_member_name: '',
-      crew_member_name_2: '',
+      crew_member_id2: '',
+      crew_member_name2: '',
       route: '',
       start_date: new Date().toISOString().split('T')[0],
       end_date: new Date().toISOString().split('T')[0],
@@ -279,7 +281,7 @@ export default function RelatorioViagem() {
       status: 'Rascunho',
     };
     setCurrentReport(newReport);
-    draftStorage.saveDraft(newReport as TravelReportDraft);
+    draftStorage.saveDraft(newReport as unknown as TravelReportDraft);
     setIsCreating(true);
     setIsEditing(false);
   };
@@ -371,7 +373,8 @@ export default function RelatorioViagem() {
         crew_member_id: crew_member_id_value,
         crew: crew_value,
         crew_member_name: reportData.crew_member_name,
-        crew_member_name_2: reportData.crew_member_name_2 || null,
+        crew_member_name2: reportData.crew_member_name2 || null,
+        crew_member_id2: reportData.crew_member_id2 || null,
         route: reportData.route,
         start_date: reportData.start_date,
         end_date: reportData.end_date,
@@ -607,12 +610,12 @@ export default function RelatorioViagem() {
 
           // 3. Criar conciliação para TRIPULANTE 2 (se houver)
           // O amount DEVE ser totalCrew2 (reembolso das despesas pagas por ele)
-          if (totalCrew2 > 0 && reportData.crew_member_name_2) {
+          if (totalCrew2 > 0 && reportData.crew_member_name2) {
             // Buscar o crew_member pelo nome e depois pegar o user_id
             const { data: secondCrew } = await supabase
               .from('crew_members')
               .select('id, user_id')
-              .eq('full_name', reportData.crew_member_name_2)
+              .eq('full_name', reportData.crew_member_name2)
               .maybeSingle();
 
             const receiverId = secondCrew?.user_id || null;
@@ -634,7 +637,7 @@ export default function RelatorioViagem() {
                 amount: totalCrew2,  // ✓ CORRETO: reembolso do que tripulante 2 pagou
                 status: 'pendente',
                 category: 'relatório_viagem',
-                description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO TRIPULANTE 2 (${reportData.crew_member_name_2.toUpperCase()})`,
+                description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO TRIPULANTE 2 (${reportData.crew_member_name2.toUpperCase()})`,
                 date: today,
                 criado_por: user.id,
                 reference_id: savedReport.id,
@@ -664,7 +667,7 @@ export default function RelatorioViagem() {
                 cliente_nome: reportData.client,
                 aeronave: reportData.aircraft_registration,
                 tripulante: reportData.crew_member_name,
-                tripulante2: reportData.crew_member_name_2,
+                tripulante2: reportData.crew_member_name2,
                 trecho: reportData.route,
                 destino: reportData.route,
                 data_inicio: reportData.start_date,
@@ -721,6 +724,20 @@ export default function RelatorioViagem() {
                   console.error('Erro ao atualizar pdf_url:', updateError);
                 } else {
                   console.log('✅ PDF salvo com sucesso:', pdfUrl);
+                  // Mostrar toast com a URL para copiar
+                  toast.success(`✅ PDF gerado! URL copiada para a área de transferência`, {
+                    action: {
+                      label: 'Copiar novamente',
+                      onClick: () => {
+                        navigator.clipboard.writeText(pdfUrl);
+                        toast.success('URL copiada!');
+                      }
+                    }
+                  });
+                  // Copiar URL automaticamente
+                  navigator.clipboard.writeText(pdfUrl).catch(err => {
+                    console.warn('Não foi possível copiar URL automaticamente:', err);
+                  });
                 }
               }
             } catch (pdfError: any) {
@@ -944,7 +961,7 @@ export default function RelatorioViagem() {
                                       cliente_nome: reportWithDetails.client,
                                       aeronave: reportWithDetails.aircraft_registration,
                                       tripulante: reportWithDetails.crew_member_name,
-                                      tripulante2: reportWithDetails.crew_member_name_2,
+                                      tripulante2: reportWithDetails.crew_member_name2,
                                       trecho: reportWithDetails.route,
                                       destino: reportWithDetails.route,
                                       data_inicio: reportWithDetails.start_date,
@@ -1052,7 +1069,7 @@ export default function RelatorioViagem() {
         onSelectPartner={(partner) => {
           setCurrentReport(prev => prev ? { ...prev, client_partner: partner.id, client: partner.name } : null);
           if (currentReport && !isEditing) {
-            draftStorage.saveDraft({ ...currentReport, client_partner: partner.id, client: partner.name } as TravelReportDraft);
+            draftStorage.saveDraft({ ...currentReport, client_partner: partner.id, client: partner.name } as unknown as TravelReportDraft);
           }
         }}
       />

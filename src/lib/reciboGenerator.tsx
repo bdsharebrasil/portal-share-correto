@@ -262,7 +262,7 @@ export const ReciboDocument = ({ data }: { data: any }) => {
           <Image src={logoUrl} style={styles.logoHeader} cache={false} />
           <View style={styles.titleArea}>
             <Text style={styles.reciboTitle}>
-              {isReembolso ? 'RECIBO DE REEMBOLSO' : 'RECIBO DE PAGAMENTO'}
+              {isReembolso ? 'RECIBO DE REEMBOLSO' : 'RECIBO'}
             </Text>
           </View>
           <View style={styles.valorBox}>
@@ -270,7 +270,7 @@ export const ReciboDocument = ({ data }: { data: any }) => {
           </View>
         </View>
 
-        <View style={styles.separatorThick} />
+        
 
         {/* EMISSOR / PAGADOR / Nº RECIBO */}
         <View style={styles.infoRow}>
@@ -364,7 +364,7 @@ export const ReciboDocument = ({ data }: { data: any }) => {
             <Text style={styles.signatureDateUnderline}>{year}</Text>
           </View>
 
-          <View style={styles.signatureLine} />
+          
 
           {/* Logo at signature */}
           <Image src={logoUrl} style={styles.logoSignature} cache={false} />

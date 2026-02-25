@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { AutocompleteInput } from "@/components/ui/autocomplete-input";
 import { Button } from "@/components/ui/button";
 import { UserPlus } from "lucide-react";
+import { Combobox } from "@/components/ui/combobox";
 import { AddFornecedorDialog } from "./AddFornecedorDialog";
 
 interface FornecedorOption {
@@ -19,47 +19,50 @@ interface FornecedorSelectProps {
   value: string;
   onChange: (nome: string, fornecedor?: FornecedorOption) => void;
   contaPagamento?: string;
+  onFornecedorAdded?: () => void;
 }
 
-export function FornecedorSelect({ fornecedores, categoriaFilter, value, onChange, contaPagamento }: FornecedorSelectProps) {
+export function FornecedorSelect({ fornecedores, categoriaFilter, value, onChange, contaPagamento, onFornecedorAdded }: FornecedorSelectProps) {
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [searchValue, setSearchValue] = useState(value);
+  const [customSearchValue, setCustomSearchValue] = useState("");
 
   const filtered = categoriaFilter
     ? fornecedores.filter(f => f.categoria === categoriaFilter)
     : fornecedores;
 
   const options = filtered.map(f => ({
-    id: f.id,
+    value: f.id,
     label: f.apelido ? `${f.nome_completo} (${f.apelido})` : f.nome_completo
   }));
 
-  const handleTypedValue = (val: string) => {
-    setSearchValue(val);
-    onChange(val);
-  };
-
-  const handleSelect = (option: { id: string; label: string }) => {
-    const forn = fornecedores.find(f => f.id === option.id);
-    if (forn) {
-      setSearchValue(forn.nome_completo);
-      onChange(forn.nome_completo, forn);
-    }
-  };
+  const selectedFornecedor = fornecedores.find(f => f.id === value);
 
   // Check if typed value is not in the list
-  const isUnknownFornecedor = searchValue.trim().length > 2 &&
-    !fornecedores.some(f => f.nome_completo.toLowerCase() === searchValue.trim().toLowerCase());
+  const isUnknownFornecedor = customSearchValue.trim().length > 2 &&
+    !fornecedores.some(f => f.nome_completo.toLowerCase() === customSearchValue.trim().toLowerCase());
+
+  const handleValueChange = (selectedId: string) => {
+    if (selectedId) {
+      const forn = fornecedores.find(f => f.id === selectedId);
+      if (forn) {
+        onChange(forn.nome_completo, forn);
+      }
+    } else {
+      onChange("");
+    }
+  };
 
   return (
     <div className="space-y-2">
       <label className="text-sm font-semibold mb-1 block">Fornecedor *</label>
-      <AutocompleteInput
-        value={searchValue}
-        onChange={handleTypedValue}
-        onSelect={handleSelect}
+      <Combobox
         options={options}
-        placeholder="Buscar fornecedor..."
+        value={value || ""}
+        onValueChange={handleValueChange}
+        placeholder="Selecione um fornecedor..."
+        searchPlaceholder="Buscar fornecedor..."
+        emptyText="Nenhum fornecedor encontrado."
+        allowCustomValue={false}
       />
       {contaPagamento && (
         <div className="p-2 bg-green-500/10 border border-green-500/20 rounded-lg">
@@ -77,9 +80,8 @@ export function FornecedorSelect({ fornecedores, categoriaFilter, value, onChang
       <AddFornecedorDialog
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
-        initialName={searchValue}
+        initialName={customSearchValue}
         onSaved={(forn) => {
-          setSearchValue(forn.nome_completo);
           onChange(forn.nome_completo, {
             id: forn.id,
             nome_completo: forn.nome_completo,
@@ -87,6 +89,7 @@ export function FornecedorSelect({ fornecedores, categoriaFilter, value, onChang
             categoria: forn.categoria
           });
         }}
+        onFornecedorAdded={onFornecedorAdded}
       />
     </div>
   );

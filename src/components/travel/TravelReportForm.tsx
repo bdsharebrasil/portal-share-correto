@@ -51,7 +51,8 @@ interface TravelReport {
   crew_member_id: string;
   crew_member_name: string;
   crew_member_source?: 'crew_members' | 'crew' | null;
-  crew_member_name_2: string;
+  crew_member_name2: string;
+  crew_member_id2: string;
   crew_member_2_source?: 'crew_members' | 'crew' | null;
   route: string;
   start_date: string;
@@ -104,7 +105,8 @@ export function TravelReportForm({
       aircraft_registration: '',
       crew_member_id: '',
       crew_member_name: '',
-      crew_member_name_2: '',
+      crew_member_id2: '',
+      crew_member_name2: '',
       route: '',
       start_date: format(new Date(), 'yyyy-MM-dd'),
       end_date: format(new Date(), 'yyyy-MM-dd'),
@@ -128,7 +130,7 @@ export function TravelReportForm({
 
   const [partners, setPartners] = useState<{id?: string; name: string; cpf?: string; index: number}[]>([]);
 
-  const [showSecondCrew, setShowSecondCrew] = useState(!!currentReport.crew_member_name_2);
+  const [showSecondCrew, setShowSecondCrew] = useState(!!currentReport.crew_member_name2);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [startDateOpen, setStartDateOpen] = useState(false);
@@ -139,7 +141,7 @@ export function TravelReportForm({
   useEffect(() => {
     if (!report && onAutoSave) {
       const autoSaveInterval = setInterval(() => {
-        onAutoSave(currentReport as TravelReportDraft);
+        onAutoSave(currentReport as unknown as TravelReportDraft);
       }, 30000);
       return () => clearInterval(autoSaveInterval);
     }
@@ -174,10 +176,10 @@ export function TravelReportForm({
     }));
   };
 
-  // Helper para encontrar a source de um tripulante pelo ID
+  // Helper para encontrar um tripulante pelo ID
   const getCrewSource = (crewId: string) => {
     const found = tripulantes.find(t => t.id === crewId);
-    return found?.source || null;
+    return found ? 'crew_members' : null;
   };
 
   const fetchPartnersForClient = async (clientId: string) => {
@@ -376,7 +378,7 @@ export function TravelReportForm({
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-slate-700">Cliente</Label>
               <SearchableCombobox
-                items={clientes.map(c => ({ id: c.id, label: c.company_name || c.name || '' }))}
+                items={clientes.map(c => ({ id: c.id, label: c.company_name || '' }))}
                 value={currentReport.client_id}
                 onChange={(id, label) => {
                   handleInputChange('client_id', id);
@@ -452,12 +454,11 @@ export function TravelReportForm({
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-slate-700">Comandante</Label>
               <SearchableCombobox
-                items={tripulantes.map(t => ({ id: t.id, label: t.full_name || t.name || '' }))}
+                items={tripulantes.map(t => ({ id: t.id, label: t.full_name || '' }))}
                 value={currentReport.crew_member_id}
                 onChange={(id, label) => {
                   handleInputChange('crew_member_id', id);
                   handleInputChange('crew_member_name', label);
-                  handleInputChange('crew_member_source', getCrewSource(id));
                 }}
                 icon={<User className="h-4 w-4" />}
                 placeholder="Selecione o comandante..."
@@ -466,9 +467,7 @@ export function TravelReportForm({
                 allowFreeText={true}
               />
               {currentReport.crew_member_id && (
-                <p className="text-xs text-green-600">
-                  ✓ Tripulante selecionado {currentReport.crew_member_source && `(${currentReport.crew_member_source === 'crew_members' ? 'Crew Members' : 'Crew'})`}
-                </p>
+                <p className="text-xs text-green-600">✓ Tripulante selecionado</p>
               )}
             </div>
 
@@ -476,7 +475,7 @@ export function TravelReportForm({
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="showSecondCrew"
-                  checked={showSecondCrew || !!currentReport.crew_member_name_2}
+                  checked={showSecondCrew || !!currentReport.crew_member_name2}
                   onCheckedChange={(checked) => setShowSecondCrew(!!checked)}
                 />
                 <Label htmlFor="showSecondCrew" className="cursor-pointer">
@@ -485,15 +484,14 @@ export function TravelReportForm({
               </div>
             </div>
 
-            {(showSecondCrew || currentReport.crew_member_name_2) && (
+            {(showSecondCrew || currentReport.crew_member_name2) && (
               <div className="space-y-2">
                 <Label className="text-sm font-semibold text-slate-700">Co-piloto</Label>
                 <SearchableCombobox
-                  items={tripulantes.map(t => ({ id: t.id, label: t.full_name || t.name || '' }))}
-                  value={tripulantes.find(t => t.full_name === currentReport.crew_member_name_2 || t.name === currentReport.crew_member_name_2)?.id || currentReport.crew_member_name_2 || ''}
+                  items={tripulantes.map(t => ({ id: t.id, label: t.full_name || '' }))}
+                  value={tripulantes.find(t => t.full_name === currentReport.crew_member_name2)?.id || currentReport.crew_member_name2 || ''}
                   onChange={(id, label) => {
-                    handleInputChange('crew_member_name_2', label);
-                    handleInputChange('crew_member_2_source', getCrewSource(id));
+                    handleInputChange('crew_member_name2', label);
                   }}
                   icon={<User className="h-4 w-4" />}
                   placeholder="Selecione o co-piloto..."
@@ -717,9 +715,9 @@ export function TravelReportForm({
                     <ControlledSelectItem value="Tripulante 1">
                       {currentReport.crew_member_name ? `T1 (${currentReport.crew_member_name.split(' ')[0]})` : 'Tripulante 1'}
                     </ControlledSelectItem>
-                    {(showSecondCrew || currentReport.crew_member_name_2) && (
+                    {(showSecondCrew || currentReport.crew_member_name2) && (
                       <ControlledSelectItem value="Tripulante 2">
-                        {currentReport.crew_member_name_2 ? `T2 (${currentReport.crew_member_name_2.split(' ')[0]})` : 'Tripulante 2'}
+                        {currentReport.crew_member_name2 ? `T2 (${currentReport.crew_member_name2.split(' ')[0]})` : 'Tripulante 2'}
                       </ControlledSelectItem>
                     )}
                     <ControlledSelectItem value="Cliente">Cliente</ControlledSelectItem>
@@ -836,7 +834,7 @@ export function TravelReportForm({
                 <span className="text-muted-foreground">{currentReport.crew_member_name ? `Tripulante 1` : 'Tripulante 1'}</span>
                 <span className="font-semibold text-foreground font-mono">R$ {(currentReport.total_crew1 || 0).toFixed(2).replace('.', ',')}</span>
               </div>
-              {(showSecondCrew || currentReport.crew_member_name_2) && (
+              {(showSecondCrew || currentReport.crew_member_name2) && (
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Tripulante 2</span>
                   <span className="font-semibold text-foreground font-mono">R$ {(currentReport.total_crew2 || 0).toFixed(2).replace('.', ',')}</span>

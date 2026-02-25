@@ -26,7 +26,6 @@ BEGIN
         reference_id,
         reference_type,
         criado_por,
-        created_by,
         category,
         saldo_pendente,
         created_at
@@ -41,7 +40,6 @@ BEGIN
         NEW.issue_date,
         NEW.id,
         'receipt',
-        NEW.user_id,
         NEW.user_id,
         'reembolso',
         -ABS(NEW.amount),

@@ -11,9 +11,10 @@ interface Props {
   setForm: (f: any) => void;
   fornecedores: any[];
   aeronaves: any[];
+  onReloadFornecedores?: () => void;
 }
 
-export function FormDespesasReembolsaveis({ form, setForm, fornecedores, aeronaves }: Props) {
+export function FormDespesasReembolsaveis({ form, setForm, fornecedores, aeronaves, onReloadFornecedores }: Props) {
   const [clients, setClients] = useState<any[]>([]);
   const [partners, setPartners] = useState<any[]>([]);
 
@@ -95,7 +96,7 @@ export function FormDespesasReembolsaveis({ form, setForm, fornecedores, aeronav
       <FornecedorSelect
         fornecedores={fornecedores}
         categoriaFilter="share"
-        value={form.fornecedor_nome}
+        value={form.fornecedor_favorito_id}
         onChange={(nome, forn) => {
           setForm({
             ...form,
@@ -106,6 +107,7 @@ export function FormDespesasReembolsaveis({ form, setForm, fornecedores, aeronav
           });
         }}
         contaPagamento={form.conta_pagamento_fornecedor}
+        onFornecedorAdded={onReloadFornecedores}
       />
 
       <ValorVencimentoFields form={form} setForm={setForm} />

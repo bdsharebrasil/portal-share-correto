@@ -6,16 +6,17 @@ interface Props {
   form: any;
   setForm: (f: any) => void;
   fornecedores: any[];
+  onReloadFornecedores?: () => void;
 }
 
-export function FormDespesasParticulares({ form, setForm, fornecedores }: Props) {
+export function FormDespesasParticulares({ form, setForm, fornecedores, onReloadFornecedores }: Props) {
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-primary uppercase tracking-wide">Despesas Particulares</h3>
       <FornecedorSelect
         fornecedores={fornecedores}
         categoriaFilter="pessoal"
-        value={form.fornecedor_nome}
+        value={form.fornecedor_favorito_id}
         onChange={(nome, forn) => {
           setForm({
             ...form,
@@ -26,6 +27,7 @@ export function FormDespesasParticulares({ form, setForm, fornecedores }: Props)
           });
         }}
         contaPagamento={form.conta_pagamento_fornecedor}
+        onFornecedorAdded={onReloadFornecedores}
       />
       <ValorVencimentoFields form={form} setForm={setForm} />
       <BoletoSection form={form} setForm={setForm} />
