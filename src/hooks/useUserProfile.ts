@@ -65,32 +65,81 @@ export const useUserProfile = (user: User | null | undefined, options?: { skipCr
         queryKey: profileQueryKey(user?.id),
         // Habilita a query apenas se o usuário estiver logado
         enabled: Boolean(user?.id),
+        // Retry apenas 1 vez em caso de erro
+        retry: 1,
 
         queryFn: async () => {
             if (!user?.id) {
                 return null;
             }
 
-            // Tenta ler o perfil direto do Supabase
-            const { data, error } = await supabase
-                .from("user_profiles")
-                .select("*")
-                .eq("id", user.id)
-                .maybeSingle();
+            try {
+                // Tenta ler o perfil direto do Supabase
+                const { data, error } = await supabase
+                    .from("user_profiles")
+                    .select("*")
+                    .eq("id", user.id)
+                    .maybeSingle();
 
-            // Se encontrou, retorna (nunca cria perfil se já existe)
-            if (data) {
-                return data as UserProfile;
-            }
+                // Se encontrou, retorna (nunca cria perfil se já existe)
+                if (data) {
+                    return data as UserProfile;
+                }
 
-            // Se erro e não é "não encontrado", lança
-            if (error && error.code !== 'PGRST116') {
-                console.error("Erro ao ler perfil:", error.message || error);
-                throw error;
-            }
+                // Se erro e não é "não encontrado", trata
+                if (error) {
+                    const errorMsg = error.message || JSON.stringify(error);
+                    
+                    // Se for "não encontrado", continua para criar ou retornar simulado
+                    if (error.code === 'PGRST116') {
+                        // Continua o fluxo normalmente
+                    } else {
+                        // Se for timeout/lock, retorna perfil simulado em vez de falhar
+                        if (errorMsg.includes('timed out') || errorMsg.includes('lock')) {
+                            console.warn("Timeout/lock ao ler perfil, usando perfil simulado:", errorMsg);
+                            return {
+                                id: user.id,
+                                email: user.email ?? 'user-sem-perfil',
+                                full_name: user.user_metadata?.full_name ?? 'Usuário',
+                                created_at: new Date().toISOString(),
+                            } as UserProfile;
+                        }
 
-            // Se não encontrou e não é para criar, retorna simulado
-            if (shouldSkipCreation) {
+                        console.error("Erro ao ler perfil:", errorMsg);
+                        throw new Error(`Erro ao ler perfil do usuário: ${errorMsg}`);
+                    }
+                }
+
+                // Se não encontrou e não é para criar, retorna simulado
+                if (shouldSkipCreation) {
+                    return {
+                        id: user.id,
+                        email: user.email ?? 'user-sem-perfil',
+                        full_name: user.user_metadata?.full_name ?? 'Usuário',
+                        created_at: new Date().toISOString(),
+                    } as UserProfile;
+                }
+
+                // Só cria perfil se não foi encontrado e não é skip
+                const defaultProfile = buildDefaultProfile(user);
+                const { data: inserted, error: insertError } = await supabase
+                    .from("user_profiles")
+                    .insert(defaultProfile)
+                    .select()
+                    .single();
+
+                if (insertError) {
+                    const errorMsg = insertError.message || JSON.stringify(insertError);
+                    console.error("Erro ao criar perfil:", errorMsg);
+                    throw new Error(`Erro ao criar perfil: ${errorMsg}`);
+                }
+
+                return inserted as UserProfile;
+            } catch (err: any) {
+                const errorMsg = err.message || JSON.stringify(err);
+                console.error("Exceção em useUserProfile:", errorMsg);
+                
+                // Em caso de erro crítico, retorna perfil simulado para não bloquear a aplicação
                 return {
                     id: user.id,
                     email: user.email ?? 'user-sem-perfil',
@@ -98,21 +147,6 @@ export const useUserProfile = (user: User | null | undefined, options?: { skipCr
                     created_at: new Date().toISOString(),
                 } as UserProfile;
             }
-
-            // Só cria perfil se não foi encontrado e não é skip
-            const defaultProfile = buildDefaultProfile(user);
-            const { data: inserted, error: insertError } = await supabase
-                .from("user_profiles")
-                .insert(defaultProfile)
-                .select()
-                .single();
-
-            if (insertError) {
-                console.error("Erro ao criar perfil:", insertError.message || insertError);
-                throw insertError;
-            }
-
-            return inserted as UserProfile;
         },
     });
 

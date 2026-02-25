@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { RateioDialog } from "./RateioDialog";
+import { useClientPartners } from "@/hooks/useClientPartners";
 
 interface FluxoCaixaInlineFormProps {
   onSuccess: () => void;
@@ -146,6 +147,12 @@ export function FluxoCaixaInlineForm({
   const [uploadingField, setUploadingField] = useState<string | null>(null);
   const [rateioData, setRateioData] = useState<{ socios: RateioSocio[]; tipo: string } | null>(null);
 
+  // Estados para client_partners
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [selectedPartnerDialogOpen, setSelectedPartnerDialogOpen] = useState(false);
+  const [pendingClientSelection, setPendingClientSelection] = useState<any>(null);
+  const { data: clientPartners, isLoading: isLoadingPartners } = useClientPartners(selectedClientId);
+
   // Mapeia conta para exibir o banco ao invés do nome
   const contasComBanco = contas.map(c => ({
     nome: c.nome,
@@ -177,6 +184,7 @@ export function FluxoCaixaInlineForm({
       aeronave: "",
       client_id: "",
       client_name: "",
+      client_partner_id: "",
       colaborador_id: "",
       fornecedores_favoritos_id: "",
       grupo_categoria: "",
@@ -220,6 +228,21 @@ export function FluxoCaixaInlineForm({
   useEffect(() => {
     loadReferencias();
   }, []);
+
+  // Abrir dialog de seleção de parceiros se o cliente tiver parceiros vinculados
+  useEffect(() => {
+    if (
+      selectedClientId &&
+      clientPartners &&
+      clientPartners.length > 0 &&
+      !watch("client_partner_id")
+    ) {
+      // Se foi selecionado via referência, abre o dialog
+      if (pendingClientSelection) {
+        setSelectedPartnerDialogOpen(true);
+      }
+    }
+  }, [selectedClientId, clientPartners, watch, pendingClientSelection]);
 
   const loadReferencias = async () => {
     try {
@@ -338,10 +361,14 @@ export function FluxoCaixaInlineForm({
       setValue("aeronave", movimentacao.aeronave_registro || "");
       setValue("client_id", movimentacao.client_id || "");
       setValue("client_name", movimentacao.client_name || "");
+      setValue("client_partner_id", movimentacao.client_partner_id || "");
       setValue("colaborador_id", movimentacao.colaborador_id || "");
       setValue("fornecedores_favoritos_id", movimentacao.fornecedores_favoritos_id || "");
       setIsReembolsavel(movimentacao.reembolsavel || false);
       setTemRateio(movimentacao.tem_rateio || false);
+      if (movimentacao.client_id) {
+        setSelectedClientId(movimentacao.client_id);
+      }
 
       // Carregar URLs dos arquivos
       setComprovanteUrl(movimentacao.comprovante_url || null);
@@ -406,7 +433,17 @@ export function FluxoCaixaInlineForm({
   const handleClienteSelect = (cliente: any) => {
     setValue("client_id", cliente.id);
     setValue("client_name", cliente.company_name || cliente.proprietario || "");
+    setValue("client_partner_id", "");
+    setSelectedClientId(cliente.id);
     // NÃO limpar referência ou outros IDs aqui - são campos separados
+  };
+
+  // Selecionar client_partner
+  const handlePartnerSelect = (partner: any) => {
+    setValue("client_partner_id", partner.id);
+    setValue("client_name", partner.name);
+    setSelectedPartnerDialogOpen(false);
+    setPendingClientSelection(null);
   };
 
   // Salvar rateio
@@ -468,6 +505,7 @@ export function FluxoCaixaInlineForm({
         aeronave_id: aeronaveObj?.id || null,
         aeronave_registro: formData.aeronave || null,
         client_id: formData.client_id || null,
+        client_partner_id: formData.client_partner_id || null,
         client_name: isReembolsavel ? formData.client_name : null,
         colaborador_id: formData.colaborador_id || null,
         fornecedores_favoritos_id: formData.fornecedores_favoritos_id || null,
@@ -794,7 +832,38 @@ export function FluxoCaixaInlineForm({
                       ))}
                     </SelectContent>
                   </Select>
+                  {/* Mostrar aviso se cliente tem parceiros */}
+                  {watch("client_id") && clientPartners && clientPartners.length > 0 && !watch("client_partner_id") && (
+                    <p className="text-xs text-amber-400 mt-1">
+                      Este cliente tem {clientPartners.length} {clientPartners.length === 1 ? "parceiro" : "parceiros"} vinculado{clientPartners.length === 1 ? "" : "s"}
+                    </p>
+                  )}
                 </div>
+                {/* Seletor de Parceiro se cliente tem parceiros */}
+                {watch("client_id") && clientPartners && clientPartners.length > 0 && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1">Parceiro do Cliente *</Label>
+                    <Select
+                      value={watch("client_partner_id")}
+                      onValueChange={(value) => {
+                        const partner = clientPartners.find(p => p.id === value);
+                        if (partner) handlePartnerSelect(partner);
+                      }}
+                    >
+                      <SelectTrigger className="h-9 bg-background">
+                        <SelectValue placeholder="Selecione o parceiro" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clientPartners.map((partner) => (
+                          <SelectItem key={partner.id} value={partner.id}>
+                            {partner.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div>
                   <Label className="text-xs text-muted-foreground mb-1">Aeronave (para rateio)</Label>
                   <Select value={watch("aeronave") || ""} onValueChange={(value) => setValue("aeronave", value)}>
@@ -1078,10 +1147,14 @@ export function FluxoCaixaInlineForm({
                                 onSelect={() => {
                                   setValue("referencia", r.nome);
                                   setValue("client_id", r.id);
+                                  setValue("client_partner_id", "");
                                   setValue("colaborador_id", "");
                                   setValue("fornecedores_favoritos_id", "");
                                   setOpenReferenciaPopover(false);
                                   setReferenciaSearch("");
+                                  // Marcar como pendente para verificar se tem parceiros
+                                  setSelectedClientId(r.id);
+                                  setPendingClientSelection(r);
                                 }}
                                 className="cursor-pointer hover:bg-muted"
                               >
@@ -1447,6 +1520,63 @@ export function FluxoCaixaInlineForm({
           </Button>
         </div>
       </form>
+
+      {/* Dialog de Seleção de Parceiros */}
+      {pendingClientSelection && clientPartners && clientPartners.length > 0 && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center" onClick={() => {
+          setSelectedPartnerDialogOpen(false);
+          setPendingClientSelection(null);
+        }}>
+          <Card className="w-full max-w-sm p-6 bg-card border-border/80" onClick={(e) => e.stopPropagation()}>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  Selecione o Parceiro
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  O cliente <strong>{pendingClientSelection.nome}</strong> tem {clientPartners.length} parceiro{clientPartners.length === 1 ? '' : 's'} vinculado{clientPartners.length === 1 ? '' : 's'}. Qual deseja usar?
+                </p>
+              </div>
+
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {clientPartners.map((partner) => (
+                  <Button
+                    key={partner.id}
+                    variant="outline"
+                    className="w-full justify-start h-auto py-3 px-4 hover:bg-muted/80 border-border/50"
+                    onClick={() => handlePartnerSelect(partner)}
+                  >
+                    <div className="flex items-center gap-3 w-full">
+                      <Users className="h-5 w-5 text-muted-foreground shrink-0" />
+                      <div className="text-left">
+                        <p className="font-medium text-foreground">{partner.name}</p>
+                        {partner.share_percentage && (
+                          <p className="text-xs text-muted-foreground">
+                            Participação: {partner.share_percentage}%
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </Button>
+                ))}
+              </div>
+
+              <div className="flex gap-2 justify-end pt-2 border-t border-border/30">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedPartnerDialogOpen(false);
+                    setPendingClientSelection(null);
+                  }}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Rateio Dialog */}
       <RateioDialog
