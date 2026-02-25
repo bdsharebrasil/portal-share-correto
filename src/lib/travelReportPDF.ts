@@ -766,12 +766,24 @@ export const downloadPDF = async (report: TravelReport, currentFullName?: string
 };
 
 export const openPDFInNewWindow = async (report: TravelReport, currentFullName?: string) => {
+  // Open window FIRST (synchronously, within user interaction context)
+  const newWindow = window.open('', '_blank');
+  if (!newWindow) {
+    throw new Error('Não foi possível abrir a janela');
+  }
+
   const blob = await generatePDF(report, currentFullName);
   const url = window.URL.createObjectURL(blob);
-  window.open(url, '_blank');
+  newWindow.location.href = url;
 };
 
 export const viewHTMLPreview = async (report: TravelReport, currentFullName?: string) => {
+  // Open window FIRST (synchronously, within user interaction context)
+  const newWindow = window.open('', '_blank');
+  if (!newWindow) {
+    throw new Error('Não foi possível abrir a janela de prévia');
+  }
+
   // Convert receipts to base64 for better compatibility
   const reportWithBase64 = { ...report, despesas: [...report.despesas] };
 
@@ -800,14 +812,17 @@ export const viewHTMLPreview = async (report: TravelReport, currentFullName?: st
   await Promise.all(imagePromises);
 
   const htmlContent = generateHTMLReport(reportWithBase64, currentFullName);
-  const newWindow = window.open('', '_blank');
-  if (newWindow) {
-    newWindow.document.write(htmlContent);
-    newWindow.document.close();
-  }
+  newWindow.document.write(htmlContent);
+  newWindow.document.close();
 };
 
 export const previewPDFForPrint = async (report: TravelReport, currentFullName?: string) => {
+  // Open window FIRST (synchronously, within user interaction context)
+  const newWindow = window.open('', '_blank');
+  if (!newWindow) {
+    throw new Error('Não foi possível abrir a janela de prévia');
+  }
+
   try {
     // Convert receipts to base64 for better compatibility
     const reportWithBase64 = { ...report, despesas: [...report.despesas] };
@@ -834,11 +849,6 @@ export const previewPDFForPrint = async (report: TravelReport, currentFullName?:
     await Promise.all(imagePromises);
 
     const htmlContent = generateHTMLReport(reportWithBase64, currentFullName);
-    const newWindow = window.open('', '_blank');
-
-    if (!newWindow) {
-      throw new Error('Não foi possível abrir a janela de prévia');
-    }
 
     const htmlDoc = `
       <!DOCTYPE html>
@@ -893,6 +903,7 @@ export const previewPDFForPrint = async (report: TravelReport, currentFullName?:
     newWindow.document.close();
   } catch (error) {
     console.error('Erro ao visualizar prévia:', error);
+    newWindow.close();
     throw error;
   }
 };
