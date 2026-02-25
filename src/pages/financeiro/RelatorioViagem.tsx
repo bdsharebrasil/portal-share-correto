@@ -155,9 +155,9 @@ export default function RelatorioViagem() {
       })();
 
       // Determinar o nome do cliente: se tem client_partner, usar nome do partner; senão usar nome do cliente
-      const clientName = r.client_partner && r.partner_id_rel?.name 
-        ? r.partner_id_rel.name 
-        : r.client_id_rel?.name || '';
+      const clientName = r.client_partner && r.partner_id_rel?.name
+        ? r.partner_id_rel.name
+        : r.client_id_rel?.company_name || '';
 
       return {
         ...r,
@@ -197,9 +197,9 @@ export default function RelatorioViagem() {
     })();
 
     // Lendo do 'rData' (que é any) para evitar o erro do client_partner
-    const clientName = rData.client_partner && rData.partner_id_rel?.name 
-      ? rData.partner_id_rel.name 
-      : rData.client_id_rel?.name || '';
+    const clientName = rData.client_partner && rData.partner_id_rel?.name
+      ? rData.partner_id_rel.name
+      : rData.client_id_rel?.company_name || '';
 
     return {
       ...rData,
@@ -836,6 +836,7 @@ export default function RelatorioViagem() {
                                         descricao: e.description,
                                         valor: e.amount,
                                         pago_por: e.paid_by,
+                                        data: (e as any).expense_date || '',
                                         comprovante_url: e.receipt_url
                                       })) as TravelExpense[],
                                       total_combustivel: correctedTotals.total_fuel,
