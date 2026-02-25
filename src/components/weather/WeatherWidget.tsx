@@ -94,27 +94,47 @@ export default function WeatherWidget() {
   const [wx, setWx] = useState<WxState>({ status: "idle" });
   const [spin, setSpin] = useState(false);
   const [tip, setTip] = useState(false);
+  const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+  const [hasAskedForLocation, setHasAskedForLocation] = useState(false);
   const tipRef = useRef<HTMLDivElement>(null);
+
+  const requestLocation = useCallback(async (): Promise<{ lat: number; lon: number }> => {
+    try {
+      const pos: any = await new Promise((res, rej) =>
+        navigator.geolocation.getCurrentPosition(res, rej, { timeout: 8000 })
+      );
+      return {
+        lat: pos.coords.latitude,
+        lon: pos.coords.longitude,
+      };
+    } catch {
+      // Fallback: usar coordenadas padrão de São Paulo
+      return {
+        lat: -23.5505,
+        lon: -46.6333,
+      };
+    }
+  }, []);
 
   const load = useCallback(async () => {
     setSpin(true);
     setWx({ status: "loading" });
 
     try {
+      // Se nunca pediu permissão, mostrar modal
+      if (!hasAskedForLocation) {
+        setShowLocationPrompt(true);
+        setHasAskedForLocation(true);
+        setSpin(false);
+        return;
+      }
+
       let lat: number, lon: number;
 
       // Tentar obter geolocalização, com fallback para São Paulo se falhar
-      try {
-        const pos: any = await new Promise((res, rej) =>
-          navigator.geolocation.getCurrentPosition(res, rej, { timeout: 8000 })
-        );
-        lat = pos.coords.latitude;
-        lon = pos.coords.longitude;
-      } catch {
-        // Fallback: usar coordenadas padrão de São Paulo
-        lat = -23.5505;
-        lon = -46.6333;
-      }
+      const coords = await requestLocation();
+      lat = coords.lat;
+      lon = coords.lon;
 
       let airport = null;
       try {
@@ -143,7 +163,49 @@ export default function WeatherWidget() {
     } finally {
       setSpin(false);
     }
-  }, []);
+  }, [hasAskedForLocation, requestLocation]);
+
+  const handleLocationPromptAccept = useCallback(async () => {
+    setShowLocationPrompt(false);
+    setSpin(true);
+    setWx({ status: "loading" });
+
+    try {
+      let lat: number, lon: number;
+
+      // Agora realmente tenta obter a geolocalização
+      const coords = await requestLocation();
+      lat = coords.lat;
+      lon = coords.lon;
+
+      let airport = null;
+      try {
+        const result = await apiClient.getNearbyAirport(lat, lon, 1);
+        if (result?.airports?.[0]) airport = result.airports[0];
+      } catch { /* fallback */ }
+
+      if (!airport || airport.distKm > 500) airport = nearestFallback(lat, lon);
+
+      const wxData = await apiClient.getWeather(airport.icao);
+      const raw = extractRawMetar(wxData);
+
+      setWx({
+        status: "ok",
+        icao: airport.icao,
+        name: airport.name,
+        distKm: airport.distKm || Math.round(haversineKm(lat, lon, airport.lat, airport.lon)),
+        raw,
+        temp: parseTempFromMetar(raw),
+        wind: parseWindFromMetar(raw),
+        cat: flightCategory(raw),
+        time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+      });
+    } catch {
+      setWx({ status: "error", msg: "Erro ao carregar METAR" });
+    } finally {
+      setSpin(false);
+    }
+  }, [requestLocation]);
 
   useEffect(() => {
     load();
@@ -156,6 +218,23 @@ export default function WeatherWidget() {
   return (
     <>
       <style>{CSS}</style>
+
+      {/* Modal de Permissão de Localização */}
+      {showLocationPrompt && (
+        <div className="location-prompt-overlay">
+          <div className="location-prompt-modal">
+            <div className="location-prompt-icon">✈️</div>
+            <h2 className="location-prompt-title">Precisamos da sua localização</h2>
+            <p className="location-prompt-description">
+              Para carregar os dados meteorológicos. Por favor, clique em <strong>"Permitir"</strong> no aviso que vai aparecer a seguir.
+            </p>
+            <button className="location-prompt-button" onClick={handleLocationPromptAccept}>
+              Entendi
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="wx">
         {wx.status === "ok" ? (
           <>
@@ -188,6 +267,8 @@ const CSS = `
   @keyframes wx-spin  { to { transform: rotate(360deg); } }
   @keyframes wx-in    { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
   @keyframes wx-pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  @keyframes modal-fade-in { from { opacity:0; } to { opacity:1; } }
+  @keyframes modal-slide-up { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }
 
   .wx {
     display: inline-flex; align-items: center;
@@ -275,4 +356,87 @@ const CSS = `
   .wx-tip-title span { font-weight: 400; text-transform: none; }
   .wx-tip-raw  { font-size: 11px; color: #e2e8f0; line-height: 1.65; word-break: break-all; }
   .wx-tip-time { margin-top: 8px; font-size: 9.5px; color: #334155; }
+
+  /* ─── LOCATION PROMPT MODAL ────────────────────────────────────────────────── */
+  .location-prompt-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    animation: modal-fade-in 0.3s ease;
+    backdrop-filter: blur(4px);
+  }
+
+  .location-prompt-modal {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 20px;
+    padding: 40px;
+    max-width: 420px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    animation: modal-slide-up 0.4s ease;
+  }
+
+  .location-prompt-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    display: block;
+    animation: bounce 2s ease-in-out infinite;
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .location-prompt-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1a202c;
+    margin: 0 0 16px 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  .location-prompt-description {
+    font-size: 15px;
+    color: #4a5568;
+    line-height: 1.6;
+    margin: 0 0 32px 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  .location-prompt-description strong {
+    color: #2d3748;
+    font-weight: 600;
+  }
+
+  .location-prompt-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 14px 40px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  .location-prompt-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 25px rgba(102, 126, 234, 0.6);
+  }
+
+  .location-prompt-button:active {
+    transform: translateY(0);
+  }
 `;
