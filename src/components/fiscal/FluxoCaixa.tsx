@@ -231,15 +231,9 @@ export function FluxoCaixa() {
         matchesDate = txDate >= from && txDate <= to;
       }
 
-      // source filter (reconciliation vs despesa)
-      let matchesSource = true;
-      if (advancedFilters.source !== "all") {
-        if (advancedFilters.source === "reconciliation") {
-          matchesSource = t.origem === "reconciliation" || t.source === "reconciliation";
-        } else if (advancedFilters.source === "despesa") {
-          matchesSource = t.origem === "despesa" || t.source === "despesa";
-        }
-      }
+      // source filter (entrada vs saída)
+      const matchesSource =
+        advancedFilters.source === "all" || t.tipo_movimento === advancedFilters.source;
 
       return matchesSearch && matchesStatus && matchesValue && matchesDate && matchesSource;
     });
