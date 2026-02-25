@@ -331,6 +331,11 @@ export default function RelatorioViagem() {
 
     try {
       const validExpenses = getValidExpenses(reportData.expenses);
+      console.log('📋 Valid Expenses com receipt_url:', validExpenses.map(e => ({
+        category: e.category,
+        amount: e.amount,
+        receipt_url: e.receipt_url
+      })));
 
       let reportNumber = reportData.report_number;
       if (!isUpdate && (reportNumber.includes('XXX') || reportNumber.startsWith('R-'))) {
@@ -341,6 +346,8 @@ export default function RelatorioViagem() {
       const recalculatedTotals = calculateReportTotals(validExpenses);
       const totalAmount = recalculatedTotals.total_amount;
       const days = reportData.days_count;
+
+      console.log('💾 Dados para salvar - validExpenses completo:', validExpenses);
 
       const reportDataToSave = {
         report_number: reportNumber,
@@ -391,9 +398,15 @@ export default function RelatorioViagem() {
       }
 
       // Salvar anexos das despesas na tabela travel_report_attachments
+      console.log('🔍 INICIANDO SALVAMENTO DE ATTACHMENTS...');
+      console.log('Report ID:', savedReport.id);
+      console.log('Valid Expenses Count:', validExpenses.length);
+      console.log('Expenses com receipt_url:', validExpenses.filter(e => e.receipt_url).length);
+
       try {
         // Se for atualização, remover attachments antigos primeiro
         if (isUpdate) {
+          console.log('Removendo attachments antigos do report:', savedReport.id);
           const { error: deleteError } = await supabase
             .from('travel_report_attachments')
             .delete()
@@ -429,18 +442,18 @@ export default function RelatorioViagem() {
               file_url: expense.receipt_url,
               file_type: fileType,
               file_size: null,
-            };
+            } as any;
           })
-          .filter((item): item is NonNullable<typeof item> => item !== null);
+          .filter((item) => item !== null);
 
         if (attachmentsToInsert.length > 0) {
-          console.log(`📎 Preparando para salvar ${attachmentsToInsert.length} anexo(s) na tabela...`);
-          console.log('Dados dos anexos:', attachmentsToInsert);
+          console.log(`📎 Preparando para salvar ${attachmentsToInsert.length} anexo(s) na tabela travel_report_attachments...`);
+          console.log('Dados dos anexos:', JSON.stringify(attachmentsToInsert, null, 2));
+          console.log('Report ID:', savedReport.id);
 
           const { error: attachmentError, data: insertedData } = await supabase
             .from('travel_report_attachments')
-            .insert(attachmentsToInsert)
-            .select();
+            .insert(attachmentsToInsert);
 
           if (attachmentError) {
             console.error('❌ Erro ao salvar attachments na tabela travel_report_attachments:', attachmentError);
@@ -448,11 +461,11 @@ export default function RelatorioViagem() {
               message: attachmentError.message,
               details: attachmentError.details,
               hint: attachmentError.hint,
-              code: attachmentError.code
+              code: attachmentError.code,
             });
             toast.warning('⚠️ Relatório salvo, mas houve erro ao registrar os comprovantes. Verifique as permissões do banco de dados.');
           } else {
-            console.log(`✅ ${insertedData?.length || attachmentsToInsert.length} comprovante(s) registrado(s) com sucesso!`);
+            console.log(`✅ ${attachmentsToInsert.length} comprovante(s) registrado(s) com sucesso!`);
             if (insertedData) {
               console.log('Anexos salvos:', insertedData);
             }
