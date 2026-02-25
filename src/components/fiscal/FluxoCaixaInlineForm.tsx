@@ -150,6 +150,7 @@ export function FluxoCaixaInlineForm({
   // Estados para client_partners
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedPartnerDialogOpen, setSelectedPartnerDialogOpen] = useState(false);
+  const [pendingClientSelection, setPendingClientSelection] = useState<any>(null);
   const { data: clientPartners, isLoading: isLoadingPartners } = useClientPartners(selectedClientId);
 
   // Mapeia conta para exibir o banco ao invés do nome
@@ -231,15 +232,17 @@ export function FluxoCaixaInlineForm({
   // Abrir dialog de seleção de parceiros se o cliente tiver parceiros vinculados
   useEffect(() => {
     if (
-      isReembolsavel &&
       selectedClientId &&
       clientPartners &&
       clientPartners.length > 0 &&
       !watch("client_partner_id")
     ) {
-      setSelectedPartnerDialogOpen(true);
+      // Se foi selecionado via referência, abre o dialog
+      if (pendingClientSelection) {
+        setSelectedPartnerDialogOpen(true);
+      }
     }
-  }, [isReembolsavel, selectedClientId, clientPartners, watch]);
+  }, [selectedClientId, clientPartners, watch, pendingClientSelection]);
 
   const loadReferencias = async () => {
     try {
@@ -440,6 +443,7 @@ export function FluxoCaixaInlineForm({
     setValue("client_partner_id", partner.id);
     setValue("client_name", partner.name);
     setSelectedPartnerDialogOpen(false);
+    setPendingClientSelection(null);
   };
 
   // Salvar rateio
@@ -1143,10 +1147,14 @@ export function FluxoCaixaInlineForm({
                                 onSelect={() => {
                                   setValue("referencia", r.nome);
                                   setValue("client_id", r.id);
+                                  setValue("client_partner_id", "");
                                   setValue("colaborador_id", "");
                                   setValue("fornecedores_favoritos_id", "");
                                   setOpenReferenciaPopover(false);
                                   setReferenciaSearch("");
+                                  // Marcar como pendente para verificar se tem parceiros
+                                  setSelectedClientId(r.id);
+                                  setPendingClientSelection(r);
                                 }}
                                 className="cursor-pointer hover:bg-muted"
                               >
@@ -1512,6 +1520,63 @@ export function FluxoCaixaInlineForm({
           </Button>
         </div>
       </form>
+
+      {/* Dialog de Seleção de Parceiros */}
+      {pendingClientSelection && clientPartners && clientPartners.length > 0 && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center" onClick={() => {
+          setSelectedPartnerDialogOpen(false);
+          setPendingClientSelection(null);
+        }}>
+          <Card className="w-full max-w-sm p-6 bg-card border-border/80" onClick={(e) => e.stopPropagation()}>
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  Selecione o Parceiro
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  O cliente <strong>{pendingClientSelection.nome}</strong> tem {clientPartners.length} parceiro{clientPartners.length === 1 ? '' : 's'} vinculado{clientPartners.length === 1 ? '' : 's'}. Qual deseja usar?
+                </p>
+              </div>
+
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {clientPartners.map((partner) => (
+                  <Button
+                    key={partner.id}
+                    variant="outline"
+                    className="w-full justify-start h-auto py-3 px-4 hover:bg-muted/80 border-border/50"
+                    onClick={() => handlePartnerSelect(partner)}
+                  >
+                    <div className="flex items-center gap-3 w-full">
+                      <Users className="h-5 w-5 text-muted-foreground shrink-0" />
+                      <div className="text-left">
+                        <p className="font-medium text-foreground">{partner.name}</p>
+                        {partner.share_percentage && (
+                          <p className="text-xs text-muted-foreground">
+                            Participação: {partner.share_percentage}%
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </Button>
+                ))}
+              </div>
+
+              <div className="flex gap-2 justify-end pt-2 border-t border-border/30">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSelectedPartnerDialogOpen(false);
+                    setPendingClientSelection(null);
+                  }}
+                >
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Rateio Dialog */}
       <RateioDialog
