@@ -524,8 +524,6 @@ export default function RelatorioViagem() {
             if (paymentError) {
               console.error('Erro ao registrar conciliações:', paymentError);
               toast.warning('⚠️ Relatório salvo, mas houve erro ao criar conciliações bancárias');
-            } else {
-              toast.success(`✓ ${reconciliationsToInsert.length} conciliação(ões) bancária(s) criada(s)`);
             }
           }
 
@@ -597,7 +595,6 @@ export default function RelatorioViagem() {
                   toast.warning('⚠️ PDF gerado mas erro ao salvar URL no banco');
                 } else {
                   console.log('✅ PDF salvo com sucesso:', pdfUrl);
-                  toast.success('✓ PDF gerado e salvo com sucesso!');
                 }
               }
             } catch (pdfError: any) {
