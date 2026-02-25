@@ -63,7 +63,7 @@ interface BankReconciliation {
   client_id: string | null;
   aircraft_id: string | null;
   payment_term: string | null;
-  created_by?: string;
+  criado_por?: string;
   clients: { company_name: string } | null;
   aircraft: { registration: string } | null;
 }
@@ -392,8 +392,8 @@ export function ConciliacaoClientes() {
                         <TableRow className={`hover:bg-muted/50 ${isFinalized ? 'bg-muted/10 opacity-80' : ''}`}>
                           <TableCell>{item.date ? format(new Date(item.date + 'T12:00:00'), 'dd/MM/yyyy') : '-'}</TableCell>
                           <TableCell>
-                            <Badge className={`${getIdBadgeColor(getShortUserId(item.created_by || ''))} font-semibold`}>
-                              {getShortUserId(item.created_by || '')}
+                            <Badge className={`${getIdBadgeColor(getShortUserId(item.criado_por || ''))} font-semibold`}>
+                              {getShortUserId(item.criado_por || '')}
                             </Badge>
                           </TableCell>
                           <TableCell className="max-w-xs">
@@ -664,7 +664,7 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
         status: data.status,
         client_id: parentReconciliation.client_id,
         aircraft_id: parentReconciliation.aircraft_id,
-        created_by: user.id,
+        criado_por: user.id,
       }] as any)
         .select()
         .single();
