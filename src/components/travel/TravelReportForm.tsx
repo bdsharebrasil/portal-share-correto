@@ -50,7 +50,9 @@ interface TravelReport {
   aircraft_registration: string;
   crew_member_id: string;
   crew_member_name: string;
+  crew_member_source?: 'crew_members' | 'crew' | null;
   crew_member_name_2: string;
+  crew_member_2_source?: 'crew_members' | 'crew' | null;
   route: string;
   start_date: string;
   end_date: string;
@@ -143,11 +145,39 @@ export function TravelReportForm({
     }
   }, [currentReport, onAutoSave, report]);
 
+  // Recalcular totais em tempo real quando as despesas mudam
+  useEffect(() => {
+    const validExpenses = getValidExpenses(currentReport.expenses);
+    const recalculatedTotals = calculateReportTotals(validExpenses);
+
+    // Atualizar apenas se os totais mudaram (evita re-renders desnecessários)
+    setCurrentReport(prev => ({
+      ...prev,
+      total_amount: recalculatedTotals.total_amount,
+      total_fuel: recalculatedTotals.total_fuel,
+      total_lodging: recalculatedTotals.total_lodging,
+      total_food: recalculatedTotals.total_food,
+      total_transport: recalculatedTotals.total_transport,
+      total_other: recalculatedTotals.total_other,
+      total_crew: recalculatedTotals.total_crew,
+      total_crew1: recalculatedTotals.total_crew1,
+      total_crew2: recalculatedTotals.total_crew2,
+      total_client: recalculatedTotals.total_client,
+      total_sharebrasil: recalculatedTotals.total_sharebrasil,
+    }));
+  }, [currentReport.expenses]);
+
   const handleInputChange = (field: keyof TravelReport, value: any) => {
     setCurrentReport(prev => ({
       ...prev,
       [field]: value
     }));
+  };
+
+  // Helper para encontrar a source de um tripulante pelo ID
+  const getCrewSource = (crewId: string) => {
+    const found = tripulantes.find(t => t.id === crewId);
+    return found?.source || null;
   };
 
   const fetchPartnersForClient = async (clientId: string) => {
@@ -427,6 +457,7 @@ export function TravelReportForm({
                 onChange={(id, label) => {
                   handleInputChange('crew_member_id', id);
                   handleInputChange('crew_member_name', label);
+                  handleInputChange('crew_member_source', getCrewSource(id));
                 }}
                 icon={<User className="h-4 w-4" />}
                 placeholder="Selecione o comandante..."
@@ -435,7 +466,9 @@ export function TravelReportForm({
                 allowFreeText={true}
               />
               {currentReport.crew_member_id && (
-                <p className="text-xs text-green-600">✓ Tripulante selecionado</p>
+                <p className="text-xs text-green-600">
+                  ✓ Tripulante selecionado {currentReport.crew_member_source && `(${currentReport.crew_member_source === 'crew_members' ? 'Crew Members' : 'Crew'})`}
+                </p>
               )}
             </div>
 
@@ -460,6 +493,7 @@ export function TravelReportForm({
                   value={tripulantes.find(t => t.full_name === currentReport.crew_member_name_2 || t.name === currentReport.crew_member_name_2)?.id || currentReport.crew_member_name_2 || ''}
                   onChange={(id, label) => {
                     handleInputChange('crew_member_name_2', label);
+                    handleInputChange('crew_member_2_source', getCrewSource(id));
                   }}
                   icon={<User className="h-4 w-4" />}
                   placeholder="Selecione o co-piloto..."
