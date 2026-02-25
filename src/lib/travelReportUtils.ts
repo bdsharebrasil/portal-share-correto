@@ -139,7 +139,14 @@ export function enrichReportWithCorrectTotals<T extends TravelReportWithTotals>(
  * Extrai os totais de pagadores de um relatório para criar conciliações.
  * Isto é essencial para garantir que as conciliações bancárias sejam criadas
  * com os valores CORRETOS, recalculados a partir das despesas.
- * 
+ *
+ * IMPORTANTE para uso correto em RelatorioViagem.tsx:
+ * - Para CLIENTE: amount = totalSharebrasil + totalCrew1 + totalCrew2
+ *   (O que o cliente deve pagar = tudo que não foi pago por ele)
+ * - Para TRIPULANTE 1: amount = totalCrew1 (reembolso)
+ * - Para TRIPULANTE 2: amount = totalCrew2 (reembolso)
+ * - Para SHAREBRASIL: amount = totalSharebrasil (custos de operação)
+ *
  * @param expenses - Despesas do relatório
  * @returns Objeto com totais por tipo de pagador, incluindo separação por tripulante
  */
