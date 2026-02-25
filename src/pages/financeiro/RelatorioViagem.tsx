@@ -28,6 +28,7 @@ import { AutocompleteInput } from '@/components/ui/autocomplete-input';
 import { calculateReportTotals, enrichReportWithCorrectTotals, extractPayerTotals, getValidExpenses } from '@/lib/travelReportUtils';
 import { PartnerSelectModal } from '@/components/diario/PartnerSelectModal';
 import { ReceiptViewer } from '@/components/financeiro/ReceiptViewer';
+import { TravelReportForm } from '@/components/travel/TravelReportForm';
 
 const EXPENSE_CATEGORIES = ['Combustível', 'Hospedagem', 'Alimentação', 'Transporte', 'Outros'];
 const REPORT_STATUSES = ['Rascunho', 'Finalizado', 'Enviado'];
@@ -473,95 +474,46 @@ export default function RelatorioViagem() {
     }
   };
 
-  const saveReport = async (newStatus: TravelReport['status']) => {
-    if (!currentReport) return;
+  const saveReport = async (newStatus: TravelReport['status'], reportToSave?: TravelReport) => {
+    const reportData = reportToSave || currentReport;
+    if (!reportData) return;
 
-    if (isEditing && currentReport.status !== 'Rascunho') {
+    if (isEditing && reportData.status !== 'Rascunho') {
       toast.error('⚠️ Não é possível editar relatórios que já foram finalizados. Apenas rascunhos podem ser editados.');
       return;
     }
 
-    // Validações obrigatórias
-    if (!currentReport.client_id && (!currentReport.client || currentReport.client.trim() === '')) {
-      toast.error('⚠️ Preencha o campo obrigatório: Cliente (selecione uma opção ou digite um nome)');
-      return;
-    }
-
-    if (!currentReport.aircraft_id && (!currentReport.aircraft_registration || currentReport.aircraft_registration.trim() === '')) {
-      toast.error('⚠️ Preencha o campo obrigatório: Aeronave (selecione uma opção ou digite uma matrícula)');
-      return;
-    }
-
-    if (!currentReport.route || currentReport.route.trim() === '') {
-      toast.error('⚠️ Preencha o campo obrigatório: Trecho (Ex: SBPF-SBGR)');
-      return;
-    }
-
-    if (!currentReport.crew_member_id && (!currentReport.crew_member_name || currentReport.crew_member_name.trim() === '')) {
-      toast.error('⚠️ Preencha o campo obrigatório: Tripulante 1 (selecione uma opção ou digite um nome)');
-      return;
-    }
-
-    // Validação de datas
-    if (!currentReport.start_date || !currentReport.end_date) {
-      toast.error('⚠️ Preencha as datas de início e fim da viagem');
-      return;
-    }
-
-    if (new Date(currentReport.start_date) > new Date(currentReport.end_date)) {
-      toast.error('⚠️ A data final deve ser igual ou posterior à data inicial');
-      return;
-    }
-
-    // Validação de despesas para status Finalizado
-    if (newStatus !== 'Rascunho') {
-      const validExpenses = currentReport.expenses.filter(e => e.category && e.amount > 0);
-      if (validExpenses.length === 0) {
-        toast.error('⚠️ Adicione pelo menos uma despesa válida para finalizar o relatório');
-        return;
-      }
-    }
-
     setIsSaving(true);
-    const isUpdate = !!currentReport.id;
-
-    // Validação do dias
-    const days = calculateDays(currentReport.start_date, currentReport.end_date);
-    if (days < 1) {
-      toast.error('⚠️ Erro ao calcular a duração da viagem. Verifique as datas.');
-      setIsSaving(false);
-      return;
-    }
+    const isUpdate = !!reportData.id;
 
     try {
-      const validExpenses = getValidExpenses(currentReport.expenses);
+      const validExpenses = getValidExpenses(reportData.expenses);
 
-      let reportNumber = currentReport.report_number;
+      let reportNumber = reportData.report_number;
       if (!isUpdate && (reportNumber.includes('XXX') || reportNumber.startsWith('R-'))) {
-        reportNumber = await generateReportNumber(currentReport.client);
+        reportNumber = await generateReportNumber(reportData.client);
       }
 
       // SEMPRE recalcular todos os totais a partir das despesas para garantir precisão
-      // Isto é crítico: mesmo se o relatório foi visualizado (não editado),
-      // os totais serão sempre corretos quando finalizado
       const recalculatedTotals = calculateReportTotals(validExpenses);
       const totalAmount = recalculatedTotals.total_amount;
+      const days = reportData.days_count;
 
       const reportDataToSave = {
         report_number: reportNumber,
-        client_id: currentReport.client_id || null,
-        client: currentReport.partner_name || currentReport.client,
-        partner_name: currentReport.partner_name || null,
-        aircraft_id: currentReport.aircraft_id || null,
-        aircraft_registration: currentReport.aircraft_registration,
-        crew_member_id: currentReport.crew_member_id || null,
-        crew_member_name: currentReport.crew_member_name,
-        crew_member_name_2: currentReport.crew_member_name_2 || null,
-        route: currentReport.route,
-        start_date: currentReport.start_date,
-        end_date: currentReport.end_date,
+        client_id: reportData.client_id || null,
+        client: reportData.partner_name || reportData.client,
+        partner_name: reportData.partner_name || null,
+        aircraft_id: reportData.aircraft_id || null,
+        aircraft_registration: reportData.aircraft_registration,
+        crew_member_id: reportData.crew_member_id || null,
+        crew_member_name: reportData.crew_member_name,
+        crew_member_name_2: reportData.crew_member_name_2 || null,
+        route: reportData.route,
+        start_date: reportData.start_date,
+        end_date: reportData.end_date,
         days_count: days,
-        observations: currentReport.observations || null,
+        observations: reportData.observations || null,
         expenses: JSON.stringify(validExpenses),
         total_amount: totalAmount,
         total_fuel: recalculatedTotals.total_fuel,
@@ -582,7 +534,7 @@ export default function RelatorioViagem() {
         const { data, error } = await supabase
           .from('travel_expense_reports')
           .update(reportDataToSave)
-          .eq('id', currentReport.id)
+          .eq('id', reportData.id)
           .select()
           .single();
         if (error) throw error;
@@ -598,10 +550,6 @@ export default function RelatorioViagem() {
       }
 
       // Criar conciliações bancárias quando o relatório for finalizado
-      // Regras:
-      // - Conciliação CLIENTE = total Share + total tripulantes (valor que o cliente deve reembolsar)
-      // - Conciliação TRIPULANTE 1 = valor que tripulante 1 pagou (para reembolso)
-      // - Conciliação TRIPULANTE 2 = valor que tripulante 2 pagou (para reembolso)
       if (newStatus !== 'Rascunho') {
         const { data: { user } } = await supabase.auth.getUser();
 
@@ -628,7 +576,7 @@ export default function RelatorioViagem() {
           });
 
           // 1. Criar conciliação para CLIENTE (valor que Share+Tripulantes pagaram)
-          if (totalClientOwes > 0 && currentReport.client_id) {
+          if (totalClientOwes > 0 && reportData.client_id) {
             const { data: existingClientPayment } = await supabase
               .from('bank_reconciliations')
               .select('id')
@@ -639,8 +587,8 @@ export default function RelatorioViagem() {
             if (!existingClientPayment) {
               reconciliationsToInsert.push({
                 type: 'cliente',
-                client_id: currentReport.client_id,
-                aircraft_id: currentReport.aircraft_id || null,
+                client_id: reportData.client_id,
+                aircraft_id: reportData.aircraft_id || null,
                 amount: totalClientOwes,
                 status: 'pendente',
                 category: 'relatório_viagem',
@@ -654,12 +602,12 @@ export default function RelatorioViagem() {
           }
 
           // 2. Criar conciliação para TRIPULANTE 1 (valor que ele pagou e precisa ser reembolsado)
-          if (totalCrew1 > 0 && currentReport.crew_member_id) {
+          if (totalCrew1 > 0 && reportData.crew_member_id) {
             // Buscar o user_id do crew_member para usar como receiver_id
             const { data: crewMember } = await supabase
               .from('crew_members')
               .select('user_id')
-              .eq('id', currentReport.crew_member_id)
+              .eq('id', reportData.crew_member_id)
               .maybeSingle();
 
             const receiverId = crewMember?.user_id || null;
@@ -676,11 +624,11 @@ export default function RelatorioViagem() {
               reconciliationsToInsert.push({
                 type: 'colaborador',
                 receiver_id: receiverId,
-                aircraft_id: currentReport.aircraft_id || null,
+                aircraft_id: reportData.aircraft_id || null,
                 amount: totalCrew1,
                 status: 'pendente',
                 category: 'relatório_viagem',
-                description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO TRIPULANTE 1 (${currentReport.crew_member_name.toUpperCase()})`,
+                description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO TRIPULANTE 1 (${reportData.crew_member_name.toUpperCase()})`,
                 date: today,
                 created_by: user.id,
                 reference_id: savedReport.id,
@@ -690,12 +638,12 @@ export default function RelatorioViagem() {
           }
 
           // 3. Criar conciliação para TRIPULANTE 2 (se houver)
-          if (totalCrew2 > 0 && currentReport.crew_member_name_2) {
+          if (totalCrew2 > 0 && reportData.crew_member_name_2) {
             // Buscar o crew_member pelo nome e depois pegar o user_id
             const { data: secondCrew } = await supabase
               .from('crew_members')
               .select('id, user_id')
-              .eq('full_name', currentReport.crew_member_name_2)
+              .eq('full_name', reportData.crew_member_name_2)
               .maybeSingle();
 
             const receiverId = secondCrew?.user_id || null;
@@ -712,11 +660,11 @@ export default function RelatorioViagem() {
               reconciliationsToInsert.push({
                 type: 'colaborador',
                 receiver_id: receiverId,
-                aircraft_id: currentReport.aircraft_id || null,
+                aircraft_id: reportData.aircraft_id || null,
                 amount: totalCrew2,
                 status: 'pendente',
                 category: 'relatório_viagem',
-                description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO TRIPULANTE 2 (${currentReport.crew_member_name_2.toUpperCase()})`,
+                description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO TRIPULANTE 2 (${reportData.crew_member_name_2.toUpperCase()})`,
                 date: today,
                 created_by: user.id,
                 reference_id: savedReport.id,
@@ -976,8 +924,13 @@ export default function RelatorioViagem() {
           </>
         ) : currentReport && (
           <>
-            <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
-              <Button variant="outline" onClick={() => {
+            <TravelReportForm
+              report={currentReport}
+              onSave={async (report, status) => {
+                setCurrentReport(report);
+                await saveReport(status, report);
+              }}
+              onCancel={() => {
                 if (draftStorage.hasDraft()) {
                   if (window.confirm('Deseja descartar as alterações não salvas?')) {
                     draftStorage.clearDraft();
@@ -987,541 +940,19 @@ export default function RelatorioViagem() {
                 } else {
                   setIsCreating(false);
                 }
-              }}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Voltar ao Histórico
-              </Button>
-              <h2 className="text-xl font-bold flex-1 text-center">{isEditing ? 'Editar Relatório' : 'Novo Relatório'}</h2>
-              <div className="flex space-x-2">
-                <Button
-                  onClick={() => saveReport('Rascunho')}
-                  disabled={isSaving}
-                  variant="outline"
-                  title="Salvar no banco de dados como rascunho"
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {isEditing ? 'Atualizar Rascunho' : 'Salvar Rascunho'}
-                </Button>
-              </div>
-            </div>
+              }}
+              onAutoSave={(report) => {
+                if (!isEditing) {
+                  draftStorage.saveDraft(report);
+                }
+              }}
+              showPartnerModal={() => setShowPartnerModal(true)}
+              onReceiptView={(url) => {
+                setReceiptViewerUrl(url);
+                setReceiptViewerOpen(true);
+              }}
+            />
 
-            <div className="space-y-6">
-              <Alert className="border-yellow-600/50 bg-yellow-950/50">
-                <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                <AlertTitle className="text-yellow-500 font-semibold">Regras para Lançamento de Despesas:</AlertTitle>
-                <AlertDescription className="text-yellow-100/80 mt-2 space-y-2">
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>É obrigatório anexar o comprovante de pagamento (recibo ou nota fiscal) para cada despesa.</li>
-                    <li>Cupons de crédito não são aceitos como comprovante de pagamento.</li>
-                    <li>Não serão reembolsadas despesas com bebidas alcoólicas.</li>
-                  </ul>
-                </AlertDescription>
-              </Alert>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Informações da Viagem</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <AutocompleteInput
-                        label={`Cliente * ${isLoadingClientes ? '⏳ Carregando...' : ''}`}
-                        value={currentReport?.client || ''}
-                        onChange={(value) => {
-                          setCurrentReport(prev => prev ? { ...prev, client: value, client_id: '' } : null);
-                          if (!isEditing) {
-                            draftStorage.saveDraft({ ...currentReport, client: value, client_id: '' } as TravelReportDraft);
-                          }
-                        }}
-                        options={clientes.map(c => ({
-                          id: c.id,
-                          label: c.company_name
-                        }))}
-                        placeholder="Digite o nome do cliente ou selecione"
-                        isLoading={isLoadingClientes}
-                        onSelect={async (option) => {
-                          const selectedClient = clientes.find(c => c.id === option.id);
-                          if (selectedClient) {
-                            const updated = { ...currentReport, client_id: option.id, client: selectedClient.company_name, partner_name: '' };
-                            setCurrentReport(updated);
-                            if (!isEditing) {
-                              draftStorage.saveDraft(updated as TravelReportDraft);
-                            }
-                            generateReportNumber(selectedClient.company_name).then(newNumber => {
-                              if (!isEditing) {
-                                setCurrentReport(prev => prev ? { ...prev, report_number: newNumber } : null);
-                              }
-                            });
-                            // Check for partners
-                            const partners = await fetchClientPartners(option.id);
-                            if (partners.length > 0) {
-                              setShowPartnerModal(true);
-                            }
-                          }
-                        }}
-                      />
-                      {!currentReport?.client_id && currentReport?.client && (
-                        <p className="text-xs text-yellow-600 flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          Entrada manual
-                        </p>
-                      )}
-                      {currentReport?.client_id && (
-                        <p className="text-xs text-green-600 flex items-center gap-1">
-                          ✓ Cliente selecionado
-                        </p>
-                      )}
-                      {currentReport?.partner_name && (
-                        <p className="text-xs text-amber-500 flex items-center gap-1">
-                          👤 Sócio: <span className="font-semibold">{currentReport.partner_name}</span>
-                          <button 
-                            type="button"
-                            className="ml-1 underline text-amber-400 hover:text-amber-300"
-                            onClick={() => setShowPartnerModal(true)}
-                          >
-                            alterar
-                          </button>
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <AutocompleteInput
-                        label={`Aeronave * ${isLoadingAeronaves ? '⏳ Carregando...' : ''}`}
-                        value={currentReport?.aircraft_registration || ''}
-                        onChange={(value) => {
-                          setCurrentReport(prev => prev ? { ...prev, aircraft_registration: value, aircraft_id: '' } : null);
-                          if (!isEditing) {
-                            draftStorage.saveDraft({ ...currentReport, aircraft_registration: value, aircraft_id: '' } as TravelReportDraft);
-                          }
-                        }}
-                        options={Array.isArray(aeronaves) ? aeronaves.map(a => ({
-                          id: a.id,
-                          label: `${a.registration} - ${a.model || ''}`
-                        })) : []}
-                        placeholder="Digite a matrícula ou selecione"
-                        isLoading={isLoadingAeronaves}
-                        onSelect={(option) => {
-                          const selectedAircraft = Array.isArray(aeronaves) ? aeronaves.find(a => a.id === option.id) : undefined;
-                          if (selectedAircraft) {
-                            const updated = { ...currentReport, aircraft_id: option.id, aircraft_registration: selectedAircraft.registration };
-                            setCurrentReport(updated);
-                            if (!isEditing) {
-                              draftStorage.saveDraft(updated as TravelReportDraft);
-                            }
-                          }
-                        }}
-                      />
-                      {!currentReport?.aircraft_id && currentReport?.aircraft_registration && (
-                        <p className="text-xs text-yellow-600 flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          Entrada manual
-                        </p>
-                      )}
-                      {currentReport?.aircraft_id && (
-                        <p className="text-xs text-green-600 flex items-center gap-1">
-                          ✓ Aeronave selecionada
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <AutocompleteInput
-                        label={`Tripulante 1 * ${isLoadingTripulantes ? '⏳ Carregando...' : ''}`}
-                        value={currentReport?.crew_member_name || ''}
-                        onChange={(value) => {
-                          setCurrentReport(prev => prev ? { ...prev, crew_member_name: value, crew_member_id: '' } : null);
-                          if (!isEditing) {
-                            draftStorage.saveDraft({ ...currentReport, crew_member_name: value, crew_member_id: '' } as TravelReportDraft);
-                          }
-                        }}
-                        options={tripulantes.map(t => ({
-                          id: t.id,
-                          label: t.full_name
-                        }))}
-                        placeholder="Digite o nome ou selecione"
-                        isLoading={isLoadingTripulantes}
-                        onSelect={(option) => {
-                          const selectedCrew = tripulantes.find(t => t.id === option.id);
-                          if (selectedCrew) {
-                            const updated = { ...currentReport, crew_member_id: option.id, crew_member_name: selectedCrew.full_name };
-                            setCurrentReport(updated);
-                            if (!isEditing) {
-                              draftStorage.saveDraft(updated as TravelReportDraft);
-                            }
-                          }
-                        }}
-                      />
-                      {!currentReport?.crew_member_id && currentReport?.crew_member_name && (
-                        <p className="text-xs text-yellow-600 flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          Entrada manual
-                        </p>
-                      )}
-                      {currentReport?.crew_member_id && (
-                        <p className="text-xs text-green-600 flex items-center gap-1">
-                          ✓ Tripulante selecionado
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2 flex items-end">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="showSecondCrew"
-                          checked={showSecondCrew || !!currentReport?.crew_member_name_2}
-                          onCheckedChange={(checked) => setShowSecondCrew(!!checked)}
-                        />
-                        <Label htmlFor="showSecondCrew" className="cursor-pointer">
-                          Adicionar Segundo Tripulante
-                        </Label>
-                      </div>
-                    </div>
-
-                    {(showSecondCrew || currentReport?.crew_member_name_2) && (
-                      <div className="space-y-2">
-                        <AutocompleteInput
-                          label="Tripulante 2"
-                          value={currentReport?.crew_member_name_2 || ''}
-                          onChange={(value) => handleInputChange('crew_member_name_2', value)}
-                          options={tripulantes.map(t => ({
-                            id: t.id,
-                            label: t.full_name
-                          }))}
-                          placeholder="Digite o nome ou selecione"
-                          isLoading={isLoadingTripulantes}
-                          onSelect={(option) => {
-                            const selectedCrew = tripulantes.find(t => t.id === option.id);
-                            if (selectedCrew) {
-                              handleInputChange('crew_member_name_2', selectedCrew.full_name);
-                            }
-                          }}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Digite manualmente ou selecione uma opção
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      <Label>Trecho (Ex: SBPF-SBGR) *</Label>
-                      <Input
-                        value={currentReport?.route || ''}
-                        onChange={(e) => handleInputChange('route', e.target.value)}
-                        placeholder="Trecho"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Data Início *</Label>
-                      <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full justify-start text-left font-normal"
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4 text-white" />
-                            {currentReport?.start_date
-                              ? format(new Date(currentReport.start_date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })
-                              : "Selecione a data"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={4}>
-                          <CalendarComponent
-                            mode="single"
-                            selected={currentReport?.start_date ? new Date(currentReport.start_date + 'T00:00:00') : undefined}
-                            onSelect={(date) => {
-                              if (date) {
-                                const year = date.getFullYear();
-                                const month = String(date.getMonth() + 1).padStart(2, '0');
-                                const day = String(date.getDate()).padStart(2, '0');
-                                const formattedDate = `${year}-${month}-${day}`;
-
-                                handleInputChange('start_date', formattedDate);
-                                if (currentReport?.end_date && new Date(formattedDate) > new Date(currentReport.end_date)) {
-                                  handleInputChange('end_date', formattedDate);
-                                }
-                                setStartDateOpen(false);
-                              }
-                            }}
-                            disabled={(date) => date > new Date()}
-                            locale={ptBR}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Data Fim *</Label>
-                      <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full justify-start text-left font-normal"
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4 text-white" />
-                            {currentReport?.end_date
-                              ? format(new Date(currentReport.end_date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })
-                              : "Selecione a data"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={4}>
-                          <CalendarComponent
-                            mode="single"
-                            selected={currentReport?.end_date ? new Date(currentReport.end_date + 'T00:00:00') : undefined}
-                            onSelect={(date) => {
-                              if (date) {
-                                const year = date.getFullYear();
-                                const month = String(date.getMonth() + 1).padStart(2, '0');
-                                const day = String(date.getDate()).padStart(2, '0');
-                                const formattedDate = `${year}-${month}-${day}`;
-
-                                if (currentReport?.start_date && new Date(formattedDate) < new Date(currentReport.start_date)) {
-                                  toast.error('A data final deve ser igual ou posterior à data inicial');
-                                  return;
-                                }
-
-                                handleInputChange('end_date', formattedDate);
-                                setEndDateOpen(false);
-                              }
-                            }}
-                            disabled={(date) => date > new Date() || (currentReport?.start_date ? date < new Date(currentReport.start_date) : false)}
-                            locale={ptBR}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-
-                    {currentReport.start_date && currentReport.end_date && (
-                      <div className="md:col-span-2">
-                        <p className="text-sm text-green-600 font-semibold mt-2 p-2 bg-green-50 rounded">
-                          ✓ Duração da Viagem: <strong>{calculateDays(currentReport.start_date, currentReport.end_date)} dia(s)</strong>
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Observações</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    value={currentReport?.observations || ''}
-                    onChange={(e) => handleInputChange('observations', e.target.value)}
-                    className="h-32"
-                    placeholder="Adicione observações importantes sobre a viagem ou despesas..."
-                  />
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle>Despesas da Viagem</CardTitle>
-                  <Button onClick={addExpense} size="sm" variant="outline">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar Despesa
-                  </Button>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {currentReport?.expenses?.map((expense, index) => (
-                    <div key={expense.id || index} className="border p-4 rounded-lg shadow-sm relative">
-                      <h3 className="text-md font-medium mb-3">Item de Despesa #{index + 1}</h3>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="space-y-2">
-                          <Label>Categoria *</Label>
-                          <ControlledSelect
-                            value={expense.category}
-                            onValueChange={(value) => handleExpenseChange(index, 'category', value)}
-                            placeholder="Selecione"
-                          >
-                            {EXPENSE_CATEGORIES.map((cat) => (
-                              <ControlledSelectItem key={cat} value={cat}>
-                                {cat}
-                              </ControlledSelectItem>
-                            ))}
-                          </ControlledSelect>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Valor (R$) *</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={expense.amount}
-                            onChange={(e) => handleExpenseChange(index, 'amount', parseFloat(e.target.value) || 0)}
-                            placeholder="0.00"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Pago Por *</Label>
-                          <ControlledSelect
-                            value={expense.paid_by}
-                            onValueChange={(value) => handleExpenseChange(index, 'paid_by', value)}
-                            placeholder="Selecione"
-                          >
-                            <ControlledSelectItem value="Tripulante 1">
-                              {currentReport?.crew_member_name ? `Tripulante 1 (${currentReport.crew_member_name})` : 'Tripulante 1'}
-                            </ControlledSelectItem>
-                            {(showSecondCrew || currentReport?.crew_member_name_2) && (
-                              <ControlledSelectItem value="Tripulante 2">
-                                {currentReport?.crew_member_name_2 ? `Tripulante 2 (${currentReport.crew_member_name_2})` : 'Tripulante 2'}
-                              </ControlledSelectItem>
-                            )}
-                            <ControlledSelectItem value="Cliente">Cliente</ControlledSelectItem>
-                            <ControlledSelectItem value="ShareBrasil">ShareBrasil</ControlledSelectItem>
-                          </ControlledSelect>
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label>Comprovante</Label>
-                          <div className="flex items-center space-x-2">
-                            <label htmlFor={`receipt-upload-${index}`} className="flex-1 cursor-pointer">
-                              <div className="flex items-center space-x-2 px-3 py-2 border rounded-md hover:bg-accent transition-colors">
-                                {uploadingIndex === index ? (
-                                  <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
-                                ) : expense.receipt_url ? (
-                                  <FileText className="h-5 w-5 text-green-600" />
-                                ) : (
-                                  <Upload className="h-5 w-5 text-muted-foreground" />
-                                )}
-                                <span className="text-sm truncate">
-                                  {expense.receipt_url ? 'Comprovante Anexado' : 'Fazer Upload'}
-                                </span>
-                              </div>
-                            </label>
-                            <input
-                              id={`receipt-upload-${index}`}
-                              type="file"
-                              accept="image/*,application/pdf"
-                              className="hidden"
-                              onChange={(e) => handleFileUpload(index, e.target.files?.[0])}
-                              disabled={uploadingIndex !== null}
-                            />
-                            {expense.receipt_url && (
-                              <button
-                                onClick={() => {
-                                  setReceiptViewerUrl(expense.receipt_url!);
-                                  setReceiptViewerOpen(true);
-                                }}
-                                className="p-1.5 rounded-full hover:bg-accent transition-colors"
-                                title="Ver Comprovante"
-                              >
-                                <Eye className="h-5 w-5" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 space-y-2">
-                        <Label>Descrição Detalhada</Label>
-                        <Input
-                          value={expense.description}
-                          onChange={(e) => handleExpenseChange(index, 'description', e.target.value)}
-                          placeholder="Breve descrição da despesa"
-                        />
-                      </div>
-
-                      {currentReport.expenses.length > 0 && (
-                        <button
-                          onClick={() => removeExpense(index)}
-                          className="absolute top-4 right-4 text-destructive hover:text-destructive/80 p-1 rounded-full"
-                          title="Remover Despesa"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-
-              <Button
-                onClick={() => saveReport('Finalizado')}
-                disabled={isSaving}
-                title="Finalizar o relatório"
-                className="w-full md:w-auto"
-                size="lg"
-              >
-                <Send className="h-4 w-4 mr-2" />
-                {isSaving ? 'Salvando...' : 'FINALIZAR RELATORIO'}
-              </Button>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Por Pagador (R$)</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2 p-3 border rounded-md bg-muted/50">
-                      <div className="flex justify-between text-sm">
-                        <span>{currentReport.crew_member_name ? `Tripulante 1 (${currentReport.crew_member_name}):` : 'Tripulante 1:'}</span>
-                        <span className="font-medium">R$ {(currentReport.total_crew1 || 0).toFixed(2)}</span>
-                      </div>
-                      {(showSecondCrew || currentReport.crew_member_name_2) && (
-                        <div className="flex justify-between text-sm">
-                          <span>{currentReport.crew_member_name_2 ? `Tripulante 2 (${currentReport.crew_member_name_2}):` : 'Tripulante 2:'}</span>
-                          <span className="font-medium">R$ {(currentReport.total_crew2 || 0).toFixed(2)}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between text-sm">
-                        <span>Cliente:</span>
-                        <span className="font-medium">R$ {currentReport.total_client.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>ShareBrasil:</span>
-                        <span className="font-medium">R$ {currentReport.total_sharebrasil.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2">
-                        <span>TOTAL:</span>
-                        <span className="text-green-600">R$ {currentReport.total_amount.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Por Categoria (R$)</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2 p-3 border rounded-md bg-muted/50">
-                      <div className="flex justify-between text-sm">
-                        <span>Combustível:</span>
-                        <span className="font-medium">R$ {currentReport.total_fuel.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Hospedagem:</span>
-                        <span className="font-medium">R$ {currentReport.total_lodging.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Alimentação:</span>
-                        <span className="font-medium">R$ {currentReport.total_food.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Transporte:</span>
-                        <span className="font-medium">R$ {currentReport.total_transport.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Outros:</span>
-                        <span className="font-medium">R$ {currentReport.total_other.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2">
-                        <span>TOTAL:</span>
-                        <span className="text-green-600">R$ {currentReport.total_amount.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-            </div>
           </>
         )}
       </div>
