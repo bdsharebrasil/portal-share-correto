@@ -25,6 +25,7 @@ import { useTripulantes } from "@/hooks/useTripulantes";
 import { calculateReportTotals, extractPayerTotals, getValidExpenses } from "@/lib/travelReportUtils";
 import { draftStorage } from "@/lib/travelReportDraft";
 import type { TravelReportDraft } from "@/lib/travelReportDraft";
+import { cn } from "@/lib/utils";
 
 const EXPENSE_CATEGORIES = ['Combustível', 'Hospedagem', 'Alimentação', 'Transporte', 'Outros'];
 
@@ -293,23 +294,29 @@ export function TravelReportForm({
 
   return (
     <div className="space-y-6">
-      <Alert className="border-yellow-600/50 bg-yellow-950/50">
-        <AlertTriangle className="h-4 w-4 text-yellow-500" />
-        <AlertTitle className="text-yellow-500 font-semibold">Regras para Lançamento de Despesas:</AlertTitle>
-        <AlertDescription className="text-yellow-100/80 mt-2 space-y-2">
-          <ul className="list-disc list-inside space-y-1">
-            <li>É obrigatório anexar o comprovante de pagamento para cada despesa.</li>
-            <li>Cupons de crédito não são aceitos como comprovante de pagamento.</li>
-            <li>Não serão reembolsadas despesas com bebidas alcoólicas.</li>
-          </ul>
-        </AlertDescription>
+      <Alert className="border-amber-200/50 bg-gradient-to-r from-amber-50 to-orange-50 shadow-sm rounded-xl">
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-lg bg-amber-100/50 flex-shrink-0">
+            <AlertTriangle className="h-5 w-5 text-amber-600" />
+          </div>
+          <div className="flex-1">
+            <AlertTitle className="text-amber-900 font-bold text-base">Regras para Lançamento de Despesas</AlertTitle>
+            <AlertDescription className="text-amber-700/80 mt-3 space-y-2 leading-relaxed">
+              <ul className="list-disc list-inside space-y-2">
+                <li>É obrigatório anexar o comprovante de pagamento para cada despesa.</li>
+                <li>Cupons de crédito não são aceitos como comprovante de pagamento.</li>
+                <li>Não serão reembolsadas despesas com bebidas alcoólicas.</li>
+              </ul>
+            </AlertDescription>
+          </div>
+        </div>
       </Alert>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Informações da Viagem</CardTitle>
+      <Card className="shadow-md rounded-xl border-border/50">
+        <CardHeader className="p-6 border-b border-border/30">
+          <CardTitle className="text-xl font-bold text-foreground">Informações da Viagem</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <AutocompleteInput
@@ -452,17 +459,19 @@ export function TravelReportForm({
             </div>
 
             <div className="space-y-2">
-              <Label>Data Início *</Label>
+              <Label className="text-sm font-semibold">Data Início *</Label>
               <Popover open={startDateOpen} onOpenChange={setStartDateOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left font-normal"
+                    className="w-full justify-start text-left font-normal h-11 rounded-lg border-border/50 focus-visible:ring-2 focus-visible:ring-primary transition-all duration-200"
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4 text-white" />
-                    {currentReport.start_date
-                      ? format(new Date(currentReport.start_date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })
-                      : "Selecione a data"}
+                    <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span className="flex-1">
+                      {currentReport.start_date
+                        ? format(new Date(currentReport.start_date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })
+                        : "Selecione a data"}
+                    </span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={4}>
@@ -490,17 +499,19 @@ export function TravelReportForm({
             </div>
 
             <div className="space-y-2">
-              <Label>Data Fim *</Label>
+              <Label className="text-sm font-semibold">Data Fim *</Label>
               <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full justify-start text-left font-normal"
+                    className="w-full justify-start text-left font-normal h-11 rounded-lg border-border/50 focus-visible:ring-2 focus-visible:ring-primary transition-all duration-200"
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4 text-white" />
-                    {currentReport.end_date
-                      ? format(new Date(currentReport.end_date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })
-                      : "Selecione a data"}
+                    <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <span className="flex-1">
+                      {currentReport.end_date
+                        ? format(new Date(currentReport.end_date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })
+                        : "Selecione a data"}
+                    </span>
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={4}>
@@ -532,45 +543,52 @@ export function TravelReportForm({
 
             {currentReport.start_date && currentReport.end_date && (
               <div className="md:col-span-2">
-                <p className="text-sm text-green-600 font-semibold mt-2 p-2 bg-green-50 rounded">
-                  ✓ Duração da Viagem: <strong>{calculateDays(currentReport.start_date, currentReport.end_date)} dia(s)</strong>
-                </p>
+                <div className="text-sm font-semibold p-3 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/50 rounded-lg">
+                  <span className="text-green-700">
+                    ✓ Duração da Viagem: <strong className="text-lg text-green-600">{calculateDays(currentReport.start_date, currentReport.end_date)}</strong> dia{calculateDays(currentReport.start_date, currentReport.end_date) > 1 ? 's' : ''}
+                  </span>
+                </div>
               </div>
             )}
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Observações</CardTitle>
+      <Card className="shadow-md rounded-xl border-border/50">
+        <CardHeader className="p-6 border-b border-border/30">
+          <CardTitle className="text-xl font-bold text-foreground">Observações</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           <Textarea
             value={currentReport.observations || ''}
             onChange={(e) => handleInputChange('observations', e.target.value)}
-            className="h-32"
+            className="h-32 rounded-lg border-border/50 focus-visible:ring-2 focus-visible:ring-primary resize-none"
             placeholder="Adicione observações importantes sobre a viagem ou despesas..."
           />
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Despesas da Viagem</CardTitle>
-          <Button onClick={addExpense} size="sm" variant="outline">
+      <Card className="shadow-md rounded-xl border-border/50">
+        <CardHeader className="flex flex-row items-center justify-between p-6 border-b border-border/30">
+          <CardTitle className="text-xl font-bold text-foreground">Despesas da Viagem</CardTitle>
+          <Button onClick={addExpense} size="sm" className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
             <Plus className="h-4 w-4 mr-2" />
             Adicionar Despesa
           </Button>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="p-6 space-y-4">
           {currentReport.expenses?.map((expense, index) => (
-            <div key={expense.id || index} className="border p-4 rounded-lg shadow-sm relative">
-              <h3 className="text-md font-medium mb-3">Item de Despesa #{index + 1}</h3>
+            <div key={expense.id || index} className="border border-border/50 p-5 rounded-xl bg-card/50 shadow-sm hover:shadow-md transition-all duration-200 relative">
+              <h3 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                  {index + 1}
+                </span>
+                Item de Despesa
+              </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="space-y-2">
-                  <Label>Categoria *</Label>
+                  <Label className="text-xs font-semibold text-muted-foreground">Categoria *</Label>
                   <ControlledSelect
                     value={expense.category}
                     onValueChange={(value) => handleExpenseChange(index, 'category', value)}
@@ -585,17 +603,19 @@ export function TravelReportForm({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Data da Despesa</Label>
+                  <Label className="text-xs font-semibold text-muted-foreground">Data da Despesa</Label>
                   <Popover open={expenseDateOpenIndex === index} onOpenChange={(open) => setExpenseDateOpenIndex(open ? index : null)}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
-                        className="w-full justify-start text-left font-normal"
+                        className="w-full justify-start text-left font-normal h-11 rounded-lg border-border/50 focus-visible:ring-2 focus-visible:ring-primary transition-all duration-200"
                       >
-                        <CalendarIcon className="mr-2 h-4 w-4 text-white" />
-                        {expense.expense_date
-                          ? format(new Date(expense.expense_date + 'T00:00:00'), "dd/MM/yyyy", { locale: ptBR })
-                          : "Selecione"}
+                        <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="flex-1 truncate">
+                          {expense.expense_date
+                            ? format(new Date(expense.expense_date + 'T00:00:00'), "dd/MM", { locale: ptBR })
+                            : "Data"}
+                        </span>
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start" side="bottom" sideOffset={4}>
@@ -621,29 +641,30 @@ export function TravelReportForm({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Valor (R$) *</Label>
+                  <Label className="text-xs font-semibold text-muted-foreground">Valor (R$) *</Label>
                   <Input
                     type="number"
                     step="0.01"
                     value={expense.amount}
                     onChange={(e) => handleExpenseChange(index, 'amount', parseFloat(e.target.value) || 0)}
                     placeholder="0.00"
+                    className="h-11 rounded-lg border-border/50 focus-visible:ring-2 focus-visible:ring-primary font-mono"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Pago Por *</Label>
+                  <Label className="text-xs font-semibold text-muted-foreground">Pago Por *</Label>
                   <ControlledSelect
                     value={expense.paid_by}
                     onValueChange={(value) => handleExpenseChange(index, 'paid_by', value)}
                     placeholder="Selecione"
                   >
                     <ControlledSelectItem value="Tripulante 1">
-                      {currentReport.crew_member_name ? `Tripulante 1 (${currentReport.crew_member_name})` : 'Tripulante 1'}
+                      {currentReport.crew_member_name ? `T1 (${currentReport.crew_member_name.split(' ')[0]})` : 'Tripulante 1'}
                     </ControlledSelectItem>
                     {(showSecondCrew || currentReport.crew_member_name_2) && (
                       <ControlledSelectItem value="Tripulante 2">
-                        {currentReport.crew_member_name_2 ? `Tripulante 2 (${currentReport.crew_member_name_2})` : 'Tripulante 2'}
+                        {currentReport.crew_member_name_2 ? `T2 (${currentReport.crew_member_name_2.split(' ')[0]})` : 'Tripulante 2'}
                       </ControlledSelectItem>
                     )}
                     <ControlledSelectItem value="Cliente">Cliente</ControlledSelectItem>
@@ -655,28 +676,29 @@ export function TravelReportForm({
 
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Descrição Detalhada</Label>
+                  <Label className="text-xs font-semibold text-muted-foreground">Descrição Detalhada</Label>
                   <Input
                     value={expense.description}
                     onChange={(e) => handleExpenseChange(index, 'description', e.target.value)}
-                    placeholder="Breve descrição da despesa"
+                    placeholder="Breve descrição"
+                    className="h-11 rounded-lg border-border/50 focus-visible:ring-2 focus-visible:ring-primary"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Comprovante</Label>
-                  <div className="flex items-center space-x-2">
+                  <Label className="text-xs font-semibold text-muted-foreground">Comprovante</Label>
+                  <div className="flex items-center gap-2">
                     <label htmlFor={`receipt-upload-${index}`} className="flex-1 cursor-pointer">
-                      <div className="flex items-center space-x-2 px-3 py-2 border rounded-md hover:bg-accent transition-colors">
+                      <div className="flex items-center gap-2 px-3 h-11 border border-border/50 rounded-lg hover:bg-accent/50 transition-all duration-200">
                         {uploadingIndex === index ? (
-                          <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
+                          <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
                         ) : expense.receipt_url ? (
-                          <FileText className="h-5 w-5 text-green-600" />
+                          <FileText className="h-4 w-4 text-green-600 flex-shrink-0" />
                         ) : (
-                          <Upload className="h-5 w-5 text-muted-foreground" />
+                          <Upload className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         )}
                         <span className="text-sm truncate">
-                          {expense.receipt_url ? 'Comprovante Anexado' : 'Fazer Upload'}
+                          {expense.receipt_url ? 'Anexado' : 'Enviar'}
                         </span>
                       </div>
                     </label>
@@ -695,10 +717,10 @@ export function TravelReportForm({
                             onReceiptView(expense.receipt_url!);
                           }
                         }}
-                        className="p-1.5 rounded-full hover:bg-accent transition-colors"
+                        className="p-2 rounded-lg hover:bg-accent transition-all duration-200"
                         title="Ver Comprovante"
                       >
-                        <Eye className="h-5 w-5" />
+                        <Eye className="h-4 w-4 text-primary" />
                       </button>
                     )}
                   </div>
@@ -708,10 +730,10 @@ export function TravelReportForm({
               {currentReport.expenses.length > 0 && (
                 <button
                   onClick={() => removeExpense(index)}
-                  className="absolute top-4 right-4 text-destructive hover:text-destructive/80 p-1 rounded-full"
+                  className="absolute top-4 right-4 text-destructive/60 hover:text-destructive hover:bg-destructive/10 p-2 rounded-lg transition-all duration-200 active:scale-[0.95]"
                   title="Remover Despesa"
                 >
-                  <Trash2 className="h-5 w-5" />
+                  <Trash2 className="h-4 w-4" />
                 </button>
               )}
             </div>
@@ -724,6 +746,7 @@ export function TravelReportForm({
           onClick={() => handleSave('Rascunho')}
           disabled={isSaving}
           variant="outline"
+          className="rounded-lg border-border/50 hover:bg-accent transition-all duration-200 active:scale-[0.98]"
         >
           <Save className="h-4 w-4 mr-2" />
           {isSaving ? 'Salvando...' : 'Salvar Rascunho'}
@@ -731,79 +754,84 @@ export function TravelReportForm({
         <Button
           onClick={() => handleSave('Finalizado')}
           disabled={isSaving}
-          className="w-full md:w-auto"
+          className="flex-1 md:flex-initial bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] font-semibold"
           size="lg"
         >
           <Send className="h-4 w-4 mr-2" />
-          {isSaving ? 'Salvando...' : 'FINALIZAR RELATORIO'}
+          {isSaving ? 'Salvando...' : 'Finalizar Relatório'}
         </Button>
-        <Button variant="outline" onClick={onCancel} disabled={isSaving}>
-          Voltar ao Histórico
+        <Button
+          variant="outline"
+          onClick={onCancel}
+          disabled={isSaving}
+          className="rounded-lg border-border/50 hover:bg-accent transition-all duration-200 active:scale-[0.98]"
+        >
+          Voltar
         </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Por Pagador (R$)</CardTitle>
+        <Card className="shadow-md rounded-xl border-border/50">
+          <CardHeader className="p-6 border-b border-border/30">
+            <CardTitle className="text-lg font-bold">Por Pagador</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2 p-3 border rounded-md bg-muted/50">
+          <CardContent className="p-6">
+            <div className="space-y-3">
               <div className="flex justify-between text-sm">
-                <span>{currentReport.crew_member_name ? `Tripulante 1 (${currentReport.crew_member_name}):` : 'Tripulante 1:'}</span>
-                <span className="font-medium">R$ {(currentReport.total_crew1 || 0).toFixed(2)}</span>
+                <span className="text-muted-foreground">{currentReport.crew_member_name ? `Tripulante 1` : 'Tripulante 1'}</span>
+                <span className="font-semibold text-foreground font-mono">R$ {(currentReport.total_crew1 || 0).toFixed(2).replace('.', ',')}</span>
               </div>
               {(showSecondCrew || currentReport.crew_member_name_2) && (
                 <div className="flex justify-between text-sm">
-                  <span>{currentReport.crew_member_name_2 ? `Tripulante 2 (${currentReport.crew_member_name_2}):` : 'Tripulante 2:'}</span>
-                  <span className="font-medium">R$ {(currentReport.total_crew2 || 0).toFixed(2)}</span>
+                  <span className="text-muted-foreground">Tripulante 2</span>
+                  <span className="font-semibold text-foreground font-mono">R$ {(currentReport.total_crew2 || 0).toFixed(2).replace('.', ',')}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm">
-                <span>Cliente:</span>
-                <span className="font-medium">R$ {currentReport.total_client.toFixed(2)}</span>
+                <span className="text-muted-foreground">Cliente</span>
+                <span className="font-semibold text-foreground font-mono">R$ {currentReport.total_client.toFixed(2).replace('.', ',')}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>ShareBrasil:</span>
-                <span className="font-medium">R$ {currentReport.total_sharebrasil.toFixed(2)}</span>
+                <span className="text-muted-foreground">ShareBrasil</span>
+                <span className="font-semibold text-foreground font-mono">R$ {currentReport.total_sharebrasil.toFixed(2).replace('.', ',')}</span>
               </div>
-              <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2">
-                <span>TOTAL:</span>
-                <span className="text-green-600">R$ {currentReport.total_amount.toFixed(2)}</span>
+              <div className="flex justify-between pt-3 mt-3 border-t border-border/30">
+                <span className="font-bold text-foreground">TOTAL</span>
+                <span className="font-bold text-lg text-green-600 font-mono">R$ {currentReport.total_amount.toFixed(2).replace('.', ',')}</span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Por Categoria (R$)</CardTitle>
+        <Card className="shadow-md rounded-xl border-border/50">
+          <CardHeader className="p-6 border-b border-border/30">
+            <CardTitle className="text-lg font-bold">Por Categoria</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2 p-3 border rounded-md bg-muted/50">
+          <CardContent className="p-6">
+            <div className="space-y-3">
               <div className="flex justify-between text-sm">
-                <span>Combustível:</span>
-                <span className="font-medium">R$ {currentReport.total_fuel.toFixed(2)}</span>
+                <span className="text-muted-foreground">Combustível</span>
+                <span className="font-semibold text-foreground font-mono">R$ {currentReport.total_fuel.toFixed(2).replace('.', ',')}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>Hospedagem:</span>
-                <span className="font-medium">R$ {currentReport.total_lodging.toFixed(2)}</span>
+                <span className="text-muted-foreground">Hospedagem</span>
+                <span className="font-semibold text-foreground font-mono">R$ {currentReport.total_lodging.toFixed(2).replace('.', ',')}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>Alimentação:</span>
-                <span className="font-medium">R$ {currentReport.total_food.toFixed(2)}</span>
+                <span className="text-muted-foreground">Alimentação</span>
+                <span className="font-semibold text-foreground font-mono">R$ {currentReport.total_food.toFixed(2).replace('.', ',')}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>Transporte:</span>
-                <span className="font-medium">R$ {currentReport.total_transport.toFixed(2)}</span>
+                <span className="text-muted-foreground">Transporte</span>
+                <span className="font-semibold text-foreground font-mono">R$ {currentReport.total_transport.toFixed(2).replace('.', ',')}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>Outros:</span>
-                <span className="font-medium">R$ {currentReport.total_other.toFixed(2)}</span>
+                <span className="text-muted-foreground">Outros</span>
+                <span className="font-semibold text-foreground font-mono">R$ {currentReport.total_other.toFixed(2).replace('.', ',')}</span>
               </div>
-              <div className="flex justify-between font-bold text-lg border-t pt-2 mt-2">
-                <span>TOTAL:</span>
-                <span className="text-green-600">R$ {currentReport.total_amount.toFixed(2)}</span>
+              <div className="flex justify-between pt-3 mt-3 border-t border-border/30">
+                <span className="font-bold text-foreground">TOTAL</span>
+                <span className="font-bold text-lg text-green-600 font-mono">R$ {currentReport.total_amount.toFixed(2).replace('.', ',')}</span>
               </div>
             </div>
           </CardContent>
