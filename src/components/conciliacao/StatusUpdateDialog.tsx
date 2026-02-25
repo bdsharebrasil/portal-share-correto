@@ -31,7 +31,7 @@ interface StatusUpdateDialogProps {
     client_id?: string;
     receiver_id?: string;
     aircraft_id?: string;
-    payment_term?: string;
+    prazo_pagamento?: string;
     forma_pagamento?: string;
     saldo_pendente?: number | null;
   };
@@ -53,14 +53,14 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
   const [selectedBanco, setSelectedBanco] = useState<string>("");
   const [comprovante, setComprovante] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [paymentTerm, setPaymentTerm] = useState<string>(reconciliation.payment_term || "");
+  const [paymentTerm, setPaymentTerm] = useState<string>(reconciliation.prazo_pagamento || "");
 
   useEffect(() => {
     setStatus(reconciliation.status);
     setSelectedBanco("");
     setComprovante(null);
-    setPaymentTerm(reconciliation.payment_term || "");
-  }, [reconciliation.status, reconciliation.payment_term, open]);
+    setPaymentTerm(reconciliation.prazo_pagamento || "");
+  }, [reconciliation.status, reconciliation.prazo_pagamento, open]);
 
   useEffect(() => {
     fetchContasBancarias();
@@ -113,7 +113,7 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
     const needsBank = requiresBankSelection(status, reconciliation.type || '');
 
     // Validar prazo de vencimento quando status é "enviado"
-    if (statusEnviado && !paymentTerm && !reconciliation.payment_term) {
+    if (statusEnviado && !paymentTerm && !reconciliation.prazo_pagamento) {
       toast.error("Defina o prazo de vencimento antes de enviar");
       return;
     }
@@ -140,7 +140,7 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
 
       // Adicionar prazo de vencimento se definido
       if (paymentTerm) {
-        updateData.payment_term = paymentTerm;
+        updateData.prazo_pagamento = prazo_pagamento;
       }
 
       // Adicionar comprovante se houver
@@ -172,7 +172,7 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
         const reconciliationWithPaymentTerm = {
           id: reconciliation.id,
           type: reconciliation.type || 'cliente',
-          payment_term: paymentTerm || reconciliation.payment_term || null,
+          prazo_pagamento: paymentTerm || reconciliation.prazo_pagamento || null,
           amount: reconciliation.amount || 0,
           date: reconciliation.date || new Date().toISOString().split('T')[0],
           description: reconciliation.description || '',
@@ -205,7 +205,7 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
         const reconciliationData = {
           id: reconciliation.id,
           type: reconciliation.type || 'cliente',
-          payment_term: paymentTerm || reconciliation.payment_term || null,
+          prazo_pagamento: paymentTerm || reconciliation.prazo_pagamento || null,
           amount: reconciliation.amount || 0,
           date: reconciliation.date || new Date().toISOString().split('T')[0],
           description: reconciliation.description || '',
@@ -253,7 +253,7 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
   }));
 
   // Mostrar campo de vencimento quando for enviar
-  const showPaymentTermField = isStatusEnviado(status) && !reconciliation.payment_term;
+  const showPaymentTermField = isStatusEnviado(status) && !reconciliation.prazo_pagamento;
   
   // Mostrar campos de banco quando status requer
   const showBankFields = requiresBankSelection(status, reconciliation.type || '');

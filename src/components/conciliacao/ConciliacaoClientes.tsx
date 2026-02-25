@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CheckCircle, Clock, Send, Users, Check, ChevronLeft, ChevronRight, Plus, X, Plane } from "lucide-react";
+import { CheckCircle, Clock, Send, Users, Check, Plus, X, Plane } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import {
@@ -39,6 +39,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useGroupedCategories } from "@/hooks/useGroupedCategories";
 import { StatusUpdateDialog } from "./StatusUpdateDialog";
 import { AddBankReconciliationForm } from "./AddBankReconciliationForm";
+import { MonthSelector } from "./MonthSelector";
 import { syncBankReconciliationToFinancial } from "@/services/financialSyncClient";
 
 // --- Interfaces ---
@@ -62,9 +63,11 @@ interface BankReconciliation {
   categoria_movimentacao_id?: string | null; // Adicionado para corrigir a tipagem no filtro
   client_id: string | null;
   aircraft_id: string | null;
-  payment_term: string | null;
+  prazo_pagamento: string | null;
   criado_por?: string;
+  client_partner: string | null;
   clients: { company_name: string } | null;
+  client_partners: { legal_name: string } | null;
   aircraft: { registration: string } | null;
 }
 
@@ -75,7 +78,7 @@ const addDespesaSchema = z.object({
   amount: z.string().min(1, "Valor é obrigatório"),
   category: z.string().min(1, "Categoria é obrigatória"),
   status: z.enum(["pendente", "enviado", "recebido"]),
-  payment_term: z.string().optional().nullable(),
+  prazo_pagamento: z.string().optional().nullable(),
 });
 
 type AddDespesaFormValues = z.infer<typeof addDespesaSchema>;
@@ -137,6 +140,7 @@ export function ConciliacaoClientes() {
         .select(`
           *,
           clients:client_id (company_name),
+          client_partners:client_partner (legal_name),
           aircraft:aircraft_id (registration)
         `)
         .eq('type', 'cliente' as any)
@@ -211,14 +215,9 @@ export function ConciliacaoClientes() {
       .join(' ');
   };
 
-  const previousMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
 
   const today = new Date();
   const isCurrentMonth = currentDate.getFullYear() === today.getFullYear() && currentDate.getMonth() === today.getMonth();
-
-  const monthYear = currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).charAt(0).toUpperCase() +
-    currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).slice(1);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -249,31 +248,12 @@ export function ConciliacaoClientes() {
 
   return (
     <div className="space-y-6">
-      {/* Seletor de Mês */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={previousMonth}
-            className="rounded-lg border-border/50 hover:bg-accent/50"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <h2 className="text-lg font-semibold min-w-32 text-center">
-            {monthYear}
-            {isCurrentMonth && <span className="ml-2 text-xs bg-primary/20 text-primary px-2 py-1 rounded-md font-medium">Atual</span>}
-          </h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={nextMonth}
-            className="rounded-lg border-border/50 hover:bg-accent/50"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      {/* Seletor de Mês com Calendário Moderno */}
+      <MonthSelector
+        currentDate={currentDate}
+        onDateChange={setCurrentDate}
+        isCurrentMonth={isCurrentMonth}
+      />
 
       {/* Cards de Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -402,7 +382,20 @@ export function ConciliacaoClientes() {
                               <span className="truncate" title={item.description}>{item.description}</span>
                             </div>
                           </TableCell>
-                          <TableCell>{item.clients?.company_name || '-'}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <span className="text-sm font-medium">
+                                {item.client_partner && item.client_partners?.legal_name
+                                  ? item.client_partners.legal_name
+                                  : item.clients?.company_name || '-'}
+                              </span>
+                              {item.client_partner && item.client_partners?.legal_name && (
+                                <Badge variant="outline" className="w-fit text-xs">
+                                  Parceiro
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <Badge variant="outline">{item.aircraft?.registration || '-'}</Badge>
                           </TableCell>
@@ -420,8 +413,8 @@ export function ConciliacaoClientes() {
                                 reconciliation={item}
                                 onSave={fetchReconciliations}
                               />
-                            ) : item.payment_term ? (
-                              <span className="text-sm">{format(new Date(item.payment_term + 'T12:00:00'), 'dd/MM/yyyy')}</span>
+                            ) : item.prazo_pagamento ? (
+                                <span className="text-sm">{format(new Date(item.prazo_pagamento + 'T12:00:00'), 'dd/MM/yyyy')}</span>
                             ) : (
                               <span className="text-xs text-muted-foreground">-</span>
                             )}
@@ -524,7 +517,7 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
   };
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    parseLocalDate(reconciliation.payment_term)
+    parseLocalDate(reconciliation.prazo_pagamento)
   );
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
@@ -544,7 +537,7 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
 
       const { error } = await supabase
         .from('bank_reconciliations')
-        .update({ payment_term: dateStr } as any)
+        .update({ prazo_pagamento: dateStr } as any)
         .eq('id', reconciliation.id as any);
 
       if (error) throw error;
@@ -563,7 +556,7 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
           if (relatedReport) {
             await supabase
               .from('travel_expense_reports')
-              .update({ payment_term: dateStr } as any)
+              .update({ prazo_pagamento: dateStr } as any)
               .eq('id', (relatedReport as any).id as any);
           }
         }
@@ -606,7 +599,7 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
   if (!isEditing) {
     return (
       <button onClick={() => setIsEditing(true)} className="text-sm hover:text-blue-600 hover:underline flex items-center gap-1">
-        {reconciliation.payment_term ? formatDateForDisplay(reconciliation.payment_term) : <span className="text-xs text-muted-foreground italic flex items-center gap-1"><Plus className="w-3 h-3" />Prazo</span>}
+        {reconciliation.prazo_pagamento ? formatDateForDisplay(reconciliation.prazo_pagamento) : <span className="text-xs text-muted-foreground italic flex items-center gap-1"><Plus className="w-3 h-3" />Prazo</span>}
       </button>
     );
   }
@@ -664,6 +657,7 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
         status: data.status,
         client_id: parentReconciliation.client_id,
         aircraft_id: parentReconciliation.aircraft_id,
+        client_partner: parentReconciliation.client_partner,
         criado_por: user.id,
       }] as any)
         .select()
@@ -671,13 +665,33 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
 
       if (error) throw error;
 
-      if (parentReconciliation.client_id && inserted) {
+      if ((parentReconciliation.client_id || parentReconciliation.client_partner) && inserted) {
         try {
-          const { data: clientData } = await supabase
-            .from("clients")
-            .select("company_name, cnpj")
-            .eq("id", parentReconciliation.client_id)
-            .single();
+          let clienteNome = "Cliente";
+          let clienteCnpj = "";
+
+          // Se tem client_partner, buscar dados do partner, senão do client
+          if (parentReconciliation.client_partner) {
+            const { data: partnerData } = await supabase
+              .from("client_partners")
+              .select("legal_name, cnpj")
+              .eq("id", parentReconciliation.client_partner)
+              .single();
+            if (partnerData) {
+              clienteNome = partnerData.legal_name || "Cliente";
+              clienteCnpj = partnerData.cnpj || "";
+            }
+          } else if (parentReconciliation.client_id) {
+            const { data: clientData } = await supabase
+              .from("clients")
+              .select("company_name, cnpj")
+              .eq("id", parentReconciliation.client_id)
+              .single();
+            if (clientData) {
+              clienteNome = clientData.company_name || "Cliente";
+              clienteCnpj = clientData.cnpj || "";
+            }
+          }
 
           let aircraftRegistration = "";
           if (parentReconciliation.aircraft_id) {
@@ -690,15 +704,14 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
           }
 
           const numeroDocumento = `REIMB-${Date.now().toString().slice(-6)}`;
-          const clienteNome = clientData?.company_name || "Cliente";
 
           await supabase.from("contas_areceber").insert({
             numero: numeroDocumento,
             referencia: clienteNome,
             cliente_nome: clienteNome,
-            cliente_cnpj: clientData?.cnpj || "",
+            cliente_cnpj: clienteCnpj,
             data_criacao: data.date,
-            data_vencimento: data.payment_term || data.date,
+            data_vencimento: data.prazo_pagamento || data.date,
             valor: parseFloat(data.amount),
             categoria: data.category || "Reembolso de Despesa",
             descricao: data.description || "Conta a receber",
