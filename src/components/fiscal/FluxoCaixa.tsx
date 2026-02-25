@@ -79,7 +79,6 @@ export function FluxoCaixa() {
     tipo: 100,
     descricao: 180,
     categoria: 130,
-    referencia: 130,
     cliente: 130,
     valor: 110,
     conta: 120,
@@ -115,7 +114,6 @@ export function FluxoCaixa() {
       "tipo",
       "descricao",
       "categoria",
-      "referencia",
       "cliente",
       "valor",
       "conta",
@@ -215,7 +213,6 @@ export function FluxoCaixa() {
       tipo: "T",
       descricao: "Desc",
       categoria: "Cat",
-      referencia: "Ref",
       cliente: "Cl",
       valor: "V",
       conta: "C",
@@ -765,34 +762,7 @@ export function FluxoCaixa() {
                           title="Arraste para redimensionar"
                         />
                       </div>
-                    </TableHead>
-                  )}
-                  {expandedColumns.has("referencia") && (
-                    <TableHead className="text-foreground/70 group relative select-none" style={{
-                        width: `${columnWidths.referencia}px`,
-                        minWidth: `${columnWidths.referencia}px`,
-                        maxWidth: `${columnWidths.referencia}px`,
-                      }}>
-                      <div className="flex items-center justify-between h-full pr-0">
-                        <div className="flex items-center gap-1 flex-1 truncate">
-                          <span>Referência</span>
-                          <button
-                            onClick={() => toggleColumnVisibility("referencia")}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
-                            title="Ocultar coluna"
-                          >
-                            <EyeOff className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div
-                          onMouseDown={(e) => handleColumnResizeStart(e, "referencia")}
-                          className={`w-1 h-6 cursor-col-resize bg-border hover:bg-primary/50 transition-colors flex-shrink-0 ${
-                            resizingColumn === "referencia" ? "bg-primary" : ""
-                          }`}
-                          title="Arraste para redimensionar"
-                        />
-                      </div>
-                    </TableHead>
+                  
                   )}
                   {expandedColumns.has("cliente") && (
                     <TableHead className="text-foreground/70 group relative select-none" style={{
@@ -1099,16 +1069,7 @@ export function FluxoCaixa() {
                           maxWidth: `${columnWidths.categoria}px`,
                         }}>
                           {transacao.categoria_nome || "-"}
-                        </TableCell>
-                      )}
-                      {expandedColumns.has("referencia") && (
-                        <TableCell className="text-foreground/80 truncate" title={transacao.referencia || ""}style={{
-                          width: `${columnWidths.referencia}px`,
-                          minWidth: `${columnWidths.referencia}px`,
-                          maxWidth: `${columnWidths.referencia}px`,
-                        }}>
-                          {transacao.referencia || "-"}
-                        </TableCell>
+                    
                       )}
                       {expandedColumns.has("cliente") && (
                         <TableCell className="text-foreground/80 truncate" title={transacao.cliente_nome || ""} style={{
