@@ -1,7 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
-
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Filter, SlidersHorizontal, CalendarDays } from 'lucide-react';
+import { Search, X, SlidersHorizontal, CalendarDays } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +12,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useDebounce } from '@/hooks/useDebounce';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
 
 export interface FinanceiroFilterState {
@@ -42,12 +40,18 @@ const STATUS_OPTIONS = [
 ];
 
 const SOURCE_OPTIONS = [
-  { value: 'all', label: 'Todas as fontes' },
-  { value: 'reconciliation', label: 'Conciliação' },
-  { value: 'despesa', label: 'Despesas' },
+  { value: 'all', label: 'Entrada e Saída' },
+  { value: 'entrada', label: 'Entrada' },
+  { value: 'saída', label: 'Saída' },
 ];
 
-export const FinanceiroFilters = ({ filters, onFiltersChange, resultCount, maxAmount, isMobile: isMobileProps }: FinanceiroFiltersProps) => {
+export const FinanceiroFilters = ({
+  filters,
+  onFiltersChange,
+  resultCount,
+  maxAmount,
+  isMobile: isMobileProps,
+}: FinanceiroFiltersProps) => {
   const [searchInput, setSearchInput] = useState(filters.search);
   const debouncedSearch = useDebounce(searchInput, 300);
   const [isMobile, setIsMobile] = useState(isMobileProps ?? false);
@@ -100,13 +104,15 @@ export const FinanceiroFilters = ({ filters, onFiltersChange, resultCount, maxAm
   const FilterControls = () => (
     <div className="space-y-4">
       <div>
-        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 block">Status</label>
-        <Select value={filters.status} onValueChange={(v) => onFiltersChange({ ...filters, status: v })}>
+        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 block">
+          Tipo
+        </label>
+        <Select value={filters.source} onValueChange={(v) => onFiltersChange({ ...filters, source: v })}>
           <SelectTrigger className="bg-card/50 border-border/50">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {STATUS_OPTIONS.map(o => (
+            {SOURCE_OPTIONS.map((o) => (
               <SelectItem key={o.value} value={o.value}>
                 {o.label}
               </SelectItem>
@@ -115,13 +121,15 @@ export const FinanceiroFilters = ({ filters, onFiltersChange, resultCount, maxAm
         </Select>
       </div>
       <div>
-        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 block">Fonte</label>
-        <Select value={filters.source} onValueChange={(v) => onFiltersChange({ ...filters, source: v })}>
+        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 block">
+          Status
+        </label>
+        <Select value={filters.status} onValueChange={(v) => onFiltersChange({ ...filters, status: v })}>
           <SelectTrigger className="bg-card/50 border-border/50">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {SOURCE_OPTIONS.map(o => (
+            {STATUS_OPTIONS.map((o) => (
               <SelectItem key={o.value} value={o.value}>
                 {o.label}
               </SelectItem>
@@ -143,13 +151,18 @@ export const FinanceiroFilters = ({ filters, onFiltersChange, resultCount, maxAm
         />
       </div>
       <div>
-        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 block">Período</label>
+        <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2 block">
+          Período
+        </label>
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" className="w-full justify-start text-left bg-card/50 border-border/50">
               <CalendarDays className="h-4 w-4 mr-2" />
               {filters.dateRange?.from
-                ? `${format(filters.dateRange.from, 'dd/MM/yy', { locale: ptBR })} — ${filters.dateRange?.to ? format(filters.dateRange.to, 'dd/MM/yy', { locale: ptBR }) : '...'}`
+                ? `${format(filters.dateRange.from, 'dd/MM/yy', { locale: ptBR })} — ${filters.dateRange?.to
+                  ? format(filters.dateRange.to, 'dd/MM/yy', { locale: ptBR })
+                  : '...'
+                }`
                 : 'Selecionar período'}
             </Button>
           </PopoverTrigger>
@@ -177,7 +190,7 @@ export const FinanceiroFilters = ({ filters, onFiltersChange, resultCount, maxAm
           <Input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Buscar transação..."
+            placeholder="Buscar descrição ou documento..."
             className="pl-10 bg-card/50 border-border/50 backdrop-blur-sm"
           />
           {searchInput && (
@@ -240,18 +253,6 @@ export const FinanceiroFilters = ({ filters, onFiltersChange, resultCount, maxAm
         </motion.span>
 
         <AnimatePresence>
-          {filters.status !== 'all' && (
-            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-              <Badge
-                variant="secondary"
-                className="gap-1 cursor-pointer hover:bg-destructive/20"
-                onClick={() => removeFilter('status')}
-              >
-                Status: {STATUS_OPTIONS.find(o => o.value === filters.status)?.label}
-                <X className="h-3 w-3" />
-              </Badge>
-            </motion.div>
-          )}
           {filters.source !== 'all' && (
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
               <Badge
@@ -259,7 +260,19 @@ export const FinanceiroFilters = ({ filters, onFiltersChange, resultCount, maxAm
                 className="gap-1 cursor-pointer hover:bg-destructive/20"
                 onClick={() => removeFilter('source')}
               >
-                Fonte: {SOURCE_OPTIONS.find(o => o.value === filters.source)?.label}
+                Tipo: {SOURCE_OPTIONS.find((o) => o.value === filters.source)?.label}
+                <X className="h-3 w-3" />
+              </Badge>
+            </motion.div>
+          )}
+          {filters.status !== 'all' && (
+            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+              <Badge
+                variant="secondary"
+                className="gap-1 cursor-pointer hover:bg-destructive/20"
+                onClick={() => removeFilter('status')}
+              >
+                Status: {STATUS_OPTIONS.find((o) => o.value === filters.status)?.label}
                 <X className="h-3 w-3" />
               </Badge>
             </motion.div>
