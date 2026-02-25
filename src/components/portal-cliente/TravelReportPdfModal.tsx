@@ -14,6 +14,15 @@ interface TravelReportPdfModalProps {
   reportNumber: string;
   pdfUrl?: string;
 }
+export interface ClientPartner {
+  client_id: string;
+  cpf: string;
+  created_at: string;
+  id: string;
+          name: string
+          share_percentage: number | null
+          updated_at: string
+          }
 
 export function TravelReportPdfModal({
   open,
@@ -42,7 +51,11 @@ export function TravelReportPdfModal({
 
       const { data: fullReport } = await supabase
         .from("travel_expense_reports")
-        .select("*")
+        .select(`
+          *,
+          client_id_rel:client_id(company_name),
+          partner_id_rel:client_partner(name)
+        `)
         .eq("id", reportId)
         .single();
 
@@ -64,9 +77,14 @@ export function TravelReportPdfModal({
 
       const correctedTotals = calculateReportTotals(expenses);
 
+      // Determinar o nome do cliente: se tem client_partner, usar nome do partner; senão usar nome do cliente
+      const clienteName = fullReport.client_partner && (fullReport as any).partner_id_rel?.name 
+        ? (fullReport as any).partner_id_rel.name 
+        : (fullReport as any).client_id_rel?.name || '-';
+
       const pdfReport = {
         numero: fullReport.report_number,
-        cliente_nome: fullReport.client,
+        cliente_nome: clienteName,
         aeronave: fullReport.aircraft_registration,
         tripulante: fullReport.crew_member_name,
         tripulante2: fullReport.crew_member_name_2,
@@ -80,6 +98,7 @@ export function TravelReportPdfModal({
           descricao: e.description,
           valor: e.amount,
           pago_por: e.paid_by,
+          data: e.expense_date || '',
           comprovante_url: e.receipt_url,
         })),
         total_combustivel: correctedTotals.total_fuel,
@@ -235,7 +254,11 @@ export function TravelReportPdfModal({
       } else {
         const { data: fullReport } = await supabase
           .from("travel_expense_reports")
-          .select("*")
+          .select(`
+            *,
+            client_id_rel:client_id(company_name),
+            partner_id_rel:client_partner(name)
+          `)
           .eq("id", reportId)
           .single();
 
@@ -257,9 +280,14 @@ export function TravelReportPdfModal({
 
         const correctedTotals = calculateReportTotals(expenses);
 
+        // Determinar o nome do cliente: se tem client_partner, usar nome do partner; senão usar nome do cliente
+        const clienteName = fullReport.client_partner && (fullReport as any).partner_id_rel?.name 
+          ? (fullReport as any).partner_id_rel.name 
+          : (fullReport as any).client_id_rel?.name || '-';
+
         const pdfReport = {
           numero: fullReport.report_number,
-          cliente_nome: fullReport.client,
+          cliente_nome: clienteName,
           aeronave: fullReport.aircraft_registration,
           tripulante: fullReport.crew_member_name,
           tripulante2: fullReport.crew_member_name_2,
@@ -273,6 +301,7 @@ export function TravelReportPdfModal({
             descricao: e.description,
             valor: e.amount,
             pago_por: e.paid_by,
+            data: e.expense_date || '',
             comprovante_url: e.receipt_url,
           })),
           total_combustivel: correctedTotals.total_fuel,

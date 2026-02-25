@@ -1,5 +1,4 @@
 import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -17,22 +16,20 @@ export type Cliente = Tables<"clients"> & {
   }>;
 };
 
+// Sugestão: usar a tipagem gerada pelo Supabase em vez de uma interface manual
+export type ClientPartner = Tables<"client_partners">;
+
 const clientesQueryKey = ["clients"];
 
-/**
- * Hook para buscar todos os clientes cadastrados com suas aeronaves.
- * Usa o backend remoto (Cloudflare Workers) para cache e proxy do Supabase.
- * Se o backend não está disponível, faz fallback direto para Supabase.
- * Retorna uma lista de clientes ordenada pelo nome da empresa.
- */
 export const useClientes = () => {
   const query = useQuery<Cliente[]>({
     queryKey: clientesQueryKey,
     queryFn: async () => {
       try {
-        // Buscar diretamente do Supabase (evita depender do backend Workers)
         const { data, error } = await supabase
           .from('clients')
+          // Se precisar trazer as aeronaves vinculadas, use o select abaixo:
+          // .select('*, client_aircraft(aircraft_id, share_percentage, aircraft(id, registration, manufacturer, model, year))')
           .select('*')
           .order('company_name', { ascending: true });
 
@@ -55,7 +52,7 @@ export const useClientes = () => {
         throw error;
       }
     },
-    staleTime: 15 * 60 * 1000, // 15 minutos (compatível com cache do backend)
+    staleTime: 15 * 60 * 1000, // 15 minutos
     gcTime: 30 * 60 * 1000, // 30 minutos
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
@@ -68,3 +65,52 @@ export const useClientes = () => {
     errorClientes: query.error,
   };
 };
+
+/**
+ * Hook para buscar parceiros (sócios) de um cliente
+ */
+export function useClientPartners(clientId: string | null) {
+  return useQuery({
+    queryKey: ["client-partners", clientId],
+    queryFn: async () => {
+      // O 'enabled' já barra a execução se for nulo, mas mantido por segurança
+      if (!clientId) return [];
+
+      const { data, error } = await supabase
+        .from("client_partners")
+        .select("*")
+        .eq("client_id", clientId)
+        .order("name");
+
+      if (error) {
+        console.error("[useClientPartners] Erro ao buscar parceiros:", error);
+        throw error;
+      }
+
+      return (data || []) as ClientPartner[];
+    },
+    enabled: !!clientId,
+  });
+}
+
+/**
+ * Hook para buscar todos os parceiros de múltiplos clientes
+ */
+export function useAllClientPartners() {
+  return useQuery({
+    queryKey: ["all-client-partners"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("client_partners")
+        .select("*")
+        .order("name");
+
+      if (error) {
+        console.error("[useAllClientPartners] Erro ao buscar parceiros:", error);
+        throw error;
+      }
+
+      return (data || []) as ClientPartner[];
+    },
+  });
+}

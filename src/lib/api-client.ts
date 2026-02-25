@@ -114,17 +114,9 @@ class ApiClient {
     }
   }
 
-  // ========== USERS ==========
-  async getUsers() {
-    return this.get('/api/users');
-  }
-
-  async getUser(id: string) {
-    return this.get(`/api/users/${id}`);
-  }
-
-  async getUserProfile(id: string) {
-    return this.get(`/api/users/${id}/profile`);
+  // ========== AUTHENTICATION ==========
+  async login(username: string, password: string) {
+    return this.post('/api/auth/login', { username, password });
   }
 
   // ========== FLIGHTS ==========

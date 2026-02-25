@@ -65,3 +65,13 @@ export interface UserProfile {
   created_at?: string;
   updated_at?: string;
 }
+
+export interface ClientPartner {
+  client_id: string;
+  cpf: string;
+  created_at: string;
+  id: string;
+          name: string
+          share_percentage: number | null
+          updated_at: string
+          }

@@ -10,7 +10,6 @@ export interface TravelReportDraft {
   aircraft_registration: string;
   crew_member_id: string;
   crew_member_name: string;
-  partner_name?: string;
   crew_member_name_2: string;
   route: string;
   start_date: string;

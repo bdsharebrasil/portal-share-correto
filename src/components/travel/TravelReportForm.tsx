@@ -45,7 +45,6 @@ interface TravelReport {
   client_id: string;
   client: string;
   client_partner?: string | null;
-  partner_name: string;
   aircraft_id: string;
   aircraft_registration: string;
   crew_member_id: string;
@@ -98,7 +97,6 @@ export function TravelReportForm({
       client_id: '',
       client: '',
       client_partner: null,
-      partner_name: '',
       aircraft_id: '',
       aircraft_registration: '',
       crew_member_id: '',
@@ -195,13 +193,13 @@ export function TravelReportForm({
     const today = format(new Date(), 'yyyy-MM-dd');
     setCurrentReport(prev => ({
       ...prev,
-      expenses: [...prev.expenses, {
+      expenses: [{
         category: '',
         description: '',
         amount: 0,
         paid_by: '',
         expense_date: today
-      }]
+      }, ...prev.expenses]
     }));
   };
 
@@ -364,7 +362,6 @@ export function TravelReportForm({
                   if (selectedClient) {
                     handleInputChange('client_id', option.id);
                     handleInputChange('client', selectedClient.company_name);
-                    handleInputChange('partner_name', '');
                     handleInputChange('client_partner', null);
                     // buscar parceiros para este cliente e exibir se existirem
                     const fetched = await fetchPartnersForClient(option.id);
@@ -378,11 +375,10 @@ export function TravelReportForm({
                 <div className="mt-2">
                   <Label className="text-xs font-semibold text-muted-foreground">Sócio</Label>
                   <ControlledSelect
-                    value={currentReport.partner_name || ''}
+                    value={currentReport.client_partner || ''}
                     onValueChange={(val) => {
-                      const sel = partners.find(p => p.id === val || p.name === val);
+                      const sel = partners.find(p => p.id === val);
                       if (sel) {
-                        handleInputChange('partner_name', sel.name);
                         handleInputChange('client_partner', sel.id || null);
                         handleInputChange('client', sel.name);
                       }
@@ -390,7 +386,7 @@ export function TravelReportForm({
                     placeholder="Selecione o sócio"
                   >
                     {partners.map(p => (
-                      <ControlledSelectItem key={p.id || p.index} value={p.id || p.name}>
+                      <ControlledSelectItem key={p.id || p.index} value={p.id as string}>
                         {p.name}
                       </ControlledSelectItem>
                     ))}
@@ -403,9 +399,9 @@ export function TravelReportForm({
               {currentReport.client_id && (
                 <p className="text-xs text-green-600">✓ Cliente selecionado</p>
               )}
-              {currentReport.partner_name && (
+              {currentReport.client_partner && (
                 <p className="text-xs text-amber-500">
-                  👤 Sócio: <span className="font-semibold">{currentReport.partner_name}</span>
+                  👤 Sócio: <span className="font-semibold">{currentReport.client}</span>
                   {showPartnerModal && (
                     <button 
                       type="button"

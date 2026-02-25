@@ -2,35 +2,21 @@ import { useState, useEffect, useMemo } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ControlledSelect, SelectItem as ControlledSelectItem } from '@/components/ui/controlled-select';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Trash2, Save, Send, Upload, Eye, FileText, ArrowLeft, Edit, AlertCircle, AlertTriangle, RotateCcw, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, Trash2, Eye, FileText, Edit, AlertCircle, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useClientes } from '@/hooks/useClientes';
-import { useAeronaves } from '@/hooks/useAeronaves';
-import { useTripulantes } from '@/hooks/useTripulantes';
 import { cn } from '@/lib/utils';
 import { downloadPDF, previewPDFForPrint } from '@/lib/travelReportPDF';
 import type { TravelReport as PDFTravelReport, TravelExpense } from '@/lib/travelReportPDF';
 import { draftStorage } from '@/lib/travelReportDraft';
 import type { TravelReportDraft } from '@/lib/travelReportDraft';
-import { AutocompleteInput } from '@/components/ui/autocomplete-input';
-import { calculateReportTotals, enrichReportWithCorrectTotals, extractPayerTotals, getValidExpenses } from '@/lib/travelReportUtils';
+import { calculateReportTotals, extractPayerTotals, getValidExpenses } from '@/lib/travelReportUtils';
 import { PartnerSelectModal } from '@/components/diario/PartnerSelectModal';
 import { ReceiptViewer } from '@/components/financeiro/ReceiptViewer';
 import { TravelReportForm } from '@/components/travel/TravelReportForm';
 
-const EXPENSE_CATEGORIES = ['Combustível', 'Hospedagem', 'Alimentação', 'Transporte', 'Outros'];
 const REPORT_STATUSES = ['Rascunho', 'Finalizado', 'Enviado'];
 
 interface Expense {
@@ -47,7 +33,6 @@ interface TravelReport {
   report_number: string;
   client_id: string;
   client: string;
-  partner_name: string;
   client_partner?: string | null;
   aircraft_id: string;
   aircraft_registration: string;
@@ -76,20 +61,12 @@ interface TravelReport {
 }
 
 export default function RelatorioViagem() {
-  const { clientes, isLoadingClientes } = useClientes();
-  const { aeronaves, isLoadingAeronaves } = useAeronaves();
-  const { tripulantes, isLoadingTripulantes } = useTripulantes();
-
   const [reports, setReports] = useState<TravelReport[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [currentReport, setCurrentReport] = useState<TravelReport | null>(null);
-  const [showSecondCrew, setShowSecondCrew] = useState(false);
-  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [activeStatusFilter, setActiveStatusFilter] = useState<'Todos' | TravelReport['status']>('Todos');
-  const [startDateOpen, setStartDateOpen] = useState(false);
-  const [endDateOpen, setEndDateOpen] = useState(false);
   const [hasSavedDraft, setHasSavedDraft] = useState(false);
   const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [clientPartners, setClientPartners] = useState<{id?: string; name: string; cpf?: string; index: number}[]>([]);
@@ -140,7 +117,6 @@ export default function RelatorioViagem() {
       setCurrentReport(draft as TravelReport);
       setIsCreating(true);
       setIsEditing(false);
-      setShowSecondCrew(!!draft.crew_member_name_2);
       toast.success('✓ Rascunho restaurado com sucesso!');
     }
   };
@@ -154,7 +130,11 @@ export default function RelatorioViagem() {
   const loadReports = async () => {
     const { data, error } = await supabase
       .from('travel_expense_reports')
-      .select('*')
+      .select(`
+        *,
+        client_id_rel:client_id(company_name),
+        partner_id_rel:client_partner(name)
+      `)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -174,9 +154,14 @@ export default function RelatorioViagem() {
         }
       })();
 
+      // Determinar o nome do cliente: se tem client_partner, usar nome do partner; senão usar nome do cliente
+      const clientName = r.client_partner && r.partner_id_rel?.name 
+        ? r.partner_id_rel.name 
+        : r.client_id_rel?.name || '';
+
       return {
         ...r,
-        client: r.partner_name || r.client || '',
+        client: clientName,
         expenses: expenses,
         status: r.status || 'Rascunho'
       };
@@ -187,27 +172,40 @@ export default function RelatorioViagem() {
   const loadReportDetails = async (reportId: string) => {
     const { data: reportData, error: reportError } = await supabase
       .from('travel_expense_reports')
-      .select('*')
+      .select(`
+        *,
+        client_id_rel:client_id(company_name),
+        partner_id_rel:client_partner(name)
+      `)
       .eq('id', reportId)
       .single();
 
     if (reportError || !reportData) throw reportError;
 
+    // Converte para any para contornar a tipagem estrita do Supabase que não reconheceu o client_partner
+    const rData = reportData as any;
+
     const expenses = (() => {
       try {
-        if (typeof reportData.expenses === 'string') {
-          return JSON.parse(reportData.expenses);
+        if (typeof rData.expenses === 'string') {
+          return JSON.parse(rData.expenses);
         }
-        return reportData.expenses || [];
+        return rData.expenses || [];
       } catch {
         return [];
       }
     })();
 
+    // Lendo do 'rData' (que é any) para evitar o erro do client_partner
+    const clientName = rData.client_partner && rData.partner_id_rel?.name 
+      ? rData.partner_id_rel.name 
+      : rData.client_id_rel?.name || '';
+
     return {
-      ...reportData,
+      ...rData,
+      client: clientName,
       expenses: expenses as Expense[],
-      status: (reportData as any).status || 'Rascunho'
+      status: rData.status || 'Rascunho'
     } as TravelReport;
   };
 
@@ -254,7 +252,6 @@ export default function RelatorioViagem() {
       report_number: `REL-XXX-0001/${new Date().getFullYear().toString().slice(-2)}`,
       client_id: '',
       client: '',
-      partner_name: '',
       aircraft_id: '',
       aircraft_registration: '',
       crew_member_id: '',
@@ -283,7 +280,6 @@ export default function RelatorioViagem() {
     draftStorage.saveDraft(newReport as TravelReportDraft);
     setIsCreating(true);
     setIsEditing(false);
-    setShowSecondCrew(false);
   };
 
   const editReport = async (reportId: string) => {
@@ -293,8 +289,6 @@ export default function RelatorioViagem() {
       setCurrentReport(reportDetails);
       setIsCreating(true);
       setIsEditing(true);
-      setShowSecondCrew(!!reportDetails.crew_member_name_2);
-      calculateTotals(reportDetails.expenses, reportDetails);
       toast.success('✓ Relatório carregado com sucesso');
     } catch (error) {
       console.error('Erro ao carregar relatório para edição:', error);
@@ -326,157 +320,6 @@ export default function RelatorioViagem() {
     }
   };
 
-  const downloadReportPdf = async (report: TravelReport) => {
-    try {
-      // Validação básica antes de gerar PDF
-      if (!report.client || !report.aircraft_registration || !report.crew_member_name) {
-        toast.error('⚠️ Dados incompletos para gerar o PDF. Verifique o relatório.');
-        return;
-      }
-
-      // IMPORTANTE: Recalcular os totais a partir das despesas
-      // Isto garante que o PDF sempre terá os valores CORRETOS
-      const correctedTotals = calculateReportTotals(report.expenses || []);
-
-      const pdfReport: PDFTravelReport = {
-        numero: report.report_number,
-        cliente_nome: report.client,
-        aeronave: report.aircraft_registration,
-        tripulante: report.crew_member_name,
-        tripulante2: report.crew_member_name_2,
-        trecho: report.route,
-        destino: report.route,
-        data_inicio: report.start_date,
-        data_fim: report.end_date,
-        observacoes: report.observations,
-        despesas: (report.expenses || []).map(e => ({
-          categoria: e.category,
-          descricao: e.description,
-          valor: e.amount,
-          pago_por: e.paid_by,
-          data: (e as any).expense_date || '',
-          comprovante_url: e.receipt_url
-        })) as TravelExpense[],
-        total_combustivel: correctedTotals.total_fuel,
-        total_hospedagem: correctedTotals.total_lodging,
-        total_alimentacao: correctedTotals.total_food,
-        total_transporte: correctedTotals.total_transport,
-        total_outros: correctedTotals.total_other,
-        total_tripulante: correctedTotals.total_crew,
-        total_tripulante1: correctedTotals.total_crew1,
-        total_tripulante2: correctedTotals.total_crew2,
-        total_cliente: correctedTotals.total_client,
-        total_sharebrasil: correctedTotals.total_sharebrasil,
-        valor_total: correctedTotals.total_amount
-      };
-
-      await downloadPDF(pdfReport);
-      toast.success('✓ PDF baixado com sucesso!');
-    } catch (error: any) {
-      console.error('Erro ao gerar PDF:', error);
-      toast.error(`❌ Erro ao gerar PDF: ${error?.message || 'Tente novamente'}`);
-    }
-  };
-
-  const handleInputChange = async (field: keyof TravelReport, value: any) => {
-    if (!currentReport) return;
-    const updated = { ...currentReport, [field]: value };
-
-    if (field === 'client' && value && !isEditing) {
-      const newReportNumber = await generateReportNumber(value);
-      updated.report_number = newReportNumber;
-    }
-
-    setCurrentReport(updated);
-    if (!isEditing) {
-      draftStorage.saveDraft(updated as TravelReportDraft);
-    }
-  };
-
-  const calculateDays = (startDate: string, endDate: string) => {
-    const start = new Date(startDate + 'T00:00:00');
-    const end = new Date(endDate + 'T00:00:00');
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    return Math.max(1, diffDays);
-  };
-
-  const calculateTotals = (expenses: Expense[], report: TravelReport | null = currentReport) => {
-    if (!report) return;
-
-    // Sempre recalcula os totais a partir das despesas
-    const totals = calculateReportTotals(expenses);
-
-    setCurrentReport(prev => prev ? ({ ...prev, ...totals }) : null);
-  };
-
-  const handleExpenseChange = (index: number, field: keyof Expense, value: any) => {
-    if (!currentReport) return;
-    const newExpenses = [...currentReport.expenses];
-    newExpenses[index] = { ...newExpenses[index], [field]: value };
-    setCurrentReport({ ...currentReport, expenses: newExpenses });
-    calculateTotals(newExpenses);
-  };
-
-  const addExpense = () => {
-    if (!currentReport) return;
-    setCurrentReport({
-      ...currentReport,
-      expenses: [...currentReport.expenses, { category: '', description: '', amount: 0, paid_by: '' }]
-    });
-  };
-
-  const removeExpense = (index: number) => {
-    if (!currentReport) return;
-    const newExpenses = currentReport.expenses.filter((_, i) => i !== index);
-    setCurrentReport({ ...currentReport, expenses: newExpenses });
-    calculateTotals(newExpenses);
-  };
-
-  const handleFileUpload = async (index: number, file?: File) => {
-    if (!file || !currentReport) return;
-
-    // Validação de tamanho (máximo 5MB)
-    const MAX_FILE_SIZE = 5 * 1024 * 1024;
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error('❌ Arquivo muito grande. Máximo 5MB permitido.');
-      return;
-    }
-
-    // Validação de tipo
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('❌ Tipo de arquivo não permitido. Use: JPG, PNG, WebP ou PDF.');
-      return;
-    }
-
-    setUploadingIndex(index);
-    const toastId = toast.loading('📤 Enviando comprovante...');
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
-      const filePath = `receipts/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('travel-reports')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('travel-reports')
-        .getPublicUrl(filePath);
-
-      handleExpenseChange(index, 'receipt_url', publicUrl);
-      toast.success('✓ Comprovante enviado com sucesso!', { id: toastId });
-    } catch (error: any) {
-      console.error('Erro ao fazer upload:', error);
-      toast.error(`❌ Erro ao fazer upload: ${error?.message || 'Tente novamente'}`, { id: toastId });
-    } finally {
-      setUploadingIndex(null);
-    }
-  };
-
   const saveReport = async (newStatus: TravelReport['status'], reportToSave?: TravelReport) => {
     const reportData = reportToSave || currentReport;
     if (!reportData) return;
@@ -505,7 +348,6 @@ export default function RelatorioViagem() {
       const reportDataToSave = {
         report_number: reportNumber,
         client_id: reportData.client_id || null,
-        partner_name: reportData.partner_name || reportData.client || null,
         aircraft_id: reportData.aircraft_id || null,
         aircraft_registration: reportData.aircraft_registration,
         crew_member_id: reportData.crew_member_id || null,
@@ -552,7 +394,7 @@ export default function RelatorioViagem() {
       }
 
       // Criar conciliações bancárias quando o relatório for finalizado
-      if (newStatus !== 'Rascunho') {
+      if (newStatus === 'Finalizado' || newStatus === 'Enviado') {
         const { data: { user } } = await supabase.auth.getUser();
 
         if (user) {
@@ -687,6 +529,83 @@ export default function RelatorioViagem() {
               toast.warning('⚠️ Relatório salvo, mas houve erro ao criar conciliações bancárias');
             } else {
               toast.success(`✓ ${reconciliationsToInsert.length} conciliação(ões) bancária(s) criada(s)`);
+            }
+          }
+
+          // Gerar e salvar PDF se o relatório foi finalizado ou enviado
+          if (newStatus === 'Finalizado' || newStatus === 'Enviado') {
+            try {
+              console.log('📄 Gerando PDF para o relatório...');
+              const pdfData: PDFTravelReport = {
+                numero: savedReport.report_number,
+                cliente_nome: reportData.client,
+                aeronave: reportData.aircraft_registration,
+                tripulante: reportData.crew_member_name,
+                tripulante2: reportData.crew_member_name_2,
+                trecho: reportData.route,
+                destino: reportData.route,
+                data_inicio: reportData.start_date,
+                data_fim: reportData.end_date,
+                observacoes: reportData.observations,
+                despesas: validExpenses.map(e => ({
+                  categoria: e.category,
+                  descricao: e.description,
+                  valor: e.amount,
+                  pago_por: e.paid_by,
+                  data: (e as any).expense_date || '',
+                  comprovante_url: e.receipt_url
+                })) as TravelExpense[],
+                total_combustivel: recalculatedTotals.total_fuel,
+                total_hospedagem: recalculatedTotals.total_lodging,
+                total_alimentacao: recalculatedTotals.total_food,
+                total_transporte: recalculatedTotals.total_transport,
+                total_outros: recalculatedTotals.total_other,
+                total_tripulante: recalculatedTotals.total_crew,
+                total_tripulante1: recalculatedTotals.total_crew1,
+                total_tripulante2: recalculatedTotals.total_crew2,
+                total_cliente: recalculatedTotals.total_client,
+                total_sharebrasil: recalculatedTotals.total_sharebrasil,
+                valor_total: recalculatedTotals.total_amount
+              };
+
+              // Usar a função generatePDF para gerar o blob
+              const { generatePDF } = await import('@/lib/travelReportPDF');
+              const pdfBlob = await generatePDF(pdfData);
+
+              // Upload do PDF no storage
+              const pdfFileName = `${savedReport.report_number.replace(/\//g, '-')}-${Date.now()}.pdf`;
+              const pdfPath = `reports/${pdfFileName}`;
+
+              const { error: pdfUploadError } = await supabase.storage
+                .from('travel-reports')
+                .upload(pdfPath, pdfBlob, { contentType: 'application/pdf' });
+
+              if (pdfUploadError) {
+                console.error('Erro ao fazer upload do PDF:', pdfUploadError);
+                toast.warning('⚠️ Relatório salvo, mas houve erro ao salvar o PDF');
+              } else {
+                // Obter URL pública do PDF
+                const { data: { publicUrl: pdfUrl } } = supabase.storage
+                  .from('travel-reports')
+                  .getPublicUrl(pdfPath);
+
+                // Atualizar o campo pdf_url no banco
+                const { error: updateError } = await supabase
+                  .from('travel_expense_reports')
+                  .update({ pdf_url: pdfUrl })
+                  .eq('id', savedReport.id);
+
+                if (updateError) {
+                  console.error('Erro ao atualizar pdf_url:', updateError);
+                  toast.warning('⚠️ PDF gerado mas erro ao salvar URL no banco');
+                } else {
+                  console.log('✅ PDF salvo com sucesso:', pdfUrl);
+                  toast.success('✓ PDF gerado e salvo com sucesso!');
+                }
+              }
+            } catch (pdfError: any) {
+              console.error('Erro ao gerar/salvar PDF:', pdfError);
+              toast.warning(`⚠️ Erro ao gerar PDF: ${pdfError?.message || 'Tente novamente'}`);
             }
           }
         }
@@ -882,13 +801,7 @@ export default function RelatorioViagem() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => {
-                                    if (report.status !== 'Rascunho') {
-                                      toast.error(`Não é permitido editar relatórios com status "${report.status}". Apenas rascunhos podem ser editados.`);
-                                      return;
-                                    }
-                                    editReport(report.id!);
-                                  }}
+                                  onClick={() => editReport(report.id!)}
                                   title="Editar Relatório"
                                   className="rounded-lg transition-all duration-200 hover:bg-primary/10 hover:text-primary"
                                 >
@@ -1007,7 +920,6 @@ export default function RelatorioViagem() {
                 setReceiptViewerOpen(true);
               }}
             />
-
           </>
         )}
       </div>
@@ -1016,11 +928,11 @@ export default function RelatorioViagem() {
         onOpenChange={setShowPartnerModal}
         clientName={currentReport?.client || ''}
         partners={clientPartners}
-        selectedPartner={currentReport?.partner_name || null}
+        selectedPartner={currentReport?.client || null}
         onSelectPartner={(partner) => {
-          setCurrentReport(prev => prev ? { ...prev, partner_name: partner.name, client_partner: partner.id, client: partner.name } : null);
+          setCurrentReport(prev => prev ? { ...prev, client_partner: partner.id, client: partner.name } : null);
           if (currentReport && !isEditing) {
-            draftStorage.saveDraft({ ...currentReport, partner_name: partner.name, client_partner: partner.id, client: partner.name } as TravelReportDraft);
+            draftStorage.saveDraft({ ...currentReport, client_partner: partner.id, client: partner.name } as TravelReportDraft);
           }
         }}
       />
