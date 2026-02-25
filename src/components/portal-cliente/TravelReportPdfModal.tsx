@@ -78,9 +78,9 @@ export function TravelReportPdfModal({
       const correctedTotals = calculateReportTotals(expenses);
 
       // Determinar o nome do cliente: se tem client_partner, usar nome do partner; senão usar nome do cliente
-      const clienteName = fullReport.client_partner && (fullReport as any).partner_id_rel?.name 
-        ? (fullReport as any).partner_id_rel.name 
-        : (fullReport as any).client_id_rel?.name || '-';
+      const clienteName = fullReport.client_partner && (fullReport as any).partner_id_rel?.name
+        ? (fullReport as any).partner_id_rel.name
+        : (fullReport as any).client_id_rel?.company_name || '-';
 
       const pdfReport = {
         numero: fullReport.report_number,
@@ -170,15 +170,17 @@ export function TravelReportPdfModal({
 
         // Table header
         const col1 = 15;
-        const col2 = 70;
-        const col3 = 140;
-        const col4 = 175;
+        const col2 = 50;
+        const col3 = 80;
+        const col4 = 135;
+        const col5 = 175;
 
         doc.rect(col1 - 2, yPos - 5, 185, 6, "F");
         doc.text("Categoria", col1, yPos);
-        doc.text("Descrição", col2, yPos);
-        doc.text("Pago Por", col3, yPos);
-        doc.text("Valor", col4, yPos, { align: "right" });
+        doc.text("Data", col2, yPos);
+        doc.text("Descrição", col3, yPos);
+        doc.text("Pago Por", col4, yPos);
+        doc.text("Valor", col5, yPos, { align: "right" });
 
         yPos += 7;
 
@@ -188,10 +190,13 @@ export function TravelReportPdfModal({
             yPos = 15;
           }
 
+          const expenseDate = expense.data ? new Date(expense.data).toLocaleDateString('pt-BR') : '-';
+
           doc.text(expense.categoria || "-", col1, yPos);
-          doc.text(expense.descricao?.substring(0, 30) || "-", col2, yPos);
-          doc.text(expense.pago_por || "-", col3, yPos);
-          doc.text(`R$ ${parseFloat(expense.valor || 0).toFixed(2)}`, col4, yPos, { align: "right" });
+          doc.text(expenseDate, col2, yPos);
+          doc.text(expense.descricao?.substring(0, 25) || "-", col3, yPos);
+          doc.text(expense.pago_por || "-", col4, yPos);
+          doc.text(`R$ ${parseFloat(expense.valor || 0).toFixed(2)}`, col5, yPos, { align: "right" });
           yPos += 6;
         });
       }
@@ -281,9 +286,9 @@ export function TravelReportPdfModal({
         const correctedTotals = calculateReportTotals(expenses);
 
         // Determinar o nome do cliente: se tem client_partner, usar nome do partner; senão usar nome do cliente
-        const clienteName = fullReport.client_partner && (fullReport as any).partner_id_rel?.name 
-          ? (fullReport as any).partner_id_rel.name 
-          : (fullReport as any).client_id_rel?.name || '-';
+        const clienteName = fullReport.client_partner && (fullReport as any).partner_id_rel?.name
+          ? (fullReport as any).partner_id_rel.name
+          : (fullReport as any).client_id_rel?.company_name || '-';
 
         const pdfReport = {
           numero: fullReport.report_number,
