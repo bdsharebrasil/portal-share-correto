@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { RateioDialog } from "./RateioDialog";
+import { useClientPartners } from "@/hooks/useClientPartners";
 
 interface FluxoCaixaInlineFormProps {
   onSuccess: () => void;
@@ -146,6 +147,11 @@ export function FluxoCaixaInlineForm({
   const [uploadingField, setUploadingField] = useState<string | null>(null);
   const [rateioData, setRateioData] = useState<{ socios: RateioSocio[]; tipo: string } | null>(null);
 
+  // Estados para client_partners
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [selectedPartnerDialogOpen, setSelectedPartnerDialogOpen] = useState(false);
+  const { data: clientPartners, isLoading: isLoadingPartners } = useClientPartners(selectedClientId);
+
   // Mapeia conta para exibir o banco ao invés do nome
   const contasComBanco = contas.map(c => ({
     nome: c.nome,
@@ -177,6 +183,7 @@ export function FluxoCaixaInlineForm({
       aeronave: "",
       client_id: "",
       client_name: "",
+      client_partner_id: "",
       colaborador_id: "",
       fornecedores_favoritos_id: "",
       grupo_categoria: "",
@@ -220,6 +227,19 @@ export function FluxoCaixaInlineForm({
   useEffect(() => {
     loadReferencias();
   }, []);
+
+  // Abrir dialog de seleção de parceiros se o cliente tiver parceiros vinculados
+  useEffect(() => {
+    if (
+      isReembolsavel &&
+      selectedClientId &&
+      clientPartners &&
+      clientPartners.length > 0 &&
+      !watch("client_partner_id")
+    ) {
+      setSelectedPartnerDialogOpen(true);
+    }
+  }, [isReembolsavel, selectedClientId, clientPartners, watch]);
 
   const loadReferencias = async () => {
     try {
@@ -338,10 +358,14 @@ export function FluxoCaixaInlineForm({
       setValue("aeronave", movimentacao.aeronave_registro || "");
       setValue("client_id", movimentacao.client_id || "");
       setValue("client_name", movimentacao.client_name || "");
+      setValue("client_partner_id", movimentacao.client_partner_id || "");
       setValue("colaborador_id", movimentacao.colaborador_id || "");
       setValue("fornecedores_favoritos_id", movimentacao.fornecedores_favoritos_id || "");
       setIsReembolsavel(movimentacao.reembolsavel || false);
       setTemRateio(movimentacao.tem_rateio || false);
+      if (movimentacao.client_id) {
+        setSelectedClientId(movimentacao.client_id);
+      }
 
       // Carregar URLs dos arquivos
       setComprovanteUrl(movimentacao.comprovante_url || null);
@@ -406,7 +430,16 @@ export function FluxoCaixaInlineForm({
   const handleClienteSelect = (cliente: any) => {
     setValue("client_id", cliente.id);
     setValue("client_name", cliente.company_name || cliente.proprietario || "");
+    setValue("client_partner_id", "");
+    setSelectedClientId(cliente.id);
     // NÃO limpar referência ou outros IDs aqui - são campos separados
+  };
+
+  // Selecionar client_partner
+  const handlePartnerSelect = (partner: any) => {
+    setValue("client_partner_id", partner.id);
+    setValue("client_name", partner.name);
+    setSelectedPartnerDialogOpen(false);
   };
 
   // Salvar rateio
@@ -468,6 +501,7 @@ export function FluxoCaixaInlineForm({
         aeronave_id: aeronaveObj?.id || null,
         aeronave_registro: formData.aeronave || null,
         client_id: formData.client_id || null,
+        client_partner_id: formData.client_partner_id || null,
         client_name: isReembolsavel ? formData.client_name : null,
         colaborador_id: formData.colaborador_id || null,
         fornecedores_favoritos_id: formData.fornecedores_favoritos_id || null,
@@ -794,7 +828,38 @@ export function FluxoCaixaInlineForm({
                       ))}
                     </SelectContent>
                   </Select>
+                  {/* Mostrar aviso se cliente tem parceiros */}
+                  {watch("client_id") && clientPartners && clientPartners.length > 0 && !watch("client_partner_id") && (
+                    <p className="text-xs text-amber-400 mt-1">
+                      Este cliente tem {clientPartners.length} {clientPartners.length === 1 ? "parceiro" : "parceiros"} vinculado{clientPartners.length === 1 ? "" : "s"}
+                    </p>
+                  )}
                 </div>
+                {/* Seletor de Parceiro se cliente tem parceiros */}
+                {watch("client_id") && clientPartners && clientPartners.length > 0 && (
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1">Parceiro do Cliente *</Label>
+                    <Select
+                      value={watch("client_partner_id")}
+                      onValueChange={(value) => {
+                        const partner = clientPartners.find(p => p.id === value);
+                        if (partner) handlePartnerSelect(partner);
+                      }}
+                    >
+                      <SelectTrigger className="h-9 bg-background">
+                        <SelectValue placeholder="Selecione o parceiro" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clientPartners.map((partner) => (
+                          <SelectItem key={partner.id} value={partner.id}>
+                            {partner.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div>
                   <Label className="text-xs text-muted-foreground mb-1">Aeronave (para rateio)</Label>
                   <Select value={watch("aeronave") || ""} onValueChange={(value) => setValue("aeronave", value)}>
