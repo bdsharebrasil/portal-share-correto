@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -58,6 +59,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useColumnWidths } from "@/hooks/useColumnWidths";
 import { FinanceiroFilters, FinanceiroFilterState } from "./FinanceiroFilters";
+import { QuadroMensalTab } from "./QuadroMensalTab";
 
 type SortField = "data" | "tipo_movimento" | "valor" | null;
 type SortDirection = "asc" | "desc";
@@ -594,7 +596,28 @@ export function FluxoCaixa() {
 
   // ─────────────────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
+    <Tabs defaultValue="lista" className="w-full">
+      <TabsList className="bg-gradient-to-r from-white/5 to-white/[0.02] backdrop-blur-xl rounded-lg p-1 border border-white/10 w-full justify-start h-auto gap-2">
+        <TabsTrigger
+          value="lista"
+          className="rounded-md py-2 px-4 text-sm font-medium transition-all duration-300 whitespace-nowrap
+            data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-white/10
+            data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-primary/80 data-[state=active]:text-white data-[state=active]:shadow-md"
+        >
+          Lista de Movimentações
+        </TabsTrigger>
+        <TabsTrigger
+          value="visualizacao-mensal"
+          className="rounded-md py-2 px-4 text-sm font-medium transition-all duration-300 whitespace-nowrap
+            data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:text-foreground data-[state=inactive]:hover:bg-white/10
+            data-[state=active]:bg-gradient-to-r data-[state=active]:from-primary data-[state=active]:to-primary/80 data-[state=active]:text-white data-[state=active]:shadow-md"
+        >
+          Visualização Mensal
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="lista" className="mt-6 w-full">
+        <div className="space-y-6">
       {/* Nova Movimentação Form */}
       {showInlineForm && (
         <Card className="bg-card/50 border-border/50 backdrop-blur-xl">
@@ -926,6 +949,12 @@ export function FluxoCaixa() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+        </div>
+      </TabsContent>
+
+      <TabsContent value="visualizacao-mensal" className="mt-6 w-full">
+        <QuadroMensalTab />
+      </TabsContent>
+    </Tabs>
   );
 }
