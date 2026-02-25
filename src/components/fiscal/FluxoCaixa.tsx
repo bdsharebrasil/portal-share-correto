@@ -193,28 +193,34 @@ export function FluxoCaixa() {
   const handleTableDragStart = (e: React.MouseEvent) => {
     // Apenas iniciar drag se não está clicando em um elemento interativo
     const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('[role="button"]') || target.closest('input')) {
+    // Ignorar cliques em botões, checkboxes, inputs, links e selects
+    if (target.closest('button, input, [role="button"], a, select')) {
       return;
     }
 
+    const container = tableContainerRef.current;
     // Se o container tiver scrollbar horizontal
-    if (tableContainerRef.current && tableContainerRef.current.scrollWidth > tableContainerRef.current.clientWidth) {
+    if (container && container.scrollWidth > container.clientWidth) {
       setIsDragging(true);
       dragStartXRef.current = e.clientX;
-      scrollStartXRef.current = tableContainerRef.current.scrollLeft;
+      scrollStartXRef.current = container.scrollLeft;
+
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        if (!container) return;
+        const delta = moveEvent.clientX - dragStartXRef.current;
+        container.scrollLeft = scrollStartXRef.current - delta;
+      };
+
+      const handleMouseUp = () => {
+        setIsDragging(false);
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
       e.preventDefault();
     }
-  };
-
-  const handleTableDragMove = (e: React.MouseEvent) => {
-    if (!isDragging || !tableContainerRef.current) return;
-
-    const delta = e.clientX - dragStartXRef.current;
-    tableContainerRef.current.scrollLeft = scrollStartXRef.current - delta;
-  };
-
-  const handleTableDragEnd = () => {
-    setIsDragging(false);
   };
 
   const handleSort = (field: SortField) => {
@@ -485,11 +491,8 @@ export function FluxoCaixa() {
 
           <div
             ref={tableContainerRef}
-            className={`overflow-x-auto ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+            className={`overflow-x-auto cursor-grab ${isDragging ? "cursor-grabbing select-none" : ""}`}
             onMouseDown={handleTableDragStart}
-            onMouseMove={handleTableDragMove}
-            onMouseUp={handleTableDragEnd}
-            onMouseLeave={handleTableDragEnd}
           >
             <Table>
               <TableHeader>
