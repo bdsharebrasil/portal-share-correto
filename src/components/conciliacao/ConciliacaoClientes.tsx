@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,12 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CheckCircle, Clock, Send, Users, Mail, Check, ChevronLeft, ChevronRight, Plus, X, Calendar as CalendarIcon, Plane } from "lucide-react";
+import { CheckCircle, Clock, Send, Users, Check, ChevronLeft, ChevronRight, Plus, X, Plane } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import {
   Select,
   SelectContent,
@@ -35,7 +31,6 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
 } from "@/components/ui/form";
 import { supabase } from "@/integrations/supabase/client";
 import { getShortUserId, getIdBadgeColor } from "@/lib/user-id";
@@ -64,6 +59,7 @@ interface BankReconciliation {
   amount: number;
   status: string;
   category: string | null;
+  categoria_movimentacao_id?: string | null; // Adicionado para corrigir a tipagem no filtro
   client_id: string | null;
   aircraft_id: string | null;
   payment_term: string | null;
@@ -84,7 +80,6 @@ const addDespesaSchema = z.object({
 
 type AddDespesaFormValues = z.infer<typeof addDespesaSchema>;
 
-
 // --- Componente Principal ---
 export function ConciliacaoClientes() {
   const [conciliacaoClientes, setConciliacaoClientes] = useState<BankReconciliation[]>([]);
@@ -93,17 +88,13 @@ export function ConciliacaoClientes() {
   const [clients, setClients] = useState<Client[]>([]);
   const [aircraft, setAircraft] = useState<Aircraft[]>([]);
   const { toast } = useToast();
-  const { roles, user } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
-  // Removed dialog state - now using inline form
+
   const [openStatusDialog, setOpenStatusDialog] = useState(false);
   const [selectedReconciliation, setSelectedReconciliation] = useState<BankReconciliation | null>(null);
-  
+
   // Filtro de Viagens/Ressarcimentos
   const [showTravelDebtsOnly, setShowTravelDebtsOnly] = useState(false);
-
-  // Permissão: Apenas Financeiro pode dar "Baixa" (status Recebido)
-  const canApproveStatus = roles.some(role => ['admin', 'gestor_master', 'financeiro_master'].includes(role));
 
   useEffect(() => {
     fetchReconciliations();
@@ -133,7 +124,6 @@ export function ConciliacaoClientes() {
       const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
 
-      // 1. Carregar IDs de categorias "RECEITAS OPERACIONAIS"
       const { data: categoriasProtegidas } = await supabase
         .from('categorias_movimentacao')
         .select('id, nome')
@@ -142,7 +132,6 @@ export function ConciliacaoClientes() {
       const idsCategoriasProtegidas = new Set(categoriasProtegidas?.map(c => c.id) || []);
       const nomesCategoriasProtegidas = new Set(categoriasProtegidas?.map(c => c.nome?.toLowerCase()) || []);
 
-      // 2. Carregar dados de conciliação
       const { data, error } = await supabase
         .from('bank_reconciliations')
         .select(`
@@ -157,25 +146,18 @@ export function ConciliacaoClientes() {
 
       if (error) throw error;
 
-      // 3. Filtrar em frontend registros com categoria protegida
       const filteredData = (data || []).filter(item => {
-        // Verifica por ID
         if (item.categoria_movimentacao_id && idsCategoriasProtegidas.has(item.categoria_movimentacao_id)) {
           return false;
         }
-
-        // Verifica por nome da categoria
         const categoryName = item.category?.toLowerCase() || '';
         if (nomesCategoriasProtegidas.has(categoryName)) {
           return false;
         }
-
-        // Verifica se está explícito na descrição
         const description = item.description?.toLowerCase() || '';
         if (description.includes('receita operacional')) {
           return false;
         }
-
         return true;
       });
 
@@ -229,13 +211,8 @@ export function ConciliacaoClientes() {
       .join(' ');
   };
 
-  const previousMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  };
-
-  const nextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  };
+  const previousMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
+  const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
 
   const today = new Date();
   const isCurrentMonth = currentDate.getFullYear() === today.getFullYear() && currentDate.getMonth() === today.getMonth();
@@ -244,10 +221,7 @@ export function ConciliacaoClientes() {
     currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).slice(1);
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
   const resumoClientes = {
@@ -262,17 +236,15 @@ export function ConciliacaoClientes() {
       .reduce((sum, item) => sum + Number(item.amount), 0),
   };
 
-  // --- Lógica de Filtro ---
-  const filteredData = showTravelDebtsOnly 
+  const filteredData = showTravelDebtsOnly
     ? conciliacaoClientes.filter(item => {
-        const isDebt = item.status?.toLowerCase() !== 'recebido'; // Ainda não recebido
-        // Verifica palavras chaves de viagem e reembolso
-        const textToSearch = (item.category || '') + ' ' + (item.description || '');
-        const keywords = ['viagem', 'reembolso', 'ressarcimento', 'combustivel', 'relatorio', 'hospedagem', 'alimentacao'];
-        const isTravelRelated = keywords.some(key => textToSearch.toLowerCase().includes(key));
-        
-        return isDebt && isTravelRelated;
-      })
+      const isDebt = item.status?.toLowerCase() !== 'recebido';
+      const textToSearch = (item.category || '') + ' ' + (item.description || '');
+      const keywords = ['viagem', 'reembolso', 'ressarcimento', 'combustivel', 'relatorio', 'hospedagem', 'alimentacao'];
+      const isTravelRelated = keywords.some(key => textToSearch.toLowerCase().includes(key));
+
+      return isDebt && isTravelRelated;
+    })
     : conciliacaoClientes;
 
   return (
@@ -362,29 +334,23 @@ export function ConciliacaoClientes() {
               <Users className="h-5 w-5 text-primary" />
               Conciliação com Clientes
             </CardTitle>
-            
+
             <div className="flex gap-2 w-full md:w-auto">
-                {/* Botão de Filtro de Viagens */}
-                <Button 
-                    variant={showTravelDebtsOnly ? "default" : "outline"}
-                    onClick={() => setShowTravelDebtsOnly(!showTravelDebtsOnly)}
-                    className={`flex-1 md:flex-none items-center gap-2 rounded-lg ${showTravelDebtsOnly ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}`}
-                >
-                    <Plane className="h-4 w-4" />
-                    {showTravelDebtsOnly ? "Filtrando Viagens" : "Filtrar Viagens"}
-                </Button>
+              <Button
+                variant={showTravelDebtsOnly ? "default" : "outline"}
+                onClick={() => setShowTravelDebtsOnly(!showTravelDebtsOnly)}
+                className={`flex-1 md:flex-none items-center gap-2 rounded-lg ${showTravelDebtsOnly ? 'bg-orange-500 hover:bg-orange-600 text-white' : ''}`}
+              >
+                <Plane className="h-4 w-4" />
+                {showTravelDebtsOnly ? "Filtrando Viagens" : "Filtrar Viagens"}
+              </Button>
             </div>
           </div>
         </CardHeader>
-        
+
         <CardContent>
-          {/* Formulário Inline para Nova Conciliação */}
           <div className="mb-6">
-            <AddBankReconciliationForm
-              onSuccess={() => {
-                fetchReconciliations();
-              }}
-            />
+            <AddBankReconciliationForm onSuccess={fetchReconciliations} />
           </div>
           <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-cyan-500 scrollbar-track-slate-700/20">
             <Table>
@@ -412,73 +378,69 @@ export function ConciliacaoClientes() {
                 ) : filteredData.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                      {showTravelDebtsOnly 
-                        ? "Nenhuma despesa de viagem encontrada para este período." 
+                      {showTravelDebtsOnly
+                        ? "Nenhuma despesa de viagem encontrada para este período."
                         : "Nenhuma conciliação encontrada"}
                     </TableCell>
                   </TableRow>
                 ) : (
                   filteredData.map((item) => {
-                    // Verifica se o Financeiro já deu baixa
                     const isFinalized = item.status?.toLowerCase() === 'recebido';
-                    
+
                     return (
-                        <React.Fragment key={item.id}>
-                          <TableRow className={`hover:bg-muted/50 ${isFinalized ? 'bg-muted/10 opacity-80' : ''}`}>
-                            <TableCell>{item.date ? format(new Date(item.date + 'T12:00:00'), 'dd/MM/yyyy') : '-'}</TableCell>
-                            <TableCell>
-                              <Badge className={`${getIdBadgeColor(getShortUserId(item.created_by || ''))} font-semibold`}>
-                                {getShortUserId(item.created_by || '')}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="max-w-xs">
-                              <div className="flex items-center gap-2">
-                                {getStatusIcon(item.status)}
-                                <span className="truncate" title={item.description}>{item.description}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>{item.clients?.company_name || '-'}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{item.aircraft?.registration || '-'}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="secondary">{formatCategoryName(item.category)}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              <span className="text-primary font-medium">
-                                {formatCurrency(Math.abs(Number(item.amount)))}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              {item.status?.toLowerCase() === 'pendente' ? (
-                                <PaymentTermEditor
-                                  reconciliation={item}
-                                  onSave={fetchReconciliations}
-                                />
-                              ) : item.payment_term ? (
-                                <span className="text-sm">{format(new Date(item.payment_term + 'T12:00:00'), 'dd/MM/yyyy')}</span>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>{getStatusBadge(item.status)}</TableCell>
-                            
-                            {/* --- COLUNA DE AÇÕES COM LÓGICA DE ESPELHO --- */}
-                            <TableCell>
+                      <React.Fragment key={item.id}>
+                        <TableRow className={`hover:bg-muted/50 ${isFinalized ? 'bg-muted/10 opacity-80' : ''}`}>
+                          <TableCell>{item.date ? format(new Date(item.date + 'T12:00:00'), 'dd/MM/yyyy') : '-'}</TableCell>
+                          <TableCell>
+                            <Badge className={`${getIdBadgeColor(getShortUserId(item.created_by || ''))} font-semibold`}>
+                              {getShortUserId(item.created_by || '')}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="max-w-xs">
+                            <div className="flex items-center gap-2">
+                              {getStatusIcon(item.status)}
+                              <span className="truncate" title={item.description}>{item.description}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{item.clients?.company_name || '-'}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{item.aircraft?.registration || '-'}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{formatCategoryName(item.category)}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-primary font-medium">
+                              {formatCurrency(Math.abs(Number(item.amount)))}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {item.status?.toLowerCase() === 'pendente' ? (
+                              <PaymentTermEditor
+                                reconciliation={item}
+                                onSave={fetchReconciliations}
+                              />
+                            ) : item.payment_term ? (
+                              <span className="text-sm">{format(new Date(item.payment_term + 'T12:00:00'), 'dd/MM/yyyy')}</span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>{getStatusBadge(item.status)}</TableCell>
+
+                          <TableCell>
+                            <div className="flex items-center gap-2">
                               {isFinalized ? (
-                                // Modo Espelho: Só mostra que foi concluído
                                 <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-green-500/10 text-green-600 border border-green-500/20 w-fit" title="Baixa realizada pelo Financeiro">
-                                    <CheckCircle className="h-3.5 w-3.5" />
-                                    <span className="text-[10px] font-bold uppercase tracking-wide">Concluído</span>
+                                  <CheckCircle className="h-3.5 w-3.5" />
+                                  <span className="text-[10px] font-bold uppercase tracking-wide">Concluído</span>
                                 </div>
                               ) : item.status?.toLowerCase() === 'enviado' ? (
-                                // Modo Enviado: Mostra que foi enviado para financeiro
                                 <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-blue-500/10 text-blue-600 border border-blue-500/20 w-fit" title="Aguardando recebimento">
-                                    <Send className="h-3.5 w-3.5" />
-                                    <span className="text-[10px] font-bold uppercase tracking-wide">Enviado</span>
+                                  <Send className="h-3.5 w-3.5" />
+                                  <span className="text-[10px] font-bold uppercase tracking-wide">Enviado</span>
                                 </div>
                               ) : (
-                                // Modo Ação: Permite editar status (Enviar)
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -493,25 +455,38 @@ export function ConciliacaoClientes() {
                                   <span className="text-xs">Enviar</span>
                                 </Button>
                               )}
+
+                              {/* AQUI ESTÁ A CORREÇÃO PRINCIPAL: Botão para abrir o AddDespesaForm */}
+                              {!isFinalized && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
+                                  className={`h-8 w-8 transition-colors ${expandedId === item.id ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}
+                                  title={expandedId === item.id ? "Fechar" : "Adicionar item vinculado"}
+                                >
+                                  <Plus className={`h-4 w-4 transition-transform duration-200 ${expandedId === item.id ? 'rotate-45' : ''}`} />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+
+                        {expandedId === item.id && !isFinalized && (
+                          <TableRow className="bg-muted/30 hover:bg-muted/30">
+                            <TableCell colSpan={10} className="py-4">
+                              <AddDespesaForm
+                                parentReconciliation={item}
+                                clients={clients}
+                                aircraft={aircraft}
+                                onClose={() => setExpandedId(null)}
+                                onSuccess={fetchReconciliations}
+                              />
                             </TableCell>
                           </TableRow>
-                          
-                          {/* Permite abrir formulário de edição apenas se não estiver finalizado */}
-                          {expandedId === item.id && !isFinalized && (
-                            <TableRow className="bg-muted/30 hover:bg-muted/30">
-                              <TableCell colSpan={10} className="py-4">
-                                <AddDespesaForm
-                                  parentReconciliation={item}
-                                  clients={clients}
-                                  aircraft={aircraft}
-                                  onClose={() => setExpandedId(null)}
-                                  onSuccess={fetchReconciliations}
-                                />
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </React.Fragment>
-                      );
+                        )}
+                      </React.Fragment>
+                    );
                   })
                 )}
               </TableBody>
@@ -541,15 +516,13 @@ interface PaymentTermEditorProps {
 
 function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
-  
-  // Parse date correctly to avoid timezone issues
+
   const parseLocalDate = (dateStr: string | null | undefined): Date | undefined => {
     if (!dateStr) return undefined;
-    // Add T12:00:00 to avoid timezone shift issues
     const [year, month, day] = dateStr.split('-').map(Number);
     return new Date(year, month - 1, day);
   };
-  
+
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
     parseLocalDate(reconciliation.payment_term)
   );
@@ -564,7 +537,6 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
 
     try {
       setIsSaving(true);
-      // Format date correctly using local date components
       const year = selectedDate.getFullYear();
       const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
       const day = String(selectedDate.getDate()).padStart(2, '0');
@@ -577,7 +549,6 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
 
       if (error) throw error;
 
-      // Sincronizar com travel_expense_reports se aplicável
       if (reconciliation.description?.includes('RELATORIO DE VIAGEM')) {
         const reportNumberMatch = reconciliation.description.match(/RELATORIO DE VIAGEM - (.+?) - /);
         if (reportNumberMatch && reportNumberMatch[1]) {
@@ -607,15 +578,13 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
       setIsSaving(false);
     }
   };
-  
-  // Format date for display
+
   const formatDateForDisplay = (dateStr: string | null | undefined): string => {
     if (!dateStr) return '';
     const [year, month, day] = dateStr.split('-').map(Number);
     return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
   };
-  
-  // Format date for input value
+
   const formatDateForInput = (date: Date | undefined): string => {
     if (!date) return '';
     const year = date.getFullYear();
@@ -623,8 +592,7 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
-  
-  // Handle input change - parse without timezone issues
+
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (value) {
@@ -638,16 +606,16 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
   if (!isEditing) {
     return (
       <button onClick={() => setIsEditing(true)} className="text-sm hover:text-blue-600 hover:underline flex items-center gap-1">
-        {reconciliation.payment_term ? formatDateForDisplay(reconciliation.payment_term) : <span className="text-xs text-muted-foreground italic flex items-center gap-1"><Plus className="w-3 h-3"/>Prazo</span>}
+        {reconciliation.payment_term ? formatDateForDisplay(reconciliation.payment_term) : <span className="text-xs text-muted-foreground italic flex items-center gap-1"><Plus className="w-3 h-3" />Prazo</span>}
       </button>
     );
   }
 
   return (
     <div className="flex gap-1 items-center z-50">
-      <Input 
-        type="date" 
-        className="h-8 w-[130px] text-xs" 
+      <Input
+        type="date"
+        className="h-8 w-[130px] text-xs"
         value={formatDateForInput(selectedDate)}
         onChange={handleDateChange}
       />
@@ -665,7 +633,7 @@ interface AddDespesaFormProps {
   onSuccess: () => void;
 }
 
-function AddDespesaForm({ parentReconciliation, clients, aircraft, onClose, onSuccess }: AddDespesaFormProps) {
+function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesaFormProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
@@ -686,24 +654,23 @@ function AddDespesaForm({ parentReconciliation, clients, aircraft, onClose, onSu
     if (!user) return;
     try {
       setSubmitting(true);
-      
+
       const { data: inserted, error } = await supabase.from("bank_reconciliations").insert([{
-          type: "cliente",
-          date: data.date,
-          description: data.description,
-          amount: parseFloat(data.amount),
-          category: data.category,
-          status: data.status,
-          client_id: parentReconciliation.client_id,
-          aircraft_id: parentReconciliation.aircraft_id,
-          created_by: user.id,
-        }] as any)
+        type: "cliente",
+        date: data.date,
+        description: data.description,
+        amount: parseFloat(data.amount),
+        category: data.category,
+        status: data.status,
+        client_id: parentReconciliation.client_id,
+        aircraft_id: parentReconciliation.aircraft_id,
+        created_by: user.id,
+      }] as any)
         .select()
         .single();
 
       if (error) throw error;
 
-      // Criar conta a receber para gestão fiscal
       if (parentReconciliation.client_id && inserted) {
         try {
           const { data: clientData } = await supabase
@@ -724,6 +691,7 @@ function AddDespesaForm({ parentReconciliation, clients, aircraft, onClose, onSu
 
           const numeroDocumento = `REIMB-${Date.now().toString().slice(-6)}`;
           const clienteNome = clientData?.company_name || "Cliente";
+
           await supabase.from("contas_areceber").insert({
             numero: numeroDocumento,
             referencia: clienteNome,
@@ -744,7 +712,6 @@ function AddDespesaForm({ parentReconciliation, clients, aircraft, onClose, onSu
         }
       }
 
-      // Sincronizar com controle_bancario
       if (inserted?.id) {
         await syncBankReconciliationToFinancial(inserted.id, user.id);
       }
@@ -769,52 +736,51 @@ function AddDespesaForm({ parentReconciliation, clients, aircraft, onClose, onSu
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-             {/* Campos simplificados para brevidade, mas funcionais */}
-             <FormField control={form.control} name="date" render={({field}) => (
-                 <FormItem><FormLabel>Data</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem>
-             )} />
-             <FormField control={form.control} name="description" render={({field}) => (
-                 <FormItem><FormLabel>Descrição</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
-             )} />
-             <FormField control={form.control} name="amount" render={({field}) => (
-                 <FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl></FormItem>
-             )} />
-             <FormField control={form.control} name="category" render={({field}) => (
-                 <FormItem>
-                     <FormLabel>Categoria</FormLabel>
-                     <FormControl>
-                         <GroupedSelect value={field.value} onValueChange={field.onChange}>
-                             <GroupedSelectTrigger>
-                                 <GroupedSelectValue placeholder="Selecione uma categoria" />
-                             </GroupedSelectTrigger>
-                             <GroupedSelectContent>
-                                 {groupedCategories.map((group) => (
-                                     <SelectGroup key={group.grupo}>
-                                         <SelectLabel className="text-xs font-bold uppercase tracking-wider">{group.grupo}</SelectLabel>
-                                         {group.categorias.map((cat) => (
-                                             <GroupedSelectItem key={cat.id} value={cat.nome}>
-                                                 {cat.nome}
-                                             </GroupedSelectItem>
-                                         ))}
-                                     </SelectGroup>
-                                 ))}
-                             </GroupedSelectContent>
-                         </GroupedSelect>
-                     </FormControl>
-                 </FormItem>
-             )} />
-             <FormField control={form.control} name="status" render={({field}) => (
-                 <FormItem>
-                     <FormLabel>Status</FormLabel>
-                     <Select value={field.value} onValueChange={field.onChange}>
-                         <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                         <SelectContent>
-                             <SelectItem value="pendente">Pendente</SelectItem>
-                             <SelectItem value="enviado">Enviado</SelectItem>
-                         </SelectContent>
-                     </Select>
-                 </FormItem>
-             )} />
+            <FormField control={form.control} name="date" render={({ field }) => (
+              <FormItem><FormLabel>Data</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem>
+            )} />
+            <FormField control={form.control} name="description" render={({ field }) => (
+              <FormItem><FormLabel>Descrição</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+            )} />
+            <FormField control={form.control} name="amount" render={({ field }) => (
+              <FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl></FormItem>
+            )} />
+            <FormField control={form.control} name="category" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Categoria</FormLabel>
+                <FormControl>
+                  <GroupedSelect value={field.value} onValueChange={field.onChange}>
+                    <GroupedSelectTrigger>
+                      <GroupedSelectValue placeholder="Selecione..." />
+                    </GroupedSelectTrigger>
+                    <GroupedSelectContent>
+                      {groupedCategories.map((group) => (
+                        <SelectGroup key={group.grupo}>
+                          <SelectLabel className="text-xs font-bold uppercase tracking-wider">{group.grupo}</SelectLabel>
+                          {group.categorias.map((cat) => (
+                            <GroupedSelectItem key={cat.id} value={cat.nome}>
+                              {cat.nome}
+                            </GroupedSelectItem>
+                          ))}
+                        </SelectGroup>
+                      ))}
+                    </GroupedSelectContent>
+                  </GroupedSelect>
+                </FormControl>
+              </FormItem>
+            )} />
+            <FormField control={form.control} name="status" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status</FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="pendente">Pendente</SelectItem>
+                    <SelectItem value="enviado">Enviado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormItem>
+            )} />
           </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" size="sm" onClick={onClose}>Cancelar</Button>

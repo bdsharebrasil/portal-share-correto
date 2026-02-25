@@ -155,9 +155,9 @@ export default function RelatorioViagem() {
       })();
 
       // Determinar o nome do cliente: se tem client_partner, usar nome do partner; senão usar nome do cliente
-      const clientName = r.client_partner && r.partner_id_rel?.name 
-        ? r.partner_id_rel.name 
-        : r.client_id_rel?.name || '';
+      const clientName = r.client_partner && r.partner_id_rel?.name
+        ? r.partner_id_rel.name
+        : r.client_id_rel?.company_name || '';
 
       return {
         ...r,
@@ -197,9 +197,9 @@ export default function RelatorioViagem() {
     })();
 
     // Lendo do 'rData' (que é any) para evitar o erro do client_partner
-    const clientName = rData.client_partner && rData.partner_id_rel?.name 
-      ? rData.partner_id_rel.name 
-      : rData.client_id_rel?.name || '';
+    const clientName = rData.client_partner && rData.partner_id_rel?.name
+      ? rData.partner_id_rel.name
+      : rData.client_id_rel?.company_name || '';
 
     return {
       ...rData,
@@ -284,12 +284,10 @@ export default function RelatorioViagem() {
 
   const editReport = async (reportId: string) => {
     try {
-      toast.info('⏳ Carregando detalhes do relatório...');
       const reportDetails = await loadReportDetails(reportId);
       setCurrentReport(reportDetails);
       setIsCreating(true);
       setIsEditing(true);
-      toast.success('✓ Relatório carregado com sucesso');
     } catch (error) {
       console.error('Erro ao carregar relatório para edição:', error);
       toast.error('❌ Não foi possível carregar os detalhes do relatório.');
@@ -302,7 +300,6 @@ export default function RelatorioViagem() {
     }
 
     try {
-      toast.info('🗑️ Excluindo relatório...');
       await supabase.from('expense_items').delete().eq('report_id', reportId);
 
       const { error } = await supabase
@@ -391,6 +388,54 @@ export default function RelatorioViagem() {
           .single();
         if (error) throw error;
         savedReport = data;
+      }
+
+      // Salvar anexos das despesas na tabela travel_report_attachments
+      try {
+        const attachmentsToInsert = validExpenses
+          .map((expense, index) => {
+            if (!expense.receipt_url) return null;
+
+            // Extrair informações do arquivo da URL
+            const urlParts = expense.receipt_url.split('/');
+            const fileName = urlParts[urlParts.length - 1] || 'comprovante';
+            const filePath = `receipts/${fileName}`;
+
+            // Detectar tipo de arquivo
+            let fileType = 'application/octet-stream';
+            if (expense.receipt_url.includes('.pdf')) fileType = 'application/pdf';
+            else if (expense.receipt_url.includes('.jpg') || expense.receipt_url.includes('.jpeg')) fileType = 'image/jpeg';
+            else if (expense.receipt_url.includes('.png')) fileType = 'image/png';
+            else if (expense.receipt_url.includes('.gif')) fileType = 'image/gif';
+            else if (expense.receipt_url.includes('.webp')) fileType = 'image/webp';
+
+            return {
+              travel_report_id: savedReport.id,
+              expense_index: index,
+              file_name: fileName,
+              file_path: filePath,
+              file_url: expense.receipt_url,
+              file_type: fileType,
+              file_size: null, // Não temos tamanho do arquivo neste momento
+            };
+          })
+          .filter(Boolean);
+
+        if (attachmentsToInsert.length > 0) {
+          const { error: attachmentError } = await supabase
+            .from('travel_report_attachments')
+            .insert(attachmentsToInsert);
+
+          if (attachmentError) {
+            console.error('Erro ao salvar attachments:', attachmentError);
+            toast.warning('⚠️ Relatório salvo, mas houve erro ao registrar os comprovantes');
+          } else {
+            console.log(`✓ ${attachmentsToInsert.length} comprovante(s) registrado(s)`);
+          }
+        }
+      } catch (attachmentError: any) {
+        console.error('Erro ao processar attachments:', attachmentError);
+        toast.warning('⚠️ Erro ao registrar os comprovantes do relatório');
       }
 
       // Criar conciliações bancárias quando o relatório for finalizado
@@ -527,8 +572,6 @@ export default function RelatorioViagem() {
             if (paymentError) {
               console.error('Erro ao registrar conciliações:', paymentError);
               toast.warning('⚠️ Relatório salvo, mas houve erro ao criar conciliações bancárias');
-            } else {
-              toast.success(`✓ ${reconciliationsToInsert.length} conciliação(ões) bancária(s) criada(s)`);
             }
           }
 
@@ -600,7 +643,6 @@ export default function RelatorioViagem() {
                   toast.warning('⚠️ PDF gerado mas erro ao salvar URL no banco');
                 } else {
                   console.log('✅ PDF salvo com sucesso:', pdfUrl);
-                  toast.success('✓ PDF gerado e salvo com sucesso!');
                 }
               }
             } catch (pdfError: any) {
@@ -836,6 +878,7 @@ export default function RelatorioViagem() {
                                         descricao: e.description,
                                         valor: e.amount,
                                         pago_por: e.paid_by,
+                                        data: (e as any).expense_date || '',
                                         comprovante_url: e.receipt_url
                                       })) as TravelExpense[],
                                       total_combustivel: correctedTotals.total_fuel,

@@ -265,7 +265,7 @@ export function AddBankReconciliationForm({
         description: data.description,
         amount: parseFloat(data.amount),
         status: data.status,
-        created_by: user.id,
+        criado_por: user.id,
         afeta_caixa_empresa: data.reembolsavel === "sim",
         forma_pagamento: data.reembolsavel === "sim" ? "empresa_paga" : "rateio_direto",
       };
