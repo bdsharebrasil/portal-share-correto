@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Plus, Trash2, Eye, FileText, Edit, AlertCircle, RotateCcw } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { downloadPDF, previewPDFForPrint } from '@/lib/travelReportPDF';
@@ -878,7 +878,7 @@ export default function RelatorioViagem() {
                               </span>
                             </p>
                             <p className="text-xs text-muted-foreground/70 mt-1">
-                              {format(new Date(report.start_date), "dd MMM", { locale: ptBR })} a {format(new Date(report.end_date), "dd MMM yyyy", { locale: ptBR })}
+                              {format(parseISO(report.start_date), "dd MMM", { locale: ptBR })} a {format(parseISO(report.end_date), "dd MMM yyyy", { locale: ptBR })}
                             </p>
                           </div>
                           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
