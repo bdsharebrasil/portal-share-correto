@@ -67,7 +67,7 @@ interface BankReconciliation {
   criado_por?: string;
   client_partner: string | null;
   clients: { company_name: string } | null;
-  client_partners: { legal_name: string } | null;
+  client_partners: { name: string } | null;
   aircraft: { registration: string } | null;
 }
 
@@ -140,7 +140,7 @@ export function ConciliacaoClientes() {
         .select(`
           *,
           clients:client_id (company_name),
-          client_partners:client_partner (legal_name),
+          client_partners:client_partner (name),
           aircraft:aircraft_id (registration)
         `)
         .eq('type', 'cliente' as any)
@@ -386,11 +386,11 @@ export function ConciliacaoClientes() {
                           <TableCell>
                             <div className="flex flex-col gap-1">
                               <span className="text-sm font-medium">
-                                {item.client_partner && item.client_partners?.legal_name
-                                  ? item.client_partners.legal_name
+                                {item.client_partner && item.client_partners?.name
+                                  ? item.client_partners.name
                                   : item.clients?.company_name || '-'}
                               </span>
-                              {item.client_partner && item.client_partners?.legal_name && (
+                              {item.client_partner && item.client_partners?.name && (
                                 <Badge variant="outline" className="w-fit text-xs">
                                   Parceiro
                                 </Badge>
@@ -675,12 +675,12 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
           if (parentReconciliation.client_partner) {
             const { data: partnerData } = await supabase
               .from("client_partners")
-              .select("legal_name, cnpj")
+              .select("name, cpf")
               .eq("id", parentReconciliation.client_partner)
               .single();
             if (partnerData) {
-              clienteNome = partnerData.legal_name || "Cliente";
-              clienteCnpj = partnerData.cnpj || "";
+              clienteNome = partnerData.name || "Cliente";
+              clienteCnpj = partnerData.cpf || "";
             }
           } else if (parentReconciliation.client_id) {
             const { data: clientData } = await supabase
