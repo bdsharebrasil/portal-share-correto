@@ -14,9 +14,10 @@ import {
 import { Calendar as UICalendar } from "@/components/ui/calendar";
 import { AutocompleteInput } from "@/components/ui/autocomplete-input";
 import { ControlledSelect, SelectItem as ControlledSelectItem } from "@/components/ui/controlled-select";
+import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Plus, Trash2, Save, Send, Upload, Eye, FileText, AlertTriangle, CalendarIcon } from "lucide-react";
+import { Plus, Trash2, Save, Send, Upload, Eye, FileText, AlertTriangle, CalendarIcon, Building2, Plane, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useClientes } from "@/hooks/useClientes";
@@ -343,33 +344,20 @@ export function TravelReportForm({
         <CardContent className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <AutocompleteInput
-                label={`Cliente * ${isLoadingClientes ? '⏳ Carregando...' : ''}`}
-                value={currentReport.client || ''}
-                onChange={(value) => {
-                  handleInputChange('client', value);
-                  // limpar parceiros se o usuário digitar manualmente
-                  if (!value) setPartners([]);
+              <Label className="text-sm font-semibold text-slate-700">Cliente</Label>
+              <SearchableCombobox
+                items={clientes.map(c => ({ id: c.id, label: c.company_name || c.name || '' }))}
+                value={currentReport.client_id}
+                onChange={(id, label) => {
+                  handleInputChange('client_id', id);
+                  handleInputChange('client', label);
+                  handleInputChange('client_partner', null);
+                  fetchPartnersForClient(id);
                 }}
-                options={clientes.map(c => ({
-                  id: c.id,
-                  label: c.company_name
-                }))}
-                placeholder="Digite o nome do cliente ou selecione"
-                isLoading={isLoadingClientes}
-                onSelect={async (option) => {
-                  const selectedClient = clientes.find(c => c.id === option.id);
-                  if (selectedClient) {
-                    handleInputChange('client_id', option.id);
-                    handleInputChange('client', selectedClient.company_name);
-                    handleInputChange('client_partner', null);
-                    // buscar parceiros para este cliente e exibir se existirem
-                    const fetched = await fetchPartnersForClient(option.id);
-                    if (!fetched || fetched.length === 0) {
-                      setPartners([]);
-                    }
-                  }
-                }}
+                icon={<Building2 className="h-4 w-4" />}
+                placeholder="Selecione um cliente..."
+                searchPlaceholder="Buscar cliente pelo nome..."
+                emptyMessage="Nenhum cliente encontrado."
               />
               {partners.length > 0 && (
                 <div className="mt-2">
@@ -393,9 +381,6 @@ export function TravelReportForm({
                   </ControlledSelect>
                 </div>
               )}
-              {!currentReport.client_id && currentReport.client && (
-                <p className="text-xs text-yellow-600">⚠️ Entrada manual</p>
-              )}
               {currentReport.client_id && (
                 <p className="text-xs text-green-600">✓ Cliente selecionado</p>
               )}
@@ -403,7 +388,7 @@ export function TravelReportForm({
                 <p className="text-xs text-amber-500">
                   👤 Sócio: <span className="font-semibold">{currentReport.client}</span>
                   {showPartnerModal && (
-                    <button 
+                    <button
                       type="button"
                       className="ml-1 underline text-amber-400 hover:text-amber-300"
                       onClick={showPartnerModal}
@@ -416,54 +401,39 @@ export function TravelReportForm({
             </div>
 
             <div className="space-y-2">
-              <AutocompleteInput
-                label={`Aeronave * ${isLoadingAeronaves ? '⏳ Carregando...' : ''}`}
-                value={currentReport.aircraft_registration || ''}
-                onChange={(value) => handleInputChange('aircraft_registration', value)}
-                options={Array.isArray(aeronaves) ? aeronaves.map(a => ({
-                  id: a.id,
-                  label: `${a.registration} - ${a.model || ''}`
-                })) : []}
-                placeholder="Digite a matrícula ou selecione"
-                isLoading={isLoadingAeronaves}
-                onSelect={(option) => {
-                  const selectedAircraft = Array.isArray(aeronaves) ? aeronaves.find(a => a.id === option.id) : undefined;
-                  if (selectedAircraft) {
-                    handleInputChange('aircraft_id', option.id);
-                    handleInputChange('aircraft_registration', selectedAircraft.registration);
-                  }
+              <Label className="text-sm font-semibold text-slate-700">Aeronave</Label>
+              <SearchableCombobox
+                items={Array.isArray(aeronaves) ? aeronaves.map(a => ({ id: a.id, label: a.registration || '' })) : []}
+                value={currentReport.aircraft_id}
+                onChange={(id, label) => {
+                  handleInputChange('aircraft_id', id);
+                  handleInputChange('aircraft_registration', label);
                 }}
+                icon={<Plane className="h-4 w-4" />}
+                placeholder="Selecione a aeronave..."
+                searchPlaceholder="Buscar por prefixo..."
+                emptyMessage="Aeronave não encontrada."
               />
-              {!currentReport.aircraft_id && currentReport.aircraft_registration && (
-                <p className="text-xs text-yellow-600">⚠️ Entrada manual</p>
-              )}
               {currentReport.aircraft_id && (
                 <p className="text-xs text-green-600">✓ Aeronave selecionada</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <AutocompleteInput
-                label={`Tripulante 1 * ${isLoadingTripulantes ? '⏳ Carregando...' : ''}`}
-                value={currentReport.crew_member_name || ''}
-                onChange={(value) => handleInputChange('crew_member_name', value)}
-                options={tripulantes.map(t => ({
-                  id: t.id,
-                  label: t.full_name
-                }))}
-                placeholder="Digite o nome ou selecione"
-                isLoading={isLoadingTripulantes}
-                onSelect={(option) => {
-                  const selectedCrew = tripulantes.find(t => t.id === option.id);
-                  if (selectedCrew) {
-                    handleInputChange('crew_member_id', option.id);
-                    handleInputChange('crew_member_name', selectedCrew.full_name);
-                  }
+              <Label className="text-sm font-semibold text-slate-700">Comandante</Label>
+              <SearchableCombobox
+                items={tripulantes.map(t => ({ id: t.id, label: t.full_name || t.name || '' }))}
+                value={currentReport.crew_member_id}
+                onChange={(id, label) => {
+                  handleInputChange('crew_member_id', id);
+                  handleInputChange('crew_member_name', label);
                 }}
+                icon={<User className="h-4 w-4" />}
+                placeholder="Selecione o comandante..."
+                searchPlaceholder="Buscar tripulante..."
+                emptyMessage="Tripulante não encontrado."
+                allowFreeText={true}
               />
-              {!currentReport.crew_member_id && currentReport.crew_member_name && (
-                <p className="text-xs text-yellow-600">⚠️ Entrada manual</p>
-              )}
               {currentReport.crew_member_id && (
                 <p className="text-xs text-green-600">✓ Tripulante selecionado</p>
               )}
@@ -484,22 +454,18 @@ export function TravelReportForm({
 
             {(showSecondCrew || currentReport.crew_member_name_2) && (
               <div className="space-y-2">
-                <AutocompleteInput
-                  label="Tripulante 2"
-                  value={currentReport.crew_member_name_2 || ''}
-                  onChange={(value) => handleInputChange('crew_member_name_2', value)}
-                  options={tripulantes.map(t => ({
-                    id: t.id,
-                    label: t.full_name
-                  }))}
-                  placeholder="Digite o nome ou selecione"
-                  isLoading={isLoadingTripulantes}
-                  onSelect={(option) => {
-                    const selectedCrew = tripulantes.find(t => t.id === option.id);
-                    if (selectedCrew) {
-                      handleInputChange('crew_member_name_2', selectedCrew.full_name);
-                    }
+                <Label className="text-sm font-semibold text-slate-700">Co-piloto</Label>
+                <SearchableCombobox
+                  items={tripulantes.map(t => ({ id: t.id, label: t.full_name || t.name || '' }))}
+                  value={tripulantes.find(t => t.full_name === currentReport.crew_member_name_2 || t.name === currentReport.crew_member_name_2)?.id || currentReport.crew_member_name_2 || ''}
+                  onChange={(id, label) => {
+                    handleInputChange('crew_member_name_2', label);
                   }}
+                  icon={<User className="h-4 w-4" />}
+                  placeholder="Selecione o co-piloto..."
+                  searchPlaceholder="Buscar tripulante..."
+                  emptyMessage="Tripulante não encontrado."
+                  allowFreeText={true}
                 />
               </div>
             )}

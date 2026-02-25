@@ -95,7 +95,13 @@ export default function WeatherWidget() {
   const [spin, setSpin] = useState(false);
   const [tip, setTip] = useState(false);
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
-  const [hasAskedForLocation, setHasAskedForLocation] = useState(false);
+  const [hasAskedForLocation, setHasAskedForLocation] = useState(() => {
+    // Inicializar do localStorage
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("hasAskedForLocation") === "true";
+    }
+    return false;
+  });
   const tipRef = useRef<HTMLDivElement>(null);
 
   const requestLocation = useCallback(async (): Promise<{ lat: number; lon: number }> => {
@@ -206,6 +212,11 @@ export default function WeatherWidget() {
       setSpin(false);
     }
   }, [requestLocation]);
+
+  useEffect(() => {
+    // Sincronizar hasAskedForLocation com localStorage
+    localStorage.setItem("hasAskedForLocation", String(hasAskedForLocation));
+  }, [hasAskedForLocation]);
 
   useEffect(() => {
     load();

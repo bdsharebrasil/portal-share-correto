@@ -1,71 +1,59 @@
 import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 
-// --- 1. Definição do Tipo (adaptado da sua estrutura 'crew_members')
-export type Tripulante = Tables<"crew_members">;
+// --- 1. Definição do Tipo (suporta ambas as tabelas)
+export type Tripulante = Tables<"crew_members"> | (Tables<"crew"> & { source?: "crew_members" | "crew" });
 
 // --- 2. Chave da Query (Identificador para o React Query)
-const tripulantesQueryKey = ["tripulantes-crew-members"];
+const tripulantesQueryKey = ["tripulantes-crew-members-e-crew"];
 
 /**
  * Hook para buscar todos os membros ativos da tripulação.
- * Usa o backend remoto (Cloudflare Workers) para cache e proxy do Supabase.
- * Se o backend não está disponível, faz fallback direto para Supabase.
- * Retorna uma lista ordenada pelo nome completo.
+ * Busca de duas tabelas: crew_members (primeira prioridade) e crew
+ * Retorna uma lista ordenada com crew_members primeiro, depois crew.
  */
 export const useTripulantes = () => {
   const query = useQuery<Tripulante[]>({
     queryKey: tripulantesQueryKey,
     queryFn: async () => {
       try {
-        // Nota: O endpoint atual retorna usuários genéricos
-        // Para tripulantes específicos, pode ser necessário criar um endpoint separado
-        // Por enquanto, usamos getUsers e filtramos por role
-        const data = await apiClient.getUsers() as any[];
-        const normalize = (s: any) => {
-          const st = String(s ?? '').trim().toLowerCase();
-          if (!st) return 'ativo';
-          if (st === 'active') return 'ativo';
-          if (st === 'inactive') return 'inativo';
-          return st;
-        };
-        // Filtrar apenas tripulantes (crew) e com status ativo
-        return (data || []).filter((user: any) =>
-          (user.role === 'crew' || user.role === 'pilot') && normalize(user.status) === 'ativo'
-        ) as Tripulante[];
-      } catch (error) {
-        console.warn("Backend não disponível, usando Supabase direto:", error);
-
-        // Fallback: busca direto do Supabase se o backend falhar
-        try {
-          const { data, error: supabaseError } = await supabase
+        // Buscar de ambas as tabelas
+        const [crewMembersRes, crewRes] = await Promise.all([
+          supabase
             .from('crew_members')
             .select('*')
-            .order('full_name', { ascending: true });
+            .eq('status', 'ativo')
+            .order('full_name', { ascending: true }),
+          supabase
+            .from('crew')
+            .select('*')
+            .eq('status', 'ativo')
+            .order('full_name', { ascending: true }),
+        ]);
 
-          if (supabaseError) {
-            console.error("Erro ao buscar tripulantes do Supabase:", supabaseError);
-            throw supabaseError;
-          }
+        // Processar resultados
+        const crewMembers = (crewMembersRes.data || []).map((t: any) => ({
+          ...t,
+          source: 'crew_members' as const,
+        }));
 
-          console.info("Tripulantes carregados do Supabase (fallback)");
-          const normalize = (s: any) => {
-            const st = String(s ?? '').trim().toLowerCase();
-            if (!st) return 'ativo';
-            if (st === 'active') return 'ativo';
-            if (st === 'inactive') return 'inativo';
-            return st;
-          };
-          return (data || []).filter((t: any) => normalize(t.status) === 'ativo') as Tripulante[];
-        } catch (fallbackError) {
-          console.error("Erro ao buscar tripulantes (fallback):", fallbackError);
-          throw fallbackError;
-        }
+        const crew = (crewRes.data || []).map((t: any) => ({
+          ...t,
+          source: 'crew' as const,
+        }));
+
+        // Combinar: crew_members primeiro, depois crew
+        const combined = [...crewMembers, ...crew];
+
+        console.info(`Tripulantes carregados: ${crewMembers.length} de crew_members + ${crew.length} de crew`);
+        return combined as Tripulante[];
+      } catch (error) {
+        console.error("Erro ao buscar tripulantes:", error);
+        throw error;
       }
     },
-    staleTime: 10 * 60 * 1000, // 10 minutos (compatível com cache do backend)
+    staleTime: 10 * 60 * 1000, // 10 minutos
     gcTime: 30 * 60 * 1000, // 30 minutos
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
