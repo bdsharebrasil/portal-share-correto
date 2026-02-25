@@ -136,7 +136,7 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
   const handleViewPDF = async (reportId: string) => {
     try {
       toast.info("Gerando relatório...");
-      
+
       const { data, error } = await supabase.functions.invoke('generate-travel-pdf', {
         body: { reportId }
       });
@@ -148,7 +148,7 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
         newWindow.document.write(data as string);
         newWindow.document.close();
       }
-      
+
       toast.success("Relatório gerado com sucesso!");
     } catch (error: any) {
       console.error('Error:', error);
@@ -159,7 +159,7 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
   const handleDownloadPDF = async (reportId: string, reportNumber: string) => {
     try {
       toast.info("Preparando download...");
-      
+
       const { data, error } = await supabase.functions.invoke('generate-travel-pdf', {
         body: { reportId }
       });
@@ -175,7 +175,7 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-      
+
       toast.success("Arquivo baixado! Abra no navegador e use Ctrl+P para imprimir como PDF");
     } catch (error: any) {
       console.error('Error:', error);
@@ -276,8 +276,8 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
   // Filtro por busca
   const filteredClients = searchTerm
     ? clients.filter((c) =>
-        c.company_name.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+      c.company_name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
     : clients;
 
   return (
