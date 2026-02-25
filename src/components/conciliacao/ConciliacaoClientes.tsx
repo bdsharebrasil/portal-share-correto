@@ -392,7 +392,7 @@ export function ConciliacaoClientes() {
                               </span>
                               {item.client_partner && item.client_partners?.name && (
                                 <Badge variant="outline" className="w-fit text-xs">
-                                  Parceiro
+                                  Sócio
                                 </Badge>
                               )}
                             </div>
