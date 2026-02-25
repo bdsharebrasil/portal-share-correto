@@ -27,7 +27,7 @@ import type { TravelReportDraft } from '@/lib/travelReportDraft';
 import { AutocompleteInput } from '@/components/ui/autocomplete-input';
 import { calculateReportTotals, enrichReportWithCorrectTotals, extractPayerTotals, getValidExpenses } from '@/lib/travelReportUtils';
 import { PartnerSelectModal } from '@/components/diario/PartnerSelectModal';
-import { ReceiptViewer } from '@/components/financeiro/ReceiptViewer';
+import { convertPdfToImageBlob } from '@/lib/pdfToImage';
 
 const EXPENSE_CATEGORIES = ['Combustível', 'Hospedagem', 'Alimentação', 'Transporte', 'Outros'];
 const REPORT_STATUSES = ['Rascunho', 'Finalizado', 'Enviado'];
@@ -37,6 +37,7 @@ interface Expense {
   description: string;
   amount: number;
   paid_by: string;
+  date?: string;
   receipt_url?: string;
   id?: string;
 }
@@ -90,9 +91,7 @@ export default function RelatorioViagem() {
   const [endDateOpen, setEndDateOpen] = useState(false);
   const [hasSavedDraft, setHasSavedDraft] = useState(false);
   const [showPartnerModal, setShowPartnerModal] = useState(false);
-  const [clientPartners, setClientPartners] = useState<{name: string; cpf?: string; index: number}[]>([]);
-  const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
-  const [receiptViewerUrl, setReceiptViewerUrl] = useState<string>('');
+  const [clientPartners, setClientPartners] = useState<{ name: string; cpf?: string; index: number }[]>([]);
 
   const fetchClientPartners = async (clientId: string) => {
     const { data, error } = await supabase
@@ -262,7 +261,7 @@ export default function RelatorioViagem() {
       end_date: new Date().toISOString().split('T')[0],
       days_count: 1,
       observations: '',
-      expenses: [{ category: '', description: '', amount: 0, paid_by: '' }],
+      expenses: [{ category: '', description: '', amount: 0, paid_by: '', date: '' }],
       total_amount: 0,
       total_fuel: 0,
       total_lodging: 0,
@@ -351,6 +350,7 @@ export default function RelatorioViagem() {
           descricao: e.description,
           valor: e.amount,
           pago_por: e.paid_by,
+          data: e.date,
           comprovante_url: e.receipt_url
         })) as TravelExpense[],
         total_combustivel: correctedTotals.total_fuel,
@@ -418,7 +418,7 @@ export default function RelatorioViagem() {
     if (!currentReport) return;
     setCurrentReport({
       ...currentReport,
-      expenses: [...currentReport.expenses, { category: '', description: '', amount: 0, paid_by: '' }]
+      expenses: [...currentReport.expenses, { category: '', description: '', amount: 0, paid_by: '', date: '' }]
     });
   };
 
@@ -447,15 +447,28 @@ export default function RelatorioViagem() {
     }
 
     setUploadingIndex(index);
-    const toastId = toast.loading('📤 Enviando comprovante...');
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random()}.${fileExt}`;
+      toast.info('📤 Enviando comprovante...');
+
+      let uploadFile: File | Blob = file;
+      let ext = file.name.split('.').pop() || 'png';
+
+      // Se for PDF, converter primeira página para imagem
+      if (file.type === 'application/pdf') {
+        toast.info('🔄 Convertendo PDF para imagem...');
+        const imageBlob = await convertPdfToImageBlob(file);
+        uploadFile = imageBlob;
+        ext = 'png';
+      }
+
+      const fileName = `${Date.now()}-${Math.random()}.${ext}`;
       const filePath = `receipts/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('travel-reports')
-        .upload(filePath, file);
+        .upload(filePath, uploadFile, {
+          contentType: file.type === 'application/pdf' ? 'image/png' : file.type,
+        });
 
       if (uploadError) throw uploadError;
 
@@ -464,10 +477,10 @@ export default function RelatorioViagem() {
         .getPublicUrl(filePath);
 
       handleExpenseChange(index, 'receipt_url', publicUrl);
-      toast.success('✓ Comprovante enviado com sucesso!', { id: toastId });
+      toast.success('✓ Comprovante enviado com sucesso!');
     } catch (error: any) {
       console.error('Erro ao fazer upload:', error);
-      toast.error(`❌ Erro ao fazer upload: ${error?.message || 'Tente novamente'}`, { id: toastId });
+      toast.error(`❌ Erro ao fazer upload: ${error?.message || 'Tente novamente'}`);
     } finally {
       setUploadingIndex(null);
     }
@@ -862,8 +875,8 @@ export default function RelatorioViagem() {
                           <p className="font-medium flex items-center">
                             {report.report_number}
                             <span className={`ml-3 text-xs font-bold px-2 py-0.5 rounded-full ${report.status === 'Rascunho' ? 'bg-yellow-100 text-yellow-800' :
-                                report.status === 'Finalizado' ? 'bg-blue-100 text-blue-800' :
-                                  'bg-green-100 text-green-800'
+                              report.status === 'Finalizado' ? 'bg-blue-100 text-blue-800' :
+                                'bg-green-100 text-green-800'
                               }`}>
                               {report.status}
                             </span>
@@ -924,6 +937,7 @@ export default function RelatorioViagem() {
                                     descricao: e.description,
                                     valor: e.amount,
                                     pago_por: e.paid_by,
+                                    data: e.date,
                                     comprovante_url: e.receipt_url
                                   })) as TravelExpense[],
                                   total_combustivel: correctedTotals.total_fuel,
@@ -1075,7 +1089,7 @@ export default function RelatorioViagem() {
                       {currentReport?.partner_name && (
                         <p className="text-xs text-amber-500 flex items-center gap-1">
                           👤 Sócio: <span className="font-semibold">{currentReport.partner_name}</span>
-                          <button 
+                          <button
                             type="button"
                             className="ml-1 underline text-amber-400 hover:text-amber-300"
                             onClick={() => setShowPartnerModal(true)}
@@ -1331,7 +1345,7 @@ export default function RelatorioViagem() {
                     <div key={expense.id || index} className="border p-4 rounded-lg shadow-sm relative">
                       <h3 className="text-md font-medium mb-3">Item de Despesa #{index + 1}</h3>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                         <div className="space-y-2">
                           <Label>Categoria *</Label>
                           <ControlledSelect
@@ -1345,6 +1359,15 @@ export default function RelatorioViagem() {
                               </ControlledSelectItem>
                             ))}
                           </ControlledSelect>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Data</Label>
+                          <Input
+                            type="date"
+                            value={expense.date || ''}
+                            onChange={(e) => handleExpenseChange(index, 'date', e.target.value)}
+                          />
                         </div>
 
                         <div className="space-y-2">
@@ -1404,16 +1427,15 @@ export default function RelatorioViagem() {
                               disabled={uploadingIndex !== null}
                             />
                             {expense.receipt_url && (
-                              <button
-                                onClick={() => {
-                                  setReceiptViewerUrl(expense.receipt_url!);
-                                  setReceiptViewerOpen(true);
-                                }}
-                                className="p-1.5 rounded-full hover:bg-accent transition-colors"
+                              <a
+                                href={expense.receipt_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 rounded-full hover:bg-accent"
                                 title="Ver Comprovante"
                               >
                                 <Eye className="h-5 w-5" />
-                              </button>
+                              </a>
                             )}
                           </div>
                         </div>
@@ -1537,12 +1559,6 @@ export default function RelatorioViagem() {
             draftStorage.saveDraft({ ...currentReport, partner_name: partnerName } as TravelReportDraft);
           }
         }}
-      />
-      <ReceiptViewer
-        open={receiptViewerOpen}
-        onOpenChange={setReceiptViewerOpen}
-        url={receiptViewerUrl}
-        title="Comprovante Anexado"
       />
     </Layout>
   );
