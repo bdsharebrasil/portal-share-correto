@@ -81,7 +81,7 @@ export interface TravelReport {
   valor_total: number;
 }
 
-const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') => {
+const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário', logoBase64?: string) => {
   const calcDays = () => {
     if (report?.data_inicio && report?.data_fim) {
       const inicio = parseLocalDate(report.data_inicio);
@@ -342,7 +342,7 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') 
         <div class="report-container">
             <div class="header">
                 <div class="logo-box">
-                    <img src="/logo.share.png" alt="Share Brasil Logo" />
+                    <img src="${logoBase64 || '/logoshare.branco.png'}" alt="Share Brasil Logo" />
                 </div>
                 <div class="header-content">
                     <h1 class="header-title">Relatório de Despesa de Viagem</h1>
@@ -484,6 +484,31 @@ const loadHtml2PdfFromCdn = () => {
     script.onerror = () => reject(new Error('Failed to load html2pdf script'));
     document.head.appendChild(script);
   });
+};
+
+const loadLogoAsBase64 = async (): Promise<string> => {
+  try {
+    const response = await fetch('/logoshare.branco.png');
+    if (!response.ok) {
+      console.warn('Logo não encontrado, usando caminho padrão');
+      return '';
+    }
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        resolve(reader.result as string);
+      };
+      reader.onerror = () => {
+        console.warn('Erro ao carregar logo como base64');
+        resolve('');
+      };
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.warn('Erro ao fazer fetch do logo:', error);
+    return '';
+  }
 };
 
 const loadPdfJs = (): Promise<any> => {
@@ -674,6 +699,10 @@ const fetchImageAsBase64 = async (url: string): Promise<string> => {
 };
 
 export const generatePDF = async (report: TravelReport, currentFullName?: string): Promise<Blob> => {
+  // Carregar logo como base64
+  console.log('🔄 Carregando logo...');
+  const logoBase64 = await loadLogoAsBase64();
+
   // Pre-convert all receipt images to base64 to avoid CORS issues
   const reportWithBase64 = { ...report, despesas: [...report.despesas] };
 
@@ -707,7 +736,7 @@ export const generatePDF = async (report: TravelReport, currentFullName?: string
   await Promise.all(imagePromises);
   console.log(`✅ Conversão de ${totalComprovantes} comprovante(s) concluída`);
 
-  const htmlContent = generateHTMLReport(reportWithBase64, currentFullName);
+  const htmlContent = generateHTMLReport(reportWithBase64, currentFullName, logoBase64);
 
   const iframe = document.createElement('iframe');
   iframe.style.display = 'none';

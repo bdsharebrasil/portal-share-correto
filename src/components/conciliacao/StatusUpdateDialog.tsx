@@ -140,7 +140,7 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
 
       // Adicionar prazo de vencimento se definido
       if (paymentTerm) {
-        updateData.prazo_pagamento = prazo_pagamento;
+        updateData.prazo_pagamento = paymentTerm;
       }
 
       // Adicionar comprovante se houver

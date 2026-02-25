@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { FileText, Fuel, Wrench, Plane, Download, Upload, FileCheck, Eye, Send, Trash, CheckCircle2, DollarSign } from "lucide-react";
-import { previewPDFForPrint, TravelReport as TravelReportPDF, TravelExpense } from "@/lib/travelReportPDF";
 import { FileUploadDialog } from "./FileUploadDialog";
 import { ContractUploadDialog } from "./ContractUploadDialog";
 import { FuelPaymentDialog } from "./FuelPaymentDialog";
@@ -22,34 +21,20 @@ export interface ClientDataTabsProps {
   selectedPartner?: any;
 }
 
-interface TravelReport {
+// ─── Novo tipo: espelha bank_reconciliations para relatórios de viagem ────────
+interface TravelReportReconciliation {
   id: string;
-  report_number: string;
-  created_at: string;
-  observations?: string;
-  total_amount?: number;
+  description: string;
+  amount: string | number;
+  status: string;
+  date: string;
   prazo_pagamento?: string;
-  status?: string;
-  client_name?: string;
-  aircraft_registration?: string;
-  crew_member_name?: string;
-  crew_member_name_2?: string;
-  destination?: string;
-  start_date?: string;
-  end_date?: string;
-  expenses?: any;
-  total_fuel?: number;
-  total_lodging?: number;
-  total_food?: number;
-  total_transport?: number;
-  total_other?: number;
-  total_crew?: number;
-  total_crew1?: number;
-  total_crew2?: number;
-  total_client?: number;
-  total_sharebrasil?: number;
+  reference_id?: string;       // FK → travel_expense_reports.id
+  doc?: string;                // número do relatório (ex: REL-GIE-001/26)
+  partner_name?: string;
+  // pdf_url vem de travel_expense_reports (carregado após join)
+  pdf_url?: string | null;
 }
-
 
 export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegistration, isAdmin = false, selectedPartner }: ClientDataTabsProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -61,20 +46,19 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
   const [logbookEntries, setLogbookEntries] = useState<any[]>([]);
   const [fuelRecords, setFuelRecords] = useState<any[]>([]);
   const [ctmTracking, setCtmTracking] = useState<any[]>([]);
-  const [travelReports, setTravelReports] = useState<TravelReport[]>([]);
+  // ↓ Agora guarda os registros de bank_reconciliations (categoria RELATORIO DE DESPESA DE VIAGENS)
+  const [travelReports, setTravelReports] = useState<TravelReportReconciliation[]>([]);
   const [bankReconciliations, setBankReconciliations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [partners, setPartners] = useState<any[]>([]);
   const [activeClientId, setActiveClientId] = useState<string>(clientId);
   const [fornecedoresShare, setFornecedoresShare] = useState<any[]>([]);
 
-  // Carregador de dados principal (carrega dados do cliente ativo)
   useEffect(() => {
     setActiveClientId(clientId);
   }, [clientId]);
 
   useEffect(() => {
-    // Buscar cotistas/partners da aeronave
     const loadPartners = async () => {
       if (!aircraftId) return;
       try {
@@ -90,13 +74,11 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           share_percentage: p.share_percentage || 0,
         }));
 
-        // Ensure the primary client is included
         if (!partnerList.find((p: any) => p.client_id === clientId)) {
           partnerList.unshift({ client_id: clientId, company_name: clientName, share_percentage: 100 });
         }
 
         setPartners(partnerList);
-        // default to the provided clientId if present
         setActiveClientId(clientId);
       } catch (error) {
         console.error('Error loading partners:', error);
@@ -106,16 +88,12 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
     loadPartners();
   }, [aircraftId, clientId, clientName]);
 
-  // Load client data when clientId, aircraftId changes
-  // selectedPartner can be undefined (waiting for selection), null (consolidado), or an object (specific partner)
-  // Load in all cases as long as clientId and aircraftId are present
   useEffect(() => {
     if (clientId && aircraftId) {
       loadData(clientId);
     }
   }, [clientId, aircraftId, selectedPartner]);
 
-  // Buscar fornecedores favoritos categoria 'share'
   useEffect(() => {
     const loadFornecedoresShare = async () => {
       try {
@@ -136,13 +114,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
     try {
       setLoading(true);
 
-      // Normalize partner name for filtering (trim spaces) - used for logbook and fuel records
       const normalizedPartnerName = selectedPartner?.name?.trim() || '';
-
-      // Get all client IDs (main client + all partners/cotistas)
       const clientIds = [forClientId];
 
-      // Add partner/cotista IDs if they exist
       if (partners.length > 1) {
         partners.forEach((partner: any) => {
           if (partner.client_id && partner.client_id !== forClientId && !clientIds.includes(partner.client_id)) {
@@ -151,7 +125,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         });
       }
 
-      // Load files (for bank reconciliation - Notas Fiscais e Boletos)
+      // Load files
       let filesData = null;
       try {
         const result = await supabase
@@ -182,8 +156,6 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       // Load logbook entries
       let logbookData = null;
       try {
-        console.log('Carregando logbook para cliente:', forClientId, 'Partner selecionado:', selectedPartner?.name);
-
         const { data: allLogbookData, error } = await supabase
           .from('logbook_entries')
           .select(`
@@ -205,22 +177,15 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
 
         if (error) console.warn('Erro ao carregar logbook:', error);
 
-        // Se um parceiro específico foi selecionado, filtrar pelo partner_name
-        // Logbook entries podem ter partner_name em diferentes formatos:
-        // - Com espaço no início: " GUAVIRA"
-        // - Sem espaço: "GUAVIRA"
-        // - Possivelmente com colchetes: "[GUAVIRA]" (menos comum)
         if (selectedPartner && normalizedPartnerName && allLogbookData) {
           logbookData = allLogbookData.filter((entry: any) => {
             if (!entry.partner_name) return false;
-            // Normaliza o partner_name removendo espaços e colchetes para comparação
             const entryPartnerName = entry.partner_name
-              .replace(/^\[|\]$/g, '') // Remove colchetes
-              .trim() // Remove espaços
+              .replace(/^\[|\]$/g, '')
+              .trim()
               .toUpperCase();
             return entryPartnerName === normalizedPartnerName.toUpperCase();
           });
-          console.log(`Logbook filtrado para ${normalizedPartnerName}: ${logbookData.length} de ${allLogbookData.length} registros`);
         } else {
           logbookData = allLogbookData;
         }
@@ -228,7 +193,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         console.error('Erro crítico ao carregar logbook:', err);
       }
 
-      // Load aerodromes data
+      // Load aerodromes
       let aerodromeMap: any = {};
       if (logbookData && logbookData.length > 0) {
         const aerodromeCodes = new Set<string>();
@@ -240,34 +205,21 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         if (aerodromeCodes.size > 0) {
           try {
             const codesArray = Array.from(aerodromeCodes);
-            console.log('Buscando aerodromes:', codesArray);
-
-            // Try to fetch aerodromes - use simple code matching
-            // @ts-ignore - Supabase type instantiation too deep
+            // @ts-ignore
             const result = await supabase
               .from('aerodromes')
               .select('code, name')
               .in('code', codesArray);
             const aerodromes = result.data as any[];
-            const error = result.error;
-
-            if (error) {
-              console.warn('Erro ao buscar aerodromes:', error);
-            }
-
             if (aerodromes && aerodromes.length > 0) {
               aerodromes.forEach((aero: any) => {
                 aerodromeMap[aero.code] = { code: aero.code, name: aero.name };
               });
-              console.log('Aerodromes carregados:', aerodromeMap);
-            } else {
-              console.warn('Nenhum aeródromo encontrado, usando fallback');
             }
           } catch (err) {
             console.error('Erro crítico ao buscar aerodromes:', err);
           }
 
-          // Fallback: use the codes as names for any missing aerodromes
           Array.from(aerodromeCodes).forEach((code: string) => {
             if (!aerodromeMap[code]) {
               aerodromeMap[code] = { code, name: code };
@@ -276,29 +228,19 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         }
       }
 
-      // Enrich logbook data with aerodrome information
       const enrichedLogbookData = (logbookData || []).map((entry: any) => {
-        // Use code directly if not found in map, otherwise use map data
         const departure = entry.departure_aerodrome
           ? (aerodromeMap[entry.departure_aerodrome] || { code: entry.departure_aerodrome, name: entry.departure_aerodrome })
           : null;
-
         const arrival = entry.arrival_aerodrome
           ? (aerodromeMap[entry.arrival_aerodrome] || { code: entry.arrival_aerodrome, name: entry.arrival_aerodrome })
           : null;
-
-        return {
-          ...entry,
-          departure_aero: departure,
-          arrival_aero: arrival
-        };
+        return { ...entry, departure_aero: departure, arrival_aero: arrival };
       });
 
-      // Load fuel records - only for the selected client/partner
+      // Load fuel records
       let fuelData = null;
       try {
-        console.log('Carregando abastecimentos para cliente:', forClientId, 'Partner selecionado:', selectedPartner?.name);
-
         const { data: allFuelData, error } = await supabase
           .from('abastecimentos')
           .select('*, aeronave:aeronave_id(registration), client:client_id(company_name)')
@@ -309,19 +251,15 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
 
         if (error) console.warn('Erro ao carregar abastecimentos:', error);
 
-        // If a specific partner is selected, filter by partner name
-        // Abastecimentos store partner_name in format [NAME]
         if (selectedPartner && normalizedPartnerName && allFuelData) {
           fuelData = allFuelData.filter((record: any) => {
             if (!record.partner_name) return false;
-            // Remove colchetes e normaliza para comparação
             const recordPartnerName = record.partner_name
               .replace(/^\[|\]$/g, '')
               .trim()
               .toUpperCase();
             return recordPartnerName === normalizedPartnerName.toUpperCase();
           });
-          console.log(`Abastecimentos filtrados para ${normalizedPartnerName}: ${fuelData.length} de ${allFuelData.length} registros`);
         } else {
           fuelData = allFuelData;
         }
@@ -344,23 +282,52 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         console.error('Erro crítico ao carregar CTM:', err);
       }
 
-      // Load travel reports for specific aircraft
-      let reportsData = null;
+      // ─── Carregar Relatórios de Viagem via bank_reconciliations ──────────────
+      // Busca registros com category = 'RELATORIO DE DESPESA DE VIAGENS'
+      let reportsData: TravelReportReconciliation[] = [];
       try {
-        const result = await supabase
-          .from('travel_expense_reports')
-          .select('*')
+        const { data: reconData, error } = await supabase
+          .from('bank_reconciliations')
+          .select('id, description, amount, status, date, prazo_pagamento, reference_id, doc, partner_name')
           .eq('client_id', forClientId)
           .eq('aircraft_id', aircraftId)
-          .order('created_at', { ascending: false })
-          .limit(10);
-        reportsData = result.data;
-        if (result.error) console.warn('Erro ao carregar relatórios de viagem:', result.error);
+          .eq('category', 'RELATORIO DE DESPESA DE VIAGENS')
+          .order('date', { ascending: false })
+          .limit(20);
+
+        if (error) console.warn('Erro ao carregar relatórios de viagem:', error);
+
+        if (reconData && reconData.length > 0) {
+          // Para cada registro, busca o pdf_url em travel_expense_reports via reference_id
+          const referenceIds = reconData
+            .map((r: any) => r.reference_id)
+            .filter(Boolean) as string[];
+
+          let pdfMap: Record<string, string | null> = {};
+
+          if (referenceIds.length > 0) {
+            const { data: pdfData, error: pdfError } = await supabase
+              .from('travel_expense_reports')
+              .select('id, pdf_url')
+              .in('id', referenceIds);
+
+            if (pdfError) console.warn('Erro ao buscar pdf_url dos relatórios:', pdfError);
+
+            (pdfData || []).forEach((row: any) => {
+              pdfMap[row.id] = row.pdf_url || null;
+            });
+          }
+
+          reportsData = reconData.map((r: any) => ({
+            ...r,
+            pdf_url: r.reference_id ? (pdfMap[r.reference_id] ?? null) : null,
+          }));
+        }
       } catch (err) {
         console.error('Erro crítico ao carregar relatórios de viagem:', err);
       }
 
-      // Load bank reconciliations for the client
+      // Load bank reconciliations (financeiro geral)
       let bankReconData = null;
       try {
         const result = await supabase
@@ -380,11 +347,10 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       setLogbookEntries(enrichedLogbookData || []);
       setFuelRecords(fuelData || []);
       setCtmTracking(ctmData || []);
-      setTravelReports(reportsData || []);
+      setTravelReports(reportsData);
       setBankReconciliations(bankReconData || []);
     } catch (error) {
       console.error('Error loading client data:', error);
-      // Fallback: set empty arrays to prevent UI from breaking
       setFiles([]);
       setContracts([]);
       setLogbookEntries([]);
@@ -393,7 +359,6 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       setTravelReports([]);
       setBankReconciliations([]);
 
-      // Show user-friendly error message
       if (error instanceof Error) {
         toast.error(`Erro ao carregar dados: ${error.message}`);
       } else {
@@ -428,13 +393,12 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
 
   const deleteContract = async (contractId: string, filePath: string) => {
     try {
-      // Delete from storage
       const { error: storageError } = await supabase.storage
         .from('client-documents')
         .remove([filePath]);
 
       if (storageError) throw storageError;
-      // Delete from database
+
       const { error: dbError } = await supabase
         .from('client_contracts')
         .delete()
@@ -463,6 +427,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           <TabsTrigger value="envio-despesa">Envio de Despesa</TabsTrigger>
         </TabsList>
 
+        {/* ── Financeiro ──────────────────────────────────────────────────────── */}
         <TabsContent value="financeiro" className="space-y-4">
           <Card className="bg-gradient-card border-border">
             <CardHeader>
@@ -507,12 +472,10 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                         className="p-4 rounded-lg border border-border/50 bg-gradient-to-r from-slate-900/40 to-slate-800/40 hover:border-border hover:bg-slate-900/60 transition-all duration-300 backdrop-blur-sm"
                       >
                         <div className="flex items-start gap-4">
-                          {/* Ícone/Emoji da Categoria */}
                           <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-blue-500/20 border border-primary/30 flex items-center justify-center text-xl">
                             {emoji}
                           </div>
 
-                          {/* Informações Principais */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <h3 className="font-semibold text-foreground truncate">
@@ -531,8 +494,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                                     if (!record.date) return '';
                                     try {
                                       const [year, month, day] = record.date.split('T')[0].split('-');
-                                      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-                                      return date.toLocaleDateString('pt-BR');
+                                      return new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).toLocaleDateString('pt-BR');
                                     } catch {
                                       return record.date;
                                     }
@@ -555,8 +517,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                                       if (!record.prazo_pagamento) return '';
                                       try {
                                         const [year, month, day] = record.prazo_pagamento.split('T')[0].split('-');
-                                        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-                                        return date.toLocaleDateString('pt-BR');
+                                        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).toLocaleDateString('pt-BR');
                                       } catch {
                                         return record.prazo_pagamento;
                                       }
@@ -567,7 +528,6 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                             </div>
                           </div>
 
-                          {/* Valor */}
                           <div className="text-right flex-shrink-0">
                             <p className="text-xs text-muted-foreground mb-1">Valor</p>
                             <p className="text-lg font-bold text-emerald-400">
@@ -584,6 +544,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           </Card>
         </TabsContent>
 
+        {/* ── Contratos ───────────────────────────────────────────────────────── */}
         <TabsContent value="contracts" className="space-y-4">
           <Card className="bg-gradient-card border-border">
             <CardHeader>
@@ -596,11 +557,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button
-                onClick={() => setContractUploadDialogOpen(true)}
-                className="w-full"
-                size="lg"
-              >
+              <Button onClick={() => setContractUploadDialogOpen(true)} className="w-full" size="lg">
                 <Upload className="h-4 w-4 mr-2" />
                 Enviar Contrato
               </Button>
@@ -610,10 +567,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
               ) : (
                 <div className="space-y-2">
                   {contracts.map((contract) => (
-                    <div
-                      key={contract.id}
-                      className="p-4 bg-muted/50 rounded-lg border border-border flex justify-between items-center"
-                    >
+                    <div key={contract.id} className="p-4 bg-muted/50 rounded-lg border border-border flex justify-between items-center">
                       <div className="flex-1">
                         <p className="font-medium text-foreground">{contract.file_name}</p>
                         <p className="text-sm text-muted-foreground">
@@ -621,21 +575,11 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => downloadFile(contract.file_path)}
-                        >
-                          <Download className="h-4 w-4" />
-                          Baixar
+                        <Button variant="outline" size="sm" onClick={() => downloadFile(contract.file_path)}>
+                          <Download className="h-4 w-4" /> Baixar
                         </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => deleteContract(contract.id, contract.file_path)}
-                        >
-                          <Trash className="h-4 w-4" />
-                          Remover
+                        <Button variant="destructive" size="sm" onClick={() => deleteContract(contract.id, contract.file_path)}>
+                          <Trash className="h-4 w-4" /> Remover
                         </Button>
                       </div>
                     </div>
@@ -646,6 +590,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           </Card>
         </TabsContent>
 
+        {/* ── Diário de Bordo ─────────────────────────────────────────────────── */}
         <TabsContent value="logbook" className="space-y-4">
           <Card className="bg-gradient-card border-border">
             <CardHeader>
@@ -693,9 +638,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                                   {entry.departure_aero.name} → {entry.arrival_aero.name}
                                 </div>
                               </div>
-                            ) : (
-                              '—'
-                            )}
+                            ) : '—'}
                           </td>
                           <td className="py-4 px-4 text-foreground font-medium">
                             {entry.total_time ? `${parseFloat(entry.total_time).toFixed(2)}h` : '—'}
@@ -712,9 +655,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                                 <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">
                                   {entry.partner_name}
                                 </span>
-                              ) : (
-                                '—'
-                              )}
+                              ) : '—'}
                             </td>
                           )}
                         </tr>
@@ -727,6 +668,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           </Card>
         </TabsContent>
 
+        {/* ── Abastecimentos ──────────────────────────────────────────────────── */}
         <TabsContent value="fuel" className="space-y-4">
           {(() => {
             const pendingFuel = fuelRecords.filter((r: any) => r.status_pagamento === 'pendente');
@@ -770,100 +712,99 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {fuelRecords.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">Nenhum registro de abastecimento encontrado</p>
-              ) : (
-                <div className="space-y-2">
-                  {fuelRecords.map((record) => (
-                    <div
-                      key={record.id}
-                      className="p-4 bg-muted/50 rounded-lg border border-border"
-                    >
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-medium text-foreground">
-                              {record.aeronave?.registration || 'N/A'} - {record.local}
-                            </p>
-                            {record.partner_name && (
-                              <Badge variant="outline" className="bg-blue-500/20 text-blue-300 text-xs">
-                                {record.partner_name}
-                              </Badge>
+                      <p className="text-muted-foreground text-center py-8">Nenhum registro de abastecimento encontrado</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {fuelRecords.map((record) => (
+                          <div key={record.id} className="p-4 bg-muted/50 rounded-lg border border-border">
+                            <div className="flex justify-between items-start mb-3">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <p className="font-medium text-foreground">
+                                    {record.aeronave?.registration || 'N/A'} - {record.local}
+                                  </p>
+                                  {record.partner_name && (
+                                    <Badge variant="outline" className="bg-blue-500/20 text-blue-300 text-xs">
+                                      {record.partner_name}
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  Data: {new Date(record.data + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3 border-t border-border/50 text-sm">
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">Litros</p>
+                                <p className="font-medium text-foreground">{record.litros || '—'}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">Valor Unitário</p>
+                                <p className="font-medium text-foreground">R$ {record.valor_unitario || '—'}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">Valor Total</p>
+                                <p className="font-medium text-green-400">R$ {record.valor_total || '—'}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground mb-1">Status</p>
+                                <Badge className={
+                                  record.status_pagamento === 'pago'
+                                    ? 'bg-green-500/20 text-green-300'
+                                    : record.status_pagamento === 'pendente'
+                                    ? 'bg-yellow-500/20 text-yellow-300'
+                                    : 'bg-gray-500/20 text-gray-300'
+                                }>
+                                  {record.status_pagamento === 'pago' ? 'Pago'
+                                    : record.status_pagamento === 'pendente' ? 'Pendente'
+                                    : record.status_pagamento || 'N/A'}
+                                </Badge>
+                              </div>
+                            </div>
+
+                            {record.observacao && (
+                              <div className="pt-3 border-t border-border/50">
+                                <p className="text-xs text-muted-foreground mb-1">Observações</p>
+                                <p className="text-sm text-foreground">{record.observacao}</p>
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
+                              <p className="text-xs text-muted-foreground">Abastecedor: {record.abastecedor || 'N/A'}</p>
+                              <p className="text-xs text-muted-foreground ml-auto">Comanda: {record.comanda || 'N/A'}</p>
+                            </div>
+
+                            {record.status_pagamento === 'pendente' && (
+                              <Button
+                                onClick={() => {
+                                  setSelectedFuelRecord(record);
+                                  setFuelPaymentDialogOpen(true);
+                                }}
+                                size="sm"
+                                className="w-full mt-3 bg-emerald-600 hover:bg-emerald-500 gap-2"
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                                Dar Baixa no Pagamento
+                              </Button>
+                            )}
+
+                            {record.status_pagamento === 'pago' && record.comprovante_url && (
+                              <Button
+                                onClick={() => window.open(record.comprovante_url, '_blank')}
+                                size="sm"
+                                variant="outline"
+                                className="w-full mt-3 gap-2"
+                              >
+                                <Download className="h-4 w-4" />
+                                Baixar Comprovante
+                              </Button>
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            Data: {new Date(record.data + 'T00:00:00').toLocaleDateString('pt-BR')}
-                          </p>
-                        </div>
+                        ))}
                       </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-3 border-t border-border/50 text-sm">
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Litros</p>
-                          <p className="font-medium text-foreground">{record.litros || '—'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Valor Unitário</p>
-                          <p className="font-medium text-foreground">R$ {record.valor_unitario || '—'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Valor Total</p>
-                          <p className="font-medium text-green-400">R$ {record.valor_total || '—'}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Status</p>
-                          <Badge className={
-                            record.status_pagamento === 'pago'
-                              ? 'bg-green-500/20 text-green-300'
-                              : record.status_pagamento === 'pendente'
-                              ? 'bg-yellow-500/20 text-yellow-300'
-                              : 'bg-gray-500/20 text-gray-300'
-                          }>
-                            {record.status_pagamento === 'pago' ? 'Pago' : record.status_pagamento === 'pendente' ? 'Pendente' : record.status_pagamento || 'N/A'}
-                          </Badge>
-                        </div>
-                      </div>
-
-                      {record.observacao && (
-                        <div className="pt-3 border-t border-border/50">
-                          <p className="text-xs text-muted-foreground mb-1">Observações</p>
-                          <p className="text-sm text-foreground">{record.observacao}</p>
-                        </div>
-                      )}
-
-                      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50">
-                        <p className="text-xs text-muted-foreground">Abastecedor: {record.abastecedor || 'N/A'}</p>
-                        <p className="text-xs text-muted-foreground ml-auto">Comanda: {record.comanda || 'N/A'}</p>
-                      </div>
-
-                      {record.status_pagamento === 'pendente' && (
-                        <Button
-                          onClick={() => {
-                            setSelectedFuelRecord(record);
-                            setFuelPaymentDialogOpen(true);
-                          }}
-                          size="sm"
-                          className="w-full mt-3 bg-emerald-600 hover:bg-emerald-500 gap-2"
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                          Dar Baixa no Pagamento
-                        </Button>
-                      )}
-
-                      {record.status_pagamento === 'pago' && record.comprovante_url && (
-                        <Button
-                          onClick={() => window.open(record.comprovante_url, '_blank')}
-                          size="sm"
-                          variant="outline"
-                          className="w-full mt-3 gap-2"
-                        >
-                          <Download className="h-4 w-4" />
-                          Baixar Comprovante
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+                    )}
                   </CardContent>
                 </Card>
               </>
@@ -871,6 +812,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           })()}
         </TabsContent>
 
+        {/* ── CTM ─────────────────────────────────────────────────────────────── */}
         <TabsContent value="ctm" className="space-y-4">
           <Card className="bg-gradient-card border-border">
             <CardHeader>
@@ -887,10 +829,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                 <p className="text-muted-foreground text-center py-8">Nenhum item de CTM registrado</p>
               ) : (
                 ctmTracking.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-4 bg-muted/50 rounded-lg border border-border"
-                  >
+                  <div key={item.id} className="p-4 bg-muted/50 rounded-lg border border-border">
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="font-medium text-foreground">{item.item_name}</p>
@@ -907,6 +846,10 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           </Card>
         </TabsContent>
 
+        {/* ── Relatórios de Viagem ─────────────────────────────────────────────
+            Espelha bank_reconciliations onde category = 'RELATORIO DE DESPESA DE VIAGENS'
+            O botão "Ver PDF" abre o pdf_url já gerado em travel_expense_reports
+        ─────────────────────────────────────────────────────────────────────── */}
         <TabsContent value="travel-reports" className="space-y-4">
           <Card className="bg-gradient-card border-border">
             <CardHeader>
@@ -923,58 +866,12 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                 <p className="text-muted-foreground text-center py-8">Nenhum relatório disponível</p>
               ) : (
                 travelReports.map((report) => {
-                  // Preparar dados para o PDF
-                  const handleViewPDF = async () => {
-                    try {
-                      // Parse expenses
-                      let expenses: TravelExpense[] = [];
-                      if (report.expenses) {
-                        try {
-                          const parsed = typeof report.expenses === 'string'
-                            ? JSON.parse(report.expenses)
-                            : report.expenses;
-                          expenses = parsed.map((e: any) => ({
-                            categoria: e.category || e.categoria || 'Outros',
-                            descricao: e.description || e.descricao || '',
-                            valor: Number(e.amount || e.valor) || 0,
-                            pago_por: e.paid_by || e.pago_por || 'Cliente',
-                            comprovante_url: e.receipt_url || e.comprovante_url
-                          }));
-                        } catch (err) {
-                          console.error('Erro ao parsear despesas:', err);
-                        }
-                      }
+                  const isPago =
+                    report.status?.toLowerCase() === 'pago' ||
+                    report.status?.toLowerCase() === 'recebido' ||
+                    report.status?.toLowerCase() === 'conferido';
 
-                      const pdfReport: TravelReportPDF = {
-                        numero: report.report_number,
-                        cliente_nome: report.client_name || 'Cliente',
-                        aeronave: report.aircraft_registration || 'N/A',
-                        tripulante: report.crew_member_name || 'N/A',
-                        tripulante2: report.crew_member_name_2,
-                        destino: report.destination || 'N/A',
-                        data_inicio: report.start_date || report.created_at,
-                        data_fim: report.end_date || report.created_at,
-                        observacoes: report.observations,
-                        despesas: expenses,
-                        total_combustivel: report.total_fuel || 0,
-                        total_hospedagem: report.total_lodging || 0,
-                        total_alimentacao: report.total_food || 0,
-                        total_transporte: report.total_transport || 0,
-                        total_outros: report.total_other || 0,
-                        total_tripulante: report.total_crew || 0,
-                        total_tripulante1: report.total_crew1,
-                        total_tripulante2: report.total_crew2,
-                        total_cliente: report.total_client || 0,
-                        total_sharebrasil: report.total_sharebrasil || 0,
-                        valor_total: report.total_amount || 0
-                      };
-
-                      await previewPDFForPrint(pdfReport);
-                    } catch (error) {
-                      console.error('Erro ao visualizar PDF:', error);
-                      toast.error('Erro ao abrir visualização do relatório');
-                    }
-                  };
+                  const isEnviado = report.status?.toLowerCase() === 'enviado';
 
                   return (
                     <div
@@ -984,50 +881,87 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                       <div className="space-y-3">
                         <div className="flex justify-between items-start gap-3">
                           <div className="flex-1">
+                            {/* Número do relatório vem de bank_reconciliations.doc */}
                             <div className="flex items-center gap-2 mb-2">
-                              <p className="font-medium text-foreground">{report.report_number}</p>
+                              <p className="font-medium text-foreground">
+                                {report.doc || report.description}
+                              </p>
                               <Badge
                                 variant="outline"
                                 className={
-                                  report.status?.toLowerCase() === 'pago' || report.status?.toLowerCase() === 'conferido'
+                                  isPago
                                     ? 'bg-green-500/20 text-green-300'
                                     : 'bg-yellow-500/20 text-yellow-300'
                                 }
                               >
-                                {report.status?.toLowerCase() === 'pago' || report.status?.toLowerCase() === 'conferido' ? 'Conferido' : 'Pendente'}
+                                {isPago ? 'Conferido' : 'Pendente'}
                               </Badge>
                             </div>
+
                             <p className="text-sm text-muted-foreground">
-                              Emitido em: {new Date(report.created_at).toLocaleDateString('pt-BR')}
+                              Emitido em:{' '}
+                              {report.date
+                                ? (() => {
+                                    try {
+                                      const [y, m, d] = report.date.split('T')[0].split('-');
+                                      return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString('pt-BR');
+                                    } catch {
+                                      return report.date;
+                                    }
+                                  })()
+                                : '—'}
                             </p>
-                            {report.observations && (
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {report.observations}
-                              </p>
-                            )}
-                            {report.total_amount && (
-                              <p className="text-sm font-semibold text-green-400 mt-1">
-                                Valor: R$ {parseFloat(report.total_amount as any).toFixed(2)}
-                              </p>
-                            )}
+
+                            {/* Descrição completa (banco) */}
+                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                              {report.description}
+                            </p>
+
+                            <p className="text-sm font-semibold text-green-400 mt-1">
+                              Valor: R$ {Number(report.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </p>
                           </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleViewPDF}
-                            className="gap-2"
-                            title="Visualizar PDF"
-                          >
-                            <Eye className="h-4 w-4" />
-                            Ver PDF
-                          </Button>
+
+                          {/* Abre o PDF já gerado; desabilita se não houver URL */}
+                          {report.pdf_url ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => window.open(report.pdf_url!, '_blank')}
+                              className="gap-2 shrink-0"
+                              title="Visualizar PDF"
+                            >
+                              <Eye className="h-4 w-4" />
+                              Ver PDF
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled
+                              className="gap-2 shrink-0 opacity-50"
+                              title="PDF não disponível"
+                            >
+                              <Eye className="h-4 w-4" />
+                              PDF indisponível
+                            </Button>
+                          )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border">
                           <div>
                             <p className="text-xs text-muted-foreground mb-1">Prazo de Pagamento</p>
                             <p className="text-sm text-foreground">
-                              {report.prazo_pagamento ? new Date(report.prazo_pagamento).toLocaleDateString('pt-BR') : 'Não definido'}
+                              {report.prazo_pagamento
+                                ? (() => {
+                                    try {
+                                      const [y, m, d] = report.prazo_pagamento.split('T')[0].split('-');
+                                      return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString('pt-BR');
+                                    } catch {
+                                      return report.prazo_pagamento;
+                                    }
+                                  })()
+                                : 'Não definido'}
                             </p>
                           </div>
 
@@ -1035,18 +969,14 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                             <p className="text-xs text-muted-foreground mb-1">Status</p>
                             <Badge
                               className={
-                                report.status?.toLowerCase() === 'pago' || report.status?.toLowerCase() === 'recebido'
+                                isPago
                                   ? 'bg-green-500/20 text-green-300'
-                                  : report.status?.toLowerCase() === 'enviado'
-                                    ? 'bg-blue-500/20 text-blue-300'
-                                    : 'bg-yellow-500/20 text-yellow-300'
+                                  : isEnviado
+                                  ? 'bg-blue-500/20 text-blue-300'
+                                  : 'bg-yellow-500/20 text-yellow-300'
                               }
                             >
-                              {report.status?.toLowerCase() === 'pago' || report.status?.toLowerCase() === 'recebido'
-                                ? 'Conferido'
-                                : report.status?.toLowerCase() === 'enviado'
-                                  ? 'Enviado'
-                                  : 'Pendente'}
+                              {isPago ? 'Conferido' : isEnviado ? 'Enviado' : 'Pendente'}
                             </Badge>
                           </div>
                         </div>
@@ -1059,6 +989,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           </Card>
         </TabsContent>
 
+        {/* ── Envio de Despesa ────────────────────────────────────────────────── */}
         <TabsContent value="envio-despesa" className="space-y-4">
           <Card className="bg-gradient-card border-border">
             <CardHeader>
@@ -1071,11 +1002,15 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <EnvioDespesaTab clientId={clientId} clientName={clientName} aircraftId={aircraftId} aircraftRegistration={aircraftRegistration} />
+              <EnvioDespesaTab
+                clientId={clientId}
+                clientName={clientName}
+                aircraftId={aircraftId}
+                aircraftRegistration={aircraftRegistration}
+              />
             </CardContent>
           </Card>
         </TabsContent>
-
       </Tabs>
 
       <FileUploadDialog
@@ -1099,14 +1034,6 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         fuelRecord={selectedFuelRecord}
         onSuccess={() => loadData(clientId)}
       />
-
-      {/* Exemplo de uso do EnvioDespesaTab, ajuste conforme necessário */}
-      {/*
-      <EnvioDespesaTab
-        fornecedores={fornecedoresShare}
-        // ...outras props...
-      />
-      */}
     </>
   );
 }
