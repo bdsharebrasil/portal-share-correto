@@ -38,7 +38,9 @@ interface TravelReport {
   aircraft_registration: string;
   crew_member_id: string;
   crew_member_name: string;
+  crew_member_source?: 'crew_members' | 'crew' | null;
   crew_member_name_2: string;
+  crew_member_2_source?: 'crew_members' | 'crew' | null;
   route: string;
   start_date: string;
   end_date: string;
@@ -349,12 +351,25 @@ export default function RelatorioViagem() {
 
       console.log('💾 Dados para salvar - validExpenses completo:', validExpenses);
 
+      // Determinar qual campo preencher para tripulante 1
+      let crew_member_id_value = null;
+      let crew_value = null;
+
+      if (reportData.crew_member_id) {
+        if (reportData.crew_member_source === 'crew') {
+          crew_value = reportData.crew_member_id;
+        } else {
+          crew_member_id_value = reportData.crew_member_id;
+        }
+      }
+
       const reportDataToSave = {
         report_number: reportNumber,
         client_id: reportData.client_id || null,
         aircraft_id: reportData.aircraft_id || null,
         aircraft_registration: reportData.aircraft_registration,
-        crew_member_id: reportData.crew_member_id || null,
+        crew_member_id: crew_member_id_value,
+        crew: crew_value,
         crew_member_name: reportData.crew_member_name,
         crew_member_name_2: reportData.crew_member_name_2 || null,
         route: reportData.route,
