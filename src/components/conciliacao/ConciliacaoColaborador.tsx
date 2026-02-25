@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { CheckCircle, Clock, User, Mail, Check, ChevronLeft, ChevronRight, Plus, X, Calendar as CalendarIcon, Lock } from "lucide-react";
+import { CheckCircle, Clock, User, Mail, Check, Plus, X, Calendar as CalendarIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -33,6 +33,7 @@ import { getShortUserId, getIdBadgeColor } from "@/lib/user-id";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { StatusUpdateDialog } from "./StatusUpdateDialog";
+import { MonthSelector } from "./MonthSelector";
 import { syncBankReconciliationToFinancial } from "@/services/financialSyncClient";
 
 // --- Interfaces ---
@@ -173,19 +174,9 @@ export function ConciliacaoColaborador() {
     }
   };
 
-  const previousMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  };
-
-  const nextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  };
 
   const today = new Date();
   const isCurrentMonth = currentDate.getFullYear() === today.getFullYear() && currentDate.getMonth() === today.getMonth();
-
-  const monthYear = currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).charAt(0).toUpperCase() +
-    currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).slice(1);
 
   const getStatusBadge = (status: string) => {
     const statusLower = status?.toLowerCase() || '';
@@ -236,31 +227,12 @@ export function ConciliacaoColaborador() {
 
   return (
     <div className="space-y-6">
-      {/* Seletor de Mês */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={previousMonth}
-            className="rounded-lg border-border/50 hover:bg-accent/50"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <h2 className="text-lg font-semibold min-w-32 text-center">
-            {monthYear}
-            {isCurrentMonth && <span className="ml-2 text-xs bg-primary/20 text-primary px-2 py-1 rounded-md font-medium">Atual</span>}
-          </h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={nextMonth}
-            className="rounded-lg border-border/50 hover:bg-accent/50"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      {/* Seletor de Mês com Calendário Moderno */}
+      <MonthSelector
+        currentDate={currentDate}
+        onDateChange={setCurrentDate}
+        isCurrentMonth={isCurrentMonth}
+      />
 
       {/* Cards de Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
