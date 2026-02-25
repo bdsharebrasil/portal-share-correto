@@ -284,12 +284,10 @@ export default function RelatorioViagem() {
 
   const editReport = async (reportId: string) => {
     try {
-      toast.info('⏳ Carregando detalhes do relatório...');
       const reportDetails = await loadReportDetails(reportId);
       setCurrentReport(reportDetails);
       setIsCreating(true);
       setIsEditing(true);
-      toast.success('✓ Relatório carregado com sucesso');
     } catch (error) {
       console.error('Erro ao carregar relatório para edição:', error);
       toast.error('❌ Não foi possível carregar os detalhes do relatório.');
@@ -302,7 +300,6 @@ export default function RelatorioViagem() {
     }
 
     try {
-      toast.info('🗑️ Excluindo relatório...');
       await supabase.from('expense_items').delete().eq('report_id', reportId);
 
       const { error } = await supabase
