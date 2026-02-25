@@ -36,7 +36,7 @@ const generatePDFConfig = (reportNumber: string) => {
     margin: 10,
     filename: `${reportNumber}-relatorio-viagem.pdf`,
     image: { type: 'jpeg' as const, quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true },
+    html2canvas: { scale: 2, useCORS: true, allowTaint: true },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
   };
 };
@@ -46,6 +46,7 @@ export interface TravelExpense {
   descricao: string;
   valor: number;
   pago_por: string;
+  data?: string;
   comprovante_url?: string;
 }
 
@@ -300,10 +301,12 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') 
 
             .receipt-image {
                 max-width: 100%;
+                max-height: 600px;
                 height: auto;
                 display: block;
                 margin-top: 12px;
                 border: 1px solid #ccc;
+                object-fit: contain;
             }
 
             hr {
@@ -355,15 +358,24 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') 
                 <thead>
                     <tr>
                         <th>Categoria</th>
+                        <th>Data</th>
                         <th>Descrição</th>
                         <th class="text-right">Valor (R$)</th>
                         <th>Pago Por</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${report.despesas.map(d => `
+                    ${[...report.despesas]
+      .sort((a, b) => {
+        if (!a.data && !b.data) return 0;
+        if (!a.data) return 1;
+        if (!b.data) return -1;
+        return a.data.localeCompare(b.data);
+      })
+      .map(d => `
                         <tr>
                             <td>${d.categoria || 'Outros'}</td>
+                            <td>${d.data ? formatDateBR(d.data) : '-'}</td>
                             <td>${d.descricao || 'N/A'}</td>
                             <td class="text-right">${(Number(d.valor) || 0).toFixed(2).replace('.', ',')}</td>
                             <td>${d.pago_por || 'N/A'}</td>
@@ -411,7 +423,7 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário') 
                             <p><strong>Descrição:</strong> ${d.descricao || 'N/A'}</p>
                             <p><strong>Categoria:</strong> ${d.categoria || 'Outros'}</p>
                             <p><strong>Valor:</strong> R$ ${(Number(d.valor) || 0).toFixed(2).replace('.', ',')}</p>
-                            <img class="receipt-image" src="${d.comprovante_url}" alt="Comprovante" />
+                            <img class="receipt-image" src="${d.comprovante_url}" alt="Comprovante" crossorigin="anonymous" />
                         </div>
                     `).join('')}
             </div>
@@ -439,22 +451,45 @@ const loadHtml2PdfFromCdn = () => {
     script.setAttribute('data-html2pdf', '1');
     script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.2/html2pdf.bundle.min.js';
     script.async = true;
-    script.type = 'text/javascript';
     script.onload = () => {
       const w2 = window as any;
       if (w2.html2pdf) return resolve(w2.html2pdf);
+      if (w2.html2pdf) return resolve(w2.html2pdf);
       reject(new Error('html2pdf not available after script load'));
     };
-    script.onerror = (error) => {
-      console.error('[html2pdf] Erro ao carregar o script do CDN:', error);
-      reject(new Error('Failed to load html2pdf script from CDN'));
-    };
+    script.onerror = () => reject(new Error('Failed to load html2pdf script'));
     document.head.appendChild(script);
   });
 };
 
+const fetchImageAsBase64 = async (url: string): Promise<string> => {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (e) {
+    console.warn('Falha ao converter imagem para base64:', url, e);
+    return url;
+  }
+};
+
 export const generatePDF = async (report: TravelReport, currentFullName?: string): Promise<Blob> => {
-  const htmlContent = generateHTMLReport(report, currentFullName);
+  // Pre-convert all receipt images to base64 to avoid CORS issues
+  const reportWithBase64 = { ...report, despesas: [...report.despesas] };
+  const imagePromises = reportWithBase64.despesas.map(async (d, i) => {
+    if (d.comprovante_url) {
+      const base64 = await fetchImageAsBase64(d.comprovante_url);
+      reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
+    }
+  });
+  await Promise.all(imagePromises);
+
+  const htmlContent = generateHTMLReport(reportWithBase64, currentFullName);
 
   const iframe = document.createElement('iframe');
   iframe.style.display = 'none';
@@ -468,7 +503,8 @@ export const generatePDF = async (report: TravelReport, currentFullName?: string
     iframeDoc.write(htmlContent);
     iframeDoc.close();
 
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Wait longer for base64 images to render
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     const config = generatePDFConfig(report.numero);
     const html2pdf = (window as any).html2pdf ? (window as any).html2pdf : await loadHtml2PdfFromCdn();
