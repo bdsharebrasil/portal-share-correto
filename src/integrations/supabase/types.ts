@@ -1107,6 +1107,42 @@ export type Database = {
         }
         Relationships: []
       }
+      autenticacao_portal_cliente: {
+        Row: {
+          ativo: boolean | null
+          atualizado_em: string | null
+          client_partner_id: string | null
+          cliente_id: string
+          criado_em: string | null
+          hash_senha: string
+          id: string
+          login: string
+          ultimo_login: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          client_partner_id?: string | null
+          cliente_id: string
+          criado_em?: string | null
+          hash_senha: string
+          id?: string
+          login: string
+          ultimo_login?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          client_partner_id?: string | null
+          cliente_id?: string
+          criado_em?: string | null
+          hash_senha?: string
+          id?: string
+          login?: string
+          ultimo_login?: string | null
+        }
+        Relationships: []
+      }
       bank_institutions: {
         Row: {
           id: string
@@ -1134,10 +1170,10 @@ export type Database = {
           categoria_movimentacao_id: string | null
           category: string | null
           client_id: string | null
+          client_partner: string | null
           comprovante_url: string | null
           controle_bancario_id: string | null
           created_at: string | null
-          created_by: string | null
           criado_por: string
           data_reembolso: string | null
           date: string
@@ -1169,10 +1205,10 @@ export type Database = {
           categoria_movimentacao_id?: string | null
           category?: string | null
           client_id?: string | null
+          client_partner?: string | null
           comprovante_url?: string | null
           controle_bancario_id?: string | null
           created_at?: string | null
-          created_by?: string | null
           criado_por: string
           data_reembolso?: string | null
           date: string
@@ -1204,10 +1240,10 @@ export type Database = {
           categoria_movimentacao_id?: string | null
           category?: string | null
           client_id?: string | null
+          client_partner?: string | null
           comprovante_url?: string | null
           controle_bancario_id?: string | null
           created_at?: string | null
-          created_by?: string | null
           criado_por?: string
           data_reembolso?: string | null
           date?: string
@@ -1322,6 +1358,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "bank_reconciliations_client_partner_fkey"
+            columns: ["client_partner"]
+            isOneToOne: false
+            referencedRelation: "client_partners"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "bank_reconciliations_controle_bancario_id_fkey"
@@ -1852,82 +1895,6 @@ export type Database = {
           },
           {
             foreignKeyName: "client_partners_client_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_reembolsos_pendentes"
-            referencedColumns: ["cliente_id"]
-          },
-        ]
-      }
-      client_portal_auth: {
-        Row: {
-          client_id: string
-          created_at: string | null
-          email: string
-          id: string
-          is_active: boolean | null
-          last_login: string | null
-          password_hash: string
-          updated_at: string | null
-        }
-        Insert: {
-          client_id: string
-          created_at?: string | null
-          email: string
-          id?: string
-          is_active?: boolean | null
-          last_login?: string | null
-          password_hash: string
-          updated_at?: string | null
-        }
-        Update: {
-          client_id?: string
-          created_at?: string | null
-          email?: string
-          id?: string
-          is_active?: boolean | null
-          last_login?: string | null
-          password_hash?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "client_portal_auth_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "client_portal_auth_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "client_portal_auth_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_cliente_simples"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "client_portal_auth_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "client_portal_auth_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_cliente"
-            referencedColumns: ["cliente_id"]
-          },
-          {
-            foreignKeyName: "client_portal_auth_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
@@ -2498,7 +2465,6 @@ export type Database = {
           data_vencimento: string
           descricao: string | null
           documento_url: string | null
-          empresa: string | null
           empresa_id: string | null
           fornecedor_cnpj: string
           fornecedor_favorito_id: string | null
@@ -2541,7 +2507,6 @@ export type Database = {
           data_vencimento: string
           descricao?: string | null
           documento_url?: string | null
-          empresa?: string | null
           empresa_id?: string | null
           fornecedor_cnpj: string
           fornecedor_favorito_id?: string | null
@@ -2584,7 +2549,6 @@ export type Database = {
           data_vencimento?: string
           descricao?: string | null
           documento_url?: string | null
-          empresa?: string | null
           empresa_id?: string | null
           fornecedor_cnpj?: string
           fornecedor_favorito_id?: string | null
@@ -3409,13 +3373,6 @@ export type Database = {
             columns: ["travel_report_id"]
             isOneToOne: false
             referencedRelation: "travel_expense_reports"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "controle_bancario_travel_report_id_fkey"
-            columns: ["travel_report_id"]
-            isOneToOne: false
-            referencedRelation: "vw_viagens_a_receber"
             referencedColumns: ["id"]
           },
         ]
@@ -5122,13 +5079,6 @@ export type Database = {
             columns: ["report_id"]
             isOneToOne: false
             referencedRelation: "travel_expense_reports"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "expense_items_report_id_fkey"
-            columns: ["report_id"]
-            isOneToOne: false
-            referencedRelation: "vw_viagens_a_receber"
             referencedColumns: ["id"]
           },
         ]
@@ -10253,18 +10203,19 @@ export type Database = {
         Row: {
           aircraft_id: string | null
           aircraft_registration: string | null
-          client: string | null
           client_id: string | null
+          client_partner: string | null
           created_at: string | null
+          crew: string | null
           crew_member_id: string | null
+          crew_member_id2: string | null
           crew_member_name: string | null
-          crew_member_name_2: string | null
+          crew_member_name2: string | null
           days_count: number
           end_date: string
           expenses: string | null
           id: string
           observations: string | null
-          partner_name: string | null
           pdf_url: string | null
           report_number: string
           route: string | null
@@ -10286,18 +10237,19 @@ export type Database = {
         Insert: {
           aircraft_id?: string | null
           aircraft_registration?: string | null
-          client?: string | null
           client_id?: string | null
+          client_partner?: string | null
           created_at?: string | null
+          crew?: string | null
           crew_member_id?: string | null
+          crew_member_id2?: string | null
           crew_member_name?: string | null
-          crew_member_name_2?: string | null
+          crew_member_name2?: string | null
           days_count: number
           end_date: string
           expenses?: string | null
           id?: string
           observations?: string | null
-          partner_name?: string | null
           pdf_url?: string | null
           report_number: string
           route?: string | null
@@ -10319,18 +10271,19 @@ export type Database = {
         Update: {
           aircraft_id?: string | null
           aircraft_registration?: string | null
-          client?: string | null
           client_id?: string | null
+          client_partner?: string | null
           created_at?: string | null
+          crew?: string | null
           crew_member_id?: string | null
+          crew_member_id2?: string | null
           crew_member_name?: string | null
-          crew_member_name_2?: string | null
+          crew_member_name2?: string | null
           days_count?: number
           end_date?: string
           expenses?: string | null
           id?: string
           observations?: string | null
-          partner_name?: string | null
           pdf_url?: string | null
           report_number?: string
           route?: string | null
@@ -10435,8 +10388,22 @@ export type Database = {
             referencedColumns: ["cliente_id"]
           },
           {
-            foreignKeyName: "travel_expense_reports_crew_member_id_fkey"
-            columns: ["crew_member_id"]
+            foreignKeyName: "travel_expense_reports_client_partner_fkey"
+            columns: ["client_partner"]
+            isOneToOne: false
+            referencedRelation: "client_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "travel_expense_reports_crew_fkey"
+            columns: ["crew"]
+            isOneToOne: false
+            referencedRelation: "crew"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "travel_expense_reports_crew_member_id2_fkey"
+            columns: ["crew_member_id2"]
             isOneToOne: false
             referencedRelation: "crew_members"
             referencedColumns: ["id"]
@@ -10483,13 +10450,6 @@ export type Database = {
             columns: ["travel_report_id"]
             isOneToOne: false
             referencedRelation: "travel_expense_reports"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "travel_report_attachments_travel_report_id_fkey"
-            columns: ["travel_report_id"]
-            isOneToOne: false
-            referencedRelation: "vw_viagens_a_receber"
             referencedColumns: ["id"]
           },
         ]
@@ -11736,45 +11696,6 @@ export type Database = {
           quantidade: number | null
           total_valor: number | null
           valor_medio: number | null
-        }
-        Relationships: []
-      }
-      vw_viagens_a_receber: {
-        Row: {
-          aeronave: string | null
-          cliente_nome: string | null
-          data_fim_viagem: string | null
-          id: string | null
-          numero: string | null
-          pdf_url: string | null
-          qtd_itens: number | null
-          status: string | null
-          valor_cliente: number | null
-          valor_total: number | null
-        }
-        Insert: {
-          aeronave?: string | null
-          cliente_nome?: string | null
-          data_fim_viagem?: string | null
-          id?: string | null
-          numero?: string | null
-          pdf_url?: string | null
-          qtd_itens?: never
-          status?: string | null
-          valor_cliente?: number | null
-          valor_total?: number | null
-        }
-        Update: {
-          aeronave?: string | null
-          cliente_nome?: string | null
-          data_fim_viagem?: string | null
-          id?: string | null
-          numero?: string | null
-          pdf_url?: string | null
-          qtd_itens?: never
-          status?: string | null
-          valor_cliente?: number | null
-          valor_total?: number | null
         }
         Relationships: []
       }
