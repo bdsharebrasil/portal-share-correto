@@ -13,20 +13,21 @@ interface Colaborador {
   email: string | null;
   avatar_url: string | null;
   admission_date: string | null;
-  salary: string | null;
+  salario: number | null;
   employment_status: string;
+  tipo: string | null;
 }
 
 export function ColaboradoresListTab() {
   const [searchTerm, setSearchTerm] = useState("");
 
-  const { data: colaboradores = [], isLoading } = useQuery({
+  const { data: colaboradores = [], isLoading, error } = useQuery({
     queryKey: ["colaboradores-list"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("user_profiles")
-        .select("id, full_name, email, avatar_url, admission_date, salary, employment_status")
-        .eq("tipo", "colaborador")
+        .select("id, full_name, email, avatar_url, admission_date, salario, employment_status, tipo")
+        .neq("tipo", null)
         .order("full_name");
 
       if (error) throw error;
@@ -77,6 +78,12 @@ export function ColaboradoresListTab() {
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             Carregando colaboradores...
+          </CardContent>
+        </Card>
+      ) : error ? (
+        <Card>
+          <CardContent className="py-12 text-center text-destructive">
+            <p>Erro ao carregar colaboradores</p>
           </CardContent>
         </Card>
       ) : filteredColaboradores.length === 0 ? (
