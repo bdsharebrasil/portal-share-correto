@@ -108,15 +108,37 @@ export default function AeronaveDetalhes() {
   } = useQuery({
     queryKey: ["clients-for-aircraft", id],
     queryFn: async () => {
+      // Primeiro buscar os dados de client_aircraft
       const {
-        data,
-        error
-      } = await supabase.from("client_aircraft").select(`
-          share_percentage,
-          clients:client_id(id, company_name)
-        `).eq("aircraft_id", id);
-      if (error) throw error;
-      return data as Array<{
+        data: clientAircraft,
+        error: caError
+      } = await supabase
+        .from("client_aircraft")
+        .select("client_id, share_percentage")
+        .eq("aircraft_id", id);
+
+      if (caError) throw caError;
+      if (!clientAircraft || clientAircraft.length === 0) return [];
+
+      // Depois buscar os dados dos clientes
+      const clientIds = clientAircraft.map((ca: any) => ca.client_id);
+      const { data: clientsData, error: clientsError } = await supabase
+        .from("clients")
+        .select("id, company_name")
+        .in("id", clientIds);
+
+      if (clientsError) throw clientsError;
+
+      // Mapear os dados combinados
+      const clientsMap: Record<string, any> = {};
+      (clientsData || []).forEach((c: any) => {
+        clientsMap[c.id] = c;
+      });
+
+      return clientAircraft.map((ca: any) => ({
+        share_percentage: ca.share_percentage,
+        clients: clientsMap[ca.client_id] || { id: ca.client_id, company_name: null }
+      })) as Array<{
         share_percentage: number;
         clients: {
           id: string;

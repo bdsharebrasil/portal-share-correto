@@ -31,6 +31,7 @@ export const useClientes = () => {
           // Se precisar trazer as aeronaves vinculadas, use o select abaixo:
           // .select('*, client_aircraft(aircraft_id, share_percentage, aircraft(id, registration, manufacturer, model, year))')
           .select('*')
+          .or(`status.eq.ativo,status.eq.active`)
           .order('company_name', { ascending: true });
 
         if (error) {

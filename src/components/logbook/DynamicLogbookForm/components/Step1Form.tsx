@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { CalendarIcon, Clock, MapPin, ArrowRight, Users, Check } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, ArrowRight, Users, Check, Building2 } from 'lucide-react';
+import { SearchableCombobox } from '@/components/ui/SearchableCombobox';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { FlightCategorySelector } from './FlightCategorySelector';
@@ -83,7 +84,6 @@ export function Step1Form(props: Step1FormProps) {
 
   const [departureOpen, setDepartureOpen] = useState(false);
   const [arrivalOpen, setArrivalOpen] = useState(false);
-  const [clientOpen, setClientOpen] = useState(false);
   const [borrowerClientOpen, setBorrowerClientOpen] = useState(false);
   const [picOpen, setPicOpen] = useState(false);
 
@@ -164,42 +164,21 @@ export function Step1Form(props: Step1FormProps) {
       {/* Seleção de Cliente */}
       {flightCategory === 'cliente' && (
         <div className="space-y-2 animate-in slide-in-from-top-2">
-          <Label>Selecione o Cliente</Label>
-          <Popover open={clientOpen} onOpenChange={setClientOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" role="combobox" className="w-full justify-between h-11 font-normal">
-                {selectedClient ? getClientName(selectedClient) : 'Selecione um cliente...'}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-full p-0" align="start">
-              <Command>
-                <CommandInput placeholder="Buscar cliente..." />
-                <CommandList>
-                  <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
-                  <CommandGroup>
-                    {clients.map((item: any) => {
-                      const clientData = item.clients as any;
-                      if (!clientData) return null;
-                      return (
-                        <CommandItem
-                          key={item.client_id}
-                          value={clientData.company_name || clientData.proprietario}
-                          onSelect={() => {
-                            onClientChange(item.client_id);
-                            setClientOpen(false);
-                          }}
-                        >
-                          <Check className={cn("mr-2 h-4 w-4", selectedClient === item.client_id ? "opacity-100" : "opacity-0")} />
-                          <span>{clientData.company_name || clientData.proprietario}</span>
-                          <span className="ml-auto text-xs text-muted-foreground">{item.share_percentage}%</span>
-                        </CommandItem>
-                      );
-                    })}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
+          <Label className="text-foreground">Cliente/Empresa *</Label>
+          <SearchableCombobox
+            items={clients.map((c: any) => ({
+              id: c.client_id,
+              label: `${c.clients?.company_name || c.clients?.proprietario || ''} (${c.share_percentage}%)`
+            }))}
+            value={selectedClient}
+            onChange={(id) => {
+              onClientChange(id);
+            }}
+            icon={<Building2 className="h-4 w-4" />}
+            placeholder="Selecione um cliente..."
+            searchPlaceholder="Buscar cliente pelo nome..."
+            emptyMessage="Nenhum cliente encontrado."
+          />
 
           {/* Parceiro do Cliente */}
           {selectedClient && clientPartners.length > 0 && (
@@ -258,42 +237,21 @@ export function Step1Form(props: Step1FormProps) {
 
           {/* Cotista que empresta */}
           <div className="space-y-2">
-            <Label>Cotista que empresta a aeronave</Label>
-            <Popover open={clientOpen} onOpenChange={setClientOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" role="combobox" className="w-full justify-between h-11 font-normal">
-                  {selectedClient ? getClientName(selectedClient) : 'Selecione o cotista...'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-full p-0" align="start">
-                <Command>
-                  <CommandInput placeholder="Buscar cotista..." />
-                  <CommandList>
-                    <CommandEmpty>Nenhum cotista encontrado.</CommandEmpty>
-                    <CommandGroup heading="Cotistas da aeronave">
-                      {clients.map((item: any) => {
-                        const clientData = item.clients as any;
-                        if (!clientData) return null;
-                        return (
-                          <CommandItem
-                            key={item.client_id}
-                            value={clientData.company_name || clientData.proprietario}
-                            onSelect={() => {
-                              onClientChange(item.client_id);
-                              setClientOpen(false);
-                            }}
-                          >
-                            <Check className={cn("mr-2 h-4 w-4", selectedClient === item.client_id ? "opacity-100" : "opacity-0")} />
-                            <span>{clientData.company_name || clientData.proprietario}</span>
-                            <span className="ml-auto text-xs text-muted-foreground">{item.share_percentage}%</span>
-                          </CommandItem>
-                        );
-                      })}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
+            <Label className="text-foreground">Cotista que empresta a aeronave *</Label>
+            <SearchableCombobox
+              items={clients.map((c: any) => ({
+                id: c.client_id,
+                label: `${c.clients?.company_name || c.clients?.proprietario || ''} (${c.share_percentage}%)`
+              }))}
+              value={selectedClient}
+              onChange={(id) => {
+                onClientChange(id);
+              }}
+              icon={<Building2 className="h-4 w-4" />}
+              placeholder="Selecione o cotista..."
+              searchPlaceholder="Buscar cotista pelo nome..."
+              emptyMessage="Nenhum cotista encontrado."
+            />
           </div>
 
           {/* Parceiro do Lender */}

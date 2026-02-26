@@ -358,25 +358,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
         const loansRes = await supabase
           .from('aircraft_loans')
-          .select(`
-            *,
-            lender_client:lender_client_id (
-              id,
-              company_name
-            ),
-            borrower_client:borrower_client_id (
-              id,
-              company_name
-            ),
-            logbook_entry:logbook_entry_id (
-              id,
-              entry_date,
-              departure_aerodrome,
-              arrival_aerodrome,
-              fuel_liters,
-              fuel_added
-            )
-          `)
+          .select('*')
           .eq('lender_aircraft_id', aircraftId)
           .order('entry_date', { ascending: false });
 
@@ -388,7 +370,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           .eq('aircraft_id', aircraftId)
           .eq('month', selectedMonth)
           .eq('year', selectedYear)
-          .single();
+          .maybeSingle();
 
         if (monthData) {
           setLogbookMonth(monthData);
@@ -401,7 +383,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             .order('year', { ascending: false })
             .order('month', { ascending: false })
             .limit(1)
-            .single();
+            .maybeSingle();
 
           let celulaAnterior = acRes.data?.cell_hours_current || 0;
           if (lastMonthData && lastMonthData.celula_atual) {
@@ -720,7 +702,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         .eq('aircraft_id', aircraftId)
         .eq('month', nextMonth)
         .eq('year', nextYear)
-        .single();
+        .maybeSingle();
 
       if (existingMonth) {
         toast.error("Este mês já existe");
@@ -947,7 +929,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           .eq('arrival_aerodrome', newEntry.arrival_aerodrome)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
 
         if (!insertedData?.id) throw new Error('Falha ao recuperar ID do voo inserido');
         insertedEntryId = insertedData.id;
