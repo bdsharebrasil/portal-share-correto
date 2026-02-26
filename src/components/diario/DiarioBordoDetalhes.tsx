@@ -309,7 +309,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           supabase.from('crew_members').select('*').eq('status', 'ativo').order('full_name', { ascending: true }),
           supabase.from('crew').select('id, full_name, canac, status').eq('status', 'ativo').order('full_name', { ascending: true }),
           supabase.from('aerodromes').select('*').order('designativo'),
-          supabase.from('clients').select('id, company_name, cnpj').order('company_name'),
+          supabase.from('clients').select('id, company_name, cnpj, client_aircraft(aircraft_id, share_percentage)').order('company_name'),
           supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('sequential_number', { ascending: true }),
           supabase.from('logbook_months').select('month, year').eq('aircraft_id', aircraftId).eq('is_closed', false).order('year', { ascending: false }).order('month', { ascending: false }),
           supabase.from('aircraft_partners').select('*, clients(id, company_name)').eq('aircraft_id', aircraftId),
