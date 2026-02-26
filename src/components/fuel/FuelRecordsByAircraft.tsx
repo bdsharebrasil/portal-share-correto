@@ -39,7 +39,6 @@ interface FuelRecord {
   valor_unitario: number;
   valor_total: number;
   abastecimento_galoes: number | null;
-  ano?: string | null;
   comanda_url: string | null;
   nota_url: string | null;
   boleto_url: string | null;
@@ -137,7 +136,6 @@ export function FuelRecordsByAircraft({
     litros: "",
     valor_unitario: "",
     abastecimento_galoes: "",
-    ano: new Date().getFullYear().toString(),
     abastecedor_id: "",
     client_id: "",
     partner_selected: "",
@@ -195,12 +193,11 @@ export function FuelRecordsByAircraft({
       id: clientId,
       name: clientName,
       isMainClient: true,
-      share_percentage: 0 // Will be updated after fetching from DB
+      share_percentage: 0
     }];
   };
   const loadPartnerPercentages = async (partnersData: Partner[]): Promise<Partner[]> => {
     try {
-      // Get the main client percentage from client_aircraft
       const {
         data,
         error
@@ -210,7 +207,6 @@ export function FuelRecordsByAircraft({
         return partnersData;
       }
 
-      // Create a map of client_id to share_percentage
       const percentageMap: {
         [key: string]: number;
       } = {};
@@ -218,7 +214,6 @@ export function FuelRecordsByAircraft({
         percentageMap[item.client_id] = item.share_percentage;
       });
 
-      // Update partners with their percentages
       return partnersData.map(partner => ({
         ...partner,
         share_percentage: percentageMap[partner.id.split('-')[0]] || 0
@@ -245,11 +240,9 @@ export function FuelRecordsByAircraft({
       }
       setAllClients((data as any) || []);
 
-      // Set the default client to the aircraft's associated client and load its partners
       const clientData = data?.find(c => c.id === client.id) || client;
       let partners = getClientPartners(clientData.id, clientData.company_name);
 
-      // Fetch additional partners from client_partners table
       const { data: partnersData, error: partnersError } = await supabase
         .from("client_partners")
         .select("id, name, cpf, share_percentage")
@@ -295,7 +288,6 @@ export function FuelRecordsByAircraft({
     setCurrentPage(1);
   };
 
-  // Filtrar registros por mês e ano
   const getFilteredRecords = () => {
     if (!filterMonth || !filterYear) {
       return records;
@@ -313,7 +305,6 @@ export function FuelRecordsByAircraft({
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedRecords = filteredRecords.slice(startIndex, startIndex + itemsPerPage);
 
-  // Calcular totais com base nos registros filtrados
   const filteredTotalRecords = filteredRecords.length;
   const filteredTotalLitros = filteredRecords.reduce((sum, r) => sum + r.litros, 0);
   const filteredTotalValue = filteredRecords.reduce((sum, r) => sum + r.valor_total, 0);
@@ -345,7 +336,6 @@ export function FuelRecordsByAircraft({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Verificar se comanda está preenchida
     if (!formData.comanda.trim() && !editingRecord) {
       setShowConfirmation(true);
       return;
@@ -356,7 +346,6 @@ export function FuelRecordsByAircraft({
     setIsUploading(true);
     setShowConfirmation(false);
     try {
-      // Validar campos obrigatórios
       if (!formData.data || !formData.data.trim()) {
         toast.error("Campo obrigatório: Data não pode estar vazia");
         setIsUploading(false);
@@ -384,9 +373,7 @@ export function FuelRecordsByAircraft({
         setIsUploading(false);
         return;
       }
-      const valorTotal = litros * valorUnitario;
 
-      // Fazer upload dos arquivos
       let comandaUrl = uploadedFiles.comanda_url;
       let notaUrl = uploadedFiles.nota_url;
       let boletoUrl = uploadedFiles.boleto_url;
@@ -400,22 +387,16 @@ export function FuelRecordsByAircraft({
         boletoUrl = (await uploadFile(formData.boleto_file, "boleto")) || "";
       }
 
-      // Convert date string to proper ISO format for Brazil timezone (UTC-3)
-      // The date input gives us YYYY-MM-DD format
-      // We need to convert this to the start of that day in Brazil time (UTC-3)
-      // which is 03:00:00 UTC (so it doesn't shift backward by timezone conversion)
-      const dateStr = formData.data; // e.g., "2024-12-19"
+      const dateStr = formData.data;
       const dateParts = dateStr.split('-');
       const year = parseInt(dateParts[0], 10);
       const month = parseInt(dateParts[1], 10);
       const day = parseInt(dateParts[2], 10);
 
-      // Create a date at midnight Brazil time
-      // Brazil is UTC-3, so midnight in Brazil = 03:00 UTC
+      // Create a date at midnight Brazil time (UTC-3 = 03:00 UTC)
       const brazilDate = new Date(year, month - 1, day, 3, 0, 0, 0);
-      const isoDateString = brazilDate.toISOString(); // This will be in UTC
+      const isoDateString = brazilDate.toISOString();
 
-      // Validate client selection
       if (!formData.client_id.trim()) {
         toast.error("Selecione um cliente para o abastecimento");
         setIsUploading(false);
@@ -423,7 +404,6 @@ export function FuelRecordsByAircraft({
       }
       const supplierName = formData.abastecedor_id ? suppliers.find(s => s.id === formData.abastecedor_id)?.supplier_name || null : null;
 
-      // Build observacao with partner info if selected
       let observacaoFinal = formData.observacao || null;
       const selectedPartner = clientPartners.find(p => p.id === formData.client_id);
       if (selectedPartner && !selectedPartner.isMainClient) {
@@ -431,12 +411,13 @@ export function FuelRecordsByAircraft({
         observacaoFinal = observacaoFinal ? `${partnerInfo} ${observacaoFinal}` : partnerInfo;
       }
 
-      // Determine partner_index from selected partner
       let partnerIndex: number | null = null;
       if (selectedPartner && !selectedPartner.isMainClient) {
-        // Extract partner index (1, 2, or 3)
-        if (formData.client_id.includes('-partner1')) partnerIndex = 1; else if (formData.client_id.includes('-partner2')) partnerIndex = 2; else if (formData.client_id.includes('-partner3')) partnerIndex = 3;
+        if (formData.client_id.includes('-partner1')) partnerIndex = 1;
+        else if (formData.client_id.includes('-partner2')) partnerIndex = 2;
+        else if (formData.client_id.includes('-partner3')) partnerIndex = 3;
       }
+
       const recordData = {
         client_id: client.id,
         aeronave_id: aircraft.id,
@@ -447,7 +428,6 @@ export function FuelRecordsByAircraft({
         litros: litros,
         valor_unitario: valorUnitario,
         abastecimento_galoes: formData.abastecimento_galoes ? parseFloat(formData.abastecimento_galoes) : null,
-        ano: null,
         abastecedor: supplierName,
         status_pagamento: formData.status_pagamento || "em aberto",
         observacao: observacaoFinal,
@@ -456,6 +436,7 @@ export function FuelRecordsByAircraft({
         nota_url: notaUrl || null,
         boleto_url: boletoUrl || null
       };
+
       if (editingRecord) {
         const {
           error
@@ -497,10 +478,9 @@ export function FuelRecordsByAircraft({
       partner_selected: ""
     }));
 
-    // Load partners for the selected client
     const selectedClient = allClients.find(c => c.id === clientId);
     if (selectedClient) {
-      const partners = getClientPartners(selectedClient);
+      const partners = getClientPartners(selectedClient.id, selectedClient.company_name);
       const partnersWithPercentages = await loadPartnerPercentages(partners);
       setClientPartners(partnersWithPercentages);
     }
@@ -516,7 +496,6 @@ export function FuelRecordsByAircraft({
       litros: record.litros.toString(),
       valor_unitario: record.valor_unitario.toString(),
       abastecimento_galoes: record.abastecimento_galoes?.toString() || "",
-      ano: new Date().getFullYear().toString(),
       abastecedor_id: supplierRecord?.id || "",
       client_id: record.client_id || client.id,
       partner_selected: record.observacao?.includes("[Partner:") ? record.observacao.match(/\[Partner:([^\]]+)\]/)?.[1] || "" : "",
@@ -559,7 +538,6 @@ export function FuelRecordsByAircraft({
       litros: "",
       valor_unitario: "",
       abastecimento_galoes: "",
-      ano: new Date().getFullYear().toString(),
       abastecedor_id: "",
       client_id: client.id,
       partner_selected: "",
@@ -617,9 +595,7 @@ export function FuelRecordsByAircraft({
       printWindow.close();
     }, 250);
   };
-  const currentYear = formData.ano || new Date().getFullYear().toString();
 
-  // Usar totais filtrados quando há filtro, caso contrário usar totais gerais
   const displayTotalRecords = filterMonth && filterYear ? filteredTotalRecords : records.length;
   const displayTotalLitros = filterMonth && filterYear ? filteredTotalLitros : records.reduce((sum, r) => sum + r.litros, 0);
   const displayTotalValue = filterMonth && filterYear ? filteredTotalValue : records.reduce((sum, r) => sum + r.valor_total, 0);
@@ -760,9 +736,8 @@ export function FuelRecordsByAircraft({
             <div>
               <Label className="text-sm font-semibold mb-2 block">Cliente e Sócios</Label>
               <div className="space-y-2">
-                {/* Mostrar sócios do cliente da aeronave */}
                 {clientPartners.length > 0 && <div className="space-y-2 border-l-2 border-primary/30 pl-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase">Cliente  </p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase">Cliente</p>
                   {clientPartners.filter(p => p.isMainClient).map(partner => <div key={partner.id} className="w-full p-3 rounded-lg border-2 bg-primary-foreground border-primary-dark">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-foreground">
@@ -775,7 +750,6 @@ export function FuelRecordsByAircraft({
                   </div>)}
                 </div>}
 
-                {/* Mostrar sócios adicionais se existirem */}
                 {clientPartners.length > 1 && <div className="space-y-2 border-l-2 border-accent/30 pl-3">
                   <p className="text-xs font-semibold text-muted-foreground uppercase">Sócios</p>
                   {clientPartners.filter(p => !p.isMainClient).map(partner => {
@@ -801,7 +775,6 @@ export function FuelRecordsByAircraft({
                   })}
                 </div>}
 
-                {/* Combobox para outros clientes */}
                 {allClients.length > 0 && <div className="border-t pt-2 mt-2">
                   <p className="text-xs font-semibold text-muted-foreground uppercase mb-2 block">Outros Clientes</p>
                   <Combobox options={allClients.filter(c => c.id !== client.id).map(c => ({
@@ -1001,7 +974,6 @@ export function FuelRecordsByAircraft({
             <p>{client.company_name}</p>
             <p>{aircraft.registration}</p>
           </div>
-          <div className="year">{currentYear.slice(-2)}/{(parseInt(currentYear) + 1).toString().slice(-2)}</div>
         </div>
         <table>
           <thead>
@@ -1009,9 +981,9 @@ export function FuelRecordsByAircraft({
               <th>DATA</th>
               <th>TRECHOS</th>
               <th>LOCAL ABAST</th>
-              <th>COMANDI</th>
-              <th className="text-right">ABAST. LITR</th>
-              <th className="text-right">VALOR LITR</th>
+              <th>COMANDA</th>
+              <th className="text-right">ABAST. LITROS</th>
+              <th className="text-right">VALOR LITRO</th>
               <th className="text-right">VALOR TOTAL</th>
               <th className="text-right">ABASTECIMENTO GALÕES</th>
             </tr>
