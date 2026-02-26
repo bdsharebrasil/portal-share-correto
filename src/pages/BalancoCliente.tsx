@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, Receipt, AlertCircle, Plane, FileBarChart, ArrowLeft, Users, User } from 'lucide-react';
+import { LayoutDashboard, Receipt, AlertCircle, Plane, FileBarChart, ArrowLeft, Users, User, KeyRound } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
@@ -18,6 +18,7 @@ import { HistoricoRateioConsolidado } from '@/components/balanco-cliente/Histori
 import { PendenciasFinanceiras } from '@/components/balanco-cliente/PendenciasFinanceiras';
 import { BalancoAeronave } from '@/components/balanco-cliente/BalancoAeronave';
 import { RelatoriosExportacao } from '@/components/balanco-cliente/RelatoriosExportacao';
+import { GerenciarAcessoPortal } from '@/components/balanco-cliente/GerenciarAcessoPortal';
 import { useClientesComSocios, ClienteComSocios, Socio } from '@/hooks/useSocioBalanco';
 
 function BalancoClienteContent() {
@@ -259,7 +260,7 @@ function BalancoClienteContent() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 lg:w-auto bg-muted/60 border border-border/50">
+        <TabsList className="grid w-full grid-cols-6 lg:w-auto bg-muted/60 border border-border/50">
           <TabsTrigger value="visao-geral" className="gap-2">
             <LayoutDashboard className="h-4 w-4" />
             <span className="hidden sm:inline">Visão Geral</span>
@@ -280,6 +281,10 @@ function BalancoClienteContent() {
           <TabsTrigger value="aeronave" className="gap-2">
             <Plane className="h-4 w-4" />
             <span className="hidden sm:inline">Aeronave</span>
+          </TabsTrigger>
+          <TabsTrigger value="acesso-portal" className="gap-2">
+            <KeyRound className="h-4 w-4" />
+            <span className="hidden sm:inline">Acesso Portal</span>
           </TabsTrigger>
           <TabsTrigger value="relatorios" className="gap-2">
             <FileBarChart className="h-4 w-4" />
@@ -357,6 +362,21 @@ function BalancoClienteContent() {
             <Card className="border-border/50 bg-card/60">
               <CardContent className="pt-6 text-center text-muted-foreground">
                 Selecione um cliente para visualizar o balanço da aeronave
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="acesso-portal" className="space-y-6">
+          {clienteId ? (
+            <GerenciarAcessoPortal 
+              clienteId={clienteId} 
+              socioId={socioId}
+            />
+          ) : (
+            <Card className="border-border/50 bg-card/60">
+              <CardContent className="pt-6 text-center text-muted-foreground">
+                Selecione um cliente para gerenciar o acesso ao portal
               </CardContent>
             </Card>
           )}
