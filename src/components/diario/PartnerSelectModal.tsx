@@ -16,7 +16,7 @@ interface PartnerSelectModalProps {
   clientName: string;
   partners: Partner[];
   selectedPartner: string | null;
-  onSelectPartner: (partner: Partner) => void;
+  onSelectPartner: (partnerName: string) => void;
 }
 
 export const PartnerSelectModal: React.FC<PartnerSelectModalProps> = ({
@@ -28,7 +28,7 @@ export const PartnerSelectModal: React.FC<PartnerSelectModalProps> = ({
   onSelectPartner,
 }) => {
   const handleSelectPartner = (partner: Partner) => {
-    onSelectPartner(partner);
+    onSelectPartner(partner.name);
     onOpenChange(false);
   };
 

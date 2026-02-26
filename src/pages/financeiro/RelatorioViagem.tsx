@@ -1067,10 +1067,13 @@ export default function RelatorioViagem() {
         clientName={currentReport?.client || ''}
         partners={clientPartners}
         selectedPartner={currentReport?.client || null}
-        onSelectPartner={(partner) => {
-          setCurrentReport(prev => prev ? { ...prev, client_partner: partner.id, client: partner.name } : null);
-          if (currentReport && !isEditing) {
-            draftStorage.saveDraft({ ...currentReport, client_partner: partner.id, client: partner.name } as unknown as TravelReportDraft);
+        onSelectPartner={(partnerName) => {
+          const partner = clientPartners.find(p => p.name === partnerName);
+          if (partner) {
+            setCurrentReport(prev => prev ? { ...prev, client_partner: partner.id, client: partner.name } : null);
+            if (currentReport && !isEditing) {
+              draftStorage.saveDraft({ ...currentReport, client_partner: partner.id, client: partner.name } as unknown as TravelReportDraft);
+            }
           }
         }}
       />

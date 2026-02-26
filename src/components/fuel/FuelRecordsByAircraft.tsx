@@ -351,6 +351,11 @@ export function FuelRecordsByAircraft({
         setIsUploading(false);
         return;
       }
+      if (!formData.trecho || formData.trecho.trim() === "") {
+        toast.error("Campo obrigatório: Trecho deve ser preenchido");
+        setIsUploading(false);
+        return;
+      }
       if (!formData.litros || formData.litros.trim() === "") {
         toast.error("Campo obrigatório: Litros deve ser preenchido");
         setIsUploading(false);
@@ -422,7 +427,7 @@ export function FuelRecordsByAircraft({
         client_id: client.id,
         aeronave_id: aircraft.id,
         data: isoDateString,
-        trecho: formData.trecho || null,
+        trecho: formData.trecho || "",
         local: formData.local || null,
         comanda: formData.comanda || null,
         litros: litros,
@@ -789,11 +794,11 @@ export function FuelRecordsByAircraft({
               <Label className="text-sm font-semibold mb-2 block">Rota</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
-                  <Label className="text-xs text-muted-foreground">Trecho</Label>
+                  <Label className="text-xs text-muted-foreground">Trecho <span className="text-red-500">*</span></Label>
                   <Input value={formData.trecho} onChange={e => setFormData({
                     ...formData,
                     trecho: e.target.value
-                  })} placeholder="SBSP X SBRJ" className="mt-1 h-9 text-sm" />
+                  })} placeholder="SBSP X SBRJ" className="mt-1 h-9 text-sm" required />
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground">Local</Label>
