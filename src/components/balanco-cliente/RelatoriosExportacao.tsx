@@ -26,6 +26,28 @@ interface PreviewState {
   pdfUrl: string | null;
 }
 
+const MESES_NOMES = [
+  'JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO',
+  'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'
+];
+
+// Mapeia categoria/grupo para colunas do resumo geral
+function mapearGrupoParaColuna(categoriaOuGrupo: string | null): string {
+  if (!categoriaOuGrupo) return 'EXTRAS';
+
+  const texto = categoriaOuGrupo.toUpperCase();
+
+  if (texto.includes('ADM') || texto.includes('TRIP') || texto.includes('PILOT') || texto.includes('FOLHA') || texto.includes('ADMINISTRATIVO')) return 'ADM/TRIP';
+  if (texto.includes('HANGAR')) return 'HANGARAGEM';
+  if (texto.includes('MANUT') && (texto.includes('FIX') || texto.includes('PERIOD') || texto.includes('PREVENT'))) return 'MANUT.FIXA';
+  if (texto.includes('COMBUST') || texto.includes('FUEL')) return 'COMBUSTÍVEL';
+  if (texto.includes('MANUT') && (texto.includes('HORA') || texto.includes('VAR') || texto.includes('CORRET'))) return 'MANUT.P/HORA';
+  if (texto.includes('TAXA') || texto.includes('AEROPORT') || texto.includes('POUSO') || texto.includes('NAVEGA')) return 'TAXAS VOO';
+  if (texto.includes('HOTEL') || texto.includes('ALIM') || texto.includes('HOSPED') || texto.includes('DIÁRI')) return 'HOTÉIS/ALIM';
+
+  return 'EXTRAS';
+}
+
 export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: RelatoriosExportacaoProps) {
   const [incluirGraficos, setIncluirGraficos] = useState(true);
   const [gerando, setGerando] = useState<string | null>(null);
@@ -44,6 +66,22 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
       return data;
     },
     enabled: !!clienteId,
+  });
+
+  // Buscar aeronave selecionada
+  const { data: aeronaveInfo } = useQuery({
+    queryKey: ['aeronave-info-relatorio', aeronaveId],
+    queryFn: async () => {
+      if (!aeronaveId) return null;
+      const { data, error } = await supabase
+        .from('aircraft')
+        .select('registration, model')
+        .eq('id', aeronaveId)
+        .single();
+      if (error) return null;
+      return data;
+    },
+    enabled: !!aeronaveId,
   });
 
   // Buscar despesas para relatório
@@ -73,22 +111,409 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
     enabled: !!clienteId,
   });
 
-  // Função reutilizável para gerar PDF
+  // Buscar horas consolidadas
+  const { data: horasConsolidadas = [] } = useQuery({
+    queryKey: ['horas-relatorio', clienteId, aeronaveId, periodo],
+    queryFn: async () => {
+      let query = supabase
+        .from('horas_mensais_consolidadas')
+        .select('ano, mes, horas_voadas, percentual_uso, aeronave_registro')
+        .eq('cliente_id', clienteId);
+
+      if (aeronaveId) {
+        query = query.eq('aeronave_id', aeronaveId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!clienteId,
+  });
+
+  // Buscar abastecimentos
+  const { data: abastecimentos = [] } = useQuery({
+    queryKey: ['abast-relatorio', clienteId, aeronaveId, periodo],
+    queryFn: async () => {
+      let query = supabase
+        .from('abastecimentos')
+        .select('data, litros, valor_total')
+        .eq('client_id', clienteId)
+        .gte('data', periodo.inicio)
+        .lte('data', periodo.fim);
+
+      if (aeronaveId) {
+        query = query.eq('aeronave_id', aeronaveId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!clienteId,
+  });
+
+  // Buscar despesas consolidadas do extrato do cliente (categorias reais)
+  const { data: despesasControle = [] } = useQuery({
+    queryKey: ['despesas-controle-relatorio', clienteId, aeronaveId, periodo],
+    queryFn: async () => {
+      let aeronaveRegistro: string | null = null;
+
+      if (aeronaveId) {
+        const { data: aeronaveSelecionada } = await supabase
+          .from('aircraft')
+          .select('registration')
+          .eq('id', aeronaveId)
+          .single();
+
+        aeronaveRegistro = aeronaveSelecionada?.registration ?? null;
+      }
+
+      let query = supabase
+        .from('vw_extrato_cliente')
+        .select('data, valor, valor_total, categoria, aeronave_registro')
+        .eq('cliente_id', clienteId)
+        .gte('data', periodo.inicio)
+        .lte('data', periodo.fim);
+
+      if (aeronaveRegistro) {
+        query = query.eq('aeronave_registro', aeronaveRegistro);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!clienteId,
+  });
+
+  const fmtCurrency = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  // Gerar PDF Mensal Completo no estilo da planilha
+  const gerarPDFMensalCompleto = (): jsPDF => {
+    const ano = new Date(periodo.inicio).getFullYear();
+    const doc = new jsPDF({ orientation: 'l', unit: 'mm', format: 'a4' });
+
+    const clienteNome = cliente?.company_name || cliente?.proprietario || '-';
+    const aeronaveReg = aeronaveInfo?.registration || horasConsolidadas[0]?.aeronave_registro || '-';
+
+    // CABEÇALHO
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RESUMO GERAL', 148, 12, { align: 'center' });
+    doc.setFontSize(11);
+    doc.text(`${clienteNome}     ${aeronaveReg}     ${ano}`, 148, 19, { align: 'center' });
+
+    // Filtrar horas e abastecimentos pelo ano do período
+    const anoInicio = new Date(periodo.inicio).getFullYear();
+    const mesInicio = new Date(periodo.inicio).getMonth() + 1;
+    const anoFim = new Date(periodo.fim).getFullYear();
+    const mesFim = new Date(periodo.fim).getMonth() + 1;
+
+    const horasFiltradas = horasConsolidadas.filter((h: any) => {
+      const val = h.ano * 100 + h.mes;
+      return val >= anoInicio * 100 + mesInicio && val <= anoFim * 100 + mesFim;
+    });
+
+    // Montar dados por mês
+    type MesData = {
+      admTrip: number; hangaragem: number; manutFixa: number;
+      combustivel: number; manutHora: number; taxasVoo: number;
+      hoteisAlim: number; extras: number; litros: number;
+      horasVoadas: number; percentualUso: number;
+    };
+
+    const mesesData: Record<number, MesData> = {};
+    for (let m = 1; m <= 12; m++) {
+      mesesData[m] = {
+        admTrip: 0, hangaragem: 0, manutFixa: 0,
+        combustivel: 0, manutHora: 0, taxasVoo: 0,
+        hoteisAlim: 0, extras: 0, litros: 0,
+        horasVoadas: 0, percentualUso: 0,
+      };
+    }
+
+    // Preencher horas
+    horasFiltradas.forEach((h: any) => {
+      if (h.mes >= 1 && h.mes <= 12) {
+        mesesData[h.mes].horasVoadas += h.horas_voadas || 0;
+        mesesData[h.mes].percentualUso = h.percentual_uso || 0;
+      }
+    });
+
+    // Preencher litros de abastecimento
+    abastecimentos.forEach((a: any) => {
+      const mes = new Date(a.data).getMonth() + 1;
+      if (mes >= 1 && mes <= 12) {
+        mesesData[mes].litros += a.litros || 0;
+        mesesData[mes].combustivel += a.valor_total || 0;
+      }
+    });
+
+    // Preencher despesas por categoria
+    despesasControle.forEach((d: any) => {
+      const mes = new Date(d.data).getMonth() + 1;
+      if (mes < 1 || mes > 12) return;
+
+      const coluna = mapearGrupoParaColuna(d.categoria || '');
+      const valor = Number(d.valor_total ?? d.valor ?? 0);
+
+      switch (coluna) {
+        case 'ADM/TRIP': mesesData[mes].admTrip += valor; break;
+        case 'HANGARAGEM': mesesData[mes].hangaragem += valor; break;
+        case 'MANUT.FIXA': mesesData[mes].manutFixa += valor; break;
+        case 'COMBUSTÍVEL': mesesData[mes].combustivel += valor; break;
+        case 'MANUT.P/HORA': mesesData[mes].manutHora += valor; break;
+        case 'TAXAS VOO': mesesData[mes].taxasVoo += valor; break;
+        case 'HOTÉIS/ALIM': mesesData[mes].hoteisAlim += valor; break;
+        default: mesesData[mes].extras += valor; break;
+      }
+    });
+
+    // Calcular totais
+    const totais: MesData = {
+      admTrip: 0, hangaragem: 0, manutFixa: 0,
+      combustivel: 0, manutHora: 0, taxasVoo: 0,
+      hoteisAlim: 0, extras: 0, litros: 0,
+      horasVoadas: 0, percentualUso: 0,
+    };
+
+    const colunas = [
+      'MÊS', 'ADM/TRIP.', 'HANGARAGEM', 'MANUT. FIXA',
+      'COMBUSTÍVEL', 'MANUT.P/HORA', 'TAXAS VOO', 'HOTÉIS/ALIM.',
+      'EXTRAS', 'TOTAL MÊS', 'ABST. L'
+    ];
+
+    const linhas: any[][] = [];
+
+    for (let m = 1; m <= 12; m++) {
+      const d = mesesData[m];
+      const totalMes = d.admTrip + d.hangaragem + d.manutFixa + d.combustivel + d.manutHora + d.taxasVoo + d.hoteisAlim + d.extras;
+
+      totais.admTrip += d.admTrip;
+      totais.hangaragem += d.hangaragem;
+      totais.manutFixa += d.manutFixa;
+      totais.combustivel += d.combustivel;
+      totais.manutHora += d.manutHora;
+      totais.taxasVoo += d.taxasVoo;
+      totais.hoteisAlim += d.hoteisAlim;
+      totais.extras += d.extras;
+      totais.litros += d.litros;
+      totais.horasVoadas += d.horasVoadas;
+
+      const hasData = totalMes > 0 || d.litros > 0 || d.horasVoadas > 0;
+
+      linhas.push([
+        MESES_NOMES[m - 1],
+        hasData && d.admTrip > 0 ? fmtCurrency(d.admTrip) : '',
+        hasData && d.hangaragem > 0 ? fmtCurrency(d.hangaragem) : '',
+        hasData && d.manutFixa > 0 ? fmtCurrency(d.manutFixa) : '',
+        hasData && d.combustivel > 0 ? fmtCurrency(d.combustivel) : '',
+        hasData && d.manutHora > 0 ? fmtCurrency(d.manutHora) : '',
+        hasData && d.taxasVoo > 0 ? fmtCurrency(d.taxasVoo) : '',
+        hasData && d.hoteisAlim > 0 ? fmtCurrency(d.hoteisAlim) : '',
+        hasData && d.extras > 0 ? fmtCurrency(d.extras) : '',
+        hasData && totalMes > 0 ? fmtCurrency(totalMes) : '',
+        hasData && d.litros > 0 ? d.litros.toFixed(1) : '',
+      ]);
+    }
+
+    const totalGeral = totais.admTrip + totais.hangaragem + totais.manutFixa + totais.combustivel + totais.manutHora + totais.taxasVoo + totais.hoteisAlim + totais.extras;
+    const mesesComDados = Object.values(mesesData).filter(d => 
+      d.admTrip + d.hangaragem + d.manutFixa + d.combustivel + d.manutHora + d.taxasVoo + d.hoteisAlim + d.extras > 0
+    ).length || 1;
+
+    // Linha TOTAL
+    linhas.push([
+      'TOTAL',
+      totais.admTrip > 0 ? fmtCurrency(totais.admTrip) : '',
+      totais.hangaragem > 0 ? fmtCurrency(totais.hangaragem) : '',
+      totais.manutFixa > 0 ? fmtCurrency(totais.manutFixa) : '',
+      totais.combustivel > 0 ? fmtCurrency(totais.combustivel) : '',
+      totais.manutHora > 0 ? fmtCurrency(totais.manutHora) : '',
+      totais.taxasVoo > 0 ? fmtCurrency(totais.taxasVoo) : '',
+      totais.hoteisAlim > 0 ? fmtCurrency(totais.hoteisAlim) : '',
+      totais.extras > 0 ? fmtCurrency(totais.extras) : '',
+      fmtCurrency(totalGeral),
+      totais.litros > 0 ? totais.litros.toFixed(1) : '',
+    ]);
+
+    // Linha MÉDIA MÊS
+    linhas.push([
+      'MÉDIA MÊS',
+      totais.admTrip > 0 ? fmtCurrency(totais.admTrip / mesesComDados) : '',
+      totais.hangaragem > 0 ? fmtCurrency(totais.hangaragem / mesesComDados) : '',
+      totais.manutFixa > 0 ? fmtCurrency(totais.manutFixa / mesesComDados) : '',
+      totais.combustivel > 0 ? fmtCurrency(totais.combustivel / mesesComDados) : '',
+      totais.manutHora > 0 ? fmtCurrency(totais.manutHora / mesesComDados) : '',
+      totais.taxasVoo > 0 ? fmtCurrency(totais.taxasVoo / mesesComDados) : '',
+      totais.hoteisAlim > 0 ? fmtCurrency(totais.hoteisAlim / mesesComDados) : '',
+      totais.extras > 0 ? fmtCurrency(totais.extras / mesesComDados) : '',
+      fmtCurrency(totalGeral / mesesComDados),
+      totais.litros > 0 ? (totais.litros / mesesComDados).toFixed(1) : '',
+    ]);
+
+    // Tabela RESUMO GERAL
+    autoTable(doc, {
+      startY: 25,
+      head: [colunas],
+      body: linhas,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [139, 90, 43],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 7,
+        halign: 'center',
+      },
+      bodyStyles: { fontSize: 7, halign: 'right' },
+      columnStyles: {
+        0: { halign: 'left', fontStyle: 'bold', cellWidth: 25 },
+      },
+      styles: { cellPadding: 2 },
+      didParseCell: (data: any) => {
+        // Estilizar linhas TOTAL e MÉDIA
+        if (data.row.index >= 12) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.fillColor = data.row.index === 12 ? [255, 235, 205] : [230, 230, 250];
+        }
+      },
+    });
+
+    let yPos = (doc as any).lastAutoTable.finalY + 15;
+
+    // SEÇÃO 2 — CUSTO POR HORA
+    if (totais.horasVoadas > 0) {
+      if (yPos > 160) {
+        doc.addPage();
+        yPos = 15;
+      }
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('CUSTO POR HORA VOADA', 14, yPos);
+      yPos += 8;
+
+      const custosFixos = totais.admTrip + totais.hangaragem + totais.manutFixa;
+      const custosVariaveis = totais.combustivel + totais.manutHora + totais.taxasVoo + totais.hoteisAlim;
+
+      const custoHoraData = [
+        ['Custos Fixos (ADM + Hangar + Manut. Fixa)', fmtCurrency(custosFixos), `${totais.horasVoadas.toFixed(1)}h`, fmtCurrency(custosFixos / totais.horasVoadas)],
+        ['Custos Variáveis (Combust. + Manut/Hora + Taxas + Hotel)', fmtCurrency(custosVariaveis), `${totais.horasVoadas.toFixed(1)}h`, fmtCurrency(custosVariaveis / totais.horasVoadas)],
+        ['Custos Extras', fmtCurrency(totais.extras), `${totais.horasVoadas.toFixed(1)}h`, fmtCurrency(totais.extras / totais.horasVoadas)],
+        ['TOTAL', fmtCurrency(totalGeral), `${totais.horasVoadas.toFixed(1)}h`, fmtCurrency(totalGeral / totais.horasVoadas)],
+      ];
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Tipo de Custo', 'Total', 'Horas', 'Custo/Hora']],
+        body: custoHoraData,
+        theme: 'striped',
+        headStyles: { fillColor: [59, 130, 246], fontStyle: 'bold', fontSize: 9 },
+        bodyStyles: { fontSize: 9 },
+        didParseCell: (data: any) => {
+          if (data.row.index === 3) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [220, 240, 255];
+          }
+        },
+      });
+
+      yPos = (doc as any).lastAutoTable.finalY + 15;
+    }
+
+    // SEÇÃO 3 — Horas voadas por mês
+    if (yPos > 160) {
+      doc.addPage();
+      yPos = 15;
+    }
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('HORAS VOADAS POR MÊS', 14, yPos);
+    yPos += 8;
+
+    const horasLinhas = [];
+    for (let m = 1; m <= 12; m++) {
+      const d = mesesData[m];
+      if (d.horasVoadas > 0) {
+        const h = Math.floor(d.horasVoadas);
+        const min = Math.round((d.horasVoadas - h) * 60);
+        horasLinhas.push([
+          MESES_NOMES[m - 1],
+          `${h}h${min.toString().padStart(2, '0')}min`,
+          d.horasVoadas.toFixed(2),
+          `${d.percentualUso.toFixed(1)}%`,
+          d.litros > 0 ? d.litros.toFixed(1) : '-',
+          d.horasVoadas > 0 && d.litros > 0 ? (d.litros / d.horasVoadas).toFixed(1) : '-',
+        ]);
+      }
+    }
+
+    if (horasLinhas.length > 0) {
+      const hTotal = Math.floor(totais.horasVoadas);
+      const mTotal = Math.round((totais.horasVoadas - hTotal) * 60);
+      horasLinhas.push([
+        'TOTAL',
+        `${hTotal}h${mTotal.toString().padStart(2, '0')}min`,
+        totais.horasVoadas.toFixed(2),
+        '-',
+        totais.litros > 0 ? totais.litros.toFixed(1) : '-',
+        totais.horasVoadas > 0 && totais.litros > 0 ? (totais.litros / totais.horasVoadas).toFixed(1) : '-',
+      ]);
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Mês', 'Horas (HH:MM)', 'Decimal', '% Uso', 'Litros', 'L/Hora']],
+        body: horasLinhas,
+        theme: 'striped',
+        headStyles: { fillColor: [34, 139, 34], fontStyle: 'bold', fontSize: 9 },
+        bodyStyles: { fontSize: 9 },
+        didParseCell: (data: any) => {
+          if (data.row.index === horasLinhas.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [220, 255, 220];
+          }
+        },
+      });
+    }
+
+    // RODAPÉ em todas as páginas
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      doc.text(`${clienteNome} | ${aeronaveReg} | Período: ${format(new Date(periodo.inicio), 'dd/MM/yyyy')} a ${format(new Date(periodo.fim), 'dd/MM/yyyy')}`, 14, pageH - 8);
+      doc.text(`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, pageW / 2, pageH - 8, { align: 'center' });
+      doc.text(`Página ${i} de ${pageCount}`, pageW - 14, pageH - 8, { align: 'right' });
+    }
+
+    return doc;
+  };
+
+  // Função para gerar PDF de despesas e pendências
   const gerarPDFDocumento = (tipo: string): jsPDF => {
+    if (tipo === 'mensal') {
+      return gerarPDFMensalCompleto();
+    }
+
     const doc = new jsPDF();
-    
+    const clienteNome = cliente?.company_name || cliente?.proprietario || '-';
+
     // Cabeçalho
     doc.setFontSize(20);
     doc.text('Balanço Cliente', 14, 20);
-    
     doc.setFontSize(12);
-    doc.text(`Cliente: ${cliente?.company_name || cliente?.proprietario || '-'}`, 14, 30);
+    doc.text(`Cliente: ${clienteNome}`, 14, 30);
     doc.text(`Período: ${format(new Date(periodo.inicio), 'dd/MM/yyyy')} a ${format(new Date(periodo.fim), 'dd/MM/yyyy')}`, 14, 36);
     doc.text(`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, 14, 42);
 
     let yPos = 55;
 
-    if (tipo === 'mensal' || tipo === 'completo') {
+    if (tipo === 'completo') {
       // Resumo financeiro
       doc.setFontSize(14);
       doc.text('Resumo Financeiro', 14, yPos);
@@ -98,17 +523,14 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
       const pagos = despesas.filter((d: any) => ['pago', 'conciliado'].includes(d.status));
       const aguardando = despesas.filter((d: any) => d.status === 'aguardando_reembolso');
 
-      const resumoData = [
-        ['Status', 'Quantidade', 'Valor Total'],
-        ['Pendente de Envio', pendentes.length.toString(), `R$ ${pendentes.reduce((s: number, d: any) => s + (d.amount || 0), 0).toFixed(2)}`],
-        ['Pago', pagos.length.toString(), `R$ ${pagos.reduce((s: number, d: any) => s + (d.amount || 0), 0).toFixed(2)}`],
-        ['Aguardando Reembolso', aguardando.length.toString(), `R$ ${aguardando.reduce((s: number, d: any) => s + (d.amount || 0), 0).toFixed(2)}`],
-      ];
-
       autoTable(doc, {
         startY: yPos,
-        head: [resumoData[0]],
-        body: resumoData.slice(1),
+        head: [['Status', 'Quantidade', 'Valor Total']],
+        body: [
+          ['Pendente de Envio', pendentes.length.toString(), fmtCurrency(pendentes.reduce((s: number, d: any) => s + (d.amount || 0), 0))],
+          ['Pago', pagos.length.toString(), fmtCurrency(pagos.reduce((s: number, d: any) => s + (d.amount || 0), 0))],
+          ['Aguardando Reembolso', aguardando.length.toString(), fmtCurrency(aguardando.reduce((s: number, d: any) => s + (d.amount || 0), 0))],
+        ],
         theme: 'striped',
         headStyles: { fillColor: [59, 130, 246] },
       });
@@ -117,16 +539,15 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
     }
 
     if (tipo === 'despesas' || tipo === 'completo') {
-      // Lista de despesas
       doc.setFontSize(14);
       doc.text('Despesas Detalhadas', 14, yPos);
       yPos += 10;
 
       const despesasData = despesas.slice(0, 50).map((d: any) => [
         format(new Date(d.date), 'dd/MM/yy'),
-        d.categorias_movimentacao?.nome || '-',
+        (d as any).categorias_movimentacao?.nome || '-',
         (d.description || '-').substring(0, 30),
-        `R$ ${(d.amount || 0).toFixed(2)}`,
+        fmtCurrency(d.amount || 0),
         d.status
       ]);
 
@@ -136,6 +557,30 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
         body: despesasData,
         theme: 'striped',
         headStyles: { fillColor: [59, 130, 246] },
+        styles: { fontSize: 9 },
+      });
+    }
+
+    if (tipo === 'pendencias') {
+      doc.setFontSize(14);
+      doc.text('Pendências Financeiras', 14, yPos);
+      yPos += 10;
+
+      const pendencias = despesas.filter((d: any) => ['pendente', 'aguardando_reembolso'].includes(d.status));
+      const pendenciasData = pendencias.map((d: any) => [
+        format(new Date(d.date), 'dd/MM/yy'),
+        (d as any).categorias_movimentacao?.nome || '-',
+        (d.description || '-').substring(0, 30),
+        fmtCurrency(d.amount || 0),
+        d.status === 'pendente' ? 'Pend. Envio' : 'Aguard. Reembolso'
+      ]);
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Data', 'Categoria', 'Descrição', 'Valor', 'Status']],
+        body: pendenciasData.length > 0 ? pendenciasData : [['', '', 'Nenhuma pendência encontrada', '', '']],
+        theme: 'striped',
+        headStyles: { fillColor: [239, 68, 68] },
         styles: { fontSize: 9 },
       });
     }
@@ -163,12 +608,7 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
       const doc = gerarPDFDocumento(tipo);
       const pdfBlob = doc.output('blob');
       const pdfUrl = URL.createObjectURL(pdfBlob);
-
-      setPreview({
-        tipo,
-        pdfBlob,
-        pdfUrl
-      });
+      setPreview({ tipo, pdfBlob, pdfUrl });
     } catch (error) {
       console.error('Erro ao gerar preview:', error);
       toast.error('Erro ao gerar prévia do PDF');
@@ -177,7 +617,6 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
     }
   };
 
-  // Fazer download do PDF
   const fazerDownloadPDF = (tipo: string, pdfBlob: Blob) => {
     const link = document.createElement('a');
     link.href = URL.createObjectURL(pdfBlob);
@@ -187,19 +626,16 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
     setPreview({ tipo: null, pdfBlob: null, pdfUrl: null });
   };
 
-  // Fechar preview
   const fecharPreview = () => {
-    if (preview.pdfUrl) {
-      URL.revokeObjectURL(preview.pdfUrl);
-    }
+    if (preview.pdfUrl) URL.revokeObjectURL(preview.pdfUrl);
     setPreview({ tipo: null, pdfBlob: null, pdfUrl: null });
   };
 
   const relatorios = [
     {
       id: 'mensal',
-      titulo: 'Relatório Mensal Completo',
-      descricao: 'Resumo financeiro do período selecionado',
+      titulo: 'Balanço Mensal Completo',
+      descricao: 'Resumo Geral estilo planilha Share Brasil com custos fixos, variáveis, horas e litros',
       icone: Calendar,
     },
     {
@@ -283,7 +719,7 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
 
       {/* Modal de Prévia do PDF */}
       <Dialog open={!!preview.pdfUrl} onOpenChange={fecharPreview}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Prévia do Relatório</DialogTitle>
             <DialogDescription>
@@ -297,18 +733,13 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
                 src={preview.pdfUrl}
                 title="PDF Preview"
                 className="w-full h-[500px] border-none"
-                style={{
-                  minHeight: '500px'
-                }}
+                style={{ minHeight: '500px' }}
               />
             </div>
           )}
 
           <DialogFooter className="gap-2 flex justify-end">
-            <Button
-              variant="outline"
-              onClick={fecharPreview}
-            >
+            <Button variant="outline" onClick={fecharPreview}>
               <X className="h-4 w-4 mr-2" />
               Cancelar
             </Button>
@@ -334,8 +765,8 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
             <div>
               <p className="font-medium text-blue-500">Sobre os Relatórios</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Clique em "Visualizar" para ver uma prévia do relatório em PDF. 
-                Após confirmar, clique em "Download" para fazer download do arquivo.
+                O "Balanço Mensal Completo" gera um PDF no estilo da planilha Share Brasil com custos fixos, 
+                variáveis, horas voadas e litros de combustível mês a mês, incluindo totais e médias.
               </p>
             </div>
           </div>

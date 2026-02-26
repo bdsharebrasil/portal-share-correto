@@ -1126,10 +1126,20 @@ export default function PlanoVooPage() {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {/* Mapa */}
                     <Card className="bg-surface-dark border-border-dark p-4 h-[400px]">
-                      <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-primary" />
-                        Visualização da Rota
-                      </h3>
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-primary" />
+                          Visualização da Rota
+                        </h3>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open('/flight-map-view', '_blank')}
+                          className="text-xs"
+                        >
+                          Tela Cheia
+                        </Button>
+                      </div>
                       <FlightRouteMap points={routePoints} className="h-[340px]" />
                     </Card>
 

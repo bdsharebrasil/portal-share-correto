@@ -2,8 +2,8 @@ import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { AlertCircle, CheckCircle, Clock, RefreshCw, TrendingUp, Plane, Fuel } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { AlertCircle, CheckCircle, Clock, RefreshCw, TrendingUp, Plane, Fuel, DollarSign, Zap } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { useSocioBalanco } from '@/hooks/useSocioBalanco';
 import { SociosBalancoCards } from './SociosBalancoCards';
 import { useBalancoClienteCompleto, calcularResumoHorasCombustivel, formatarHoras } from '@/hooks/useBalancoClienteCompleto';
@@ -95,10 +95,10 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
       const reembolsados = data.filter(r => r.status === 'reembolsado') || [];
 
       // Calcular totais despesas diretas (despesas_cliente_direto)
-      const diretasPendentes = diretas.filter((d: any) => 
+      const diretasPendentes = diretas.filter((d: any) =>
         ['enviado', 'visualizado_cliente', 'aguardando_pagamento', 'atrasado'].includes(d.status)
       );
-      const diretasPagas = diretas.filter((d: any) => 
+      const diretasPagas = diretas.filter((d: any) =>
         ['pago', 'comprovante_recebido'].includes(d.status)
       );
 
@@ -210,7 +210,7 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Cards de Distribuição por Sócio (apenas quando consolidado e tem múltiplos sócios) */}
       {!socioId && temMultiplosSocios && (
         <SociosBalancoCards sociosBalanco={sociosBalanco} />
@@ -218,15 +218,15 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
 
       {/* Indicador de sócio selecionado */}
       {socioSelecionado && (
-        <Card className="border-primary/30 bg-primary/5">
+        <Card className="border-primary/30 bg-gradient-to-r from-primary/10 to-primary/5">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-primary/20">
+              <div className="p-2 rounded-lg bg-primary/30">
                 <TrendingUp className="h-4 w-4 text-primary" />
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-medium">
-                  Visualizando balanço de: <span className="text-primary">{socioSelecionado.nome}</span>
+                  Visualizando balanço de: <span className="text-primary font-semibold">{socioSelecionado.nome}</span>
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Participação: {socioSelecionado.percentual.toFixed(1)}% • Valores proporcionais aplicados
@@ -237,254 +237,297 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
         </Card>
       )}
 
-      {/* Cards de Horas Voadas e Combustível */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {/* KPI Principais - Operacionais */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         {/* Horas Voadas */}
-        <Card className="border-blue-500/50 bg-blue-500/10">
-          <CardContent className="pt-6">
+        <div className="group relative overflow-hidden rounded-xl border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-500/5 p-6 transition-all hover:border-blue-300/80">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+          <div className="relative space-y-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Horas Voadas</p>
-                <p className="text-3xl font-bold text-blue-500">
-                  {formatarHoras(resumoHorasCombustivel.horasVoadas)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {resumoHorasCombustivel.horasVoadas.toFixed(1)} horas decimais
-                </p>
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 group-hover:bg-blue-200 transition-colors">
+                <Plane className="h-6 w-6 text-blue-600" />
               </div>
-              <Plane className="h-12 w-12 text-blue-500/50" />
+              <span className="text-xs font-semibold text-blue-600 bg-blue-100/50 px-2 py-1 rounded">Operacional</span>
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-1">Horas Voadas</p>
+              <p className="text-4xl font-bold text-blue-600">
+                {formatarHoras(resumoHorasCombustivel.horasVoadas)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                {resumoHorasCombustivel.horasVoadas.toFixed(1)} horas decimais
+              </p>
+            </div>
+          </div>
+        </div>
 
-        {/* Litros de Combustível */}
-        <Card className="border-green-500/50 bg-green-500/10">
-          <CardContent className="pt-6">
+        {/* Combustível */}
+        <div className="group relative overflow-hidden rounded-xl border border-green-200/50 bg-gradient-to-br from-green-50 to-green-500/5 p-6 transition-all hover:border-green-300/80">
+          <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+          <div className="relative space-y-4">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Litros de Combustível</p>
-                <p className="text-3xl font-bold text-green-500">
-                  {resumoHorasCombustivel.litrosConsumidos.toFixed(1)} L
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  R$ {resumoHorasCombustivel.valorCombustivel.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 group-hover:bg-green-200 transition-colors">
+                <Fuel className="h-6 w-6 text-green-600" />
               </div>
-              <Fuel className="h-12 w-12 text-green-500/50" />
+              <span className="text-xs font-semibold text-green-600 bg-green-100/50 px-2 py-1 rounded">Operacional</span>
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-1">Combustível Consumido</p>
+              <p className="text-4xl font-bold text-green-600">
+                {resumoHorasCombustivel.litrosConsumidos.toFixed(0)} <span className="text-lg">L</span>
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                R$ {resumoHorasCombustivel.valorCombustivel.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Custo/Hora */}
+        <div className="group relative overflow-hidden rounded-xl border border-purple-200/50 bg-gradient-to-br from-purple-50 to-purple-500/5 p-6 transition-all hover:border-purple-300/80">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+          <div className="relative space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 group-hover:bg-purple-200 transition-colors">
+                <Zap className="h-6 w-6 text-purple-600" />
+              </div>
+              <span className="text-xs font-semibold text-purple-600 bg-purple-100/50 px-2 py-1 rounded">Métrica</span>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-1">Custo por Hora</p>
+              <p className="text-4xl font-bold text-purple-600">
+                {resumoHorasCombustivel.horasVoadas > 0
+                  ? `R$ ${((resumo?.total || 0) / resumoHorasCombustivel.horasVoadas).toFixed(0)}`
+                  : '—'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Em {resumoHorasCombustivel.horasVoadas.toFixed(1)} horas
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Cards de Resumo */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {/* Valores Enviados ao Cliente - Pagamento Direto */}
-        <Card className="border-purple-500/50 bg-purple-500/10">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Enviado ao Cliente - Pagamento Direto</p>
-                <p className="text-2xl font-bold text-purple-500">
-                  R$ {(resumo?.pagamentoDiretoPendente.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {resumo?.pagamentoDiretoPendente.quantidade || 0} despesas
-                </p>
-              </div>
-              <Clock className="h-12 w-12 text-purple-500/50" />
+      {/* KPI Financeiro Principal - Destaque */}
+      <div className="relative overflow-hidden rounded-xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 p-8">
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-orange-300 mix-blend-overlay" />
+        </div>
+        <div className="relative">
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <p className="text-sm font-semibold text-amber-700 mb-2 flex items-center gap-2">
+                <DollarSign className="h-4 w-4" />
+                TOTAL A PROCESSAR
+              </p>
+              <p className="text-5xl font-bold text-amber-900">
+                R$ {(resumo?.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex flex-col items-end gap-2">
+              <div className="text-right">
+                <p className="text-xs text-amber-700/70">Período:</p>
+                <p className="text-sm font-medium text-amber-900">Selecionado</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Cards de Resumo - Financeiro */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Pendente Envio */}
+        <div className="group rounded-lg border border-red-200/50 bg-gradient-to-br from-red-50 to-red-500/5 p-5 transition-all hover:border-red-300/80 hover:shadow-md">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 group-hover:bg-red-200 transition-colors">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+            </div>
+            <span className="text-xs font-bold text-red-600 bg-red-100/50 px-2 py-1 rounded">
+              {resumo?.pendenteEnvio.quantidade || 0}
+            </span>
+          </div>
+          <p className="text-xs font-medium text-muted-foreground mb-1">Pendente Envio</p>
+          <p className="text-2xl font-bold text-red-600">
+            R$ {(resumo?.pendenteEnvio.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </p>
+        </div>
 
         {/* Aguardando Reembolso */}
-        <Card className="border-yellow-500/50 bg-yellow-500/10">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Aguardando Reembolso</p>
-                <p className="text-2xl font-bold text-yellow-500">
-                  R$ {(resumo?.aguardandoReembolso.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {resumo?.aguardandoReembolso.quantidade || 0} despesas
-                </p>
-              </div>
-              <Clock className="h-12 w-12 text-yellow-500/50" />
+        <div className="group rounded-lg border border-yellow-200/50 bg-gradient-to-br from-yellow-50 to-yellow-500/5 p-5 transition-all hover:border-yellow-300/80 hover:shadow-md">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-100 group-hover:bg-yellow-200 transition-colors">
+              <Clock className="h-5 w-5 text-yellow-600" />
             </div>
-          </CardContent>
-        </Card>
+            <span className="text-xs font-bold text-yellow-600 bg-yellow-100/50 px-2 py-1 rounded">
+              {resumo?.aguardandoReembolso.quantidade || 0}
+            </span>
+          </div>
+          <p className="text-xs font-medium text-muted-foreground mb-1">Aguardando Reembolso</p>
+          <p className="text-2xl font-bold text-yellow-600">
+            R$ {(resumo?.aguardandoReembolso.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </p>
+        </div>
 
-        {/* Combustível Enviado (Pendente) */}
-        <Card className="border-orange-500/50 bg-orange-500/10">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Combustível Enviado</p>
-                <p className="text-2xl font-bold text-orange-500">
-                  R$ {(resumo?.abastecimentoPendente.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {resumo?.abastecimentoPendente.quantidade || 0} registros
-                </p>
-              </div>
-              <Fuel className="h-12 w-12 text-orange-500/50" />
+        {/* Pago */}
+        <div className="group rounded-lg border border-green-200/50 bg-gradient-to-br from-green-50 to-green-500/5 p-5 transition-all hover:border-green-300/80 hover:shadow-md">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 group-hover:bg-green-200 transition-colors">
+              <CheckCircle className="h-5 w-5 text-green-600" />
             </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Cards Secundários */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Pago pelo Cliente */}
-        <Card className="border-green-500/50 bg-green-500/10">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Pago pelo Cliente</p>
-                <p className="text-2xl font-bold text-green-500">
-                  R$ {(resumo?.pago.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {resumo?.pago.quantidade || 0} despesas
-                </p>
-              </div>
-              <CheckCircle className="h-12 w-12 text-green-500/50" />
-            </div>
-          </CardContent>
-        </Card>
+            <span className="text-xs font-bold text-green-600 bg-green-100/50 px-2 py-1 rounded">
+              {resumo?.pago.quantidade || 0}
+            </span>
+          </div>
+          <p className="text-xs font-medium text-muted-foreground mb-1">Pago</p>
+          <p className="text-2xl font-bold text-green-600">
+            R$ {(resumo?.pago.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </p>
+        </div>
 
         {/* Reembolsado */}
-        <Card className="border-blue-500/50 bg-blue-500/10">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Reembolsado à Empresa</p>
-                <p className="text-2xl font-bold text-blue-500">
-                  R$ {(resumo?.reembolsado.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {resumo?.reembolsado.quantidade || 0} despesas
-                </p>
-              </div>
-              <RefreshCw className="h-12 w-12 text-blue-500/50" />
+        <div className="group rounded-lg border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-500/5 p-5 transition-all hover:border-blue-300/80 hover:shadow-md">
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 group-hover:bg-blue-200 transition-colors">
+              <RefreshCw className="h-5 w-5 text-blue-600" />
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Pagamento Direto Pago */}
-        {(resumo?.pagamentoDiretoPago?.valor || 0) > 0 && (
-          <Card className="border-teal-500/50 bg-teal-500/10">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Pagamento Direto Pago</p>
-                  <p className="text-2xl font-bold text-teal-500">
-                    R$ {(resumo?.pagamentoDiretoPago?.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {resumo?.pagamentoDiretoPago?.quantidade || 0} despesas
-                  </p>
-                </div>
-                <CheckCircle className="h-12 w-12 text-teal-500/50" />
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Combustível Pago */}
-        {(resumo?.abastecimentoPago?.valor || 0) > 0 && (
-          <Card className="border-emerald-500/50 bg-emerald-500/10">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Combustível Pago</p>
-                  <p className="text-2xl font-bold text-emerald-500">
-                    R$ {(resumo?.abastecimentoPago?.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {resumo?.abastecimentoPago?.quantidade || 0} registros
-                  </p>
-                </div>
-                <CheckCircle className="h-12 w-12 text-emerald-500/50" />
-              </div>
-            </CardContent>
-          </Card>
-        )}
+            <span className="text-xs font-bold text-blue-600 bg-blue-100/50 px-2 py-1 rounded">
+              {resumo?.reembolsado.quantidade || 0}
+            </span>
+          </div>
+          <p className="text-xs font-medium text-muted-foreground mb-1">Reembolsado</p>
+          <p className="text-2xl font-bold text-blue-600">
+            R$ {(resumo?.reembolsado.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </p>
+        </div>
       </div>
-
 
       {/* Gráficos */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Gráfico de Pizza - Status */}
-        <Card className="border-border/50 bg-card/60">
+        <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-lg">Distribuição por Status</CardTitle>
             <CardDescription>Proporção entre pendente, pago e reembolsado</CardDescription>
           </CardHeader>
           <CardContent>
             {chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={420}>
                 <PieChart>
                   <Pie
                     data={chartData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
-                    outerRadius={100}
+                    outerRadius={120}
                     fill="#8884d8"
                     dataKey="value"
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    animationDuration={500}
                   >
                     {chartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip 
+                  <Tooltip
                     formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                   />
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+              <div className="h-[420px] flex items-center justify-center text-muted-foreground">
                 Sem dados para exibir
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Tabela por Categoria */}
-        <Card className="border-border/50 bg-card/60">
+        {/* Gráfico de Barras - Categorias */}
+        <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="text-lg">Resumo por Categoria</CardTitle>
-            <CardDescription>Total de despesas agrupadas por categoria</CardDescription>
+            <CardTitle className="text-lg">Despesas por Categoria</CardTitle>
+            <CardDescription>Distribuição das principais categorias de gastos</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {categorias.length > 0 ? (
-                categorias.sort((a, b) => b.value - a.value).slice(0, 8).map((cat, index) => (
-                  <div key={cat.name} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                      />
-                      <span className="text-sm">{cat.name}</span>
-                    </div>
-                    <span className="font-medium">
-                      R$ {cat.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center text-muted-foreground py-8">
-                  Sem despesas no período
-                </div>
-              )}
-            </div>
+            {categorias.length > 0 ? (
+              <ResponsiveContainer width="100%" height={420}>
+                <BarChart data={categorias.sort((a, b) => b.value - a.value).slice(0, 6)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis
+                    dataKey="name"
+                    angle={-45}
+                    textAnchor="end"
+                    height={100}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <YAxis
+                    tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
+                    tick={{ fontSize: 12 }}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  />
+                  <Bar dataKey="value" fill="#3b82f6" radius={[8, 8, 0, 0]} animationDuration={500} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[420px] flex items-center justify-center text-muted-foreground">
+                Sem despesas no período
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Cards Adicionais de Pagamentos - Resumo */}
+      {((resumo?.pagamentoDiretoPendente?.valor || 0) > 0 ||
+        (resumo?.abastecimentoPendente?.valor || 0) > 0 ||
+        (resumo?.pagamentoDiretoPago?.valor || 0) > 0 ||
+        (resumo?.abastecimentoPago?.valor || 0) > 0) && (
+        <div>
+          <h3 className="text-sm font-semibold mb-3 text-foreground">Pagamentos Diretos e Combustível</h3>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {(resumo?.pagamentoDiretoPendente?.valor || 0) > 0 && (
+              <div className="rounded-lg border border-purple-200/50 bg-gradient-to-br from-purple-50 to-purple-500/5 p-5">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Pagamento Direto Pendente</p>
+                <p className="text-xl font-bold text-purple-600">
+                  R$ {(resumo?.pagamentoDiretoPendente.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">{resumo?.pagamentoDiretoPendente.quantidade || 0} despesas</p>
+              </div>
+            )}
+            {(resumo?.abastecimentoPendente?.valor || 0) > 0 && (
+              <div className="rounded-lg border border-orange-200/50 bg-gradient-to-br from-orange-50 to-orange-500/5 p-5">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Combustível Pendente</p>
+                <p className="text-xl font-bold text-orange-600">
+                  R$ {(resumo?.abastecimentoPendente.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">{resumo?.abastecimentoPendente.quantidade || 0} registros</p>
+              </div>
+            )}
+            {(resumo?.pagamentoDiretoPago?.valor || 0) > 0 && (
+              <div className="rounded-lg border border-teal-200/50 bg-gradient-to-br from-teal-50 to-teal-500/5 p-5">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Pagamento Direto Pago</p>
+                <p className="text-xl font-bold text-teal-600">
+                  R$ {(resumo?.pagamentoDiretoPago?.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">{resumo?.pagamentoDiretoPago?.quantidade || 0} despesas</p>
+              </div>
+            )}
+            {(resumo?.abastecimentoPago?.valor || 0) > 0 && (
+              <div className="rounded-lg border border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-emerald-500/5 p-5">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Combustível Pago</p>
+                <p className="text-xl font-bold text-emerald-600">
+                  R$ {(resumo?.abastecimentoPago?.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">{resumo?.abastecimentoPago?.quantidade || 0} registros</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

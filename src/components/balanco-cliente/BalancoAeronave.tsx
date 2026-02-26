@@ -118,19 +118,31 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
     enabled: !!clienteId,
   });
 
-  // Buscar custos por categoria (histórico consolidado)
+  // Buscar custos reais do extrato do cliente (fallback robusto quando histórico consolidado está vazio)
   const { data: custosData = [], isLoading: loadingCustos } = useQuery({
     queryKey: ['custos-aeronave', clienteId, aeronaveId, periodo],
     queryFn: async () => {
-      let query = supabase
-        .from('historico_rateio_consolidado')
-        .select('*')
-        .eq('cliente_id', clienteId)
-        .gte('data_competencia', periodo.inicio)
-        .lte('data_competencia', periodo.fim);
+      let aeronaveRegistro: string | null = null;
 
       if (aeronaveId) {
-        query = query.eq('aeronave_id', aeronaveId);
+        const { data: aeronaveSelecionada } = await supabase
+          .from('aircraft')
+          .select('registration')
+          .eq('id', aeronaveId)
+          .single();
+
+        aeronaveRegistro = aeronaveSelecionada?.registration ?? null;
+      }
+
+      let query = supabase
+        .from('vw_extrato_cliente')
+        .select('data, valor, valor_total, categoria, status, aeronave_registro')
+        .eq('cliente_id', clienteId)
+        .gte('data', periodo.inicio)
+        .lte('data', periodo.fim);
+
+      if (aeronaveRegistro) {
+        query = query.eq('aeronave_registro', aeronaveRegistro);
       }
 
       const { data, error } = await query;
@@ -142,9 +154,12 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
 
   // Calcular totais
   const totalHoras = horasData.reduce((sum: number, h: any) => sum + (h.horas_voadas || 0), 0);
-  const totalCustos = custosData.reduce((sum: number, c: any) => sum + (c.valor_rateado || 0), 0);
-  const percentualMedio = horasData.length > 0 
-    ? horasData.reduce((sum: number, h: any) => sum + (h.percentual_uso || 0), 0) / horasData.length 
+  const totalCustos = custosData.reduce(
+    (sum: number, c: any) => sum + Number(c.valor_total ?? c.valor ?? 0),
+    0
+  );
+  const percentualMedio = horasData.length > 0
+    ? horasData.reduce((sum: number, h: any) => sum + (h.percentual_uso || 0), 0) / horasData.length
     : 0;
 
   // Preparar dados para gráfico de horas por mês
@@ -165,8 +180,9 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
 
   // Preparar dados para gráfico de custos por categoria
   const custosPorCategoria = custosData.reduce((acc: Record<string, number>, item: any) => {
-    const grupo = item.categoria_grupo || 'Outros';
-    acc[grupo] = (acc[grupo] || 0) + (item.valor_rateado || 0);
+    const categoria = item.categoria || 'Sem categoria';
+    const valor = Number(item.valor_total ?? item.valor ?? 0);
+    acc[categoria] = (acc[categoria] || 0) + valor;
     return acc;
   }, {});
 
@@ -177,16 +193,19 @@ export function BalancoAeronave({ clienteId, aeronaveId, periodo }: BalancoAeron
 
   // Custos mensais
   const custosMensais = custosData.reduce((acc: any[], item: any) => {
-    const mes = format(new Date(item.data_competencia), 'MMM/yy', { locale: ptBR });
+    const mes = format(new Date(item.data), 'MMM/yy', { locale: ptBR });
     const existing = acc.find(a => a.mes === mes);
+    const valor = Number(item.valor_total ?? item.valor ?? 0);
+
     if (existing) {
-      existing.valor += item.valor_rateado || 0;
+      existing.valor += valor;
     } else {
       acc.push({
         mes,
-        valor: item.valor_rateado || 0
+        valor,
       });
     }
+
     return acc;
   }, []);
 
