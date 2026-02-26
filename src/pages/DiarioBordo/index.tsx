@@ -4,9 +4,8 @@ import { ViewType } from "./types";
 import { useAircraftList } from "./hooks/useAircraftList";
 import { useLogbookMonthData } from "./hooks/useLogbookMonthData";
 import DiarioBordoDetalhes from "@/components/diario/DiarioBordoDetalhes";
-import { DynamicLogbookForm } from "@/components/logbook/DynamicLogbookForm";
 import { LottieAirplaneSpinner } from "@/components/ui/lottie-airplane-spinner";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout/Layout";
 import { EmptyState } from "./components/EmptyState";
@@ -21,17 +20,12 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ onBack }) => {
   const navigate = useNavigate();
   const [selectedAircraftId, setSelectedAircraftId] = useState<string | null>(null);
   const [currentView, setCurrentView] = useState<ViewType>('list');
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [selectedAircraftForForm, setSelectedAircraftForForm] = useState<string | null>(null);
 
   // Custom hooks
   const { aircraft, loading: loadingAircraft, refetch: refetchAircraft } = useAircraftList();
   const { logbookMonthData, loading: loadingLogbook } = useLogbookMonthData(aircraft);
 
   const loading = loadingAircraft || loadingLogbook;
-
-  // Debug logging
-  console.log('DiarioBordo: loadingAircraft =', loadingAircraft, 'loadingLogbook =', loadingLogbook, 'aircraft count =', aircraft.length);
 
   // Handlers
   const handleBackToList = () => {
@@ -45,18 +39,11 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ onBack }) => {
   };
 
   const handleViewBanco = (id: string) => {
-    navigate(`/banco-horas/${id}`);
+    navigate(`/hora-banco/${id}`);
   };
 
-  const handleOpenAddForm = (aircraftId: string) => {
-    setSelectedAircraftForForm(aircraftId);
-    setShowAddForm(true);
-  };
-
-  const handleFormSuccess = () => {
-    setShowAddForm(false);
-    setSelectedAircraftForForm(null);
-    refetchAircraft();
+  const handleNavigateAerodromes = () => {
+    navigate(`/aerodromos`);
   };
 
   // Views condicionais
@@ -92,27 +79,16 @@ const DiarioBordo: React.FC<DiarioBordoProps> = ({ onBack }) => {
               Voltar ao Dashboard
             </button>
             <Button
-              onClick={() => handleOpenAddForm(aircraft[0]?.id || '')}
-              disabled={aircraft.length === 0}
+              onClick={handleNavigateAerodromes}
               className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white"
             >
-              <Plus className="w-4 h-4" />
-              Novo Lançamento
+              <MapPin className="w-4 h-4" />
+              Aeródromos
             </Button>
-            {/* ... botão aeródromos ... */}
           </div>
           <h1 className="text-3xl font-black text-white mb-1">Diário de Bordo</h1>
           <p className="text-slate-500 text-sm">Selecione uma aeronave para visualizar o histórico de voos</p>
         </header>
-
-        {showAddForm && selectedAircraftForForm && (
-          <DynamicLogbookForm
-            open={showAddForm}
-            onOpenChange={setShowAddForm}
-            aircraftId={selectedAircraftForForm}
-            onSuccess={handleFormSuccess}
-          />
-        )}
 
         {aircraft.length === 0 ? (
           <EmptyState />

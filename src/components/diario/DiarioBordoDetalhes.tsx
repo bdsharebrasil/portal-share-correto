@@ -53,10 +53,10 @@ const getPartnerNameById = (partnerId: string | null, partnerMap: Record<string,
 
 
 // Extrair parceiros de um cliente (agora obtém from clientPartners state)
-const getPartnersFromClient = (client: any, clientPartnerMap?: Record<string, any>) => {
-  // Para compatibilidade com código existente que pode chamar sem o mapa
-  // Return um array vazio se não há dados de parceiros
-  return [];
+const getPartnersFromClient = (client: any, clientPartnersByClientId?: Record<string, any[]>) => {
+  if (!client || !client.id) return [];
+  if (!clientPartnersByClientId) return [];
+  return clientPartnersByClientId[client.id] || [];
 };
 
 // Calcular tempos dia/noite
@@ -99,6 +99,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   const [clients, setClients] = useState<any[]>([]);
   const [partners, setPartners] = useState<any[]>([]);
   const [clientPartners, setClientPartners] = useState<Record<string, any>>({});
+  const [clientPartnersByClientId, setClientPartnersByClientId] = useState<Record<string, any[]>>({});
   const [aircraft, setAircraft] = useState<any>(null);
   const [lastCelula, setLastCelula] = useState(0);
   const [logbookMonth, setLogbookMonth] = useState<any>(null);
@@ -313,7 +314,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('sequential_number', { ascending: true }),
           supabase.from('logbook_months').select('month, year').eq('aircraft_id', aircraftId).eq('is_closed', false).order('year', { ascending: false }).order('month', { ascending: false }),
           supabase.from('aircraft_partners').select('*, clients(id, company_name)').eq('aircraft_id', aircraftId),
-          supabase.from('client_partners').select('id, name')
+          supabase.from('client_partners').select('id, name, cpf, client_id').order('name')
         ]);
 
         if (acRes.data) {
@@ -349,10 +350,21 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         // Criar mapa de client_partners para busca rápida por ID
         if (clientPartnersRes.data) {
           const partnerMap: Record<string, any> = {};
+          const partnersByClientId: Record<string, any[]> = {};
+
           clientPartnersRes.data.forEach((p: any) => {
+            // Mapa global por ID do partner
             partnerMap[p.id] = p;
+
+            // Mapa por client_id para busca rápida dos partners de cada cliente
+            if (!partnersByClientId[p.client_id]) {
+              partnersByClientId[p.client_id] = [];
+            }
+            partnersByClientId[p.client_id].push(p);
           });
+
           setClientPartners(partnerMap);
+          setClientPartnersByClientId(partnersByClientId);
           logSuccess('Client Partners carregados', { count: clientPartnersRes.data.length });
         }
 
@@ -1643,7 +1655,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         {/* Modal para seleção de parceiro */}
         {(() => {
           const selectedClient = clients.find(c => c.id === pendingClientId);
-          const partners = getPartnersFromClient(selectedClient);
+          const partners = getPartnersFromClient(selectedClient, clientPartnersByClientId);
 
           // Determina qual field está sendo preenchido
           const isLoanFlow = flightType === 'emprestimo';
@@ -1653,12 +1665,18 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             : newEntry.client_partner_id;
           const currentPartnerName = partners.find(p => p.id === currentPartnerId)?.name || '';
 
+          // Transformar partners para adicionar index
+          const partnersWithIndex = partners.map((p, idx) => ({
+            ...p,
+            index: idx
+          }));
+
           return (
             <PartnerSelectModal
               open={showPartnerModal}
               onOpenChange={setShowPartnerModal}
               clientName={selectedClient?.company_name || ''}
-              partners={partners}
+              partners={partnersWithIndex}
               selectedPartner={currentPartnerName}
               onSelectPartner={(partnerName) => {
                 // Find partner ID from name
@@ -2054,7 +2072,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Cliente / Cotista *</Label>
                       <Select value={newEntry.client_id} onValueChange={v => {
                         const selectedClient = clients.find(c => c.id === v);
-                        const partners = getPartnersFromClient(selectedClient);
+                        const partners = getPartnersFromClient(selectedClient, clientPartnersByClientId);
 
                         setNewEntry({
                           ...newEntry,
@@ -2090,7 +2108,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     {/* Seleção de Sócio/Partner - mostra apenas se foi selecionado */}
                     {newEntry.client_id && (() => {
                       const selectedClient = clients.find(c => c.id === newEntry.client_id);
-                      const partners = getPartnersFromClient(selectedClient);
+                      const partners = getPartnersFromClient(selectedClient, clientPartnersByClientId);
 
                       if (newEntry.client_partner_id && partners.length > 0) {
                         return (
@@ -2203,7 +2221,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         value={newEntry.loan_recipient_client_id || ''}
                         onValueChange={(v) => {
                           const selectedBorrowerClient = clients.find(c => c.id === v);
-                          const borrowerPartners = getPartnersFromClient(selectedBorrowerClient);
+                          const borrowerPartners = getPartnersFromClient(selectedBorrowerClient, clientPartnersByClientId);
 
                           setNewEntry({
                             ...newEntry,
@@ -2234,7 +2252,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     {/* Sócio/Cotista do cliente que pega emprestado (se houver) */}
                     {newEntry.loan_recipient_client_id && (() => {
                       const selectedBorrowerClient = clients.find(c => c.id === newEntry.loan_recipient_client_id);
-                      const borrowerPartners = getPartnersFromClient(selectedBorrowerClient);
+                      const borrowerPartners = getPartnersFromClient(selectedBorrowerClient, clientPartnersByClientId);
 
                       if (newEntry.loan_recipient_partner_id && borrowerPartners.length > 0) {
                         return (
