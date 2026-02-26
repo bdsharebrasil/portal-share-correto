@@ -358,25 +358,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
         const loansRes = await supabase
           .from('aircraft_loans')
-          .select(`
-            *,
-            lender_client:lender_client_id (
-              id,
-              company_name
-            ),
-            borrower_client:borrower_client_id (
-              id,
-              company_name
-            ),
-            logbook_entry:logbook_entry_id (
-              id,
-              entry_date,
-              departure_aerodrome,
-              arrival_aerodrome,
-              fuel_liters,
-              fuel_added
-            )
-          `)
+          .select('*')
           .eq('lender_aircraft_id', aircraftId)
           .order('entry_date', { ascending: false });
 
