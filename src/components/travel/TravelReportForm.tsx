@@ -137,12 +137,12 @@ export function TravelReportForm({
   const [endDateOpen, setEndDateOpen] = useState(false);
   const [expenseDateOpenIndex, setExpenseDateOpenIndex] = useState<number | null>(null);
 
-  // Load partners when form initializes with an existing client_id
+  // Load partners when form initializes with an existing client_id or when client_id changes
   useEffect(() => {
     if (currentReport.client_id) {
       fetchPartnersForClient(currentReport.client_id);
     }
-  }, []);
+  }, [currentReport.client_id]);
 
   // Auto-save draft
   useEffect(() => {

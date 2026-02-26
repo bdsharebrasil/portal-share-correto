@@ -368,6 +368,7 @@ export default function RelatorioViagem() {
       const reportDataToSave = {
         report_number: reportNumber,
         client_id: reportData.client_id || null,
+        client_partner: reportData.client_partner || null,
         aircraft_id: reportData.aircraft_id || null,
         aircraft_registration: reportData.aircraft_registration,
         crew_member_id: crew_member_id_value,
