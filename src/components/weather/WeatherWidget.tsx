@@ -142,30 +142,40 @@ export default function WeatherWidget() {
       lat = coords.lat;
       lon = coords.lon;
 
-      let airport = null;
+      // Usar fallback direto (sem chamada de API que não existe)
+      const airport = nearestFallback(lat, lon);
+
       try {
-        const result = await apiClient.getNearbyAirport(lat, lon, 1);
-        if (result?.airports?.[0]) airport = result.airports[0];
-      } catch { /* fallback */ }
+        const wxData = await apiClient.getWeather(airport.icao);
+        const raw = extractRawMetar(wxData);
 
-      if (!airport || airport.distKm > 500) airport = nearestFallback(lat, lon);
-
-      const wxData = await apiClient.getWeather(airport.icao);
-      const raw = extractRawMetar(wxData);
-
-      setWx({
-        status: "ok",
-        icao: airport.icao,
-        name: airport.name,
-        distKm: airport.distKm || Math.round(haversineKm(lat, lon, airport.lat, airport.lon)),
-        raw,
-        temp: parseTempFromMetar(raw),
-        wind: parseWindFromMetar(raw),
-        cat: flightCategory(raw),
-        time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-      });
-    } catch {
-      setWx({ status: "error", msg: "Erro ao carregar METAR" });
+        setWx({
+          status: "ok",
+          icao: airport.icao,
+          name: airport.name,
+          distKm: airport.distKm || Math.round(haversineKm(lat, lon, airport.lat, airport.lon)),
+          raw,
+          temp: parseTempFromMetar(raw),
+          wind: parseWindFromMetar(raw),
+          cat: flightCategory(raw),
+          time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+        });
+      } catch (weatherError) {
+        // Se falhar ao carregar METAR, mostrar sem os dados meteorológicos
+        setWx({
+          status: "ok",
+          icao: airport.icao,
+          name: airport.name,
+          distKm: airport.distKm,
+          raw: null,
+          temp: null,
+          wind: null,
+          cat: "UNK",
+          time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+        });
+      }
+    } catch (error) {
+      setWx({ status: "error", msg: "Erro ao carregar dados" });
     } finally {
       setSpin(false);
     }
@@ -184,30 +194,40 @@ export default function WeatherWidget() {
       lat = coords.lat;
       lon = coords.lon;
 
-      let airport = null;
+      // Usar fallback direto (sem chamada de API que não existe)
+      const airport = nearestFallback(lat, lon);
+
       try {
-        const result = await apiClient.getNearbyAirport(lat, lon, 1);
-        if (result?.airports?.[0]) airport = result.airports[0];
-      } catch { /* fallback */ }
+        const wxData = await apiClient.getWeather(airport.icao);
+        const raw = extractRawMetar(wxData);
 
-      if (!airport || airport.distKm > 500) airport = nearestFallback(lat, lon);
-
-      const wxData = await apiClient.getWeather(airport.icao);
-      const raw = extractRawMetar(wxData);
-
-      setWx({
-        status: "ok",
-        icao: airport.icao,
-        name: airport.name,
-        distKm: airport.distKm || Math.round(haversineKm(lat, lon, airport.lat, airport.lon)),
-        raw,
-        temp: parseTempFromMetar(raw),
-        wind: parseWindFromMetar(raw),
-        cat: flightCategory(raw),
-        time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-      });
-    } catch {
-      setWx({ status: "error", msg: "Erro ao carregar METAR" });
+        setWx({
+          status: "ok",
+          icao: airport.icao,
+          name: airport.name,
+          distKm: airport.distKm || Math.round(haversineKm(lat, lon, airport.lat, airport.lon)),
+          raw,
+          temp: parseTempFromMetar(raw),
+          wind: parseWindFromMetar(raw),
+          cat: flightCategory(raw),
+          time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+        });
+      } catch (weatherError) {
+        // Se falhar ao carregar METAR, mostrar sem os dados meteorológicos
+        setWx({
+          status: "ok",
+          icao: airport.icao,
+          name: airport.name,
+          distKm: airport.distKm,
+          raw: null,
+          temp: null,
+          wind: null,
+          cat: "UNK",
+          time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+        });
+      }
+    } catch (error) {
+      setWx({ status: "error", msg: "Erro ao carregar dados" });
     } finally {
       setSpin(false);
     }
