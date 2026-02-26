@@ -153,20 +153,35 @@ export function DynamicLogbookForm({
   const { data: clients = [] } = useQuery({
     queryKey: ['aircraft-clients', aircraftId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Primeiro buscar os client_ids vinculados à aeronave
+      const { data: clientAircraft, error: caError } = await supabase
         .from('client_aircraft')
-        .select(`
-          client_id,
-          share_percentage,
-          clients:client_id (
-            id,
-            company_name,
-            proprietario
-          )
-        `)
+        .select('client_id, share_percentage')
         .eq('aircraft_id', aircraftId);
-      if (error) throw error;
-      return data || [];
+
+      if (caError) throw caError;
+      if (!clientAircraft || clientAircraft.length === 0) return [];
+
+      // Depois buscar os dados completos dos clientes
+      const clientIds = clientAircraft.map((ca: any) => ca.client_id);
+      const { data: clientsData, error: clientsError } = await supabase
+        .from('clients')
+        .select('id, company_name, proprietario')
+        .in('id', clientIds);
+
+      if (clientsError) throw clientsError;
+
+      // Mapear os dados combinados
+      const clientsMap: Record<string, any> = {};
+      (clientsData || []).forEach((c: any) => {
+        clientsMap[c.id] = c;
+      });
+
+      return clientAircraft.map((ca: any) => ({
+        client_id: ca.client_id,
+        share_percentage: ca.share_percentage,
+        clients: clientsMap[ca.client_id] || null
+      }));
     },
     enabled: !!aircraftId,
   });
