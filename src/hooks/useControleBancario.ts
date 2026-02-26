@@ -11,6 +11,7 @@ export function useControleBancario() {
           *,
           categorias_movimentacao:categoria_id(id, nome, tipo, grupo_categoria),
           clients:client_id(id, company_name, proprietario),
+          client_partner:client_partner_id(id, name),
           fornecedores_favoritos:fornecedores_favoritos_id(id, nome_completo),
           user_profiles:colaborador_id(id, full_name, display_name)
         `)
@@ -30,8 +31,9 @@ export function useControleBancario() {
           item.user_profiles?.full_name ||
           item.user_profiles?.display_name ||
           '-',
-        // Cliente: nome da empresa ou proprietário
-        cliente_nome: item.clients?.company_name ||
+        // Cliente: se houver partner use o nome do partner, senão empresa/proprietário
+        cliente_nome: item.client_partner?.name ||
+          item.clients?.company_name ||
           item.clients?.proprietario ||
           item.client_name ||
           '-'

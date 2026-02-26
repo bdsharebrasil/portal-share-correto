@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Inadimplencia } from "@/components/dashboard/gestor/relatorio/Inadimplencia";
-import { RelatorioBalancete } from "@/components/dashboard/gestor/relatorio/RelatorioBalancete";
-import { RelatorioDRE } from "@/components/dashboard/gestor/relatorio/RelatorioDRE";
-import { RelatorioFluxoCaixa } from "@/components/dashboard/gestor/relatorio/RelatorioFluxoCaixa";
+import { Inadimplencia } from "@/components/master/relatorio/Inadimplencia";
+import { RelatorioBalancete } from "@/components/master/relatorio/RelatorioBalancete";
+import { RelatorioDRE } from "@/components/master/relatorio/RelatorioDRE";
+import { RelatorioFluxoCaixa } from "@/components/master/relatorio/RelatorioFluxoCaixa";
 import { BarChart3, Scale, DollarSign, AlertTriangle } from "lucide-react";
 
 type RelatorioType = "balancete" | "dre" | "fluxo" | "inadimplencia";

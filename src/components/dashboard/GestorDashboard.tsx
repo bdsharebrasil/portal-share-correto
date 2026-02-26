@@ -48,7 +48,7 @@ export function GestorDashboard() {
     { icon: Users, label: "Gestão de Funcionários", route: "/gestao-funcionarios", color: "from-blue-500 to-blue-600", grid: 1 },
     { icon: Plane, label: "Controle de Aeronaves", route: "/aeronaves", textColor: "text-cyan-400", grid: 2 },
     { icon: PieChart, label: "Balanço Clientes", route: "/financeiro/balanco-cliente", textColor: "text-indigo-400", grid: 2 },
-    { icon: BarChart3, label: "Gestor Master", route: "/financeiro/gestor", color: "from-orange-500 to-orange-600", restricted: true, grid: 3 },
+    { icon: BarChart3, label: "Master", route: "/financeiro/master", color: "from-orange-500 to-orange-600", restricted: true, grid: 3 },
     { icon: DollarSign, label: "Financeiro Sócios", route: "/financeiro/financeiro-socios", color: "from-purple-500 to-purple-600", restricted: true, grid: 3 },
   ];
 
@@ -173,7 +173,7 @@ export function GestorDashboard() {
             ))}
           </div>
 
-          {/* Grid 2: Controle de Aeronaves, Balanço Clientes */}
+          {/* Grid 2: Controle de Aeronaves, Clientes */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {grid2Tools.map((tool) => (
               <button
@@ -187,7 +187,7 @@ export function GestorDashboard() {
             ))}
           </div>
 
-          {/* Grid 3: Gestor Master e Financeiro Sócios */}
+          {/* Grid 3: Master e Financeiro Sócios */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {grid3Tools.map((tool) => (
               <button
@@ -204,6 +204,8 @@ export function GestorDashboard() {
           </div>
         </div>
       </div>
+
+     
 
       {/* Minhas Tarefas */}
       <div>

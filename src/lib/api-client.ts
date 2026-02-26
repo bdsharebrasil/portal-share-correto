@@ -2,9 +2,10 @@
 //
 // O cliente API faz fallback automático para Supabase quando o backend estiver inacessível.
 // Erros de rede como "Failed to fetch" são tratados e usados para ativar o fallback.
-// Alterar a URL via variável de ambiente `VITE_BACKEND_URL` se necessário.
-
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev';
+// 
+// Em desenvolvimento: usa `/api` (proxiado pelo Vite via vite.config.ts)
+// Em produção: usa a URL completa da API se VITE_BACKEND_URL estiver definida
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? '/api' : 'https://api-workers.sharebrasil.workers.dev');
 
 interface ApiError {
   error: string;

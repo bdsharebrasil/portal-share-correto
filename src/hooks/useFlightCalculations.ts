@@ -39,7 +39,7 @@ interface UseFlightCalculationsReturn {
   clearResult: () => void;
 }
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev';
+const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? '/api' : 'https://api-workers.sharebrasil.workers.dev');
 
 export function useFlightCalculations(): UseFlightCalculationsReturn {
   const [calculating, setCalculating] = useState(false);

@@ -6,6 +6,7 @@ import { MessagesPanel } from "./MessagesPanel";
 import { TasksQuickAccess } from "./TasksQuickAccess";
 import { FinanceiroDashboard } from "./FinanceiroDashboard";
 import { GestorDashboard } from "./GestorDashboard";
+
 import PortalClienteDashboard from "@/pages/PortalClienteDashboard";
 
 export function MainContent() {
@@ -15,12 +16,14 @@ export function MainContent() {
     return <FinanceiroDashboard />;
   }
 
-  if (viewMode === 'gestor') {
-    return <GestorDashboard />;
-  }
+ 
 
   if (viewMode === 'portal-cliente') {
     return <PortalClienteDashboard />;
+  }
+
+  if (viewMode === 'gestor') {
+    return <GestorDashboard />;
   }
 
   // Operações view (default)

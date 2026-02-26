@@ -99,26 +99,34 @@ function BalancoClienteContent() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 bg-slate-900/80 p-6 rounded-xl shadow-elevated">
       {/* Back Button */}
       <button
         onClick={() => navigate(-1)}
         className="flex items-center gap-2 text-foreground hover:text-primary transition-colors group"
       >
-        <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
-        <span className="text-sm">Voltar</span>
+        <ArrowLeft className="h-6 w-6 text-primary group-hover:-translate-x-1 transition-transform" />
+        <span className="text-sm font-medium">Voltar</span>
       </button>
 
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold text-foreground mb-2">Balanço Cliente</h1>
-        <p className="text-lg text-muted-foreground">
-          Acompanhamento financeiro completo, pendências e balanço operacional
-        </p>
+      <div className="mb-8 flex items-center gap-3">
+        <div className="p-2 rounded-lg bg-primary/20">
+          <LayoutDashboard className="w-8 h-8 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-4xl font-bold text-foreground mb-2">Balanço Cliente</h1>
+          <p className="text-lg text-muted-foreground">
+            Acompanhamento financeiro completo, pendências e balanço operacional
+          </p>
+        </div>
       </div>
 
+    
+      
+
       {/* Filtros Globais */}
-      <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
+      <Card className="border-transparent bg-gradient-card/80 shadow-2xl backdrop-blur-md">
         <CardHeader className="pb-4">
           <CardTitle className="text-lg">Filtros</CardTitle>
           <CardDescription>Selecione o cliente e período para análise</CardDescription>
@@ -260,17 +268,17 @@ function BalancoClienteContent() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6 lg:w-auto bg-muted/60 border border-border/50">
+        <TabsList className="grid w-full grid-cols-6 lg:w-auto bg-secondary/20 border-transparent shadow-elevated">
           <TabsTrigger value="visao-geral" className="gap-2">
-            <LayoutDashboard className="h-4 w-4" />
+            <LayoutDashboard className="h-5 w-5 text-primary" />
             <span className="hidden sm:inline">Visão Geral</span>
           </TabsTrigger>
           <TabsTrigger value="despesas" className="gap-2">
-            <Receipt className="h-4 w-4" />
+            <Receipt className="h-5 w-5 text-primary" />
             <span className="hidden sm:inline">Despesas</span>
           </TabsTrigger>
           <TabsTrigger value="pendencias" className="gap-2 relative">
-            <AlertCircle className="h-4 w-4" />
+            <AlertCircle className="h-5 w-5 text-destructive" />
             <span className="hidden sm:inline">Pendências</span>
             {pendenciasCount > 0 && (
               <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
@@ -279,15 +287,15 @@ function BalancoClienteContent() {
             )}
           </TabsTrigger>
           <TabsTrigger value="aeronave" className="gap-2">
-            <Plane className="h-4 w-4" />
+            <Plane className="h-5 w-5 text-primary" />
             <span className="hidden sm:inline">Aeronave</span>
           </TabsTrigger>
           <TabsTrigger value="acesso-portal" className="gap-2">
-            <KeyRound className="h-4 w-4" />
+            <KeyRound className="h-5 w-5 text-primary" />
             <span className="hidden sm:inline">Acesso Portal</span>
           </TabsTrigger>
           <TabsTrigger value="relatorios" className="gap-2">
-            <FileBarChart className="h-4 w-4" />
+            <FileBarChart className="h-5 w-5 text-primary" />
             <span className="hidden sm:inline">Relatórios</span>
           </TabsTrigger>
         </TabsList>
@@ -301,7 +309,7 @@ function BalancoClienteContent() {
               periodo={periodo}
             />
           ) : (
-            <Card className="border-border/50 bg-card/60">
+            <Card className="border-transparent bg-gradient-card/80 shadow-elevated">
               <CardContent className="pt-6 text-center text-muted-foreground">
                 Selecione um cliente para visualizar o balanço
               </CardContent>
@@ -326,7 +334,7 @@ function BalancoClienteContent() {
               />
             </div>
           ) : (
-            <Card className="border-border/50 bg-card/60">
+            <Card className="border-transparent bg-gradient-card/80 shadow-elevated">
               <CardContent className="pt-6 text-center text-muted-foreground">
                 Selecione um cliente para visualizar as despesas
               </CardContent>
@@ -342,7 +350,7 @@ function BalancoClienteContent() {
               aeronaveId={aeronaveId || undefined}
             />
           ) : (
-            <Card className="border-border/50 bg-card/60">
+            <Card className="border-transparent bg-gradient-card/80 shadow-elevated">
               <CardContent className="pt-6 text-center text-muted-foreground">
                 Selecione um cliente para visualizar as pendências
               </CardContent>
@@ -359,7 +367,7 @@ function BalancoClienteContent() {
               periodo={periodo}
             />
           ) : (
-            <Card className="border-border/50 bg-card/60">
+            <Card className="border-transparent bg-gradient-card/80 shadow-elevated">
               <CardContent className="pt-6 text-center text-muted-foreground">
                 Selecione um cliente para visualizar o balanço da aeronave
               </CardContent>
@@ -374,7 +382,7 @@ function BalancoClienteContent() {
               socioId={socioId}
             />
           ) : (
-            <Card className="border-border/50 bg-card/60">
+            <Card className="border-transparent bg-gradient-card/80 shadow-elevated">
               <CardContent className="pt-6 text-center text-muted-foreground">
                 Selecione um cliente para gerenciar o acesso ao portal
               </CardContent>
@@ -391,7 +399,7 @@ function BalancoClienteContent() {
               periodo={periodo}
             />
           ) : (
-            <Card className="border-border/50 bg-card/60">
+            <Card className="border-transparent bg-gradient-card/80 shadow-elevated">
               <CardContent className="pt-6 text-center text-muted-foreground">
                 Selecione um cliente para gerar relatórios
               </CardContent>

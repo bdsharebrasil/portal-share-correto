@@ -200,10 +200,10 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
 
   if (isLoading) {
     return (
-      <Card className="border-border/50 bg-card/60">
+      <Card className="border-blue-800/30 bg-blue-900/40 shadow-xl shadow-black/20">
         <CardContent className="pt-6 text-center">
           <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full mx-auto" />
-          <p className="mt-2 text-muted-foreground">Carregando...</p>
+          <p className="mt-2 text-blue-300">Carregando...</p>
         </CardContent>
       </Card>
     );
@@ -240,21 +240,20 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
       {/* KPI Principais - Operacionais */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         {/* Horas Voadas */}
-        <div className="group relative overflow-hidden rounded-xl border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-500/5 p-6 transition-all hover:border-blue-300/80">
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+        <div className="group relative overflow-hidden rounded-2xl border border-blue-800/30 bg-blue-900/30 p-6 transition-all hover:border-blue-700/50 shadow-xl shadow-black/20">
           <div className="relative space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 group-hover:bg-blue-200 transition-colors">
-                <Plane className="h-6 w-6 text-blue-600" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-cyan-500/20">
+                <Plane className="h-6 w-6 text-cyan-400" />
               </div>
-              <span className="text-xs font-semibold text-blue-600 bg-blue-100/50 px-2 py-1 rounded">Operacional</span>
+              <span className="text-xs font-semibold text-cyan-300 bg-cyan-500/10 px-3 py-1 rounded-full">Operacional</span>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">Horas Voadas</p>
-              <p className="text-4xl font-bold text-blue-600">
+              <p className="text-sm font-medium text-blue-300 mb-1">Horas Voadas</p>
+              <p className="text-4xl font-bold text-white">
                 {formatarHoras(resumoHorasCombustivel.horasVoadas)}
               </p>
-              <p className="text-xs text-muted-foreground mt-2">
+              <p className="text-xs text-blue-400/70 mt-2">
                 {resumoHorasCombustivel.horasVoadas.toFixed(1)} horas decimais
               </p>
             </div>
@@ -262,21 +261,20 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
         </div>
 
         {/* Combustível */}
-        <div className="group relative overflow-hidden rounded-xl border border-green-200/50 bg-gradient-to-br from-green-50 to-green-500/5 p-6 transition-all hover:border-green-300/80">
-          <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+        <div className="group relative overflow-hidden rounded-2xl border border-blue-800/30 bg-blue-900/30 p-6 transition-all hover:border-blue-700/50 shadow-xl shadow-black/20">
           <div className="relative space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-100 group-hover:bg-green-200 transition-colors">
-                <Fuel className="h-6 w-6 text-green-600" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500/20">
+                <Fuel className="h-6 w-6 text-emerald-400" />
               </div>
-              <span className="text-xs font-semibold text-green-600 bg-green-100/50 px-2 py-1 rounded">Operacional</span>
+              <span className="text-xs font-semibold text-emerald-300 bg-emerald-500/10 px-3 py-1 rounded-full">Operacional</span>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">Combustível Consumido</p>
-              <p className="text-4xl font-bold text-green-600">
+              <p className="text-sm font-medium text-blue-300 mb-1">Combustível Consumido</p>
+              <p className="text-4xl font-bold text-white">
                 {resumoHorasCombustivel.litrosConsumidos.toFixed(0)} <span className="text-lg">L</span>
               </p>
-              <p className="text-xs text-muted-foreground mt-2">
+              <p className="text-xs text-blue-400/70 mt-2">
                 R$ {resumoHorasCombustivel.valorCombustivel.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
             </div>
@@ -284,23 +282,22 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
         </div>
 
         {/* Custo/Hora */}
-        <div className="group relative overflow-hidden rounded-xl border border-purple-200/50 bg-gradient-to-br from-purple-50 to-purple-500/5 p-6 transition-all hover:border-purple-300/80">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+        <div className="group relative overflow-hidden rounded-2xl border border-blue-800/30 bg-blue-900/30 p-6 transition-all hover:border-blue-700/50 shadow-xl shadow-black/20">
           <div className="relative space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-100 group-hover:bg-purple-200 transition-colors">
-                <Zap className="h-6 w-6 text-purple-600" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-amber-500/20">
+                <Zap className="h-6 w-6 text-amber-400" />
               </div>
-              <span className="text-xs font-semibold text-purple-600 bg-purple-100/50 px-2 py-1 rounded">Métrica</span>
+              <span className="text-xs font-semibold text-amber-300 bg-amber-500/10 px-3 py-1 rounded-full">Métrica</span>
             </div>
             <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">Custo por Hora</p>
-              <p className="text-4xl font-bold text-purple-600">
+              <p className="text-sm font-medium text-blue-300 mb-1">Custo por Hora</p>
+              <p className="text-4xl font-bold text-white">
                 {resumoHorasCombustivel.horasVoadas > 0
                   ? `R$ ${((resumo?.total || 0) / resumoHorasCombustivel.horasVoadas).toFixed(0)}`
                   : '—'}
               </p>
-              <p className="text-xs text-muted-foreground mt-2">
+              <p className="text-xs text-blue-400/70 mt-2">
                 Em {resumoHorasCombustivel.horasVoadas.toFixed(1)} horas
               </p>
             </div>
@@ -308,94 +305,69 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
         </div>
       </div>
 
-      {/* KPI Financeiro Principal - Destaque */}
-      <div className="relative overflow-hidden rounded-xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 p-8">
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-orange-300 mix-blend-overlay" />
-        </div>
-        <div className="relative">
-          <div className="flex items-start justify-between mb-6">
-            <div>
-              <p className="text-sm font-semibold text-amber-700 mb-2 flex items-center gap-2">
-                <DollarSign className="h-4 w-4" />
-                TOTAL A PROCESSAR
-              </p>
-              <p className="text-5xl font-bold text-amber-900">
-                R$ {(resumo?.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </p>
-            </div>
-            <div className="flex flex-col items-end gap-2">
-              <div className="text-right">
-                <p className="text-xs text-amber-700/70">Período:</p>
-                <p className="text-sm font-medium text-amber-900">Selecionado</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* Cards de Resumo - Financeiro */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {/* Pendente Envio */}
-        <div className="group rounded-lg border border-red-200/50 bg-gradient-to-br from-red-50 to-red-500/5 p-5 transition-all hover:border-red-300/80 hover:shadow-md">
+        <div className="group rounded-2xl border border-blue-800/30 bg-blue-900/30 p-5 transition-all hover:border-blue-700/50 hover:shadow-lg shadow-xl shadow-black/20">
           <div className="flex items-start justify-between mb-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-100 group-hover:bg-red-200 transition-colors">
-              <AlertCircle className="h-5 w-5 text-red-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-500/20">
+              <AlertCircle className="h-5 w-5 text-red-400" />
             </div>
-            <span className="text-xs font-bold text-red-600 bg-red-100/50 px-2 py-1 rounded">
+            <span className="text-xs font-bold text-red-300 bg-red-500/10 px-2 py-1 rounded-full">
               {resumo?.pendenteEnvio.quantidade || 0}
             </span>
           </div>
-          <p className="text-xs font-medium text-muted-foreground mb-1">Pendente Envio</p>
-          <p className="text-2xl font-bold text-red-600">
+          <p className="text-xs font-medium text-blue-300 mb-1">Pendente Envio</p>
+          <p className="text-2xl font-bold text-white">
             R$ {(resumo?.pendenteEnvio.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
 
         {/* Aguardando Reembolso */}
-        <div className="group rounded-lg border border-yellow-200/50 bg-gradient-to-br from-yellow-50 to-yellow-500/5 p-5 transition-all hover:border-yellow-300/80 hover:shadow-md">
+        <div className="group rounded-2xl border border-blue-800/30 bg-blue-900/30 p-5 transition-all hover:border-blue-700/50 hover:shadow-lg shadow-xl shadow-black/20">
           <div className="flex items-start justify-between mb-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-100 group-hover:bg-yellow-200 transition-colors">
-              <Clock className="h-5 w-5 text-yellow-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/20">
+              <Clock className="h-5 w-5 text-amber-400" />
             </div>
-            <span className="text-xs font-bold text-yellow-600 bg-yellow-100/50 px-2 py-1 rounded">
+            <span className="text-xs font-bold text-amber-300 bg-amber-500/10 px-2 py-1 rounded-full">
               {resumo?.aguardandoReembolso.quantidade || 0}
             </span>
           </div>
-          <p className="text-xs font-medium text-muted-foreground mb-1">Aguardando Reembolso</p>
-          <p className="text-2xl font-bold text-yellow-600">
+          <p className="text-xs font-medium text-blue-300 mb-1">Aguardando Reembolso</p>
+          <p className="text-2xl font-bold text-white">
             R$ {(resumo?.aguardandoReembolso.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
 
         {/* Pago */}
-        <div className="group rounded-lg border border-green-200/50 bg-gradient-to-br from-green-50 to-green-500/5 p-5 transition-all hover:border-green-300/80 hover:shadow-md">
+        <div className="group rounded-2xl border border-blue-800/30 bg-blue-900/30 p-5 transition-all hover:border-blue-700/50 hover:shadow-lg shadow-xl shadow-black/20">
           <div className="flex items-start justify-between mb-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 group-hover:bg-green-200 transition-colors">
-              <CheckCircle className="h-5 w-5 text-green-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/20">
+              <CheckCircle className="h-5 w-5 text-emerald-400" />
             </div>
-            <span className="text-xs font-bold text-green-600 bg-green-100/50 px-2 py-1 rounded">
+            <span className="text-xs font-bold text-emerald-300 bg-emerald-500/10 px-2 py-1 rounded-full">
               {resumo?.pago.quantidade || 0}
             </span>
           </div>
-          <p className="text-xs font-medium text-muted-foreground mb-1">Pago</p>
-          <p className="text-2xl font-bold text-green-600">
+          <p className="text-xs font-medium text-blue-300 mb-1">Pago</p>
+          <p className="text-2xl font-bold text-white">
             R$ {(resumo?.pago.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
 
         {/* Reembolsado */}
-        <div className="group rounded-lg border border-blue-200/50 bg-gradient-to-br from-blue-50 to-blue-500/5 p-5 transition-all hover:border-blue-300/80 hover:shadow-md">
+        <div className="group rounded-2xl border border-blue-800/30 bg-blue-900/30 p-5 transition-all hover:border-blue-700/50 hover:shadow-lg shadow-xl shadow-black/20">
           <div className="flex items-start justify-between mb-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 group-hover:bg-blue-200 transition-colors">
-              <RefreshCw className="h-5 w-5 text-blue-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-500/20">
+              <RefreshCw className="h-5 w-5 text-cyan-400" />
             </div>
-            <span className="text-xs font-bold text-blue-600 bg-blue-100/50 px-2 py-1 rounded">
+            <span className="text-xs font-bold text-cyan-300 bg-cyan-500/10 px-2 py-1 rounded-full">
               {resumo?.reembolsado.quantidade || 0}
             </span>
           </div>
-          <p className="text-xs font-medium text-muted-foreground mb-1">Reembolsado</p>
-          <p className="text-2xl font-bold text-blue-600">
+          <p className="text-xs font-medium text-blue-300 mb-1">Reembolsado</p>
+          <p className="text-2xl font-bold text-white">
             R$ {(resumo?.reembolsado.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
@@ -404,10 +376,10 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
       {/* Gráficos */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Gráfico de Pizza - Status */}
-        <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
+        <Card className="border-blue-800/30 bg-blue-900/40 shadow-xl shadow-black/20">
           <CardHeader>
-            <CardTitle className="text-lg">Distribuição por Status</CardTitle>
-            <CardDescription>Proporção entre pendente, pago e reembolsado</CardDescription>
+            <CardTitle className="text-lg text-blue-200">Distribuição por Status</CardTitle>
+            <CardDescription className="text-blue-400/70">Proporção entre pendente, pago e reembolsado</CardDescription>
           </CardHeader>
           <CardContent>
             {chartData.length > 0 ? (
@@ -444,10 +416,10 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
         </Card>
 
         {/* Gráfico de Barras - Categorias */}
-        <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
+        <Card className="border-blue-800/30 bg-blue-900/40 shadow-xl shadow-black/20">
           <CardHeader>
-            <CardTitle className="text-lg">Despesas por Categoria</CardTitle>
-            <CardDescription>Distribuição das principais categorias de gastos</CardDescription>
+            <CardTitle className="text-lg text-blue-200">Despesas por Categoria</CardTitle>
+            <CardDescription className="text-blue-400/70">Distribuição das principais categorias de gastos</CardDescription>
           </CardHeader>
           <CardContent>
             {categorias.length > 0 ? (

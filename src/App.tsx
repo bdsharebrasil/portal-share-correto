@@ -63,7 +63,8 @@ import ControleAbastecimento from "./pages/ControleAbastecimento";
 import Ferias from "./pages/Ferias";
 import Senhas from "./pages/Senhas";
 import GestaoFiscal from "./pages/financeiro/GestaoFiscal";
-import DashboardGestor from "./pages/financeiro/DashboardGestor";
+import Master from "./pages/financeiro/Master";
+import MasterColaboradores from "./pages/financeiro/MasterColaboradores";
 import ConfigMovimentacoes from "./pages/financeiro/ConfigMovimentacoes";
 import CalendarioFerias from "./pages/CalendarioFerias";
 import DashboardOperacoes from "./pages/DashboardOperacoes";
@@ -215,10 +216,17 @@ const App = () => {
                               </RoleProtected>
                             )
                           } />
-                          <Route path="/financeiro/gestor" element={
+                          <Route path="/financeiro/master" element={
                             renderProtected(
-                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
-                                <DashboardGestor />
+                              <RoleProtected allowedRoles={["admin", "gestor_master"]}>
+                                <Master />
+                              </RoleProtected>
+                            )
+                          } />
+                          <Route path="/financeiro/master/colaboradores" element={
+                            renderProtected(
+                              <RoleProtected allowedRoles={["admin", "gestor_master"]}>
+                                <MasterColaboradores />
                               </RoleProtected>
                             )
                           } />

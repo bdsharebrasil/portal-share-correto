@@ -2,10 +2,14 @@
 
 /**
  * Configuração centralizada de URLs da API
+ * 
+ * Em desenvolvimento: usa `/api` (proxiado pelo Vite)
+ * Em produção: usa a URL completa
  */
 
 // URL base do backend (Workers)
-export const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'https://api-workers.sharebrasil.workers.dev';
+// DEV: `/api` (proxy Vite) | PROD: variável de ambiente ou URL padrão
+export const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? '/api' : 'https://api-workers.sharebrasil.workers.dev');
 
 // URL da API do Supabase
 export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
