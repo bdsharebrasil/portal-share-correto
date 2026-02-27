@@ -92,7 +92,7 @@ export default function GestaoFiscal() {
   } = useUserRole();
   const isAuthorized = isAdmin || isGestorMaster || isFinanceiroMaster;
 
-  // Filtrar abas baseado em permissões: apenas admin vê Configurações
+  // Filtrar abas baseado em permissões: admin, gestor_master e financeiro_master veem Configurações
   const tabs = useMemo(() => {
     return allTabs.filter(tab => {
       if (tab.adminOnly) {
