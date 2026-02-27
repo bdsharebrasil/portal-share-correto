@@ -45,6 +45,7 @@ interface FuelRecord {
   abastecedor?: string | null;
   client_id?: string | null;
   status_pagamento?: string | null;
+  tipo_faturamento?: string | null;
   observacao?: string | null;
 }
 interface FuelSupplier {
@@ -140,6 +141,7 @@ export function FuelRecordsByAircraft({
     client_id: "",
     partner_selected: "",
     status_pagamento: "em aberto",
+    tipo_faturamento: "",
     observacao: "",
     comanda_file: null as File | null,
     nota_file: null as File | null,
@@ -312,7 +314,10 @@ export function FuelRecordsByAircraft({
     if (!file) return null;
     try {
       const timestamp = Date.now();
-      const fileName = `${client.id}/${aircraft.id}/${timestamp}-${fieldName}-${file.name}`;
+      const sanitizedFileName = file.name
+        .replace(/[^a-zA-Z0-9.\-_]/g, "_")
+        .substring(0, 100);
+      const fileName = `${client.id}/${aircraft.id}/${timestamp}-${fieldName}-${sanitizedFileName}`;
       const {
         error
       } = await supabase.storage.from("abastecimento").upload(fileName, file);
@@ -435,6 +440,7 @@ export function FuelRecordsByAircraft({
         abastecimento_galoes: formData.abastecimento_galoes ? parseFloat(formData.abastecimento_galoes) : null,
         abastecedor: supplierName,
         status_pagamento: formData.status_pagamento || "em aberto",
+        tipo_faturamento: formData.tipo_faturamento || null,
         observacao: observacaoFinal,
         partner_index: partnerIndex,
         comanda_url: comandaUrl || null,
@@ -505,6 +511,7 @@ export function FuelRecordsByAircraft({
       client_id: record.client_id || client.id,
       partner_selected: record.observacao?.includes("[Partner:") ? record.observacao.match(/\[Partner:([^\]]+)\]/)?.[1] || "" : "",
       status_pagamento: record.status_pagamento || "em aberto",
+      tipo_faturamento: record.tipo_faturamento || "",
       observacao: record.observacao?.replace(/\[Partner:[^\]]+\]\s*/, "") || "",
       comanda_file: null,
       nota_file: null,
@@ -547,6 +554,7 @@ export function FuelRecordsByAircraft({
       client_id: client.id,
       partner_selected: "",
       status_pagamento: "em aberto",
+      tipo_faturamento: "",
       observacao: "",
       comanda_file: null,
       nota_file: null,
@@ -845,6 +853,25 @@ export function FuelRecordsByAircraft({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div>
+              <Label className="text-xs text-muted-foreground">Tipo de Faturamento</Label>
+              <Select value={formData.tipo_faturamento} onValueChange={value => setFormData({
+                ...formData,
+                tipo_faturamento: value
+              })}>
+                <SelectTrigger className="mt-1 h-9 text-sm">
+                  <SelectValue placeholder="Selecione o tipo de faturamento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pagamento a vista">Pagamento à Vista</SelectItem>
+                  <SelectItem value="a vista cartao de credito">À Vista Cartão de Crédito</SelectItem>
+                  <SelectItem value="a vista transferencia pix">À Vista Transferência (PIX)</SelectItem>
+                  <SelectItem value="faturado boleto">Faturado Boleto</SelectItem>
+                  <SelectItem value="faturado nota fiscal">Faturado Nota Fiscal</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div>

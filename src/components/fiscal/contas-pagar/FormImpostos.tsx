@@ -43,7 +43,12 @@ export function FormImpostos({ form, setForm }: Props) {
     if (!file) return;
     setUploading(true);
     try {
-      const fileName = `imposto_${Date.now()}.${file.name.split('.').pop()}`;
+      const timestamp = Date.now();
+      const sanitizedFileName = file.name
+        .replace(/[^a-zA-Z0-9.\-_]/g, "_")
+        .substring(0, 100);
+      const fileExt = sanitizedFileName.split('.').pop();
+      const fileName = `imposto_${timestamp}.${fileExt}`;
       const { error } = await supabase.storage.from("nfs-share-recebidas").upload(fileName, file);
       if (error) throw error;
       const { data } = supabase.storage.from("nfs-share-recebidas").getPublicUrl(fileName);

@@ -15,7 +15,12 @@ export function BoletoSection({ form, setForm }: { form: any; setForm: (f: any) 
     if (!file) return;
     setUploading(true);
     try {
-      const fileName = `boleto_${Date.now()}.${file.name.split('.').pop()}`;
+      const timestamp = Date.now();
+      const sanitizedFileName = file.name
+        .replace(/[^a-zA-Z0-9.\-_]/g, "_")
+        .substring(0, 100);
+      const fileExt = sanitizedFileName.split('.').pop();
+      const fileName = `boleto_${timestamp}.${fileExt}`;
       const { error } = await supabase.storage.from("nfs-share-recebidas").upload(fileName, file);
       if (error) throw error;
       const { data } = supabase.storage.from("nfs-share-recebidas").getPublicUrl(fileName);
@@ -82,7 +87,12 @@ export function NFSection({ form, setForm }: { form: any; setForm: (f: any) => v
     if (!file) return;
     setUploading(true);
     try {
-      const fileName = `nf_${Date.now()}.${file.name.split('.').pop()}`;
+      const timestamp = Date.now();
+      const sanitizedFileName = file.name
+        .replace(/[^a-zA-Z0-9.\-_]/g, "_")
+        .substring(0, 100);
+      const fileExt = sanitizedFileName.split('.').pop();
+      const fileName = `nf_${timestamp}.${fileExt}`;
       const { error } = await supabase.storage.from("nfs-share-recebidas").upload(fileName, file);
       if (error) throw error;
       const { data } = supabase.storage.from("nfs-share-recebidas").getPublicUrl(fileName);
