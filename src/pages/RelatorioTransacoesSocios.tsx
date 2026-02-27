@@ -13,21 +13,21 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Users, Edit2, Trash2, Filter, Plus, X, DollarSign, Eye } from "lucide-react";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Users, Edit2, Filter, Plus, X, DollarSign, Eye, ArrowLeft, FileText } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useClientesComSocios } from "@/hooks/useSocioBalanco";
 import { useClientPartners, type ClientPartner } from "@/hooks/useClientPartners";
+import { useSocioExpenses } from "@/hooks/useFinanceiroSocios";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 // Helper functions
 function formatCPF(cpf: string) {
@@ -44,6 +44,10 @@ function formatDate(dateString: string) {
   }
 }
 
+function formatCurrency(value: number) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
 // Main Component
 export default function RelatorioTransacoesSocios() {
   const navigate = useNavigate();
@@ -51,17 +55,28 @@ export default function RelatorioTransacoesSocios() {
   
   // State
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [deleteTarget, setDeleteTarget] = useState<ClientPartner | null>(null);
   const [editTarget, setEditTarget] = useState<ClientPartner | null>(null);
   const [editForm, setEditForm] = useState({
     name: "",
     cpf: "",
     share_percentage: "",
   });
+  
+  // Monthly report state
+  const [showMonthlyReport, setShowMonthlyReport] = useState(false);
+  const [selectedPartnerFilter, setSelectedPartnerFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [monthFilter, setMonthFilter] = useState<string>(
+    new Date().toISOString().slice(0, 7) // YYYY-MM
+  );
+  
+  // State for individual partner view
+  const [selectedPartnerCpf, setSelectedPartnerCpf] = useState<string | null>(null);
 
   // Data hooks
   const { data: clientesComSocios = [], isLoading: loadingClientes } = useClientesComSocios();
   const { data: partners = [], isLoading: loadingPartners, refetch: refetchPartners } = useClientPartners(clienteId || null);
+  const { data: allExpenses = [], isLoading: loadingExpenses } = useSocioExpenses(clienteId || null);
 
   const selectedClientData = useMemo(
     () => clientesComSocios.find((c) => c.id === clienteId),
@@ -87,13 +102,44 @@ export default function RelatorioTransacoesSocios() {
       0
     );
     const averageSharePercentage = totalPartners > 0 ? totalSharePercentage / totalPartners : 0;
-
-    return {
-      totalPartners,
-      totalSharePercentage,
-      averageSharePercentage,
-    };
+    return { totalPartners, totalSharePercentage, averageSharePercentage };
   }, [partners]);
+
+  // Filter expenses for monthly report
+  const filteredExpenses = useMemo(() => {
+    let filtered = [...allExpenses];
+    
+    // Filter by month
+    if (monthFilter) {
+      filtered = filtered.filter((exp: any) => {
+        const expDate = exp.created_at?.slice(0, 7) || exp.due_date?.slice(0, 7);
+        return expDate === monthFilter;
+      });
+    }
+    
+    // Filter by partner
+    if (selectedPartnerFilter && selectedPartnerFilter !== "all") {
+      filtered = filtered.filter((exp: any) => exp.assigned_partner_cpf === selectedPartnerFilter);
+    }
+    
+    // Filter by status
+    if (statusFilter && statusFilter !== "all") {
+      filtered = filtered.filter((exp: any) => exp.status === statusFilter);
+    }
+    
+    return filtered;
+  }, [allExpenses, monthFilter, selectedPartnerFilter, statusFilter]);
+
+  // Filter expenses for individual partner view
+  const partnerExpenses = useMemo(() => {
+    if (!selectedPartnerCpf) return [];
+    return allExpenses.filter((exp: any) => exp.assigned_partner_cpf === selectedPartnerCpf);
+  }, [allExpenses, selectedPartnerCpf]);
+
+  const selectedPartnerData = useMemo(() => {
+    if (!selectedPartnerCpf) return null;
+    return partners.find(p => p.cpf === selectedPartnerCpf);
+  }, [partners, selectedPartnerCpf]);
 
   // Edit handlers
   const openEdit = (partner: ClientPartner) => {
@@ -107,12 +153,10 @@ export default function RelatorioTransacoesSocios() {
 
   const handleEditSave = async () => {
     if (!editTarget || !clienteId) return;
-
     if (!editForm.name.trim() || !editForm.cpf.trim()) {
       toast.error("Nome e CPF são obrigatórios");
       return;
     }
-
     try {
       const { error } = await supabase
         .from("client_partners")
@@ -128,35 +172,12 @@ export default function RelatorioTransacoesSocios() {
         .eq("client_id", clienteId);
 
       if (error) throw error;
-
       toast.success("Sócio atualizado com sucesso!");
       setEditTarget(null);
       refetchPartners();
     } catch (err) {
       console.error("[handleEditSave] Erro:", err);
       toast.error("Erro ao atualizar sócio");
-    }
-  };
-
-  // Delete handler
-  const handleDeleteConfirm = async () => {
-    if (!deleteTarget || !clienteId) return;
-
-    try {
-      const { error } = await supabase
-        .from("client_partners")
-        .delete()
-        .eq("id", deleteTarget.id)
-        .eq("client_id", clienteId);
-
-      if (error) throw error;
-
-      toast.success("Sócio removido com sucesso!");
-      setDeleteTarget(null);
-      refetchPartners();
-    } catch (err) {
-      console.error("[handleDeleteConfirm] Erro:", err);
-      toast.error("Erro ao remover sócio");
     }
   };
 
@@ -173,7 +194,6 @@ export default function RelatorioTransacoesSocios() {
     );
   }
 
-  // Not found state
   if (!selectedClientData) {
     return (
       <Layout>
@@ -189,6 +209,249 @@ export default function RelatorioTransacoesSocios() {
     );
   }
 
+  // --- INDIVIDUAL PARTNER VIEW ---
+  if (selectedPartnerCpf && selectedPartnerData) {
+    return (
+      <Layout>
+        <div className="space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Users className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">
+                  Transações de {selectedPartnerData.name}
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  CPF: {formatCPF(selectedPartnerData.cpf)} • {selectedPartnerData.share_percentage?.toFixed(2)}% de participação
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setSelectedPartnerCpf(null)}>
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Voltar
+            </Button>
+          </div>
+
+          <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                Despesas ({partnerExpenses.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {partnerExpenses.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">Nenhuma despesa encontrada para este sócio.</p>
+              ) : (
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border/50 bg-muted/30">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Data</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Descrição</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Doc</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-foreground">Status</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Pagamento</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Prazo</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Banco</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-foreground">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {partnerExpenses.map((exp: any, idx: number) => (
+                        <tr key={exp.id} className={`border-b border-border/30 hover:bg-muted/20 ${idx % 2 === 0 ? "bg-muted/5" : ""}`}>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">
+                            {formatDate(exp.created_at || exp.due_date)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-foreground">{exp.description}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground font-mono">{exp.doc || exp.invoice_number || "—"}</td>
+                          <td className="px-4 py-3 text-center">
+                            <Badge variant={exp.status === "paid" ? "default" : "secondary"} className="text-xs">
+                              {exp.status || "pendente"}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{exp.payment_method || "—"}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{exp.prazo || (exp.due_date ? formatDate(exp.due_date) : "—")}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{exp.bank_name || "—"}</td>
+                          <td className="px-4 py-3 text-sm text-right font-mono font-medium text-foreground">
+                            {formatCurrency(exp.total_amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-border bg-muted/20">
+                        <td colSpan={7} className="px-4 py-3 text-sm font-semibold text-foreground">Total</td>
+                        <td className="px-4 py-3 text-sm text-right font-mono font-bold text-primary">
+                          {formatCurrency(partnerExpenses.reduce((sum: number, e: any) => sum + (e.total_amount || 0), 0))}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
+
+  // --- MONTHLY REPORT VIEW ---
+  if (showMonthlyReport) {
+    return (
+      <Layout>
+        <div className="space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <FileText className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Relatório Mensal de Despesas</h1>
+                <p className="text-sm text-muted-foreground">
+                  {selectedClientData?.company_name || selectedClientData?.proprietario}
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setShowMonthlyReport(false)}>
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Voltar
+            </Button>
+          </div>
+
+          {/* Filters */}
+          <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Filter className="w-5 h-5 text-primary" />
+                <h3 className="text-base font-semibold text-foreground">Filtros</h3>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-sm">Mês</Label>
+                  <Input
+                    type="month"
+                    value={monthFilter}
+                    onChange={(e) => setMonthFilter(e.target.value)}
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm">Sócio</Label>
+                  <Select value={selectedPartnerFilter} onValueChange={setSelectedPartnerFilter}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      {partners.map(p => (
+                        <SelectItem key={p.id} value={p.cpf}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-sm">Status</Label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Todos" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="pending">Pendente</SelectItem>
+                      <SelectItem value="paid">Pago</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Expenses Table */}
+          <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-base">
+                Despesas do Mês
+                <span className="text-muted-foreground font-normal ml-2 text-sm">
+                  ({filteredExpenses.length} registros)
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loadingExpenses ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin">
+                    <FileText className="h-6 w-6 text-primary" />
+                  </div>
+                </div>
+              ) : filteredExpenses.length === 0 ? (
+                <div className="text-center py-12">
+                  <FileText className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-muted-foreground font-medium">Nenhuma despesa encontrada</p>
+                </div>
+              ) : (
+                <div className="w-full overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border/50 bg-muted/30">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Data</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Sócio</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Descrição</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Doc</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-foreground">Status</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Pagamento</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Prazo</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-foreground">Banco</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-foreground">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredExpenses.map((exp: any, idx: number) => (
+                        <tr key={exp.id} className={`border-b border-border/30 hover:bg-muted/20 ${idx % 2 === 0 ? "bg-muted/5" : ""}`}>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">
+                            {formatDate(exp.created_at || exp.due_date)}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-medium text-foreground">
+                            {exp.assigned_partner_name || "Geral"}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-foreground">{exp.description}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground font-mono">{exp.doc || exp.invoice_number || "—"}</td>
+                          <td className="px-4 py-3 text-center">
+                            <Badge variant={exp.status === "paid" ? "default" : "secondary"} className="text-xs">
+                              {exp.status || "pendente"}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{exp.payment_method || "—"}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{exp.prazo || (exp.due_date ? formatDate(exp.due_date) : "—")}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{exp.bank_name || "—"}</td>
+                          <td className="px-4 py-3 text-sm text-right font-mono font-medium text-foreground">
+                            {formatCurrency(exp.total_amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-border bg-muted/20">
+                        <td colSpan={8} className="px-4 py-3 text-sm font-semibold text-foreground">Total</td>
+                        <td className="px-4 py-3 text-sm text-right font-mono font-bold text-primary">
+                          {formatCurrency(filteredExpenses.reduce((sum: number, e: any) => sum + (e.total_amount || 0), 0))}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
+
+  // --- MAIN VIEW: Partners Table ---
   return (
     <Layout>
       <div className="space-y-6">
@@ -216,10 +479,19 @@ export default function RelatorioTransacoesSocios() {
               ← Voltar
             </Button>
             <Button
+              onClick={() => setShowMonthlyReport(true)}
+              size="sm"
+              className="gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              Relatório Mensal
+            </Button>
+            <Button
               onClick={() =>
                 navigate(`/agenda/clientes?edit=${clienteId}`, { state: { scrollToPartners: true } })
               }
               size="sm"
+              variant="outline"
               className="gap-2"
             >
               <Plus className="h-4 w-4" />
@@ -285,14 +557,13 @@ export default function RelatorioTransacoesSocios() {
           </Card>
         </div>
 
-        {/* Search and Filters */}
+        {/* Search */}
         <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-4">
               <Filter className="w-5 h-5 text-primary" />
               <h3 className="text-base font-semibold text-foreground">Buscar Sócios</h3>
             </div>
-
             <div className="space-y-3">
               <div>
                 <Label htmlFor="search" className="text-sm font-medium">
@@ -318,7 +589,6 @@ export default function RelatorioTransacoesSocios() {
                   )}
                 </div>
               </div>
-
               {searchTerm && (
                 <div className="text-xs text-muted-foreground">
                   Mostrando {filteredPartners.length} de {partners.length} sócios
@@ -328,7 +598,7 @@ export default function RelatorioTransacoesSocios() {
           </CardContent>
         </Card>
 
-        {/* Partners Table */}
+        {/* Partners Table - CLICKABLE, NO DELETE */}
         <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-base">
@@ -351,46 +621,28 @@ export default function RelatorioTransacoesSocios() {
                 <p className="text-muted-foreground font-medium">
                   {searchTerm ? "Nenhum sócio encontrado" : "Nenhum sócio cadastrado"}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {!searchTerm && (
-                    <>
-                      Clique em "Gerenciar Sócios" para adicionar sócios a este cliente.
-                    </>
-                  )}
-                </p>
               </div>
             ) : (
               <div className="w-full overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border/50 bg-muted/30">
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">
-                        Nome
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">
-                        CPF
-                      </th>
-                      <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">
-                        Percentual de Participação
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">
-                        Data de Criação
-                      </th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">
-                        Última Atualização
-                      </th>
-                      <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">
-                        Ações
-                      </th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Nome</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">CPF</th>
+                      <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">Percentual</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Data de Criação</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Última Atualização</th>
+                      <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">Ações</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredPartners.map((partner, index) => (
                       <tr
                         key={partner.id}
-                        className={`border-b border-border/30 hover:bg-muted/20 transition-colors ${
+                        className={`border-b border-border/30 hover:bg-primary/5 transition-colors cursor-pointer ${
                           index % 2 === 0 ? "bg-muted/5" : ""
                         }`}
+                        onClick={() => setSelectedPartnerCpf(partner.cpf)}
                       >
                         <td className="px-4 py-3 text-sm font-medium text-foreground">
                           {partner.name}
@@ -418,16 +670,22 @@ export default function RelatorioTransacoesSocios() {
                             <button
                               className="p-1.5 rounded hover:bg-primary/20 transition-colors text-primary"
                               title="Editar"
-                              onClick={() => openEdit(partner)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEdit(partner);
+                              }}
                             >
                               <Edit2 className="h-4 w-4" />
                             </button>
                             <button
-                              className="p-1.5 rounded hover:bg-destructive/20 transition-colors text-destructive"
-                              title="Excluir"
-                              onClick={() => setDeleteTarget(partner)}
+                              className="p-1.5 rounded hover:bg-primary/20 transition-colors text-primary"
+                              title="Ver Transações"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedPartnerCpf(partner.cpf);
+                              }}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Eye className="h-4 w-4" />
                             </button>
                           </div>
                         </td>
@@ -450,38 +708,29 @@ export default function RelatorioTransacoesSocios() {
               Editar Sócio
             </DialogTitle>
           </DialogHeader>
-
           <div className="space-y-4 mt-4">
             <div>
               <Label htmlFor="edit-name">Nome</Label>
               <Input
                 id="edit-name"
                 value={editForm.name}
-                onChange={(e) =>
-                  setEditForm((p) => ({ ...p, name: e.target.value }))
-                }
+                onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
                 className="mt-1"
                 placeholder="Nome completo"
               />
             </div>
-
             <div>
               <Label htmlFor="edit-cpf">CPF</Label>
               <Input
                 id="edit-cpf"
                 value={editForm.cpf}
-                onChange={(e) =>
-                  setEditForm((p) => ({ ...p, cpf: e.target.value }))
-                }
+                onChange={(e) => setEditForm((p) => ({ ...p, cpf: e.target.value }))}
                 className="mt-1"
                 placeholder="000.000.000-00"
               />
             </div>
-
             <div>
-              <Label htmlFor="edit-share">
-                Percentual de Participação (%)
-              </Label>
+              <Label htmlFor="edit-share">Percentual de Participação (%)</Label>
               <Input
                 id="edit-share"
                 type="number"
@@ -489,23 +738,14 @@ export default function RelatorioTransacoesSocios() {
                 min="0"
                 max="100"
                 value={editForm.share_percentage}
-                onChange={(e) =>
-                  setEditForm((p) => ({
-                    ...p,
-                    share_percentage: e.target.value,
-                  }))
-                }
+                onChange={(e) => setEditForm((p) => ({ ...p, share_percentage: e.target.value }))}
                 className="mt-1"
                 placeholder="Ex: 50.00"
               />
             </div>
           </div>
-
           <DialogFooter className="mt-6">
-            <Button
-              variant="outline"
-              onClick={() => setEditTarget(null)}
-            >
+            <Button variant="outline" onClick={() => setEditTarget(null)}>
               Cancelar
             </Button>
             <Button onClick={handleEditSave}>
@@ -514,38 +754,6 @@ export default function RelatorioTransacoesSocios() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog
-        open={!!deleteTarget}
-        onOpenChange={(open) => !open && setDeleteTarget(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remover Sócio</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja remover{" "}
-              <span className="font-medium text-foreground">
-                {deleteTarget?.name}
-              </span>{" "}
-              da lista de sócios?
-              <br />
-              <span className="text-destructive text-xs mt-2 block">
-                Esta ação não pode ser desfeita.
-              </span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteConfirm}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Remover
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Layout>
   );
 }
