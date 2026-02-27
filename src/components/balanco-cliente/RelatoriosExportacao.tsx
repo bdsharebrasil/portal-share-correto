@@ -660,56 +660,74 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
 
   return (
     <div className="space-y-6">
-      {/* Opções de Exportação */}
-      <Card className="border-border/50 bg-card/60">
-        <CardHeader>
-          <CardTitle className="text-lg">Opções de Exportação</CardTitle>
-          <CardDescription>Configure as opções do relatório</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="graficos" 
-              checked={incluirGraficos}
-              onCheckedChange={(checked) => setIncluirGraficos(checked as boolean)}
-            />
-            <Label htmlFor="graficos">Incluir gráficos no PDF</Label>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Header com descrição */}
+      <div>
+        <h2 className="text-2xl font-bold text-foreground mb-2">Relatórios e Exportação</h2>
+        <p className="text-muted-foreground">
+          Visualize os relatórios antes de fazer download. Selecione um dos relatórios abaixo para ver a prévia completa.
+        </p>
+      </div>
 
       {/* Lista de Relatórios */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {relatorios.map((rel) => {
           const Icone = rel.icone;
+          const isLoading = gerando === rel.id;
+          const isPreviewing = preview.tipo === rel.id && preview.pdfUrl;
+
           return (
-            <Card key={rel.id} className="border-border/50 bg-card/60 hover:border-primary/50 transition-colors">
+            <Card
+              key={rel.id}
+              className={`border transition-all ${isPreviewing ? 'border-primary/50 bg-primary/5 shadow-lg' : 'border-border/50 bg-card/60 hover:border-primary/50'}`}
+            >
               <CardContent className="pt-6">
-                <div className="flex items-start justify-between">
+                <div className="space-y-4">
                   <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-lg bg-primary/10">
+                    <div className={`p-3 rounded-lg transition-colors ${isPreviewing ? 'bg-primary/20' : 'bg-primary/10'}`}>
                       <Icone className="h-6 w-6 text-primary" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <h3 className="font-semibold">{rel.titulo}</h3>
                       <p className="text-sm text-muted-foreground mt-1">{rel.descricao}</p>
                     </div>
                   </div>
-                  <Button
-                    onClick={() => visualizarPDF(rel.id)}
-                    disabled={gerando !== null}
-                    size="sm"
-                    variant="outline"
-                  >
-                    {gerando === rel.id ? (
-                      <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
-                    ) : (
-                      <>
-                        <Eye className="h-4 w-4 mr-2" />
-                        Visualizar
-                      </>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button
+                      onClick={() => visualizarPDF(rel.id)}
+                      disabled={gerando !== null}
+                      size="sm"
+                      variant={isPreviewing ? "default" : "outline"}
+                      className="flex-1"
+                    >
+                      {isLoading ? (
+                        <>
+                          <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full mr-2" />
+                          Carregando...
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="h-4 w-4 mr-2" />
+                          {isPreviewing ? "Visualizando" : "Visualizar"}
+                        </>
+                      )}
+                    </Button>
+
+                    {preview.pdfBlob && preview.tipo === rel.id && (
+                      <Button
+                        onClick={() => {
+                          if (preview.pdfBlob && preview.tipo) {
+                            fazerDownloadPDF(preview.tipo, preview.pdfBlob);
+                          }
+                        }}
+                        size="sm"
+                        className="flex-1"
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                      </Button>
                     )}
-                  </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -717,31 +735,32 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
         })}
       </div>
 
-      {/* Modal de Prévia do PDF */}
+      {/* Modal de Prévia do PDF - Melhorado */}
       <Dialog open={!!preview.pdfUrl} onOpenChange={fecharPreview}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Prévia do Relatório</DialogTitle>
-            <DialogDescription>
-              Verifique a prévia do PDF antes de fazer download
-            </DialogDescription>
+        <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden flex flex-col">
+          <DialogHeader className="border-b pb-4">
+            <div className="space-y-1">
+              <DialogTitle className="text-xl">Prévia do Relatório</DialogTitle>
+              <DialogDescription>
+                Visualize o conteúdo do PDF antes de fazer download
+              </DialogDescription>
+            </div>
           </DialogHeader>
 
           {preview.pdfUrl && (
-            <div className="bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden border border-border">
+            <div className="flex-1 overflow-hidden bg-gray-100 dark:bg-gray-900 rounded-lg border border-border">
               <iframe
                 src={preview.pdfUrl}
                 title="PDF Preview"
-                className="w-full h-[500px] border-none"
-                style={{ minHeight: '500px' }}
+                className="w-full h-full border-none"
               />
             </div>
           )}
 
-          <DialogFooter className="gap-2 flex justify-end">
+          <DialogFooter className="gap-2 flex justify-end border-t pt-4">
             <Button variant="outline" onClick={fecharPreview}>
               <X className="h-4 w-4 mr-2" />
-              Cancelar
+              Fechar
             </Button>
             <Button
               onClick={() => {
@@ -751,7 +770,7 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
               }}
             >
               <Download className="h-4 w-4 mr-2" />
-              Download do PDF
+              Fazer Download
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -764,9 +783,12 @@ export function RelatoriosExportacao({ clienteId, aeronaveId, periodo }: Relator
             <FileText className="h-5 w-5 text-blue-500 mt-0.5" />
             <div>
               <p className="font-medium text-blue-500">Sobre os Relatórios</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                O "Balanço Mensal Completo" gera um PDF no estilo da planilha Share Brasil com custos fixos, 
+              <p className="text-sm text-muted-foreground mt-2">
+                <strong className="text-blue-600">Balanço Mensal Completo:</strong> Gera um PDF no estilo da planilha Share Brasil com custos fixos,
                 variáveis, horas voadas e litros de combustível mês a mês, incluindo totais e médias.
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                <strong className="text-blue-600">Fluxo de uso:</strong> 1) Clique em "Visualizar" para ver a prévia, 2) Revise o conteúdo, 3) Clique em "Download" se estiver satisfeito.
               </p>
             </div>
           </div>
