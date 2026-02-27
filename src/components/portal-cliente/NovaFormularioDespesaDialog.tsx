@@ -129,17 +129,27 @@ export function NovaFormularioDespesaDialog({
 
   const loadFornecedoresFavoritos = async () => {
     try {
+      // Carrega fornecedores da categoria 'share' primeiro, depois todos se houver poucos
       const { data, error } = await supabase
         .from('fornecedores_favoritos')
         .select('id, nome_completo, documento, categoria, apelido')
-        .eq('categoria', 'share')
         .order('nome_completo', { ascending: true });
 
       if (error) throw error;
-      setFornecedoresFavoritos((data || []) as FornecedorFavorito[]);
+
+      // Filtra fornecedores da categoria 'share' ou qualquer fornecedor se houver poucos resultados
+      const fornecedores = (data || []) as FornecedorFavorito[];
+      const filterByShare = fornecedores.filter(f => f.categoria === 'share');
+
+      // Se tiver fornecedores com categoria 'share', usa eles; senão, usa todos
+      setFornecedoresFavoritos(filterByShare.length > 0 ? filterByShare : fornecedores);
+
+      if (fornecedores.length === 0) {
+        console.warn('Nenhum fornecedor favorito encontrado na base de dados');
+      }
     } catch (error) {
       console.error('Erro ao carregar fornecedores favoritos:', error);
-      toast.error('Erro ao carregar fornecedores');
+      // Não mostra toast de erro, apenas log
     }
   };
 
@@ -647,7 +657,7 @@ export function NovaFormularioDespesaDialog({
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[400px] p-0">
+              <PopoverContent side="bottom" align="start" className="w-[var(--radix-popover-trigger-width)] p-0 z-50">
                 <div className="p-2 border-b">
                   <Input
                     placeholder="Buscar fornecedor..."
@@ -657,7 +667,7 @@ export function NovaFormularioDespesaDialog({
                     autoFocus
                   />
                 </div>
-                <div className="max-h-[200px] overflow-y-auto">
+                <div className="max-h-[250px] overflow-y-auto">
                   {fornecedoresFavoritos.length === 0 ? (
                     <div className="p-4 text-center text-sm text-muted-foreground">
                       Nenhum fornecedor encontrado
