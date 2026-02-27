@@ -301,9 +301,9 @@ function BalancoClienteContent() {
         </TabsList>
 
         <TabsContent value="visao-geral" className="space-y-6">
-          {clienteId ? (
-            <BalancoVisaoGeral 
-              clienteId={clienteId} 
+          {clienteId && aeronaveId ? (
+            <BalancoVisaoGeral
+              clienteId={clienteId}
               socioId={socioId}
               aeronaveId={aeronaveId || undefined}
               periodo={periodo}
@@ -311,14 +311,14 @@ function BalancoClienteContent() {
           ) : (
             <Card className="border-transparent bg-gradient-card/80 shadow-elevated">
               <CardContent className="pt-6 text-center text-muted-foreground">
-                Selecione um cliente para visualizar o balanço
+                Selecione um cliente e uma aeronave para visualizar o balanço
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
         <TabsContent value="despesas" className="space-y-6">
-          {clienteId ? (
+          {clienteId && aeronaveId ? (
             <div className="space-y-6">
               <DespesasDetalhadas
                 clienteId={clienteId}
@@ -336,32 +336,32 @@ function BalancoClienteContent() {
           ) : (
             <Card className="border-transparent bg-gradient-card/80 shadow-elevated">
               <CardContent className="pt-6 text-center text-muted-foreground">
-                Selecione um cliente para visualizar as despesas
+                Selecione um cliente e uma aeronave para visualizar as despesas
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
         <TabsContent value="pendencias" className="space-y-6">
-          {clienteId ? (
-            <PendenciasFinanceiras 
-              clienteId={clienteId} 
+          {clienteId && aeronaveId ? (
+            <PendenciasFinanceiras
+              clienteId={clienteId}
               socioId={socioId}
               aeronaveId={aeronaveId || undefined}
             />
           ) : (
             <Card className="border-transparent bg-gradient-card/80 shadow-elevated">
               <CardContent className="pt-6 text-center text-muted-foreground">
-                Selecione um cliente para visualizar as pendências
+                Selecione um cliente e uma aeronave para visualizar as pendências
               </CardContent>
             </Card>
           )}
         </TabsContent>
 
         <TabsContent value="aeronave" className="space-y-6">
-          {clienteId ? (
-            <BalancoAeronave 
-              clienteId={clienteId} 
+          {clienteId && aeronaveId ? (
+            <BalancoAeronave
+              clienteId={clienteId}
               socioId={socioId}
               aeronaveId={aeronaveId || undefined}
               periodo={periodo}
@@ -369,7 +369,7 @@ function BalancoClienteContent() {
           ) : (
             <Card className="border-transparent bg-gradient-card/80 shadow-elevated">
               <CardContent className="pt-6 text-center text-muted-foreground">
-                Selecione um cliente para visualizar o balanço da aeronave
+                Selecione um cliente e uma aeronave para visualizar o balanço da aeronave
               </CardContent>
             </Card>
           )}
@@ -377,8 +377,8 @@ function BalancoClienteContent() {
 
         <TabsContent value="acesso-portal" className="space-y-6">
           {clienteId ? (
-            <GerenciarAcessoPortal 
-              clienteId={clienteId} 
+            <GerenciarAcessoPortal
+              clienteId={clienteId}
               socioId={socioId}
             />
           ) : (
@@ -391,9 +391,9 @@ function BalancoClienteContent() {
         </TabsContent>
 
         <TabsContent value="relatorios" className="space-y-6">
-          {clienteId ? (
-            <RelatoriosExportacao 
-              clienteId={clienteId} 
+          {clienteId && aeronaveId ? (
+            <RelatoriosExportacao
+              clienteId={clienteId}
               socioId={socioId}
               aeronaveId={aeronaveId || undefined}
               periodo={periodo}
@@ -401,7 +401,7 @@ function BalancoClienteContent() {
           ) : (
             <Card className="border-transparent bg-gradient-card/80 shadow-elevated">
               <CardContent className="pt-6 text-center text-muted-foreground">
-                Selecione um cliente para gerar relatórios
+                Selecione um cliente e uma aeronave para gerar relatórios
               </CardContent>
             </Card>
           )}

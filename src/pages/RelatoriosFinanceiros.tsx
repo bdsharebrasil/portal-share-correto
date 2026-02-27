@@ -5,7 +5,7 @@ import { Inadimplencia } from "@/components/master/relatorio/Inadimplencia";
 import { RelatorioBalancete } from "@/components/master/relatorio/RelatorioBalancete";
 import { RelatorioDRE } from "@/components/master/relatorio/RelatorioDRE";
 import { RelatorioFluxoCaixa } from "@/components/master/relatorio/RelatorioFluxoCaixa";
-import { BarChart3, Scale, DollarSign, AlertTriangle } from "lucide-react";
+import { BarChart3, Scale, DollarSign, AlertTriangle, ArrowLeft } from "lucide-react";
 
 type RelatorioType = "balancete" | "dre" | "fluxo" | "inadimplencia";
 
@@ -64,6 +64,13 @@ export default function RelatoriosFinanceiros() {
 
   return (
     <div className="min-h-screen bg-background p-6">
+      <button
+        onClick={() => window.history.back()}
+        className="flex items-center gap-2 text-foreground hover:text-primary transition-colors group mb-6"
+      >
+        <ArrowLeft className="h-6 w-6 text-primary group-hover:-translate-x-1 transition-transform" />
+        <span className="text-sm font-medium">Voltar</span>
+      </button>
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground mb-2">Relatórios Financeiros</h1>
         <p className="text-muted-foreground">Acesse os relatórios financeiros e análises da empresa</p>

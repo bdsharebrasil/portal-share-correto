@@ -5,28 +5,34 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { Search, Users } from "lucide-react";
+import { Search, Users, Phone, MapPin, Calendar, DollarSign, FileText } from "lucide-react";
 
 interface Colaborador {
   id: string;
   full_name: string;
   email: string | null;
   avatar_url: string | null;
+  address: string | null;
+  phone: string | null;
   admission_date: string | null;
-  salary: string | null;
+  cpf: string | null;
+  rg: string | null;
+  canac: string | null;
+  salario: number | null;
   employment_status: string;
+  tipo: string | null;
 }
 
 export function ColaboradoresListTab() {
   const [searchTerm, setSearchTerm] = useState("");
 
-  const { data: colaboradores = [], isLoading } = useQuery({
+  const { data: colaboradores = [], isLoading, error } = useQuery({
     queryKey: ["colaboradores-list"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("user_profiles")
-        .select("id, full_name, email, avatar_url, admission_date, salary, employment_status")
-        .eq("tipo", "colaborador")
+        .select("id, full_name, email, avatar_url, address, phone, admission_date, cpf, rg, canac, salario, employment_status, tipo")
+        .neq("tipo", null)
         .order("full_name");
 
       if (error) throw error;
@@ -79,6 +85,12 @@ export function ColaboradoresListTab() {
             Carregando colaboradores...
           </CardContent>
         </Card>
+      ) : error ? (
+        <Card>
+          <CardContent className="py-12 text-center text-destructive">
+            <p>Erro ao carregar colaboradores</p>
+          </CardContent>
+        </Card>
       ) : filteredColaboradores.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
@@ -91,21 +103,81 @@ export function ColaboradoresListTab() {
           {filteredColaboradores.map((colab) => (
             <Card key={colab.id} className="hover:shadow-lg transition-shadow">
               <CardContent className="p-6">
-                <div className="flex items-start gap-4">
-                  <Avatar className="h-12 w-12">
+                {/* Header com Avatar e Nome */}
+                <div className="flex items-start gap-4 mb-4 pb-4 border-b border-border">
+                  <Avatar className="h-12 w-12 flex-shrink-0">
                     <AvatarImage src={colab.avatar_url || undefined} />
                     <AvatarFallback className="bg-primary/10">
                       {getInitials(colab.full_name)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold truncate">{colab.full_name}</h3>
-                    <p className="text-sm text-muted-foreground truncate">{colab.email}</p>
-                    <div className="flex gap-2 mt-3">
-                      <Badge className={getStatusColor(colab.employment_status)}>
-                        {colab.employment_status}
-                      </Badge>
+                    <h3 className="font-semibold">{colab.full_name}</h3>
+                    <p className="text-xs text-muted-foreground">{colab.email}</p>
+                    <Badge className={`${getStatusColor(colab.employment_status)} mt-2`}>
+                      {colab.employment_status}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Informações Pessoais */}
+                <div className="space-y-3 text-sm">
+                  {/* Telefone */}
+                  {colab.phone && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-muted-foreground">{colab.phone}</span>
                     </div>
+                  )}
+
+                  {/* Endereço */}
+                  {colab.address && (
+                    <div className="flex items-start gap-2">
+                      <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+                      <span className="text-muted-foreground text-xs break-words">{colab.address}</span>
+                    </div>
+                  )}
+
+                  {/* Data de Admissão */}
+                  {colab.admission_date && (
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-muted-foreground">
+                        {new Date(colab.admission_date).toLocaleDateString("pt-BR")}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Salário */}
+                  {colab.salario && (
+                    <div className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="text-muted-foreground">
+                        R$ {colab.salario.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Documentos */}
+                  <div className="pt-2 border-t border-border space-y-1">
+                    {colab.cpf && (
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="text-xs text-muted-foreground">CPF: {colab.cpf}</span>
+                      </div>
+                    )}
+                    {colab.rg && (
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="text-xs text-muted-foreground">RG: {colab.rg}</span>
+                      </div>
+                    )}
+                    {colab.canac && (
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="text-xs text-muted-foreground">CANAC: {colab.canac}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </CardContent>
