@@ -4,12 +4,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Trash2, Eye, FileText, Edit, AlertCircle, RotateCcw, FolderOpen } from 'lucide-react';
+import { Plus, Trash2, Eye, FileText, Edit, AlertCircle, RotateCcw, FolderOpen, Send } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { downloadPDF, previewPDFForPrint } from '@/lib/travelReportPDF';
 import type { TravelReport as PDFTravelReport, TravelExpense } from '@/lib/travelReportPDF';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 type TravelReport = {
   id?: string;
@@ -74,6 +77,10 @@ export default function RelatorioViagem() {
   const [clientPartners, setClientPartners] = useState<any[]>([]);
   const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
   const [receiptViewerUrl, setReceiptViewerUrl] = useState('');
+  const [sendDialogOpen, setSendDialogOpen] = useState(false);
+  const [sendReportTarget, setSendReportTarget] = useState<TravelReport | null>(null);
+  const [sendDueDate, setSendDueDate] = useState('');
+  const [isSending, setIsSending] = useState(false);
 
   // ✅ FIX: useEffect inicial para carregar relatórios e verificar rascunho salvo
   useEffect(() => {
@@ -112,6 +119,49 @@ export default function RelatorioViagem() {
     draftStorage.clearDraft();
     setHasSavedDraft(false);
     toast.info('Rascunho descartado');
+  };
+
+  const handleSendReport = async () => {
+    if (!sendReportTarget?.id || !sendDueDate) {
+      toast.error('Informe o prazo de vencimento');
+      return;
+    }
+    setIsSending(true);
+    try {
+      // Update report status to Enviado
+      const { error: updateError } = await supabase
+        .from('travel_expense_reports')
+        .update({ status: 'Enviado', updated_at: new Date().toISOString() })
+        .eq('id', sendReportTarget.id);
+
+      if (updateError) throw updateError;
+
+      // Update bank_reconciliations linked to this report with status 'enviado' and due_date
+      const { error: reconcError } = await supabase
+        .from('bank_reconciliations')
+        .update({ 
+          status: 'enviado', 
+          due_date: sendDueDate,
+          updated_at: new Date().toISOString()
+        } as any)
+        .eq('reference_id', sendReportTarget.id)
+        .eq('reference_type', 'travel_report');
+
+      if (reconcError) {
+        console.error('Erro ao atualizar conciliação:', reconcError);
+      }
+
+      toast.success('✓ Relatório enviado ao cliente com sucesso!');
+      setSendDialogOpen(false);
+      setSendReportTarget(null);
+      setSendDueDate('');
+      loadReports();
+    } catch (error: any) {
+      console.error('Erro ao enviar relatório:', error);
+      toast.error(`❌ Erro ao enviar: ${error.message}`);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const loadReports = async () => {
@@ -719,9 +769,27 @@ export default function RelatorioViagem() {
           <FileText className="h-5 w-5 text-muted-foreground/60 mt-0.5 flex-shrink-0" />
           <div className="flex-1">
             <p className="font-semibold text-foreground text-base">{report.report_number}</p>
-            <span className={cn("inline-block text-xs font-bold px-3 py-1 rounded-full ring-1 mt-1", statusBadgeColors[report.status])}>
-              {report.status}
-            </span>
+            <div className="flex items-center gap-2 mt-1">
+              <span className={cn("inline-block text-xs font-bold px-3 py-1 rounded-full ring-1", statusBadgeColors[report.status])}>
+                {report.status}
+              </span>
+              {report.status === 'Finalizado' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSendReportTarget(report);
+                    setSendDueDate('');
+                    setSendDialogOpen(true);
+                  }}
+                  className="h-6 px-2 text-xs gap-1 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10"
+                >
+                  <Send className="h-3 w-3" />
+                  Enviar
+                </Button>
+              )}
+            </div>
           </div>
         </div>
         <p className="text-sm text-muted-foreground font-medium">
@@ -838,6 +906,15 @@ export default function RelatorioViagem() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          {report.status === 'Finalizado' && (
+                            <Button variant="ghost" size="sm" onClick={() => {
+                              setSendReportTarget(report);
+                              setSendDueDate('');
+                              setSendDialogOpen(true);
+                            }} title="Enviar ao Cliente" className="text-emerald-400 hover:bg-emerald-500/10">
+                              <Send className="h-4 w-4" />
+                            </Button>
+                          )}
                           {report.status === 'Rascunho' && (
                             <Button variant="ghost" size="sm" onClick={() => editReport(report.id!)}>
                               <Edit className="h-4 w-4" />
@@ -1032,6 +1109,56 @@ export default function RelatorioViagem() {
         url={receiptViewerUrl}
         title="Comprovante Anexado"
       />
+      {/* Send Report Dialog */}
+      <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-emerald-500" />
+              Enviar Relatório ao Cliente
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">Relatório</p>
+              <p className="font-semibold text-foreground">{sendReportTarget?.report_number}</p>
+              <p className="text-xs text-muted-foreground">{sendReportTarget?.client}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">
+                Total: <span className="font-bold text-foreground">R$ {sendReportTarget?.total_amount.toFixed(2).replace('.', ',')}</span>
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="due-date">Prazo de Vencimento</Label>
+              <Input
+                id="due-date"
+                type="date"
+                value={sendDueDate}
+                onChange={(e) => setSendDueDate(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setSendDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSendReport}
+              disabled={!sendDueDate || isSending}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+            >
+              {isSending ? 'Enviando...' : (
+                <>
+                  <Send className="h-4 w-4" />
+                  Enviar
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
