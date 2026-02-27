@@ -82,23 +82,22 @@ const STATUS_LABELS: Record<string, {
 };
 
 // Função auxiliar para upload de arquivos
-const uploadFile = async (file: File, folder: string): Promise<string> => {
+const uploadFile = async (file: File, folder: string, clientId?: string): Promise<string> => {
   const timestamp = Date.now();
   const sanitizedFileName = file.name
     .replace(/[^a-zA-Z0-9.\-_]/g, "_")
     .substring(0, 100);
   const fileExt = sanitizedFileName.split('.').pop();
-  const fileName = `${Math.random().toString(36).substring(2)}-${timestamp}.${fileExt}`;
-  const filePath = `${folder}/${fileName}`;
+  const fileName = `${folder}/${clientId || 'default'}/${timestamp}.${fileExt}`;
   const {
     error: uploadError
-  } = await supabase.storage.from('documentos').upload(filePath, file);
+  } = await supabase.storage.from('client-documents').upload(fileName, file);
   if (uploadError) throw uploadError;
   const {
     data: {
       publicUrl
     }
-  } = supabase.storage.from('documentos').getPublicUrl(filePath);
+  } = supabase.storage.from('client-documents').getPublicUrl(fileName);
   return publicUrl;
 };
 export function EnvioDespesaTab({
@@ -194,7 +193,7 @@ export function EnvioDespesaTab({
       setUpdatingPayment(true);
       let comprovanteUrl = null;
       if (comprovanteFile) {
-        comprovanteUrl = await uploadFile(comprovanteFile, 'comprovantes');
+        comprovanteUrl = await uploadFile(comprovanteFile, 'comprovantes', clientId);
       }
       const {
         error

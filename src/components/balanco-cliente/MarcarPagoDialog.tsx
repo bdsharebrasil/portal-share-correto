@@ -39,18 +39,23 @@ export function MarcarPagoDialog({ open, onOpenChange, tipo, itemId, onSuccess }
   };
 
   const uploadComprovante = async (file: File): Promise<string | null> => {
-    const fileName = `comprovantes/${itemId}/${Date.now()}_${file.name}`;
+    const timestamp = Date.now();
+    const sanitizedFileName = file.name
+      .replace(/[^a-zA-Z0-9.\-_]/g, "_")
+      .substring(0, 100);
+    const fileExt = sanitizedFileName.split(".").pop();
+    const fileName = `comprovantes/${itemId}/${timestamp}.${fileExt}`;
     const { error } = await supabase.storage
-      .from('documentos')
+      .from('client-documents')
       .upload(fileName, file);
-    
+
     if (error) {
       console.error('Erro ao fazer upload:', error);
       return null;
     }
 
     const { data: urlData } = supabase.storage
-      .from('documentos')
+      .from('client-documents')
       .getPublicUrl(fileName);
 
     return urlData.publicUrl;

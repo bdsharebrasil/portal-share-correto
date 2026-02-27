@@ -261,7 +261,7 @@ export function NovaFormularioDespesaDialog({
           data_vencimento: dataVencimento,
           fornecedor_nome: fornecedorNome,
           fornecedor_cnpj: fornecedorCnpj || null,
-          status: 'pendente_pagamento',
+          status: 'pendente_envio',
           boleto_url: boletoUrl,
           nota_fiscal_url: notaFiscalUrl,
           criado_por: user?.id || null
