@@ -300,7 +300,6 @@ export function NovaFormularioDespesaDialog({
 
         if (abastecimentoError) {
           console.error('Erro ao inserir abastecimento:', abastecimentoError);
-          // Não falha a operação, apenas loga o erro
           toast.warning('Despesa criada, mas houve um erro ao registrar o abastecimento');
         }
       }
@@ -633,6 +632,7 @@ export function NovaFormularioDespesaDialog({
             }}>
               <PopoverTrigger asChild>
                 <Button
+                  type="button"
                   variant="outline"
                   role="combobox"
                   aria-expanded={openCombobox}
@@ -773,10 +773,10 @@ export function NovaFormularioDespesaDialog({
         </form>
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleClose}>
+          <Button type="button" variant="outline" onClick={handleClose}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={submitting}>
+          <Button type="button" onClick={handleSubmit} disabled={submitting}>
             {submitting ? 'Salvando...' : (isCombustivel ? 'Registrar Abastecimento' : 'Cadastrar Despesa')}
           </Button>
         </DialogFooter>
