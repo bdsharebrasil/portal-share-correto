@@ -69,11 +69,11 @@ export function MarcarPagoDialog({ open, onOpenChange, tipo, itemId, onSuccess }
         const { error } = await supabase
           .from('despesas_cliente_direto')
           .update({
-            status: 'pago',
+            status: 'pagamento_validado',
             data_pagamento: dataPagamento,
             forma_pagamento: formaPagamento,
             comprovante_pagamento_url: comprovanteUrl,
-            updated_at: new Date().toISOString()
+            atualizado_em: new Date().toISOString()
           })
           .eq('id', itemId);
         if (error) throw error;
