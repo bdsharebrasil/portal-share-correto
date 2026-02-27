@@ -4,50 +4,32 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Trash2, Eye, FileText, Edit, AlertCircle, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, Eye, FileText, Edit, AlertCircle, RotateCcw, FolderOpen } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { downloadPDF, previewPDFForPrint } from '@/lib/travelReportPDF';
 import type { TravelReport as PDFTravelReport, TravelExpense } from '@/lib/travelReportPDF';
-import { draftStorage } from '@/lib/travelReportDraft';
-import type { TravelReportDraft } from '@/lib/travelReportDraft';
-import { calculateReportTotals, extractPayerTotals, getValidExpenses } from '@/lib/travelReportUtils';
-import { PartnerSelectModal } from '@/components/diario/PartnerSelectModal';
-import { ReceiptViewer } from '@/components/financeiro/ReceiptViewer';
-import { TravelReportForm } from '@/components/travel/TravelReportForm';
 
-const REPORT_STATUSES = ['Rascunho', 'Finalizado', 'Enviado'];
-
-interface Expense {
-  category: string;
-  description: string;
-  amount: number;
-  paid_by: string;
-  receipt_url?: string;
-  id?: string;
-}
-
-interface TravelReport {
+type TravelReport = {
   id?: string;
   report_number: string;
   client_id: string;
   client: string;
-  client_partner?: string | null;
   aircraft_id: string;
   aircraft_registration: string;
   crew_member_id: string;
   crew_member_name: string;
-  crew_member_source?: 'crew_members' | 'crew' | null;
   crew_member_id2: string;
   crew_member_name2: string;
-  crew_member2_source?: 'crew_members' | 'crew' | null;
+  crew_member_source?: 'crew' | 'crew_members';
+  client_partner?: string;
   route: string;
   start_date: string;
   end_date: string;
   days_count: number;
   observations: string;
-  expenses: Expense[];
+  expenses: any[];
   total_amount: number;
   total_fuel: number;
   total_lodging: number;
@@ -59,70 +41,72 @@ interface TravelReport {
   total_crew2: number;
   total_client: number;
   total_sharebrasil: number;
-  pdf_url?: string;
   status: 'Rascunho' | 'Finalizado' | 'Enviado';
-}
+  pdf_url?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+const REPORT_STATUSES = ['Rascunho', 'Finalizado', 'Enviado'] as const;
+
+const normalizeStatus = (status: string): TravelReport['status'] => {
+  const validStatuses: TravelReport['status'][] = ['Rascunho', 'Finalizado', 'Enviado'];
+  return validStatuses.includes(status as TravelReport['status']) ? (status as TravelReport['status']) : 'Rascunho';
+};
+
+import { draftStorage } from '@/lib/travelReportDraft';
+import type { TravelReportDraft } from '@/lib/travelReportDraft';
+import { calculateReportTotals, Expense, extractPayerTotals, getValidExpenses } from '@/lib/travelReportUtils';
+import { PartnerSelectModal } from '@/components/diario/PartnerSelectModal';
+import { ReceiptViewer } from '@/components/financeiro/ReceiptViewer';
+import { TravelReportForm } from '@/components/travel/TravelReportForm';
 
 export default function RelatorioViagem() {
-  const [reports, setReports] = useState<TravelReport[]>([]);
-  const [isCreating, setIsCreating] = useState(false);
-  const [currentReport, setCurrentReport] = useState<TravelReport | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
   const [activeStatusFilter, setActiveStatusFilter] = useState<'Todos' | TravelReport['status']>('Todos');
+  const [reports, setReports] = useState<TravelReport[]>([]);
+  const [currentReport, setCurrentReport] = useState<TravelReport | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [hasSavedDraft, setHasSavedDraft] = useState(false);
+  const [openClientGroups, setOpenClientGroups] = useState<Record<string, boolean>>({});
   const [showPartnerModal, setShowPartnerModal] = useState(false);
-  const [clientPartners, setClientPartners] = useState<{id?: string; name: string; cpf?: string; index: number}[]>([]);
+  const [clientPartners, setClientPartners] = useState<any[]>([]);
   const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
-  const [receiptViewerUrl, setReceiptViewerUrl] = useState<string>('');
+  const [receiptViewerUrl, setReceiptViewerUrl] = useState('');
 
-  const fetchClientPartners = async (clientId: string) => {
-    const { data, error } = await supabase
-      .from('client_partners')
-      .select('id, name, cpf')
-      .eq('client_id', clientId)
-      .order('name');
-    if (error || !data || data.length === 0) {
-      setClientPartners([]);
-      return [];
-    }
-    const partners = data.map((p: any, i: number) => ({ id: p.id, name: p.name, cpf: p.cpf || undefined, index: i }));
-    setClientPartners(partners);
-    return partners;
-  };
-
+  // ✅ FIX: useEffect inicial para carregar relatórios e verificar rascunho salvo
   useEffect(() => {
     loadReports();
-    checkForSavedDraft();
+    const hasDraft = draftStorage.hasDraft();
+    setHasSavedDraft(hasDraft);
   }, []);
 
-  // Auto-salvamento de rascunho a cada 30 segundos
+  // ✅ FIX: Auto-save do rascunho a cada 30 segundos
   useEffect(() => {
-    if (!isCreating || !currentReport) return;
+    if (!isCreating || !currentReport || isEditing) return;
 
     const autoSaveInterval = setInterval(() => {
-      if (currentReport && !isEditing) {
-        draftStorage.saveDraft(currentReport as unknown as TravelReportDraft);
-      }
+      draftStorage.saveDraft(currentReport as unknown as TravelReportDraft);
     }, 30000);
 
     return () => clearInterval(autoSaveInterval);
   }, [currentReport, isCreating, isEditing]);
 
-  const checkForSavedDraft = () => {
-    const hasDraft = draftStorage.hasDraft();
-    setHasSavedDraft(hasDraft);
-  };
-
-  const loadSavedDraft = () => {
-    const draft = draftStorage.getDraft();
-    if (draft) {
-      setCurrentReport(draft as unknown as TravelReport);
-      setIsCreating(true);
-      setIsEditing(false);
-      toast.success('✓ Rascunho restaurado com sucesso!');
+  const filteredReports = useMemo(() => {
+    if (activeStatusFilter === 'Todos') {
+      return reports;
     }
-  };
+    return reports.filter(report => report.status === activeStatusFilter);
+  }, [reports, activeStatusFilter]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { 'Todos': reports.length };
+    REPORT_STATUSES.forEach(status => {
+      counts[status] = reports.filter(r => r.status === status).length;
+    });
+    return counts;
+  }, [reports]);
 
   const discardDraft = () => {
     draftStorage.clearDraft();
@@ -157,7 +141,6 @@ export default function RelatorioViagem() {
         }
       })();
 
-      // Determinar o nome do cliente: se tem client_partner, usar nome do partner; senão usar nome do cliente
       const clientName = r.client_partner && r.partner_id_rel?.name
         ? r.partner_id_rel.name
         : r.client_id_rel?.company_name || '';
@@ -166,7 +149,7 @@ export default function RelatorioViagem() {
         ...r,
         client: clientName,
         expenses: expenses,
-        status: r.status || 'Rascunho'
+        status: normalizeStatus(r.status)
       };
     });
     setReports(reportsWithDefaults as TravelReport[]);
@@ -185,7 +168,6 @@ export default function RelatorioViagem() {
 
     if (reportError || !reportData) throw reportError;
 
-    // Converte para any para contornar a tipagem estrita do Supabase que não reconheceu o client_partner
     const rData = reportData as any;
 
     const expenses = (() => {
@@ -199,7 +181,6 @@ export default function RelatorioViagem() {
       }
     })();
 
-    // Lendo do 'rData' (que é any) para evitar o erro do client_partner
     const clientName = rData.client_partner && rData.partner_id_rel?.name
       ? rData.partner_id_rel.name
       : rData.client_id_rel?.company_name || '';
@@ -208,7 +189,7 @@ export default function RelatorioViagem() {
       ...rData,
       client: clientName,
       expenses: expenses as Expense[],
-      status: rData.status || 'Rascunho'
+      status: normalizeStatus(rData.status)
     } as TravelReport;
   };
 
@@ -321,6 +302,58 @@ export default function RelatorioViagem() {
     }
   };
 
+  const handleViewPDF = async (reportId: string) => {
+    try {
+      const reportWithDetails = await loadReportDetails(reportId);
+      const correctedTotals = calculateReportTotals(reportWithDetails.expenses || []);
+      const pdfReport: PDFTravelReport = {
+        numero: reportWithDetails.report_number,
+        cliente_nome: reportWithDetails.client,
+        aeronave: reportWithDetails.aircraft_registration,
+        tripulante: reportWithDetails.crew_member_name,
+        tripulante2: reportWithDetails.crew_member_name2,
+        trecho: reportWithDetails.route,
+        destino: reportWithDetails.route,
+        data_inicio: reportWithDetails.start_date,
+        data_fim: reportWithDetails.end_date,
+        observacoes: reportWithDetails.observations,
+        despesas: (reportWithDetails.expenses || []).map(e => ({
+          categoria: e.category,
+          descricao: e.description,
+          valor: e.amount,
+          pago_por: e.paid_by,
+          data: (e as any).expense_date || '',
+          comprovante_url: e.receipt_url
+        })) as TravelExpense[],
+        total_combustivel: correctedTotals.total_fuel,
+        total_hospedagem: correctedTotals.total_lodging,
+        total_alimentacao: correctedTotals.total_food,
+        total_transporte: correctedTotals.total_transport,
+        total_outros: correctedTotals.total_other,
+        total_tripulante: correctedTotals.total_crew,
+        total_tripulante1: correctedTotals.total_crew1,
+        total_tripulante2: correctedTotals.total_crew2,
+        total_cliente: correctedTotals.total_client,
+        total_sharebrasil: correctedTotals.total_sharebrasil,
+        valor_total: correctedTotals.total_amount
+      };
+      const { data: { user } } = await supabase.auth.getUser();
+      let userName = 'Usuário';
+      if (user?.id) {
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single();
+        if (profile?.full_name) userName = profile.full_name;
+      }
+      await previewPDFForPrint(pdfReport, userName);
+    } catch (error) {
+      console.error('Erro ao visualizar PDF:', error);
+      toast.error('Erro ao visualizar relatório');
+    }
+  };
+
   const saveReport = async (newStatus: TravelReport['status'], reportToSave?: TravelReport) => {
     const reportData = reportToSave || currentReport;
     if (!reportData) return;
@@ -335,25 +368,16 @@ export default function RelatorioViagem() {
 
     try {
       const validExpenses = getValidExpenses(reportData.expenses);
-      console.log('📋 Valid Expenses com receipt_url:', validExpenses.map(e => ({
-        category: e.category,
-        amount: e.amount,
-        receipt_url: e.receipt_url
-      })));
 
       let reportNumber = reportData.report_number;
       if (!isUpdate && (reportNumber.includes('XXX') || reportNumber.startsWith('R-'))) {
         reportNumber = await generateReportNumber(reportData.client);
       }
 
-      // SEMPRE recalcular todos os totais a partir das despesas para garantir precisão
       const recalculatedTotals = calculateReportTotals(validExpenses);
       const totalAmount = recalculatedTotals.total_amount;
       const days = reportData.days_count;
 
-      console.log('💾 Dados para salvar - validExpenses completo:', validExpenses);
-
-      // Determinar qual campo preencher para tripulante 1
       let crew_member_id_value = null;
       let crew_value = null;
 
@@ -395,7 +419,7 @@ export default function RelatorioViagem() {
         updated_at: new Date().toISOString()
       };
 
-      let savedReport;
+      let savedReport: any;
 
       if (isUpdate) {
         const { data, error } = await supabase
@@ -416,36 +440,22 @@ export default function RelatorioViagem() {
         savedReport = data;
       }
 
-      // Salvar anexos das despesas na tabela travel_report_attachments
-      console.log('🔍 INICIANDO SALVAMENTO DE ATTACHMENTS...');
-      console.log('Report ID:', savedReport.id);
-      console.log('Valid Expenses Count:', validExpenses.length);
-      console.log('Expenses com receipt_url:', validExpenses.filter(e => e.receipt_url).length);
-
       try {
-        // Se for atualização, remover attachments antigos primeiro
         if (isUpdate) {
-          console.log('Removendo attachments antigos do report:', savedReport.id);
-          const { error: deleteError } = await supabase
+          await supabase
             .from('travel_report_attachments')
             .delete()
             .eq('travel_report_id', savedReport.id);
-
-          if (deleteError) {
-            console.warn('Aviso ao remover attachments antigos:', deleteError);
-          }
         }
 
         const attachmentsToInsert = validExpenses
           .map((expense, index) => {
             if (!expense.receipt_url) return null;
 
-            // Extrair informações do arquivo da URL
             const urlParts = expense.receipt_url.split('/');
             const fileName = urlParts[urlParts.length - 1] || 'comprovante';
             const filePath = `receipts/${fileName}`;
 
-            // Detectar tipo de arquivo
             let fileType = 'application/octet-stream';
             if (expense.receipt_url.includes('.pdf')) fileType = 'application/pdf';
             else if (expense.receipt_url.includes('.jpg') || expense.receipt_url.includes('.jpeg')) fileType = 'image/jpeg';
@@ -466,37 +476,18 @@ export default function RelatorioViagem() {
           .filter((item) => item !== null);
 
         if (attachmentsToInsert.length > 0) {
-          console.log(`📎 Preparando para salvar ${attachmentsToInsert.length} anexo(s) na tabela travel_report_attachments...`);
-          console.log('Dados dos anexos:', JSON.stringify(attachmentsToInsert, null, 2));
-          console.log('Report ID:', savedReport.id);
-
-          const { error: attachmentError, data: insertedData } = await supabase
+          const { error: attachmentError } = await supabase
             .from('travel_report_attachments')
             .insert(attachmentsToInsert);
 
           if (attachmentError) {
-            console.error('❌ Erro ao salvar attachments na tabela travel_report_attachments:', attachmentError);
-            console.error('Detalhes do erro:', {
-              message: attachmentError.message,
-              details: attachmentError.details,
-              hint: attachmentError.hint,
-              code: attachmentError.code,
-            });
-          } else {
-            console.log(`✅ ${attachmentsToInsert.length} comprovante(s) registrado(s) com sucesso!`);
-            if (insertedData) {
-              console.log('Anexos salvos:', insertedData);
-            }
+            console.error('❌ Erro ao salvar attachments:', attachmentError);
           }
-        } else {
-          console.log('ℹ️ Nenhum comprovante com URL foi encontrado para registrar');
         }
       } catch (attachmentError: any) {
         console.error('❌ Erro ao processar attachments:', attachmentError);
-        console.error('Stack trace:', attachmentError.stack);
       }
 
-      // Criar conciliações bancárias quando o relatório for finalizado
       if (newStatus === 'Finalizado' || newStatus === 'Enviado') {
         const { data: { user } } = await supabase.auth.getUser();
 
@@ -504,47 +495,12 @@ export default function RelatorioViagem() {
           const today = new Date().toISOString().split('T')[0];
           const reconciliationsToInsert: any[] = [];
 
-          // Recalcular totais a partir das despesas
           const payerTotals = extractPayerTotals(validExpenses);
           const totalCrew1 = payerTotals.totalCrew1;
           const totalCrew2 = payerTotals.totalCrew2;
           const totalSharebrasil = payerTotals.totalSharebrasil;
-          const totalClientPaid = payerTotals.totalClient;
-
-          // ⚠️ IMPORTANTE: Valor que o cliente DEVE PAGAR (não confundir com total_amount)
-          // Fórmula: O cliente deve pagar = Tudo que não foi pago por ele
-          // = (Total geral) - (O que o cliente já pagou)
-          // = (totalCrew + totalSharebrasil + totalClient) - (totalClient)
-          // = totalCrew + totalSharebrasil
-          // = totalCrew1 + totalCrew2 + totalSharebrasil
           const totalClientOwes = totalSharebrasil + totalCrew1 + totalCrew2;
 
-          // Validação: garantir que o valor calculado está correto
-          const expectedTotalAmount = recalculatedTotals.total_amount;
-          const calculatedTotal = totalClientPaid + totalClientOwes;
-
-          if (Math.abs(expectedTotalAmount - calculatedTotal) > 0.01) {
-            console.warn('⚠️ AVISO: Discrepância nos totais de conciliação:', {
-              expected: expectedTotalAmount,
-              calculated: calculatedTotal,
-              difference: expectedTotalAmount - calculatedTotal
-            });
-          }
-
-          console.log('Totais para conciliação (CLIENTE):', {
-            total_amount_despesas: recalculatedTotals.total_amount,
-            cliente_pagou: totalClientPaid,
-            cliente_deve_pagar: totalClientOwes,
-            tripulante_1_pagou: totalCrew1,
-            tripulante_2_pagou: totalCrew2,
-            sharebrasil_pagou: totalSharebrasil,
-            validacao_ok: Math.abs(expectedTotalAmount - calculatedTotal) < 0.01
-          });
-
-          // 1. Criar conciliação para CLIENTE (valor que ele deve pagar)
-          // IMPORTANTE: O amount DEVE ser totalClientOwes (o que cliente não pagou),
-          // NÃO o total_amount do relatório completo!
-          // Exemplo: Se total é 568.67 e cliente pagou 260, amount = 308.67
           if (totalClientOwes > 0 && reportData.client_id) {
             const { data: existingClientPayment } = await supabase
               .from('bank_reconciliations')
@@ -554,12 +510,11 @@ export default function RelatorioViagem() {
               .maybeSingle();
 
             if (!existingClientPayment) {
-              console.log(`✓ Criando conciliação para cliente: R$ ${totalClientOwes.toFixed(2)}`);
               reconciliationsToInsert.push({
                 type: 'cliente',
                 client_id: reportData.client_id,
                 aircraft_id: reportData.aircraft_id || null,
-                amount: totalClientOwes,  // ✓ CORRETO: valor que cliente deve pagar
+                amount: totalClientOwes,
                 status: 'pendente',
                 category: 'relatório_viagem',
                 description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - A RECEBER DO CLIENTE`,
@@ -571,10 +526,7 @@ export default function RelatorioViagem() {
             }
           }
 
-          // 2. Criar conciliação para TRIPULANTE 1 (reembolso do que ele pagou)
-          // O amount DEVE ser totalCrew1 (reembolso das despesas pagas por ele)
           if (totalCrew1 > 0 && reportData.crew_member_id) {
-            // Buscar o user_id do crew_member para usar como receiver_id
             const { data: crewMember } = await supabase
               .from('crew_members')
               .select('user_id')
@@ -592,12 +544,11 @@ export default function RelatorioViagem() {
               .maybeSingle();
 
             if (!existingCrewPayment) {
-              console.log(`✓ Criando reembolso para tripulante 1: R$ ${totalCrew1.toFixed(2)}`);
               reconciliationsToInsert.push({
                 type: 'colaborador',
                 receiver_id: receiverId,
                 aircraft_id: reportData.aircraft_id || null,
-                amount: totalCrew1,  // ✓ CORRETO: reembolso do que tripulante pagou
+                amount: totalCrew1,
                 status: 'pendente',
                 category: 'relatório_viagem',
                 description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO TRIPULANTE 1 (${reportData.crew_member_name.toUpperCase()})`,
@@ -609,10 +560,7 @@ export default function RelatorioViagem() {
             }
           }
 
-          // 3. Criar conciliação para TRIPULANTE 2 (se houver)
-          // O amount DEVE ser totalCrew2 (reembolso das despesas pagas por ele)
           if (totalCrew2 > 0 && reportData.crew_member_name2) {
-            // Buscar o crew_member pelo nome e depois pegar o user_id
             const { data: secondCrew } = await supabase
               .from('crew_members')
               .select('id, user_id')
@@ -630,12 +578,11 @@ export default function RelatorioViagem() {
               .maybeSingle();
 
             if (!existingCrewPayment2) {
-              console.log(`✓ Criando reembolso para tripulante 2: R$ ${totalCrew2.toFixed(2)}`);
               reconciliationsToInsert.push({
                 type: 'colaborador',
                 receiver_id: receiverId,
                 aircraft_id: reportData.aircraft_id || null,
-                amount: totalCrew2,  // ✓ CORRETO: reembolso do que tripulante 2 pagou
+                amount: totalCrew2,
                 status: 'pendente',
                 category: 'relatório_viagem',
                 description: `RELATORIO DE VIAGEM - ${savedReport.report_number} - REEMBOLSO TRIPULANTE 2 (${reportData.crew_member_name2.toUpperCase()})`,
@@ -647,9 +594,7 @@ export default function RelatorioViagem() {
             }
           }
 
-          // Inserir todas as conciliações
           if (reconciliationsToInsert.length > 0) {
-            console.log('Inserindo conciliações:', reconciliationsToInsert);
             const { error: paymentError } = await supabase
               .from('bank_reconciliations')
               .insert(reconciliationsToInsert);
@@ -659,92 +604,75 @@ export default function RelatorioViagem() {
             }
           }
 
-          // Gerar e salvar PDF se o relatório foi finalizado ou enviado
-          if (newStatus === 'Finalizado' || newStatus === 'Enviado') {
-            try {
-              console.log('📄 Gerando PDF para o relatório...');
-              const pdfData: PDFTravelReport = {
-                numero: savedReport.report_number,
-                cliente_nome: reportData.client,
-                aeronave: reportData.aircraft_registration,
-                tripulante: reportData.crew_member_name,
-                tripulante2: reportData.crew_member_name2,
-                trecho: reportData.route,
-                destino: reportData.route,
-                data_inicio: reportData.start_date,
-                data_fim: reportData.end_date,
-                observacoes: reportData.observations,
-                despesas: validExpenses.map(e => ({
-                  categoria: e.category,
-                  descricao: e.description,
-                  valor: e.amount,
-                  pago_por: e.paid_by,
-                  data: (e as any).expense_date || '',
-                  comprovante_url: e.receipt_url
-                })) as TravelExpense[],
-                total_combustivel: recalculatedTotals.total_fuel,
-                total_hospedagem: recalculatedTotals.total_lodging,
-                total_alimentacao: recalculatedTotals.total_food,
-                total_transporte: recalculatedTotals.total_transport,
-                total_outros: recalculatedTotals.total_other,
-                total_tripulante: recalculatedTotals.total_crew,
-                total_tripulante1: recalculatedTotals.total_crew1,
-                total_tripulante2: recalculatedTotals.total_crew2,
-                total_cliente: recalculatedTotals.total_client,
-                total_sharebrasil: recalculatedTotals.total_sharebrasil,
-                valor_total: recalculatedTotals.total_amount
-              };
+          try {
+            const pdfData: PDFTravelReport = {
+              numero: savedReport.report_number,
+              cliente_nome: reportData.client,
+              aeronave: reportData.aircraft_registration,
+              tripulante: reportData.crew_member_name,
+              tripulante2: reportData.crew_member_name2,
+              trecho: reportData.route,
+              destino: reportData.route,
+              data_inicio: reportData.start_date,
+              data_fim: reportData.end_date,
+              observacoes: reportData.observations,
+              despesas: validExpenses.map(e => ({
+                categoria: e.category,
+                descricao: e.description,
+                valor: e.amount,
+                pago_por: e.paid_by,
+                data: (e as any).expense_date || '',
+                comprovante_url: e.receipt_url
+              })) as TravelExpense[],
+              total_combustivel: recalculatedTotals.total_fuel,
+              total_hospedagem: recalculatedTotals.total_lodging,
+              total_alimentacao: recalculatedTotals.total_food,
+              total_transporte: recalculatedTotals.total_transport,
+              total_outros: recalculatedTotals.total_other,
+              total_tripulante: recalculatedTotals.total_crew,
+              total_tripulante1: recalculatedTotals.total_crew1,
+              total_tripulante2: recalculatedTotals.total_crew2,
+              total_cliente: recalculatedTotals.total_client,
+              total_sharebrasil: recalculatedTotals.total_sharebrasil,
+              valor_total: recalculatedTotals.total_amount
+            };
 
-              // Usar a função generatePDF para gerar o blob
-              const { generatePDF } = await import('@/lib/travelReportPDF');
-              const pdfBlob = await generatePDF(pdfData);
+            const { generatePDF } = await import('@/lib/travelReportPDF');
+            const pdfBlob = await generatePDF(pdfData);
 
-              // Upload do PDF no storage
-              const pdfFileName = `${savedReport.report_number.replace(/\//g, '-')}-${Date.now()}.pdf`;
-              const pdfPath = `reports/${pdfFileName}`;
+            const pdfFileName = `${savedReport.report_number.replace(/\//g, '-')}-${Date.now()}.pdf`;
+            const pdfPath = `reports/${pdfFileName}`;
 
-              const { error: pdfUploadError } = await supabase.storage
+            const { error: pdfUploadError } = await supabase.storage
+              .from('travel-reports')
+              .upload(pdfPath, pdfBlob, { contentType: 'application/pdf' });
+
+            if (!pdfUploadError) {
+              const { data: { publicUrl: pdfUrl } } = supabase.storage
                 .from('travel-reports')
-                .upload(pdfPath, pdfBlob, { contentType: 'application/pdf' });
+                .getPublicUrl(pdfPath);
 
-              if (pdfUploadError) {
-                console.error('Erro ao fazer upload do PDF:', pdfUploadError);
-              } else {
-                // Obter URL pública do PDF
-                const { data: { publicUrl: pdfUrl } } = supabase.storage
-                  .from('travel-reports')
-                  .getPublicUrl(pdfPath);
+              await supabase
+                .from('travel_expense_reports')
+                .update({ pdf_url: pdfUrl })
+                .eq('id', savedReport.id);
 
-                // Atualizar o campo pdf_url no banco
-                const { error: updateError } = await supabase
-                  .from('travel_expense_reports')
-                  .update({ pdf_url: pdfUrl })
-                  .eq('id', savedReport.id);
-
-                if (updateError) {
-                  console.error('Erro ao atualizar pdf_url:', updateError);
-                } else {
-                  console.log('✅ PDF salvo com sucesso:', pdfUrl);
-                  // Mostrar toast com a URL para copiar
-                  toast.success(`✅ PDF gerado! URL copiada para a área de transferência`, {
-                    action: {
-                      label: 'Copiar novamente',
-                      onClick: () => {
-                        navigator.clipboard.writeText(pdfUrl);
-                        toast.success('URL copiada!');
-                      }
-                    }
-                  });
-                  // Copiar URL automaticamente
-                  navigator.clipboard.writeText(pdfUrl).catch(err => {
-                    console.warn('Não foi possível copiar URL automaticamente:', err);
-                  });
+              toast.success(`✅ PDF gerado! URL copiada para a área de transferência`, {
+                action: {
+                  label: 'Copiar novamente',
+                  onClick: () => {
+                    navigator.clipboard.writeText(pdfUrl);
+                    toast.success('URL copiada!');
+                  }
                 }
-              }
-            } catch (pdfError: any) {
-              console.error('Erro ao gerar/salvar PDF:', pdfError);
-              toast.warning(`⚠️ Erro ao gerar PDF: ${pdfError?.message || 'Tente novamente'}`);
+              });
+              navigator.clipboard.writeText(pdfUrl).catch(err => {
+                console.warn('Não foi possível copiar URL automaticamente:', err);
+              });
             }
+          } catch (pdfError: any) {
+            console.error('Erro ao gerar/salvar PDF:', pdfError);
+            toast.warning(`⚠️ Erro ao gerar PDF: ${pdfError?.message || 'Tente novamente'}`);
           }
         }
       }
@@ -757,40 +685,188 @@ export default function RelatorioViagem() {
       loadReports();
     } catch (error: any) {
       console.error('Erro ao salvar relatório:', error);
-      console.error('Detalhes do erro:', {
-        message: error.message,
-        status: error.status,
-        statusText: error.statusText,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-        fullError: error
-      });
-
       const errorMessage = error.message || 'Erro desconhecido';
       const errorDetails = error.details || error.hint || '';
       const fullErrorMsg = errorDetails ? `${errorMessage} - ${errorDetails}` : errorMessage;
-
       toast.error(`❌ Erro ao salvar: ${fullErrorMsg}`);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const filteredReports = useMemo(() => {
-    if (activeStatusFilter === 'Todos') {
-      return reports;
-    }
-    return reports.filter(report => report.status === activeStatusFilter);
-  }, [reports, activeStatusFilter]);
+  const statusBadgeColors: Record<TravelReport['status'], string> = {
+    'Rascunho': 'bg-amber-100/80 text-amber-800 ring-amber-200',
+    'Finalizado': 'bg-blue-100/80 text-blue-800 ring-blue-200',
+    'Enviado': 'bg-green-100/80 text-green-800 ring-green-200',
+  };
 
-  const statusCounts = useMemo(() => {
-    const counts = { 'Todos': reports.length };
-    REPORT_STATUSES.forEach(status => {
-      counts[status as TravelReport['status']] = reports.filter(r => r.status === status).length;
-    });
-    return counts;
-  }, [reports]);
+  const statusBorderColors: Record<TravelReport['status'], string> = {
+    'Rascunho': 'border-l-4 border-l-amber-400',
+    'Finalizado': 'border-l-4 border-l-blue-400',
+    'Enviado': 'border-l-4 border-l-green-400',
+  };
+
+  const renderReportCard = (report: TravelReport) => (
+    <div
+      key={report.id}
+      className={cn(
+        "flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 rounded-xl bg-card border border-border/50 shadow-sm hover:shadow-md transition-all duration-200 hover:border-border group",
+        statusBorderColors[report.status]
+      )}
+    >
+      <div className="mb-3 sm:mb-0 min-w-[240px] flex-1">
+        <div className="flex items-start gap-3 mb-2">
+          <FileText className="h-5 w-5 text-muted-foreground/60 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="font-semibold text-foreground text-base">{report.report_number}</p>
+            <span className={cn("inline-block text-xs font-bold px-3 py-1 rounded-full ring-1 mt-1", statusBadgeColors[report.status])}>
+              {report.status}
+            </span>
+          </div>
+        </div>
+        <p className="text-sm text-muted-foreground font-medium">
+          {report.client}
+          <span className="text-xs text-muted-foreground/70 ml-1">({report.aircraft_registration})</span>
+        </p>
+        <p className="text-xs text-muted-foreground/70 mt-1">
+          {format(parseISO(report.start_date), "dd MMM", { locale: ptBR })} a {format(parseISO(report.end_date), "dd MMM yyyy", { locale: ptBR })}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
+        <div className="text-right">
+          <p className="text-xs text-muted-foreground/70 font-medium">Total</p>
+          <p className="font-bold text-lg text-green-600 font-mono">
+            R$ {report.total_amount.toFixed(2).replace('.', ',')}
+          </p>
+        </div>
+        <div className="flex gap-1 ml-auto sm:ml-0">
+          {report.status === 'Rascunho' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => editReport(report.id!)}
+              title="Editar Relatório"
+              className="rounded-lg transition-all duration-200 hover:bg-primary/10 hover:text-primary"
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleViewPDF(report.id!)}
+            title="Visualizar Relatório"
+            className="rounded-lg transition-all duration-200 hover:bg-primary/10 hover:text-primary"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => deleteReport(report.id)}
+            title="Excluir Relatório"
+            className="rounded-lg transition-all duration-200 hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderReportList = () => {
+    if (filteredReports.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12">
+          <FileText className="h-12 w-12 text-muted-foreground/40 mb-3" />
+          <p className="text-center text-muted-foreground font-medium">Nenhum relatório encontrado</p>
+          <p className="text-center text-muted-foreground text-sm">na pasta {activeStatusFilter}</p>
+        </div>
+      );
+    }
+
+    if (activeStatusFilter === 'Finalizado') {
+      const grouped: Record<string, TravelReport[]> = {};
+      filteredReports.forEach(r => {
+        const key = r.client || 'Sem Cliente';
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(r);
+      });
+
+      return (
+        <div className="space-y-3">
+          {Object.entries(grouped).map(([clientName, group]) => {
+            if (group.length <= 1) {
+              const report = group[0];
+              return report ? renderReportCard(report) : null;
+            }
+
+            const open = !!openClientGroups[clientName];
+            return (
+              <div key={clientName} className="p-4 rounded-xl bg-card border border-border/50 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-md bg-primary/10">
+                      <FolderOpen className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-foreground">{clientName}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {group.length} {group.length === 1 ? 'relatório' : 'relatórios'}
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setOpenClientGroups(prev => ({ ...prev, [clientName]: !prev[clientName] }))}
+                  >
+                    {open ? 'Fechar' : 'Abrir'}
+                  </Button>
+                </div>
+                {open && (
+                  <div className="space-y-2 mt-2">
+                    {group.map((report) => (
+                      <div
+                        key={report.id}
+                        className="flex items-center justify-between p-3 rounded-md border border-border/40 hover:bg-accent"
+                      >
+                        <div>
+                          <div className="font-medium text-foreground">{report.report_number}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {format(parseISO(report.start_date), 'dd MMM yyyy', { locale: ptBR })} • R$ {report.total_amount.toFixed(2).replace('.', ',')}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {report.status === 'Rascunho' && (
+                            <Button variant="ghost" size="sm" onClick={() => editReport(report.id!)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="sm" onClick={() => handleViewPDF(report.id!)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => deleteReport(report.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3">
+        {filteredReports.map((report) => renderReportCard(report))}
+      </div>
+    );
+  };
 
   return (
     <Layout>
@@ -807,14 +883,33 @@ export default function RelatorioViagem() {
                       </div>
                       <div className="flex-1">
                         <h3 className="font-bold text-amber-900 text-base">Rascunho salvo automaticamente</h3>
-                        <p className="text-sm text-amber-700/80 mt-1 leading-relaxed">Você tem um relatório anterior em rascunho. Deseja continuar editando?</p>
+                        <p className="text-sm text-amber-700/80 mt-1 leading-relaxed">
+                          Você tem um relatório anterior em rascunho. Deseja continuar editando?
+                        </p>
                       </div>
                     </div>
                     <div className="flex gap-2 flex-shrink-0">
-                      <Button size="sm" variant="ghost" onClick={discardDraft} className="text-amber-600 hover:bg-amber-100/50 hover:text-amber-700 rounded-lg transition-all duration-200">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={discardDraft}
+                        className="text-amber-600 hover:bg-amber-100/50 hover:text-amber-700 rounded-lg transition-all duration-200"
+                      >
                         Descartar
                       </Button>
-                      <Button size="sm" onClick={loadSavedDraft} className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const draft = draftStorage.getDraft();
+                          if (draft) {
+                            setCurrentReport(draft as unknown as TravelReport);
+                            setIsCreating(true);
+                            setIsEditing(false);
+                            toast.success('✓ Rascunho restaurado com sucesso!');
+                          }
+                        }}
+                        className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                      >
                         <RotateCcw className="h-4 w-4 mr-2" />
                         Restaurar
                       </Button>
@@ -828,10 +923,15 @@ export default function RelatorioViagem() {
               <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 p-6">
                 <div>
                   <CardTitle className="text-2xl font-bold text-foreground">Histórico de Relatórios</CardTitle>
-                  {reports.length === 0 && <p className="text-sm text-muted-foreground mt-2 leading-relaxed">Carregando relatórios...</p>}
+                  {reports.length === 0 && (
+                    <p className="text-sm text-muted-foreground mt-2 leading-relaxed">Carregando relatórios...</p>
+                  )}
                 </div>
                 <div className="flex gap-3 w-full md:w-auto">
-                  <Button onClick={createNewReport} className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] w-full md:w-auto">
+                  <Button
+                    onClick={createNewReport}
+                    className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] w-full md:w-auto"
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     Novo Relatório
                   </Button>
@@ -840,15 +940,15 @@ export default function RelatorioViagem() {
 
               <CardContent className="p-6">
                 <div className="flex flex-wrap gap-3 mb-6">
-                  {['Todos', ...REPORT_STATUSES].map(status => {
+                  {(['Todos', ...REPORT_STATUSES] as const).map(status => {
                     const isActive = activeStatusFilter === status;
-                    const statusColors = {
-                      'Todos': { bg: 'bg-slate-100', text: 'text-slate-700', activeBg: 'bg-slate-200', activeText: 'text-slate-900' },
-                      'Rascunho': { bg: 'bg-amber-100/50', text: 'text-amber-700', activeBg: 'bg-amber-200', activeText: 'text-amber-900' },
-                      'Finalizado': { bg: 'bg-blue-100/50', text: 'text-blue-700', activeBg: 'bg-blue-200', activeText: 'text-blue-900' },
-                      'Enviado': { bg: 'bg-green-100/50', text: 'text-green-700', activeBg: 'bg-green-200', activeText: 'text-green-900' }
+                    const statusColors: Record<string, { bg: string; activeBg: string; activeText: string }> = {
+                      'Todos': { bg: 'bg-slate-700/10 text-slate-200', activeBg: 'bg-slate-700', activeText: 'text-white' },
+                      'Rascunho': { bg: 'bg-amber-800/10 text-amber-300', activeBg: 'bg-amber-600', activeText: 'text-white' },
+                      'Finalizado': { bg: 'bg-blue-800/10 text-blue-300', activeBg: 'bg-gradient-to-r from-blue-600 to-cyan-500', activeText: 'text-white' },
+                      'Enviado': { bg: 'bg-green-800/10 text-green-300', activeBg: 'bg-gradient-to-r from-emerald-600 to-green-500', activeText: 'text-white' }
                     };
-                    const colors = statusColors[status as keyof typeof statusColors] || statusColors['Todos'];
+                    const colors = statusColors[status] || statusColors['Todos'];
 
                     return (
                       <Button
@@ -857,210 +957,58 @@ export default function RelatorioViagem() {
                         className={cn(
                           'rounded-full px-4 py-2 h-auto transition-all duration-200 font-medium text-sm flex items-center gap-2',
                           isActive
-                            ? `${colors.activeBg} ${colors.activeText} ring-2 ring-offset-2 ${colors.text.replace('text-', 'ring-')}`
-                            : `${colors.bg} ${colors.text} hover:${colors.activeBg.replace('bg-', 'hover:bg-')} active:scale-[0.98]`
+                            ? `${colors.activeBg} ${colors.activeText} shadow-sm ring-2 ring-offset-2 ring-white/10`
+                            : `${colors.bg} hover:brightness-105 active:scale-[0.98]`
                         )}
                       >
                         <span>{status}</span>
                         <span className={cn(
-                          'px-2 py-0.5 rounded-full text-xs font-semibold ring-1 ring-current ring-opacity-30',
-                          isActive ? 'bg-current/20' : 'bg-current/10'
+                          'px-2 py-0.5 rounded-full text-xs font-semibold',
+                          isActive ? 'bg-white/20' : 'bg-white/5'
                         )}>
-                          {status === 'Todos' ? statusCounts.Todos : statusCounts[status as TravelReport['status']]}
+                          {status === 'Todos' ? statusCounts['Todos'] : statusCounts[status]}
                         </span>
                       </Button>
                     );
                   })}
                 </div>
 
-                {filteredReports.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <FileText className="h-12 w-12 text-muted-foreground/40 mb-3" />
-                    <p className="text-center text-muted-foreground font-medium">Nenhum relatório encontrado</p>
-                    <p className="text-center text-muted-foreground text-sm">na pasta {activeStatusFilter}</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {filteredReports.map((report) => {
-                      const statusColors = {
-                        'Rascunho': 'border-l-4 border-l-amber-400',
-                        'Finalizado': 'border-l-4 border-l-blue-400',
-                        'Enviado': 'border-l-4 border-l-green-400'
-                      };
-                      const statusBadgeColors = {
-                        'Rascunho': 'bg-amber-100/80 text-amber-800 ring-amber-200',
-                        'Finalizado': 'bg-blue-100/80 text-blue-800 ring-blue-200',
-                        'Enviado': 'bg-green-100/80 text-green-800 ring-green-200'
-                      };
-
-                      return (
-                        <div
-                          key={report.id}
-                          className={cn(
-                            "flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 rounded-xl bg-card border border-border/50 shadow-sm hover:shadow-md transition-all duration-200 hover:border-border group",
-                            statusColors[report.status]
-                          )}
-                        >
-                          <div className="mb-3 sm:mb-0 min-w-[240px] flex-1">
-                            <div className="flex items-start gap-3 mb-2">
-                              <FileText className="h-5 w-5 text-muted-foreground/60 mt-0.5 flex-shrink-0" />
-                              <div className="flex-1">
-                                <p className="font-semibold text-foreground text-base">
-                                  {report.report_number}
-                                </p>
-                                <span className={cn(
-                                  "inline-block text-xs font-bold px-3 py-1 rounded-full ring-1 mt-1",
-                                  statusBadgeColors[report.status]
-                                )}>
-                                  {report.status}
-                                </span>
-                              </div>
-                            </div>
-                            <p className="text-sm text-muted-foreground font-medium">
-                              {report.client}
-                              <span className="text-xs text-muted-foreground/70 ml-1">
-                                ({report.aircraft_registration})
-                              </span>
-                            </p>
-                            <p className="text-xs text-muted-foreground/70 mt-1">
-                              {format(parseISO(report.start_date), "dd MMM", { locale: ptBR })} a {format(parseISO(report.end_date), "dd MMM yyyy", { locale: ptBR })}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto mt-4 sm:mt-0">
-                            <div className="text-right">
-                              <p className="text-xs text-muted-foreground/70 font-medium">Total</p>
-                              <p className="font-bold text-lg text-green-600 font-mono">
-                                R$ {report.total_amount.toFixed(2).replace('.', ',')}
-                              </p>
-                            </div>
-                            <div className="flex gap-1 ml-auto sm:ml-0">
-                              {report.status === 'Rascunho' && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => editReport(report.id!)}
-                                  title="Editar Relatório"
-                                  className="rounded-lg transition-all duration-200 hover:bg-primary/10 hover:text-primary"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={async () => {
-                                  try {
-                                    const reportWithDetails = await loadReportDetails(report.id!);
-
-                                    // IMPORTANTE: Recalcular os totais a partir das despesas
-                                    // Isto garante que mesmo se o relatório foi salvo com totais errados,
-                                    // a visualização mostrará os valores CORRETOS
-                                    const correctedTotals = calculateReportTotals(reportWithDetails.expenses || []);
-
-                                    const pdfReport: PDFTravelReport = {
-                                      numero: reportWithDetails.report_number,
-                                      cliente_nome: reportWithDetails.client,
-                                      aeronave: reportWithDetails.aircraft_registration,
-                                      tripulante: reportWithDetails.crew_member_name,
-                                      tripulante2: reportWithDetails.crew_member_name2,
-                                      trecho: reportWithDetails.route,
-                                      destino: reportWithDetails.route,
-                                      data_inicio: reportWithDetails.start_date,
-                                      data_fim: reportWithDetails.end_date,
-                                      observacoes: reportWithDetails.observations,
-                                      despesas: (reportWithDetails.expenses || []).map(e => ({
-                                        categoria: e.category,
-                                        descricao: e.description,
-                                        valor: e.amount,
-                                        pago_por: e.paid_by,
-                                        data: (e as any).expense_date || '',
-                                        comprovante_url: e.receipt_url
-                                      })) as TravelExpense[],
-                                      total_combustivel: correctedTotals.total_fuel,
-                                      total_hospedagem: correctedTotals.total_lodging,
-                                      total_alimentacao: correctedTotals.total_food,
-                                      total_transporte: correctedTotals.total_transport,
-                                      total_outros: correctedTotals.total_other,
-                                      total_tripulante: correctedTotals.total_crew,
-                                      total_tripulante1: correctedTotals.total_crew1,
-                                      total_tripulante2: correctedTotals.total_crew2,
-                                      total_cliente: correctedTotals.total_client,
-                                      total_sharebrasil: correctedTotals.total_sharebrasil,
-                                      valor_total: correctedTotals.total_amount
-                                    };
-                                    const { data: { user } } = await supabase.auth.getUser();
-                                    let userName = 'Usuário';
-                                    if (user?.id) {
-                                      const { data: profile } = await supabase
-                                        .from('user_profiles')
-                                        .select('full_name')
-                                        .eq('id', user.id)
-                                        .single();
-                                      if (profile?.full_name) userName = profile.full_name;
-                                    }
-                                    await previewPDFForPrint(pdfReport, userName);
-                                  } catch (error) {
-                                    console.error('Erro ao visualizar PDF:', error);
-                                    toast.error('Erro ao visualizar relatório');
-                                  }
-                                }}
-                                title="Visualizar Relatório"
-                                className="rounded-lg transition-all duration-200 hover:bg-primary/10 hover:text-primary"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => deleteReport(report.id)}
-                                title="Excluir Relatório"
-                                className="rounded-lg transition-all duration-200 hover:bg-destructive/10 hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                {renderReportList()}
               </CardContent>
             </Card>
           </>
         ) : currentReport && (
-          <>
-            <TravelReportForm
-              report={currentReport}
-              onSave={async (report, status) => {
-                setCurrentReport(report);
-                await saveReport(status, report);
-              }}
-              onCancel={() => {
-                if (draftStorage.hasDraft()) {
-                  if (window.confirm('Deseja descartar as alterações não salvas?')) {
-                    draftStorage.clearDraft();
-                    setHasSavedDraft(false);
-                    setIsCreating(false);
-                  }
-                } else {
+          <TravelReportForm
+            report={currentReport}
+            onSave={async (report, status) => {
+              setCurrentReport(report);
+              await saveReport(status, report);
+            }}
+            onCancel={() => {
+              if (draftStorage.hasDraft()) {
+                if (window.confirm('Deseja descartar as alterações não salvas?')) {
+                  draftStorage.clearDraft();
+                  setHasSavedDraft(false);
                   setIsCreating(false);
                 }
-              }}
-              onAutoSave={(report) => {
-                if (!isEditing) {
-                  draftStorage.saveDraft(report);
-                }
-              }}
-              showPartnerModal={() => setShowPartnerModal(true)}
-              onReceiptView={(url) => {
-                setReceiptViewerUrl(url);
-                setReceiptViewerOpen(true);
-              }}
-            />
-          </>
+              } else {
+                setIsCreating(false);
+              }
+            }}
+            onAutoSave={(report) => {
+              if (!isEditing) {
+                draftStorage.saveDraft(report);
+              }
+            }}
+            showPartnerModal={() => setShowPartnerModal(true)}
+            onReceiptView={(url) => {
+              setReceiptViewerUrl(url);
+              setReceiptViewerOpen(true);
+            }}
+          />
         )}
       </div>
+
       <PartnerSelectModal
         open={showPartnerModal}
         onOpenChange={setShowPartnerModal}
@@ -1077,6 +1025,7 @@ export default function RelatorioViagem() {
           }
         }}
       />
+
       <ReceiptViewer
         open={receiptViewerOpen}
         onOpenChange={setReceiptViewerOpen}

@@ -126,6 +126,22 @@ export function ConciliacaoColaborador() {
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
+  // Função para padronizar as cores dos status no design novo
+  const getStatusBadge = (status: string) => {
+    const statusLower = status?.toLowerCase() || '';
+    switch (statusLower) {
+      case "pago":
+      case "recebido":
+        return <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20 shadow-none whitespace-nowrap">Pago</Badge>;
+      case "enviado":
+        return <Badge className="bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border-blue-500/20 shadow-none whitespace-nowrap">Enviado</Badge>;
+      case "pendente":
+        return <Badge className="bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 border-yellow-500/20 shadow-none whitespace-nowrap">Pendente</Badge>;
+      default:
+        return <Badge variant="secondary" className="whitespace-nowrap">{status}</Badge>;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <MonthSelector
@@ -134,47 +150,64 @@ export function ConciliacaoColaborador() {
         isCurrentMonth={true}
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Conciliação com Colaborador</CardTitle>
+      <Card className="rounded-xl border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden">
+        <CardHeader className="pb-4">
+          <CardTitle className="text-xl">Conciliação com Colaborador</CardTitle>
         </CardHeader>
 
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data</TableHead>
-                <TableHead>ID</TableHead>
-                <TableHead>Colaborador</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Prazo</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {colaboradorData.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>{format(new Date(item.date), 'dd/MM/yyyy')}</TableCell>
-                  <TableCell>
-                    <Badge className={getIdBadgeColor(getShortUserId(item.criado_por || ''))}>
-                      {getShortUserId(item.criado_por || '')}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{item.user_profiles?.full_name}</TableCell>
-                  <TableCell>{item.description}</TableCell>
-                  <TableCell>{formatCurrency(Number(item.amount))}</TableCell>
-                  <TableCell>
-                    {item.prazo_pagamento ? 
-                      format(new Date(item.prazo_pagamento), 'dd/MM/yyyy') 
-                      : "-"
-                    }
-                  </TableCell>
-                  <TableCell>{item.status}</TableCell>
+        <CardContent className="p-0 sm:p-6 sm:pt-0">
+          {/* Aqui está a mágica: div com overflow-x-auto abraçando a Table do shadcn */}
+          <div className="overflow-x-auto pb-4 custom-scrollbar">
+            <Table className="w-full text-sm text-left border-collapse">
+              <TableHeader className="bg-muted/30 text-muted-foreground text-xs uppercase tracking-wider border-y border-border/50">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="px-4 py-4 font-semibold h-auto"><div className="min-w-[100px] max-w-[200px] resize-x overflow-hidden">Data</div></TableHead>
+                  <TableHead className="px-4 py-4 font-semibold h-auto"><div className="min-w-[80px] max-w-[150px] resize-x overflow-hidden">ID</div></TableHead>
+                  <TableHead className="px-4 py-4 font-semibold h-auto"><div className="min-w-[200px] max-w-[400px] resize-x overflow-hidden">Colaborador</div></TableHead>
+                  <TableHead className="px-4 py-4 font-semibold h-auto"><div className="min-w-[250px] max-w-[500px] resize-x overflow-hidden">Descrição</div></TableHead>
+                  <TableHead className="px-4 py-4 font-semibold h-auto"><div className="min-w-[120px] max-w-[200px] resize-x overflow-hidden">Valor</div></TableHead>
+                  <TableHead className="px-4 py-4 font-semibold h-auto"><div className="min-w-[120px] max-w-[200px] resize-x overflow-hidden">Prazo</div></TableHead>
+                  <TableHead className="px-4 py-4 font-semibold h-auto"><div className="min-w-[120px] max-w-[200px] resize-x overflow-hidden">Status</div></TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody className="divide-y divide-border/50">
+                {colaboradorData.map((item) => (
+                  <TableRow key={item.id} className="hover:bg-accent/30 transition-colors group">
+                    <TableCell className="px-4 py-4 whitespace-nowrap">
+                      {format(new Date(item.date), 'dd/MM/yyyy')}
+                    </TableCell>
+                    <TableCell className="px-4 py-4">
+                      <Badge variant="outline" className={`${getIdBadgeColor(getShortUserId(item.criado_por || ''))} font-semibold shadow-none border-border/50`}>
+                        {getShortUserId(item.criado_por || '')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="px-4 py-4 font-medium text-foreground whitespace-normal break-words leading-tight">
+                      {item.user_profiles?.full_name || "-"}
+                    </TableCell>
+                    <TableCell className="px-4 py-4 text-muted-foreground truncate max-w-[300px]" title={item.description}>
+                      {item.description}
+                    </TableCell>
+                    <TableCell className="px-4 py-4 text-emerald-400 font-medium whitespace-nowrap">
+                      {formatCurrency(Number(item.amount))}
+                    </TableCell>
+                    <TableCell className="px-4 py-4 text-muted-foreground text-sm whitespace-nowrap">
+                      {item.prazo_pagamento ? format(new Date(item.prazo_pagamento), 'dd/MM/yyyy') : "-"}
+                    </TableCell>
+                    <TableCell className="px-4 py-4">
+                      {getStatusBadge(item.status)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {colaboradorData.length === 0 && !loading && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                      Nenhuma conciliação encontrada.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -190,7 +223,7 @@ export function ConciliacaoColaborador() {
   );
 }
 
-// --- Editor de Prazo ---
+// --- Editor de Prazo (MANTIDO INTACTO) ---
 interface PrazoPagamentoEditorProps {
   reconciliation: ColaboradorReconciliation;
   onSave: () => void;

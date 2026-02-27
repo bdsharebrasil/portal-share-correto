@@ -60,7 +60,7 @@ interface BankReconciliation {
   amount: number;
   status: string;
   category: string | null;
-  categoria_movimentacao_id?: string | null; // Adicionado para corrigir a tipagem no filtro
+  categoria_movimentacao_id?: string | null;
   client_id: string | null;
   aircraft_id: string | null;
   prazo_pagamento: string | null;
@@ -96,7 +96,6 @@ export function ConciliacaoClientes() {
   const [openStatusDialog, setOpenStatusDialog] = useState(false);
   const [selectedReconciliation, setSelectedReconciliation] = useState<BankReconciliation | null>(null);
 
-  // Filtro de Viagens/Ressarcimentos
   const [showTravelDebtsOnly, setShowTravelDebtsOnly] = useState(false);
 
   useEffect(() => {
@@ -183,13 +182,13 @@ export function ConciliacaoClientes() {
     const statusLower = status?.toLowerCase() || '';
     switch (statusLower) {
       case "recebido":
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Recebido</Badge>;
+        return <Badge className="bg-green-500/10 text-green-500 hover:bg-green-500/20 border-green-500/20 shadow-none whitespace-nowrap">Recebido</Badge>;
       case "enviado":
-        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Enviado</Badge>;
+        return <Badge className="bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 border-blue-500/20 shadow-none whitespace-nowrap">Enviado</Badge>;
       case "pendente":
-        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Pendente</Badge>;
+        return <Badge className="bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 border-yellow-500/20 shadow-none whitespace-nowrap">Pendente</Badge>;
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <Badge variant="secondary" className="whitespace-nowrap">{status}</Badge>;
     }
   };
 
@@ -197,11 +196,11 @@ export function ConciliacaoClientes() {
     const statusLower = status?.toLowerCase() || '';
     switch (statusLower) {
       case "recebido":
-        return <CheckCircle className="h-4 w-4 text-green-600" />;
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
       case "enviado":
-        return <Send className="h-4 w-4 text-blue-600" />;
+        return <Send className="h-4 w-4 text-blue-400" />;
       case "pendente":
-        return <Clock className="h-4 w-4 text-yellow-600" />;
+        return <Clock className="h-4 w-4 text-yellow-500" />;
       default:
         return null;
     }
@@ -249,14 +248,12 @@ export function ConciliacaoClientes() {
 
   return (
     <div className="space-y-6">
-      {/* Seletor de Mês com Calendário Moderno */}
       <MonthSelector
         currentDate={currentDate}
         onDateChange={setCurrentDate}
         isCurrentMonth={isCurrentMonth}
       />
 
-      {/* Cards de Resumo */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="rounded-xl border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden">
           <CardContent className="p-5">
@@ -307,7 +304,6 @@ export function ConciliacaoClientes() {
         </Card>
       </div>
 
-      {/* Tabela de Conciliação */}
       <Card className="rounded-xl border-border/50 bg-card/50 backdrop-blur-sm">
         <CardHeader>
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -329,27 +325,28 @@ export function ConciliacaoClientes() {
           </div>
         </CardHeader>
 
-        <CardContent>
-          <div className="mb-6">
+        <CardContent className="p-0 sm:p-6 sm:pt-0">
+          <div className="mb-6 px-4 sm:px-0">
             <AddBankReconciliationForm onSuccess={fetchReconciliations} />
           </div>
-          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-cyan-500 scrollbar-track-slate-700/20">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>ID</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Aeronave</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Prazo</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Ações</TableHead>
+          
+          <div className="overflow-x-auto pb-4 custom-scrollbar">
+            <Table className="w-full text-sm text-left border-collapse">
+              <TableHeader className="bg-muted/30 text-muted-foreground text-xs uppercase tracking-wider border-y border-border/50">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="px-4 py-4 font-semibold h-auto"><div className="min-w-[100px] max-w-[200px] resize-x overflow-hidden">Data</div></TableHead>
+                  <TableHead className="px-4 py-4 font-semibold h-auto"><div className="min-w-[80px] max-w-[150px] resize-x overflow-hidden">ID</div></TableHead>
+                  <TableHead className="px-4 py-4 font-semibold h-auto"><div className="min-w-[250px] max-w-[500px] resize-x overflow-hidden">Descrição</div></TableHead>
+                  <TableHead className="px-4 py-4 font-semibold h-auto"><div className="min-w-[200px] max-w-[400px] resize-x overflow-hidden">Cliente</div></TableHead>
+                  <TableHead className="px-4 py-4 font-semibold h-auto"><div className="min-w-[120px] max-w-[200px] resize-x overflow-hidden">Aeronave</div></TableHead>
+                  <TableHead className="px-4 py-4 font-semibold h-auto"><div className="min-w-[180px] max-w-[300px] resize-x overflow-hidden">Categoria</div></TableHead>
+                  <TableHead className="px-4 py-4 font-semibold h-auto"><div className="min-w-[120px] max-w-[200px] resize-x overflow-hidden">Valor</div></TableHead>
+                  <TableHead className="px-4 py-4 font-semibold h-auto"><div className="min-w-[120px] max-w-[200px] resize-x overflow-hidden">Prazo</div></TableHead>
+                  <TableHead className="px-4 py-4 font-semibold h-auto"><div className="min-w-[120px] max-w-[200px] resize-x overflow-hidden">Status</div></TableHead>
+                  <TableHead className="px-4 py-4 font-semibold h-auto"><div className="min-w-[120px]">Ações</div></TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody>
+              <TableBody className="divide-y divide-border/50">
                 {loading ? (
                   <TableRow>
                     <TableCell colSpan={10} className="text-center py-8">
@@ -370,45 +367,49 @@ export function ConciliacaoClientes() {
 
                     return (
                       <React.Fragment key={item.id}>
-                        <TableRow className={`hover:bg-muted/50 ${isFinalized ? 'bg-muted/10 opacity-80' : ''}`}>
-                          <TableCell>{item.date ? format(new Date(item.date + 'T12:00:00'), 'dd/MM/yyyy') : '-'}</TableCell>
-                          <TableCell>
-                            <Badge className={`${getIdBadgeColor(getShortUserId(item.criado_por || ''))} font-semibold`}>
+                        <TableRow className={`hover:bg-accent/30 transition-colors group ${isFinalized ? 'bg-muted/10 opacity-80' : ''}`}>
+                          <TableCell className="px-4 py-4 whitespace-nowrap">
+                            {item.date ? format(new Date(item.date + 'T12:00:00'), 'dd/MM/yyyy') : '-'}
+                          </TableCell>
+                          <TableCell className="px-4 py-4">
+                            <Badge className={`${getIdBadgeColor(getShortUserId(item.criado_por || ''))} font-semibold shadow-none border-border/50`}>
                               {getShortUserId(item.criado_por || '')}
                             </Badge>
                           </TableCell>
-                          <TableCell className="max-w-xs">
+                          <TableCell className="px-4 py-4 max-w-xs">
                             <div className="flex items-center gap-2">
                               {getStatusIcon(item.status)}
                               <span className="truncate" title={item.description}>{item.description}</span>
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col gap-1">
-                              <span className="text-sm font-medium">
+                          <TableCell className="px-4 py-4">
+                            <div className="flex flex-col gap-1 items-start">
+                              <span className="font-medium text-foreground whitespace-normal break-words leading-tight">
                                 {item.client_partner && item.client_partners?.name
                                   ? item.client_partners.name
                                   : item.clients?.company_name || '-'}
                               </span>
                               {item.client_partner && item.client_partners?.name && (
-                                <Badge variant="outline" className="w-fit text-xs">
+                                <Badge variant="secondary" className="w-fit text-[10px] h-5 px-1.5 rounded-md">
                                   Sócio
                                 </Badge>
                               )}
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{item.aircraft?.registration || '-'}</Badge>
+                          <TableCell className="px-4 py-4">
+                            <Badge variant="outline" className="rounded-md border-border/80">
+                              {item.aircraft?.registration || '-'}
+                            </Badge>
                           </TableCell>
-                          <TableCell>
-                            <Badge variant="secondary">{formatCategoryName(item.category)}</Badge>
+                          <TableCell className="px-4 py-4">
+                            <div className="inline-flex items-center justify-center px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-500/10 text-slate-300 border border-slate-500/20 whitespace-normal break-words max-w-full text-center leading-snug">
+                              {formatCategoryName(item.category)}
+                            </div>
                           </TableCell>
-                          <TableCell>
-                            <span className="text-primary font-medium">
-                              {formatCurrency(Math.abs(Number(item.amount)))}
-                            </span>
+                          <TableCell className="px-4 py-4 text-primary font-medium whitespace-nowrap">
+                            {formatCurrency(Math.abs(Number(item.amount)))}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="px-4 py-4 whitespace-nowrap">
                             {item.status?.toLowerCase() === 'pendente' ? (
                               <PaymentTermEditor
                                 reconciliation={item}
@@ -420,17 +421,18 @@ export function ConciliacaoClientes() {
                               <span className="text-xs text-muted-foreground">-</span>
                             )}
                           </TableCell>
-                          <TableCell>{getStatusBadge(item.status)}</TableCell>
-
-                          <TableCell>
+                          <TableCell className="px-4 py-4">
+                            {getStatusBadge(item.status)}
+                          </TableCell>
+                          <TableCell className="px-4 py-4">
                             <div className="flex items-center gap-2">
                               {isFinalized ? (
-                                <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-green-500/10 text-green-600 border border-green-500/20 w-fit" title="Baixa realizada pelo Financeiro">
+                                <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-green-500/10 text-green-500 border border-green-500/20 w-fit" title="Baixa realizada pelo Financeiro">
                                   <CheckCircle className="h-3.5 w-3.5" />
                                   <span className="text-[10px] font-bold uppercase tracking-wide">Concluído</span>
                                 </div>
                               ) : item.status?.toLowerCase() === 'enviado' ? (
-                                <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-blue-500/10 text-blue-600 border border-blue-500/20 w-fit" title="Aguardando recebimento">
+                                <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 w-fit" title="Aguardando recebimento">
                                   <Send className="h-3.5 w-3.5" />
                                   <span className="text-[10px] font-bold uppercase tracking-wide">Enviado</span>
                                 </div>
@@ -442,7 +444,7 @@ export function ConciliacaoClientes() {
                                     setSelectedReconciliation(item);
                                     setOpenStatusDialog(true);
                                   }}
-                                  className="h-8 border-dashed hover:border-solid hover:bg-primary/5 hover:text-primary transition-all"
+                                  className="h-8 border-dashed hover:border-solid hover:bg-primary/5 hover:text-primary transition-all rounded-lg"
                                   title="Enviar para Financeiro"
                                 >
                                   <Send className="h-3.5 w-3.5 mr-1.5" />
@@ -450,13 +452,12 @@ export function ConciliacaoClientes() {
                                 </Button>
                               )}
 
-                              {/* AQUI ESTÁ A CORREÇÃO PRINCIPAL: Botão para abrir o AddDespesaForm */}
                               {!isFinalized && (
                                 <Button
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
-                                  className={`h-8 w-8 transition-colors ${expandedId === item.id ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}
+                                  className={`h-8 w-8 transition-colors rounded-lg ${expandedId === item.id ? 'bg-primary/10 text-primary' : 'hover:bg-accent'}`}
                                   title={expandedId === item.id ? "Fechar" : "Adicionar item vinculado"}
                                 >
                                   <Plus className={`h-4 w-4 transition-transform duration-200 ${expandedId === item.id ? 'rotate-45' : ''}`} />
@@ -599,7 +600,7 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
 
   if (!isEditing) {
     return (
-      <button onClick={() => setIsEditing(true)} className="text-sm hover:text-blue-600 hover:underline flex items-center gap-1">
+      <button onClick={() => setIsEditing(true)} className="text-sm hover:text-blue-600 hover:underline flex items-center gap-1 whitespace-nowrap">
         {reconciliation.prazo_pagamento ? formatDateForDisplay(reconciliation.prazo_pagamento) : <span className="text-xs text-muted-foreground italic flex items-center gap-1"><Plus className="w-3 h-3" />Prazo</span>}
       </button>
     );
@@ -609,12 +610,12 @@ function PaymentTermEditor({ reconciliation, onSave }: PaymentTermEditorProps) {
     <div className="flex gap-1 items-center z-50">
       <Input
         type="date"
-        className="h-8 w-[130px] text-xs"
+        className="h-8 w-[130px] text-xs rounded-lg"
         value={formatDateForInput(selectedDate)}
         onChange={handleDateChange}
       />
-      <Button size="icon" className="h-8 w-8" onClick={handleSave} disabled={isSaving}><Check className="h-3 w-3" /></Button>
-      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setIsEditing(false)}><X className="h-3 w-3" /></Button>
+      <Button size="icon" className="h-8 w-8 rounded-lg" onClick={handleSave} disabled={isSaving}><Check className="h-3 w-3" /></Button>
+      <Button size="icon" variant="ghost" className="h-8 w-8 rounded-lg" onClick={() => setIsEditing(false)}><X className="h-3 w-3" /></Button>
     </div>
   );
 }
@@ -671,7 +672,6 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
           let clienteNome = "Cliente";
           let clienteCnpj = "";
 
-          // Se tem client_partner, buscar dados do partner, senão do client
           if (parentReconciliation.client_partner) {
             const { data: partnerData } = await supabase
               .from("client_partners")
@@ -742,32 +742,32 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
   };
 
   return (
-    <div className="bg-background rounded-lg border p-4 shadow-sm">
+    <div className="bg-background rounded-xl border border-border/50 p-4 shadow-sm relative z-10">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold">Adicionar Item Vinculado</h3>
-        <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0"><X className="h-4 w-4" /></Button>
+        <h3 className="text-sm font-semibold text-foreground">Adicionar Item Vinculado</h3>
+        <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0 rounded-md hover:bg-accent"><X className="h-4 w-4" /></Button>
       </div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
             <FormField control={form.control} name="date" render={({ field }) => (
-              <FormItem><FormLabel>Data</FormLabel><FormControl><Input type="date" {...field} /></FormControl></FormItem>
+              <FormItem><FormLabel>Data</FormLabel><FormControl><Input type="date" className="rounded-lg" {...field} /></FormControl></FormItem>
             )} />
             <FormField control={form.control} name="description" render={({ field }) => (
-              <FormItem><FormLabel>Descrição</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>
+              <FormItem><FormLabel>Descrição</FormLabel><FormControl><Input className="rounded-lg" {...field} /></FormControl></FormItem>
             )} />
             <FormField control={form.control} name="amount" render={({ field }) => (
-              <FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl></FormItem>
+              <FormItem><FormLabel>Valor</FormLabel><FormControl><Input type="number" step="0.01" className="rounded-lg" {...field} /></FormControl></FormItem>
             )} />
             <FormField control={form.control} name="category" render={({ field }) => (
               <FormItem>
                 <FormLabel>Categoria</FormLabel>
                 <FormControl>
                   <GroupedSelect value={field.value} onValueChange={field.onChange}>
-                    <GroupedSelectTrigger>
+                    <GroupedSelectTrigger className="rounded-lg">
                       <GroupedSelectValue placeholder="Selecione..." />
                     </GroupedSelectTrigger>
-                    <GroupedSelectContent>
+                    <GroupedSelectContent className="rounded-lg">
                       {groupedCategories.map((group) => (
                         <SelectGroup key={group.grupo}>
                           <SelectLabel className="text-xs font-bold uppercase tracking-wider">{group.grupo}</SelectLabel>
@@ -787,8 +787,8 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
               <FormItem>
                 <FormLabel>Status</FormLabel>
                 <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                  <SelectContent>
+                  <FormControl><SelectTrigger className="rounded-lg"><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent className="rounded-lg">
                     <SelectItem value="pendente">Pendente</SelectItem>
                     <SelectItem value="enviado">Enviado</SelectItem>
                   </SelectContent>
@@ -796,9 +796,9 @@ function AddDespesaForm({ parentReconciliation, onClose, onSuccess }: AddDespesa
               </FormItem>
             )} />
           </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" size="sm" disabled={submitting}>Adicionar</Button>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" size="sm" onClick={onClose} className="rounded-lg border-border/50">Cancelar</Button>
+            <Button type="submit" size="sm" disabled={submitting} className="rounded-lg">Adicionar</Button>
           </div>
         </form>
       </Form>
