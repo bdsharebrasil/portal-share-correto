@@ -32,7 +32,12 @@ export function PaymentDialog({ open, onOpenChange, conta, bancos, onPaid }: Pay
     if (!file) return;
     setUploading(true);
     try {
-      const fileName = `comprovante_${Date.now()}_${conta?.id || 'unknown'}.${file.name.split('.').pop()}`;
+      const timestamp = Date.now();
+      const sanitizedFileName = file.name
+        .replace(/[^a-zA-Z0-9.\-_]/g, "_")
+        .substring(0, 100);
+      const fileExt = sanitizedFileName.split('.').pop();
+      const fileName = `comprovante_${timestamp}_${conta?.id || 'unknown'}.${fileExt}`;
       const { error: uploadError } = await supabase.storage.from("nfs-share-recebidas").upload(fileName, file);
       if (uploadError) throw uploadError;
       const { data } = supabase.storage.from("nfs-share-recebidas").getPublicUrl(fileName);

@@ -144,8 +144,12 @@ export function PagamentoSalarioDialog({
 
     setIsUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `comprovante_${Date.now()}.${fileExt}`;
+      const timestamp = Date.now();
+      const sanitizedFileName = file.name
+        .replace(/[^a-zA-Z0-9.\-_]/g, "_")
+        .substring(0, 100);
+      const fileExt = sanitizedFileName.split('.').pop();
+      const fileName = `comprovante_${timestamp}.${fileExt}`;
       const filePath = `salarios/${fileName}`;
 
       const { error: uploadError } = await supabase.storage

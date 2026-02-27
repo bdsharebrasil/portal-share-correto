@@ -624,8 +624,12 @@ export function ContasReceber() {
 
     try {
       if (comprovanteFile) {
-        const fileExt = comprovanteFile.name.split('.').pop();
-        const fileName = `comprovante_recebimento_${Date.now()}_${contasReceberData.numero || 'sem_numero'}.${fileExt}`;
+        const timestamp = Date.now();
+        const sanitizedFileName = comprovanteFile.name
+          .replace(/[^a-zA-Z0-9.\-_]/g, "_")
+          .substring(0, 100);
+        const fileExt = sanitizedFileName.split('.').pop();
+        const fileName = `comprovante_recebimento_${timestamp}_${contasReceberData.numero || 'sem_numero'}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage.from("nfs-share-saida").upload(fileName, comprovanteFile);
 

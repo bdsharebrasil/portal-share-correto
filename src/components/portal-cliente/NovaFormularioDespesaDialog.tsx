@@ -151,9 +151,13 @@ export function NovaFormularioDespesaDialog({
 
   const uploadFile = async (file: File, folder: string): Promise<string | null> => {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${folder}/${clientId}/${Date.now()}.${fileExt}`;
-      
+      const timestamp = Date.now();
+      const sanitizedFileName = file.name
+        .replace(/[^a-zA-Z0-9.\-_]/g, "_")
+        .substring(0, 100);
+      const fileExt = sanitizedFileName.split('.').pop();
+      const fileName = `${folder}/${clientId}/${timestamp}.${fileExt}`;
+
       const { error } = await supabase.storage
         .from('client-documents')
         .upload(fileName, file);

@@ -59,8 +59,12 @@ export function FuelPaymentDialog({
 
       // Upload comprovante se fornecido
       if (receiptFile) {
-        const fileExt = receiptFile.name.split(".").pop();
-        const fileName = `fuel_payment_${fuelRecord.id}_${Date.now()}.${fileExt}`;
+        const timestamp = Date.now();
+        const sanitizedFileName = receiptFile.name
+          .replace(/[^a-zA-Z0-9.\-_]/g, "_")
+          .substring(0, 100);
+        const fileExt = sanitizedFileName.split(".").pop();
+        const fileName = `fuel_payment_${fuelRecord.id}_${timestamp}.${fileExt}`;
         const filePath = `abastecimentos/${fileName}`;
 
         const { error: uploadError } = await supabase.storage

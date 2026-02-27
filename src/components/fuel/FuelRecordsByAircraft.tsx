@@ -312,7 +312,10 @@ export function FuelRecordsByAircraft({
     if (!file) return null;
     try {
       const timestamp = Date.now();
-      const fileName = `${client.id}/${aircraft.id}/${timestamp}-${fieldName}-${file.name}`;
+      const sanitizedFileName = file.name
+        .replace(/[^a-zA-Z0-9.\-_]/g, "_")
+        .substring(0, 100);
+      const fileName = `${client.id}/${aircraft.id}/${timestamp}-${fieldName}-${sanitizedFileName}`;
       const {
         error
       } = await supabase.storage.from("abastecimento").upload(fileName, file);
