@@ -63,6 +63,7 @@ export function NovaFormularioDespesaDialog({
   const [fornecedorId, setFornecedorId] = useState("");
   const [fornecedorNome, setFornecedorNome] = useState("");
   const [fornecedorCnpj, setFornecedorCnpj] = useState("");
+  const [fornecedorSearchValue, setFornecedorSearchValue] = useState("");
   const [boletoFile, setBoletoFile] = useState<File | null>(null);
   const [notaFiscalFile, setNotaFiscalFile] = useState<File | null>(null);
   const [openCombobox, setOpenCombobox] = useState(false);
@@ -146,6 +147,7 @@ export function NovaFormularioDespesaDialog({
     setFornecedorId(fornecedor.id);
     setFornecedorNome(fornecedor.nome_completo);
     setFornecedorCnpj(fornecedor.documento || "");
+    setFornecedorSearchValue("");
     setOpenCombobox(false);
   };
 
@@ -325,6 +327,7 @@ export function NovaFormularioDespesaDialog({
     setFornecedorId("");
     setFornecedorNome("");
     setFornecedorCnpj("");
+    setFornecedorSearchValue("");
     setBoletoFile(null);
     setNotaFiscalFile(null);
     // Reset campos de abastecimento
@@ -624,7 +627,10 @@ export function NovaFormularioDespesaDialog({
           {/* Combobox para Fornecedor */}
           <div className="space-y-2">
             <Label>Fornecedor *</Label>
-            <Popover open={openCombobox} onOpenChange={setOpenCombobox}>
+            <Popover open={openCombobox} onOpenChange={(open) => {
+              setOpenCombobox(open);
+              if (!open) setFornecedorSearchValue("");
+            }}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -646,8 +652,9 @@ export function NovaFormularioDespesaDialog({
                   <Input
                     placeholder="Buscar fornecedor..."
                     className="h-8"
-                    value={fornecedorNome}
-                    onChange={(e) => setFornecedorNome(e.target.value)}
+                    value={fornecedorSearchValue}
+                    onChange={(e) => setFornecedorSearchValue(e.target.value)}
+                    autoFocus
                   />
                 </div>
                 <div className="max-h-[200px] overflow-y-auto">
@@ -657,9 +664,9 @@ export function NovaFormularioDespesaDialog({
                     </div>
                   ) : (
                     fornecedoresFavoritos
-                      .filter(f => 
-                        fornecedorNome === "" || 
-                        f.nome_completo.toLowerCase().includes(fornecedorNome.toLowerCase())
+                      .filter(f =>
+                        fornecedorSearchValue === "" ||
+                        f.nome_completo.toLowerCase().includes(fornecedorSearchValue.toLowerCase())
                       )
                       .map((fornecedor) => (
                         <button
