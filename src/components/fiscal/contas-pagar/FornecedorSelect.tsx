@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { UserPlus } from "lucide-react";
-import { Combobox } from "@/components/ui/combobox";
+import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { AddFornecedorDialog } from "./AddFornecedorDialog";
 
 interface FornecedorOption {
@@ -30,8 +30,8 @@ export function FornecedorSelect({ fornecedores, categoriaFilter, value, onChang
     ? fornecedores.filter(f => f.categoria === categoriaFilter)
     : fornecedores;
 
-  const options = filtered.map(f => ({
-    value: f.id,
+  const items = filtered.map(f => ({
+    id: f.id,
     label: f.apelido ? `${f.nome_completo} (${f.apelido})` : f.nome_completo
   }));
 
@@ -41,11 +41,12 @@ export function FornecedorSelect({ fornecedores, categoriaFilter, value, onChang
   const isUnknownFornecedor = customSearchValue.trim().length > 2 &&
     !fornecedores.some(f => f.nome_completo.toLowerCase() === customSearchValue.trim().toLowerCase());
 
-  const handleValueChange = (selectedId: string) => {
+  const handleValueChange = (selectedId: string, label: string) => {
     if (selectedId) {
       const forn = fornecedores.find(f => f.id === selectedId);
       if (forn) {
         onChange(forn.nome_completo, forn);
+        setCustomSearchValue(forn.nome_completo);
       }
     } else {
       onChange("");
@@ -55,14 +56,13 @@ export function FornecedorSelect({ fornecedores, categoriaFilter, value, onChang
   return (
     <div className="space-y-2">
       <label className="text-sm font-semibold mb-1 block">Fornecedor *</label>
-      <Combobox
-        options={options}
+      <SearchableCombobox
+        items={items}
         value={value || ""}
-        onValueChange={handleValueChange}
+        onChange={handleValueChange}
         placeholder="Selecione um fornecedor..."
         searchPlaceholder="Buscar fornecedor..."
-        emptyText="Nenhum fornecedor encontrado."
-        allowCustomValue={false}
+        emptyMessage="Nenhum fornecedor encontrado."
       />
       {contaPagamento && (
         <div className="p-2 bg-green-500/10 border border-green-500/20 rounded-lg">

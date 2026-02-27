@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
+import { Combobox } from "@/components/ui/combobox";
 
 // ID da categoria de combustível aeronave
 const COMBUSTIVEL_AERONAVE_CATEGORIA_ID = "e4693f97-73bf-43ad-9a0e-86188e96a439";
@@ -636,76 +637,20 @@ export function NovaFormularioDespesaDialog({
           {/* Combobox para Fornecedor */}
           <div className="space-y-2">
             <Label>Fornecedor *</Label>
-            <Popover open={openCombobox} onOpenChange={(open) => {
-              setOpenCombobox(open);
-              if (!open) setFornecedorSearchValue("");
-            }}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={openCombobox}
-                  className="w-full justify-between"
-                >
-                  <span className="flex items-center gap-2 flex-1 text-left">
-                    <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <span className="truncate">
-                      {fornecedorNome || "Selecione um fornecedor..."}
-                    </span>
-                  </span>
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent side="bottom" align="start" className="w-[var(--radix-popover-trigger-width)] p-0 z-50">
-                <div className="p-2 border-b">
-                  <Input
-                    placeholder="Buscar fornecedor..."
-                    className="h-8"
-                    value={fornecedorSearchValue}
-                    onChange={(e) => setFornecedorSearchValue(e.target.value)}
-                    autoFocus
-                  />
-                </div>
-                <div className="max-h-[250px] overflow-y-auto">
-                  {fornecedoresFavoritos.length === 0 ? (
-                    <div className="p-4 text-center text-sm text-muted-foreground">
-                      Nenhum fornecedor encontrado
-                    </div>
-                  ) : (
-                    fornecedoresFavoritos
-                      .filter(f =>
-                        fornecedorSearchValue === "" ||
-                        f.nome_completo.toLowerCase().includes(fornecedorSearchValue.toLowerCase())
-                      )
-                      .map((fornecedor) => (
-                        <button
-                          key={fornecedor.id}
-                          className={cn(
-                            "w-full px-4 py-2 text-left text-sm hover:bg-muted transition-colors flex items-center gap-2",
-                            fornecedorId === fornecedor.id && "bg-muted"
-                          )}
-                          onClick={() => handleSelectFornecedor(fornecedor)}
-                          type="button"
-                        >
-                          <Check
-                            className={cn(
-                              "h-4 w-4",
-                              fornecedorId === fornecedor.id ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          <div className="flex-1">
-                            <p className="font-medium">{fornecedor.nome_completo}</p>
-                            {fornecedor.apelido && (
-                              <p className="text-xs text-muted-foreground">{fornecedor.apelido}</p>
-                            )}
-                          </div>
-                        </button>
-                      ))
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
+            <Combobox
+              options={fornecedoresFavoritos.map(f => ({
+                value: f.id,
+                label: f.apelido ? `${f.nome_completo} (${f.apelido})` : f.nome_completo
+              }))}
+              value={fornecedorId}
+              onValueChange={(id) => {
+                const fornecedor = fornecedoresFavoritos.find(f => f.id === id);
+                if (fornecedor) handleSelectFornecedor(fornecedor);
+              }}
+              placeholder="Selecione um fornecedor..."
+              searchPlaceholder="Buscar fornecedor..."
+              emptyText="Nenhum fornecedor encontrado."
+            />
           </div>
 
           <div className="space-y-2">
