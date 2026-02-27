@@ -16,8 +16,8 @@ export function useAtividadesRecentes() {
     queryFn: async (): Promise<Atividade[]> => {
       const { data, error } = await supabase
         .from("controle_bancario")
-        .select("id, descricao, valor, status, tipo_movimento, created_at")
-        .order("created_at", { ascending: false })
+        .select("id, descricao, valor, status, tipo_movimento, data")
+        .order("data", { ascending: false })
         .limit(10);
 
       if (error) throw error;
@@ -29,7 +29,7 @@ export function useAtividadesRecentes() {
           valor: Number(item.valor),
           status: item.status || "pending",
           tipo_movimento: item.tipo_movimento,
-          timeAgo: getTimeAgo(item.created_at),
+          timeAgo: getTimeAgo(item.data),
         })) || []
       );
     },

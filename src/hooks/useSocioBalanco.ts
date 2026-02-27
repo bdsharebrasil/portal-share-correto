@@ -271,25 +271,31 @@ export function useSocioBalanco(
     enabled: !!clienteId,
   });
 
-  // Buscar abastecimentos via backend to avoid Supabase 400 errors with date ranges
+  // Buscar abastecimentos diretamente do Supabase
   const { data: abastecimentos = [], isLoading: loadingAbastecimentos } = useQuery({
     queryKey: ["abastecimentos-socio", clienteId, aeronaveId, periodo],
     queryFn: async () => {
       if (!clienteId) return [];
 
-      // Use backend proxy endpoint to avoid Supabase PostgREST 400 errors
-      let fuelUrl = `/api/fuel?client_id=${clienteId}&date_start=${periodo.inicio}&date_end=${periodo.fim}`;
+      // Buscar diretamente do Supabase
+      let query = supabase
+        .from("abastecimentos")
+        .select("*")
+        .eq("client_id", clienteId)
+        .gte("data", periodo.inicio)
+        .lte("data", periodo.fim);
+
       if (aeronaveId) {
-        fuelUrl += `&aircraft_id=${aeronaveId}`;
+        query = query.eq("aeronave_id", aeronaveId);
       }
 
-      const response = await fetch(fuelUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch fuel data: ${response.statusText}`);
+      const { data, error } = await query;
+      
+      if (error) {
+        throw new Error(`Failed to fetch abastecimentos: ${error.message}`);
       }
 
-      const result = await response.json();
-      return result.data || [];
+      return data || [];
     },
     enabled: !!clienteId,
   });

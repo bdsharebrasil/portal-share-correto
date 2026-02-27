@@ -375,46 +375,6 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
 
       {/* Gráficos */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Gráfico de Pizza - Status */}
-        <Card className="border-blue-800/30 bg-blue-900/40 shadow-xl shadow-black/20">
-          <CardHeader>
-            <CardTitle className="text-lg text-blue-200">Distribuição por Status</CardTitle>
-            <CardDescription className="text-blue-400/70">Proporção entre pendente, pago e reembolsado</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={420}>
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={120}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    animationDuration={500}
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                  />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[420px] flex items-center justify-center text-muted-foreground">
-                Sem dados para exibir
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Gráfico de Barras - Categorias */}
         <Card className="border-blue-800/30 bg-blue-900/40 shadow-xl shadow-black/20">
           <CardHeader>
@@ -459,42 +419,42 @@ export function BalancoVisaoGeral({ clienteId, socioId, aeronaveId, periodo }: B
         (resumo?.pagamentoDiretoPago?.valor || 0) > 0 ||
         (resumo?.abastecimentoPago?.valor || 0) > 0) && (
         <div>
-          <h3 className="text-sm font-semibold mb-3 text-foreground">Pagamentos Diretos e Combustível</h3>
+          <h3 className="text-lg font-semibold mb-4 text-foreground">Pagamentos Diretos e Combustível</h3>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             {(resumo?.pagamentoDiretoPendente?.valor || 0) > 0 && (
-              <div className="rounded-lg border border-purple-200/50 bg-gradient-to-br from-purple-50 to-purple-500/5 p-5">
-                <p className="text-xs font-medium text-muted-foreground mb-1">Pagamento Direto Pendente</p>
-                <p className="text-xl font-bold text-purple-600">
+              <div className="rounded-xl border-0 shadow-md bg-gradient-to-br from-purple-500 via-purple-400 to-purple-500 p-6 text-white hover:shadow-lg transition-shadow">
+                <p className="text-sm font-medium mb-2 text-purple-100">Pagamento Direto Pendente</p>
+                <p className="text-3xl font-bold mb-3">
                   R$ {(resumo?.pagamentoDiretoPendente.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">{resumo?.pagamentoDiretoPendente.quantidade || 0} despesas</p>
+                <p className="text-sm text-purple-100">{resumo?.pagamentoDiretoPendente.quantidade || 0} despesas</p>
               </div>
             )}
             {(resumo?.abastecimentoPendente?.valor || 0) > 0 && (
-              <div className="rounded-lg border border-orange-200/50 bg-gradient-to-br from-orange-50 to-orange-500/5 p-5">
-                <p className="text-xs font-medium text-muted-foreground mb-1">Combustível Pendente</p>
-                <p className="text-xl font-bold text-orange-600">
+              <div className="rounded-xl border-0 shadow-md bg-gradient-to-br from-orange-500 via-orange-400 to-orange-500 p-6 text-white hover:shadow-lg transition-shadow">
+                <p className="text-sm font-medium mb-2 text-orange-100">Combustível Pendente</p>
+                <p className="text-3xl font-bold mb-3">
                   R$ {(resumo?.abastecimentoPendente.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">{resumo?.abastecimentoPendente.quantidade || 0} registros</p>
+                <p className="text-sm text-orange-100">{resumo?.abastecimentoPendente.quantidade || 0} registros</p>
               </div>
             )}
             {(resumo?.pagamentoDiretoPago?.valor || 0) > 0 && (
-              <div className="rounded-lg border border-teal-200/50 bg-gradient-to-br from-teal-50 to-teal-500/5 p-5">
-                <p className="text-xs font-medium text-muted-foreground mb-1">Pagamento Direto Pago</p>
-                <p className="text-xl font-bold text-teal-600">
+              <div className="rounded-xl border-0 shadow-md bg-gradient-to-br from-blue-500 via-blue-400 to-blue-500 p-6 text-white hover:shadow-lg transition-shadow">
+                <p className="text-sm font-medium mb-2 text-blue-100">Pagamento Direto Pago</p>
+                <p className="text-3xl font-bold mb-3">
                   R$ {(resumo?.pagamentoDiretoPago?.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">{resumo?.pagamentoDiretoPago?.quantidade || 0} despesas</p>
+                <p className="text-sm text-blue-100">{resumo?.pagamentoDiretoPago?.quantidade || 0} despesas</p>
               </div>
             )}
             {(resumo?.abastecimentoPago?.valor || 0) > 0 && (
-              <div className="rounded-lg border border-emerald-200/50 bg-gradient-to-br from-emerald-50 to-emerald-500/5 p-5">
-                <p className="text-xs font-medium text-muted-foreground mb-1">Combustível Pago</p>
-                <p className="text-xl font-bold text-emerald-600">
+              <div className="rounded-xl border-0 shadow-md bg-gradient-to-br from-green-500 via-emerald-400 to-green-500 p-6 text-white hover:shadow-lg transition-shadow">
+                <p className="text-sm font-medium mb-2 text-green-100">Combustível Pago</p>
+                <p className="text-3xl font-bold mb-3">
                   R$ {(resumo?.abastecimentoPago?.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">{resumo?.abastecimentoPago?.quantidade || 0} registros</p>
+                <p className="text-sm text-green-100">{resumo?.abastecimentoPago?.quantidade || 0} registros</p>
               </div>
             )}
           </div>

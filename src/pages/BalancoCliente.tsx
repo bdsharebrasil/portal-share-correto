@@ -13,7 +13,6 @@ import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { BalancoVisaoGeral } from '@/components/balanco-cliente/BalancoVisaoGeral';
-import { DespesasDetalhadas } from '@/components/balanco-cliente/DespesasDetalhadas';
 import { HistoricoRateioConsolidado } from '@/components/balanco-cliente/HistoricoRateioConsolidado';
 import { PendenciasFinanceiras } from '@/components/balanco-cliente/PendenciasFinanceiras';
 import { BalancoAeronave } from '@/components/balanco-cliente/BalancoAeronave';
@@ -320,12 +319,6 @@ function BalancoClienteContent() {
         <TabsContent value="despesas" className="space-y-6">
           {clienteId && aeronaveId ? (
             <div className="space-y-6">
-              <DespesasDetalhadas
-                clienteId={clienteId}
-                socioId={socioId}
-                aeronaveId={aeronaveId || undefined}
-                periodo={periodo}
-              />
               <HistoricoRateioConsolidado
                 clienteId={clienteId}
                 socioId={socioId}

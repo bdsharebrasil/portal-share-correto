@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FlightRouteMapPro, type RoutePoint } from '@/components/plano-voo/FlightRouteMapPro';
+import { FlightRouteMap as FlightRouteMapPro, type RoutePoint } from '@/components/plano-voo/FlightRouteMap';
 import { useAerodromes, type Aerodromo } from '@/hooks/useAerodromes';
 import { useAeronaves, type Aeronave } from '@/hooks/useAeronaves';
 import { Button } from '@/components/ui/button';

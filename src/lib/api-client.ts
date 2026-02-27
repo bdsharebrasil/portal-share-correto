@@ -321,17 +321,6 @@ class ApiClient {
     return this.get('/api/consolidacao/reembolsos-pendentes');
   }
 
-  // ========== FUEL ==========
-  async getFuel(filters: { client_id: string; date_start: string; date_end: string; aircraft_id?: string }) {
-    const params = new URLSearchParams();
-    params.append('client_id', filters.client_id);
-    params.append('date_start', filters.date_start);
-    params.append('date_end', filters.date_end);
-    if (filters.aircraft_id) params.append('aircraft_id', filters.aircraft_id);
-
-    return this.get(`/api/fuel?${params.toString()}`);
-  }
-
   // ========== AIRPORTS ==========
   async getAirport(icao: string) {
     return this.get(`/api/airports/${icao}`);
