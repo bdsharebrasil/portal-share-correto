@@ -34,6 +34,7 @@ export type Database = {
           partner_index: number | null
           partner_name: string | null
           status_pagamento: string | null
+          tipo_faturamento: string | null
           trecho: string
           updated_at: string | null
           valor_total: number | null
@@ -58,6 +59,7 @@ export type Database = {
           partner_index?: number | null
           partner_name?: string | null
           status_pagamento?: string | null
+          tipo_faturamento?: string | null
           trecho: string
           updated_at?: string | null
           valor_total?: number | null
@@ -82,6 +84,7 @@ export type Database = {
           partner_index?: number | null
           partner_name?: string | null
           status_pagamento?: string | null
+          tipo_faturamento?: string | null
           trecho?: string
           updated_at?: string | null
           valor_total?: number | null
@@ -369,6 +372,7 @@ export type Database = {
           serial_number: string
           status: string
           updated_at: string | null
+          velocidade_cruzeiro: string | null
           year: string | null
         }
         Insert: {
@@ -392,6 +396,7 @@ export type Database = {
           serial_number: string
           status?: string
           updated_at?: string | null
+          velocidade_cruzeiro?: string | null
           year?: string | null
         }
         Update: {
@@ -415,6 +420,7 @@ export type Database = {
           serial_number?: string
           status?: string
           updated_at?: string | null
+          velocidade_cruzeiro?: string | null
           year?: string | null
         }
         Relationships: []
@@ -1171,6 +1177,7 @@ export type Database = {
           category: string | null
           client_id: string | null
           client_partner: string | null
+          colaborador: string | null
           comprovante_url: string | null
           controle_bancario_id: string | null
           created_at: string | null
@@ -1206,6 +1213,7 @@ export type Database = {
           category?: string | null
           client_id?: string | null
           client_partner?: string | null
+          colaborador?: string | null
           comprovante_url?: string | null
           controle_bancario_id?: string | null
           created_at?: string | null
@@ -1241,6 +1249,7 @@ export type Database = {
           category?: string | null
           client_id?: string | null
           client_partner?: string | null
+          colaborador?: string | null
           comprovante_url?: string | null
           controle_bancario_id?: string | null
           created_at?: string | null
