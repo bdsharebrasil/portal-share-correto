@@ -1,10 +1,15 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft } from "lucide-react";
+import { Layout } from "@/components/layout/Layout";
 import { CategoriasCrud } from "@/components/fiscal/CategoriasCrud";
 import { ContasBancarias } from "@/components/fiscal/ContasBancarias";
 import { FornecedoresFavoritos } from "@/components/fiscal/FornecedoresFavoritos";
 
 export function ConfiguracoesFiscais() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"categorias" | "contas" | "fornecedores">("categorias");
 
   return (
@@ -70,3 +75,5 @@ export function ConfiguracoesFiscais() {
     </Layout>
   );
 }
+
+export default ConfiguracoesFiscais;

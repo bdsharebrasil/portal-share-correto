@@ -63,6 +63,7 @@ import ControleAbastecimento from "./pages/ControleAbastecimento";
 import Ferias from "./pages/Ferias";
 import Senhas from "./pages/Senhas";
 import GestaoFiscal from "./pages/financeiro/GestaoFiscal";
+import ConfiguracoesFiscais from "./pages/financeiro/ConfiguracoesFiscais";
 import Master from "./pages/financeiro/Master";
 import MasterColaboradores from "./pages/financeiro/MasterColaboradores";
 import ConfigMovimentacoes from "./pages/financeiro/ConfigMovimentacoes";
@@ -213,6 +214,13 @@ const App = () => {
                             renderProtected(
                               <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
                                 <GestaoFiscal />
+                              </RoleProtected>
+                            )
+                          } />
+                          <Route path="/financeiro/configuracoes-fiscais" element={
+                            renderProtected(
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                <ConfiguracoesFiscais />
                               </RoleProtected>
                             )
                           } />
