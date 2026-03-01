@@ -5,10 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DatePickerCalendar } from "@/components/ui/date-picker-calendar";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCategoriasConta } from "@/hooks/useCategoriasFinanceiro";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 interface MovimentacaoBancariaDialogProps {
   open: boolean;
@@ -26,6 +29,7 @@ export function MovimentacaoBancariaDialog({
   const { user } = useAuth();
   const { categorias } = useCategoriasConta();
   const [isLoading, setIsLoading] = useState(false);
+  const [dataCalendarOpen, setDataCalendarOpen] = useState(false);
   const [formData, setFormData] = useState({
     descricao: "",
     valor: "",
@@ -169,13 +173,30 @@ export function MovimentacaoBancariaDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="data">Data *</Label>
-              <Input
-                id="data"
-                type="date"
-                value={formData.data}
-                onChange={(e) => setFormData({ ...formData, data: e.target.value })}
-                required
-              />
+              <Popover open={dataCalendarOpen} onOpenChange={setDataCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    {formData.data ? format(new Date(formData.data + "T00:00:00"), "dd/MM/yyyy") : "Selecione a data"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-auto p-0 border-0">
+                  <DatePickerCalendar
+                    value={formData.data ? new Date(formData.data + "T00:00:00") : undefined}
+                    onChange={(date) => {
+                      if (date) {
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, "0");
+                        const day = String(date.getDate()).padStart(2, "0");
+                        setFormData({ ...formData, data: `${year}-${month}-${day}` });
+                        setDataCalendarOpen(false);
+                      }
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 

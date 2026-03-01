@@ -7,8 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DatePickerCalendar } from "@/components/ui/date-picker-calendar";
 import { X, Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 interface InlineTransactionFormProps {
   onClose: () => void;
@@ -18,6 +21,7 @@ export function InlineTransactionForm({ onClose }: InlineTransactionFormProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
+  const [dataCalendarOpen, setDataCalendarOpen] = useState(false);
 
   const [form, setForm] = useState({
     descricao: "",
@@ -91,11 +95,30 @@ export function InlineTransactionForm({ onClose }: InlineTransactionFormProps) {
             </div>
             <div>
               <Label>Data</Label>
-              <Input
-                type="date"
-                value={form.data}
-                onChange={(e) => setForm({ ...form, data: e.target.value })}
-              />
+              <Popover open={dataCalendarOpen} onOpenChange={setDataCalendarOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    {form.data ? format(new Date(form.data + "T00:00:00"), "dd/MM/yyyy") : "Selecione a data"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-auto p-0 border-0">
+                  <DatePickerCalendar
+                    value={form.data ? new Date(form.data + "T00:00:00") : undefined}
+                    onChange={(date) => {
+                      if (date) {
+                        const year = date.getFullYear();
+                        const month = String(date.getMonth() + 1).padStart(2, "0");
+                        const day = String(date.getDate()).padStart(2, "0");
+                        setForm({ ...form, data: `${year}-${month}-${day}` });
+                        setDataCalendarOpen(false);
+                      }
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 
