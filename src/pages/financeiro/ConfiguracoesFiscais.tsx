@@ -8,7 +8,22 @@ export function ConfiguracoesFiscais() {
   const [activeTab, setActiveTab] = useState<"categorias" | "contas" | "fornecedores">("categorias");
 
   return (
-    <div className="space-y-6">
+    <Layout>
+      <div className="p-4 lg:p-6 space-y-6">
+        {/* Header com Botão de Voltar */}
+        <div className="flex items-center gap-4 mb-6">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/financeiro/gestao-fiscal")}
+            className="gap-2"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Voltar
+          </Button>
+          <h1 className="text-3xl font-bold">Configuração</h1>
+        </div>
+
       {/* Tabs */}
       <Card className="bg-card border-border/50">
         <div className="flex border-b border-border/50">
@@ -50,7 +65,8 @@ export function ConfiguracoesFiscais() {
         {activeTab === "categorias" && <CategoriasCrud />}
         {activeTab === "contas" && <ContasBancarias />}
         {activeTab === "fornecedores" && <FornecedoresFavoritos />}
-      </div>
     </div>
+      </div>
+    </Layout>
   );
 }
