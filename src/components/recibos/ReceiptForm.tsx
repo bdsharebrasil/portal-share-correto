@@ -414,27 +414,29 @@ export function ReceiptForm({
             </div>
           </div>
 
-          {/* FORMA DE PAGAMENTO - visível para ambos os tipos */}
-          <div>
-            <Label>Forma de Pagamento</Label>
-            <Select
-              value={formData.formaPagamento}
-              onValueChange={(v) => setFormData((p) => ({ ...p, formaPagamento: v }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a forma de pagamento" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pix">PIX</SelectItem>
-                <SelectItem value="boleto">Boleto</SelectItem>
-                <SelectItem value="transferencia">Transferência Bancária</SelectItem>
-                <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
-                <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
-                <SelectItem value="dinheiro">Dinheiro</SelectItem>
-                <SelectItem value="cheque">Cheque</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* FORMA DE PAGAMENTO - apenas para pagamento */}
+          {!isReembolso && (
+            <div>
+              <Label>Forma de Pagamento</Label>
+              <Select
+                value={formData.formaPagamento}
+                onValueChange={(v) => setFormData((p) => ({ ...p, formaPagamento: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a forma de pagamento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pix">PIX</SelectItem>
+                  <SelectItem value="boleto">Boleto</SelectItem>
+                  <SelectItem value="transferencia">Transferência Bancária</SelectItem>
+                  <SelectItem value="cartao_credito">Cartão de Crédito</SelectItem>
+                  <SelectItem value="cartao_debito">Cartão de Débito</SelectItem>
+                  <SelectItem value="dinheiro">Dinheiro</SelectItem>
+                  <SelectItem value="cheque">Cheque</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* CATEGORIA E NÚMERO DO DOCUMENTO */}
           {isReembolso && (
@@ -595,12 +597,11 @@ export function ReceiptForm({
             </div>
           )}
 
-          {/* PRAZO DE QUITAÇÃO - visível para ambos */}
-          <div className="space-y-3">
-            <Label>Prazo Máximo de Quitação</Label>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Digite a data</Label>
+          {/* PRAZO DE QUITAÇÃO - apenas para reembolso */}
+          {isReembolso && (
+            <div className="space-y-3">
+              <Label>Prazo Máximo de Quitação</Label>
+              <div className="relative">
                 <Input
                   type="date"
                   value={formData.prazoMaximoQuitacao}
@@ -611,16 +612,16 @@ export function ReceiptForm({
                     }))
                   }
                   min={formData.dataEmissao}
-                  className="w-full"
+                  className="w-full rounded-xl border-border/60 bg-background shadow-sm focus:ring-2 focus:ring-primary/20 transition-all"
                 />
               </div>
+              {formData.prazoMaximoQuitacao && (
+                <p className="text-xs text-muted-foreground">
+                  Data selecionada: {format(parseLocalDate(formData.prazoMaximoQuitacao), "dd/MM/yyyy")}
+                </p>
+              )}
             </div>
-            {formData.prazoMaximoQuitacao && (
-              <p className="text-xs text-muted-foreground">
-                Data selecionada: {format(parseLocalDate(formData.prazoMaximoQuitacao), "dd/MM/yyyy")}
-              </p>
-            )}
-          </div>
+          )}
 
           {/* DESCRIÇÃO DO SERVIÇO / RECIBO */}
           <div className="space-y-2">
