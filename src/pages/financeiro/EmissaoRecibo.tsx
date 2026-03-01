@@ -137,7 +137,7 @@ export default function EmissaoRecibo() {
       if (!valorNumerico || valorNumerico <= 0) {
         throw new Error("Valor deve ser maior que zero");
       }
-      if (!(formData.servicoDescricao || formData.description)?.trim()) {
+      if (!(formData.servicoDescricao || formData.description || "").trim()) {
         throw new Error("Descrição do serviço é obrigatória");
       }
 
@@ -169,7 +169,7 @@ export default function EmissaoRecibo() {
 
       // ===================== INSERIR RECIBO =====================
       // Para reembolso, adiciona número do documento na descrição
-      let finalDescription = formData.description?.trim() || "";
+      let finalDescription = (formData.servicoDescricao || formData.description || "").trim();
       if (isReembolso && originalForm.reembolsoNumeroDocumento?.trim()) {
         finalDescription = `${finalDescription} - Documento: ${originalForm.reembolsoNumeroDocumento.trim()}`;
       }
@@ -236,7 +236,7 @@ export default function EmissaoRecibo() {
             fornecedor_dados: null,
             boleto_url: boletoUrl,
             nf_url: notaFiscalUrl,
-            reference_id: receiptData.id,
+            reference_id: undefined,
             reference_type: "receipt",
             ...(isRateado && {
               rateio_data: {
