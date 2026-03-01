@@ -46,7 +46,7 @@ export function GestorDashboard() {
   const allQuickTools = [
     { icon: FileText, label: "Gestão Fiscal", route: "/financeiro/gestao-fiscal", color: "from-green-500 to-green-600", grid: 1 },
     { icon: Users, label: "Gestão de Funcionários", route: "/gestao-funcionarios", color: "from-blue-500 to-blue-600", grid: 1 },
-    { icon: Settings, label: "Configurações Fiscais", route: "/financeiro/gestao-fiscal?tab=configuracoes", textColor: "text-cyan-400", grid: 2 },
+    { icon: Settings, label: "Configurações", route: "/financeiro/configuracoes-fiscais", textColor: "text-cyan-400", grid: 2 },
     { icon: PieChart, label: "Balanço Clientes", route: "/financeiro/balanco-cliente", textColor: "text-indigo-400", grid: 2 },
     { icon: BarChart3, label: "Master", route: "/financeiro/master", color: "from-orange-500 to-orange-600", restricted: true, grid: 3 },
     { icon: DollarSign, label: "Financeiro Sócios", route: "/financeiro/financeiro-socios", color: "from-purple-500 to-purple-600", restricted: true, grid: 3 },
