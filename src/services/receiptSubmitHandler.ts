@@ -261,6 +261,17 @@ export async function handleReceiptSubmit(
       throw new Error("Valor deve ser maior que zero");
     }
 
+    // Normalizar o formato da data para YYYY-MM-DD (type: date)
+    let normalizedDate = submissionData.date;
+    if (normalizedDate.includes("T")) {
+      // Se for ISO string (2024-03-01T12:00:00), extrai apenas a data
+      normalizedDate = normalizedDate.split("T")[0];
+    }
+    // Validar que está no formato correto YYYY-MM-DD
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
+      throw new Error(`Formato de data inválido: ${submissionData.date}. Use YYYY-MM-DD`);
+    }
+
     // ===================== 1. UPLOAD DE ARQUIVOS =====================
     console.log("📤 Iniciando upload de arquivos...");
     let boleto_url: string | null = null;
@@ -289,9 +300,18 @@ export async function handleReceiptSubmit(
 
     // ===================== 3. PREPARAR DADOS PARA bank_reconciliations =====================
     console.log("📋 Preparando dados para bank_reconciliations...");
+
+    // Normalizar data de vencimento também
+    let normalizedPrazoData = submissionData.prazo_pagamento;
+    if (normalizedPrazoData) {
+      if (normalizedPrazoData.includes("T")) {
+        normalizedPrazoData = normalizedPrazoData.split("T")[0];
+      }
+    }
+
     const bankReconciliationPayload = {
       type: submissionData.type || "cliente",
-      date: submissionData.date,
+      date: normalizedDate,
       description: submissionData.description,
       amount: submissionData.amount,
       status: submissionData.status || "pendente",
@@ -300,7 +320,7 @@ export async function handleReceiptSubmit(
       categoria_movimentacao_id: submissionData.categoria_movimentacao_id || null,
       tipo_documento: submissionData.tipo_documento,
       doc: submissionData.doc || null,
-      prazo_pagamento: submissionData.prazo_pagamento || null,
+      prazo_pagamento: normalizedPrazoData || null,
       percentual: submissionData.percentual || null,
       forma_pagamento: submissionData.forma_pagamento || null,
       afeta_caixa_empresa: submissionData.afeta_caixa_empresa ?? true,
@@ -340,7 +360,7 @@ export async function handleReceiptSubmit(
           valor_rateado: submissionData.amount,
           valor: submissionData.rateio_data.valor_total,
           status: submissionData.status || "pendente",
-          data_vencimento: submissionData.prazo_pagamento || submissionData.date,
+          data_vencimento: normalizedPrazoData || normalizedDate,
           categoria_id: submissionData.categoria_movimentacao_id || null,
           boleto: boleto_url,
           nota_fiscal: nf_url,
@@ -438,6 +458,17 @@ export async function insertReceiptToBankReconciliations(
       throw new Error("Data é obrigatória");
     }
 
+    // Normalizar formato de data para YYYY-MM-DD
+    let normalizedDataData = data.data;
+    if (normalizedDataData.includes("T")) {
+      normalizedDataData = normalizedDataData.split("T")[0];
+    }
+
+    let normalizedDataVencimento = data.data_vencimento;
+    if (normalizedDataVencimento && normalizedDataVencimento.includes("T")) {
+      normalizedDataVencimento = normalizedDataVencimento.split("T")[0];
+    }
+
     // Buscar categoria se foi fornecido categoria_id
     let categoria_movimentacao_id = null;
     if (data.categoria_id) {
@@ -455,7 +486,7 @@ export async function insertReceiptToBankReconciliations(
     // Preparar dados para bank_reconciliations
     const bankReconciliationPayload = {
       type: "cliente" as const,
-      date: data.data,
+      date: normalizedDataData,
       description: data.descricao,
       amount: data.valor,
       status: data.status || "pendente",
@@ -464,7 +495,7 @@ export async function insertReceiptToBankReconciliations(
       categoria_movimentacao_id: categoria_movimentacao_id,
       tipo_documento: data.tipo === "recibo" ? "recibo" : "recibo",
       doc: data.numero_documento || null,
-      prazo_pagamento: data.data_vencimento || null,
+      prazo_pagamento: normalizedDataVencimento || null,
       forma_pagamento: "empresa_paga" as const,
       afeta_caixa_empresa: true,
       criado_por: userId,
