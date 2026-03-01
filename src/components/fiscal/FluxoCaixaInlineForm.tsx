@@ -18,11 +18,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCategoriasFinanceiro, useCategoriasConta } from "@/hooks/useCategoriasFinanceiro";
 import { useAeronaves } from "@/hooks/useAeronaves";
 import { useClientes } from "@/hooks/useClientes";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { RateioDialog } from "./RateioDialog";
+import { DatePickerCalendar } from "@/components/ui/date-picker-calendar";
 import { useClientPartners } from "@/hooks/useClientPartners";
 
 interface FluxoCaixaInlineFormProps {
@@ -138,6 +140,8 @@ export function FluxoCaixaInlineForm({
   const [isReembolsavel, setIsReembolsavel] = useState(false);
   const [temRateio, setTemRateio] = useState(false);
   const [rateioDialogOpen, setRateioDialogOpen] = useState(false);
+  const [dataCalendarOpen, setDataCalendarOpen] = useState(false);
+  const [dataVencimentoCalendarOpen, setDataVencimentoCalendarOpen] = useState(false);
 
   // Estados para upload de arquivos
   const [comprovanteUrl, setComprovanteUrl] = useState<string | null>(null);
@@ -748,12 +752,32 @@ export function FluxoCaixaInlineForm({
             <Label htmlFor="data" className="text-sm font-semibold text-foreground mb-2">
               Data *
             </Label>
-            <Input
-              id="data"
-              type="date"
-              {...register("data", { required: "Data é obrigatória" })}
-              className={`h-10 bg-background ${errors.data ? "border-red-500" : ""}`}
-            />
+            <Popover open={dataCalendarOpen} onOpenChange={setDataCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={`w-full justify-start text-left font-normal h-10 ${
+                    errors.data ? "border-red-500" : ""
+                  }`}
+                >
+                  {watch("data") ? format(new Date(watch("data") + "T00:00:00"), "dd/MM/yyyy") : "Selecione a data"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-auto p-0 border-0">
+                <DatePickerCalendar
+                  value={watch("data") ? new Date(watch("data") + "T00:00:00") : undefined}
+                  onChange={(date) => {
+                    if (date) {
+                      const year = date.getFullYear();
+                      const month = String(date.getMonth() + 1).padStart(2, "0");
+                      const day = String(date.getDate()).padStart(2, "0");
+                      setValue("data", `${year}-${month}-${day}`);
+                      setDataCalendarOpen(false);
+                    }
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
             {errors.data && <span className="text-xs text-red-500 mt-1 block">{errors.data.message}</span>}
           </div>
 
@@ -881,12 +905,30 @@ export function FluxoCaixaInlineForm({
                 </div>
                 <div>
                   <Label className="text-xs text-muted-foreground mb-1">Data de Vencimento (Reembolso)</Label>
-                  <Input
-                    id="data_vencimento"
-                    type="date"
-                    {...register("data_vencimento")}
-                    className={`h-9 bg-background`}
-                  />
+                  <Popover open={dataVencimentoCalendarOpen} onOpenChange={setDataVencimentoCalendarOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal h-9 text-xs"
+                      >
+                        {watch("data_vencimento") ? format(new Date(watch("data_vencimento") + "T00:00:00"), "dd/MM/yyyy") : "Selecione"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-auto p-0 border-0">
+                      <DatePickerCalendar
+                        value={watch("data_vencimento") ? new Date(watch("data_vencimento") + "T00:00:00") : undefined}
+                        onChange={(date) => {
+                          if (date) {
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, "0");
+                            const day = String(date.getDate()).padStart(2, "0");
+                            setValue("data_vencimento", `${year}-${month}-${day}`);
+                            setDataVencimentoCalendarOpen(false);
+                          }
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               </div>
             )}
