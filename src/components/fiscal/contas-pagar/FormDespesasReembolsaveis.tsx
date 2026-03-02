@@ -6,6 +6,21 @@ import { FornecedorSelect } from "./FornecedorSelect";
 import { ValorVencimentoFields, BoletoSection, NFSection, ObservacaoField } from "./SharedFormFields";
 import { supabase } from "@/integrations/supabase/client";
 
+// Categorias que você listou
+const CATEGORIAS_REEMBOLSAVEIS = [
+  "INFRAERO pago",
+  "DECEA pago",
+  "ATENDIMENTO EM JUINA",
+  "ATENDIMENTO HANGAR",
+  "COMBUSTÍVEL AERONAVE - pago",
+  "HANGAR FIXO MENSAL",
+  "RELATORIO DE DESPESA DE VIAGEM",
+  "RESSARCIMENTOS PAGOS",
+  "SEGURO CASCO - pago",
+  "SEGURO RETA - pago",
+  "TARIFA DE POUSO"
+];
+
 interface Props {
   form: any;
   setForm: (f: any) => void;
@@ -18,9 +33,7 @@ export function FormDespesasReembolsaveis({ form, setForm, fornecedores, aeronav
   const [clients, setClients] = useState<any[]>([]);
   const [partners, setPartners] = useState<any[]>([]);
 
-  useEffect(() => {
-    loadClients();
-  }, []);
+  useEffect(() => { loadClients(); }, []);
 
   useEffect(() => {
     if (form.client_id) loadPartners(form.client_id);
@@ -37,95 +50,101 @@ export function FormDespesasReembolsaveis({ form, setForm, fornecedores, aeronav
     setPartners(data || []);
   };
 
-  const selectedClient = clients.find(c => c.id === form.client_id);
-  const isDeceaInfraero = form.fornecedor_nome?.toUpperCase()?.includes("DECEA") || form.fornecedor_nome?.toUpperCase()?.includes("INFRAERO");
+  // Lógica para mostrar campos DECEA ou INFRAERO baseada na categoria
+  const isDecea = form.categoria === "DECEA pago";
+  const isInfraero = form.categoria === "INFRAERO pago";
 
   return (
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-primary uppercase tracking-wide">Despesas Reembolsáveis</h3>
 
-      {/* Cliente */}
-      <div>
-        <label className="text-sm font-semibold mb-1 block">Cliente *</label>
-        <AutocompleteInput
-          value={selectedClient?.company_name || ""}
-          onChange={(val) => {
-            const client = clients.find(c => c.company_name === val);
-            setForm({ ...form, client_id: client?.id || null, client_partner_id: null });
-          }}
-          onSelect={(opt) => {
-            const client = clients.find(c => c.id === opt.id);
-            setForm({ ...form, client_id: client?.id || null, client_partner_id: null });
-          }}
-          options={clients.map(c => ({ id: c.id, label: c.company_name || c.proprietario || "Sem nome" }))}
-          placeholder="Buscar cliente..."
-        />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Cliente */}
+        <div className="space-y-1">
+          <label className="text-xs font-bold mb-1 block">CLIENTE *</label>
+          <AutocompleteInput
+            value={clients.find(c => c.id === form.client_id)?.company_name || ""}
+            onSelect={(opt) => setForm({ ...form, client_id: opt.id, client_partner_id: null })}
+            options={clients.map(c => ({ id: c.id, label: c.company_name || c.proprietario || "Sem nome" }))}
+            placeholder="Buscar cliente..."
+          />
+        </div>
+
+        {/* Aeronave */}
+        <div className="space-y-1">
+          <label className="text-xs font-bold mb-1 block">AERONAVE *</label>
+          <AutocompleteInput
+            value={form.aeronave_registro || ""}
+            onSelect={(opt) => setForm({ ...form, aeronave_registro: opt.label.split(' - ')[0] })}
+            options={aeronaves.map((a: any) => ({ id: a.id, label: `${a.registration} - ${a.model}` }))}
+            placeholder="Selecione o prefixo..."
+          />
+        </div>
       </div>
 
-      {/* Partners */}
-      {selectedClient?.has_partner && partners.length > 0 && (
-        <div>
-          <label className="text-sm font-semibold mb-1 block">Sócio</label>
+      {/* Seleção de Categoria Reembolsável */}
+      <div className="space-y-1">
+        <label className="text-xs font-bold mb-1 block">TIPO DE DESPESA (CATEGORIA) *</label>
+        <RegularSelect value={form.categoria} onValueChange={v => setForm({ ...form, categoria: v })}>
+          <SelectTrigger className="h-10">
+            <SelectValue placeholder="Selecione a categoria específica..." />
+          </SelectTrigger>
+          <SelectContent>
+            {CATEGORIAS_REEMBOLSAVEIS.map(cat => (
+              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+            ))}
+          </SelectContent>
+        </RegularSelect>
+      </div>
+
+      {/* Sócio (Se o cliente tiver) */}
+      {partners.length > 0 && (
+        <div className="space-y-1">
+          <label className="text-xs font-bold mb-1 block">SÓCIO / PARCEIRO</label>
           <RegularSelect value={form.client_partner_id || ""} onValueChange={v => setForm({ ...form, client_partner_id: v })}>
-            <SelectTrigger className="h-9"><SelectValue placeholder="Selecione o sócio..." /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder="Selecione o sócio..." /></SelectTrigger>
             <SelectContent>
-              {partners.map(p => <SelectItem key={p.id} value={p.id}>{p.name} - {p.cpf}</SelectItem>)}
+              {partners.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
             </SelectContent>
           </RegularSelect>
         </div>
       )}
 
-      {/* Aeronave */}
-      <div>
-        <label className="text-sm font-semibold mb-1 block">Aeronave *</label>
-        <AutocompleteInput
-          value={form.aeronave_registro || ""}
-          onChange={(val) => {
-            const aero = aeronaves.find((a: any) => a.registration === val);
-            setForm({ ...form, aeronave_id: aero?.id || null, aeronave_registro: val });
-          }}
-          onSelect={(opt) => {
-            const aero = aeronaves.find((a: any) => a.id === opt.id);
-            setForm({ ...form, aeronave_id: aero?.id || null, aeronave_registro: aero?.registration || "" });
-          }}
-          options={aeronaves.map((a: any) => ({ id: a.id, label: `${a.registration} - ${a.model}` }))}
-          placeholder="Buscar aeronave..."
-        />
-      </div>
-
       <FornecedorSelect
         fornecedores={fornecedores}
-        categoriaFilter="share"
         value={form.fornecedor_favorito_id}
-        onChange={(nome, forn) => {
-          setForm({
-            ...form,
-            fornecedor_nome: nome,
-            fornecedor_favorito_id: forn?.id || null,
-            fornecedor_cnpj: forn?.documento || "",
-            conta_pagamento_fornecedor: forn?.conta_pagamento || ""
-          });
-        }}
-        contaPagamento={form.conta_pagamento_fornecedor}
+        onChange={(nome, forn) => setForm({
+          ...form,
+          fornecedor_nome: nome,
+          fornecedor_favorito_id: forn?.id || null,
+          banco: forn?.conta_pagamento || form.banco
+        })}
         onFornecedorAdded={onReloadFornecedores}
       />
 
       <ValorVencimentoFields form={form} setForm={setForm} />
 
-      {/* DECEA/Infraero */}
-      {isDeceaInfraero && (
-        <div className="space-y-3 p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg">
-          <p className="text-xs font-semibold text-amber-600 uppercase">Campos DECEA / Infraero</p>
+      {/* Campos Dinâmicos DECEA */}
+      {isDecea && (
+        <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-lg space-y-3">
+          <p className="text-[10px] font-bold text-amber-600 uppercase">Detalhamento DECEA</p>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium mb-1 block">Número do Documento</label>
-              <Input value={form.numero_documento_decea || ""} onChange={e => setForm({ ...form, numero_documento_decea: e.target.value })} className="h-9 text-sm" />
-            </div>
-            <div>
-              <label className="text-xs font-medium mb-1 block">Competência</label>
-              <Input value={form.competencia_decea || ""} onChange={e => setForm({ ...form, competencia_decea: e.target.value })} placeholder="MM/AAAA" className="h-9 text-sm" />
-            </div>
+            <Input placeholder="Nº Documento" value={form.numero_documento_decea} onChange={e => setForm({...form, numero_documento_decea: e.target.value})} />
+            <Input placeholder="Competência (MM/AAAA)" value={form.competencia_decea} onChange={e => setForm({...form, competencia_decea: e.target.value})} />
           </div>
+          <Input placeholder="URL do Documento DECEA" value={form.decea_url} onChange={e => setForm({...form, decea_url: e.target.value})} />
+        </div>
+      )}
+
+      {/* Campos Dinâmicos INFRAERO */}
+      {isInfraero && (
+        <div className="p-4 bg-blue-500/5 border border-blue-500/20 rounded-lg space-y-3">
+          <p className="text-[10px] font-bold text-blue-600 uppercase">Detalhamento INFRAERO</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Input placeholder="Nº Documento" value={form.numero_documento_infraero} onChange={e => setForm({...form, numero_documento_infraero: e.target.value})} />
+            <Input placeholder="Competência (MM/AAAA)" value={form.competencia_infraero} onChange={e => setForm({...form, competencia_infraero: e.target.value})} />
+          </div>
+          <Input placeholder="URL do Documento Infraero" value={form.infraero_url} onChange={e => setForm({...form, infraero_url: e.target.value})} />
         </div>
       )}
 
