@@ -7,9 +7,9 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Upload, FileText, Calendar, AlertCircle } from "lucide-react";
-import { 
-  createContaAReceber, 
-  createContaAPagar, 
+import {
+  createContaAReceber,
+  createContaAPagar,
   createFluxoCaixaEntry,
   getNextStatus,
   isStatusFinal,
@@ -34,6 +34,8 @@ interface StatusUpdateDialogProps {
     prazo_pagamento?: string;
     forma_pagamento?: string;
     saldo_pendente?: number | null;
+    partner_name?: string | null;
+    client_partner?: string | null;
   };
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -133,8 +135,12 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
       }
 
       // Preparar dados para atualização
-      const updateData: any = { 
-        status,
+      // Quando status é "enviado", manter "pendente" no banco de dados
+      // O "enviado" é apenas exibição no frontend
+      const dbStatus = status === 'enviado' ? 'pendente' : status;
+
+      const updateData: any = {
+        status: dbStatus,
         updated_at: new Date().toISOString()
       };
 
@@ -184,7 +190,11 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
         };
 
         if (reconciliation.type === 'cliente') {
-          const contaId = await createContaAReceber(reconciliationWithPaymentTerm, user.id);
+          const contaId = await createContaAReceber({
+            ...reconciliationWithPaymentTerm,
+            partner_name: reconciliation.partner_name,
+            client_partner: reconciliation.client_partner,
+          }, user.id);
           if (contaId) {
             toast.success("Conta a Receber criada automaticamente");
           }
@@ -244,7 +254,7 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
 
   // Opções de status baseadas no tipo de conciliação e forma de pagamento
   const statusOptions = getNextStatus(
-    reconciliation.status, 
+    reconciliation.status,
     reconciliation.type || '',
     reconciliation.forma_pagamento
   ).map(s => ({
@@ -254,7 +264,7 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
 
   // Mostrar campo de vencimento quando for enviar
   const showPaymentTermField = isStatusEnviado(status) && !reconciliation.prazo_pagamento;
-  
+
   // Mostrar campos de banco quando status requer
   const showBankFields = requiresBankSelection(status, reconciliation.type || '');
 
@@ -337,11 +347,11 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  {status === 'aguardando_reembolso' 
+                  {status === 'aguardando_reembolso'
                     ? 'Conta de onde saiu o pagamento ao fornecedor'
                     : status === 'reembolsado'
-                    ? 'Conta onde o reembolso foi recebido'
-                    : 'Conta de onde saiu o pagamento'
+                      ? 'Conta onde o reembolso foi recebido'
+                      : 'Conta de onde saiu o pagamento'
                   }
                 </p>
               </div>
@@ -381,8 +391,8 @@ export function StatusUpdateDialog({ reconciliation, open, onOpenChange, onUpdat
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button 
-              onClick={handleUpdate} 
+            <Button
+              onClick={handleUpdate}
               disabled={loading || uploading || statusOptions.length === 0}
             >
               {loading || uploading ? "Processando..." : "Atualizar Status"}

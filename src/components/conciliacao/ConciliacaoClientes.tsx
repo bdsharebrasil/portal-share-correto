@@ -66,9 +66,23 @@ interface BankReconciliation {
   prazo_pagamento: string | null;
   criado_por?: string;
   client_partner: string | null;
+  partner_name: string | null;
   clients: { company_name: string } | null;
   client_partners: { name: string } | null;
   aircraft: { registration: string } | null;
+  forma_pagamento?: string | null;
+  saldo_pendente?: number | null;
+}
+
+/**
+ * Determina o status de exibição no frontend.
+ * No banco, "enviado" é armazenado como "pendente" com prazo_pagamento preenchido.
+ */
+function getDisplayStatus(item: BankReconciliation): string {
+  if (item.status?.toLowerCase() === 'pendente' && item.prazo_pagamento) {
+    return 'enviado';
+  }
+  return item.status?.toLowerCase() || 'pendente';
 }
 
 // --- Schemas ---
@@ -225,13 +239,13 @@ export function ConciliacaoClientes() {
 
   const resumoClientes = {
     totalRecebido: conciliacaoClientes
-      .filter(item => item.status?.toLowerCase() === 'recebido')
+      .filter(item => getDisplayStatus(item) === 'recebido')
       .reduce((sum, item) => sum + Number(item.amount), 0),
     totalEnviado: conciliacaoClientes
-      .filter(item => item.status?.toLowerCase() === 'enviado')
+      .filter(item => getDisplayStatus(item) === 'enviado')
       .reduce((sum, item) => sum + Number(item.amount), 0),
     totalPendente: conciliacaoClientes
-      .filter(item => item.status?.toLowerCase() === 'pendente')
+      .filter(item => getDisplayStatus(item) === 'pendente')
       .reduce((sum, item) => sum + Number(item.amount), 0),
   };
 
@@ -329,7 +343,7 @@ export function ConciliacaoClientes() {
           <div className="mb-6 px-4 sm:px-0">
             <AddBankReconciliationForm onSuccess={fetchReconciliations} />
           </div>
-          
+
           <div className="overflow-x-auto pb-4 custom-scrollbar">
             <Table className="w-full text-sm text-left border-collapse">
               <TableHeader className="bg-muted/30 text-muted-foreground text-xs uppercase tracking-wider border-y border-border/50">
@@ -363,7 +377,7 @@ export function ConciliacaoClientes() {
                   </TableRow>
                 ) : (
                   filteredData.map((item) => {
-                    const isFinalized = item.status?.toLowerCase() === 'recebido';
+                    const isFinalized = getDisplayStatus(item) === 'recebido';
 
                     return (
                       <React.Fragment key={item.id}>
@@ -378,7 +392,7 @@ export function ConciliacaoClientes() {
                           </TableCell>
                           <TableCell className="px-4 py-4 max-w-xs">
                             <div className="flex items-center gap-2">
-                              {getStatusIcon(item.status)}
+                              {getStatusIcon(getDisplayStatus(item))}
                               <span className="truncate" title={item.description}>{item.description}</span>
                             </div>
                           </TableCell>
@@ -416,13 +430,13 @@ export function ConciliacaoClientes() {
                                 onSave={fetchReconciliations}
                               />
                             ) : item.prazo_pagamento ? (
-                                <span className="text-sm">{format(new Date(item.prazo_pagamento + 'T12:00:00'), 'dd/MM/yyyy')}</span>
+                              <span className="text-sm">{format(new Date(item.prazo_pagamento + 'T12:00:00'), 'dd/MM/yyyy')}</span>
                             ) : (
                               <span className="text-xs text-muted-foreground">-</span>
                             )}
                           </TableCell>
                           <TableCell className="px-4 py-4">
-                            {getStatusBadge(item.status)}
+                            {getStatusBadge(getDisplayStatus(item))}
                           </TableCell>
                           <TableCell className="px-4 py-4">
                             <div className="flex items-center gap-2">
@@ -431,7 +445,7 @@ export function ConciliacaoClientes() {
                                   <CheckCircle className="h-3.5 w-3.5" />
                                   <span className="text-[10px] font-bold uppercase tracking-wide">Concluído</span>
                                 </div>
-                              ) : item.status?.toLowerCase() === 'enviado' ? (
+                              ) : getDisplayStatus(item) === 'enviado' ? (
                                 <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 w-fit" title="Aguardando recebimento">
                                   <Send className="h-3.5 w-3.5" />
                                   <span className="text-[10px] font-bold uppercase tracking-wide">Enviado</span>

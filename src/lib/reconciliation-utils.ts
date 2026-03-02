@@ -14,6 +14,8 @@ interface ReconciliationData {
   forma_pagamento?: string | null;
   afeta_caixa_empresa?: boolean;
   saldo_pendente?: number | null;
+  partner_name?: string | null;
+  client_partner?: string | null;
 }
 
 interface ContaBancariaData {
@@ -107,12 +109,15 @@ export async function createContaAReceber(
     }
 
     const numero = `CR-${String(nextNumber).padStart(4, '0')}/${yearShort}`;
-    
+
     // Data de vencimento: usar prazo_pagamento ou data + 30 dias
     const dataVencimento = reconciliation.prazo_pagamento || reconciliation.date;
-    
+
     // Valor: usar saldo_pendente se disponível, senão amount
     const valor = Math.abs(reconciliation.saldo_pendente ?? reconciliation.amount ?? 0);
+
+    // Usar partner_name quando disponível, senão usar nome do cliente
+    const nomeExibicao = reconciliation.partner_name || clientData.company_name || 'Cliente';
 
     // Criar conta a receber
     const { data: newConta, error } = await supabase
@@ -120,7 +125,7 @@ export async function createContaAReceber(
       .insert({
         numero,
         referencia: reconciliation.description,
-        cliente_nome: clientData.company_name || 'Cliente',
+        cliente_nome: nomeExibicao,
         cliente_cnpj: clientData.cnpj || '',
         created_at: new Date().toISOString(),
         data_vencimento: dataVencimento,
@@ -348,7 +353,7 @@ export async function createFluxoCaixaEntry(
 
     // Criar entrada no fluxo de caixa
     const valor = Math.abs(reconciliation.saldo_pendente ?? reconciliation.amount ?? 0);
-    
+
     const { error } = await supabase
       .from('controle_bancario')
       .insert({
@@ -506,7 +511,7 @@ export function isStatusFinal(status: string, reconciliationType: string, formaP
     }
     return statusLower === 'reembolsado';
   }
-  
+
   if (reconciliationType === 'colaborador') {
     return statusLower === 'pago';
   }
@@ -526,11 +531,11 @@ export function isStatusEnviado(status: string): boolean {
  */
 export function requiresBankSelection(status: string, reconciliationType: string): boolean {
   const statusLower = status?.toLowerCase() || '';
-  
+
   if (reconciliationType === 'cliente') {
     return statusLower === 'aguardando_reembolso' || statusLower === 'reembolsado';
   }
-  
+
   if (reconciliationType === 'colaborador') {
     return statusLower === 'pago';
   }
@@ -600,7 +605,7 @@ export async function marcarDespesaComoRecebida(
     console.log('=== marcarDespesaComoRecebida ===');
     console.log('despesaId:', despesaId);
     console.log('dataRecebimento:', dataRecebimento);
-    
+
     // 1. Buscar dados da despesa original
     const { data: despesa, error: fetchError } = await (supabase
       .from('controle_bancario') as any)
@@ -612,7 +617,7 @@ export async function marcarDespesaComoRecebida(
       console.error('Erro ao buscar despesa:', fetchError);
       return { success: false, error: 'Despesa não encontrada' };
     }
-    
+
     console.log('Despesa encontrada:', {
       id: despesa.id,
       reembolsavel: despesa.reembolsavel,
@@ -664,7 +669,7 @@ export async function marcarDespesaComoRecebida(
 
     // 4. Criar nova entrada representando o recebimento do reembolso
     const descricaoEntrada = `[REEMBOLSO] ${despesa.descricao || 'Reembolso recebido'}`;
-    
+
     const { data: novaEntrada, error: insertError } = await supabase
       .from('controle_bancario')
       .insert({
