@@ -12,9 +12,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { FileText, Star } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DatePickerCalendar } from "@/components/ui/date-picker-calendar";
+import { FileText, Star, Upload, Calendar } from "lucide-react";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
+import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 
 interface ReceiptFormProps {
   clientesAtivos: any[];
@@ -70,22 +74,38 @@ export function ReceiptForm({
     reembolsoValorTotal: "",
     reembolsoPorcentagem: "",
     reembolsoCategoriaId: "",
+    reembolsoCategoriaNome: "",
     reembolsoNumeroDocumento: "",
     reembolsoRateado: false,
     reembolsoBoletoFile: null as File | null,
     reembolsoNotaFiscalFile: null as File | null,
+
+    // DECEA / INFRAERO specific
+    numeroDocumentoDecea: "",
+    competenciaDecea: "",
+    decealFile: null as File | null,
+    numeroDocumentoInfraero: "",
+    competenciaInfraero: "",
+    infraeroFile: null as File | null,
+    dataVencimentoBoleto: "",
+    valorTotalBoleto: "",
   });
 
   const [aircrafts, setAircrafts] = useState<any[]>([]);
   const [clientPartners, setClientPartners] = useState<ClientPartner[]>([]);
   const [selectedPartnerId, setSelectedPartnerId] = useState<string>("");
-  const [categoriasAgrupadas, setCategoriasAgrupadas] = useState<
-    Record<string, Categoria[]>
-  >({});
+  const [categoriasReembolsaveis, setCategoriasReembolsaveis] = useState<Categoria[]>([]);
   const [favoriteDescriptions, setFavoriteDescriptions] = useState<FavoriteDescription[]>([]);
   const [showFavorites, setShowFavorites] = useState(false);
 
   const isReembolso = formData.receiptType === "reembolso";
+
+  // Detect DECEA or INFRAERO category
+  const selectedCategoria = categoriasReembolsaveis.find(c => c.id === formData.reembolsoCategoriaId);
+  const categoriaNome = selectedCategoria?.nome || formData.reembolsoCategoriaNome || "";
+  const isDecea = categoriaNome.toUpperCase().includes("DECEA");
+  const isInfraero = categoriaNome.toUpperCase().includes("INFRAERO");
+  const isDECEAorINFRAERO = isDecea || isInfraero;
 
   // Cálculo automático do valor quando rateado
   useEffect(() => {
@@ -102,28 +122,19 @@ export function ReceiptForm({
     return new Date(y, m - 1, d);
   };
 
-  // Load categorias
+  // Load categorias reembolsáveis
   useEffect(() => {
     const loadCategorias = async () => {
       const { data } = await supabase
         .from("categorias_movimentacao")
         .select("id, nome, grupo_categoria")
-        .eq("tipo", "despesa")
-        .eq("reembolsavel", true)
+        .eq("grupo_categoria", "DESPESAS REEMBOLSÁVEIS")
         .eq("ativo", true)
-        .order("grupo_categoria")
         .order("nome");
 
-      if (!data) return;
-
-      const grouped = data.reduce((acc, cat) => {
-        const grupo = cat.grupo_categoria || "OUTROS";
-        if (!acc[grupo]) acc[grupo] = [];
-        acc[grupo].push(cat);
-        return acc;
-      }, {} as Record<string, Categoria[]>);
-
-      setCategoriasAgrupadas(grouped);
+      if (data) {
+        setCategoriasReembolsaveis(data);
+      }
     };
 
     loadCategorias();
@@ -143,7 +154,7 @@ export function ReceiptForm({
     loadFavoriteDescriptions();
   }, []);
 
-  // Reset campos de reembolso ao mudar tipo (mas manter cliente/pagador)
+  // Reset campos de reembolso ao mudar tipo
   useEffect(() => {
     if (formData.receiptType === "pagamento") {
       setFormData((prev) => ({
@@ -151,15 +162,49 @@ export function ReceiptForm({
         reembolsoValorTotal: "",
         reembolsoPorcentagem: "",
         reembolsoCategoriaId: "",
+        reembolsoCategoriaNome: "",
         reembolsoNumeroDocumento: "",
         reembolsoRateado: false,
         reembolsoBoletoFile: null,
         reembolsoNotaFiscalFile: null,
+        numeroDocumentoDecea: "",
+        competenciaDecea: "",
+        decealFile: null,
+        numeroDocumentoInfraero: "",
+        competenciaInfraero: "",
+        infraeroFile: null,
+        dataVencimentoBoleto: "",
+        valorTotalBoleto: "",
       }));
     }
   }, [formData.receiptType]);
 
-  // Cliente / Aeronave - preenche dados do pagador para ambos os tipos
+  // Reset DECEA/INFRAERO fields when category changes
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      numeroDocumentoDecea: "",
+      competenciaDecea: "",
+      decealFile: null,
+      numeroDocumentoInfraero: "",
+      competenciaInfraero: "",
+      infraeroFile: null,
+      dataVencimentoBoleto: "",
+      valorTotalBoleto: "",
+    }));
+  }, [formData.reembolsoCategoriaId]);
+
+  // Auto-fill description based on category
+  useEffect(() => {
+    if (isReembolso && selectedCategoria) {
+      setFormData(prev => ({
+        ...prev,
+        servicoDescricao: `Referente a ${selectedCategoria.nome}`,
+      }));
+    }
+  }, [formData.reembolsoCategoriaId]);
+
+  // Cliente / Aeronave - preenche dados do pagador
   useEffect(() => {
     if (!formData.clienteId) {
       setAircrafts([]);
@@ -187,8 +232,7 @@ export function ReceiptForm({
 
   // Quando seleciona um sócio, atualiza dados do pagador
   useEffect(() => {
-    if (!selectedPartnerId) {
-      // Volta para dados do cliente principal
+    if (!selectedPartnerId || selectedPartnerId === "__client__") {
       const client = clientesAtivos.find((c) => c.id === formData.clienteId);
       if (client && formData.clienteId) {
         setFormData((prev) => ({
@@ -235,10 +279,8 @@ export function ReceiptForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Envia dados do formulário diretamente com campos de pagador no nível raiz
     const submissionData = {
       ...formData,
-      // Garantir campos no nível raiz para EmissaoRecibo
       pagadorNome: formData.pagadorNome,
       pagadorDocumento: formData.pagadorDocumento,
       pagadorEndereco: formData.pagadorEndereco,
@@ -246,7 +288,10 @@ export function ReceiptForm({
       pagadorUF: formData.pagadorUF,
       valor: formData.valor,
       servicoDescricao: formData.servicoDescricao,
-      // Compatibilidade
+      selectedPartnerId,
+      categoriaNome,
+      isDecea,
+      isInfraero,
       originalFormData: formData,
     };
 
@@ -261,6 +306,22 @@ export function ReceiptForm({
     setFormData(prev => ({ ...prev, servicoDescricao: description }));
     setShowFavorites(false);
   };
+
+  // Prepare items for SearchableCombobox
+  const clienteItems = clientesAtivos.map(c => ({
+    id: c.id,
+    label: c.company_name || "Sem nome",
+  }));
+
+  const aeronaveItems = aircrafts.map((a: any) => ({
+    id: a.id,
+    label: `${a.registration} – ${a.model}`,
+  }));
+
+  const categoriaItems = categoriasReembolsaveis.map(c => ({
+    id: c.id,
+    label: c.nome,
+  }));
 
   return (
     <form onSubmit={handleSubmit}>
@@ -285,53 +346,56 @@ export function ReceiptForm({
             </Select>
           </div>
 
-          {/* CLIENTE / AERONAVE - visível para ambos os tipos */}
+          {/* CATEGORIA - SearchableCombobox for reembolso */}
+          {isReembolso && (
+            <div>
+              <Label>Categoria (Despesas Reembolsáveis) *</Label>
+              <SearchableCombobox
+                items={categoriaItems}
+                value={formData.reembolsoCategoriaId}
+                onChange={(id, label) =>
+                  setFormData((p) => ({ ...p, reembolsoCategoriaId: id, reembolsoCategoriaNome: label }))
+                }
+                placeholder="Selecione a categoria"
+                searchPlaceholder="Buscar categoria..."
+                emptyMessage="Nenhuma categoria encontrada"
+              />
+            </div>
+          )}
+
+          {/* CLIENTE / AERONAVE - SearchableCombobox */}
           <div className="grid md:grid-cols-2 gap-4">
             <div>
               <Label>Cliente</Label>
-              <Select
+              <SearchableCombobox
+                items={clienteItems}
                 value={formData.clienteId}
-                onValueChange={(v) =>
-                  setFormData((p) => ({ ...p, clienteId: v }))
+                onChange={(id) =>
+                  setFormData((p) => ({ ...p, clienteId: id }))
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientesAtivos.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.company_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Selecione o cliente"
+                searchPlaceholder="Buscar cliente..."
+                emptyMessage="Nenhum cliente encontrado"
+              />
             </div>
 
             <div>
               <Label>Aeronave</Label>
-              <Select
+              <SearchableCombobox
+                items={aeronaveItems}
                 value={formData.aircraftId}
-                disabled={!formData.clienteId}
-                onValueChange={(v) =>
-                  setFormData((p) => ({ ...p, aircraftId: v }))
+                onChange={(id) =>
+                  setFormData((p) => ({ ...p, aircraftId: id }))
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a aeronave" />
-                </SelectTrigger>
-                <SelectContent>
-                  {aircrafts.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.registration} – {a.model}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Selecione a aeronave"
+                searchPlaceholder="Buscar aeronave..."
+                emptyMessage="Nenhuma aeronave encontrada"
+                disabled={!formData.clienteId}
+              />
             </div>
           </div>
 
-          {/* SÓCIO (PARTNER) - aparece quando o cliente tem sócios */}
+          {/* SÓCIO (PARTNER) */}
           {clientPartners.length > 0 && formData.clienteId && (
             <div className="p-4 border border-border rounded-lg bg-muted/20 space-y-2">
               <Label className="text-sm font-semibold">Sócio / Pagador</Label>
@@ -359,7 +423,7 @@ export function ReceiptForm({
             </div>
           )}
 
-          {/* DADOS DO PAGADOR - visível para ambos os tipos */}
+          {/* DADOS DO PAGADOR */}
           <div className="space-y-4 p-4 border border-border rounded-lg bg-muted/20">
             <Label className="text-sm font-semibold">Dados do Pagador</Label>
             <p className="text-xs text-muted-foreground -mt-2">
@@ -438,47 +502,133 @@ export function ReceiptForm({
             </div>
           )}
 
-          {/* CATEGORIA E NÚMERO DO DOCUMENTO */}
-          {isReembolso && (
-            <div className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label>Categoria (Reembolso) *</Label>
-                <Select
-                  value={formData.reembolsoCategoriaId}
-                  onValueChange={(v) =>
-                    setFormData((p) => ({ ...p, reembolsoCategoriaId: v }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a categoria" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(categoriasAgrupadas).map(([grupo, cats]) => (
-                      <div key={grupo}>
-                        <div className="px-2 py-1 text-xs font-bold uppercase opacity-70">
-                          {grupo}
-                        </div>
-                        {cats.map((cat) => (
-                          <SelectItem key={cat.id} value={cat.id}>
-                            {cat.nome}
-                          </SelectItem>
-                        ))}
-                      </div>
-                    ))}
-                  </SelectContent>
-                </Select>
+          {/* =================== DECEA SPECIFIC FIELDS =================== */}
+          {isReembolso && isDecea && (
+            <div className="p-4 border border-amber-500/30 rounded-lg bg-amber-500/5 space-y-4">
+              <Label className="text-sm font-semibold text-amber-700">📋 Campos DECEA</Label>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Número do Documento *</Label>
+                  <Input
+                    value={formData.numeroDocumentoDecea}
+                    onChange={(e) => setFormData(p => ({ ...p, numeroDocumentoDecea: e.target.value }))}
+                    placeholder="Nº do documento DECEA"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Competência *</Label>
+                  <Input
+                    value={formData.competenciaDecea}
+                    onChange={(e) => setFormData(p => ({ ...p, competenciaDecea: e.target.value }))}
+                    placeholder="Ex: 02/2026"
+                    required
+                  />
+                </div>
               </div>
-
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Data de Vencimento do Boleto *</Label>
+                  <Input
+                    type="date"
+                    value={formData.dataVencimentoBoleto}
+                    onChange={(e) => setFormData(p => ({ ...p, dataVencimentoBoleto: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Valor Total do Boleto *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.valorTotalBoleto}
+                    onChange={(e) => setFormData(p => ({ ...p, valorTotalBoleto: e.target.value }))}
+                    placeholder="Valor do boleto"
+                    required
+                  />
+                </div>
+              </div>
               <div>
-                <Label>Número do Documento</Label>
+                <Label>Demonstrativo DECEA (PDF/Imagem)</Label>
                 <Input
-                  value={formData.reembolsoNumeroDocumento}
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, reembolsoNumeroDocumento: e.target.value }))
-                  }
-                  placeholder="Ex: NF 12345"
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.bmp,.tiff"
+                  onChange={(e) => handleFileChange("decealFile", e.target.files?.[0] || null)}
                 />
+                <p className="text-xs text-muted-foreground mt-1">Aceita PDF e imagens</p>
               </div>
+            </div>
+          )}
+
+          {/* =================== INFRAERO SPECIFIC FIELDS =================== */}
+          {isReembolso && isInfraero && (
+            <div className="p-4 border border-blue-500/30 rounded-lg bg-blue-500/5 space-y-4">
+              <Label className="text-sm font-semibold text-blue-700">📋 Campos INFRAERO</Label>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Documento INFRAERO *</Label>
+                  <Input
+                    value={formData.numeroDocumentoInfraero}
+                    onChange={(e) => setFormData(p => ({ ...p, numeroDocumentoInfraero: e.target.value }))}
+                    placeholder="Nº do documento INFRAERO"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Competência *</Label>
+                  <Input
+                    value={formData.competenciaInfraero}
+                    onChange={(e) => setFormData(p => ({ ...p, competenciaInfraero: e.target.value }))}
+                    placeholder="Ex: 02/2026"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label>Data de Vencimento do Boleto *</Label>
+                  <Input
+                    type="date"
+                    value={formData.dataVencimentoBoleto}
+                    onChange={(e) => setFormData(p => ({ ...p, dataVencimentoBoleto: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Valor Total do Boleto *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={formData.valorTotalBoleto}
+                    onChange={(e) => setFormData(p => ({ ...p, valorTotalBoleto: e.target.value }))}
+                    placeholder="Valor do boleto"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>Demonstrativo INFRAERO (PDF/Imagem)</Label>
+                <Input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.bmp,.tiff"
+                  onChange={(e) => handleFileChange("infraeroFile", e.target.files?.[0] || null)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Aceita PDF e imagens</p>
+              </div>
+            </div>
+          )}
+
+          {/* Nº DOCUMENTO (for non-DECEA/INFRAERO reembolso) */}
+          {isReembolso && !isDECEAorINFRAERO && (
+            <div>
+              <Label>Número do Documento</Label>
+              <Input
+                value={formData.reembolsoNumeroDocumento}
+                onChange={(e) =>
+                  setFormData((p) => ({ ...p, reembolsoNumeroDocumento: e.target.value }))
+                }
+                placeholder="Ex: NF 12345"
+              />
             </div>
           )}
 
@@ -492,7 +642,6 @@ export function ReceiptForm({
                   setFormData((p) => ({
                     ...p,
                     reembolsoRateado: checked === true,
-                    // Reset valores se desmarcar
                     ...(checked === false && {
                       reembolsoValorTotal: "",
                       reembolsoPorcentagem: "",
@@ -506,7 +655,7 @@ export function ReceiptForm({
             </div>
           )}
 
-          {/* CAMPOS DE RATEIO - só aparecem se marcado */}
+          {/* CAMPOS DE RATEIO */}
           {isReembolso && formData.reembolsoRateado && (
             <div className="grid md:grid-cols-3 gap-4 p-4 border border-primary/20 rounded-lg bg-primary/5">
               <div>
@@ -597,29 +746,46 @@ export function ReceiptForm({
             </div>
           )}
 
-          {/* PRAZO DE QUITAÇÃO - apenas para reembolso */}
+          {/* PRAZO DE QUITAÇÃO - apenas para reembolso (auto-fill from DECEA/INFRAERO vencimento) */}
           {isReembolso && (
             <div className="space-y-3">
               <Label>Prazo Máximo de Quitação</Label>
-              <div className="relative">
-                <Input
-                  type="date"
-                  value={formData.prazoMaximoQuitacao}
-                  onChange={(e) =>
-                    setFormData((p) => ({
-                      ...p,
-                      prazoMaximoQuitacao: e.target.value,
-                    }))
-                  }
-                  min={formData.dataEmissao}
-                  className="w-full rounded-xl border-border/60 bg-background shadow-sm focus:ring-2 focus:ring-primary/20 transition-all"
-                />
-              </div>
-              {formData.prazoMaximoQuitacao && (
-                <p className="text-xs text-muted-foreground">
-                  Data selecionada: {format(parseLocalDate(formData.prazoMaximoQuitacao), "dd/MM/yyyy")}
-                </p>
-              )}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-between text-left font-normal rounded-xl border-border/60 bg-background shadow-sm hover:bg-accent/5"
+                  >
+                    {isDECEAorINFRAERO ? formData.dataVencimentoBoleto : formData.prazoMaximoQuitacao ? (
+                      format(parseLocalDate(isDECEAorINFRAERO ? formData.dataVencimentoBoleto : formData.prazoMaximoQuitacao), "dd/MM/yyyy", { locale: ptBR })
+                    ) : (
+                      <span className="text-muted-foreground">Selecione a data</span>
+                    )}
+                    <Calendar className="w-4 h-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-auto p-0 border-0">
+                  <DatePickerCalendar
+                    value={
+                      isDECEAorINFRAERO
+                        ? (formData.dataVencimentoBoleto ? new Date(formData.dataVencimentoBoleto + "T00:00:00") : undefined)
+                        : (formData.prazoMaximoQuitacao ? new Date(formData.prazoMaximoQuitacao + "T00:00:00") : undefined)
+                    }
+                    onChange={(date) => {
+                      const dateString = date ? format(date, "yyyy-MM-dd") : "";
+                      if (isDECEAorINFRAERO) {
+                        setFormData(p => ({ ...p, dataVencimentoBoleto: dateString, prazoMaximoQuitacao: dateString }));
+                      } else {
+                        setFormData((p) => ({ ...p, prazoMaximoQuitacao: dateString }));
+                      }
+                    }}
+                    disabled={(date) => {
+                      const minDate = new Date(formData.dataEmissao + "T00:00:00");
+                      return date < minDate;
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           )}
 
@@ -662,20 +828,20 @@ export function ReceiptForm({
                   servicoDescricao: e.target.value,
                 }))
               }
-              placeholder="Ex: Reembolso de despesas de hangaragem referente ao mês de março"
+              placeholder="Ex: Referente a Tarifa de Navegação DECEA"
               rows={3}
               required
             />
           </div>
 
-          {/* UPLOADS */}
-          {isReembolso && (
+          {/* UPLOADS - for non DECEA/INFRAERO reembolso */}
+          {isReembolso && !isDECEAorINFRAERO && (
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <Label>Boleto</Label>
                 <Input
                   type="file"
-                  accept=".pdf"
+                  accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
                   onChange={(e) =>
                     handleFileChange(
                       "reembolsoBoletoFile",
@@ -689,7 +855,7 @@ export function ReceiptForm({
                 <Label>N.F / DEMONSTRATIVO</Label>
                 <Input
                   type="file"
-                  accept=".pdf"
+                  accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
                   onChange={(e) =>
                     handleFileChange(
                       "reembolsoNotaFiscalFile",

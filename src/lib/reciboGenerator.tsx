@@ -7,7 +7,6 @@ import {
   Image,
   StyleSheet,
 } from '@react-pdf/renderer';
-import { formatDateToBR } from './date-utils';
 
 // Get logo URL
 const getLogoUrl = () => {
@@ -29,7 +28,7 @@ const styles = StyleSheet.create({
   // Header
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 10,
   },
   logoHeader: {
@@ -40,12 +39,27 @@ const styles = StyleSheet.create({
   titleArea: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   reciboTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#1F2937',
     textDecoration: 'underline',
+  },
+  receiptNumberAndValor: {
+    alignItems: 'flex-end',
+  },
+  receiptNumberLabel: {
+    fontSize: 7,
+    color: '#6B7280',
+    fontWeight: 'bold',
+  },
+  receiptNumberValue: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 6,
   },
   valorBox: {
     border: '1.5px solid #000000',
@@ -87,96 +101,73 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 2,
   },
-  receiptNumberBox: {
-    alignItems: 'flex-end',
-  },
-  receiptNumberLabel: {
-    fontSize: 7,
-    color: '#6B7280',
-    fontWeight: 'bold',
-  },
-  receiptNumberValue: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
   // Separator
   separator: {
     height: 1,
     backgroundColor: '#D1D5DB',
     marginVertical: 8,
   },
-  separatorThick: {
-    height: 2,
-    backgroundColor: '#1F2937',
-    marginVertical: 8,
-  },
-  // Description section
-  descriptionHeader: {
+  // Table styles
+  tableHeader: {
+    flexDirection: 'row',
     backgroundColor: '#E5E7EB',
-    padding: 6,
-    marginBottom: 4,
+    borderBottom: '1px solid #000',
   },
-  descriptionHeaderText: {
-    fontSize: 9,
+  tableHeaderCell: {
+    padding: 6,
+    fontSize: 8,
     fontWeight: 'bold',
     color: '#1F2937',
+    textAlign: 'center',
   },
-  descriptionContent: {
-    padding: 8,
-    minHeight: 60,
-    border: '1px solid #E5E7EB',
+  tableRow: {
+    flexDirection: 'row',
+    borderBottom: '1px solid #E5E7EB',
   },
-  descriptionText: {
+  tableCell: {
+    padding: 6,
     fontSize: 9,
     color: '#374151',
-    lineHeight: 1.6,
+    textAlign: 'center',
   },
-  // Total row
-  totalRow: {
+  // Prazo row
+  prazoRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: 4,
-    marginBottom: 10,
-  },
-  totalBox: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    marginTop: 6,
+    marginBottom: 10,
+    gap: 4,
   },
-  totalLabel: {
-    fontSize: 9,
+  prazoLabel: {
+    fontSize: 8,
     fontWeight: 'bold',
     color: '#1F2937',
     backgroundColor: '#E5E7EB',
-    padding: 6,
-    paddingHorizontal: 12,
+    padding: 5,
+    paddingHorizontal: 8,
   },
-  totalValue: {
-    fontSize: 11,
+  prazoValue: {
+    fontSize: 9,
     fontWeight: 'bold',
     color: '#1F2937',
-    padding: 6,
+    padding: 5,
     border: '1px solid #E5E7EB',
-    minWidth: 100,
-    textAlign: 'right',
+    minWidth: 70,
+    textAlign: 'center',
   },
   // OBS / Disclaimer
   obsSection: {
     marginTop: 15,
     marginBottom: 15,
-  },
-  obsLabel: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 4,
+    padding: 10,
+    border: '0.5px solid #E5E7EB',
   },
   obsText: {
     fontSize: 8,
     color: '#374151',
     lineHeight: 1.6,
-    fontStyle: 'italic',
+    textAlign: 'justify',
   },
   // Signature
   signatureArea: {
@@ -216,6 +207,55 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 2,
   },
+  // Description section (for pagamento type)
+  descriptionHeader: {
+    backgroundColor: '#E5E7EB',
+    padding: 6,
+    marginBottom: 4,
+  },
+  descriptionHeaderText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  descriptionContent: {
+    padding: 8,
+    minHeight: 60,
+    border: '1px solid #E5E7EB',
+  },
+  descriptionText: {
+    fontSize: 9,
+    color: '#374151',
+    lineHeight: 1.6,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 4,
+    marginBottom: 10,
+  },
+  totalBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  totalLabel: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    backgroundColor: '#E5E7EB',
+    padding: 6,
+    paddingHorizontal: 12,
+  },
+  totalValue: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    padding: 6,
+    border: '1px solid #E5E7EB',
+    minWidth: 100,
+    textAlign: 'right',
+  },
 });
 
 // Receipt PDF Component
@@ -240,6 +280,17 @@ export const ReciboDocument = ({ data }: { data: any }) => {
     return doc;
   };
 
+  const formatDateBR = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '';
+    try {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0].slice(-2)}`;
+      }
+      return dateStr;
+    } catch { return dateStr; }
+  };
+
   const isReembolso = data.receipt_type === 'reembolso';
   const emissor = data.emissor;
 
@@ -249,11 +300,148 @@ export const ReciboDocument = ({ data }: { data: any }) => {
   const day = issueDate.getDate();
   const month = months[issueDate.getMonth()];
   const year = issueDate.getFullYear();
-  const cityName = emissor?.cidade || 'Várzea Grande';
+  const cityName = emissor?.cidade || 'VÁRZEA GRANDE';
 
   const disclaimerPagamento = 'Para maior clareza, firmo(amos) o presente recibo para que produza os seus efeitos legais, dando plena e rasa quitação.';
-  const disclaimerReembolso = `OBS: Declaro, para os devidos fins, que o presente recibo é emitido antecipadamente a título de solicitação de reembolso referente às despesas efetuadas por esta empresa em benefício do cliente acima identificado.\nRessalta-se que o presente documento somente terá validade e produzirá seus efeitos legais após a efetiva quitação do valor nele indicado, mediante comprovação do respectivo pagamento.\nPara maior clareza e segurança das partes, firmo o presente recibo, que permanecerá condicionado ao cumprimento integral da obrigação de pagamento até a data de quitação.`;
+  const disclaimerReembolso = 'Declaro, para os devidos fins, que o presente recibo é emitido antecipadamente a título de solicitação de reembolso referente às despesas efetuadas por esta empresa em benefício do cliente acima identificado. Ressalta-se que o presente documento somente terá validade e produzirá seus efeitos legais após a efetiva quitação do valor indicado, mediante comprovação do respectivo pagamento. Para maior clareza e segurança das partes, firmo o presente recibo, que permanecerá condicionado ao cumprimento integral da obrigação de pagamento até a data de quitação.';
 
+  // Determine doc number and competencia
+  const docNumber = data.numero_documento_decea || data.numero_documento_infraero || data.doc_number || '';
+  const competencia = data.competencia_decea || data.competencia_infraero || '';
+  const hasCompetencia = !!competencia;
+  const prazoQuitacao = data.max_payment_date || data.data_vencimento_boleto || '';
+
+  if (isReembolso) {
+    // ==================== REEMBOLSO PDF LAYOUT ====================
+    return (
+      <Document>
+        <Page size="A4" style={styles.page}>
+          {/* HEADER: Logo | Title RECIBO | Number + Valor Box */}
+          <View style={styles.headerRow}>
+            <Image src={logoUrl} style={styles.logoHeader} cache={false} />
+            <View style={styles.titleArea}>
+              <Text style={styles.reciboTitle}>RECIBO</Text>
+            </View>
+            <View style={styles.receiptNumberAndValor}>
+              <Text style={styles.receiptNumberLabel}>Número do recibo:</Text>
+              <Text style={styles.receiptNumberValue}>{data.receipt_number}</Text>
+              <View style={styles.valorBox}>
+                <Text style={styles.valorText}>{formatCurrency(data.amount)}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* EMISSOR / PAGADOR */}
+          <View style={styles.infoRow}>
+            {/* Emissor */}
+            <View style={styles.infoColumn}>
+              <Text style={styles.infoLabel}>EMISSOR</Text>
+              {emissor ? (
+                <>
+                  <Text style={styles.infoValueBold}>{emissor.razao_social || 'SHARE BRASIL SERVIÇOS AERONAUTICOS'}</Text>
+                  <Text style={styles.infoValue}>CNPJ: {emissor.cnpj ? formatDocumento(emissor.cnpj.replace(/\D/g, '')) : '—'}</Text>
+                  {emissor.telefone && <Text style={styles.infoValue}>{emissor.telefone}</Text>}
+                  {emissor.endereco && <Text style={styles.infoValue}>{emissor.endereco}</Text>}
+                  {emissor.cidade && <Text style={styles.infoValue}>{emissor.cidade}{emissor.cep ? ` - ${emissor.cep}` : ''}</Text>}
+                </>
+              ) : (
+                <Text style={styles.infoValue}>Dados do emissor não disponíveis</Text>
+              )}
+            </View>
+
+            {/* Pagador */}
+            <View style={{ ...styles.infoColumn, flex: 1.5 }}>
+              <Text style={styles.infoLabel}>PAGADOR</Text>
+              <Text style={styles.infoValueBold}>{data.payer_name || '—'}</Text>
+              <Text style={styles.infoValue}>
+                {data.payer_document ? `CNPJ: ${formatDocumento(data.payer_document)}` : ''}
+              </Text>
+              {data.payer_address && <Text style={styles.infoValue}>{data.payer_address}</Text>}
+              {data.payer_city && (
+                <Text style={styles.infoValue}>
+                  {data.payer_city}{data.payer_uf ? ` - ${data.payer_uf}` : ''}
+                </Text>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.separator} />
+
+          {/* TABLE: Descrição | Nº Documento | Competência | Valor */}
+          <View>
+            {/* Table Header */}
+            <View style={styles.tableHeader}>
+              <Text style={{ ...styles.tableHeaderCell, flex: 3, textAlign: 'left' }}>
+                Descrição do Serviço
+              </Text>
+              <Text style={{ ...styles.tableHeaderCell, flex: 1.2 }}>
+                Nº Documento
+              </Text>
+              {hasCompetencia && (
+                <Text style={{ ...styles.tableHeaderCell, flex: 1 }}>
+                  Competência
+                </Text>
+              )}
+              <Text style={{ ...styles.tableHeaderCell, flex: 1 }}>
+                Valor
+              </Text>
+            </View>
+            {/* Table Row */}
+            <View style={styles.tableRow}>
+              <Text style={{ ...styles.tableCell, flex: 3, textAlign: 'left' }}>
+                {data.service_description || '—'}
+              </Text>
+              <Text style={{ ...styles.tableCell, flex: 1.2 }}>
+                {docNumber || '—'}
+              </Text>
+              {hasCompetencia && (
+                <Text style={{ ...styles.tableCell, flex: 1 }}>
+                  {competencia}
+                </Text>
+              )}
+              <Text style={{ ...styles.tableCell, flex: 1 }}>
+                {formatCurrency(data.amount)}
+              </Text>
+            </View>
+          </View>
+
+          {/* Prazo Máximo Quitação */}
+          {prazoQuitacao && (
+            <View style={styles.prazoRow}>
+              <Text style={styles.prazoLabel}>Data Prazo Máximo Quitação:</Text>
+              <Text style={styles.prazoValue}>{formatDateBR(prazoQuitacao)}</Text>
+            </View>
+          )}
+
+          {/* DISCLAIMER */}
+          <View style={styles.obsSection}>
+            <Text style={styles.obsText}>{disclaimerReembolso}</Text>
+          </View>
+
+          {/* SIGNATURE AREA */}
+          <View style={styles.signatureArea}>
+            {/* Date line */}
+            <View style={styles.signatureDateLine}>
+              <Text style={styles.signatureDateText}>{cityName},</Text>
+              <Text style={styles.signatureDateUnderline}>{String(day).padStart(2, ' ')}</Text>
+              <Text style={styles.signatureDateText}>de</Text>
+              <Text style={styles.signatureDateUnderline}>{month}</Text>
+              <Text style={styles.signatureDateText}>de</Text>
+              <Text style={styles.signatureDateUnderline}>{year}</Text>
+            </View>
+
+            <View style={styles.signatureLine} />
+
+            {/* Logo at signature */}
+            <Image src={logoUrl} style={styles.logoSignature} cache={false} />
+            <Text style={styles.signatureCaption}>setor financeiro Share Brasil</Text>
+          </View>
+        </Page>
+      </Document>
+    );
+  }
+
+  // ==================== PAGAMENTO PDF LAYOUT ====================
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -261,20 +449,15 @@ export const ReciboDocument = ({ data }: { data: any }) => {
         <View style={styles.headerRow}>
           <Image src={logoUrl} style={styles.logoHeader} cache={false} />
           <View style={styles.titleArea}>
-            <Text style={styles.reciboTitle}>
-              {isReembolso ? 'RECIBO DE REEMBOLSO' : 'RECIBO'}
-            </Text>
+            <Text style={styles.reciboTitle}>RECIBO</Text>
           </View>
           <View style={styles.valorBox}>
             <Text style={styles.valorText}>{formatCurrency(data.amount)}</Text>
           </View>
         </View>
 
-        
-
         {/* EMISSOR / PAGADOR / Nº RECIBO */}
         <View style={styles.infoRow}>
-          {/* Emissor */}
           <View style={styles.infoColumn}>
             <Text style={styles.infoLabel}>Emissor</Text>
             {emissor ? (
@@ -290,7 +473,6 @@ export const ReciboDocument = ({ data }: { data: any }) => {
             )}
           </View>
 
-          {/* Pagador */}
           <View style={{ ...styles.infoColumn, flex: 1.5 }}>
             <Text style={styles.infoLabel}>Pagador</Text>
             <Text style={styles.infoValueBold}>{data.payer_name || '—'}</Text>
@@ -305,8 +487,7 @@ export const ReciboDocument = ({ data }: { data: any }) => {
             )}
           </View>
 
-          {/* Nº do Recibo */}
-          <View style={styles.receiptNumberBox}>
+          <View style={{ alignItems: 'flex-end' }}>
             <Text style={styles.receiptNumberLabel}>Número do recibo:</Text>
             <Text style={styles.receiptNumberValue}>{data.receipt_number}</Text>
           </View>
@@ -316,9 +497,7 @@ export const ReciboDocument = ({ data }: { data: any }) => {
 
         {/* DESCRIÇÃO */}
         <View style={styles.descriptionHeader}>
-          <Text style={styles.descriptionHeaderText}>
-            {isReembolso ? 'DESCRIÇÃO' : 'DESCRIÇÃO'}
-          </Text>
+          <Text style={styles.descriptionHeaderText}>DESCRIÇÃO</Text>
         </View>
         <View style={{ flexDirection: 'row' }}>
           <View style={{ ...styles.descriptionContent, flex: 1 }}>
@@ -332,29 +511,15 @@ export const ReciboDocument = ({ data }: { data: any }) => {
           </View>
         </View>
 
-        {/* Reembolso - Doc Number */}
-        {isReembolso && data.doc_number && (
-          <View style={{ marginTop: 8, padding: 6, backgroundColor: '#F3F4F6', border: '1px solid #E5E7EB' }}>
-            <Text style={{ fontSize: 8, color: '#374151' }}>
-              <Text style={{ fontWeight: 'bold' }}>Nº do Documento: </Text>
-              {data.doc_number}
-            </Text>
-          </View>
-        )}
-
         {/* OBS / DISCLAIMER */}
-        <View style={styles.obsSection}>
-          <Text style={styles.obsLabel}>
-            {isReembolso ? 'OBS:' : ''}
-          </Text>
-          <Text style={styles.obsText}>
-            {isReembolso ? disclaimerReembolso : disclaimerPagamento}
+        <View style={{ marginTop: 15, marginBottom: 15 }}>
+          <Text style={{ fontSize: 8, color: '#374151', lineHeight: 1.6, fontStyle: 'italic' }}>
+            {disclaimerPagamento}
           </Text>
         </View>
 
         {/* SIGNATURE AREA */}
         <View style={styles.signatureArea}>
-          {/* Date line */}
           <View style={styles.signatureDateLine}>
             <Text style={styles.signatureDateText}>{cityName},</Text>
             <Text style={styles.signatureDateUnderline}>{String(day).padStart(2, ' ')}</Text>
@@ -364,9 +529,6 @@ export const ReciboDocument = ({ data }: { data: any }) => {
             <Text style={styles.signatureDateUnderline}>{year}</Text>
           </View>
 
-          
-
-          {/* Logo at signature */}
           <Image src={logoUrl} style={styles.logoSignature} cache={false} />
           <Text style={styles.signatureCaption}>setor financeiro Share Brasil</Text>
         </View>

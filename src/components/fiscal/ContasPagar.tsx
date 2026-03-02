@@ -5,13 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Select as RegularSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Search, Trash2, Wallet, X, TrendingDown, AlertCircle } from "lucide-react";
+import { Plus, Search, Trash2, Wallet, X, TrendingDown, AlertCircle, Repeat, Settings } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAeronaves } from "@/hooks/useAeronaves";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 
 // Sub-componentes
 import { FormDespesasEmpresa } from "./contas-pagar/FormDespesasEmpresa";
@@ -20,6 +20,7 @@ import { FormDespesasReembolsaveis } from "./contas-pagar/FormDespesasReembolsav
 import { FormImpostos } from "./contas-pagar/FormImpostos";
 import { ContaPagarExpandedDetails } from "./contas-pagar/ContaPagarExpandedDetails";
 import { PaymentDialog } from "./contas-pagar/PaymentDialog";
+import { ContaRecorrenteForm } from "./ContaRecorrenteForm";
 
 const CATEGORIAS_FIXAS = [
   { value: "DESPESAS EMPRESA", label: "EMPRESA" },
@@ -48,11 +49,7 @@ const initialFormState = {
   fornecedor_favorito_id: null as string | null,
   aeronave_registro: "",
   empresa: "",
-
-  // Campos preenchidos automaticamente do fornecedor favorito
   conta_pagamento_fornecedor: "",
-
-  // Boleto / NF / Documentos
   possui_boleto: false,
   boleto_url: "",
   vencimento_boleto: "",
@@ -60,7 +57,6 @@ const initialFormState = {
   possui_nf: false,
   nf_numero: "",
   nf_url: "",
-  // DECEA / Infraero
   numero_documento_decea: "",
   competencia_decea: "",
   decea_url: "",
@@ -74,10 +70,12 @@ export function ContasPagar() {
   const { aeronaves } = useAeronaves();
 
   const [contas, setContas] = useState<any[]>([]);
+  const [contasRecorrentes, setContasRecorrentes] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [showForm, setShowForm] = useState(false);
+  const [showRecorrenteForm, setShowRecorrenteForm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [selectedCategoriaPai, setSelectedCategoriaPai] = useState("");
   const [formData, setFormData] = useState({ ...initialFormState });
@@ -97,26 +95,17 @@ export function ContasPagar() {
     loadContas();
     loadFornecedores();
     loadMinhasContasBancarias();
+    loadContasRecorrentes();
   }, []);
 
-  // ─── AUTO-PREENCHIMENTO: quando fornecedor_favorito_id muda, busca os dados na lista já carregada ───
   useEffect(() => {
     if (!formData.fornecedor_favorito_id) {
-      // Limpa os campos auto-preenchidos se o fornecedor for removido
-      setFormData(prev => ({
-        ...prev,
-        conta_pagamento_fornecedor: "",
-      }));
+      setFormData(prev => ({ ...prev, conta_pagamento_fornecedor: "" }));
       return;
     }
-
     const fornecedor = fornecedores.find(f => f.id === formData.fornecedor_favorito_id);
     if (!fornecedor) return;
-
-    setFormData(prev => ({
-      ...prev,
-      conta_pagamento_fornecedor: fornecedor.conta_pagamento || "",
-    }));
+    setFormData(prev => ({ ...prev, conta_pagamento_fornecedor: fornecedor.conta_pagamento || "" }));
   }, [formData.fornecedor_favorito_id, fornecedores]);
 
   const loadFornecedores = async () => {
@@ -157,6 +146,85 @@ export function ContasPagar() {
     }
   };
 
+  const loadContasRecorrentes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("contas_recorrentes")
+        .select("*")
+        .eq("status", "agendado")
+        .order("dia_recorrencia", { ascending: true });
+
+      if (error) {
+        console.error("Erro ao carregar recorrentes:", error);
+        return;
+      }
+      setContasRecorrentes(data || []);
+    } catch (err: any) {
+      console.error("Erro ao carregar recorrentes:", err);
+    }
+  };
+
+  // Gerar entradas virtuais de contas recorrentes ativas que vencem em até 5 dias
+  const contasRecorrentesVirtuais = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const limite = addDays(hoje, 5);
+    const mesAtual = hoje.getMonth();
+    const anoAtual = hoje.getFullYear();
+    const mesSeguinte = mesAtual === 11 ? 0 : mesAtual + 1;
+    const anoSeguinte = mesAtual === 11 ? anoAtual + 1 : anoAtual;
+
+    const virtuais: any[] = [];
+
+    contasRecorrentes.forEach(conta => {
+      const dia = conta.dia_recorrencia || 1;
+
+      // Checar vencimento no mês atual e próximo
+      const datas = [
+        new Date(anoAtual, mesAtual, dia),
+        new Date(anoSeguinte, mesSeguinte, dia),
+      ];
+
+      datas.forEach(dataVencimento => {
+        dataVencimento.setHours(0, 0, 0, 0);
+        const diffDays = Math.ceil((dataVencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
+
+        // Mostrar se vence em até 5 dias (inclusive hoje e passado do mês)
+        if (diffDays <= 5 && diffDays >= -30) {
+          const dataVencStr = format(dataVencimento, "yyyy-MM-dd");
+
+          // Verificar se já existe uma conta real para isso
+          const jaExiste = contas.some(c =>
+            c.fornecedor_nome === conta.fornecedor &&
+            c.descricao === conta.descricao &&
+            c.data_vencimento === dataVencStr
+          );
+
+          if (!jaExiste) {
+            virtuais.push({
+              id: `recorrente-${conta.id}-${dataVencStr}`,
+              fornecedor_nome: conta.fornecedor,
+              fornecedores_favoritos: conta.fornecedor_favorito_id
+                ? { nome_completo: conta.fornecedor, conta_pagamento: conta.conta_pagamento }
+                : null,
+              numero_doc: `REC-${conta.id.slice(0, 6)}`,
+              data_vencimento: dataVencStr,
+              valor: conta.valor || 0,
+              categoria: conta.categoria || "Recorrente",
+              descricao: conta.descricao,
+              status: "agendada",
+              conta_pagamento_fornecedor: conta.conta_pagamento || "",
+              _isRecorrente: true,
+              _recorrenteId: conta.id,
+            });
+          }
+        }
+      });
+    });
+
+    return virtuais;
+  }, [contasRecorrentes, contas]);
+
   const handleSave = async () => {
     if (!formData.valor || !formData.data_vencimento) {
       toast.error("Valor e Vencimento são obrigatórios.");
@@ -171,7 +239,6 @@ export function ContasPagar() {
         criado_por: user?.id,
         numero_doc: formData.numero_doc || null,
         categoria: formData.categoria || null,
-        // Garante que conta_pagamento_fornecedor vai ao banco
         conta_pagamento_fornecedor: formData.conta_pagamento_fornecedor || null,
       };
 
@@ -212,16 +279,21 @@ export function ContasPagar() {
     return parseLocalDate(dv) < new Date(new Date().setHours(0, 0, 0, 0));
   };
 
+  // Merge contas reais + virtuais recorrentes
+  const allContas = useMemo(() => {
+    return [...contas, ...contasRecorrentesVirtuais];
+  }, [contas, contasRecorrentesVirtuais]);
+
   const filteredContas = useMemo(() => {
-    return contas.filter(c => {
+    return allContas.filter(c => {
       const search = filters.searchTerm.toLowerCase();
-      const fornecedor = c.fornecedores_favoritos?.nome_completo?.toLowerCase() || "";
+      const fornecedor = c.fornecedores_favoritos?.nome_completo?.toLowerCase() || c.fornecedor_nome?.toLowerCase() || "";
       const searchOk = !search || fornecedor.includes(search) || c.numero_doc?.toLowerCase().includes(search);
       const statusOk = filters.status === "all" || (filters.status === "vencido" ? isVencida(c.data_vencimento, c.status) : c.status === filters.status);
       const mesOk = !filters.mes || c.data_vencimento?.startsWith(filters.mes);
       return searchOk && statusOk && mesOk;
     });
-  }, [contas, filters]);
+  }, [allContas, filters]);
 
   const totalGeral = useMemo(
     () => filteredContas.reduce((acc, curr) => acc + Number(curr.valor), 0),
@@ -281,10 +353,29 @@ export function ContasPagar() {
             </RegularSelect>
           </div>
         </div>
-        <Button onClick={() => setShowForm(true)} className="bg-primary hover:bg-primary/90 shadow-md">
-          <Plus className="w-4 h-4 mr-2" /> Novo Lançamento
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowRecorrenteForm(true)} className="border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10">
+            <Repeat className="w-4 h-4 mr-2" />
+            Conta Recorrente
+          </Button>
+          <Button onClick={() => setShowForm(true)} className="bg-primary hover:bg-primary/90 shadow-md">
+            <Plus className="w-4 h-4 mr-2" /> Novo Lançamento
+          </Button>
+        </div>
       </div>
+
+      {/* Formulário de Conta Recorrente */}
+      {showRecorrenteForm && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+          <ContaRecorrenteForm
+            onSuccess={() => {
+              setShowRecorrenteForm(false);
+              loadContasRecorrentes();
+            }}
+            onCancel={() => setShowRecorrenteForm(false)}
+          />
+        </motion.div>
+      )}
 
       {/* Formulário de Cadastro */}
       {showForm && (
@@ -315,7 +406,6 @@ export function ContasPagar() {
                 ))}
               </div>
 
-              {/* Sub-formulários — recebem formData completo, incluindo conta_pagamento_fornecedor já preenchido */}
               {selectedCategoriaPai === "DESPESAS EMPRESA" && (
                 <FormDespesasEmpresa
                   form={formData}
@@ -345,7 +435,6 @@ export function ContasPagar() {
                 <FormImpostos form={formData} setForm={setFormData} />
               )}
 
-              {/* Campo de exibição da conta de pagamento do fornecedor (somente leitura) */}
               {selectedCategoriaPai && formData.fornecedor_favorito_id && (
                 <div className="rounded-lg border border-border/50 bg-muted/20 p-4 space-y-3">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
@@ -407,25 +496,30 @@ export function ContasPagar() {
               ) : (
                 filteredContas.map(conta => {
                   const vencida = isVencida(conta.data_vencimento, conta.status);
+                  const isRecorrente = conta._isRecorrente;
                   return (
                     <React.Fragment key={conta.id}>
                       <tr
-                        className={`hover:bg-muted/20 cursor-pointer transition-colors ${vencida ? 'bg-red-500/[0.03]' : ''}`}
-                        onClick={() => toggleExpand(conta.id)}
+                        className={`hover:bg-muted/20 cursor-pointer transition-colors ${vencida ? 'bg-red-500/[0.03]' : ''} ${isRecorrente ? 'bg-emerald-500/[0.04]' : ''}`}
+                        onClick={() => !isRecorrente && toggleExpand(conta.id)}
                       >
                         <td className="px-6 py-4">
-                          <div className="font-semibold text-foreground">
-                            {conta.fornecedores_favoritos?.nome_completo || "Lançamento Avulso"}
-                          </div>
-                          <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                            {conta.numero_doc || "Sem documento"} • <span className="italic">{conta.categoria}</span>
-                          </div>
-                          {/* Exibe conta de pagamento do fornecedor na listagem se existir */}
-                          {conta.conta_pagamento_fornecedor && (
-                            <div className="text-[10px] text-muted-foreground/70 mt-0.5">
-                              Pagar em: {conta.conta_pagamento_fornecedor}
+                          <div className="flex items-center gap-2">
+                            {isRecorrente && <Repeat className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />}
+                            <div>
+                              <div className="font-semibold text-foreground">
+                                {conta.fornecedores_favoritos?.nome_completo || conta.fornecedor_nome || "Lançamento Avulso"}
+                              </div>
+                              <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                {conta.numero_doc || "Sem documento"} • <span className="italic">{conta.categoria}</span>
+                              </div>
+                              {conta.conta_pagamento_fornecedor && (
+                                <div className="text-[10px] text-muted-foreground/70 mt-0.5">
+                                  Pagar em: {conta.conta_pagamento_fornecedor}
+                                </div>
+                              )}
                             </div>
-                          )}
+                          </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className={`font-medium ${vencida ? 'text-red-500' : ''}`}>
@@ -436,35 +530,43 @@ export function ContasPagar() {
                           R$ {parseFloat(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <Badge
-                            variant={vencida ? "destructive" : "outline"}
-                            className="capitalize font-medium"
-                          >
-                            {vencida ? "Vencida" : conta.status}
-                          </Badge>
+                          {isRecorrente ? (
+                            <Badge variant="outline" className="capitalize font-medium text-emerald-600 border-emerald-500/30 bg-emerald-500/10">
+                              Recorrente
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant={vencida ? "destructive" : "outline"}
+                              className="capitalize font-medium"
+                            >
+                              {vencida ? "Vencida" : conta.status}
+                            </Badge>
+                          )}
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-1" onClick={e => e.stopPropagation()}>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => setPaymentConta(conta)}
-                              className="h-8 w-8 text-green-600 hover:bg-green-50"
-                            >
-                              <Wallet className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => setDeleteConfirmId(conta.id)}
-                              className="h-8 w-8 text-muted-foreground hover:text-red-600"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
+                          {!isRecorrente && (
+                            <div className="flex justify-end gap-1" onClick={e => e.stopPropagation()}>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => setPaymentConta(conta)}
+                                className="h-8 w-8 text-green-600 hover:bg-green-50"
+                              >
+                                <Wallet className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => setDeleteConfirmId(conta.id)}
+                                className="h-8 w-8 text-muted-foreground hover:text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
                         </td>
                       </tr>
-                      {expandedRows.has(conta.id) && (
+                      {!isRecorrente && expandedRows.has(conta.id) && (
                         <tr>
                           <td colSpan={5} className="p-0 border-b border-border/20">
                             <ContaPagarExpandedDetails conta={conta} />

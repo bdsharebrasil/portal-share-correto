@@ -102,51 +102,35 @@ export default function EmissaoRecibo() {
 
   // ===================== GERAÇÃO DE RECIBO =====================
   const handleGenerateReceipt = async (formData: any) => {
-    if (isGenerating) return; // trava contra duplo clique
+    if (isGenerating) return;
     setIsGenerating(true);
     setIsGeneratingPdf(false);
 
     try {
-      // Garantir que temos o userId atualizado
       let currentUserId = userId;
       if (!currentUserId) {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user?.id) {
-          throw new Error("Usuário não autenticado. Faça login novamente.");
-        }
+        if (!user?.id) throw new Error("Usuário não autenticado. Faça login novamente.");
         currentUserId = user.id;
         setUserId(currentUserId);
       }
 
-      // Extrai dados do submissionData que chegou do formulário
       const originalForm = formData.originalFormData || {};
       const isReembolso = originalForm.receiptType === "reembolso";
-
-      // Pega o nome do pagador do originalFormData
       const nomePagador = originalForm.pagadorNome?.trim();
 
-      if (!nomePagador) {
-        console.error("Dados recebidos:", {
-          formData,
-          originalForm,
-          pagadorNome: originalForm.pagadorNome
-        });
-        throw new Error("Nome do pagador não foi preenchido corretamente. Por favor, preencha os dados do pagador.");
-      }
-      const valorNumerico = parseFloat(String(formData.valor || formData.amount || "0").replace(",", "."));
-      if (!valorNumerico || valorNumerico <= 0) {
-        throw new Error("Valor deve ser maior que zero");
-      }
-      if (!(formData.servicoDescricao || formData.description || "").trim()) {
-        throw new Error("Descrição do serviço é obrigatória");
-      }
+      if (!nomePagador) throw new Error("Nome do pagador não foi preenchido corretamente.");
+      const valorNumerico = parseFloat(String(formData.valor || "0").replace(",", "."));
+      if (!valorNumerico || valorNumerico <= 0) throw new Error("Valor deve ser maior que zero");
+      if (!(formData.servicoDescricao || "").trim()) throw new Error("Descrição do serviço é obrigatória");
 
       const receiptNumber = generateReceiptNumber(originalForm.clienteId ? nomePagador : "");
-      console.log("Número de recibo:", receiptNumber);
 
       // ===================== UPLOAD DE ARQUIVOS =====================
       let boletoUrl: string | null = null;
       let notaFiscalUrl: string | null = null;
+      let deceeaUrl: string | null = null;
+      let infraeroUrl: string | null = null;
       const uploadedFiles: { type: string; name: string }[] = [];
 
       const uploadFile = async (file: File, prefix: string, storage: string) => {
@@ -154,7 +138,6 @@ export default function EmissaoRecibo() {
         const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_').substring(0, 100);
         const randomSuffix = Math.random().toString(36).substring(2, 8);
         const fileName = `${prefix}_${timestamp}_${randomSuffix}_${sanitizedFileName}`;
-
         const { error } = await supabase.storage.from(storage).upload(fileName, file, { cacheControl: '3600', upsert: false });
         if (error) throw error;
         const { data: publicUrlData } = supabase.storage.from(storage).getPublicUrl(fileName);
@@ -163,16 +146,13 @@ export default function EmissaoRecibo() {
         return publicUrlData.publicUrl;
       };
 
-      // Extrai arquivos de formData
       if (formData.files?.boleto instanceof File) boletoUrl = await uploadFile(formData.files.boleto, "boleto", "n.f-boletos-clients");
       if (formData.files?.notaFiscal instanceof File) notaFiscalUrl = await uploadFile(formData.files.notaFiscal, "nf", "n.f-boletos-clients");
+      if (originalForm.decealFile instanceof File) deceeaUrl = await uploadFile(originalForm.decealFile, "decea", "n.f-boletos-clients");
+      if (originalForm.infraeroFile instanceof File) infraeroUrl = await uploadFile(originalForm.infraeroFile, "infraero", "n.f-boletos-clients");
 
       // ===================== INSERIR RECIBO =====================
-      // Para reembolso, adiciona número do documento na descrição
-      let finalDescription = (formData.servicoDescricao || formData.description || "").trim();
-      if (isReembolso && originalForm.reembolsoNumeroDocumento?.trim()) {
-        finalDescription = `${finalDescription} - Documento: ${originalForm.reembolsoNumeroDocumento.trim()}`;
-      }
+      let finalDescription = (formData.servicoDescricao || "").trim();
 
       const receiptPayload = {
         user_id: currentUserId,
@@ -186,104 +166,211 @@ export default function EmissaoRecibo() {
         receipt_type: originalForm.receiptType || "pagamento",
         issue_date: originalForm.dataEmissao || new Date().toISOString().split("T")[0],
         receipt_number: receiptNumber,
-        max_payment_date: originalForm.prazoMaximoQuitacao || null,
+        max_payment_date: originalForm.prazoMaximoQuitacao || originalForm.dataVencimentoBoleto || null,
         payment_method: originalForm.formaPagamento?.trim() || null,
         client_id: originalForm.clienteId?.trim() ? originalForm.clienteId : null,
         boleto_url: boletoUrl,
         nf_url: notaFiscalUrl,
-        doc_number: originalForm.reembolsoNumeroDocumento?.trim() || null,
+        doc_number: originalForm.reembolsoNumeroDocumento || originalForm.numeroDocumentoDecea || originalForm.numeroDocumentoInfraero || null,
+        aircraft_id: originalForm.aircraftId || null,
+        category_name: formData.categoriaNome || null,
+        is_shared: originalForm.reembolsoRateado || false,
+        percentage: originalForm.reembolsoPorcentagem ? parseFloat(originalForm.reembolsoPorcentagem) : null,
+        total_amount: originalForm.reembolsoValorTotal ? parseFloat(originalForm.reembolsoValorTotal) : null,
       };
 
-      // Evita duplicidade: verifica se já existe o receipt_number
       const { data: existing } = await supabase.from("receipts").select("id").eq("receipt_number", receiptNumber).eq("user_id", currentUserId).single();
       if (existing) throw new Error("Recibo já gerado anteriormente.");
 
-      const { data: receiptData, error: dbError } = await supabase.from("receipts").insert(receiptPayload).select("*").single();
+      // Insert receipt - use workaround for broken DB trigger on reembolso type
+      // The trigger handle_reembolso_receipt has a UUID type mismatch on banco_conciliacao_id
+      // So we insert as 'pagamento' first, then update to 'reembolso' after
+      const needsTriggerWorkaround = isReembolso;
+      const insertPayload = needsTriggerWorkaround
+        ? { ...receiptPayload, receipt_type: "pagamento" }
+        : receiptPayload;
+
+      const { data: receiptData, error: dbError } = await supabase.from("receipts").insert(insertPayload).select("*").single();
       if (dbError) throw dbError;
+
+      // Now update to correct type (bypasses AFTER INSERT trigger)
+      if (needsTriggerWorkaround) {
+        await supabase.from("receipts").update({ receipt_type: "reembolso" } as any).eq("id", receiptData.id);
+        (receiptData as any).receipt_type = "reembolso";
+      }
 
       console.log("Recibo inserido:", receiptData);
 
-      // ===================== PROCESSAR REEMBOLSO (bank_reconciliations + rateio) =====================
-      if (isReembolso && (originalForm.clienteId || formData.client_id)) {
+      // ===================== PROCESSAR REEMBOLSO =====================
+      if (isReembolso && originalForm.clienteId) {
         try {
-          console.log("📨 Processando reembolso com submissão de recibo...");
-
-          // Determina o valor total e percentual corretamente
+          console.log("📨 Processando reembolso...");
+          const isDecea = formData.isDecea === true;
+          const isInfraero = formData.isInfraero === true;
+          const isDECEAorINFRAERO = isDecea || isInfraero;
           const isRateado = originalForm.reembolsoRateado === true;
-          const valorRecibo = Number(formData.amount); // valor que o cliente vai pagar
-          const valorTotalDespesa = isRateado ? Number(originalForm.reembolsoValorTotal) : valorRecibo;
+          const valorRecibo = valorNumerico;
           const percentual = isRateado ? originalForm.reembolsoPorcentagem : "100";
+          const valorTotalDespesa = isRateado ? parseFloat(originalForm.reembolsoValorTotal) : valorRecibo;
 
-          // Preparar payload para o novo serviço
-          const submissionPayload = {
-            type: "cliente" as const,
-            date: originalForm.prazoMaximoQuitacao || originalForm.dataEmissao,
-            description: `Reembolso - ${formData.description?.trim()}${
-              originalForm.reembolsoNumeroDocumento ? ` (Doc: ${originalForm.reembolsoNumeroDocumento})` : ""
-            }`,
-            amount: valorRecibo,
-            status: "pendente",
-            client_id: originalForm.clienteId || formData.client_id,
-            aircraft_id: originalForm.aircraftId || formData.aircraft_id || null,
-            categoria_movimentacao_id: originalForm.reembolsoCategoriaId || formData.categoria_movimentacao_id || null,
-            tipo_documento: isRateado ? "rateio" as const : "recibo" as const,
-            doc: originalForm.reembolsoNumeroDocumento || null,
-            prazo_pagamento: originalForm.prazoMaximoQuitacao || null,
-            percentual: percentual,
-            forma_pagamento: isRateado ? "rateio_direto" : "empresa_paga",
-            afeta_caixa_empresa: true,
-            fornecedor_nome: null,
-            fornecedor_dados: null,
-            boleto_url: boletoUrl,
-            nf_url: notaFiscalUrl,
-            reference_id: undefined,
-            reference_type: "receipt",
-            ...(isRateado && {
-              rateio_data: {
-                valor_total: valorTotalDespesa,
-                percentual: parseFloat(percentual),
-                valor_cliente: valorRecibo,
-              },
-            }),
+          // Get aircraft registration
+          let aeronaveRegistro = "";
+          if (originalForm.aircraftId) {
+            const { data: acData } = await supabase.from("aircraft").select("registration").eq("id", originalForm.aircraftId).single();
+            if (acData) aeronaveRegistro = acData.registration;
+          }
+
+          // Description for bank_reconciliations
+          const brDescription = isDECEAorINFRAERO
+            ? (isDecea ? "DECEA pago" : "INFRAERO  pago")
+            : `Reembolso - ${finalDescription}`;
+
+          // Data de vencimento
+          const dataVencimento = originalForm.dataVencimentoBoleto || originalForm.prazoMaximoQuitacao || originalForm.dataEmissao;
+
+          // ===== 1. Create contas_apagar =====
+          const contaPayload: any = {
+            data_vencimento: dataVencimento,
+            valor: isDECEAorINFRAERO ? parseFloat(originalForm.valorTotalBoleto || String(valorRecibo)) : valorRecibo,
+            categoria: "Clientes - Despesas Reembolsáveis",
+            descricao: brDescription,
+            status: "gerada na emissão de recibo",
+            criado_por: currentUserId,
+            client_id: originalForm.clienteId,
+            aeronave_registro: aeronaveRegistro,
           };
 
-          // Chamar o novo serviço de submissão de recibos
-          const result = await handleReceiptSubmit(submissionPayload, currentUserId);
+          // DECEA-specific fields
+          if (isDecea) {
+            contaPayload.numero_documento_decea = originalForm.numeroDocumentoDecea || null;
+            contaPayload.competencia_decea = originalForm.competenciaDecea || null;
+            contaPayload.decea_url = deceeaUrl || null;
+          }
 
-          if (result.success) {
-            console.log("✅ Reembolso processado com sucesso via novo serviço");
-            console.log("   - bank_reconciliationId:", result.bankReconciliationId);
-            if (result.rateioIds?.length) {
-              console.log("   - rateioIds:", result.rateioIds);
-            }
+          // INFRAERO-specific fields
+          if (isInfraero) {
+            contaPayload.numero_documento_infraero = originalForm.numeroDocumentoInfraero || null;
+            contaPayload.competencia_infraero = originalForm.competenciaInfraero || null;
+            contaPayload.infraero_url = infraeroUrl || null;
+          }
+
+          const { data: contaData, error: contaError } = await supabase
+            .from("contas_apagar")
+            .insert(contaPayload)
+            .select("id")
+            .single();
+
+          if (contaError) {
+            console.error("❌ Erro ao criar conta a pagar:", contaError);
           } else {
-            console.error("❌ Erro ao processar reembolso:", result.error);
-            toast({
-              title: "⚠️ Reembolso parcial",
-              description: `Recibo criado, mas erro ao processar reembolso: ${result.error}`,
-              variant: "default",
-            });
+            console.log("✅ Conta a pagar criada:", contaData.id);
+
+            // ===== 2. Create bank_reconciliations =====
+            const brPayload: any = {
+              type: "cliente",
+              date: originalForm.dataEmissao || new Date().toISOString().split("T")[0],
+              description: brDescription,
+              amount: valorRecibo,
+              status: "pendente",
+              client_id: originalForm.clienteId,
+              aircraft_id: originalForm.aircraftId || null,
+              categoria_movimentacao_id: originalForm.reembolsoCategoriaId || null,
+              tipo_documento: isRateado ? "rateio" : "recibo",
+              prazo_pagamento: dataVencimento,
+              percentual: isRateado ? percentual : null,
+              afeta_caixa_empresa: true,
+              criado_por: currentUserId,
+              reference_id: contaData.id,
+              reference_type: "contas_apagar",
+              boleto_url: boletoUrl,
+              nf_url: notaFiscalUrl || deceeaUrl || infraeroUrl,
+            };
+
+            const { data: brData, error: brError } = await supabase
+              .from("bank_reconciliations")
+              .insert(brPayload)
+              .select("id")
+              .single();
+
+            if (brError) {
+              console.error("❌ Erro ao criar bank_reconciliation:", brError);
+            } else {
+              console.log("✅ Bank reconciliation criada:", brData.id);
+            }
+
+            // ===== 3. Create contas_areceber =====
+            const clienteData = clientesAtivos.find(c => c.id === originalForm.clienteId);
+            const contaReceberPayload: any = {
+              numero: receiptData.receipt_number || `REC-${receiptData.id.substring(0, 8)}`,
+              cliente_nome: clienteData?.company_name || nomePagador,
+              cliente_cnpj: clienteData?.cnpj || originalForm.pagadorDocumento || "",
+              categoria: "Clientes - Despesas Reembolsáveis",
+              valor: valorRecibo,
+              data_criacao: originalForm.dataEmissao || new Date().toISOString().split("T")[0],
+              data_vencimento: dataVencimento,
+              status: "pendente",
+              descricao: brDescription,
+              aeronave: aeronaveRegistro || null,
+              banco_conciliacao_id: brData?.id || null,
+              criado_por: currentUserId,
+              reference_id: receiptData.id,
+              reference_type: "receipt",
+              boleto_url: boletoUrl,
+              nota_fiscal_url: notaFiscalUrl || deceeaUrl || infraeroUrl,
+            };
+
+            const { error: crError } = await supabase
+              .from("contas_areceber")
+              .insert(contaReceberPayload);
+
+            if (crError) {
+              console.error("❌ Erro ao criar conta a receber:", crError);
+            } else {
+              console.log("✅ Conta a receber criada");
+            }
+          }
+
+          // ===== 3. Rateio if applicable =====
+          if (isRateado) {
+            const rateioPayload = {
+              despesa_id: contaData?.id || receiptData.id,
+              client_id: originalForm.clienteId,
+              client_name: nomePagador,
+              aeronave_id: originalForm.aircraftId || null,
+              aeronave_registro: aeronaveRegistro,
+              percentual: parseFloat(percentual),
+              valor_rateado: valorRecibo,
+              valor: valorTotalDespesa,
+              status: "pendente",
+              data_vencimento: dataVencimento,
+              categoria_id: originalForm.reembolsoCategoriaId || null,
+              boleto: boletoUrl,
+              nota_fiscal: notaFiscalUrl || deceeaUrl || infraeroUrl,
+              observacoes: `Rateio de ${percentual}% do valor total de R$ ${valorTotalDespesa.toFixed(2)}`,
+            };
+
+            const { error: rateioErr } = await supabase.from("rateio_despesas").insert(rateioPayload);
+            if (rateioErr) console.error("❌ Erro ao criar rateio:", rateioErr);
+            else console.log("✅ Rateio criado");
           }
         } catch (reembolsoErr) {
           console.error("❌ Erro ao processar reembolso:", reembolsoErr);
-          toast({
-            title: "⚠️ Reembolso não processado",
-            description: `Recibo criado, mas falhou ao processar reembolso. Verifique os logs.`,
-            variant: "default",
-          });
+          toast({ title: "⚠️ Reembolso não processado", description: "Recibo criado, mas falhou ao processar reembolso.", variant: "default" });
         }
       }
 
       // ===================== GERAR PDF =====================
       try {
         setIsGeneratingPdf(true);
-        console.log("Gerando PDF com @react-pdf/renderer...");
-
-        // Preparar dados para o PDF
         const pdfData = {
           ...receiptData,
           boleto_url: boletoUrl,
           nf_url: notaFiscalUrl,
+          numero_documento_decea: originalForm.numeroDocumentoDecea || null,
+          competencia_decea: originalForm.competenciaDecea || null,
+          numero_documento_infraero: originalForm.numeroDocumentoInfraero || null,
+          competencia_infraero: originalForm.competenciaInfraero || null,
+          data_vencimento_boleto: originalForm.dataVencimentoBoleto || null,
           emissor: companySettings ? {
             razao_social: companySettings.razao_social,
             cnpj: companySettings.cnpj,
@@ -294,66 +381,25 @@ export default function EmissaoRecibo() {
           } : null,
         };
 
-        // Gerar o PDF usando @react-pdf/renderer
-        const pdfBlob = await pdf(
-          <ReciboDocument data={pdfData} />
-        ).toBlob();
-
-        // Upload do PDF para o Storage
+        const pdfBlob = await pdf(<ReciboDocument data={pdfData} />).toBlob();
         const pdfFileName = `recibos/${receiptData.id}_${Date.now()}.pdf`;
-        const { error: uploadError } = await supabase.storage
-          .from("receipts")
-          .upload(pdfFileName, pdfBlob, {
-            contentType: "application/pdf",
-            upsert: true,
-          });
-
+        const { error: uploadError } = await supabase.storage.from("receipts").upload(pdfFileName, pdfBlob, { contentType: "application/pdf", upsert: true });
         if (uploadError) throw uploadError;
 
-        // Obter URL pública do PDF
-        const { data: urlData } = supabase.storage
-          .from("receipts")
-          .getPublicUrl(pdfFileName);
+        const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(pdfFileName);
+        if (!urlData?.publicUrl) throw new Error("Falha ao obter URL pública do PDF");
 
-        if (!urlData?.publicUrl) {
-          throw new Error("Falha ao obter URL pública do PDF");
-        }
-
-        // Atualizar no banco de dados
-        const { error: updateError } = await supabase
-          .from("receipts")
-          .update({ pdf_url: urlData.publicUrl })
-          .eq("id", receiptData.id);
-
-        if (updateError) throw updateError;
-
-        // Recarregar histórico
+        await supabase.from("receipts").update({ pdf_url: urlData.publicUrl }).eq("id", receiptData.id);
         await loadRecentReceipts(currentUserId);
 
-        // Preparar mensagem de sucesso
-        const attachmentInfo = uploadedFiles.length > 0
-          ? `Anexos: ${uploadedFiles.map(f => f.type === 'boleto' ? 'Boleto' : 'Nota Fiscal').join(' e ')}.`
-          : '';
-
-        toast({
-          title: "✅ Sucesso!",
-          description: `Recibo ${receiptNumber} gerado com sucesso! ${attachmentInfo}`
-        });
-
-        console.log("✅ PDF gerado e enviado com sucesso:", urlData.publicUrl);
+        toast({ title: "✅ Sucesso!", description: `Recibo ${receiptNumber} gerado com sucesso!` });
       } catch (pdfErr) {
         console.error("❌ Erro ao gerar PDF:", pdfErr);
-        const errorMsg = pdfErr instanceof Error ? pdfErr.message : "Erro ao gerar PDF";
-        toast({
-          title: "⚠️ Aviso",
-          description: `Recibo ${receiptNumber} criado, mas houve erro ao gerar PDF: ${errorMsg}`,
-          variant: "default"
-        });
+        toast({ title: "⚠️ Aviso", description: `Recibo criado, mas houve erro ao gerar PDF.`, variant: "default" });
       }
-
     } catch (err) {
       console.error("Erro ao gerar recibo:", err);
-      const errorMsg = err instanceof Error ? err.message : (typeof err === 'object' && err !== null && 'message' in err) ? String((err as any).message) : "Erro desconhecido";
+      const errorMsg = err instanceof Error ? err.message : "Erro desconhecido";
       toast({ title: "Erro ao gerar recibo", description: errorMsg, variant: "destructive" });
     } finally {
       setIsGenerating(false);

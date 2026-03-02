@@ -122,7 +122,7 @@ export async function createContaAReceber(
         referencia: reconciliation.description,
         cliente_nome: clientData.company_name || 'Cliente',
         cliente_cnpj: clientData.cnpj || '',
-        data_criacao: new Date().toISOString().split('T')[0],
+        created_at: new Date().toISOString(),
         data_vencimento: dataVencimento,
         valor: valor,
         categoria: reconciliation.category || 'Reembolso de Despesa',

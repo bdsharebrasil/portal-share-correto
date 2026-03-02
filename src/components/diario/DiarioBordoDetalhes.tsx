@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useReducer } from 'react';
-import { format } from 'date-fns';
+import { format, parse } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { Layout } from "../layout/Layout";
 import { ArrowLeft, Plus, CheckCircle, Loader2, Save, X, Clock, Navigation, Users, Fuel, Calendar, Search, ChevronLeft, ChevronRight, Plane, Info, AlertCircle, TrendingUp, DollarSign, Edit, Trash2, MapPin, Download, Check, ChevronDown } from 'lucide-react';
 import { supabase } from '../../integrations/supabase/client';
@@ -11,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { updateCrewFlightHours } from '@/services/crewFlightHours';
 import { fetchManutencaoRevisao, fetchManutencaoRevisaoAtiva, updateManutencaoHoras, ensureRevisionMaintenance } from '@/services/manutencoes';
 import { MaintenanceStatusAlert } from './MaintenanceStatusAlert';
@@ -368,13 +370,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           logSuccess('Client Partners carregados', { count: clientPartnersRes.data.length });
         }
 
-        const loansRes = await supabase
+        const loansRes: any = await supabase
           .from('aircraft_loans')
           .select('*')
           .eq('lender_aircraft_id', aircraftId)
           .order('entry_date', { ascending: false });
 
-        if (loansRes.data) setLoans(loansRes.data || []);
+        if (loansRes?.data) {
+          setLoans(loansRes.data);
+        }
 
         let { data: monthData } = await supabase
           .from('logbook_months')
@@ -1223,7 +1227,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
   const handleEditEntry = (entry: any) => {
     // Carregar dados da entrada no formulário de novo lançamento
-    // Para empréstimos: partner_name contém o nome de quem pegou emprestado
+    // Para empréstimos: loan_recipient_client_id contém o cliente que pegou emprestado
     setNewEntry({
       entry_date: entry.entry_date,
       pic_canac: entry.pic_canac || '',
@@ -1233,9 +1237,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       departure_aerodrome: entry.departure_aerodrome || '',
       arrival_aerodrome: entry.arrival_aerodrome || '',
       client_id: entry.client_id || '',
-      borrower_client_id: '', // Será preenchido ao buscar o cliente que pega emprestado
-      partner_name: entry.partner_name || '',
-      borrower_partner_name: entry.is_loan ? entry.partner_name : '',
+      client_partner_id: entry.client_partner_id || null,
+      loan_recipient_client_id: entry.loan_recipient_client_id || null,
+      loan_recipient_partner_id: entry.loan_recipient_partner_id || null,
       is_equal_split: entry.is_equal_split || false,
       is_loan: entry.is_loan || false,
       ac_time: entry.ac_time || '',
@@ -1264,18 +1268,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       corrective_actions: entry.corrective_actions || '',
       daily_quantity: entry.daily_quantity || 0
     });
-
-    // Se for empréstimo, buscar o ID do cliente que pegou emprestado
-    if (entry.is_loan && entry.partner_name) {
-      // Buscar cliente pelo partner_name (company_name)
-      const borrower = clients.find((c: any) => c.company_name === entry.partner_name);
-      if (borrower) {
-        setNewEntry(prev => ({
-          ...prev,
-          borrower_client_id: borrower.id
-        }));
-      }
-    }
 
     // Definir tipo de voo
     if (entry.is_equal_split) {
@@ -1877,19 +1869,63 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <span className="text-[10px] font-black uppercase tracking-widest">1. Tripulação </span>
               </div>
 
-              <Input type="date" value={newEntry.entry_date} onChange={e => {
-                const selectedDate = new Date(e.target.value);
-                const selectedDateMonth = selectedDate.getUTCMonth() + 1;
-                const selectedDateYear = selectedDate.getUTCFullYear();
-                if (selectedDateMonth !== selectedMonth || selectedDateYear !== selectedYear) {
-                  toast.error(`A data deve estar no mês selecionado: ${MONTHS[selectedMonth - 1]} de ${selectedYear}`);
-                  return;
-                }
-                setNewEntry({
-                  ...newEntry,
-                  entry_date: e.target.value
-                });
-              }} className="bg-slate-950 border-slate-800 text-white" />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal bg-slate-950 border-slate-800 hover:bg-slate-900",
+                      !newEntry.entry_date && "text-muted-foreground"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4 text-sky-400" />
+                    {newEntry.entry_date
+                      ? format(parse(newEntry.entry_date, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy')
+                      : "Selecione a data"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 bg-slate-900 border-slate-700" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={newEntry.entry_date ? parse(newEntry.entry_date, 'yyyy-MM-dd', new Date()) : undefined}
+                    onSelect={(date) => {
+                      if (!date) return;
+                      const dateMonth = date.getMonth() + 1;
+                      const dateYear = date.getFullYear();
+                      if (dateMonth !== selectedMonth || dateYear !== selectedYear) {
+                        toast.error(`A data deve estar no mês selecionado: ${MONTHS[selectedMonth - 1]} de ${selectedYear}`);
+                        return;
+                      }
+                      setNewEntry({ ...newEntry, entry_date: format(date, 'yyyy-MM-dd') });
+                    }}
+                    defaultMonth={new Date(selectedYear, selectedMonth - 1)}
+                    locale={ptBR}
+                    className="rounded-md"
+                    classNames={{
+                      months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                      month: "space-y-4",
+                      caption: "flex justify-center pt-1 relative items-center",
+                      caption_label: "text-sm font-medium text-white",
+                      nav: "space-x-1 flex items-center",
+                      nav_button: "h-7 w-7 bg-transparent p-0 opacity-70 hover:opacity-100 border border-slate-700 rounded-md inline-flex items-center justify-center text-slate-300 hover:text-white hover:bg-slate-800 transition-colors",
+                      nav_button_previous: "absolute left-1",
+                      nav_button_next: "absolute right-1",
+                      table: "w-full border-collapse space-y-1",
+                      head_row: "flex",
+                      head_cell: "text-slate-400 rounded-md w-9 font-medium text-[0.75rem]",
+                      row: "flex w-full mt-2",
+                      cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
+                      day: "h-9 w-9 p-0 font-normal text-slate-300 hover:bg-sky-500/20 hover:text-white rounded-lg transition-colors inline-flex items-center justify-center",
+                      day_range_end: "day-range-end",
+                      day_selected: "bg-sky-500 text-white hover:bg-sky-400 hover:text-white focus:bg-sky-500 focus:text-white rounded-lg font-semibold",
+                      day_today: "bg-sky-500/20 text-sky-400 font-semibold",
+                      day_outside: "text-slate-600 opacity-50",
+                      day_disabled: "text-slate-700 opacity-50",
+                      day_hidden: "invisible",
+                    }}
+                  />
+                </PopoverContent>
+              </Popover>
 
               <div className="space-y-1">
                 <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Comandante (PIC) *</Label>

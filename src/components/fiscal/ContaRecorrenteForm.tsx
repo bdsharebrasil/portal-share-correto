@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,14 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select as RegularSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Select as GroupedSelect, SelectContent as GroupedSelectContent, SelectItem as GroupedSelectItem, SelectLabel, SelectTrigger as GroupedSelectTrigger, SelectValue as GroupedSelectValue, SelectGroup } from "@/components/ui/grouped-select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AutocompleteInput, type AutocompleteOption } from "@/components/ui/autocomplete-input";
+import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCategoriasFinanceiro } from "@/hooks/useCategoriasFinanceiro";
-import { useGroupedCategories } from "@/hooks/useGroupedCategories";
 import { format } from "date-fns";
 import { X, Save } from "lucide-react";
 
@@ -32,76 +30,67 @@ const frequencias = [
 
 const diasDoMes = Array.from({ length: 31 }, (_, i) => i + 1);
 
+const TIPOS_DESPESA = [
+  { value: "DESPESAS EMPRESA", label: "EMPRESA" },
+  { value: "DESPESAS PARTICULARES", label: "PARTICULAR" },
+  { value: "DESPESAS REEMBOLSÁVEIS", label: "CLIENTE - REEMBOLSÁVEL" },
+];
+
 export function ContaRecorrenteForm({
   conta,
   onSuccess,
   onCancel
 }: ContaRecorrenteFormProps) {
   const { user } = useAuth();
-  const groupedCategories = useGroupedCategories("despesa");
-  const [fornecedorProfiles, setFornecedorProfiles] = useState<any[]>([]);
+  const { categorias } = useCategoriasFinanceiro();
+  const [fornecedores, setFornecedores] = useState<any[]>([]);
+  const [selectedFornecedorId, setSelectedFornecedorId] = useState<string>("");
+  const [contaPagamento, setContaPagamento] = useState<string>("");
+  const [tipoDespesa, setTipoDespesa] = useState<string>("");
 
   useEffect(() => {
-    loadFornecedorProfiles();
+    loadFornecedores();
   }, []);
 
-  const loadFornecedorProfiles = async () => {
+  const loadFornecedores = async () => {
     try {
-      // Buscar colaboradores (user_profiles)
-      const { data: userProfiles, error: userError } = await supabase
-        .from("user_profiles")
-        .select("id, full_name, cpf, email")
-        .order("full_name", { ascending: true });
-
-      if (userError) {
-        console.error("Erro ao carregar colaboradores:", userError);
-      }
-
-      // Buscar fornecedores favoritos
-      const { data: fornecedoresFavoritos, error: fornecError } = await supabase
+      const { data, error } = await supabase
         .from("fornecedores_favoritos")
-        .select("id, nome_completo, documento, categoria, apelido")
+        .select("id, nome_completo, documento, categoria, apelido, conta_pagamento")
         .order("nome_completo", { ascending: true });
 
-      if (fornecError) {
-        console.error("Erro ao carregar fornecedores favoritos:", fornecError);
+      if (error) {
+        console.error("Erro ao carregar fornecedores:", error);
+        return;
       }
-
-      // Combinar dados: colaboradores + fornecedores favoritos
-      const combinedData = [
-        ...(userProfiles || []).map(profile => ({
-          id: profile.id,
-          full_name: profile.full_name,
-          cpf: profile.cpf,
-          email: profile.email,
-          type: "colaborador"
-        })),
-        ...(fornecedoresFavoritos || []).map(fornecedor => ({
-          id: fornecedor.id,
-          full_name: fornecedor.nome_completo,
-          cpf: fornecedor.documento,
-          email: null,
-          type: "fornecedor",
-          categoria: fornecedor.categoria,
-          apelido: fornecedor.apelido
-        }))
-      ];
-
-      setFornecedorProfiles(combinedData);
+      setFornecedores(data || []);
     } catch (error: any) {
       console.error("Erro ao carregar fornecedores:", error.message);
     }
   };
 
+  const fornecedorItems = useMemo(() => {
+    return fornecedores.map(f => ({
+      id: f.id,
+      label: f.apelido ? `${f.nome_completo} (${f.apelido})` : f.nome_completo
+    }));
+  }, [fornecedores]);
+
+  // Subcategorias filtradas pelo grupo_categoria selecionado
+  const subcategorias = useMemo(() => {
+    if (!tipoDespesa) return [];
+    return categorias
+      .filter(cat => cat.tipo === "despesa" && cat.grupo_categoria === tipoDespesa)
+      .map(cat => ({ id: cat.id, label: cat.nome }));
+  }, [categorias, tipoDespesa]);
+
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm({
     defaultValues: {
-      data_agendamento: format(new Date(), "yyyy-MM-dd"),
       descricao: "",
       fornecedor: "",
       valor: "",
       categoria: "",
       status: "agendado",
-      eh_recorrente: true,
       frequencia_recorrencia: "mensal",
       dia_recorrencia: "1",
       lembrete_antecipado: true,
@@ -113,26 +102,50 @@ export function ContaRecorrenteForm({
 
   useEffect(() => {
     if (conta) {
-      setValue("data_agendamento", conta.data_agendamento);
       setValue("descricao", conta.descricao);
       setValue("fornecedor", conta.fornecedor);
-      setValue("valor", conta.valor.toString());
+      setValue("valor", conta.valor?.toString() || "");
       setValue("categoria", conta.categoria || "");
       setValue("status", conta.status);
       setValue("frequencia_recorrencia", conta.frequencia_recorrencia || "mensal");
       setValue("dia_recorrencia", conta.dia_recorrencia?.toString() || "1");
       setValue("lembrete_antecipado", conta.lembrete_antecipado || false);
       setValue("notas", conta.notas || "");
+
+      // Set fornecedor selection
+      if (conta.fornecedor_favorito_id) {
+        setSelectedFornecedorId(conta.fornecedor_favorito_id);
+        const forn = fornecedores.find(f => f.id === conta.fornecedor_favorito_id);
+        if (forn) setContaPagamento(forn.conta_pagamento || "");
+      }
+
+      // Set tipo despesa from categoria
+      if (conta.tipo_despesa) {
+        setTipoDespesa(conta.tipo_despesa);
+      }
     } else {
       reset();
-      setValue("data_agendamento", format(new Date(), "yyyy-MM-dd"));
-      setValue("eh_recorrente", true);
       setValue("status", "agendado");
       setValue("frequencia_recorrencia", "mensal");
       setValue("dia_recorrencia", "1");
       setValue("lembrete_antecipado", true);
+      setSelectedFornecedorId("");
+      setContaPagamento("");
+      setTipoDespesa("");
     }
-  }, [conta, setValue, reset]);
+  }, [conta, setValue, reset, fornecedores]);
+
+  const handleFornecedorChange = (id: string, label: string) => {
+    setSelectedFornecedorId(id);
+    const forn = fornecedores.find(f => f.id === id);
+    if (forn) {
+      setValue("fornecedor", forn.nome_completo);
+      setContaPagamento(forn.conta_pagamento || "");
+    } else {
+      setValue("fornecedor", "");
+      setContaPagamento("");
+    }
+  };
 
   const onSubmit = async (formData: any) => {
     if (!user) {
@@ -153,8 +166,11 @@ export function ContaRecorrenteForm({
       const data = {
         descricao: formData.descricao,
         fornecedor: formData.fornecedor,
+        fornecedor_favorito_id: selectedFornecedorId || null,
+        conta_pagamento: contaPagamento || null,
         valor: valor !== null ? valor : null,
         categoria: formData.categoria || null,
+        tipo_despesa: tipoDespesa || null,
         status: formData.status,
         frequencia_recorrencia: formData.frequencia_recorrencia,
         dia_recorrencia: formData.dia_recorrencia ? parseInt(formData.dia_recorrencia) : null,
@@ -222,37 +238,24 @@ export function ContaRecorrenteForm({
 
             <div>
               <Label htmlFor="fornecedor">Fornecedor/Beneficiário *</Label>
-              <AutocompleteInput
-                value={watch("fornecedor") || ""}
-                onChange={(value) => {
-                  setValue("fornecedor", value);
-                }}
-                onSelect={(option) => {
-                  const fornecedor = fornecedorProfiles.find(f => f.id === option.id);
-                  if (fornecedor) {
-                    setValue("fornecedor", fornecedor.full_name);
-                  }
-                }}
-                options={fornecedorProfiles.map(f => {
-                  // Adicionar apelido ou tipo na label para diferenciar
-                  let label = f.full_name;
-                  if (f.type === "fornecedor" && f.apelido) {
-                    label = `${f.full_name} (${f.apelido})`;
-                  } else if (f.type === "colaborador") {
-                    label = `${f.full_name} (Colaborador)`;
-                  }
-                  return {
-                    id: f.id,
-                    label
-                  };
-                })}
-                placeholder="Buscar ou digite um fornecedor"
+              <SearchableCombobox
+                items={fornecedorItems}
+                value={selectedFornecedorId}
+                onChange={handleFornecedorChange}
+                placeholder="Selecione um fornecedor..."
+                searchPlaceholder="Buscar fornecedor..."
+                emptyMessage="Nenhum fornecedor encontrado."
               />
               {errors.fornecedor && <span className="text-xs text-destructive">{errors.fornecedor.message}</span>}
+              {contaPagamento && (
+                <div className="mt-1.5 p-2 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <p className="text-xs text-green-600 font-medium">💳 Conta pagamento: {contaPagamento}</p>
+                </div>
+              )}
             </div>
 
             <div>
-              <Label htmlFor="valor">Valor <span className="text-xs text-muted-foreground"></span></Label>
+              <Label htmlFor="valor">Valor</Label>
               <Input
                 id="valor"
                 type="number"
@@ -262,33 +265,44 @@ export function ContaRecorrenteForm({
                 {...register("valor")}
                 className={errors.valor ? "border-destructive" : ""}
               />
-              {errors.valor && <span className="text-xs text-destructive">{errors.valor.message}</span>}
             </div>
 
+            {/* Seleção de Tipo de Despesa (nível 1) */}
             <div>
-              <Label htmlFor="categoria">Categoria</Label>
-              <GroupedSelect value={watch("categoria") || ""} onValueChange={(value) => setValue("categoria", value)}>
-                <GroupedSelectTrigger className="w-full">
-                  <GroupedSelectValue placeholder="Selecione uma categoria" />
-                </GroupedSelectTrigger>
-                <GroupedSelectContent className="max-h-[300px] w-full">
-                  {groupedCategories.map((group) => (
-                    <SelectGroup key={group.grupo}>
-                      <SelectLabel className="text-xs font-bold uppercase tracking-wider">{group.grupo}</SelectLabel>
-                      {group.categorias.map((cat) => (
-                        <GroupedSelectItem key={cat.id} value={cat.nome}>
-                          {cat.nome}
-                        </GroupedSelectItem>
-                      ))}
-                    </SelectGroup>
+              <Label>Tipo de Despesa</Label>
+              <RegularSelect value={tipoDespesa} onValueChange={(val) => {
+                setTipoDespesa(val);
+                setValue("categoria", ""); // Reset subcategoria
+              }}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent className="w-full">
+                  {TIPOS_DESPESA.map(t => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                   ))}
-                </GroupedSelectContent>
-              </GroupedSelect>
+                </SelectContent>
+              </RegularSelect>
             </div>
+
+            {/* Subcategoria (nível 2) - aparece após selecionar tipo */}
+            {tipoDespesa && (
+              <div>
+                <Label>Categoria</Label>
+                <SearchableCombobox
+                  items={subcategorias}
+                  value={subcategorias.find(s => s.label === watch("categoria"))?.id || ""}
+                  onChange={(id, label) => setValue("categoria", label)}
+                  placeholder="Selecione a categoria..."
+                  searchPlaceholder="Buscar categoria..."
+                  emptyMessage="Nenhuma categoria encontrada para este tipo."
+                />
+              </div>
+            )}
 
             <div>
               <Label htmlFor="status">Status</Label>
-              <RegularSelect defaultValue="agendado" onValueChange={(value) => setValue("status", value)}>
+              <RegularSelect value={watch("status")} onValueChange={(value) => setValue("status", value)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -307,7 +321,7 @@ export function ContaRecorrenteForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-border">
               <div>
                 <Label htmlFor="frequencia_recorrencia">Frequência de Pagamento *</Label>
-                <RegularSelect onValueChange={(value) => setValue("frequencia_recorrencia", value)}>
+                <RegularSelect value={watch("frequencia_recorrencia")} onValueChange={(value) => setValue("frequencia_recorrencia", value)}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
@@ -323,7 +337,7 @@ export function ContaRecorrenteForm({
 
               <div>
                 <Label htmlFor="dia_recorrencia">Dia do Mês para Vencimento *</Label>
-                <RegularSelect onValueChange={(value) => setValue("dia_recorrencia", value)}>
+                <RegularSelect value={watch("dia_recorrencia")} onValueChange={(value) => setValue("dia_recorrencia", value)}>
                   <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
