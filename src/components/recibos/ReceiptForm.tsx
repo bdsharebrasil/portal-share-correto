@@ -70,9 +70,6 @@ export function ReceiptForm({
     aircraftId: "",
     addAsFavorite: false,
 
-    // Categoria do Recibo (ADM SHARE ou ADM E PILOTAGEM)
-    categoriaRecibo: "",
-
     // REEMBOLSO
     reembolsoValorTotal: "",
     reembolsoPorcentagem: "",
@@ -162,7 +159,6 @@ export function ReceiptForm({
     if (formData.receiptType === "pagamento") {
       setFormData((prev) => ({
         ...prev,
-        categoriaRecibo: "",
         reembolsoValorTotal: "",
         reembolsoPorcentagem: "",
         reembolsoCategoriaId: "",
@@ -283,11 +279,6 @@ export function ReceiptForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.categoriaRecibo) {
-      alert("Por favor, selecione a categoria do recibo");
-      return;
-    }
-
     const submissionData = {
       ...formData,
       pagadorNome: formData.pagadorNome,
@@ -351,25 +342,6 @@ export function ReceiptForm({
               <SelectContent>
                 <SelectItem value="pagamento">Pagamento</SelectItem>
                 <SelectItem value="reembolso">Reembolso</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* CATEGORIA DO RECIBO */}
-          <div>
-            <Label>Categoria do Recibo *</Label>
-            <Select
-              value={formData.categoriaRecibo}
-              onValueChange={(v) =>
-                setFormData((p) => ({ ...p, categoriaRecibo: v }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione a categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ADM SHARE - RECIBO">ADM SHARE - RECIBO</SelectItem>
-                <SelectItem value="ADM E PILOTAGEM - RECIBO">ADM E PILOTAGEM - RECIBO</SelectItem>
               </SelectContent>
             </Select>
           </div>
