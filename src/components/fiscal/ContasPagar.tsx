@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select as RegularSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Search, Filter, Trash2, Wallet, ChevronDown, ChevronUp, Bell, AlertCircle, X, TrendingDown } from "lucide-react";
+import { Plus, Search, Filter, Trash2, Wallet, ChevronDown, ChevronUp, X, TrendingDown, AlertCircle, Bell } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,41 +22,38 @@ import { ContaPagarExpandedDetails } from "./contas-pagar/ContaPagarExpandedDeta
 import { PaymentDialog } from "./contas-pagar/PaymentDialog";
 
 const CATEGORIAS_FIXAS = [
-  { value: "DESPESAS EMPRESA", label: "Despesas Empresa" },
-  { value: "DESPESAS PARTICULARES", label: "Despesas Particulares" },
-  { value: "DESPESAS REEMBOLSAVEIS", label: "Despesas Reembolsáveis" },
-  { value: "IMPOSTOS", label: "Impostos" },
+  { value: "DESPESAS EMPRESA", label: "Empresa (SHARE)" },
+  { value: "DESPESAS PARTICULARES", label: "Particulares (ROLFFE)" },
+  { value: "DESPESAS REEMBOLSAVEIS", label: "Reembolsáveis" },
+  { value: "IMPOSTOS", label: "Impostos/Taxas" },
 ];
 
 const parseLocalDate = (dateString: string): Date => {
+  if (!dateString) return new Date();
   const [year, month, day] = dateString.split('-').map(Number);
   return new Date(year, month - 1, day);
 };
 
-// Estado inicial alinhado com as novas colunas do SQL
 const initialFormState = {
-  numero_doc: "", 
-  fornecedor_nome: "", // Usado para exibição/busca, certifique-se que o Form lida com isso
   data_vencimento: format(new Date(), "yyyy-MM-dd"),
+  numero_doc: "",
   valor: "",
   categoria: "",
   descricao: "",
   status: "agendada",
   data_agendamento: format(new Date(), "yyyy-MM-dd"),
   observacoes: "",
-  aeronave_registro: "",
-  fornecedor_favorito_id: null as string | null,
   client_id: null as string | null,
   client_partner_id: null as string | null,
+  fornecedor_favorito_id: null as string | null,
+  aeronave_registro: "",
   empresa: "", 
-  banco: "",
-  // Boleto
+  banco: "", // Aqui salvamos a conta do fornecedor (opcional)
+  // Boleto / NF / Documentos
   possui_boleto: false,
   boleto_url: "",
-  data_recebimento_boleto: "",
   vencimento_boleto: "",
   codigo_barras: "",
-  // NF
   possui_nf: false,
   nf_numero: "",
   nf_url: "",
@@ -79,55 +76,45 @@ export function ContasPagar() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [showForm, setShowForm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [selectedCategoria, setSelectedCategoria] = useState("");
+  const [selectedCategoriaPai, setSelectedCategoriaPai] = useState("");
   const [formData, setFormData] = useState({ ...initialFormState });
   const [fornecedores, setFornecedores] = useState<any[]>([]);
-  const [bancos, setBancos] = useState<{ id: string; label: string }[]>([]);
+  const [minhasContas, setMinhasContas] = useState<any[]>([]); // De onde sai o dinheiro
   const [paymentConta, setPaymentConta] = useState<any>(null);
 
-  const getCurrentMonth = () => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  };
+  const getCurrentMonth = () => format(new Date(), "yyyy-MM");
 
   const [filters, setFilters] = useState({
     searchTerm: "",
     status: "all",
-    periodo: "mes",
     mes: getCurrentMonth(),
-    ano: new Date().getFullYear().toString()
   });
 
   useEffect(() => {
     loadContas();
     loadFornecedores();
-    loadBancos();
+    loadMinhasContasBancarias();
   }, []);
 
   const loadFornecedores = async () => {
-    const { data } = await supabase
-      .from("fornecedores_favoritos")
-      .select("id, nome_completo, documento, apelido")
-      .order("nome_completo");
+    const { data } = await supabase.from("fornecedores_favoritos").select("*").order("nome_completo");
     setFornecedores(data || []);
   };
 
-  const loadBancos = async () => {
-    const { data } = await supabase.from("bank_institutions").select("id, label").order("sort_order");
-    setBancos(data || []);
+  const loadMinhasContasBancarias = async () => {
+    const { data } = await supabase.from("contas_bancarias").select("id, nome, banco").order("nome");
+    setMinhasContas(data || []);
   };
 
   const loadContas = async () => {
     setIsLoading(true);
     try {
-      // Query atualizada para buscar relacionamentos com os novos nomes de FK
       const { data, error } = await supabase
         .from("contas_apagar")
         .select(`
           *,
           fornecedores_favoritos:fornecedor_favorito_id(id, nome_completo),
-          clients:client_id(id, company_name, proprietario),
-          client_partners:client_partner_id(id, name)
+          clients:client_id(id, company_name, proprietario)
         `)
         .neq("status", "paga")
         .order("data_vencimento", { ascending: true });
@@ -135,72 +122,37 @@ export function ContasPagar() {
       if (error) throw error;
       setContas(data || []);
     } catch (err: any) {
-      toast.error("Erro ao carregar: " + err.message);
+      toast.error("Erro ao carregar lista: " + err.message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSelectCategoria = (cat: string) => {
-    setSelectedCategoria(cat);
-    setFormData({ ...initialFormState, categoria: cat });
-  };
-
   const handleSave = async () => {
-    // Validação de campos NOT NULL conforme o novo SQL
-    if (!formData.data_vencimento || !formData.valor || !formData.status) {
-      toast.error("Vencimento, Valor e Status são obrigatórios.");
+    if (!formData.valor || !formData.data_vencimento) {
+      toast.error("Valor e Vencimento são obrigatórios.");
       return;
     }
 
     setIsSaving(true);
     try {
-      const payload: any = {
-        data_vencimento: formData.data_vencimento,
-        numero_doc: formData.numero_doc || null,
-        valor: parseFloat(formData.valor.toString()),
-        categoria: formData.categoria || null,
-        descricao: formData.descricao || null,
-        status: formData.status,
-        data_agendamento: formData.data_agendamento || null,
-        observacoes: formData.observacoes || null,
+      const payload = {
+        ...formData,
+        valor: parseFloat(formData.valor.toString().replace(',', '.')),
         criado_por: user?.id,
-        
-        // Relacionamentos
-        client_id: formData.client_id || null,
-        client_partner_id: formData.client_partner_id || null,
-        fornecedor_favorito_id: formData.fornecedor_favorito_id || null,
-        aeronave_registro: formData.aeronave_registro || null,
-        
-        // Campos de documentos/urls
-        possui_boleto: formData.possui_boleto,
-        boleto_url: formData.boleto_url || null,
-        data_recebimento_boleto: formData.data_recebimento_boleto || null,
-        vencimento_boleto: formData.vencimento_boleto || null,
-        codigo_barras: formData.codigo_barras || null,
-        possui_nf: formData.possui_nf,
-        nf_numero: formData.nf_numero || null,
-        nf_url: formData.nf_url || null,
-        
-        // DECEA / Infraero
-        numero_documento_decea: formData.numero_documento_decea || null,
-        competencia_decea: formData.competencia_decea || null,
-        decea_url: formData.decea_url || null,
-        competencia_infraero: formData.competencia_infraero || null,
-        numero_documento_infraero: formData.numero_documento_infraero || null,
-        infraero_url: formData.infraero_url || null,
-
-        empresa: formData.empresa || null, // Agora é TEXT no seu SQL
+        // Garante que campos vazios sejam nulos no banco
+        numero_doc: formData.numero_doc || null,
         banco: formData.banco || null,
+        categoria: formData.categoria || null,
       };
 
       const { error } = await supabase.from("contas_apagar").insert([payload]);
       if (error) throw error;
 
-      toast.success("Conta a pagar criada com sucesso!");
+      toast.success("Conta agendada com sucesso!");
       setShowForm(false);
-      setSelectedCategoria("");
       setFormData({ ...initialFormState });
+      setSelectedCategoriaPai("");
       loadContas();
     } catch (err: any) {
       toast.error("Erro ao salvar: " + err.message);
@@ -213,11 +165,7 @@ export function ContasPagar() {
     if (!deleteConfirmId) return;
     const { error } = await supabase.from("contas_apagar").delete().eq("id", deleteConfirmId);
     if (error) toast.error(error.message);
-    else { 
-      toast.success("Conta excluída!"); 
-      setDeleteConfirmId(null); 
-      loadContas(); 
-    }
+    else { toast.success("Conta removida."); setDeleteConfirmId(null); loadContas(); }
   };
 
   const toggleExpand = (id: string) => {
@@ -228,185 +176,210 @@ export function ContasPagar() {
 
   const isVencida = (dv: string, status: string) => {
     if (status === "paga" || status === "cancelada") return false;
-    const today = new Date(); 
-    today.setHours(0, 0, 0, 0);
-    return parseLocalDate(dv) < today;
+    return parseLocalDate(dv) < new Date(new Date().setHours(0,0,0,0));
   };
 
   const filteredContas = useMemo(() => {
     return contas.filter(c => {
       const search = filters.searchTerm.toLowerCase();
-      // Ajustado para buscar no novo campo numero_doc e no nome do fornecedor favorito
       const fornecedor = c.fornecedores_favoritos?.nome_completo?.toLowerCase() || "";
       const searchOk = !search || fornecedor.includes(search) || c.numero_doc?.toLowerCase().includes(search);
-      
-      const statusOk = filters.status === "all" || (
-        filters.status === "vencido" ? isVencida(c.data_vencimento, c.status) : c.status === filters.status
-      );
-
-      let periodoOk = true;
-      if (filters.periodo === "mes") periodoOk = c.data_vencimento?.startsWith(filters.mes);
-      
-      return searchOk && statusOk && periodoOk;
+      const statusOk = filters.status === "all" || (filters.status === "vencido" ? isVencida(c.data_vencimento, c.status) : c.status === filters.status);
+      const mesOk = !filters.mes || c.data_vencimento?.startsWith(filters.mes);
+      return searchOk && statusOk && mesOk;
     });
   }, [contas, filters]);
 
-  const totals = useMemo(() => filteredContas.reduce((s, c) => s + parseFloat(c.valor || 0), 0), [filteredContas]);
+  const totalGeral = useMemo(() => filteredContas.reduce((acc, curr) => acc + Number(curr.valor), 0), [filteredContas]);
 
   return (
-    <div className="space-y-6 pb-8">
-      {/* Resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <Card className="bg-gradient-to-br from-white/5 to-white/[0.02] border-white/10">
+    <div className="space-y-6 pb-10">
+      {/* Resumo de Topo */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="bg-background border-border/50">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">TOTAL FILTRADO</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-400" />
+            <span className="text-xs font-bold text-muted-foreground uppercase">Total Pendente</span>
+            <TrendingDown className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-400">
-              R$ {totals.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </div>
+            <div className="text-2xl font-bold text-red-500">R$ {totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filtros e Botão Novo */}
-      <div className="flex flex-col md:flex-row gap-4 items-end justify-between bg-card p-6 rounded-xl border border-border/50">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1 w-full">
-          <div className="space-y-2">
-            <label className="text-xs font-medium">Busca</label>
+      {/* Toolbar de Filtros */}
+      <div className="flex flex-col lg:flex-row gap-4 p-4 bg-card rounded-xl border border-border/50 shadow-sm items-end">
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase">Busca rápida</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                className="pl-9" 
-                placeholder="Fornecedor ou Doc..." 
-                value={filters.searchTerm}
-                onChange={e => setFilters(p => ({ ...p, searchTerm: e.target.value }))}
-              />
+              <Input className="pl-9 h-9" placeholder="Fornecedor, doc..." value={filters.searchTerm} onChange={e => setFilters({...filters, searchTerm: e.target.value})} />
             </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-xs font-medium">Status</label>
-            <RegularSelect value={filters.status} onValueChange={v => setFilters(p => ({ ...p, status: v }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase">Mês Ref.</label>
+            <Input type="month" className="h-9" value={filters.mes} onChange={e => setFilters({...filters, mes: e.target.value})} />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase">Status</label>
+            <RegularSelect value={filters.status} onValueChange={v => setFilters({...filters, status: v})}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="agendada">Agendada</SelectItem>
-                <SelectItem value="vencido">Vencida</SelectItem>
+                <SelectItem value="all">Todos os abertos</SelectItem>
+                <SelectItem value="agendada">Agendadas</SelectItem>
+                <SelectItem value="vencido">Vencidas</SelectItem>
               </SelectContent>
             </RegularSelect>
           </div>
-          <div className="space-y-2">
-            <label className="text-xs font-medium">Mês de Vencimento</label>
-            <Input type="month" value={filters.mes} onChange={e => setFilters(p => ({ ...p, mes: e.target.value }))} />
-          </div>
         </div>
-        <Button onClick={() => setShowForm(true)} className="w-full md:w-auto bg-primary">
-          <Plus className="w-4 h-4 mr-2" /> Nova Conta
+        <Button onClick={() => setShowForm(true)} className="bg-primary hover:bg-primary/90 shadow-md">
+          <Plus className="w-4 h-4 mr-2" /> Novo Lançamento
         </Button>
       </div>
 
-      {/* Form (Apenas se showForm for true) */}
+      {/* Formulário de Cadastro */}
       {showForm && (
-        <Card className="border-primary/40 shadow-2xl">
-          <CardHeader className="flex flex-row justify-between items-center border-b">
-            <CardTitle>Cadastro de Conta a Pagar</CardTitle>
-            <Button variant="ghost" size="icon" onClick={() => setShowForm(false)}><X className="h-4 w-4" /></Button>
-          </CardHeader>
-          <CardContent className="pt-6 space-y-6">
-            <div className="flex flex-wrap gap-2">
-              {CATEGORIAS_FIXAS.map(cat => (
-                <Button 
-                  key={cat.value} 
-                  variant={selectedCategoria === cat.value ? "default" : "outline"}
-                  onClick={() => handleSelectCategoria(cat.value)}
-                  size="sm"
-                >
-                  {cat.label}
-                </Button>
-              ))}
-            </div>
-
-            {selectedCategoria === "DESPESAS EMPRESA" && (
-              <FormDespesasEmpresa form={formData} setForm={setFormData} fornecedores={fornecedores} onReloadFornecedores={loadFornecedores} />
-            )}
-            {/* Outros Forms seguem aqui... */}
-
-            {selectedCategoria && (
-              <div className="flex gap-3 justify-end pt-4 border-t">
-                <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
-                <Button onClick={handleSave} disabled={isSaving}>
-                  {isSaving ? "Processando..." : "Salvar no Sistema"}
-                </Button>
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="border-primary/30 shadow-xl bg-card/50 backdrop-blur-sm">
+            <CardHeader className="flex flex-row justify-between items-center border-b pb-4">
+              <CardTitle className="text-lg">Cadastrar Conta a Pagar</CardTitle>
+              <Button variant="ghost" size="icon" onClick={() => setShowForm(false)}><X className="h-4 w-4" /></Button>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-6">
+              <div className="flex flex-wrap gap-2">
+                {CATEGORIAS_FIXAS.map(cat => (
+                  <Button 
+                    key={cat.value} 
+                    variant={selectedCategoriaPai === cat.value ? "default" : "outline"}
+                    onClick={() => { setSelectedCategoriaPai(cat.value); setFormData({...formData, categoria: ""}); }}
+                    size="sm" className="rounded-full"
+                  >
+                    {cat.label}
+                  </Button>
+                ))}
               </div>
-            )}
-          </CardContent>
-        </Card>
+
+              {selectedCategoriaPai === "DESPESAS EMPRESA" && (
+                <FormDespesasEmpresa form={formData} setForm={setFormData} fornecedores={fornecedores} onReloadFornecedores={loadFornecedores} />
+              )}
+              {selectedCategoriaPai === "DESPESAS PARTICULARES" && (
+                <FormDespesasParticulares form={formData} setForm={setFormData} fornecedores={fornecedores} onReloadFornecedores={loadFornecedores} />
+              )}
+              {selectedCategoriaPai === "DESPESAS REEMBOLSAVEIS" && (
+                <FormDespesasReembolsaveis form={formData} setForm={setFormData} fornecedores={fornecedores} aeronaves={aeronaves} onReloadFornecedores={loadFornecedores} />
+              )}
+              {selectedCategoriaPai === "IMPOSTOS" && (
+                <FormImpostos form={formData} setForm={setFormData} />
+              )}
+
+              {selectedCategoriaPai && (
+                <div className="flex gap-3 justify-end pt-6 border-t">
+                  <Button variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
+                  <Button onClick={handleSave} disabled={isSaving} className="min-w-[120px]">
+                    {isSaving ? "Salvando..." : "Agendar Conta"}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
       )}
 
-      {/* Lista de Contas */}
-      <Card>
+      {/* Tabela de Resultados */}
+      <Card className="border-none shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-muted/30">
-                <th className="px-6 py-4 text-left font-medium">Fornecedor / Doc</th>
-                <th className="px-6 py-4 text-left font-medium">Vencimento</th>
-                <th className="px-6 py-4 text-right font-medium">Valor</th>
-                <th className="px-6 py-4 text-center font-medium">Status</th>
-                <th className="px-6 py-4 text-right font-medium">Ações</th>
+              <tr className="bg-muted/40 border-b border-border/50 text-muted-foreground">
+                <th className="px-6 py-4 text-left font-bold uppercase text-[10px]">Fornecedor / Documento</th>
+                <th className="px-6 py-4 text-left font-bold uppercase text-[10px]">Vencimento</th>
+                <th className="px-6 py-4 text-right font-bold uppercase text-[10px]">Valor</th>
+                <th className="px-6 py-4 text-center font-bold uppercase text-[10px]">Status</th>
+                <th className="px-6 py-4 text-right font-bold uppercase text-[10px]">Ações</th>
               </tr>
             </thead>
-            <tbody>
-              {filteredContas.map(conta => (
-                <React.Fragment key={conta.id}>
-                  <tr 
-                    className={`border-b hover:bg-muted/20 cursor-pointer transition-colors ${isVencida(conta.data_vencimento, conta.status) ? 'bg-red-500/5' : ''}`}
-                    onClick={() => toggleExpand(conta.id)}
-                  >
-                    <td className="px-6 py-4">
-                      <div className="font-semibold">{conta.fornecedores_favoritos?.nome_completo || "Fornecedor não vinculado"}</div>
-                      <div className="text-xs text-muted-foreground">{conta.numero_doc || "Sem número"}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {format(parseLocalDate(conta.data_vencimento), "dd/MM/yyyy")}
-                    </td>
-                    <td className="px-6 py-4 text-right font-bold text-red-500">
-                      R$ {parseFloat(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <Badge variant={isVencida(conta.data_vencimento, conta.status) ? "destructive" : "outline"}>
-                        {isVencida(conta.data_vencimento, conta.status) ? "vencida" : conta.status}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2" onClick={e => e.stopPropagation()}>
-                        <Button size="icon" variant="ghost" onClick={() => setPaymentConta(conta)} className="h-8 w-8 text-green-500"><Wallet className="h-4 w-4" /></Button>
-                        <Button size="icon" variant="ghost" onClick={() => setDeleteConfirmId(conta.id)} className="h-8 w-8 text-muted-foreground hover:text-red-500"><Trash2 className="h-4 w-4" /></Button>
-                      </div>
-                    </td>
-                  </tr>
-                  {expandedRows.has(conta.id) && (
-                    <tr>
-                      <td colSpan={5} className="p-0 bg-muted/5">
-                        <ContaPagarExpandedDetails conta={conta} />
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              ))}
+            <tbody className="divide-y divide-border/40">
+              {isLoading ? (
+                <tr><td colSpan={5} className="py-20 text-center text-muted-foreground animate-pulse">Carregando movimentações...</td></tr>
+              ) : filteredContas.length === 0 ? (
+                <tr><td colSpan={5} className="py-20 text-center text-muted-foreground">Nenhuma conta encontrada para este período.</td></tr>
+              ) : (
+                filteredContas.map(conta => {
+                  const vencida = isVencida(conta.data_vencimento, conta.status);
+                  return (
+                    <React.Fragment key={conta.id}>
+                      <tr 
+                        className={`hover:bg-muted/20 cursor-pointer transition-colors ${vencida ? 'bg-red-500/[0.03]' : ''}`}
+                        onClick={() => toggleExpand(conta.id)}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="font-semibold text-foreground">
+                            {conta.fornecedores_favoritos?.nome_completo || "Lançamento Avulso"}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                            {conta.numero_doc || "Sem documento"} • <span className="italic">{conta.categoria}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className={`font-medium ${vencida ? 'text-red-500' : ''}`}>
+                            {format(parseLocalDate(conta.data_vencimento), "dd/MM/yyyy")}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right font-bold text-foreground">
+                          R$ {parseFloat(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <Badge variant={vencida ? "destructive" : "outline"} className="capitalize font-medium">
+                            {vencida ? "Vencida" : conta.status}
+                          </Badge>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex justify-end gap-1" onClick={e => e.stopPropagation()}>
+                            <Button size="icon" variant="ghost" onClick={() => setPaymentConta(conta)} className="h-8 w-8 text-green-600 hover:bg-green-50">
+                              <Wallet className="h-4 w-4" />
+                            </Button>
+                            <Button size="icon" variant="ghost" onClick={() => setDeleteConfirmId(conta.id)} className="h-8 w-8 text-muted-foreground hover:text-red-600">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                      {expandedRows.has(conta.id) && (
+                        <tr>
+                          <td colSpan={5} className="p-0 border-b border-border/20">
+                            <ContaPagarExpandedDetails conta={conta} />
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
       </Card>
 
+      {/* Dialogs de Pagamento e Exclusão */}
       <PaymentDialog
         open={!!paymentConta}
         onOpenChange={(open) => !open && setPaymentConta(null)}
         conta={paymentConta}
-        bancos={bancos}
+        minhasContas={minhasContas} // Contas bancárias para origem do pgto
         onPaid={() => { setPaymentConta(null); loadContas(); }}
       />
+
+      <Dialog open={!!deleteConfirmId} onOpenChange={open => !open && setDeleteConfirmId(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><AlertCircle className="text-red-500 h-5 w-5" /> Confirmar Exclusão</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground py-4">Essa ação não pode ser desfeita. A conta será removida permanentemente do sistema.</p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>Manter Conta</Button>
+            <Button variant="destructive" onClick={handleDelete}>Confirmar Exclusão</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
