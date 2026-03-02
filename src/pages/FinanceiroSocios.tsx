@@ -239,11 +239,7 @@ export default function FinanceiroSocios() {
           </div>
         </div>
 
-        {/* Botões de Ação */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <DepositForm accounts={accounts} clienteId={clienteSelecionado} />
-          <ExpenseForm clienteId={clienteSelecionado} />
-        </div>
+        {/* Botões de Ação removidos conforme solicitação */}
 
         {/* Cards de Resumo dos Sócios */}
         <PartnerCards
