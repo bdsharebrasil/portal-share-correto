@@ -40,19 +40,8 @@ export function FormDespesasEmpresa({ form, setForm, fornecedores, onReloadForne
     const { data, error } = await supabase
       .from("empresas")
       .select("id, razao_social, cnpj");
-    
-    if (!error) setEmpresas(data || []);
-  };
 
-  const handleSelectEmpresa = (empresaId: string) => {
-    const emp = empresas.find(e => e.id === empresaId);
-    if (emp) {
-      setForm({
-        ...form,
-        empresa_id: emp.id,
-        empresa: emp.razao_social // Salva o nome da empresa selecionada (SHARE ou ROLFFE)
-      });
-    }
+    if (!error) setEmpresas(data || []);
   };
 
   return (
@@ -61,29 +50,14 @@ export function FormDespesasEmpresa({ form, setForm, fornecedores, onReloadForne
         <Building2 className="h-4 w-4 text-primary" />
         <h3 className="text-sm font-semibold text-primary uppercase tracking-wide">Despesas Empresa (SHARE)</h3>
       </div>
-      
-      {/* Seletor de Empresa Pagadora */}
-      <div className="space-y-1">
-        <label className="text-xs font-bold text-muted-foreground uppercase">Empresa Pagadora *</label>
-        <RegularSelect value={form.empresa_id || ""} onValueChange={handleSelectEmpresa}>
-          <SelectTrigger className="h-10">
-            <SelectValue placeholder="Selecione qual empresa está pagando..." />
-          </SelectTrigger>
-          <SelectContent>
-            {empresas.map(e => (
-              <SelectItem key={e.id} value={e.id}>{e.razao_social}</SelectItem>
-            ))}
-          </SelectContent>
-        </RegularSelect>
-      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Número do Documento */}
         <div className="space-y-1">
           <label className="text-xs font-bold text-muted-foreground uppercase block">Nº Documento</label>
-          <Input 
-            placeholder="Ex: NF 123" 
-            value={form.numero_doc || ""} 
+          <Input
+            placeholder="Ex: NF 123"
+            value={form.numero_doc || ""}
             onChange={e => setForm({ ...form, numero_doc: e.target.value })}
             className="h-10"
           />
@@ -92,8 +66,8 @@ export function FormDespesasEmpresa({ form, setForm, fornecedores, onReloadForne
         {/* Categoria Específica */}
         <div className="space-y-1">
           <label className="text-xs font-bold text-muted-foreground uppercase block">Categoria *</label>
-          <RegularSelect 
-            value={form.categoria} 
+          <RegularSelect
+            value={form.categoria}
             onValueChange={v => setForm({ ...form, categoria: v })}
           >
             <SelectTrigger className="h-10"><SelectValue placeholder="Selecione a categoria..." /></SelectTrigger>
@@ -106,6 +80,7 @@ export function FormDespesasEmpresa({ form, setForm, fornecedores, onReloadForne
         </div>
       </div>
 
+      {/* FornecedorSelect agora passa conta_pagamento_fornecedor corretamente */}
       <FornecedorSelect
         fornecedores={fornecedores}
         categoriaFilter="share"
@@ -115,26 +90,15 @@ export function FormDespesasEmpresa({ form, setForm, fornecedores, onReloadForne
             ...form,
             fornecedor_nome: nome,
             fornecedor_favorito_id: forn?.id || null,
-            conta_pagamento_fornecedor: forn?.conta_pagamento || ""
-            fornecedor_cnpj: forn?.documento || ""
+            fornecedor_cnpj: forn?.documento || "",
+            conta_pagamento_fornecedor: forn?.conta_pagamento || "", // ← corrigido
           });
         }}
-        contaPagamento={form.banco}
+        contaPagamento={form.conta_pagamento_fornecedor} // ← corrigido (era form.banco)
         onFornecedorAdded={onReloadFornecedores}
       />
 
       <ValorVencimentoFields form={form} setForm={setForm} />
-      
-      {/* Dados Bancários Extras (Opcional) */}
-      <div className="space-y-1">
-        <label className="text-[10px] font-bold text-muted-foreground uppercase">Dados Bancários do Fornecedor (Opcional)</label>
-        <Input 
-          placeholder="Agência, conta ou PIX..." 
-          value={form.banco || ""} 
-          onChange={e => setForm({ ...form, banco: e.target.value })}
-          className="h-9 text-sm bg-muted/20 italic"
-        />
-      </div>
 
       <BoletoSection form={form} setForm={setForm} />
       <NFSection form={form} setForm={setForm} />

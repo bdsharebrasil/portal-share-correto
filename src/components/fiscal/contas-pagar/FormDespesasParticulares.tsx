@@ -15,17 +15,16 @@ export function FormDespesasParticulares({ form, setForm, fornecedores, onReload
       <h3 className="text-sm font-semibold text-primary uppercase tracking-wide">Despesas Particulares</h3>
       <FornecedorSelect
         fornecedores={fornecedores}
-        categoriaFilter="pessoal"
+        categoriaFilter="particular"
         value={form.fornecedor_favorito_id}
         onChange={(nome, forn) => {
-          setForm({
-            ...form,
-            fornecedor_nome: nome,
-            fornecedor_favorito_id: forn?.id || null,
-            fornecedor_cnpj: forn?.documento || "",
-            conta_pagamento_fornecedor: forn?.conta_pagamento || ""
-          });
-        }}
+  setForm({
+    ...form,
+    fornecedor_nome: nome,
+    fornecedor_favorito_id: forn?.id || null,
+    conta_pagamento_fornecedor: forn?.conta_pagamento || "", // ← adicionar isso
+  });
+}}
         contaPagamento={form.conta_pagamento_fornecedor}
         onFornecedorAdded={onReloadFornecedores}
       />

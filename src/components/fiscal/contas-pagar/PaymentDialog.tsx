@@ -13,11 +13,10 @@ interface PaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   conta: any;
-  bancos: { id: string; label: string }[];
   onPaid: () => void;
 }
 
-export function PaymentDialog({ open, onOpenChange, conta, bancos, onPaid }: PaymentDialogProps) {
+export function PaymentDialog({ open, onOpenChange, conta,  onPaid }: PaymentDialogProps) {
   const { user } = useAuth();
   const [dataPagamento, setDataPagamento] = useState(format(new Date(), "yyyy-MM-dd"));
   const [banco, setBanco] = useState("");
@@ -128,15 +127,7 @@ export function PaymentDialog({ open, onOpenChange, conta, bancos, onPaid }: Pay
               <label className="text-sm font-semibold mb-1 block">Data do Pagamento *</label>
               <Input type="date" value={dataPagamento} onChange={e => setDataPagamento(e.target.value)} />
             </div>
-            <div>
-              <label className="text-sm font-semibold mb-1 block">Banco *</label>
-              <RegularSelect value={banco} onValueChange={setBanco}>
-                <SelectTrigger><SelectValue placeholder="Selecione o banco..." /></SelectTrigger>
-                <SelectContent>
-                  {bancos.map(b => <SelectItem key={b.id} value={b.label}>{b.label}</SelectItem>)}
-                </SelectContent>
-              </RegularSelect>
-            </div>
+          
             <div>
               <label className="text-sm font-semibold mb-1 block">Método de Pagamento *</label>
               <RegularSelect value={metodoPagamento} onValueChange={setMetodoPagamento}>

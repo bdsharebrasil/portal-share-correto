@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select as RegularSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Search, Filter, Trash2, Wallet, ChevronDown, ChevronUp, X, TrendingDown, AlertCircle, Bell } from "lucide-react";
+import { Plus, Search, Trash2, Wallet, X, TrendingDown, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,10 +22,10 @@ import { ContaPagarExpandedDetails } from "./contas-pagar/ContaPagarExpandedDeta
 import { PaymentDialog } from "./contas-pagar/PaymentDialog";
 
 const CATEGORIAS_FIXAS = [
-  { value: "DESPESAS EMPRESA", label: "Empresa (SHARE)" },
-  { value: "DESPESAS PARTICULARES", label: "Particulares (ROLFFE)" },
-  { value: "DESPESAS REEMBOLSAVEIS", label: "Reembolsáveis" },
-  { value: "IMPOSTOS", label: "Impostos/Taxas" },
+  { value: "DESPESAS EMPRESA", label: "EMPRESA" },
+  { value: "DESPESAS PARTICULARES", label: "PARTICULAR" },
+  { value: "DESPESAS REEMBOLSAVEIS", label: "CLIENTE - Reembolsáveis" },
+  { value: "IMPOSTOS", label: "IMPOSTOS" },
 ];
 
 const parseLocalDate = (dateString: string): Date => {
@@ -47,8 +47,11 @@ const initialFormState = {
   client_partner_id: null as string | null,
   fornecedor_favorito_id: null as string | null,
   aeronave_registro: "",
-  empresa: "", 
-  banco: "", // Aqui salvamos a conta do fornecedor (opcional)
+  empresa: "",
+
+  // Campos preenchidos automaticamente do fornecedor favorito
+  conta_pagamento_fornecedor: "",
+
   // Boleto / NF / Documentos
   possui_boleto: false,
   boleto_url: "",
@@ -79,7 +82,7 @@ export function ContasPagar() {
   const [selectedCategoriaPai, setSelectedCategoriaPai] = useState("");
   const [formData, setFormData] = useState({ ...initialFormState });
   const [fornecedores, setFornecedores] = useState<any[]>([]);
-  const [minhasContas, setMinhasContas] = useState<any[]>([]); // De onde sai o dinheiro
+  const [minhasContas, setMinhasContas] = useState<any[]>([]);
   const [paymentConta, setPaymentConta] = useState<any>(null);
 
   const getCurrentMonth = () => format(new Date(), "yyyy-MM");
@@ -96,13 +99,39 @@ export function ContasPagar() {
     loadMinhasContasBancarias();
   }, []);
 
+  // ─── AUTO-PREENCHIMENTO: quando fornecedor_favorito_id muda, busca os dados na lista já carregada ───
+  useEffect(() => {
+    if (!formData.fornecedor_favorito_id) {
+      // Limpa os campos auto-preenchidos se o fornecedor for removido
+      setFormData(prev => ({
+        ...prev,
+        conta_pagamento_fornecedor: "",
+      }));
+      return;
+    }
+
+    const fornecedor = fornecedores.find(f => f.id === formData.fornecedor_favorito_id);
+    if (!fornecedor) return;
+
+    setFormData(prev => ({
+      ...prev,
+      conta_pagamento_fornecedor: fornecedor.conta_pagamento || "",
+    }));
+  }, [formData.fornecedor_favorito_id, fornecedores]);
+
   const loadFornecedores = async () => {
-    const { data } = await supabase.from("fornecedores_favoritos").select("*").order("nome_completo");
+    const { data } = await supabase
+      .from("fornecedores_favoritos")
+      .select("*")
+      .order("nome_completo, conta_pagamento");
     setFornecedores(data || []);
   };
 
   const loadMinhasContasBancarias = async () => {
-    const { data } = await supabase.from("contas_bancarias").select("id, nome, banco").order("nome");
+    const { data } = await supabase
+      .from("contas_bancarias")
+      .select("id, banco")
+      .order("banco");
     setMinhasContas(data || []);
   };
 
@@ -113,7 +142,7 @@ export function ContasPagar() {
         .from("contas_apagar")
         .select(`
           *,
-          fornecedores_favoritos:fornecedor_favorito_id(id, nome_completo),
+          fornecedores_favoritos:fornecedor_favorito_id(id, nome_completo, conta_pagamento),
           clients:client_id(id, company_name, proprietario)
         `)
         .neq("status", "paga")
@@ -140,10 +169,10 @@ export function ContasPagar() {
         ...formData,
         valor: parseFloat(formData.valor.toString().replace(',', '.')),
         criado_por: user?.id,
-        // Garante que campos vazios sejam nulos no banco
         numero_doc: formData.numero_doc || null,
-        banco: formData.banco || null,
         categoria: formData.categoria || null,
+        // Garante que conta_pagamento_fornecedor vai ao banco
+        conta_pagamento_fornecedor: formData.conta_pagamento_fornecedor || null,
       };
 
       const { error } = await supabase.from("contas_apagar").insert([payload]);
@@ -165,7 +194,11 @@ export function ContasPagar() {
     if (!deleteConfirmId) return;
     const { error } = await supabase.from("contas_apagar").delete().eq("id", deleteConfirmId);
     if (error) toast.error(error.message);
-    else { toast.success("Conta removida."); setDeleteConfirmId(null); loadContas(); }
+    else {
+      toast.success("Conta removida.");
+      setDeleteConfirmId(null);
+      loadContas();
+    }
   };
 
   const toggleExpand = (id: string) => {
@@ -176,7 +209,7 @@ export function ContasPagar() {
 
   const isVencida = (dv: string, status: string) => {
     if (status === "paga" || status === "cancelada") return false;
-    return parseLocalDate(dv) < new Date(new Date().setHours(0,0,0,0));
+    return parseLocalDate(dv) < new Date(new Date().setHours(0, 0, 0, 0));
   };
 
   const filteredContas = useMemo(() => {
@@ -190,7 +223,10 @@ export function ContasPagar() {
     });
   }, [contas, filters]);
 
-  const totalGeral = useMemo(() => filteredContas.reduce((acc, curr) => acc + Number(curr.valor), 0), [filteredContas]);
+  const totalGeral = useMemo(
+    () => filteredContas.reduce((acc, curr) => acc + Number(curr.valor), 0),
+    [filteredContas]
+  );
 
   return (
     <div className="space-y-6 pb-10">
@@ -202,7 +238,9 @@ export function ContasPagar() {
             <TrendingDown className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-500">R$ {totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+            <div className="text-2xl font-bold text-red-500">
+              R$ {totalGeral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -214,16 +252,26 @@ export function ContasPagar() {
             <label className="text-[10px] font-bold text-muted-foreground uppercase">Busca rápida</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-9 h-9" placeholder="Fornecedor, doc..." value={filters.searchTerm} onChange={e => setFilters({...filters, searchTerm: e.target.value})} />
+              <Input
+                className="pl-9 h-9"
+                placeholder="Fornecedor, doc..."
+                value={filters.searchTerm}
+                onChange={e => setFilters({ ...filters, searchTerm: e.target.value })}
+              />
             </div>
           </div>
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-muted-foreground uppercase">Mês Ref.</label>
-            <Input type="month" className="h-9" value={filters.mes} onChange={e => setFilters({...filters, mes: e.target.value})} />
+            <Input
+              type="month"
+              className="h-9"
+              value={filters.mes}
+              onChange={e => setFilters({ ...filters, mes: e.target.value })}
+            />
           </div>
           <div className="space-y-1.5">
             <label className="text-[10px] font-bold text-muted-foreground uppercase">Status</label>
-            <RegularSelect value={filters.status} onValueChange={v => setFilters({...filters, status: v})}>
+            <RegularSelect value={filters.status} onValueChange={v => setFilters({ ...filters, status: v })}>
               <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os abertos</SelectItem>
@@ -244,33 +292,77 @@ export function ContasPagar() {
           <Card className="border-primary/30 shadow-xl bg-card/50 backdrop-blur-sm">
             <CardHeader className="flex flex-row justify-between items-center border-b pb-4">
               <CardTitle className="text-lg">Cadastrar Conta a Pagar</CardTitle>
-              <Button variant="ghost" size="icon" onClick={() => setShowForm(false)}><X className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={() => setShowForm(false)}>
+                <X className="h-4 w-4" />
+              </Button>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
+              {/* Seleção de Categoria */}
               <div className="flex flex-wrap gap-2">
                 {CATEGORIAS_FIXAS.map(cat => (
-                  <Button 
-                    key={cat.value} 
+                  <Button
+                    key={cat.value}
                     variant={selectedCategoriaPai === cat.value ? "default" : "outline"}
-                    onClick={() => { setSelectedCategoriaPai(cat.value); setFormData({...formData, categoria: ""}); }}
-                    size="sm" className="rounded-full"
+                    onClick={() => {
+                      setSelectedCategoriaPai(cat.value);
+                      setFormData({ ...formData, categoria: "" });
+                    }}
+                    size="sm"
+                    className="rounded-full"
                   >
                     {cat.label}
                   </Button>
                 ))}
               </div>
 
+              {/* Sub-formulários — recebem formData completo, incluindo conta_pagamento_fornecedor já preenchido */}
               {selectedCategoriaPai === "DESPESAS EMPRESA" && (
-                <FormDespesasEmpresa form={formData} setForm={setFormData} fornecedores={fornecedores} onReloadFornecedores={loadFornecedores} />
+                <FormDespesasEmpresa
+                  form={formData}
+                  setForm={setFormData}
+                  fornecedores={fornecedores}
+                  onReloadFornecedores={loadFornecedores}
+                />
               )}
               {selectedCategoriaPai === "DESPESAS PARTICULARES" && (
-                <FormDespesasParticulares form={formData} setForm={setFormData} fornecedores={fornecedores} onReloadFornecedores={loadFornecedores} />
+                <FormDespesasParticulares
+                  form={formData}
+                  setForm={setFormData}
+                  fornecedores={fornecedores}
+                  onReloadFornecedores={loadFornecedores}
+                />
               )}
               {selectedCategoriaPai === "DESPESAS REEMBOLSAVEIS" && (
-                <FormDespesasReembolsaveis form={formData} setForm={setFormData} fornecedores={fornecedores} aeronaves={aeronaves} onReloadFornecedores={loadFornecedores} />
+                <FormDespesasReembolsaveis
+                  form={formData}
+                  setForm={setFormData}
+                  fornecedores={fornecedores}
+                  aeronaves={aeronaves}
+                  onReloadFornecedores={loadFornecedores}
+                />
               )}
               {selectedCategoriaPai === "IMPOSTOS" && (
                 <FormImpostos form={formData} setForm={setFormData} />
+              )}
+
+              {/* Campo de exibição da conta de pagamento do fornecedor (somente leitura) */}
+              {selectedCategoriaPai && formData.fornecedor_favorito_id && (
+                <div className="rounded-lg border border-border/50 bg-muted/20 p-4 space-y-3">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    Dados do Fornecedor (preenchidos automaticamente)
+                  </p>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-semibold text-muted-foreground uppercase">
+                      Conta de Pagamento
+                    </label>
+                    <Input
+                      value={formData.conta_pagamento_fornecedor}
+                      readOnly
+                      placeholder="Nenhuma conta cadastrada para este fornecedor"
+                      className="bg-muted/50 cursor-not-allowed text-muted-foreground"
+                    />
+                  </div>
+                </div>
               )}
 
               {selectedCategoriaPai && (
@@ -301,15 +393,23 @@ export function ContasPagar() {
             </thead>
             <tbody className="divide-y divide-border/40">
               {isLoading ? (
-                <tr><td colSpan={5} className="py-20 text-center text-muted-foreground animate-pulse">Carregando movimentações...</td></tr>
+                <tr>
+                  <td colSpan={5} className="py-20 text-center text-muted-foreground animate-pulse">
+                    Carregando movimentações...
+                  </td>
+                </tr>
               ) : filteredContas.length === 0 ? (
-                <tr><td colSpan={5} className="py-20 text-center text-muted-foreground">Nenhuma conta encontrada para este período.</td></tr>
+                <tr>
+                  <td colSpan={5} className="py-20 text-center text-muted-foreground">
+                    Nenhuma conta encontrada para este período.
+                  </td>
+                </tr>
               ) : (
                 filteredContas.map(conta => {
                   const vencida = isVencida(conta.data_vencimento, conta.status);
                   return (
                     <React.Fragment key={conta.id}>
-                      <tr 
+                      <tr
                         className={`hover:bg-muted/20 cursor-pointer transition-colors ${vencida ? 'bg-red-500/[0.03]' : ''}`}
                         onClick={() => toggleExpand(conta.id)}
                       >
@@ -320,26 +420,45 @@ export function ContasPagar() {
                           <div className="text-[11px] text-muted-foreground flex items-center gap-1">
                             {conta.numero_doc || "Sem documento"} • <span className="italic">{conta.categoria}</span>
                           </div>
+                          {/* Exibe conta de pagamento do fornecedor na listagem se existir */}
+                          {conta.conta_pagamento_fornecedor && (
+                            <div className="text-[10px] text-muted-foreground/70 mt-0.5">
+                              Pagar em: {conta.conta_pagamento_fornecedor}
+                            </div>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <div className={`font-medium ${vencida ? 'text-red-500' : ''}`}>
-                            {format(parseLocalDate(conta.data_vencimento), "dd/MM/yyyy")}
+                            {format(parseLocalDate(conta.data_vencimento), "dd/MM/yy")}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-right font-bold text-foreground">
                           R$ {parseFloat(conta.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </td>
                         <td className="px-6 py-4 text-center">
-                          <Badge variant={vencida ? "destructive" : "outline"} className="capitalize font-medium">
+                          <Badge
+                            variant={vencida ? "destructive" : "outline"}
+                            className="capitalize font-medium"
+                          >
                             {vencida ? "Vencida" : conta.status}
                           </Badge>
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex justify-end gap-1" onClick={e => e.stopPropagation()}>
-                            <Button size="icon" variant="ghost" onClick={() => setPaymentConta(conta)} className="h-8 w-8 text-green-600 hover:bg-green-50">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => setPaymentConta(conta)}
+                              className="h-8 w-8 text-green-600 hover:bg-green-50"
+                            >
                               <Wallet className="h-4 w-4" />
                             </Button>
-                            <Button size="icon" variant="ghost" onClick={() => setDeleteConfirmId(conta.id)} className="h-8 w-8 text-muted-foreground hover:text-red-600">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => setDeleteConfirmId(conta.id)}
+                              className="h-8 w-8 text-muted-foreground hover:text-red-600"
+                            >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -361,19 +480,24 @@ export function ContasPagar() {
         </div>
       </Card>
 
-      {/* Dialogs de Pagamento e Exclusão */}
+      {/* Dialogs */}
       <PaymentDialog
         open={!!paymentConta}
         onOpenChange={(open) => !open && setPaymentConta(null)}
         conta={paymentConta}
-        minhasContas={minhasContas} // Contas bancárias para origem do pgto
         onPaid={() => { setPaymentConta(null); loadContas(); }}
       />
 
       <Dialog open={!!deleteConfirmId} onOpenChange={open => !open && setDeleteConfirmId(null)}>
         <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><AlertCircle className="text-red-500 h-5 w-5" /> Confirmar Exclusão</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground py-4">Essa ação não pode ser desfeita. A conta será removida permanentemente do sistema.</p>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="text-red-500 h-5 w-5" /> Confirmar Exclusão
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-4">
+            Essa ação não pode ser desfeita. A conta será removida permanentemente do sistema.
+          </p>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>Manter Conta</Button>
             <Button variant="destructive" onClick={handleDelete}>Confirmar Exclusão</Button>
