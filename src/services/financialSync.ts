@@ -111,12 +111,14 @@ export async function syncBankReconciliationToFinancial(
 
       if (!existingConta) {
         const numeroDocumento = `REIMB-${reconciliationId.slice(0, 8)}`;
+        // Usar partner_name quando disponível
+        const nomeExibicao = (rec as any).partner_name || (rec.clients as any)?.company_name || "Cliente";
         const { data: contaData, error: contaError } = await supabase
           .from("contas_areceber")
           .insert({
             numero: numeroDocumento,
-            referencia: (rec.clients as any)?.company_name || "Cliente",
-            cliente_nome: (rec.clients as any)?.company_name || "Cliente",
+            referencia: nomeExibicao,
+            cliente_nome: nomeExibicao,
             cliente_cnpj: (rec.clients as any)?.cnpj || "",
             data_criacao: rec.date,
             data_vencimento: rec.prazo_pagamento || rec.date,
