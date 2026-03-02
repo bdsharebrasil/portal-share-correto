@@ -370,15 +370,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           logSuccess('Client Partners carregados', { count: clientPartnersRes.data.length });
         }
 
-        const loansRes: any = await supabase
+        const loansRes = await supabase
           .from('aircraft_loans')
           .select('*')
           .eq('lender_aircraft_id', aircraftId)
           .order('entry_date', { ascending: false });
 
-        if (loansRes?.data) {
-          setLoans(loansRes.data);
-        }
+        if (loansRes.data) setLoans(loansRes.data || []);
 
         let { data: monthData } = await supabase
           .from('logbook_months')
@@ -448,7 +446,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
   useEffect(() => {
     if (showAddForm && entries.length > 0) {
-      const lastEntry = entries[0];
+      const lastEntry = entries[entries.length - 1];
       if (lastEntry.arrival_aerodrome && !newEntry.departure_aerodrome) {
         setNewEntry(prev => ({ ...prev, departure_aerodrome: lastEntry.arrival_aerodrome }));
       }
@@ -1227,7 +1225,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
   const handleEditEntry = (entry: any) => {
     // Carregar dados da entrada no formulário de novo lançamento
-    // Para empréstimos: loan_recipient_client_id contém o cliente que pegou emprestado
+    // Para empréstimos: partner_name contém o nome de quem pegou emprestado
     setNewEntry({
       entry_date: entry.entry_date,
       pic_canac: entry.pic_canac || '',
@@ -1237,9 +1235,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       departure_aerodrome: entry.departure_aerodrome || '',
       arrival_aerodrome: entry.arrival_aerodrome || '',
       client_id: entry.client_id || '',
-      client_partner_id: entry.client_partner_id || null,
-      loan_recipient_client_id: entry.loan_recipient_client_id || null,
-      loan_recipient_partner_id: entry.loan_recipient_partner_id || null,
+      borrower_client_id: '', // Será preenchido ao buscar o cliente que pega emprestado
+      partner_name: entry.partner_name || '',
+      borrower_partner_name: entry.is_loan ? entry.partner_name : '',
       is_equal_split: entry.is_equal_split || false,
       is_loan: entry.is_loan || false,
       ac_time: entry.ac_time || '',
@@ -1268,6 +1266,18 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       corrective_actions: entry.corrective_actions || '',
       daily_quantity: entry.daily_quantity || 0
     });
+
+    // Se for empréstimo, buscar o ID do cliente que pegou emprestado
+    if (entry.is_loan && entry.partner_name) {
+      // Buscar cliente pelo partner_name (company_name)
+      const borrower = clients.find((c: any) => c.company_name === entry.partner_name);
+      if (borrower) {
+        setNewEntry(prev => ({
+          ...prev,
+          borrower_client_id: borrower.id
+        }));
+      }
+    }
 
     // Definir tipo de voo
     if (entry.is_equal_split) {
@@ -2141,17 +2151,23 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       </Select>
                     </div>
 
-                    {/* Seleção de Sócio/Partner - mostra apenas se foi selecionado */}
+                    {/* Seleção de Sócio/Partner - mostra quando cliente tem parceiros */}
                     {newEntry.client_id && (() => {
                       const selectedClient = clients.find(c => c.id === newEntry.client_id);
                       const partners = getPartnersFromClient(selectedClient, clientPartnersByClientId);
 
-                      if (newEntry.client_partner_id && partners.length > 0) {
+                      if (partners.length > 0) {
                         return (
                           <div className="space-y-1 mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Sócio Selecionado</Label>
+                            <Label className="text-[9px] uppercase text-amber-500 ml-1 block">
+                              {newEntry.client_partner_id ? 'Sócio Selecionado' : 'Selecionar Sócio'}
+                            </Label>
                             <div className="flex items-center justify-between">
-                              <p className="text-sm font-bold text-amber-400">{partners.find(p => p.id === newEntry.client_partner_id)?.name || 'Selecionado'}</p>
+                              <p className={`text-sm font-bold ${newEntry.client_partner_id ? 'text-amber-400' : 'text-slate-400'}`}>
+                                {newEntry.client_partner_id
+                                  ? partners.find(p => p.id === newEntry.client_partner_id)?.name || 'Selecionado'
+                                  : 'Nenhum sócio selecionado'}
+                              </p>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -2160,7 +2176,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                                 }}
                                 className="text-xs px-2 py-1 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/50 text-amber-400 rounded transition-all"
                               >
-                                Alterar
+                                {newEntry.client_partner_id ? 'Alterar' : 'Selecionar'}
                               </button>
                             </div>
                             {selectedClient?.cnpj && (
