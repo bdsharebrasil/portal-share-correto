@@ -1,332 +1,324 @@
-import React, { useState, useMemo } from "react";
-import { Layout } from "@/components/layout/Layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { DollarSign, Loader2, Users, Search, ArrowRight, BarChart3 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+"use client"
 
-// Componentes ajustados para o contexto de Socios
-import { PartnerCards } from "@/components/socios/PartnerCards";
-import { TransactionsTable } from "@/components/socios/TransactionsTable";
-import { DepositForm } from "@/components/socios/DepositForm";
-import { ExpenseForm } from "@/components/socios/ExpenseForm";
+import { useMemo, useState } from "react"
+import {
+  format,
+  subMonths,
+  isSameMonth,
+  parseISO,
+} from "date-fns"
+import { ptBR } from "date-fns/locale"
 
-// Hooks ajustados
-import { useSocioAccounts, useSocioTransactions } from "@/hooks/useFinanceiroSocios";
-import { useClientesComSocios } from "@/hooks/useSocioBalanco";
-import { useClientPartners } from "@/hooks/useClientPartners";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts"
 
-export default function FinanceiroSocios() {
-  const navigate = useNavigate();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [clienteSelecionado, setClienteSelecionado] = useState<string | null>(null);
+type Transaction = {
+  id: string
+  date: string
+  description: string
+  category: string
+  amount: number
+  type: "entrada" | "saida"
+}
 
-  // 1. Carregar lista de clientes (Sempre carregado para a seleção)
-  const { data: clientesComSocios = [], isLoading: loadingClientes } = useClientesComSocios();
+type Props = {
+  transactions: Transaction[]
+}
 
-  // 2. Carregar dados financeiros APENAS se houver um cliente selecionado
-  // Passamos o ID do cliente para os hooks filtrarem os dados
-  const { data: accounts = [], isLoading: loadingAccounts } = useSocioAccounts(clienteSelecionado);
-  const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteSelecionado);
-  const { data: transactions = [], isLoading: loadingTransactions } = useSocioTransactions(clienteSelecionado);
+export default function FinancialReportPage({ transactions }: Props) {
+  const [filterMonth, setFilterMonth] = useState<string>("")
+  const [visibleCategories, setVisibleCategories] = useState<string[]>([])
+  const [sortBy, setSortBy] = useState<"date" | "amount">("date")
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
 
-  // Memoizar clientes com partners para evitar recalcular a cada render
-  const clientesComPartners = useMemo(
-    () => clientesComSocios.filter((cliente) =>
-    cliente.socios && cliente.socios.length > 0
-    ),
-    [clientesComSocios]
-  );
+  // -------------------------
+  // FILTRO POR MÊS
+  // -------------------------
 
-  // Filtrar lista de seleção por termo de busca
-  const clientesFiltrados = useMemo(
-    () => clientesComPartners.filter((cliente) =>
-    cliente.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cliente.proprietario?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    cliente.cnpj?.includes(searchTerm)
-    ),
-    [clientesComPartners, searchTerm]
-  );
+  const filteredTransactions = useMemo(() => {
+    if (!filterMonth) return transactions
 
-  // Encontrar o objeto do cliente selecionado para exibir no Header
-  const selectedClientData = useMemo(
-    () => clientesComSocios.find((c) => c.id === clienteSelecionado),
-    [clientesComSocios, clienteSelecionado]
-  );
+    const selectedDate = new Date(filterMonth + "-01")
 
-  const isDashboardLoading = clienteSelecionado && loadingAccounts;
+    return transactions.filter((t) =>
+      isSameMonth(parseISO(t.date), selectedDate)
+    )
+  }, [transactions, filterMonth])
 
-  // --- TELA DE SELEÇÃO DE CLIENTE ---
-  if (!clienteSelecionado) {
-    return (
-      <Layout>
-        <div className="space-y-6">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-4xl font-bold text-foreground mb-2">Financeiro Sócios</h1>
-            <p className="text-lg text-muted-foreground">
-              Selecione um cliente para visualizar os dados de balanço e sócios
-            </p>
-          </div>
+  // -------------------------
+  // COMPARAÇÃO COM MÊS ANTERIOR
+  // -------------------------
 
-          {/* Search */}
-          <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg">Buscar Cliente</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nome, CPF/CNPJ..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10" />
+  const previousMonthTransactions = useMemo(() => {
+    if (!filterMonth) return []
 
-              </div>
-            </CardContent>
-          </Card>
+    const currentDate = new Date(filterMonth + "-01")
+    const previousMonthDate = subMonths(currentDate, 1)
 
-          {/* Grid de Clientes */}
-          {loadingClientes ?
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-             {[...Array(6)].map((_, i) =>
-            <Card key={i} className="border-border/50 bg-card/60">
-                 <CardHeader>
-                   <div className="h-6 bg-muted rounded w-3/4 animate-pulse" />
-                 </CardHeader>
-                 <CardContent>
-                   <div className="space-y-3">
-                     <div className="h-4 bg-muted rounded w-1/2 animate-pulse" />
-                     <div className="h-10 bg-muted rounded animate-pulse" />
-                   </div>
-                 </CardContent>
-               </Card>
-            )}
-           </div> :
+    return transactions.filter((t) =>
+      isSameMonth(parseISO(t.date), previousMonthDate)
+    )
+  }, [transactions, filterMonth])
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {clientesFiltrados.map((cliente) =>
-            <Card
-              key={cliente.id}
-              className="border-border/50 bg-card/60 backdrop-blur-sm hover:bg-card/80 transition-colors cursor-pointer group">
+  // -------------------------
+  // SUMMARY
+  // -------------------------
 
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <CardTitle className="text-base truncate group-hover:text-primary transition-colors">
-                          {cliente.company_name || cliente.proprietario}
-                        </CardTitle>
-                        {cliente.cnpj &&
-                    <p className="text-xs text-muted-foreground mt-1">
-                            CNPJ: {cliente.cnpj}
-                          </p>
-                    }
-                      </div>
-                      <Users className="h-5 w-5 text-muted-foreground flex-shrink-0 ml-2" />
-                    </div>
-                  </CardHeader>
+  const calculateSummary = (list: Transaction[]) => {
+    const totalEntradas = list
+      .filter((t) => t.type === "entrada")
+      .reduce((sum, t) => sum + t.amount, 0)
 
-                  <CardContent className="space-y-4">
-                    {/* Lista de Sócios (Badges) */}
-                    <div className="space-y-2">
-                      <p className="text-xs font-semibold text-muted-foreground uppercase">Sócios</p>
-                      <div className="flex flex-wrap gap-2">
-                        {cliente.socios.map((socio: any) =>
-                    <Badge
-                      key={socio.id}
-                      variant="secondary"
-                      className="text-xs">
+    const totalSaidas = list
+      .filter((t) => t.type === "saida")
+      .reduce((sum, t) => sum + t.amount, 0)
 
-                            <span className="truncate">{socio.nome}</span>
-                            <span className="ml-1 font-semibold">{socio.percentual?.toFixed(1)}%</span>
-                          </Badge>
-                    )}
-                      </div>
-                    </div>
-
-                    {/* Footer do Card */}
-                    <div className="pt-2 border-t border-border/50">
-                      <p className="text-xs text-muted-foreground mb-3">
-                        {cliente.socios.length} sócio{cliente.socios.length > 1 ? 's' : ''} registrado{cliente.socios.length > 1 ? 's' : ''}
-                      </p>
-
-                      <Button
-                    onClick={() => setClienteSelecionado(cliente.id)}
-                    className="w-full group/btn"
-                    size="sm">
-
-                        <span>Selecionar</span>
-                        <ArrowRight className="h-4 w-4 ml-2 group-hover/btn:translate-x-1 transition-transform" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-            )}
-            </div>
-          }
-
-          {/* Empty State */}
-          {!loadingClientes && clientesFiltrados.length === 0 &&
-          <Card className="border-border/50 bg-card/60">
-              <CardContent className="pt-12 pb-12 text-center">
-                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  {searchTerm ? 'Nenhum cliente encontrado' : 'Nenhum cliente com sócios'}
-                </h3>
-                <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                  {searchTerm ?
-                'Tente ajustar sua busca' :
-                'Não há clientes com sócios registrados no sistema'
-                }
-                </p>
-              </CardContent>
-            </Card>
-          }
-        </div>
-      </Layout>);
-
+    return {
+      totalEntradas,
+      totalSaidas,
+      saldo: totalEntradas - totalSaidas,
+    }
   }
 
-  // --- LOADER DO DASHBOARD ---
-  if (isDashboardLoading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </Layout>);
+  const currentSummary = calculateSummary(filteredTransactions)
+  const previousSummary = calculateSummary(previousMonthTransactions)
 
+  const calculateVariation = (current: number, previous: number) => {
+    if (previous === 0) return 0
+    return ((current - previous) / previous) * 100
   }
 
-  // --- DASHBOARD DO CLIENTE ---
+  // -------------------------
+  // CATEGORIAS
+  // -------------------------
+
+  const allCategories = useMemo(() => {
+    return [...new Set(transactions.map((t) => t.category))]
+  }, [transactions])
+
+  const finalTransactions =
+    visibleCategories.length > 0
+      ? filteredTransactions.filter((t) =>
+          visibleCategories.includes(t.category)
+        )
+      : filteredTransactions
+
+  // -------------------------
+  // ORDENAÇÃO
+  // -------------------------
+
+  const sortedTransactions = [...finalTransactions].sort((a, b) => {
+    if (sortBy === "date") {
+      return sortOrder === "asc"
+        ? new Date(a.date).getTime() - new Date(b.date).getTime()
+        : new Date(b.date).getTime() - new Date(a.date).getTime()
+    }
+
+    if (sortBy === "amount") {
+      return sortOrder === "asc"
+        ? a.amount - b.amount
+        : b.amount - a.amount
+    }
+
+    return 0
+  })
+
+  // -------------------------
+  // GRÁFICO POR CATEGORIA
+  // -------------------------
+
+  const categoryData = useMemo(() => {
+    const summary: Record<string, number> = {}
+
+    finalTransactions.forEach((t) => {
+      if (!summary[t.category]) summary[t.category] = 0
+      summary[t.category] += t.amount
+    })
+
+    return Object.entries(summary).map(([name, value]) => ({
+      name,
+      value,
+    }))
+  }, [finalTransactions])
+
+  // -------------------------
+  // UI
+  // -------------------------
+
   return (
-    <Layout>
-      <div className="space-y-6">
-        {/* Dashboard Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <DollarSign className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">Painel Financeiro</h1>
-              <p className="text-sm text-muted-foreground">
-                {selectedClientData?.company_name || selectedClientData?.proprietario || 'Cliente'}
-                {selectedClientData?.cnpj ? ` • ${selectedClientData.cnpj}` : ''}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-2">
-             <Button
-              variant="outline"
-              onClick={() => setClienteSelecionado(null)}
-              size="sm">
-
-              ← Voltar para Seleção
-            </Button>
-            <Button
-              onClick={() => navigate(`/financeiro/relatorio-socios/${clienteSelecionado}`)}
-              className="gap-2"
-              size="sm">
-
-              <BarChart3 className="h-4 w-4" />
-              Relatório Mensal
-            </Button>
-          </div>
-        </div>
-
-        {/* Botões de Ação removidos conforme solicitação */}
-
-        {/* Cards de Resumo dos Sócios */}
-        <PartnerCards
-          accounts={accounts}
-          transactions={transactions}
-          clienteId={clienteSelecionado} />
-
-
-        {/* Seção de Parceiros (Sócios) Cadastrados */}
-        {!loadingPartners && partners.length > 0 &&
-        <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
-            <CardHeader>
-              
-
-
-
-
-
-
-
-
-            </CardHeader>
-            <CardContent>
-              
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-            </CardContent>
-          </Card>
-        }
-
-        {/* Cards com as 2 Últimas Transações */}
-        {!loadingTransactions && transactions.length > 0 &&
-        <TransactionsTable
-          transactions={transactions}
-          clienteId={clienteSelecionado}
-          clienteName={selectedClientData?.company_name || selectedClientData?.proprietario || 'Cliente'} />
-
-        }
-
+    <div className="p-8 space-y-8">
+      {/* HEADER */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold">Relatório Financeiro</h1>
+
+        <input
+          type="month"
+          value={filterMonth}
+          onChange={(e) => setFilterMonth(e.target.value)}
+          className="border rounded px-3 py-2"
+        />
       </div>
-    </Layout>);
 
+      {/* CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card
+          title="Entradas"
+          value={currentSummary.totalEntradas}
+          variation={calculateVariation(
+            currentSummary.totalEntradas,
+            previousSummary.totalEntradas
+          )}
+          positive
+        />
+        <Card
+          title="Saídas"
+          value={currentSummary.totalSaidas}
+          variation={calculateVariation(
+            currentSummary.totalSaidas,
+            previousSummary.totalSaidas
+          )}
+        />
+        <Card
+          title="Saldo"
+          value={currentSummary.saldo}
+          variation={calculateVariation(
+            currentSummary.saldo,
+            previousSummary.saldo
+          )}
+          positive={currentSummary.saldo >= 0}
+        />
+      </div>
+
+      {/* FILTRO DE CATEGORIAS */}
+      <div>
+        <h2 className="font-semibold mb-2">Categorias visíveis</h2>
+        <div className="flex flex-wrap gap-4">
+          {allCategories.map((cat) => (
+            <label key={cat} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={visibleCategories.includes(cat)}
+                onChange={() =>
+                  setVisibleCategories((prev) =>
+                    prev.includes(cat)
+                      ? prev.filter((c) => c !== cat)
+                      : [...prev, cat]
+                  )
+                }
+              />
+              {cat}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {/* GRÁFICO */}
+      <div className="bg-white p-6 rounded-xl shadow">
+        <h2 className="font-semibold mb-4">Movimentação por Categoria</h2>
+
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={categoryData}>
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip />
+            <Bar dataKey="value" radius={[8, 8, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* ORDENAÇÃO */}
+      <div className="flex gap-4">
+        <select
+          onChange={(e) => setSortBy(e.target.value as any)}
+          className="border rounded px-3 py-2"
+        >
+          <option value="date">Ordenar por Data</option>
+          <option value="amount">Ordenar por Valor</option>
+        </select>
+
+        <select
+          onChange={(e) => setSortOrder(e.target.value as any)}
+          className="border rounded px-3 py-2"
+        >
+          <option value="asc">Crescente</option>
+          <option value="desc">Decrescente</option>
+        </select>
+      </div>
+
+      {/* TABELA */}
+      <div className="bg-white p-6 rounded-xl shadow overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="border-b">
+            <tr>
+              <th className="text-left py-2">Data</th>
+              <th className="text-left">Descrição</th>
+              <th className="text-left">Categoria</th>
+              <th className="text-right">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedTransactions.map((t) => (
+              <tr key={t.id} className="border-b hover:bg-gray-50">
+                <td className="py-2">
+                  {format(parseISO(t.date), "dd/MM/yyyy")}
+                </td>
+                <td>{t.description}</td>
+                <td>{t.category}</td>
+                <td
+                  className={`text-right font-semibold ${
+                    t.type === "entrada"
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  R$ {t.amount.toFixed(2)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+// -------------------------
+// CARD COMPONENT
+// -------------------------
+
+function Card({
+  title,
+  value,
+  variation,
+  positive,
+}: {
+  title: string
+  value: number
+  variation: number
+  positive?: boolean
+}) {
+  return (
+    <div className="bg-white p-6 rounded-xl shadow">
+      <p className="text-sm text-gray-500">{title}</p>
+      <p
+        className={`text-2xl font-bold ${
+          positive ? "text-green-600" : "text-red-600"
+        }`}
+      >
+        R$ {value.toFixed(2)}
+      </p>
+      <p className="text-xs mt-1">
+        {variation > 0 ? "▲" : "▼"} {Math.abs(variation).toFixed(1)}% vs mês anterior
+      </p>
+    </div>
+  )
 }

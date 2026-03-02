@@ -125,7 +125,7 @@ export default function RelatorioTransacoesSocios() {
   const [dateSortOrder, setDateSortOrder] = useState<"asc" | "desc">("desc");
 
   // Filters state
-  const [showFilters, setShowFilters] = useState(true);
+  const [isFiltersModalOpen, setIsFiltersModalOpen] = useState(false);
   const [filterMonth, setFilterMonth] = useState<string>(
     new Date().toISOString().slice(0, 7)
   );
@@ -149,20 +149,16 @@ export default function RelatorioTransacoesSocios() {
   });
 
   // State for individual partner view
-  const [selectedPartnerCpf, setSelectedPartnerCpf] = useState<string | null>(
-    null
-  );
+  const [selectedPartnerCpf, setSelectedPartnerCpf] = useState<string | null>(null);
 
   // Data hooks
-  const { data: clientesComSocios = [], isLoading: loadingClientes } =
-    useClientesComSocios();
+  const { data: clientesComSocios = [], isLoading: loadingClientes } = useClientesComSocios();
   const {
     data: partners = [],
     isLoading: loadingPartners,
     refetch: refetchPartners,
   } = useClientPartners(clienteId || null);
-  const { data: allTransactions = [], isLoading: loadingTransactions } =
-    useSocioTransactions(clienteId || null);
+  const { data: allTransactions = [], isLoading: loadingTransactions } = useSocioTransactions(clienteId || null);
   const { data: contasBancarias = [] } = useContasBancarias();
   const { data: expenseCategories = [] } = useExpenseCategories();
 
@@ -235,8 +231,7 @@ export default function RelatorioTransacoesSocios() {
     // Filter by month
     if (filterMonth) {
       result = result.filter((tx: any) => {
-        const date =
-          tx.payment_date || tx.due_date || tx.created_at;
+        const date = tx.payment_date || tx.due_date || tx.created_at;
         try {
           return date?.slice(0, 7) === filterMonth;
         } catch {
@@ -438,7 +433,6 @@ export default function RelatorioTransacoesSocios() {
     filterCategory !== "all",
     filterPaymentMethod !== "all",
     filterBank !== "all",
-    filterSearch !== "",
   ].filter(Boolean).length;
 
   // Get type label
@@ -589,8 +583,7 @@ export default function RelatorioTransacoesSocios() {
                 </h1>
                 <p className="text-sm text-muted-foreground">
                   CPF: {formatCPF(selectedPartnerData.cpf)} •{" "}
-                  {selectedPartnerData.share_percentage?.toFixed(2)}% de
-                  participação
+                  {selectedPartnerData.share_percentage?.toFixed(2)}% de participação
                 </p>
               </div>
             </div>
@@ -681,12 +674,9 @@ export default function RelatorioTransacoesSocios() {
                   Relatório Mensal Completo
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  {selectedClientData?.company_name ||
-                    selectedClientData?.proprietario}{" "}
+                  {selectedClientData?.company_name || selectedClientData?.proprietario}{" "}
                   • {filterMonth
-                    ? format(new Date(filterMonth + "-01"), "MMMM yyyy", {
-                        locale: ptBR,
-                      })
+                    ? format(new Date(filterMonth + "-01"), "MMMM yyyy", { locale: ptBR })
                     : "Todos os meses"}
                 </p>
               </div>
@@ -748,190 +738,55 @@ export default function RelatorioTransacoesSocios() {
             </Card>
           </div>
 
-          {/* Filters */}
-          <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-primary" />
-                  <h3 className="text-sm font-semibold text-foreground">
-                    Filtros
-                  </h3>
-                  {activeFilterCount > 0 && (
-                    <Badge variant="secondary" className="text-xs">
-                      {activeFilterCount} ativo{activeFilterCount > 1 ? "s" : ""}
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  {activeFilterCount > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={resetFilters}
-                      className="gap-1 text-xs h-7"
-                    >
-                      <RotateCcw className="h-3 w-3" />
-                      Limpar
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowFilters(!showFilters)}
-                    className="h-7 text-xs"
-                  >
-                    {showFilters ? "Ocultar" : "Mostrar"}
-                  </Button>
-                </div>
+          {/* Toolbar Dribbble-style */}
+          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between mb-2">
+            
+            {/* Esquerda: Controle de Mês Super Limpo */}
+            <div className="flex items-center bg-card border border-border/50 rounded-lg p-1 shadow-sm">
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md hover:bg-muted" onClick={goToPrevMonth}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="w-36 text-center text-sm font-semibold capitalize text-foreground">
+                {filterMonth ? format(new Date(filterMonth + "-01"), "MMMM yyyy", { locale: ptBR }) : "Todos"}
               </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md hover:bg-muted" onClick={goToNextMonth}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
 
-              {showFilters && (
-                <div className="space-y-4">
-                  {/* Row 1: Modern Month Picker + Search */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <Label className="text-xs font-medium flex items-center gap-1 mb-1.5">
-                        <CalendarDays className="h-3 w-3" />
-                        Mês
-                      </Label>
-                      <div className="flex items-center gap-1 bg-muted/40 rounded-lg border border-border/50 p-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-md"
-                          onClick={goToPrevMonth}
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <div className="flex-1 text-center text-sm font-medium text-foreground capitalize">
-                          {filterMonth
-                            ? format(new Date(filterMonth + "-01"), "MMMM yyyy", { locale: ptBR })
-                            : "Todos"}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 rounded-md"
-                          onClick={goToNextMonth}
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-xs font-medium flex items-center gap-1 mb-1.5">
-                        <Search className="h-3 w-3" />
-                        Buscar
-                      </Label>
-                      <Input
-                        value={filterSearch}
-                        onChange={(e) => setFilterSearch(e.target.value)}
-                        placeholder="Descrição, sócio, notas..."
-                        className="h-10 text-sm"
-                      />
-                    </div>
-                  </div>
+            {/* Direita: Busca e Botão de Filtros Avançados */}
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={filterSearch}
+                  onChange={(e) => setFilterSearch(e.target.value)}
+                  placeholder="Buscar transação..."
+                  className="h-10 pl-9 bg-card border-border/50 shadow-sm transition-all focus-visible:ring-primary/50"
+                />
+              </div>
+              
+              <Button
+                variant={activeFilterCount > 0 ? "default" : "outline"}
+                onClick={() => setIsFiltersModalOpen(true)}
+                className="h-10 gap-2 shadow-sm whitespace-nowrap"
+              >
+                <Filter className="h-4 w-4" />
+                <span className="hidden sm:inline">Filtros</span>
+                {activeFilterCount > 0 && (
+                  <Badge variant="secondary" className={`ml-1 px-1.5 py-0.5 text-[10px] ${activeFilterCount > 0 ? 'bg-background text-foreground' : ''}`}>
+                    {activeFilterCount}
+                  </Badge>
+                )}
+              </Button>
 
-                  {/* Row 2: SearchableCombobox filters */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                    <div>
-                      <Label className="text-xs font-medium mb-1.5 block">Sócio</Label>
-                      <SearchableCombobox
-                        items={[
-                          { id: "all", label: "Todos" },
-                          ...partners.map((p) => ({ id: p.name, label: p.name })),
-                        ]}
-                        value={filterPartner}
-                        onChange={(val) => setFilterPartner(val)}
-                        placeholder="Todos"
-                        searchPlaceholder="Buscar sócio..."
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs font-medium mb-1.5 block">Tipo</Label>
-                      <SearchableCombobox
-                        items={[
-                          { id: "all", label: "Todos" },
-                          { id: "deposit", label: "Entrada" },
-                          { id: "expense", label: "Despesa" },
-                          { id: "payment", label: "Pagamento" },
-                        ]}
-                        value={filterType}
-                        onChange={(val) => setFilterType(val)}
-                        placeholder="Todos"
-                        searchPlaceholder="Buscar tipo..."
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs font-medium mb-1.5 block">Status</Label>
-                      <SearchableCombobox
-                        items={[
-                          { id: "all", label: "Todos" },
-                          { id: "pendente", label: "Pendente" },
-                          { id: "pago", label: "Pago" },
-                          { id: "recebido", label: "Recebido" },
-                          { id: "cancelado", label: "Cancelado" },
-                        ]}
-                        value={filterStatus}
-                        onChange={(val) => setFilterStatus(val)}
-                        placeholder="Todos"
-                        searchPlaceholder="Buscar status..."
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs font-medium mb-1.5 block">Categoria</Label>
-                      <SearchableCombobox
-                        items={[
-                          { id: "all", label: "Todas" },
-                          ...expenseCategories.map((c: any) => ({
-                            id: c.id,
-                            label: `${c.icon || ""} ${c.label}`.trim(),
-                          })),
-                        ]}
-                        value={filterCategory}
-                        onChange={(val) => setFilterCategory(val)}
-                        placeholder="Todas"
-                        searchPlaceholder="Buscar categoria..."
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs font-medium mb-1.5 block">Pagamento</Label>
-                      <SearchableCombobox
-                        items={[
-                          { id: "all", label: "Todos" },
-                          ...uniquePaymentMethods.map((pm: any) => ({
-                            id: pm,
-                            label: pm,
-                          })),
-                        ]}
-                        value={filterPaymentMethod}
-                        onChange={(val) => setFilterPaymentMethod(val)}
-                        placeholder="Todos"
-                        searchPlaceholder="Buscar método..."
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs font-medium mb-1.5 block">Banco</Label>
-                      <SearchableCombobox
-                        items={[
-                          { id: "all", label: "Todos" },
-                          ...contasBancarias.map((conta: any) => ({
-                            id: conta.banco,
-                            label: `${conta.banco} - ${conta.numero_conta || conta.tipo_conta}`,
-                          })),
-                        ]}
-                        value={filterBank}
-                        onChange={(val) => setFilterBank(val)}
-                        placeholder="Todos"
-                        searchPlaceholder="Buscar banco..."
-                      />
-                    </div>
-                  </div>
-                </div>
+              {(activeFilterCount > 0 || filterSearch) && (
+                <Button variant="ghost" size="icon" onClick={resetFilters} title="Limpar filtros" className="h-10 w-10">
+                  <RotateCcw className="h-4 w-4 text-muted-foreground" />
+                </Button>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
           {/* Table */}
           <Card className="border-border/50 bg-card/60 backdrop-blur-sm">
@@ -1154,6 +1009,120 @@ export default function RelatorioTransacoesSocios() {
               )}
             </CardContent>
           </Card>
+
+          {/* Modal de Filtros Avançados */}
+          <Dialog open={isFiltersModalOpen} onOpenChange={setIsFiltersModalOpen}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-xl">
+                  <Filter className="w-5 h-5 text-primary" />
+                  Filtros Avançados
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-4">
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold text-muted-foreground">Sócio Envolvido</Label>
+                  <SearchableCombobox
+                    items={[{ id: "all", label: "Todos" }, ...partners.map((p) => ({ id: p.name, label: p.name }))]}
+                    value={filterPartner}
+                    onChange={(val) => setFilterPartner(val)}
+                    placeholder="Selecione o sócio"
+                    searchPlaceholder="Buscar sócio..."
+                  />
+                </div>
+                
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold text-muted-foreground">Tipo de Movimentação</Label>
+                  <SearchableCombobox
+                    items={[
+                      { id: "all", label: "Todos" },
+                      { id: "deposit", label: "Entrada" },
+                      { id: "expense", label: "Despesa" },
+                      { id: "payment", label: "Pagamento" },
+                    ]}
+                    value={filterType}
+                    onChange={(val) => setFilterType(val)}
+                    placeholder="Selecione o tipo"
+                    searchPlaceholder="Buscar tipo..."
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold text-muted-foreground">Status da Transação</Label>
+                  <SearchableCombobox
+                    items={[
+                      { id: "all", label: "Todos" },
+                      { id: "pendente", label: "Pendente" },
+                      { id: "pago", label: "Pago" },
+                      { id: "recebido", label: "Recebido" },
+                      { id: "cancelado", label: "Cancelado" },
+                    ]}
+                    value={filterStatus}
+                    onChange={(val) => setFilterStatus(val)}
+                    placeholder="Selecione o status"
+                    searchPlaceholder="Buscar status..."
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold text-muted-foreground">Categoria</Label>
+                  <SearchableCombobox
+                    items={[
+                      { id: "all", label: "Todas" },
+                      ...expenseCategories.map((c: any) => ({
+                        id: c.id,
+                        label: `${c.icon || ""} ${c.label}`.trim(),
+                      })),
+                    ]}
+                    value={filterCategory}
+                    onChange={(val) => setFilterCategory(val)}
+                    placeholder="Selecione a categoria"
+                    searchPlaceholder="Buscar categoria..."
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold text-muted-foreground">Forma de Pagamento</Label>
+                  <SearchableCombobox
+                    items={[{ id: "all", label: "Todos" }, ...uniquePaymentMethods.map((pm: any) => ({ id: pm, label: pm }))]}
+                    value={filterPaymentMethod}
+                    onChange={(val) => setFilterPaymentMethod(val)}
+                    placeholder="Selecione o método"
+                    searchPlaceholder="Buscar método..."
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-semibold text-muted-foreground">Instituição Bancária</Label>
+                  <SearchableCombobox
+                    items={[
+                      { id: "all", label: "Todos" },
+                      ...contasBancarias.map((conta: any) => ({
+                        id: conta.banco,
+                        label: `${conta.banco} - ${conta.numero_conta || conta.tipo_conta}`,
+                      })),
+                    ]}
+                    value={filterBank}
+                    onChange={(val) => setFilterBank(val)}
+                    placeholder="Selecione o banco"
+                    searchPlaceholder="Buscar banco..."
+                  />
+                </div>
+              </div>
+
+              <DialogFooter className="mt-8 flex justify-between sm:justify-between items-center w-full">
+                <Button variant="ghost" onClick={resetFilters} className="text-muted-foreground hover:text-foreground">
+                  <RotateCcw className="w-4 h-4 mr-2" />
+                  Limpar Filtros
+                </Button>
+                <Button onClick={() => setIsFiltersModalOpen(false)}>
+                  Ver Resultados ({filteredTransactions.length})
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
         </div>
 
         {/* Edit Transaction Dialog */}
