@@ -1,324 +1,345 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import {
-  format,
-  subMonths,
-  isSameMonth,
-  parseISO,
-} from "date-fns"
-import { ptBR } from "date-fns/locale"
+import React, { useState, useMemo } from "react"
+import { useNavigate } from "react-router-dom"
+import { Layout } from "@/components/layout/Layout"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Search, ArrowRight, Loader2, Users, Building2, BarChart3 } from "lucide-react"
 
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts"
+// Componentes
+import { PartnerCards } from "@/components/socios/PartnerCards"
+import { TransactionsTable } from "@/components/socios/TransactionsTable"
+import { DepositForm } from "@/components/socios/DepositForm"
+import { ExpenseForm } from "@/components/socios/ExpenseForm"
 
-type Transaction = {
-  id: string
-  date: string
-  description: string
-  category: string
-  amount: number
-  type: "entrada" | "saida"
-}
+// Hooks
+import { useSocioAccounts, useSocioTransactions } from "@/hooks/useFinanceiroSocios"
+import { useClientesComSocios } from "@/hooks/useSocioBalanco"
+import { useClientPartners } from "@/hooks/useClientPartners"
 
-type Props = {
-  transactions: Transaction[]
-}
+export default function FinanceiroSocios() {
+  const navigate = useNavigate()
+  const [searchTerm, setSearchTerm] = useState("")
+  const [clienteSelecionado, setClienteSelecionado] = useState<string | null>(null)
 
-export default function FinancialReportPage({ transactions }: Props) {
-  const [filterMonth, setFilterMonth] = useState<string>("")
-  const [visibleCategories, setVisibleCategories] = useState<string[]>([])
-  const [sortBy, setSortBy] = useState<"date" | "amount">("date")
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+  // ========================
+  // CARREGAMENTO DE DADOS
+  // ========================
 
-  // -------------------------
-  // FILTRO POR MÊS
-  // -------------------------
+  const { data: clientesComSocios = [], isLoading: loadingClientes } = useClientesComSocios()
+  const { data: accounts = [], isLoading: loadingAccounts } = useSocioAccounts(clienteSelecionado)
+  const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteSelecionado)
+  const { data: transactions = [], isLoading: loadingTransactions } = useSocioTransactions(clienteSelecionado)
 
-  const filteredTransactions = useMemo(() => {
-    if (!filterMonth) return transactions
+  // ========================
+  // COMPUTAÇÕES
+  // ========================
 
-    const selectedDate = new Date(filterMonth + "-01")
+  const clientesComPartners = useMemo(
+    () => clientesComSocios.filter((cliente) => cliente.socios && cliente.socios.length > 0),
+    [clientesComSocios]
+  )
 
-    return transactions.filter((t) =>
-      isSameMonth(parseISO(t.date), selectedDate)
+  const clientesFiltrados = useMemo(
+    () => clientesComPartners.filter((cliente) =>
+      cliente.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cliente.proprietario?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cliente.cnpj?.includes(searchTerm)
+    ),
+    [clientesComPartners, searchTerm]
+  )
+
+  const selectedClientData = useMemo(
+    () => clientesComSocios.find((c) => c.id === clienteSelecionado),
+    [clientesComSocios, clienteSelecionado]
+  )
+
+  const isDashboardLoading = clienteSelecionado && (loadingAccounts || loadingPartners || loadingTransactions)
+
+  // ========================
+  // TELA DE SELEÇÃO
+  // ========================
+
+  if (!clienteSelecionado) {
+    return (
+      <Layout>
+        <div className="space-y-8">
+          {/* Header */}
+          <div>
+            <h1 className="text-3xl font-bold text-foreground mb-2">Financeiro de Sócios</h1>
+            <p className="text-base text-muted-foreground">
+              Selecione um cliente para visualizar dados de balanço e sócios
+            </p>
+          </div>
+
+          {/* Barra de Busca */}
+          <Card className="border border-border bg-background">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">Buscar Cliente</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nome, proprietário ou CNPJ..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-background border-border"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Grid de Clientes */}
+          {loadingClientes ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <Card key={i} className="border border-border bg-background">
+                  <CardHeader>
+                    <div className="h-5 bg-muted rounded w-3/4 animate-pulse" />
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="h-4 bg-muted rounded w-full animate-pulse" />
+                    <div className="h-4 bg-muted rounded w-2/3 animate-pulse" />
+                    <div className="h-10 bg-muted rounded animate-pulse" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {clientesFiltrados.map((cliente) => (
+                <ClienteCard
+                  key={cliente.id}
+                  cliente={cliente}
+                  onSelect={() => setClienteSelecionado(cliente.id)}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loadingClientes && clientesFiltrados.length === 0 && (
+            <Card className="border border-border bg-background">
+              <CardContent className="pt-16 pb-16 text-center">
+                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-40" />
+                <h3 className="text-lg font-semibold text-foreground mb-1">
+                  {searchTerm ? "Nenhum cliente encontrado" : "Nenhum cliente com sócios"}
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                  {searchTerm
+                    ? "Tente ajustar sua busca com um nome ou CNPJ diferente"
+                    : "Não há clientes com sócios registrados no sistema"}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </Layout>
     )
-  }, [transactions, filterMonth])
-
-  // -------------------------
-  // COMPARAÇÃO COM MÊS ANTERIOR
-  // -------------------------
-
-  const previousMonthTransactions = useMemo(() => {
-    if (!filterMonth) return []
-
-    const currentDate = new Date(filterMonth + "-01")
-    const previousMonthDate = subMonths(currentDate, 1)
-
-    return transactions.filter((t) =>
-      isSameMonth(parseISO(t.date), previousMonthDate)
-    )
-  }, [transactions, filterMonth])
-
-  // -------------------------
-  // SUMMARY
-  // -------------------------
-
-  const calculateSummary = (list: Transaction[]) => {
-    const totalEntradas = list
-      .filter((t) => t.type === "entrada")
-      .reduce((sum, t) => sum + t.amount, 0)
-
-    const totalSaidas = list
-      .filter((t) => t.type === "saida")
-      .reduce((sum, t) => sum + t.amount, 0)
-
-    return {
-      totalEntradas,
-      totalSaidas,
-      saldo: totalEntradas - totalSaidas,
-    }
   }
 
-  const currentSummary = calculateSummary(filteredTransactions)
-  const previousSummary = calculateSummary(previousMonthTransactions)
+  // ========================
+  // LOADING DO DASHBOARD
+  // ========================
 
-  const calculateVariation = (current: number, previous: number) => {
-    if (previous === 0) return 0
-    return ((current - previous) / previous) * 100
+  if (isDashboardLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-96">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">Carregando dados...</p>
+          </div>
+        </div>
+      </Layout>
+    )
   }
 
-  // -------------------------
-  // CATEGORIAS
-  // -------------------------
-
-  const allCategories = useMemo(() => {
-    return [...new Set(transactions.map((t) => t.category))]
-  }, [transactions])
-
-  const finalTransactions =
-    visibleCategories.length > 0
-      ? filteredTransactions.filter((t) =>
-          visibleCategories.includes(t.category)
-        )
-      : filteredTransactions
-
-  // -------------------------
-  // ORDENAÇÃO
-  // -------------------------
-
-  const sortedTransactions = [...finalTransactions].sort((a, b) => {
-    if (sortBy === "date") {
-      return sortOrder === "asc"
-        ? new Date(a.date).getTime() - new Date(b.date).getTime()
-        : new Date(b.date).getTime() - new Date(a.date).getTime()
-    }
-
-    if (sortBy === "amount") {
-      return sortOrder === "asc"
-        ? a.amount - b.amount
-        : b.amount - a.amount
-    }
-
-    return 0
-  })
-
-  // -------------------------
-  // GRÁFICO POR CATEGORIA
-  // -------------------------
-
-  const categoryData = useMemo(() => {
-    const summary: Record<string, number> = {}
-
-    finalTransactions.forEach((t) => {
-      if (!summary[t.category]) summary[t.category] = 0
-      summary[t.category] += t.amount
-    })
-
-    return Object.entries(summary).map(([name, value]) => ({
-      name,
-      value,
-    }))
-  }, [finalTransactions])
-
-  // -------------------------
-  // UI
-  // -------------------------
+  // ========================
+  // DASHBOARD
+  // ========================
 
   return (
-    <div className="p-8 space-y-8">
-      {/* HEADER */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Relatório Financeiro</h1>
+    <Layout>
+      <div className="space-y-8">
+        {/* Header do Dashboard */}
+        <DashboardHeader
+          cliente={selectedClientData}
+          onBack={() => setClienteSelecionado(null)}
+        />
 
-        <input
-          type="month"
-          value={filterMonth}
-          onChange={(e) => setFilterMonth(e.target.value)}
-          className="border rounded px-3 py-2"
-        />
-      </div>
-
-      {/* CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card
-          title="Entradas"
-          value={currentSummary.totalEntradas}
-          variation={calculateVariation(
-            currentSummary.totalEntradas,
-            previousSummary.totalEntradas
-          )}
-          positive
-        />
-        <Card
-          title="Saídas"
-          value={currentSummary.totalSaidas}
-          variation={calculateVariation(
-            currentSummary.totalSaidas,
-            previousSummary.totalSaidas
-          )}
-        />
-        <Card
-          title="Saldo"
-          value={currentSummary.saldo}
-          variation={calculateVariation(
-            currentSummary.saldo,
-            previousSummary.saldo
-          )}
-          positive={currentSummary.saldo >= 0}
-        />
-      </div>
-
-      {/* FILTRO DE CATEGORIAS */}
-      <div>
-        <h2 className="font-semibold mb-2">Categorias visíveis</h2>
-        <div className="flex flex-wrap gap-4">
-          {allCategories.map((cat) => (
-            <label key={cat} className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={visibleCategories.includes(cat)}
-                onChange={() =>
-                  setVisibleCategories((prev) =>
-                    prev.includes(cat)
-                      ? prev.filter((c) => c !== cat)
-                      : [...prev, cat]
-                  )
-                }
-              />
-              {cat}
-            </label>
-          ))}
+        {/* Ações Rápidas */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <DepositForm accounts={accounts} clienteId={clienteSelecionado} />
+          <ExpenseForm clienteId={clienteSelecionado} />
+          <Button
+            onClick={() => navigate(`/financeiro/relatorio-mensal/${clienteSelecionado}`)}
+            className="gap-2"
+            size="sm"
+          >
+            <BarChart3 className="h-4 w-4" />
+            Relatório Mensal
+          </Button>
         </div>
+
+        {/* Cards de Resumo dos Sócios */}
+        <PartnerCards
+          accounts={accounts}
+          transactions={transactions}
+          clienteId={clienteSelecionado}
+        />
+
+        {/* Parceiros Cadastrados */}
+        {!loadingPartners && partners.length > 0 && (
+          <PartnersSection partners={partners} />
+        )}
+
+        {/* Transações Recentes */}
+        {!loadingTransactions && transactions.length > 0 && (
+          <TransactionsTable
+            transactions={transactions}
+            clienteId={clienteSelecionado}
+            clienteName={selectedClientData?.company_name || selectedClientData?.proprietario || "Cliente"}
+          />
+        )}
       </div>
+    </Layout>
+  )
+}
 
-      {/* GRÁFICO */}
-      <div className="bg-white p-6 rounded-xl shadow">
-        <h2 className="font-semibold mb-4">Movimentação por Categoria</h2>
+// ========================
+// COMPONENTES AUXILIARES
+// ========================
 
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={categoryData}>
-            <XAxis dataKey="name" />
-            <YAxis />
-            <Tooltip />
-            <Bar dataKey="value" radius={[8, 8, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+interface ClienteCardProps {
+  cliente: any
+  onSelect: () => void
+}
 
-      {/* ORDENAÇÃO */}
-      <div className="flex gap-4">
-        <select
-          onChange={(e) => setSortBy(e.target.value as any)}
-          className="border rounded px-3 py-2"
-        >
-          <option value="date">Ordenar por Data</option>
-          <option value="amount">Ordenar por Valor</option>
-        </select>
+function ClienteCard({ cliente, onSelect }: ClienteCardProps) {
+  return (
+    <Card className="border border-border bg-background hover:border-primary/30 transition-colors duration-200 group">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-base truncate group-hover:text-primary transition-colors">
+              {cliente.company_name || cliente.proprietario}
+            </CardTitle>
+            {cliente.cnpj && (
+              <p className="text-xs text-muted-foreground mt-1.5">CNPJ: {cliente.cnpj}</p>
+            )}
+          </div>
+          <Building2 className="h-5 w-5 text-muted-foreground flex-shrink-0 opacity-60" />
+        </div>
+      </CardHeader>
 
-        <select
-          onChange={(e) => setSortOrder(e.target.value as any)}
-          className="border rounded px-3 py-2"
-        >
-          <option value="asc">Crescente</option>
-          <option value="desc">Decrescente</option>
-        </select>
-      </div>
-
-      {/* TABELA */}
-      <div className="bg-white p-6 rounded-xl shadow overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="border-b">
-            <tr>
-              <th className="text-left py-2">Data</th>
-              <th className="text-left">Descrição</th>
-              <th className="text-left">Categoria</th>
-              <th className="text-right">Valor</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedTransactions.map((t) => (
-              <tr key={t.id} className="border-b hover:bg-gray-50">
-                <td className="py-2">
-                  {format(parseISO(t.date), "dd/MM/yyyy")}
-                </td>
-                <td>{t.description}</td>
-                <td>{t.category}</td>
-                <td
-                  className={`text-right font-semibold ${
-                    t.type === "entrada"
-                      ? "text-green-600"
-                      : "text-red-600"
-                  }`}
-                >
-                  R$ {t.amount.toFixed(2)}
-                </td>
-              </tr>
+      <CardContent className="space-y-4">
+        {/* Sócios */}
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Sócios ({cliente.socios.length})
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {cliente.socios.slice(0, 3).map((socio: any) => (
+              <Badge
+                key={socio.id}
+                variant="secondary"
+                className="text-xs font-normal bg-muted/50"
+              >
+                <span className="truncate">{socio.nome}</span>
+                <span className="ml-2 font-semibold">{socio.percentual?.toFixed(1)}%</span>
+              </Badge>
             ))}
-          </tbody>
-        </table>
+            {cliente.socios.length > 3 && (
+              <Badge variant="secondary" className="text-xs bg-muted/50">
+                +{cliente.socios.length - 3} mais
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* Botão de Seleção */}
+        <Button
+          onClick={onSelect}
+          className="w-full mt-2"
+          size="sm"
+        >
+          <span>Acessar</span>
+          <ArrowRight className="h-4 w-4 ml-2" />
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+interface DashboardHeaderProps {
+  cliente?: any
+  onBack: () => void
+}
+
+function DashboardHeader({ cliente, onBack }: DashboardHeaderProps) {
+  const clientName = cliente?.company_name || cliente?.proprietario || "Cliente"
+  const clientCnpj = cliente?.cnpj
+
+  return (
+    <div className="border-b border-border pb-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-1">{clientName}</h1>
+          {clientCnpj && (
+            <p className="text-sm text-muted-foreground">CNPJ: {clientCnpj}</p>
+          )}
+        </div>
+
+        <Button
+          onClick={onBack}
+          variant="outline"
+          size="sm"
+          className="w-fit"
+        >
+          ← Voltar
+        </Button>
       </div>
     </div>
   )
 }
 
-// -------------------------
-// CARD COMPONENT
-// -------------------------
+interface PartnersSectionProps {
+  partners: any[]
+}
 
-function Card({
-  title,
-  value,
-  variation,
-  positive,
-}: {
-  title: string
-  value: number
-  variation: number
-  positive?: boolean
-}) {
+function PartnersSection({ partners }: PartnersSectionProps) {
   return (
-    <div className="bg-white p-6 rounded-xl shadow">
-      <p className="text-sm text-gray-500">{title}</p>
-      <p
-        className={`text-2xl font-bold ${
-          positive ? "text-green-600" : "text-red-600"
-        }`}
-      >
-        R$ {value.toFixed(2)}
-      </p>
-      <p className="text-xs mt-1">
-        {variation > 0 ? "▲" : "▼"} {Math.abs(variation).toFixed(1)}% vs mês anterior
-      </p>
-    </div>
+    <Card className="border border-border bg-background">
+      <CardHeader>
+        <CardTitle className="text-base">Sócios Cadastrados</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {partners.map((partner: any) => (
+            <div
+              key={partner.id}
+              className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50"
+            >
+              <div className="flex-1">
+                <p className="font-medium text-sm text-foreground">{partner.nome}</p>
+                {partner.email && (
+                  <p className="text-xs text-muted-foreground mt-0.5">{partner.email}</p>
+                )}
+              </div>
+              {partner.percentual && (
+                <Badge variant="secondary" className="bg-muted/50">
+                  {partner.percentual.toFixed(1)}%
+                </Badge>
+              )}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }

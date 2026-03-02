@@ -83,6 +83,7 @@ import VencimentosDocumentos from "./pages/VencimentosDocumentos";
 import FinanceiroSocios from "./pages/FinanceiroSocios";
 import RelatorioTransacoesSocios from "./pages/RelatorioTransacoesSocios";
 import RelatoriosFinanceiros from "./pages/RelatoriosFinanceiros";
+import RelatorioMensal from "./pages/RelatorioMensal";
 
 // Componentes wrapper definidos FORA do App para evitar conflitos com hooks
 
@@ -256,6 +257,13 @@ const App = () => {
                             renderProtected(
                               <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
                                 <RelatorioTransacoesSocios />
+                              </RoleProtected>
+                            )
+                          } />
+                          <Route path="/financeiro/relatorio-mensal/:clienteId" element={
+                            renderProtected(
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                <RelatorioMensal />
                               </RoleProtected>
                             )
                           } />
