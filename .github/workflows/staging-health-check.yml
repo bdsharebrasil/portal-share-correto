@@ -1,0 +1,37 @@
+name: Staging health check
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check staging health
+        env:
+          STAGING_URL: ${{ secrets.STAGING_URL }}
+        run: |
+          set -euo pipefail
+          STAGING_URL="${STAGING_URL:-https://api-workers.sharebrasil.workers.dev}"
+          echo "Using STAGING_URL=$STAGING_URL"
+          endpoints=("/api/health" "/health" "/")
+          status=1
+          for path in "${endpoints[@]}"; do
+            url="$STAGING_URL${path}"
+            echo "Checking $url"
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$url" || true)
+            echo "HTTP Status: $HTTP_CODE"
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "status=success" >> $GITHUB_OUTPUT || true
+              echo "✅ staging is healthy ($url)"
+              status=0
+              break
+            fi
+          done
+          if [ $status -ne 0 ]; then
+            echo "status=failed" >> $GITHUB_OUTPUT || true
+            echo "❌ staging returned non-200 for all endpoints"
+            exit 1
+          fi
