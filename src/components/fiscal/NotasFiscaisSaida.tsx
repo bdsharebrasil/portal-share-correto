@@ -231,6 +231,7 @@ export function NotasFiscaisSaida() {
     valor: "",
     data_vencimento: new Date().toISOString().split("T")[0],
     descricao: "",
+    categoriaRecibo: "",
   });
   const [isGeneratingRecibo, setIsGeneratingRecibo] = useState(false);
 
@@ -769,6 +770,10 @@ export function NotasFiscaisSaida() {
       toast({ title: "Validação", description: "Selecione uma aeronave", variant: "destructive" });
       return;
     }
+    if (!reciboData.categoriaRecibo) {
+      toast({ title: "Validação", description: "Selecione a categoria do recibo", variant: "destructive" });
+      return;
+    }
 
     try {
       setIsGeneratingRecibo(true);
@@ -852,11 +857,12 @@ export function NotasFiscaisSaida() {
           data_criacao: new Date().toISOString().split("T")[0],
           data_vencimento: reciboData.data_vencimento,
           valor: parseFloat(reciboData.valor),
-          categoria: "Recibo de Serviço",
+          categoria: reciboData.categoriaRecibo || "Recibo de Serviço",
           descricao: reciboData.descricao || "Recibo de Serviço",
           status: "pendente",
           aeronave: reciboData.aeronave_registro,
           arquivo_pdf_url: reciboUrl,
+          fornecedor_tipo: "recibo",
           criado_por: currentUser.id,
         });
 
@@ -890,8 +896,9 @@ export function NotasFiscaisSaida() {
       valor: "",
       data_vencimento: new Date().toISOString().split("T")[0],
       descricao: "",
+      categoriaRecibo: "",
     });
-  }
+  };
 
   const notasExibicao = notas.filter((n) => n.status !== "recebido");
 
@@ -1587,6 +1594,7 @@ export function NotasFiscaisSaida() {
                         valor: "",
                         data_vencimento: new Date().toISOString().split("T")[0],
                         descricao: "",
+                        categoriaRecibo: "",
                       });
                     }}
                     className="text-muted-foreground hover:text-foreground"
@@ -1676,6 +1684,22 @@ export function NotasFiscaisSaida() {
                     />
                   </div>
 
+                  <div>
+                    <Label className="text-foreground font-medium mb-2 block">Categoria do Recibo *</Label>
+                    <Select
+                      value={reciboData.categoriaRecibo}
+                      onValueChange={(value) => setReciboData({ ...reciboData, categoriaRecibo: value })}
+                    >
+                      <SelectTrigger className="bg-background border-border">
+                        <SelectValue placeholder="Selecione a categoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ADM SHARE - RECIBO">ADM SHARE - RECIBO</SelectItem>
+                        <SelectItem value="ADM E PILOTAGEM - RECIBO">ADM E PILOTAGEM - RECIBO</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
                   <div className="flex gap-2 justify-end mt-6">
                     <Button
                       variant="outline"
@@ -1689,6 +1713,7 @@ export function NotasFiscaisSaida() {
                           valor: "",
                           data_vencimento: new Date().toISOString().split("T")[0],
                           descricao: "",
+                          categoriaRecibo: "",
                         });
                       }}
                     >
