@@ -212,6 +212,11 @@ export function NotasFiscaisSaida() {
 
   categoriasReceita = categoriasReceita.filter(cat => categoriasNFSaidaIds.includes(cat.id));
 
+  // Filter only receipt categories (must end with "- RECIBO")
+  const categoriasRecibo = categoriasReceita.filter(cat => 
+    cat.nome && cat.nome.toUpperCase().endsWith("- RECIBO")
+  );
+
   const [notas, setNotas] = useState<NotaFiscalSaida[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
@@ -812,10 +817,10 @@ export function NotasFiscaisSaida() {
 
       const CATEGORIA_ID = "2874b45b-a3bb-4bec-8f7e-74b328f8693c";
 
-      let clientId = reciboData.cliente_id || null;
+      // make sure we always have a client id selected from the combobox
+      const clientId = reciboData.cliente_id?.trim();
       if (!clientId) {
-        const { data: clientData } = await supabase.from("clients").select("id").eq("company_name", reciboData.cliente_nome).single();
-        clientId = clientData?.id || null;
+        throw new Error("Cliente é obrigatório. Por favor, selecione um cliente válido.");
       }
 
       let aeronaveId = null;
@@ -849,6 +854,29 @@ export function NotasFiscaisSaida() {
 
       if (controleBancarioError) throw new Error(`Erro controle_bancario: ${controleBancarioError.message}`);
 
+      // Insert into bank_reconciliations to populate the receipts history
+      const { error: bankReconciliationError } = await supabase
+        .from("bank_reconciliations")
+        .insert({
+          doc: numeroRecibo,
+          date: new Date().toISOString().split("T")[0],
+          description: reciboData.descricao || "Recibo de Saída - Serviços",
+          amount: parseFloat(reciboData.valor),
+          type: "cliente",
+          reference_type: "contas_areceber",
+          status: "pendente",
+          category: reciboData.categoriaRecibo || "Recibo de Serviço",
+          client_id: clientId,
+          aircraft_id: aeronaveId,
+          nf_url: reciboUrl,
+          prazo_pagamento: reciboData.data_vencimento,
+          criado_por: currentUser.id,
+        });
+
+      if (bankReconciliationError) {
+        console.warn("Aviso ao inserir em bank_reconciliations:", bankReconciliationError.message);
+      }
+
       if (reciboData.aeronave_registro) {
         const { error: contasAreceberError } = await supabase.from("contas_areceber").insert({
           numero: numeroRecibo,
@@ -863,6 +891,7 @@ export function NotasFiscaisSaida() {
           aeronave: reciboData.aeronave_registro,
           arquivo_pdf_url: reciboUrl,
           criado_por: currentUser.id,
+          fornecedor_tipo: "cliente",
         });
 
         if (contasAreceberError) {
@@ -880,7 +909,12 @@ export function NotasFiscaisSaida() {
 
     } catch (error: any) {
       console.error("Erro ao gerar recibo:", error);
-      toast({ title: "Erro", description: error.message || "Erro ao gerar recibo", variant: "destructive" });
+      let message = error.message || "Erro ao gerar recibo";
+      // if the backend complained about contas_areceber constraint, we likely missed the cliente
+      if (message.includes("contas_areceber_fornecedor_tipo_check")) {
+        message = "Falha ao criar movimento bancário. Verifique se o cliente foi selecionado corretamente.";
+      }
+      toast({ title: "Erro", description: message, variant: "destructive" });
     } finally {
       setIsGeneratingRecibo(false);
     }
@@ -1693,8 +1727,17 @@ export function NotasFiscaisSaida() {
                         <SelectValue placeholder="Selecione a categoria" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="ADM SHARE - RECIBO">ADM SHARE - RECIBO</SelectItem>
-                        <SelectItem value="ADM E PILOTAGEM - RECIBO">ADM E PILOTAGEM - RECIBO</SelectItem>
+                        {categoriasRecibo.length > 0 ? (
+                          categoriasRecibo.map((cat) => (
+                            <SelectItem key={cat.id} value={cat.nome}>
+                              {cat.nome}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="text-center py-2 text-muted-foreground text-sm">
+                            Nenhuma categoria de recibo encontrada
+                          </div>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
