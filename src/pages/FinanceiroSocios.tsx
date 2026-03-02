@@ -1,12 +1,13 @@
 "use client"
 
 import React, { useState, useMemo } from "react"
+import { useNavigate } from "react-router-dom"
 import { Layout } from "@/components/layout/Layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Search, ArrowRight, Loader2, Users, Building2 } from "lucide-react"
+import { Search, ArrowRight, Loader2, Users, Building2, BarChart3 } from "lucide-react"
 
 // Componentes
 import { PartnerCards } from "@/components/socios/PartnerCards"
@@ -20,6 +21,7 @@ import { useClientesComSocios } from "@/hooks/useSocioBalanco"
 import { useClientPartners } from "@/hooks/useClientPartners"
 
 export default function FinanceiroSocios() {
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState("")
   const [clienteSelecionado, setClienteSelecionado] = useState<string | null>(null)
 
@@ -174,6 +176,14 @@ export default function FinanceiroSocios() {
         <div className="flex flex-col sm:flex-row gap-3">
           <DepositForm accounts={accounts} clienteId={clienteSelecionado} />
           <ExpenseForm clienteId={clienteSelecionado} />
+          <Button
+            onClick={() => navigate(`/financeiro/relatorio-mensal/${clienteSelecionado}`)}
+            className="gap-2"
+            size="sm"
+          >
+            <BarChart3 className="h-4 w-4" />
+            Relatório Mensal
+          </Button>
         </div>
 
         {/* Cards de Resumo dos Sócios */}
