@@ -570,7 +570,17 @@ export function FluxoCaixa() {
                     <TooltipContent><p>Boleto</p></TooltipContent>
                   </Tooltip>
                 )}
-                {!transacao.comprovante_url && !transacao.nf_url && !transacao.boleto_url && (
+                {transacao.recibo_url && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <a href={transacao.recibo_url} target="_blank" rel="noopener noreferrer" className="p-1 rounded hover:bg-muted/50 transition-colors">
+                        <Receipt className="w-4 h-4 text-purple-400" />
+                      </a>
+                    </TooltipTrigger>
+                    <TooltipContent><p>Recibo</p></TooltipContent>
+                  </Tooltip>
+                )}
+                {!transacao.comprovante_url && !transacao.nf_url && !transacao.boleto_url && !transacao.recibo_url && (
                   <span className="text-muted-foreground">-</span>
                 )}
               </div>

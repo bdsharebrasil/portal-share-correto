@@ -191,7 +191,7 @@ export function ContasReceber() {
     try {
       const { data: despesasReembolso, error: fluxoError } = await supabase.from("controle_bancario").select(`
         id, data, data_vencimento, descricao, valor, status, client_id, client_name,
-        aeronave_registro, numero_documento, grupo_categoria, comprovante_url, nf_url, boleto_url,
+        aeronave_registro, numero_documento, grupo_categoria, comprovante_url, nf_url, boleto_url, recibo_url,
         fornecedores_favoritos_id, colaborador_id
       `).eq("status", "aguardando_reembolso").not("data_vencimento", "is", null).order("data_vencimento");
 

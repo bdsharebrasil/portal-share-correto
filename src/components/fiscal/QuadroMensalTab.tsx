@@ -20,7 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCategorias } from "@/hooks/useCategorias";
 import { FinanceiroFilters, FinanceiroFilterState } from "./FinanceiroFilters";
 import React, { useMemo, useState, useRef } from "react";
-import { format, startOfMonth, endOfMonth, subMonths, addMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, addMonths, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface Transacao {
@@ -601,7 +601,7 @@ export function QuadroMensalTab() {
                       className="border-border/40 hover:bg-accent/30 transition-colors"
                     >
                       <TableCell className="text-muted-foreground text-sm">
-                        {format(new Date(transacao.data), "dd/MM/yyyy")}
+                        {format(parseISO(transacao.data), "dd/MM/yyyy")}
                       </TableCell>
 
                       {/* Tipo — cor fixa: entrada=verde, saída=vermelho */}
@@ -649,12 +649,15 @@ export function QuadroMensalTab() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {transacao.prazo
-                          ? (() => {
-                              const date = new Date(transacao.prazo);
-                              return isNaN(date.getTime()) ? "—" : format(date, "dd/MM/yyyy");
-                            })()
-                          : "—"}
+                        {transacao.prazo ? (
+                          <span className="capitalize">
+                            {transacao.prazo === "mensal" && "Mensal"}
+                            {transacao.prazo === "extra" && "Extra"}
+                            {transacao.prazo !== "mensal" && transacao.prazo !== "extra" && transacao.prazo}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {transacao.conta_banco || "—"}

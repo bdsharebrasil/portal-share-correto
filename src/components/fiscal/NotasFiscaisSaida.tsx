@@ -836,7 +836,7 @@ export function NotasFiscaisSaida() {
           valor: parseFloat(reciboData.valor),
           categoria_id: CATEGORIA_ID,
           descricao: reciboData.descricao || "Recibo de Saída - Serviços",
-          comprovante_url: reciboUrl,
+          recibo_url: reciboUrl,
           client_id: clientId,
           client_name: reciboData.cliente_nome,
           aeronave_id: aeronaveId,
