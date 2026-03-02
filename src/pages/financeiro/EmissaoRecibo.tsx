@@ -313,6 +313,7 @@ export default function EmissaoRecibo() {
               descricao: brDescription,
               aeronave: aeronaveRegistro || null,
               banco_conciliacao_id: brData?.id || null,
+              fornecedor_tipo: "recibo",
               criado_por: currentUserId,
               reference_id: receiptData.id,
               reference_type: "receipt",
