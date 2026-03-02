@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Select as RegularSelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, X } from "lucide-react";
+import { Upload, FileText, X, Landmark, Receipt } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ObservacaoField } from "./SharedFormFields";
@@ -11,6 +11,9 @@ interface Props {
   form: any;
   setForm: (f: any) => void;
 }
+
+// Tipos de impostos definidos por você
+const TIPOS_IMPOSTO = ["DAS", "FGTS", "DARF"];
 
 export function FormImpostos({ form, setForm }: Props) {
   const [empresas, setEmpresas] = useState<any[]>([]);
@@ -21,7 +24,14 @@ export function FormImpostos({ form, setForm }: Props) {
   }, []);
 
   const loadEmpresas = async () => {
-    const { data } = await supabase.from("company_settings").select("id, razao_social, cnpj, nome_fantasia");
+    const { data, error } = await supabase
+      .from("empresas")
+      .select("id, razao_social, cnpj");
+    
+    if (error) {
+      console.error("Erro ao carregar empresas:", error);
+      return;
+    }
     setEmpresas(data || []);
   };
 
@@ -33,7 +43,7 @@ export function FormImpostos({ form, setForm }: Props) {
         empresa_id: emp.id,
         empresa: emp.razao_social,
         fornecedor_nome: emp.razao_social,
-        fornecedor_cnpj: emp.cnpj
+        fornecedor_cnpj: emp.cnpj,
       });
     }
   };
@@ -44,88 +54,147 @@ export function FormImpostos({ form, setForm }: Props) {
     setUploading(true);
     try {
       const timestamp = Date.now();
-      const sanitizedFileName = file.name
-        .replace(/[^a-zA-Z0-9.\-_]/g, "_")
-        .substring(0, 100);
-      const fileExt = sanitizedFileName.split('.').pop();
-      const fileName = `imposto_${timestamp}.${fileExt}`;
-      const { error } = await supabase.storage.from("nfs-share-recebidas").upload(fileName, file);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `imposto_${form.categoria || 'geral'}_${timestamp}.${fileExt}`;
+
+      const { error } = await supabase.storage
+        .from("nfs-share-recebidas")
+        .upload(fileName, file);
+
       if (error) throw error;
-      const { data } = supabase.storage.from("nfs-share-recebidas").getPublicUrl(fileName);
-      setForm({ ...form, documento_url: data.publicUrl });
-      toast.success("Documento anexado!");
+
+      const { data } = supabase.storage
+        .from("nfs-share-recebidas")
+        .getPublicUrl(fileName);
+
+      setForm({ ...form, arquivo_pdf_url: data.publicUrl });
+      toast.success("Guia anexada!");
     } catch (err: any) {
-      toast.error(err.message || "Erro ao enviar");
+      toast.error("Erro no upload: " + err.message);
     } finally {
       setUploading(false);
     }
   };
 
-  const selectedEmpresa = empresas.find(e => e.id === form.empresa_id);
-
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-primary uppercase tracking-wide">Impostos</h3>
-
-      {/* Empresa */}
-      <div>
-        <label className="text-sm font-semibold mb-1 block">Empresa *</label>
-        <RegularSelect value={form.empresa_id || ""} onValueChange={handleSelectEmpresa}>
-          <SelectTrigger className="h-9"><SelectValue placeholder="Selecione a empresa..." /></SelectTrigger>
-          <SelectContent>
-            {empresas.map(e => <SelectItem key={e.id} value={e.id}>{e.razao_social}</SelectItem>)}
-          </SelectContent>
-        </RegularSelect>
+      <div className="flex items-center gap-2 mb-2">
+        <Landmark className="h-4 w-4 text-primary" />
+        <h3 className="text-sm font-semibold text-primary uppercase tracking-wide">Impostos e Tributos</h3>
       </div>
 
-      {selectedEmpresa && (
-        <div className="p-3 bg-muted/40 rounded-lg border border-border/50 space-y-1">
-          <p className="text-xs"><strong>Razão Social:</strong> {selectedEmpresa.razao_social}</p>
-          <p className="text-xs"><strong>CNPJ:</strong> {selectedEmpresa.cnpj}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Empresa */}
+        <div className="space-y-1">
+          <label className="text-xs font-bold text-muted-foreground uppercase">Empresa Pagadora *</label>
+          <RegularSelect value={form.empresa_id || ""} onValueChange={handleSelectEmpresa}>
+            <SelectTrigger className="h-10">
+              <SelectValue placeholder="Selecione a empresa..." />
+            </SelectTrigger>
+            <SelectContent>
+              {empresas.map(e => (
+                <SelectItem key={e.id} value={e.id}>{e.razao_social}</SelectItem>
+              ))}
+            </SelectContent>
+          </RegularSelect>
         </div>
-      )}
 
-      {/* Período de Apuração */}
-      <div>
-        <label className="text-sm font-semibold mb-1 block">Período de Apuração</label>
-        <Input type="month" value={form.periodo_apuracao || ""} onChange={e => setForm({ ...form, periodo_apuracao: e.target.value })} className="h-9" />
+        {/* Tipo de Imposto (Vai para a coluna 'categoria') */}
+        <div className="space-y-1">
+          <label className="text-xs font-bold text-muted-foreground uppercase">Tipo de Imposto *</label>
+          <RegularSelect 
+            value={form.categoria} 
+            onValueChange={(v) => setForm({ ...form, categoria: v })}
+          >
+            <SelectTrigger className="h-10">
+              <SelectValue placeholder="DAS, FGTS, DARF..." />
+            </SelectTrigger>
+            <SelectContent>
+              {TIPOS_IMPOSTO.map(tipo => (
+                <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+              ))}
+            </SelectContent>
+          </RegularSelect>
+        </div>
       </div>
 
-      {/* Valor e Vencimento */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="text-sm font-semibold mb-1 block">Valor *</label>
-          <Input type="number" step="0.01" min="0" placeholder="0.00" value={form.valor} onChange={e => setForm({ ...form, valor: e.target.value })} className="h-9" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Referência/Doc */}
+        <div className="space-y-1">
+          <label className="text-xs font-bold text-muted-foreground uppercase">Nº Documento / Ref.</label>
+          <Input 
+            placeholder="Ex: Ref 01/2026" 
+            value={form.numero_doc || ""} 
+            onChange={e => setForm({ ...form, numero_doc: e.target.value })}
+            className="h-10"
+          />
         </div>
-        <div>
-          <label className="text-sm font-semibold mb-1 block">Data de Vencimento *</label>
-          <Input type="date" value={form.data_vencimento} onChange={e => setForm({ ...form, data_vencimento: e.target.value })} className="h-9" />
+
+        {/* Valor */}
+        <div className="space-y-1">
+          <label className="text-xs font-bold text-muted-foreground uppercase">Valor R$ *</label>
+          <Input 
+            type="number" 
+            step="0.01" 
+            value={form.valor} 
+            onChange={e => setForm({ ...form, valor: e.target.value })} 
+            className="h-10" 
+          />
+        </div>
+
+        {/* Vencimento */}
+        <div className="space-y-1">
+          <label className="text-xs font-bold text-muted-foreground uppercase">Vencimento *</label>
+          <Input 
+            type="date" 
+            value={form.data_vencimento} 
+            onChange={e => setForm({ ...form, data_vencimento: e.target.value })} 
+            className="h-10" 
+          />
         </div>
       </div>
 
-      {/* Documento */}
-      <div>
-        <label className="text-sm font-semibold mb-1 block">Anexar Documento</label>
-        {form.documento_url ? (
-          <div className="flex items-center gap-2 p-2 bg-muted rounded-lg border border-border/50">
-            <FileText className="h-4 w-4 text-primary flex-shrink-0" />
-            <a href={form.documento_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex-1 truncate">Documento anexado</a>
-            <Button variant="ghost" size="sm" onClick={() => setForm({ ...form, documento_url: "" })} className="h-6 w-6 p-0"><X className="h-3 w-3" /></Button>
+      {/* Código de barras - Essencial para impostos */}
+      <div className="space-y-1">
+        <label className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1">
+          <Receipt className="h-3 w-3" /> Linha Digitável
+        </label>
+        <Input 
+          value={form.codigo_barras || ""} 
+          onChange={e => setForm({ ...form, codigo_barras: e.target.value })} 
+          placeholder="Cole o código de barras da guia aqui" 
+          className="h-10 font-mono text-xs" 
+        />
+      </div>
+
+      {/* Upload da Guia */}
+      <div className="space-y-2">
+        <label className="text-xs font-bold text-muted-foreground uppercase block">Anexar Guia de Imposto</label>
+        {form.arquivo_pdf_url ? (
+          <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
+            <FileText className="h-4 w-4 text-primary" />
+            <span className="text-xs font-medium flex-1 truncate">Guia anexada</span>
+            <Button variant="ghost" size="sm" onClick={() => setForm({ ...form, arquivo_pdf_url: "" })} className="h-7 w-7 p-0">
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         ) : (
-          <>
-            <Input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={handleUpload} disabled={uploading} className="hidden" id="doc-imposto-upload" />
-            <Button variant="outline" size="sm" onClick={() => document.getElementById('doc-imposto-upload')?.click()} disabled={uploading}>
-              <Upload className="h-3 w-3 mr-1" />{uploading ? "Enviando..." : "Anexar Documento"}
+          <div className="relative">
+            <input 
+              type="file" 
+              accept=".pdf,.jpg,.jpeg,.png" 
+              onChange={handleUpload} 
+              disabled={uploading} 
+              className="absolute inset-0 opacity-0 cursor-pointer" 
+            />
+            <Button variant="outline" className="w-full border-dashed border-2 h-14 flex flex-col" disabled={uploading}>
+              <Upload className="h-4 w-4 mb-1 text-muted-foreground" />
+              <span className="text-[10px] text-muted-foreground">
+                {uploading ? "Enviando..." : "Anexar PDF da Guia"}
+              </span>
             </Button>
-          </>
+          </div>
         )}
-      </div>
-
-      {/* Código de barras */}
-      <div>
-        <label className="text-sm font-semibold mb-1 block">Código de Barras</label>
-        <Input value={form.codigo_barras || ""} onChange={e => setForm({ ...form, codigo_barras: e.target.value })} placeholder="Código de barras do boleto" className="h-9 font-mono text-sm" />
       </div>
 
       <ObservacaoField form={form} setForm={setForm} />
