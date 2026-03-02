@@ -6,14 +6,6 @@ import { Layout } from "@/components/layout/Layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { SearchableCombobox } from "@/components/ui/SearchableCombobox"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import {
   ChevronLeft,
   ChevronRight,
@@ -80,11 +72,6 @@ export default function RelatorioMensal() {
   const allPartners = useMemo(
     () => [...new Set(transactions.map((t) => t.partner_name))].filter(Boolean),
     [transactions]
-  )
-
-  const partnerOptions = useMemo(
-    () => allPartners.map((p) => ({ label: p, value: p })),
-    [allPartners]
   )
 
   const filteredTransactions = useMemo(() => {
@@ -261,13 +248,25 @@ export default function RelatorioMensal() {
               <label className="text-sm font-semibold text-foreground block mb-3">
                 Filtrar por Sócio
               </label>
-              <SearchableCombobox
-                options={partnerOptions}
-                selectedValues={selectedPartners}
-                onSelectionChange={setSelectedPartners}
-                placeholder="Selecione um ou mais sócios..."
-                searchPlaceholder="Buscar sócio..."
-              />
+              <div className="flex flex-wrap gap-3">
+                {allPartners.map((partner) => (
+                  <label key={partner} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedPartners.includes(partner)}
+                      onChange={() =>
+                        setSelectedPartners((prev) =>
+                          prev.includes(partner)
+                            ? prev.filter((p) => p !== partner)
+                            : [...prev, partner]
+                        )
+                      }
+                      className="rounded border-input cursor-pointer"
+                    />
+                    <span className="text-sm text-foreground">{partner}</span>
+                  </label>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
