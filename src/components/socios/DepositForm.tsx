@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +22,7 @@ import { Plus, TrendingUp, Landmark, ArrowDownCircle } from "lucide-react";
 import { useAddDeposit, type PartnerAccount } from "@/hooks/useFinanceiroSocios";
 import { useClientPartners } from "@/hooks/useClientPartners";
 import { formatCPF, formatMoney } from "@/lib/formatters";
+import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
 // tipos de entrada — requires_partner controla se exibe seletor de sócio
@@ -78,13 +79,7 @@ export const ENTRY_TYPES = [
 
 export type EntryTypeId = typeof ENTRY_TYPES[number]["id"];
 
-const BANK_OPTIONS = [
-  { id: "bradesco", label: "Bradesco" },
-  { id: "caixa", label: "Caixa Econômica" },
-  { id: "sicoob", label: "Sicoob" },
-  { id: "sicredi", label: "Sicredi" },
-  { id: "outros", label: "Outros" },
-];
+// Removed hardcoded BANK_OPTIONS - now fetched from contas_bancarias table
 
 interface DepositFormProps {
   accounts: PartnerAccount[];
@@ -174,8 +169,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
     e.preventDefault();
     if (!interest.amount || !interest.bankName) return;
 
-    const bankLabel =
-      BANK_OPTIONS.find((b) => b.id === interest.bankName)?.label ?? interest.bankName;
+    const bankLabel = interest.bankName;
 
     await addDeposit.mutateAsync({
       clientId: clienteId,
@@ -487,19 +481,42 @@ function BankSelect({
   disabled?: boolean;
   required?: boolean;
 }) {
+  const [contas, setContas] = useState<{ id: string; banco: string; numero_conta: string | null; tipo_conta: string | null }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchContas = async () => {
+      const { data } = await supabase
+        .from("contas_bancarias")
+        .select("id, banco, numero_conta, tipo_conta")
+        .eq("ativo", true)
+        .order("banco");
+      setContas(data || []);
+      setLoading(false);
+    };
+    fetchContas();
+  }, []);
+
   return (
     <div>
       <Label className="font-semibold">
         Instituição Bancária {required ? "*" : "(opcional)"}
       </Label>
-      <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <Select value={value} onValueChange={onChange} disabled={disabled || loading}>
         <SelectTrigger className="mt-2">
-          <SelectValue placeholder="Selecione o banco" />
+          <SelectValue placeholder={loading ? "Carregando contas..." : "Selecione o banco"} />
         </SelectTrigger>
         <SelectContent>
-          {BANK_OPTIONS.map((bank) => (
-            <SelectItem key={bank.id} value={bank.id}>
-              {bank.label}
+          {contas.map((conta) => (
+            <SelectItem key={conta.id} value={conta.banco}>
+              <div className="flex flex-col">
+                <span>{conta.banco}</span>
+                {conta.numero_conta && (
+                  <span className="text-xs text-muted-foreground">
+                    Conta: {conta.numero_conta} {conta.tipo_conta ? `(${conta.tipo_conta})` : ""}
+                  </span>
+                )}
+              </div>
             </SelectItem>
           ))}
         </SelectContent>
