@@ -862,7 +862,6 @@ export function NotasFiscaisSaida() {
           status: "pendente",
           aeronave: reciboData.aeronave_registro,
           arquivo_pdf_url: reciboUrl,
-          fornecedor_tipo: "recibo",
           criado_por: currentUser.id,
         });
 
