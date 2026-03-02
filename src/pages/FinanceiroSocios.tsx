@@ -34,7 +34,7 @@ type Props = {
   transactions: Transaction[]
 }
 
-export default function FinancialReportPage({ transactions }: Props) {
+export default function FinancialReportPage({ transactions = [] }: Props) {
   const [filterMonth, setFilterMonth] = useState<string>("")
   const [visibleCategories, setVisibleCategories] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<"date" | "amount">("date")
@@ -45,11 +45,11 @@ export default function FinancialReportPage({ transactions }: Props) {
   // -------------------------
 
   const filteredTransactions = useMemo(() => {
-    if (!filterMonth) return transactions
+    if (!filterMonth) return transactions || []
 
     const selectedDate = new Date(filterMonth + "-01")
 
-    return transactions.filter((t) =>
+    return (transactions || []).filter((t) =>
       isSameMonth(parseISO(t.date), selectedDate)
     )
   }, [transactions, filterMonth])
@@ -64,7 +64,7 @@ export default function FinancialReportPage({ transactions }: Props) {
     const currentDate = new Date(filterMonth + "-01")
     const previousMonthDate = subMonths(currentDate, 1)
 
-    return transactions.filter((t) =>
+    return (transactions || []).filter((t) =>
       isSameMonth(parseISO(t.date), previousMonthDate)
     )
   }, [transactions, filterMonth])
@@ -102,7 +102,7 @@ export default function FinancialReportPage({ transactions }: Props) {
   // -------------------------
 
   const allCategories = useMemo(() => {
-    return [...new Set(transactions.map((t) => t.category))]
+    return [...new Set((transactions || []).map((t) => t.category))]
   }, [transactions])
 
   const finalTransactions =
