@@ -115,8 +115,7 @@ export function FormDespesasEmpresa({ form, setForm, fornecedores, onReloadForne
             ...form,
             fornecedor_nome: nome,
             fornecedor_favorito_id: forn?.id || null,
-            // Alinhado com seu Schema: banco salva a conta do fornecedor
-            banco: forn?.conta_pagamento || form.banco,
+            conta_pagamento_fornecedor: forn?.conta_pagamento || ""
             fornecedor_cnpj: forn?.documento || ""
           });
         }}
