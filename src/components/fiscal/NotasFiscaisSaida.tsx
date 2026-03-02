@@ -770,6 +770,10 @@ export function NotasFiscaisSaida() {
       toast({ title: "Validação", description: "Selecione uma aeronave", variant: "destructive" });
       return;
     }
+    if (!reciboData.categoriaRecibo) {
+      toast({ title: "Validação", description: "Selecione a categoria do recibo", variant: "destructive" });
+      return;
+    }
 
     try {
       setIsGeneratingRecibo(true);
@@ -853,11 +857,12 @@ export function NotasFiscaisSaida() {
           data_criacao: new Date().toISOString().split("T")[0],
           data_vencimento: reciboData.data_vencimento,
           valor: parseFloat(reciboData.valor),
-          categoria: "Recibo de Serviço",
+          categoria: reciboData.categoriaRecibo || "Recibo de Serviço",
           descricao: reciboData.descricao || "Recibo de Serviço",
           status: "pendente",
           aeronave: reciboData.aeronave_registro,
           arquivo_pdf_url: reciboUrl,
+          fornecedor_tipo: "recibo",
           criado_por: currentUser.id,
         });
 
@@ -1708,6 +1713,7 @@ export function NotasFiscaisSaida() {
                           valor: "",
                           data_vencimento: new Date().toISOString().split("T")[0],
                           descricao: "",
+                          categoriaRecibo: "",
                         });
                       }}
                     >
