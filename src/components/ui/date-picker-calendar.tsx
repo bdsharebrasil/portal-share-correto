@@ -28,30 +28,30 @@ export function DatePickerCalendar({
   };
 
   return (
-    <div className="w-full bg-slate-950/50 border border-slate-800 rounded-lg p-4">
+    <div className="w-full max-w-sm bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 border border-slate-700/50 rounded-2xl p-6 shadow-2xl">
       {/* Header with selected date */}
       {value && (
-        <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-800">
-          <Calendar className="w-5 h-5 text-slate-400" />
-          <span className="text-sm font-medium text-slate-200">
+        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-700/50">
+          <Calendar className="w-5 h-5 text-cyan-400" />
+          <span className="text-sm font-semibold text-slate-100">
             {format(value, "dd/MM/yyyy", { locale: ptBR })}
           </span>
         </div>
       )}
 
       {/* Month navigation */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-6">
         <Button
           variant="ghost"
           size="sm"
           onClick={handlePreviousMonth}
-          className="h-7 w-7 p-0 hover:bg-slate-800"
+          className="h-8 w-8 p-0 hover:bg-slate-800/50 text-slate-300 hover:text-slate-100 transition-all"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-5 h-5" />
         </Button>
 
         <div className="text-center">
-          <h2 className="text-sm font-semibold text-slate-200">
+          <h2 className="text-base font-bold text-slate-100 capitalize">
             {format(month, "MMMM yyyy", { locale: ptBR })}
           </h2>
         </div>
@@ -60,9 +60,9 @@ export function DatePickerCalendar({
           variant="ghost"
           size="sm"
           onClick={handleNextMonth}
-          className="h-7 w-7 p-0 hover:bg-slate-800"
+          className="h-8 w-8 p-0 hover:bg-slate-800/50 text-slate-300 hover:text-slate-100 transition-all"
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-5 h-5" />
         </Button>
       </div>
 
@@ -80,27 +80,27 @@ export function DatePickerCalendar({
           className="w-full"
           classNames={{
             months: "w-full",
-            month: "w-full space-y-3",
+            month: "w-full space-y-4",
             caption: "hidden",
             nav: "hidden",
-            table: "w-full border-collapse",
-            head_row: "flex gap-1 mb-2",
+            table: "w-full border-collapse space-y-2",
+            head_row: "grid grid-cols-7 gap-2 mb-3",
             head_cell:
-              "text-xs font-medium text-slate-400 w-9 text-center uppercase",
-            row: "flex gap-1",
+              "text-xs font-semibold text-slate-400 w-10 h-10 flex items-center justify-center",
+            row: "grid grid-cols-7 gap-2",
             cell: cn(
-              "h-9 w-9 text-center text-xs p-0 relative",
+              "h-10 w-10 text-center text-sm p-0 relative",
               "[&:has([aria-selected])]:bg-transparent"
             ),
             day: cn(
-              "h-9 w-9 p-0 font-medium rounded-md transition-colors",
-              "text-slate-300 hover:bg-slate-700 hover:text-slate-100"
+              "h-10 w-10 p-0 font-medium rounded-lg transition-all duration-200",
+              "text-slate-300 hover:bg-slate-700/60 hover:text-slate-100"
             ),
-            day_selected: "bg-cyan-500 text-white hover:bg-cyan-600",
-            day_today: "text-slate-100",
+            day_selected: "bg-cyan-500 text-white font-semibold hover:bg-cyan-600 shadow-lg shadow-cyan-500/30",
+            day_today: "text-cyan-300 font-semibold",
             day_outside:
-              "text-slate-600 opacity-50",
-            day_disabled: "text-slate-600 opacity-30 cursor-not-allowed",
+              "text-slate-600 opacity-40",
+            day_disabled: "text-slate-600 opacity-30 cursor-not-allowed hover:bg-transparent",
             day_range_middle: "aria-selected:bg-transparent",
           }}
         />
