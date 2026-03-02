@@ -23,6 +23,7 @@ import { useCreateExpense } from "@/hooks/useFinanceiroSocios";
 import { useClientPartners } from "@/hooks/useClientPartners";
 import { useClientAbastecimentos } from "@/hooks/useAbastecimentos";
 import { useFornecedoresFavoritos } from "@/hooks/useFornecedoresFavoritos";
+import { useContasBancarias } from "@/hooks/useContasBancarias";
 import { formatCPF } from "@/lib/formatters";
 import { format } from "date-fns";
 
@@ -50,9 +51,7 @@ const EMPTY_FORM = {
   category: "" as ExpenseCategoryId | "",
   expenseType: "",
   assignedPartnerCpf: "none",
-  // paid_date: data em que a despesa foi EFETUADA/PAGA
   paidDate: format(new Date(), "yyyy-MM-dd"),
-  // due_date: data de vencimento da despesa (opcional)
   dueDate: format(new Date(), "yyyy-MM-dd"),
   supplierName: "",
   invoiceNumber: "",
@@ -62,7 +61,7 @@ const EMPTY_FORM = {
   status: "pago",
   abastecimentoId: "",
   criarNovoAbastecimento: false,
-  bankName: "bradesco",
+  bankName: "", // UUID da conta bancária selecionada
   prazo: "extra" as "mensal" | "extra",
 };
 
@@ -76,11 +75,11 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
 
-
   const addExpense = useCreateExpense();
   const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteId);
   const { data: abastecimentos = [] } = useClientAbastecimentos(clienteId);
   const { data: fornecedoresFavoritos = [] } = useFornecedoresFavoritos();
+  const { data: contasBancarias = [], isLoading: loadingContas } = useContasBancarias();
 
   const set = (key: keyof typeof EMPTY_FORM) => (value: string | boolean) =>
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -103,9 +102,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       expenseType: form.expenseType || form.category,
       assignedPartnerCpf,
       assignedPartnerName: assignedPartner?.name || null,
-      // paid_date: data em que a despesa foi efetivamente paga
       paidDate: form.paidDate,
-      // due_date: data de vencimento da despesa
       dueDate: form.dueDate,
       supplierName: form.supplierName || null,
       invoiceNumber: form.invoiceNumber || null,
@@ -117,7 +114,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
         form.category === "abastecimento" ? "abastecimento" : null,
       referenceId:
         form.category === "abastecimento" ? form.abastecimentoId || null : null,
-      bankName: form.bankName || "bradesco",
+      bankName: form.bankName || null, // UUID da conta bancária
       prazo: form.prazo || "extra",
     });
 
@@ -484,28 +481,51 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             </Select>
           </div>
 
-          {/* ── Banco e Prazo ─────────────────────────────────────────────── */}
+          {/* ── Conta Bancária e Prazo ────────────────────────────────────── */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="font-semibold">Banco</Label>
-              <Select value={form.bankName} onValueChange={set("bankName")}>
+              <Label className="font-semibold">Conta Bancária</Label>
+              <Select
+                value={form.bankName}
+                onValueChange={set("bankName")}
+                disabled={loadingContas}
+              >
                 <SelectTrigger className="mt-2">
-                  <SelectValue placeholder="Selecione o banco" />
+                  <SelectValue
+                    placeholder={
+                      loadingContas ? "Carregando contas..." : "Selecione a conta"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="bradesco">Bradesco</SelectItem>
-                  <SelectItem value="caixa">Caixa Econômica</SelectItem>
-                  <SelectItem value="sicoob">Sicoob</SelectItem>
-                  <SelectItem value="sicredi">Sicredi</SelectItem>
-                  <SelectItem value="itau">Itaú</SelectItem>
-                  <SelectItem value="santander">Santander</SelectItem>
-                  <SelectItem value="outros">Outros</SelectItem>
+                  {contasBancarias.length === 0 && !loadingContas ? (
+                    <div className="p-2 text-sm text-muted-foreground">
+                      Nenhuma conta bancária cadastrada
+                    </div>
+                  ) : (
+                    contasBancarias.map((conta) => (
+                      <SelectItem key={conta.id} value={conta.id}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{conta.banco}</span>
+                          {conta.numero_conta && (
+                            <span className="text-xs text-muted-foreground font-mono">
+                              Cta: {conta.numero_conta}
+                              {conta.tipo_conta ? ` • ${conta.tipo_conta}` : ""}
+                            </span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
             <div>
               <Label className="font-semibold">Tipo de Despesa (Prazo)</Label>
-              <Select value={form.prazo} onValueChange={(v) => set("prazo")(v as "mensal" | "extra")}>
+              <Select
+                value={form.prazo}
+                onValueChange={(v) => set("prazo")(v as "mensal" | "extra")}
+              >
                 <SelectTrigger className="mt-2">
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
