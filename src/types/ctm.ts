@@ -1,3 +1,5 @@
+
+export type CTMTab = "os" | "componentes" | "peso" | "ras" | "orcamentos";
 // Component interface
 export interface Component {
   id: string;
