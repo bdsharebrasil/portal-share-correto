@@ -30,26 +30,26 @@ export function useClientAbastecimentos(clientId: string | null) {
       if (!clientId) return [];
 
       // 1. Buscar aircraft_id vinculado ao cliente via client_aircraft
-      const { data: clientAircraft, error: caError } = await supabase
+      const { data: clientAircraft } = await supabase
         .from("client_aircraft")
         .select("aircraft_id")
         .eq("client_id", clientId);
 
-      if (caError) {
-        toast.error("Erro ao buscar aeronave do cliente: " + caError.message);
-        return [];
-      }
+      const aircraftIds = (clientAircraft || []).map((ca) => ca.aircraft_id);
 
-      if (!clientAircraft || clientAircraft.length === 0) return [];
-
-      const aircraftIds = clientAircraft.map((ca) => ca.aircraft_id);
-
-      // 2. Buscar abastecimentos pendentes dessas aeronaves
-      const { data, error } = await supabase
+      // 2. Buscar abastecimentos pendentes por client_id ou aeronave_id
+      let query = supabase
         .from("abastecimentos")
         .select("*")
-        .in("aeronave_id", aircraftIds)
-        .or("status_pagamento.is.null,status_pagamento.eq.em_aberto");
+        .or("status_pagamento.is.null,status_pagamento.eq.em_aberto,status_pagamento.eq.em aberto,status_pagamento.eq.pendente");
+
+      if (aircraftIds.length > 0) {
+        query = query.or(`client_id.eq.${clientId},aeronave_id.in.(${aircraftIds.join(",")})`);
+      } else {
+        query = query.eq("client_id", clientId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         toast.error("Erro ao carregar abastecimentos: " + error.message);
