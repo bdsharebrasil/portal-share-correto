@@ -193,24 +193,46 @@ export function useCTMData(aircraftId: string) {
   const currentHours = lastFlight?.celula || aircraft?.cell_hours_current || aircraft?.horimeter_active || 0;
   const nextRevisionHours = aircraft?.celula_prox_revisao || 0;
   // If nextRevisionHours is set and > currentHours, calculate remaining; otherwise show 0 or "not set"
-  const hoursRemaining = nextRevisionHours > 0 && nextRevisionHours > currentHours
-    ? nextRevisionHours - currentHours
-    : nextRevisionHours > 0 ? 0 : -1; // -1 means not configured
+  const hoursRemaining =
+    nextRevisionHours > 0 && nextRevisionHours > currentHours
+      ? nextRevisionHours - currentHours
+      : nextRevisionHours > 0
+      ? 0
+      : -1; // -1 means not configured
 
-  // Calculate health percentage based on component status
-  const componentHealth = ctmTracking?.reduce((acc, item) => {
-    const remaining = item.remaining_hours || 0;
-    if (remaining <= 10) acc.critical++;
-    else if (remaining <= 50) acc.attention++;
-    else acc.ok++;
-    return acc;
-  }, { ok: 0, attention: 0, critical: 0 }) || { ok: 0, attention: 0, critical: 0 };
+  // Calculate health percentage based on component status (Horas, Ciclos e Data)
+  const componentHealth = ctmTracking?.reduce(
+    (acc, item: any) => {
+      const remainingHours = item.remaining_hours || 9999;
 
+      let daysRemaining = 9999;
+      if (item.due_date) {
+        const due = new Date(item.due_date);
+        const today = new Date();
+        daysRemaining = Math.ceil((due.getTime() - today.getTime()) / (1000 * 3600 * 24));
+      }
+
+      // Crítico se faltar menos de 10 horas OU menos de 15 dias para vencer
+      if (remainingHours <= 10 || daysRemaining <= 15) {
+        acc.critical++;
+      }
+      // Atenção se faltar menos de 50 horas OU menos de 45 dias
+      else if (remainingHours <= 50 || daysRemaining <= 45) {
+        acc.attention++;
+      } else {
+        acc.ok++;
+      }
+      return acc;
+    },
+    { ok: 0, attention: 0, critical: 0 }
+  ) || { ok: 0, attention: 0, critical: 0 };
+
+  // Calculate overall health percentage based on component statuses
   const totalComponents = componentHealth.ok + componentHealth.attention + componentHealth.critical;
-  // If no components, show 100% (healthy) instead of calculating
-  const healthPercentage = totalComponents > 0
-    ? Math.round((componentHealth.ok / totalComponents) * 100)
-    : 100; // No components = no issues = healthy
+  const healthPercentage =
+    totalComponents > 0
+      ? Math.round((componentHealth.ok / totalComponents) * 100)
+      : 100;
 
   // Group cost sharing by service order
   const costSharingByOrder = (costSharing || []).reduce((acc, cs) => {
@@ -322,9 +344,10 @@ export function useClientFlightHours(aircraftId: string, startDate?: string, end
         client_name: ca.client?.company_name || ca.client?.proprietario || "Cliente",
         share_percentage: ca.share_percentage || 0,
         total_hours: hoursMap.get(ca.client_id) || 0,
-        percentage_used: totalHoursAll > 0
-          ? Math.round(((hoursMap.get(ca.client_id) || 0) / totalHoursAll) * 100)
-          : 0,
+        percentage_used:
+          totalHoursAll > 0
+            ? Math.round(((hoursMap.get(ca.client_id) || 0) / totalHoursAll) * 100)
+            : 0,
       }));
 
       return {
