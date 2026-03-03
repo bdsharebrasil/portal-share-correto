@@ -424,12 +424,12 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
             {/* Parcelamento em Cartão */}
             {form.paymentMethod === "cartao" && (
-              <div className="rounded-2xl bg-blue-50 border border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/40 p-5 space-y-4">
+              <div className="rounded-2xl bg-slate-500 border border-slate-900 dark:bg-slate-600 dark:border-slate-900 p-5 space-y-4">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/50">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
                     <span className="text-base">💳</span>
                   </div>
-                  <p className="font-semibold text-sm text-blue-900 dark:text-blue-300">
+                  <p className="font-semibold text-sm text-white">
                     Pagamento em Cartão
                   </p>
                 </div>
@@ -441,19 +441,19 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                       checked={form.isInstallment}
                       onChange={(e) => set("isInstallment")(e.target.checked)}
                       disabled={addExpense.isPending}
-                      className="w-4 h-4 rounded border-blue-300 cursor-pointer"
+                      className="w-4 h-4 rounded border-white/50 cursor-pointer accent-white"
                     />
-                    <span className="text-sm font-medium text-blue-900 dark:text-blue-300">
+                    <span className="text-sm font-medium text-white">
                       Parcelar despesa
                     </span>
                   </label>
                 </div>
 
                 {form.isInstallment && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-blue-200 dark:border-blue-800/50">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/20 [&_label]:text-white">
                     <FormSection label="Nº de Parcelas" required>
                       <Select value={form.installmentCount} onValueChange={set("installmentCount")}>
-                        <SelectTrigger className="h-12 rounded-xl border-blue-200 bg-white dark:bg-zinc-900 text-sm">
+                        <SelectTrigger className="h-12 rounded-xl border-white/30 bg-white/10 dark:bg-white/5 text-sm text-white">
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl">
@@ -465,7 +465,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                         </SelectContent>
                       </Select>
                       {form.installmentCount !== "1" && (
-                        <div className="mt-3 p-3 rounded-lg bg-blue-100/50 dark:bg-blue-900/20 text-sm text-blue-900 dark:text-blue-300">
+                        <div className="mt-3 p-3 rounded-lg bg-white/15 text-sm text-white/90">
                           <p className="font-medium">Resumo do parcelamento:</p>
                           <p className="mt-1">
                             <strong>{form.description || "Despesa"}</strong> {parseInt(form.installmentCount)}X{" "}
@@ -497,7 +497,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                         value={form.installmentStartDate}
                         onChange={(e) => set("installmentStartDate")(e.target.value)}
                         disabled={addExpense.isPending}
-                        className="h-12 rounded-xl border-blue-200 bg-white dark:bg-zinc-900 text-sm"
+                        className="h-12 rounded-xl border-white/30 bg-white/10 dark:bg-white/5 text-sm text-white"
                       />
                     </FormSection>
                   </div>
