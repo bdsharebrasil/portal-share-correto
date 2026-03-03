@@ -62,6 +62,9 @@ const EMPTY_FORM = {
   criarNovoAbastecimento: false,
   bankName: "",
   prazo: "extra" as "mensal" | "extra",
+  isInstallment: false,
+  installmentCount: "1",
+  installmentStartDate: format(new Date(), "yyyy-MM-dd"),
 };
 
 interface ExpenseFormProps {
@@ -108,6 +111,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       referenceType: form.category === "abastecimento" ? "abastecimento" : null,
       bankName: form.bankName || null,
       prazo: form.prazo || "extra",
+      isInstallment: form.isInstallment && form.paymentMethod === "cartao",
+      installmentCount: form.isInstallment && form.paymentMethod === "cartao" ? parseInt(form.installmentCount) : 1,
+      installmentStartDate: form.isInstallment && form.paymentMethod === "cartao" ? form.installmentStartDate : null,
     });
 
     setOpen(false);
@@ -415,6 +421,89 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 </Select>
               </FormSection>
             </div>
+
+            {/* Parcelamento em Cartão */}
+            {form.paymentMethod === "cartao" && (
+              <div className="rounded-2xl bg-blue-50 border border-blue-200 dark:bg-blue-950/30 dark:border-blue-800/40 p-5 space-y-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/50">
+                    <span className="text-base">💳</span>
+                  </div>
+                  <p className="font-semibold text-sm text-blue-900 dark:text-blue-300">
+                    Pagamento em Cartão
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.isInstallment}
+                      onChange={(e) => set("isInstallment")(e.target.checked)}
+                      disabled={addExpense.isPending}
+                      className="w-4 h-4 rounded border-blue-300 cursor-pointer"
+                    />
+                    <span className="text-sm font-medium text-blue-900 dark:text-blue-300">
+                      Parcelar despesa
+                    </span>
+                  </label>
+                </div>
+
+                {form.isInstallment && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-blue-200 dark:border-blue-800/50">
+                    <FormSection label="Nº de Parcelas" required>
+                      <Select value={form.installmentCount} onValueChange={set("installmentCount")}>
+                        <SelectTrigger className="h-12 rounded-xl border-blue-200 bg-white dark:bg-zinc-900 text-sm">
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => (
+                            <SelectItem key={num} value={String(num)} className="py-3">
+                              <span className="text-sm font-medium">{num}x</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {form.installmentCount !== "1" && (
+                        <div className="mt-3 p-3 rounded-lg bg-blue-100/50 dark:bg-blue-900/20 text-sm text-blue-900 dark:text-blue-300">
+                          <p className="font-medium">Resumo do parcelamento:</p>
+                          <p className="mt-1">
+                            <strong>{form.description || "Despesa"}</strong> {parseInt(form.installmentCount)}X{" "}
+                            <strong>R$ {(parseFloat(form.totalAmount || "0") / parseInt(form.installmentCount)).toFixed(2)}</strong>
+                          </p>
+                          <div className="mt-2 space-y-1 text-xs">
+                            {Array.from({ length: Math.min(parseInt(form.installmentCount), 3) }).map((_, i) => {
+                              const months = i + 1;
+                              const date = new Date(form.installmentStartDate);
+                              date.setMonth(date.getMonth() + i);
+                              return (
+                                <p key={i}>
+                                  Mês {months}/{form.installmentCount}: R${" "}
+                                  {(parseFloat(form.totalAmount || "0") / parseInt(form.installmentCount)).toFixed(2)} - {format(date, "MMM/yyyy", { locale: ptBR })}
+                                </p>
+                              );
+                            })}
+                            {parseInt(form.installmentCount) > 3 && (
+                              <p className="italic opacity-75">... +{parseInt(form.installmentCount) - 3} parcelas</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </FormSection>
+
+                    <FormSection label="Data 1ª Parcela" required>
+                      <Input
+                        type="date"
+                        value={form.installmentStartDate}
+                        onChange={(e) => set("installmentStartDate")(e.target.value)}
+                        disabled={addExpense.isPending}
+                        className="h-12 rounded-xl border-blue-200 bg-white dark:bg-zinc-900 text-sm"
+                      />
+                    </FormSection>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Conta Bancária + Prazo */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
