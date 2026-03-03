@@ -374,26 +374,125 @@ export function useCreateExpense() {
       referenceId?: string | null;
       bankName?: string | null;
       prazo?: string | null;
+      isInstallment?: boolean;
+      installmentCount?: number;
+      installmentStartDate?: string | null;
     }) => {
-      const { error } = await supabase.from("partner_expenses").insert({
-        client_id: data.clientId,
-        expense_type: data.expenseType,
-        description: data.description,
-        total_amount: data.totalAmount,
-        assigned_partner_cpf: data.assignedPartnerCpf || null,
-        assigned_partner_name: data.assignedPartnerName || null,
-        supplier_name: data.supplierName || null,
-        due_date: data.dueDate || null,
-        invoice_number: data.invoiceNumber || null,
-        invoice_url: data.invoiceUrl || null,
-        payment_method: data.paymentMethod || null,
-        notes: data.notes || null,
-        status: "pending",
-        reference_type: data.referenceType || null,
-        reference_id: data.referenceId || null,
-        prazo: data.prazo || null,
-      });
-      if (error) throw error;
+      const isInstallment = data.isInstallment && data.paymentMethod === "cartao" && (data.installmentCount || 1) > 1;
+      const installmentCount = isInstallment ? (data.installmentCount || 1) : 1;
+      const installmentAmount = data.totalAmount / installmentCount;
+      const startDate = isInstallment ? new Date(data.installmentStartDate || data.dueDate || new Date().toISOString().split('T')[0]) : null;
+
+      const expenses = [];
+
+      if (isInstallment) {
+        // Criar a despesa original (sem parcelar, apenas como referência)
+        const originalExpense = {
+          client_id: data.clientId,
+          expense_type: data.expenseType,
+          description: data.description,
+          total_amount: data.totalAmount,
+          assigned_partner_cpf: data.assignedPartnerCpf || null,
+          assigned_partner_name: data.assignedPartnerName || null,
+          supplier_name: data.supplierName || null,
+          due_date: data.dueDate || null,
+          invoice_number: data.invoiceNumber || null,
+          invoice_url: data.invoiceUrl || null,
+          payment_method: data.paymentMethod || null,
+          notes: `${data.notes || ""}${data.notes ? "\n" : ""}Parcelado em ${installmentCount}x de R$ ${installmentAmount.toFixed(2)}` || null,
+          status: "pending",
+          reference_type: data.referenceType || null,
+          reference_id: data.referenceId || null,
+          prazo: data.prazo || null,
+          bank_name: data.bankName || null,
+          installment_count: installmentCount,
+          installment_number: 0,
+          installment_start_date: startDate?.toISOString().split('T')[0] || null,
+          parent_expense_id: null,
+        };
+
+        expenses.push(originalExpense);
+
+        // Criar as parcelas
+        for (let i = 1; i <= installmentCount; i++) {
+          const installmentDate = new Date(startDate!);
+          installmentDate.setMonth(installmentDate.getMonth() + (i - 1));
+
+          const installmentExpense = {
+            client_id: data.clientId,
+            expense_type: data.expenseType,
+            description: `${data.description} (${i}/${installmentCount})`,
+            total_amount: installmentAmount,
+            assigned_partner_cpf: data.assignedPartnerCpf || null,
+            assigned_partner_name: data.assignedPartnerName || null,
+            supplier_name: data.supplierName || null,
+            due_date: installmentDate.toISOString().split('T')[0],
+            invoice_number: data.invoiceNumber || null,
+            invoice_url: data.invoiceUrl || null,
+            payment_method: data.paymentMethod || null,
+            notes: data.notes || null,
+            status: "pending",
+            reference_type: data.referenceType || null,
+            reference_id: data.referenceId || null,
+            prazo: data.prazo || null,
+            bank_name: data.bankName || null,
+            installment_count: installmentCount,
+            installment_number: i,
+            installment_start_date: startDate?.toISOString().split('T')[0] || null,
+            parent_expense_id: null, // Será atualizado depois de criar a original
+          };
+
+          expenses.push(installmentExpense);
+        }
+
+        // Inserir a despesa original primeiro para obter o ID
+        const { data: createdOriginal, error: originalError } = await supabase
+          .from("partner_expenses")
+          .insert([expenses[0]])
+          .select()
+          .single();
+
+        if (originalError) throw originalError;
+
+        // Atualizar as parcelas com parent_expense_id
+        const installmentsWithParent = expenses.slice(1).map((exp) => ({
+          ...exp,
+          parent_expense_id: createdOriginal.id,
+        }));
+
+        // Inserir as parcelas
+        if (installmentsWithParent.length > 0) {
+          const { error: installmentsError } = await supabase
+            .from("partner_expenses")
+            .insert(installmentsWithParent);
+
+          if (installmentsError) throw installmentsError;
+        }
+      } else {
+        // Criar uma despesa simples (sem parcelamento)
+        const { error } = await supabase.from("partner_expenses").insert({
+          client_id: data.clientId,
+          expense_type: data.expenseType,
+          description: data.description,
+          total_amount: data.totalAmount,
+          assigned_partner_cpf: data.assignedPartnerCpf || null,
+          assigned_partner_name: data.assignedPartnerName || null,
+          supplier_name: data.supplierName || null,
+          due_date: data.dueDate || null,
+          invoice_number: data.invoiceNumber || null,
+          invoice_url: data.invoiceUrl || null,
+          payment_method: data.paymentMethod || null,
+          notes: data.notes || null,
+          status: "pending",
+          reference_type: data.referenceType || null,
+          reference_id: data.referenceId || null,
+          prazo: data.prazo || null,
+          bank_name: data.bankName || null,
+          installment_count: 1,
+          installment_number: 1,
+        });
+        if (error) throw error;
+      }
 
       return data.clientId;
     },
