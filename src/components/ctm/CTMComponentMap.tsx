@@ -97,7 +97,7 @@ export function CTMComponentMap({ aircraftId }: ComponentMapProps) {
         <div>
           <CardTitle className="text-lg">Mapa de Componentes</CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Controle de componentes aeronáuticos e TBO
+            Controle de componentes aeronáuticos, TBO e Ciclos
           </p>
         </div>
         <Button size="sm" className="gap-2" onClick={() => setShowNewComponent(true)}>
@@ -133,25 +133,24 @@ export function CTMComponentMap({ aircraftId }: ComponentMapProps) {
         </div>
 
         {/* Component Table */}
-        <div className="border rounded-lg overflow-hidden">
+        <div className="border rounded-lg overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
                 <TableHead className="w-8"></TableHead>
-                <TableHead>Componente</TableHead>
-                <TableHead>P/N</TableHead>
+                <TableHead>Componente / P/N</TableHead>
                 <TableHead>S/N</TableHead>
-                <TableHead className="text-center">TBO (h)</TableHead>
-                <TableHead className="text-center">TSN (h)</TableHead>
+                <TableHead className="text-center">TBO</TableHead>
+                <TableHead className="text-center">TSN / TSO</TableHead>
+                <TableHead className="text-center">Ciclos (CSN/CSO)</TableHead>
                 <TableHead className="text-center">Restante</TableHead>
-                <TableHead>Data Instalação</TableHead>
-                <TableHead>Fabricante</TableHead>
+                <TableHead>Vencimento</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {categorizedComponents.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     {components.length === 0 
                       ? "Nenhum componente cadastrado para esta aeronave"
                       : "Nenhum componente encontrado com os filtros aplicados"
@@ -167,15 +166,31 @@ export function CTMComponentMap({ aircraftId }: ComponentMapProps) {
                     <TableCell>
                       {getStatusIcon(comp.remaining_percentage)}
                     </TableCell>
-                    <TableCell className="font-medium">{comp.name}</TableCell>
-                    <TableCell className="font-mono text-sm">{comp.part_number}</TableCell>
+                    <TableCell>
+                      <div className="font-medium">{comp.name}</div>
+                      <div className="font-mono text-xs text-muted-foreground">{comp.part_number}</div>
+                    </TableCell>
                     <TableCell className="font-mono text-sm">{comp.serial_number}</TableCell>
+                    
+                    {/* TBO - Pode ser em horas ou meses */}
                     <TableCell className="text-center">
-                      {comp.total_life_hours?.toLocaleString("pt-BR") || "-"}
+                      {comp.total_life_hours ? `${comp.total_life_hours.toLocaleString("pt-BR")}h` : "-"}
                     </TableCell>
+                    
+                    {/* TSN e TSO agrupados para economizar espaço horizontal */}
                     <TableCell className="text-center">
-                      {comp.current_life_hours?.toLocaleString("pt-BR", { minimumFractionDigits: 1 }) || "0"}
+                      <div className="text-sm">TSN: {comp.current_life_hours?.toLocaleString("pt-BR", { minimumFractionDigits: 1 }) || "0"}</div>
+                      {comp.tso !== undefined && comp.tso !== null && (
+                        <div className="text-xs text-muted-foreground">TSO: {comp.tso === 0 ? 'NOVO' : comp.tso}</div>
+                      )}
                     </TableCell>
+
+                    {/* Controle de Ciclos (Essencial para motores e hélices) */}
+                    <TableCell className="text-center">
+                      <div className="text-sm">CSN: {comp.csn ?? "-"}</div>
+                      <div className="text-xs text-muted-foreground">CSO: {comp.cso === 0 ? 'NOVO' : (comp.cso ?? "-")}</div>
+                    </TableCell>
+
                     <TableCell className="text-center">
                       {comp.remaining_hours !== null && comp.remaining_hours !== undefined ? (
                         <Badge className={getStatusColor(comp.remaining_percentage)}>
@@ -185,13 +200,16 @@ export function CTMComponentMap({ aircraftId }: ComponentMapProps) {
                         <span className="text-muted-foreground">N/A</span>
                       )}
                     </TableCell>
+                    
+                    {/* Data de Instalação ou Data de Vencimento Absoluta */}
                     <TableCell>
-                      {comp.installed_date 
-                        ? format(new Date(comp.installed_date), "dd/MM/yyyy", { locale: ptBR })
-                        : "-"
+                      {comp.due_date 
+                        ? format(new Date(comp.due_date), "dd/MM/yyyy", { locale: ptBR })
+                        : comp.installed_date 
+                          ? format(new Date(comp.installed_date), "dd/MM/yyyy", { locale: ptBR })
+                          : "-"
                       }
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{comp.manufacturer || "-"}</TableCell>
                   </TableRow>
                 ))
               )}
