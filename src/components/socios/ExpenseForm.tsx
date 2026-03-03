@@ -187,11 +187,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
-          variant="outline"
           className="gap-2 h-11 px-5 text-sm font-semibold rounded-xl
-                     border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300
-                     dark:border-red-800/50 dark:text-red-400 dark:hover:bg-red-950/30
-                     transition-all duration-200 hover:-translate-y-px hover:shadow-sm">
+                     bg-red-600 hover:bg-red-500 text-white border-0
+                     transition-all duration-200 hover:-translate-y-px hover:shadow-md">
           
           <Receipt className="h-4 w-4" />
           Nova Despesa
@@ -263,12 +261,12 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
             {/* Abastecimento */}
             {isAbastecimento &&
-            <div className="rounded-2xl bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/40 p-5 space-y-4">
+            <div className="rounded-2xl bg-amber-950/40 border border-amber-700/50 p-5 space-y-4">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/50">
-                    <Fuel className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-900/60">
+                    <Fuel className="h-4 w-4 text-amber-400" />
                   </div>
-                  <p className="font-semibold text-sm text-amber-900 dark:text-amber-300">
+                  <p className="font-semibold text-sm text-amber-200">
                     Vincular com Abastecimento
                   </p>
                 </div>
@@ -276,7 +274,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 {!form.criarNovoAbastecimento ?
               <>
                     <Select value={form.abastecimentoId} onValueChange={(v) => set("abastecimentoId")(v)}>
-                      <SelectTrigger className="h-12 rounded-xl border-amber-200 bg-white dark:bg-zinc-900 text-sm">
+                      <SelectTrigger className="h-12 rounded-xl border-amber-700/50 bg-zinc-900 text-sm">
                         <SelectValue placeholder="Selecione um abastecimento registrado" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl">
@@ -299,7 +297,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="w-full gap-2 text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded-xl h-10"
+                  className="w-full gap-2 text-amber-400 hover:bg-amber-900/30 rounded-xl h-10"
                   onClick={() => set("criarNovoAbastecimento")(true)}>
                   
                       <Plus className="h-4 w-4" />
