@@ -34,39 +34,31 @@ function BalancoClienteContent() {
     fim: format(endOfMonth(new Date()), 'yyyy-MM-dd')
   });
 
-  // Sincronizar clienteId com query params
   useEffect(() => {
     if (queryClienteId && queryClienteId !== clienteId) {
       setClienteId(queryClienteId);
     }
   }, [queryClienteId]);
 
-  // Carregar clientes com sócios
   const { data: clientesComSocios = [], isLoading: loadingClientes } = useClientesComSocios();
 
-  // Cliente atual selecionado
   const clienteAtual = clientesComSocios.find(c => c.id === clienteId);
   const socioAtual = clienteAtual?.socios.find(s => s.id === socioId);
 
-  // Carregar aeronaves do cliente
   const { data: aeronaves = [] } = useQuery({
     queryKey: ['aeronaves-balanco', clienteId],
     queryFn: async () => {
       let query = supabase.from('aircraft').select('id, registration, model').eq('status', 'ativa');
-
       if (clienteId) {
-        // Buscar aeronaves vinculadas ao cliente
         const { data: clientAircraft } = await supabase
           .from('client_aircraft')
           .select('aircraft_id')
           .eq('client_id', clienteId);
-
         if (clientAircraft && clientAircraft.length > 0) {
           const aircraftIds = clientAircraft.map(ca => ca.aircraft_id);
           query = query.in('id', aircraftIds);
         }
       }
-
       const { data, error } = await query.order('registration');
       if (error) throw error;
       return data || [];
@@ -74,67 +66,83 @@ function BalancoClienteContent() {
     enabled: true,
   });
 
-  // Contar pendências para badge
+  // Contar pendências reais: bank_reconciliations + despesas_cliente_direto + abastecimentos
   const { data: pendenciasCount = 0 } = useQuery({
     queryKey: ['pendencias-count', clienteId, aeronaveId],
     queryFn: async () => {
       if (!clienteId) return 0;
-      
-      let query = supabase
+      let total = 0;
+
+      // 1) bank_reconciliations pendente/aguardando_reembolso
+      let q1 = supabase
         .from('bank_reconciliations')
         .select('id', { count: 'exact', head: true })
         .eq('client_id', clienteId)
         .in('status', ['pendente', 'aguardando_reembolso']);
-      
-      if (aeronaveId) {
-        query = query.eq('aircraft_id', aeronaveId);
-      }
-      
-      const { count, error } = await query;
-      if (error) return 0;
-      return count || 0;
+      if (aeronaveId) q1 = q1.eq('aircraft_id', aeronaveId);
+      const { count: c1 } = await q1;
+      total += c1 || 0;
+
+      // 2) despesas_cliente_direto pendentes
+      let q2 = supabase
+        .from('despesas_cliente_direto')
+        .select('id', { count: 'exact', head: true })
+        .eq('client_id', clienteId)
+        .in('status', ['enviado', 'visualizado_cliente', 'aguardando_pagamento', 'atrasado']);
+      if (aeronaveId) q2 = q2.eq('aeronave_id', aeronaveId);
+      const { count: c2 } = await q2;
+      total += c2 || 0;
+
+      // 3) abastecimentos não pagos
+      let q3 = supabase
+        .from('abastecimentos')
+        .select('id', { count: 'exact', head: true })
+        .eq('client_id', clienteId)
+        .neq('status_pagamento', 'pago');
+      if (aeronaveId) q3 = q3.eq('aeronave_id', aeronaveId);
+      const { count: c3 } = await q3;
+      total += c3 || 0;
+
+      return total;
     },
     enabled: !!clienteId,
   });
 
   return (
-    <div className="space-y-6 bg-slate-900/80 p-6 rounded-xl shadow-elevated">
+    <div className="space-y-6 p-4 md:p-6">
       {/* Back Button */}
       <button
         onClick={() => navigate(-1)}
         className="flex items-center gap-2 text-foreground hover:text-primary transition-colors group"
       >
-        <ArrowLeft className="h-6 w-6 text-primary group-hover:-translate-x-1 transition-transform" />
+        <ArrowLeft className="h-5 w-5 text-primary group-hover:-translate-x-1 transition-transform" />
         <span className="text-sm font-medium">Voltar</span>
       </button>
 
       {/* Header */}
-      <div className="mb-8 flex items-center gap-3">
-        <div className="p-2 rounded-lg bg-primary/20">
-          <LayoutDashboard className="w-8 h-8 text-primary" />
+      <div className="flex items-center gap-3">
+        <div className="p-2.5 rounded-xl bg-primary/20">
+          <LayoutDashboard className="w-7 h-7 text-primary" />
         </div>
         <div>
-          <h1 className="text-4xl font-bold text-foreground mb-2">Balanço Cliente</h1>
-          <p className="text-lg text-muted-foreground">
+          <h1 className="text-3xl font-bold text-foreground">Balanço Cliente</h1>
+          <p className="text-sm text-muted-foreground">
             Acompanhamento financeiro completo, pendências e balanço operacional
           </p>
         </div>
       </div>
 
-    
-      
-
       {/* Filtros Globais */}
-      <Card className="border-transparent bg-gradient-card/80 shadow-2xl backdrop-blur-md">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-lg">Filtros</CardTitle>
-          <CardDescription>Selecione o cliente e período para análise</CardDescription>
+      <Card className="border border-border/50 bg-card/80 backdrop-blur-sm rounded-2xl shadow-lg">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Filtros</CardTitle>
+          <CardDescription className="text-xs">Selecione o cliente e período para análise</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
             {/* Seletor de Cliente/Sócio */}
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="cliente-filter">Cliente / Sócio</Label>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label htmlFor="cliente-filter" className="text-xs font-medium">Cliente / Sócio</Label>
               <Select 
                 value={socioId ? `${clienteId}:${socioId}` : clienteId} 
                 onValueChange={(val) => { 
@@ -152,7 +160,7 @@ function BalancoClienteContent() {
                   }
                 }}
               >
-                <SelectTrigger id="cliente-filter">
+                <SelectTrigger id="cliente-filter" className="rounded-xl">
                   <SelectValue placeholder="Selecione cliente ou sócio">
                     {clienteAtual && (
                       <div className="flex items-center gap-2">
@@ -184,7 +192,6 @@ function BalancoClienteContent() {
                 <SelectContent className="max-h-[400px]">
                   {clientesComSocios.map((cliente) => (
                     <React.Fragment key={cliente.id}>
-                      {/* Cliente consolidado */}
                       <SelectItem value={cliente.id} className="py-2">
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4 text-primary" />
@@ -198,7 +205,6 @@ function BalancoClienteContent() {
                           )}
                         </div>
                       </SelectItem>
-                      {/* Sócios individuais */}
                       {cliente.temMultiplosSocios &&
                         cliente.socios.map((socio) => (
                           <SelectItem
@@ -222,10 +228,10 @@ function BalancoClienteContent() {
             </div>
 
             {clienteId && (
-              <div className="space-y-2">
-                <Label htmlFor="aeronave-filter">Aeronave</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="aeronave-filter" className="text-xs font-medium">Aeronave</Label>
                 <Select value={aeronaveId || "__all__"} onValueChange={(val) => setAeronaveId(val === "__all__" ? "" : val)}>
-                  <SelectTrigger id="aeronave-filter">
+                  <SelectTrigger id="aeronave-filter" className="rounded-xl">
                     <SelectValue placeholder="Todas as aeronaves" />
                   </SelectTrigger>
                   <SelectContent>
@@ -240,25 +246,25 @@ function BalancoClienteContent() {
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="data-inicio">Data Início</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="data-inicio" className="text-xs font-medium">Data Início</Label>
               <input
                 id="data-inicio"
                 type="date"
                 value={periodo.inicio}
                 onChange={(e) => setPeriodo(p => ({ ...p, inicio: e.target.value }))}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="data-fim">Data Fim</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="data-fim" className="text-xs font-medium">Data Fim</Label>
               <input
                 id="data-fim"
                 type="date"
                 value={periodo.fim}
                 onChange={(e) => setPeriodo(p => ({ ...p, fim: e.target.value }))}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               />
             </div>
           </div>
@@ -267,34 +273,52 @@ function BalancoClienteContent() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-6 lg:w-auto bg-secondary/20 border-transparent shadow-elevated">
-          <TabsTrigger value="visao-geral" className="gap-2">
-            <LayoutDashboard className="h-5 w-5 text-primary" />
+        <TabsList className="flex w-full gap-1 p-1.5 bg-card/80 border border-border/60 rounded-2xl shadow-lg backdrop-blur-sm h-auto flex-wrap">
+          <TabsTrigger 
+            value="visao-geral" 
+            className="gap-2 px-4 py-2.5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md font-medium transition-all"
+          >
+            <LayoutDashboard className="h-4 w-4" />
             <span className="hidden sm:inline">Visão Geral</span>
           </TabsTrigger>
-          <TabsTrigger value="despesas" className="gap-2">
-            <Receipt className="h-5 w-5 text-primary" />
+          <TabsTrigger 
+            value="despesas" 
+            className="gap-2 px-4 py-2.5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md font-medium transition-all"
+          >
+            <Receipt className="h-4 w-4" />
             <span className="hidden sm:inline">Despesas</span>
           </TabsTrigger>
-          <TabsTrigger value="pendencias" className="gap-2 relative">
-            <AlertCircle className="h-5 w-5 text-destructive" />
+          <TabsTrigger 
+            value="pendencias" 
+            className="gap-2 px-4 py-2.5 rounded-xl data-[state=active]:bg-destructive data-[state=active]:text-destructive-foreground data-[state=active]:shadow-md font-medium transition-all relative"
+          >
+            <AlertCircle className="h-4 w-4" />
             <span className="hidden sm:inline">Pendências</span>
             {pendenciasCount > 0 && (
-              <Badge variant="destructive" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+              <Badge variant="destructive" className="ml-1 h-5 min-w-5 p-0 px-1 flex items-center justify-center text-[10px] font-bold rounded-full animate-pulse">
                 {pendenciasCount}
               </Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="aeronave" className="gap-2">
-            <Plane className="h-5 w-5 text-primary" />
+          <TabsTrigger 
+            value="aeronave" 
+            className="gap-2 px-4 py-2.5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md font-medium transition-all"
+          >
+            <Plane className="h-4 w-4" />
             <span className="hidden sm:inline">Aeronave</span>
           </TabsTrigger>
-          <TabsTrigger value="acesso-portal" className="gap-2">
-            <KeyRound className="h-5 w-5 text-primary" />
+          <TabsTrigger 
+            value="acesso-portal" 
+            className="gap-2 px-4 py-2.5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md font-medium transition-all"
+          >
+            <KeyRound className="h-4 w-4" />
             <span className="hidden sm:inline">Acesso Portal</span>
           </TabsTrigger>
-          <TabsTrigger value="relatorios" className="gap-2">
-            <FileBarChart className="h-5 w-5 text-primary" />
+          <TabsTrigger 
+            value="relatorios" 
+            className="gap-2 px-4 py-2.5 rounded-xl data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md font-medium transition-all"
+          >
+            <FileBarChart className="h-4 w-4" />
             <span className="hidden sm:inline">Relatórios</span>
           </TabsTrigger>
         </TabsList>
@@ -306,9 +330,10 @@ function BalancoClienteContent() {
               socioId={socioId}
               aeronaveId={aeronaveId || undefined}
               periodo={periodo}
+              onNavigateTab={setActiveTab}
             />
           ) : (
-            <Card className="border-transparent bg-gradient-card/80 shadow-elevated">
+            <Card className="border border-border/50 bg-card/60 rounded-2xl">
               <CardContent className="pt-6 text-center text-muted-foreground">
                 Selecione um cliente e uma aeronave para visualizar o balanço
               </CardContent>
@@ -318,16 +343,14 @@ function BalancoClienteContent() {
 
         <TabsContent value="despesas" className="space-y-6">
           {clienteId && aeronaveId ? (
-            <div className="space-y-6">
-              <HistoricoRateioConsolidado
-                clienteId={clienteId}
-                socioId={socioId}
-                aeronaveId={aeronaveId || undefined}
-                periodo={periodo}
-              />
-            </div>
+            <HistoricoRateioConsolidado
+              clienteId={clienteId}
+              socioId={socioId}
+              aeronaveId={aeronaveId || undefined}
+              periodo={periodo}
+            />
           ) : (
-            <Card className="border-transparent bg-gradient-card/80 shadow-elevated">
+            <Card className="border border-border/50 bg-card/60 rounded-2xl">
               <CardContent className="pt-6 text-center text-muted-foreground">
                 Selecione um cliente e uma aeronave para visualizar as despesas
               </CardContent>
@@ -343,7 +366,7 @@ function BalancoClienteContent() {
               aeronaveId={aeronaveId || undefined}
             />
           ) : (
-            <Card className="border-transparent bg-gradient-card/80 shadow-elevated">
+            <Card className="border border-border/50 bg-card/60 rounded-2xl">
               <CardContent className="pt-6 text-center text-muted-foreground">
                 Selecione um cliente e uma aeronave para visualizar as pendências
               </CardContent>
@@ -360,7 +383,7 @@ function BalancoClienteContent() {
               periodo={periodo}
             />
           ) : (
-            <Card className="border-transparent bg-gradient-card/80 shadow-elevated">
+            <Card className="border border-border/50 bg-card/60 rounded-2xl">
               <CardContent className="pt-6 text-center text-muted-foreground">
                 Selecione um cliente e uma aeronave para visualizar o balanço da aeronave
               </CardContent>
@@ -375,7 +398,7 @@ function BalancoClienteContent() {
               socioId={socioId}
             />
           ) : (
-            <Card className="border-transparent bg-gradient-card/80 shadow-elevated">
+            <Card className="border border-border/50 bg-card/60 rounded-2xl">
               <CardContent className="pt-6 text-center text-muted-foreground">
                 Selecione um cliente para gerenciar o acesso ao portal
               </CardContent>
@@ -392,7 +415,7 @@ function BalancoClienteContent() {
               periodo={periodo}
             />
           ) : (
-            <Card className="border-transparent bg-gradient-card/80 shadow-elevated">
+            <Card className="border border-border/50 bg-card/60 rounded-2xl">
               <CardContent className="pt-6 text-center text-muted-foreground">
                 Selecione um cliente e uma aeronave para gerar relatórios
               </CardContent>
