@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DocumentViewer } from "@/components/DocumentViewer";
 interface AircraftDocument {
   id: string;
   aircraft_id: string | null;
@@ -88,6 +89,8 @@ export default function AeronaveDetalhes() {
   const [alertDays, setAlertDays] = useState("30");
   const [isUploading, setIsUploading] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<AircraftDocument | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
   const {
     data: aircraft,
     isLoading
@@ -227,11 +230,16 @@ export default function AeronaveDetalhes() {
     }
   };
   const handleViewDocument = async (doc: AircraftDocument) => {
-    const {
-      data
-    } = await supabase.storage.from("flight-documents").createSignedUrl(doc.file_path, 3600);
-    if (data?.signedUrl) {
-      window.open(data.signedUrl, "_blank");
+    try {
+      const {
+        data
+      } = await supabase.storage.from("flight-documents").createSignedUrl(doc.file_path, 3600);
+      if (data?.signedUrl) {
+        setPreviewDoc(doc);
+        setPreviewUrl(data.signedUrl);
+      }
+    } catch (error: any) {
+      toast.error(`Erro ao abrir documento: ${error.message}`);
     }
   };
   const handleDownloadDocument = async (doc: AircraftDocument) => {
@@ -578,6 +586,23 @@ export default function AeronaveDetalhes() {
                 Excluir
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Document Preview Dialog */}
+        <Dialog open={!!previewDoc} onOpenChange={open => !open && (setPreviewDoc(null), setPreviewUrl(""))}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+            <DialogHeader>
+              <DialogTitle>{previewDoc?.name}</DialogTitle>
+            </DialogHeader>
+            {previewDoc && previewUrl && (
+              <DocumentViewer
+                url={previewUrl}
+                fileName={previewDoc.name}
+                fileType={previewDoc.file_type || "application/octet-stream"}
+                onDownload={() => handleDownloadDocument(previewDoc)}
+              />
+            )}
           </DialogContent>
         </Dialog>
       </div>
