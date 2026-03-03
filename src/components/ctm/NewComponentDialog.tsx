@@ -17,14 +17,12 @@ interface NewComponentDialogProps {
   onComponentCreated?: (component: Component) => void;
 }
 
+// Opções mapeadas de acordo com a Check Constraint do banco de dados
 const COMPONENT_STATUS = [
-  "NOVO",
-  "INSTALADO",
-  "FUNCIONANDO",
-  "DESGASTADO",
-  "DANIFICADO",
-  "EM_REPARO",
-  "INATIVO",
+  { value: "ok", label: "OK (Normal)" },
+  { value: "attention", label: "Atenção (Próximo ao Vencimento)" },
+  { value: "urgent", label: "Urgente" },
+  { value: "expired", label: "Vencido" },
 ];
 
 export function NewComponentDialog({
@@ -41,14 +39,26 @@ export function NewComponentDialog({
     category: "motor" as ComponentCategory,
     manufacturer: "",
     location: "",
+    
+    // Limites
     total_life_hours: "",
     total_life_cycles: "",
+    
+    // Controle de Horas
+    current_life_hours: "", // TSN
+    tso: "", // Tempo desde Revisão
+    
+    // Controle de Ciclos
+    csn: "", // Ciclos desde Novo
+    cso: "", // Ciclos desde Revisão
+    
+    // Instalação e Datas
     installed_date: format(new Date(), "yyyy-MM-dd"),
+    due_date: "", // Vencimento Calendário
     installed_hours: "",
     installed_cycles: "",
-    current_life_hours: "",
-    current_life_cycles: "",
-    status: "NOVO",
+    
+    status: "ok",
     observations: "",
   });
 
@@ -90,14 +100,22 @@ export function NewComponentDialog({
         category: formData.category || null,
         manufacturer: formData.manufacturer || null,
         location: formData.location || null,
+        
         total_life_hours: formData.total_life_hours ? parseFloat(formData.total_life_hours) : null,
-        total_life_cycles: formData.total_life_cycles ? parseFloat(formData.total_life_cycles) : null,
-        installed_date: formData.installed_date,
+        total_life_cycles: formData.total_life_cycles ? parseInt(formData.total_life_cycles, 10) : null,
+        
+        current_life_hours: formData.current_life_hours ? parseFloat(formData.current_life_hours) : 0, // TSN
+        tso: formData.tso !== "" ? parseFloat(formData.tso) : null,
+        
+        csn: formData.csn !== "" ? parseInt(formData.csn, 10) : null,
+        cso: formData.cso !== "" ? parseInt(formData.cso, 10) : null,
+
+        installed_date: formData.installed_date || null,
+        due_date: formData.due_date || null,
         installed_hours: formData.installed_hours ? parseFloat(formData.installed_hours) : null,
-        installed_cycles: formData.installed_cycles ? parseFloat(formData.installed_cycles) : null,
-        current_life_hours: formData.current_life_hours ? parseFloat(formData.current_life_hours) : null,
-        current_life_cycles: formData.current_life_cycles ? parseFloat(formData.current_life_cycles) : null,
-        status: formData.status || null,
+        installed_cycles: formData.installed_cycles ? parseInt(formData.installed_cycles, 10) : null,
+        
+        status: formData.status || 'ok',
         observations: formData.observations || null,
       };
 
@@ -114,21 +132,11 @@ export function NewComponentDialog({
       
       // Reset form
       setFormData({
-        name: "",
-        part_number: "",
-        serial_number: "",
-        category: "motor",
-        manufacturer: "",
-        location: "",
-        total_life_hours: "",
-        total_life_cycles: "",
-        installed_date: format(new Date(), "yyyy-MM-dd"),
-        installed_hours: "",
-        installed_cycles: "",
-        current_life_hours: "",
-        current_life_cycles: "",
-        status: "NOVO",
-        observations: "",
+        name: "", part_number: "", serial_number: "", category: "motor",
+        manufacturer: "", location: "", total_life_hours: "", total_life_cycles: "",
+        current_life_hours: "", tso: "", csn: "", cso: "",
+        installed_date: format(new Date(), "yyyy-MM-dd"), due_date: "",
+        installed_hours: "", installed_cycles: "", status: "ok", observations: "",
       });
       
       onOpenChange(false);
@@ -142,57 +150,50 @@ export function NewComponentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Cadastrar Novo Componente Aeronáutico</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6 mt-4">
           {/* Identificação do Componente */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Identificação do Componente</h3>
-            <div className="grid grid-cols-1 gap-4">
-              <div>
+            <h3 className="text-sm font-semibold text-foreground border-b pb-2">Identificação do Componente</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-1">
                 <Label htmlFor="name">Nome do Componente *</Label>
                 <Input
                   id="name"
-                  placeholder="Ex: Motor PT6A-20"
+                  placeholder="Ex: Motor PT6A-42A"
                   value={formData.name}
                   onChange={(e) => handleChange("name", e.target.value)}
                   required
                 />
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="part_number">Número de Peça (P/N) *</Label>
+                <Label htmlFor="part_number">Part Number (P/N) *</Label>
                 <Input
                   id="part_number"
-                  placeholder="Ex: PT6A-20"
+                  placeholder="Ex: PT6A-42A"
                   value={formData.part_number}
                   onChange={(e) => handleChange("part_number", e.target.value)}
                   required
                 />
               </div>
               <div>
-                <Label htmlFor="serial_number">Número de Série (S/N) *</Label>
+                <Label htmlFor="serial_number">Serial Number (S/N) *</Label>
                 <Input
                   id="serial_number"
-                  placeholder="Ex: PSE-7X1234"
+                  placeholder="Ex: PCE-RM0767"
                   value={formData.serial_number}
                   onChange={(e) => handleChange("serial_number", e.target.value)}
                   required
                 />
               </div>
             </div>
-          </div>
-
-          {/* Informações Técnicas */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Informações Técnicas</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="category">Categoria do Componente</Label>
+                <Label htmlFor="category">Categoria</Label>
                 <Select value={formData.category} onValueChange={(val) => handleChange("category", val)}>
                   <SelectTrigger id="category">
                     <SelectValue />
@@ -215,135 +216,140 @@ export function NewComponentDialog({
                   onChange={(e) => handleChange("manufacturer", e.target.value)}
                 />
               </div>
-            </div>
-            <div>
-              <Label htmlFor="location">Localização na Aeronave</Label>
-              <Input
-                id="location"
-                placeholder="Ex: Pylon Esquerdo"
-                value={formData.location}
-                onChange={(e) => handleChange("location", e.target.value)}
-              />
+              <div>
+                <Label htmlFor="location">Posição / Localização</Label>
+                <Input
+                  id="location"
+                  placeholder="Ex: Motor #1"
+                  value={formData.location}
+                  onChange={(e) => handleChange("location", e.target.value)}
+                />
+              </div>
             </div>
           </div>
 
-          {/* Vida Útil Total */}
+          {/* Limites de Vida Útil (TBO) */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Vida Útil Total (TBO)</h3>
+            <h3 className="text-sm font-semibold text-foreground border-b pb-2">Limites de Vida Útil (TBO)</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="total_life_hours">TBO em Horas</Label>
+                <Label htmlFor="total_life_hours">TBO (Limite em Horas)</Label>
                 <Input
                   id="total_life_hours"
                   type="number"
-                  placeholder="Ex: 2000"
+                  placeholder="Ex: 3600"
                   value={formData.total_life_hours}
                   onChange={(e) => handleChange("total_life_hours", e.target.value)}
-                  min="0"
-                  step="0.1"
+                  min="0" step="0.1"
                 />
               </div>
               <div>
-                <Label htmlFor="total_life_cycles">TBO em Ciclos</Label>
+                <Label htmlFor="total_life_cycles">Limite de Ciclos</Label>
                 <Input
                   id="total_life_cycles"
                   type="number"
-                  placeholder="Ex: 5000"
+                  placeholder="Ex: 10000"
                   value={formData.total_life_cycles}
                   onChange={(e) => handleChange("total_life_cycles", e.target.value)}
-                  min="0"
-                  step="1"
+                  min="0" step="1"
                 />
               </div>
             </div>
           </div>
 
-          {/* Instalação */}
+          {/* Controle de Horas e Ciclos (Aeronáutico) */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Dados de Instalação</h3>
-            <div className="grid grid-cols-3 gap-4">
+            <h3 className="text-sm font-semibold text-foreground border-b pb-2">Controle de Horas e Ciclos Atuais</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <Label htmlFor="installed_date">Data de Instalação *</Label>
+                <Label htmlFor="current_life_hours">TSN (Horas Totais)</Label>
+                <Input
+                  id="current_life_hours"
+                  type="number"
+                  placeholder="Ex: 908.3"
+                  value={formData.current_life_hours}
+                  onChange={(e) => handleChange("current_life_hours", e.target.value)}
+                  min="0" step="0.1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="tso">TSO (Horas Após Revisão)</Label>
+                <Input
+                  id="tso"
+                  type="number"
+                  placeholder="0 = NOVO"
+                  value={formData.tso}
+                  onChange={(e) => handleChange("tso", e.target.value)}
+                  min="0" step="0.1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="csn">CSN (Ciclos Totais)</Label>
+                <Input
+                  id="csn"
+                  type="number"
+                  placeholder="Ex: 856"
+                  value={formData.csn}
+                  onChange={(e) => handleChange("csn", e.target.value)}
+                  min="0" step="1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="cso">CSO (Ciclos Após Revisão)</Label>
+                <Input
+                  id="cso"
+                  type="number"
+                  placeholder="0 = NOVO"
+                  value={formData.cso}
+                  onChange={(e) => handleChange("cso", e.target.value)}
+                  min="0" step="1"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Datas e Vencimentos */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-foreground border-b pb-2">Instalação e Vencimento Calendário</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="installed_date">Data de Instalação na Célula</Label>
                 <Input
                   id="installed_date"
                   type="date"
                   value={formData.installed_date}
                   onChange={(e) => handleChange("installed_date", e.target.value)}
-                  required
                 />
               </div>
               <div>
-                <Label htmlFor="installed_hours">Horas na Instalação</Label>
+                <Label htmlFor="due_date">Data de Vencimento (Itens por Tempo)</Label>
                 <Input
-                  id="installed_hours"
-                  type="number"
-                  placeholder="Ex: 1000"
-                  value={formData.installed_hours}
-                  onChange={(e) => handleChange("installed_hours", e.target.value)}
-                  min="0"
-                  step="0.1"
+                  id="due_date"
+                  type="date"
+                  value={formData.due_date}
+                  onChange={(e) => handleChange("due_date", e.target.value)}
                 />
-              </div>
-              <div>
-                <Label htmlFor="installed_cycles">Ciclos na Instalação</Label>
-                <Input
-                  id="installed_cycles"
-                  type="number"
-                  placeholder="Ex: 500"
-                  value={formData.installed_cycles}
-                  onChange={(e) => handleChange("installed_cycles", e.target.value)}
-                  min="0"
-                  step="1"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Horas e Ciclos Atuais */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Horas e Ciclos Atuais</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="current_life_hours">Total de Horas (TSN)</Label>
-                <Input
-                  id="current_life_hours"
-                  type="number"
-                  placeholder="Ex: 1500"
-                  value={formData.current_life_hours}
-                  onChange={(e) => handleChange("current_life_hours", e.target.value)}
-                  min="0"
-                  step="0.1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="current_life_cycles">Total de Ciclos (CSN)</Label>
-                <Input
-                  id="current_life_cycles"
-                  type="number"
-                  placeholder="Ex: 750"
-                  value={formData.current_life_cycles}
-                  onChange={(e) => handleChange("current_life_cycles", e.target.value)}
-                  min="0"
-                  step="1"
-                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Ex: CVA, Extintor, ELT (Deixe em branco se controlado só por horas)
+                </p>
               </div>
             </div>
           </div>
 
           {/* Status e Observações */}
           <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground">Status</h3>
-            <div className="grid grid-cols-2 gap-4">
+            <h3 className="text-sm font-semibold text-foreground border-b pb-2">Status Operacional</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="status">Status do Componente</Label>
+                <Label htmlFor="status">Condição do Componente</Label>
                 <Select value={formData.status} onValueChange={(val) => handleChange("status", val)}>
                   <SelectTrigger id="status">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {COMPONENT_STATUS.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {status}
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -351,10 +357,10 @@ export function NewComponentDialog({
               </div>
             </div>
             <div>
-              <Label htmlFor="observations">Observações</Label>
+              <Label htmlFor="observations">Observações (MICCA / Etiqueta)</Label>
               <Textarea
                 id="observations"
-                placeholder="Adicione observações relevantes sobre o componente..."
+                placeholder="Insira notas sobre a etiqueta 8130-3, Ficha de Histórico ou observações gerais..."
                 value={formData.observations}
                 onChange={(e) => handleChange("observations", e.target.value)}
                 rows={3}
@@ -363,7 +369,7 @@ export function NewComponentDialog({
           </div>
 
           {/* Botões */}
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 pt-2">
             <Button
               type="button"
               variant="outline"
@@ -373,7 +379,7 @@ export function NewComponentDialog({
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Cadastrando..." : "Cadastrar Componente"}
+              {loading ? "Salvando..." : "Salvar Componente"}
             </Button>
           </DialogFooter>
         </form>
