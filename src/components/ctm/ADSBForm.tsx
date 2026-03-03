@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
@@ -38,16 +45,17 @@ export function ADSBForm({ aircraftId, type, onSuccess, onCancel }: ADSBFormProp
   const isAD = type === 'ad';
   const tableName = isAD ? 'airworthiness_directives' : 'service_bulletins';
   const fieldPrefix = isAD ? 'ad' : 'sb';
-  const title = isAD ? 'Airworthiness Directive' : 'Service Bulletin';
-  const numberLabel = isAD ? 'Número AD' : 'Número SB';
+  const title = isAD ? 'Airworthiness Directive (AD)' : 'Service Bulletin (SB)';
+  const numberLabel = isAD ? 'Número do AD' : 'Número do SB';
 
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors },
     reset,
   } = useForm<ADSBFormData>({
-    resolver: zodSchema,
+    resolver: zodResolver(adsbSchema), // Correção aplicada aqui!
     defaultValues: {
       issueDate: new Date().toISOString().split('T')[0],
       status: 'pendente',
@@ -70,7 +78,7 @@ export function ADSBForm({ aircraftId, type, onSuccess, onCancel }: ADSBFormProp
         observations: data.observations || null,
       };
 
-      const { data: newItem, error } = await (supabase as any)
+      const { data: newItem, error } = await supabase
         .from(tableName)
         .insert([insertData])
         .select()
@@ -125,11 +133,11 @@ export function ADSBForm({ aircraftId, type, onSuccess, onCancel }: ADSBFormProp
           <CardTitle>{title}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>{numberLabel}</Label>
               <Input
-                placeholder={isAD ? "Ex: AD-2025-001" : "Ex: SB-2025-001"}
+                placeholder={isAD ? "Ex: 2025-01-01" : "Ex: SB-123"}
                 {...register('number')}
                 className={errors.number ? 'border-red-500' : ''}
               />
@@ -140,14 +148,26 @@ export function ADSBForm({ aircraftId, type, onSuccess, onCancel }: ADSBFormProp
 
             <div className="space-y-2">
               <Label>Status</Label>
-              <select
-                {...register('status')}
-                className="w-full px-3 py-2 border rounded-md"
-              >
-                <option value="pendente">Pendente</option>
-                <option value="em_progresso">Em Progresso</option>
-                <option value="concluido">Concluído</option>
-              </select>
+              {/* Select nativo substituído pelo componente da sua UI usando o Controller */}
+              <Controller
+                control={control}
+                name="status"
+                render={({ field }) => (
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <SelectTrigger className={errors.status ? 'border-red-500' : ''}>
+                      <SelectValue placeholder="Selecione o status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pendente">Pendente</SelectItem>
+                      <SelectItem value="em_progresso">Em Progresso</SelectItem>
+                      <SelectItem value="concluido">Concluído</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.status && (
+                <p className="text-xs text-red-500">{errors.status.message}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -166,16 +186,12 @@ export function ADSBForm({ aircraftId, type, onSuccess, onCancel }: ADSBFormProp
               <Label>Data de Vencimento (Opcional)</Label>
               <Input type="date" {...register('dueDate')} />
             </div>
-
-            {errors.status?.message && (
-              <p className="text-xs text-red-500">{errors.status.message}</p>
-            )}
           </div>
 
           <div className="space-y-2">
-            <Label>Título</Label>
+            <Label>Título / Assunto</Label>
             <Input
-              placeholder="Título ou resumo"
+              placeholder="Título ou resumo do boletim/diretriz"
               {...register('title')}
               className={errors.title ? 'border-red-500' : ''}
             />
@@ -185,9 +201,9 @@ export function ADSBForm({ aircraftId, type, onSuccess, onCancel }: ADSBFormProp
           </div>
 
           <div className="space-y-2">
-            <Label>Descrição</Label>
+            <Label>Descrição e Procedimento</Label>
             <Textarea
-              placeholder="Descrição detalhada"
+              placeholder="Descrição detalhada do problema e da ação corretiva requerida..."
               {...register('description')}
               className={errors.description ? 'border-red-500' : ''}
               rows={4}
@@ -197,15 +213,17 @@ export function ADSBForm({ aircraftId, type, onSuccess, onCancel }: ADSBFormProp
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label>Data de Conclusão (se concluído)</Label>
-            <Input type="date" {...register('completionDate')} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Data de Conclusão (se aplicável)</Label>
+              <Input type="date" {...register('completionDate')} />
+            </div>
           </div>
 
           <div className="space-y-2">
             <Label>Observações (Opcional)</Label>
             <Textarea
-              placeholder="Notas adicionais"
+              placeholder="Notas adicionais sobre a execução, ferramentas necessárias ou peças..."
               {...register('observations')}
               rows={2}
             />
@@ -219,11 +237,9 @@ export function ADSBForm({ aircraftId, type, onSuccess, onCancel }: ADSBFormProp
         </Button>
         <Button type="submit" disabled={submitting} className="gap-2">
           {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-          Registrar {title}
+          Registrar {type.toUpperCase()}
         </Button>
       </div>
     </form>
   );
 }
-
-const zodSchema = zodResolver(adsbSchema);
