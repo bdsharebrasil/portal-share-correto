@@ -17,13 +17,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, TrendingUp, Landmark, ArrowDownCircle, Sparkles, ChevronRight } from "lucide-react";
+import { Plus, TrendingUp, Landmark, ArrowDownCircle, Sparkles, ChevronRight, CalendarIcon } from "lucide-react";
 import { useAddDeposit, type PartnerAccount } from "@/hooks/useFinanceiroSocios";
 import { useClientPartners } from "@/hooks/useClientPartners";
 import { formatCPF, formatMoney } from "@/lib/formatters";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 export const ENTRY_TYPES = [
   {
@@ -643,14 +647,31 @@ function DateField({
   onChange: (v: string) => void;
   label?: string;
 }) {
+  const dateValue = value ? new Date(value + "T12:00:00") : undefined;
   return (
-    <Input
-      type="date"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      required
-      className="h-12 rounded-xl border-border/70 text-sm"
-    />
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn(
+            "h-12 w-full rounded-xl border-border/70 text-sm justify-start text-left font-normal",
+            !value && "text-muted-foreground"
+          )}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {value ? format(dateValue!, "dd/MM/yyyy", { locale: ptBR }) : "Selecione a data"}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0 z-[9999]" align="start">
+        <Calendar
+          mode="single"
+          selected={dateValue}
+          onSelect={(date) => date && onChange(format(date, "yyyy-MM-dd"))}
+          locale={ptBR}
+          className="p-3 pointer-events-auto"
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 
