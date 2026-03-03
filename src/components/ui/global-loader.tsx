@@ -1,5 +1,5 @@
 import { useLoading } from "@/contexts/LoadingContext";
-import { AirplaneSpinner } from "./airplane-spinner";
+import { LottieAirplaneSpinner } from "./lottie-airplane-spinner";
 
 export function GlobalLoader() {
   const { isLoading } = useLoading();
@@ -8,7 +8,7 @@ export function GlobalLoader() {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/80 backdrop-blur-sm">
-      <AirplaneSpinner size="lg" text="Carregando..." />
+      <LottieAirplaneSpinner size="lg" text="Carregando..." />
     </div>
   );
 }
