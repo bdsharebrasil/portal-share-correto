@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pencil, Plus, Loader2 } from "lucide-react";
-import { apiClient } from "@/lib/api-client";
+import { fetchAircrafts, createMaintenance, updateMaintenance } from "@/services/maintenance";
 import { useToast } from "@/hooks/use-toast";
 
 interface Manutencao {
@@ -62,12 +62,8 @@ export function ManutencaoDialog({ manutencao, onSave, mode = "create" }: Manute
 
   const loadAircrafts = async () => {
     try {
-      const data = await apiClient.getAircraft() as any;
-      const aircraftList = Array.isArray(data) ? data : data?.data || [];
-      const filtered = aircraftList
-        .map((a: any) => ({ id: a.id, registration: a.registration }))
-        .sort((a: Aircraft, b: Aircraft) => a.registration.localeCompare(b.registration));
-      setAircrafts(filtered);
+      const list = await fetchAircrafts();
+      setAircrafts(list);
     } catch (error) {
       console.error("Erro ao carregar aeronaves:", error);
       toast({
@@ -105,16 +101,16 @@ export function ManutencaoDialog({ manutencao, onSave, mode = "create" }: Manute
       };
 
       if (mode === "edit" && manutencao?.id) {
-        await apiClient.updateMaintenance(manutencao.id, payload);
+        await updateMaintenance(manutencao.id, payload as any);
 
         toast({
           title: "Sucesso",
           description: "Manutenção atualizada com sucesso.",
         });
       } else {
-        const data = await apiClient.createMaintenance(payload) as { id?: string };
-        if (data && data.id) {
-          (formData as any).id = data.id;
+        const data = await createMaintenance(payload as any) as any[];
+        if (data && data[0]?.id) {
+          (formData as any).id = data[0].id;
         }
 
         toast({

@@ -57,9 +57,16 @@ function extractRawMetar(data: any) {
 }
 // ─── FALLBACK de aeroportos ───────────────────────
 const AIRPORTS_BR = [
-  { icao: "SBSP", name: "São Paulo",      lat: -23.6150, lon: -46.4730 },
-  { icao: "SBCY", name: "Cuiabá",         lat: -15.6500, lon: -56.1170 },
-  { icao: "SBBR", name: "Brasília",       lat: -15.8711, lon: -47.9186 },
+  { icao: "SBSP", name: "São Paulo Congonhas",    lat: -23.6150, lon: -46.4730 },
+  { icao: "SBGR", name: "São Paulo Guarulhos",    lat: -23.4356, lon: -46.4731 },
+  { icao: "SBKP", name: "Campinas Viracopos",     lat: -23.0074, lon: -47.1360 },
+  { icao: "SBCY", name: "Cuiabá",                 lat: -15.6500, lon: -56.1170 },
+  { icao: "SBBR", name: "Brasília",               lat: -15.8711, lon: -47.9186 },
+  { icao: "SBRJ", name: "Rio de Janeiro Santos Dumont", lat: -22.9068, lon: -43.1729 },
+  { icao: "SBGIG", name: "Rio de Janeiro Galeão", lat: -22.8068, lon: -43.2437 },
+  { icao: "SBCF", name: "Belo Horizonte",         lat: -19.8245, lon: -43.9493 },
+  { icao: "SBCT", name: "Curitiba",               lat: -25.5245, lon: -49.1761 },
+  { icao: "SBPK", name: "Porto Alegre",           lat: -29.3941, lon: -51.1557 },
 ];
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -95,6 +102,13 @@ export default function WeatherWidget() {
   const [spin, setSpin] = useState(false);
   const [tip, setTip] = useState(false);
   const [showLocationPrompt, setShowLocationPrompt] = useState(false);
+  const [showAirportSelector, setShowAirportSelector] = useState(false);
+  const [selectedAirport, setSelectedAirport] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("selectedAirport") || null;
+    }
+    return null;
+  });
   const [hasAskedForLocation, setHasAskedForLocation] = useState(() => {
     // Inicializar do localStorage
     if (typeof window !== "undefined") {
@@ -104,21 +118,51 @@ export default function WeatherWidget() {
   });
   const tipRef = useRef<HTMLDivElement>(null);
 
-  const requestLocation = useCallback(async (): Promise<{ lat: number; lon: number }> => {
+  const requestLocation = useCallback(async (): Promise<{ lat: number; lon: number } | null> => {
     try {
       const pos: any = await new Promise((res, rej) =>
-        navigator.geolocation.getCurrentPosition(res, rej, { timeout: 8000 })
+        navigator.geolocation.getCurrentPosition(res, rej, { timeout: 5000 })
       );
       return {
         lat: pos.coords.latitude,
         lon: pos.coords.longitude,
       };
-    } catch {
-      // Fallback: usar coordenadas padrão de São Paulo
-      return {
-        lat: -23.5505,
-        lon: -46.6333,
-      };
+    } catch (err) {
+      // Geolocation falhou — retornar null para que o seletor seja mostrado
+      console.warn("[WeatherWidget] Geolocation falhou ou foi negada:", err);
+      return null;
+    }
+  }, []);
+
+  const loadWeatherForAirport = useCallback(async (airport: typeof AIRPORTS_BR[0]) => {
+    try {
+      const wxData = await apiClient.getWeather(airport.icao);
+      const raw = extractRawMetar(wxData);
+
+      setWx({
+        status: "ok",
+        icao: airport.icao,
+        name: airport.name,
+        distKm: 0,
+        raw,
+        temp: parseTempFromMetar(raw),
+        wind: parseWindFromMetar(raw),
+        cat: flightCategory(raw),
+        time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+      });
+    } catch (weatherError) {
+      console.error(`[WeatherWidget] Erro ao carregar ${airport.icao}:`, weatherError);
+      setWx({
+        status: "ok",
+        icao: airport.icao,
+        name: airport.name,
+        distKm: 0,
+        raw: null,
+        temp: null,
+        wind: null,
+        cat: "UNK",
+        time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+      });
     }
   }, []);
 
@@ -127,59 +171,43 @@ export default function WeatherWidget() {
     setWx({ status: "loading" });
 
     try {
-      // Se nunca pediu permissão, mostrar modal
-      if (!hasAskedForLocation) {
+      // Se usuário já selecionou um aeródromo manualmente, usar esse
+      if (selectedAirport) {
+        const airport = AIRPORTS_BR.find(a => a.icao === selectedAirport);
+        if (airport) {
+          await loadWeatherForAirport(airport);
+          setSpin(false);
+          return;
+        }
+      }
+
+      // Se nunca pediu permissão e não tem aeródromo selecionado, mostrar prompt
+      if (!hasAskedForLocation && !selectedAirport) {
         setShowLocationPrompt(true);
         setHasAskedForLocation(true);
         setSpin(false);
         return;
       }
 
-      let lat: number, lon: number;
-
-      // Tentar obter geolocalização, com fallback para São Paulo se falhar
+      // Tentar obter geolocalização
       const coords = await requestLocation();
-      lat = coords.lat;
-      lon = coords.lon;
 
-      // Usar fallback direto (sem chamada de API que não existe)
-      const airport = nearestFallback(lat, lon);
-
-      try {
-        const wxData = await apiClient.getWeather(airport.icao);
-        const raw = extractRawMetar(wxData);
-
-        setWx({
-          status: "ok",
-          icao: airport.icao,
-          name: airport.name,
-          distKm: airport.distKm || Math.round(haversineKm(lat, lon, airport.lat, airport.lon)),
-          raw,
-          temp: parseTempFromMetar(raw),
-          wind: parseWindFromMetar(raw),
-          cat: flightCategory(raw),
-          time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-        });
-      } catch (weatherError) {
-        // Se falhar ao carregar METAR, mostrar sem os dados meteorológicos
-        setWx({
-          status: "ok",
-          icao: airport.icao,
-          name: airport.name,
-          distKm: airport.distKm,
-          raw: null,
-          temp: null,
-          wind: null,
-          cat: "UNK",
-          time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-        });
+      if (coords) {
+        // Geolocation funcionou — achar aeródromo mais próximo
+        const airport = nearestFallback(coords.lat, coords.lon);
+        await loadWeatherForAirport(airport);
+      } else {
+        // Geolocation falhou — mostrar seletor de aerádromos
+        setShowAirportSelector(true);
+        setWx({ status: "idle" });
       }
     } catch (error) {
+      console.error("[WeatherWidget] Erro:", error);
       setWx({ status: "error", msg: "Erro ao carregar dados" });
     } finally {
       setSpin(false);
     }
-  }, [hasAskedForLocation, requestLocation]);
+  }, [selectedAirport, hasAskedForLocation, requestLocation, loadWeatherForAirport]);
 
   const handleLocationPromptAccept = useCallback(async () => {
     setShowLocationPrompt(false);
@@ -187,51 +215,30 @@ export default function WeatherWidget() {
     setWx({ status: "loading" });
 
     try {
-      let lat: number, lon: number;
-
-      // Agora realmente tenta obter a geolocalização
+      // Tenta obter geolocalização
       const coords = await requestLocation();
-      lat = coords.lat;
-      lon = coords.lon;
 
-      // Usar fallback direto (sem chamada de API que não existe)
-      const airport = nearestFallback(lat, lon);
-
-      try {
-        const wxData = await apiClient.getWeather(airport.icao);
-        const raw = extractRawMetar(wxData);
-
-        setWx({
-          status: "ok",
-          icao: airport.icao,
-          name: airport.name,
-          distKm: airport.distKm || Math.round(haversineKm(lat, lon, airport.lat, airport.lon)),
-          raw,
-          temp: parseTempFromMetar(raw),
-          wind: parseWindFromMetar(raw),
-          cat: flightCategory(raw),
-          time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-        });
-      } catch (weatherError) {
-        // Se falhar ao carregar METAR, mostrar sem os dados meteorológicos
-        setWx({
-          status: "ok",
-          icao: airport.icao,
-          name: airport.name,
-          distKm: airport.distKm,
-          raw: null,
-          temp: null,
-          wind: null,
-          cat: "UNK",
-          time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-        });
+      if (coords) {
+        const airport = nearestFallback(coords.lat, coords.lon);
+        await loadWeatherForAirport(airport);
+      } else {
+        // Se geolocation ainda falhar, mostrar seletor
+        setShowAirportSelector(true);
+        setWx({ status: "idle" });
       }
     } catch (error) {
       setWx({ status: "error", msg: "Erro ao carregar dados" });
     } finally {
       setSpin(false);
     }
-  }, [requestLocation]);
+  }, [requestLocation, loadWeatherForAirport]);
+
+  const handleSelectAirport = useCallback(async (airport: typeof AIRPORTS_BR[0]) => {
+    setSelectedAirport(airport.icao);
+    localStorage.setItem("selectedAirport", airport.icao);
+    setShowAirportSelector(false);
+    await loadWeatherForAirport(airport);
+  }, [loadWeatherForAirport]);
 
   useEffect(() => {
     // Sincronizar hasAskedForLocation com localStorage
@@ -262,6 +269,37 @@ export default function WeatherWidget() {
             <button className="location-prompt-button" onClick={handleLocationPromptAccept}>
               Entendi
             </button>
+            <button 
+              className="location-prompt-button location-prompt-button-secondary"
+              onClick={() => {
+                setShowLocationPrompt(false);
+                setShowAirportSelector(true);
+              }}
+            >
+              Selecionar aeródromo
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Seleção de Aeródromo */}
+      {showAirportSelector && (
+        <div className="location-prompt-overlay">
+          <div className="location-prompt-modal airport-selector-modal">
+            <div className="location-prompt-icon">🛫</div>
+            <h2 className="location-prompt-title">Selecione seu aeródromo</h2>
+            <div className="airport-list">
+              {AIRPORTS_BR.map(airport => (
+                <button
+                  key={airport.icao}
+                  className="airport-option"
+                  onClick={() => handleSelectAirport(airport)}
+                >
+                  <span className="airport-icao">{airport.icao}</span>
+                  <span className="airport-name">{airport.name}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -285,6 +323,8 @@ export default function WeatherWidget() {
               )}
             </div>
           </>
+        ) : wx.status === "error" ? (
+          <span className="wx-err">{wx.msg}</span>
         ) : (
           <span className="wx-loading">Carregando...</span>
         )}
@@ -469,5 +509,64 @@ const CSS = `
 
   .location-prompt-button:active {
     transform: translateY(0);
+  }
+
+  .location-prompt-button-secondary {
+    background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+    color: #2d3748;
+    margin-top: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .location-prompt-button-secondary:hover {
+    background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  /* ─── AIRPORT SELECTOR ────────────────────────────────────────────────── */
+  .airport-selector-modal {
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .airport-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-top: 20px;
+    text-align: left;
+  }
+
+  .airport-option {
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .airport-option:hover {
+    border-color: #667eea;
+    background: linear-gradient(135deg, #f8f9ff 0%, #f0f4f8 100%);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+  }
+
+  .airport-icao {
+    font-weight: 700;
+    color: #667eea;
+    font-size: 13px;
+    margin-bottom: 4px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  .airport-name {
+    font-size: 12px;
+    color: #4a5568;
+    line-height: 1.3;
   }
 `;

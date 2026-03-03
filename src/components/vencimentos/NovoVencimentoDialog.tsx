@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Loader2 } from "lucide-react";
-import { apiClient } from "@/lib/api-client";
+import { fetchAircrafts, createMaintenance } from "@/services/maintenance";
 import { useToast } from "@/hooks/use-toast";
 
 interface Aircraft {
@@ -52,12 +52,8 @@ export function NovoVencimentoDialog({ onSave }: NovoVencimentoDialogProps) {
 
   const loadAircrafts = async () => {
     try {
-      const data = await apiClient.getAircraft() as any;
-      const aircraftList = Array.isArray(data) ? data : data?.data || [];
-      const filtered = aircraftList
-        .map((a: any) => ({ id: a.id, registration: a.registration }))
-        .sort((a: Aircraft, b: Aircraft) => a.registration.localeCompare(b.registration));
-      setAircrafts(filtered);
+      const list = await fetchAircrafts();
+      setAircrafts(list);
     } catch (error) {
       console.error("Erro ao carregar aeronaves:", error);
       toast({
@@ -104,7 +100,7 @@ export function NovoVencimentoDialog({ onSave }: NovoVencimentoDialogProps) {
         return;
       }
 
-      await apiClient.createMaintenance({
+      await createMaintenance({
         aeronave_id: formData.aeronave_id,
         tipo: formData.tipo,
         data_programada: formData.vencimentoTipo === "data" ? formData.dataVencimento : undefined,

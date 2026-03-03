@@ -17,7 +17,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Loader2 } from "lucide-react";
-import { apiClient } from "@/lib/api-client";
+import { fetchAircrafts } from "@/services/maintenance";
+import { createFlightDocument } from "@/services/flightDocuments";
 import { useToast } from "@/hooks/use-toast";
 
 interface Aircraft {
@@ -50,12 +51,8 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
 
   const loadAircrafts = async () => {
     try {
-      const data = await apiClient.getAircraft() as any;
-      const aircraftList = Array.isArray(data) ? data : data?.data || [];
-      const filtered = aircraftList
-        .map((a: any) => ({ id: a.id, registration: a.registration }))
-        .sort((a: Aircraft, b: Aircraft) => a.registration.localeCompare(b.registration));
-      setAircrafts(filtered);
+      const list = await fetchAircrafts();
+      setAircrafts(list);
     } catch (error) {
       console.error("Erro ao carregar aeronaves:", error);
       toast({
@@ -81,7 +78,7 @@ export function NovoDocumentoDialog({ onSave }: NovoDocumentoDialogProps) {
         return;
       }
 
-      await apiClient.createFlightDocument({
+      await createFlightDocument({
         aircraft_id: formData.aircraft_id,
         name: formData.name,
         document_type: formData.document_type || undefined,

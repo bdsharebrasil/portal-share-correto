@@ -197,7 +197,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
       {/* ── Modal ── */}
       <DialogContent
         className="
-          w-full max-w-3xl
+          w-full max-w-5xl
           max-h-[92vh] overflow-y-auto
           rounded-2xl border border-border/60
           bg-background/95 backdrop-blur-sm

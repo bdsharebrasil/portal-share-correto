@@ -29,11 +29,27 @@ export function useClientAbastecimentos(clientId: string | null) {
     queryFn: async () => {
       if (!clientId) return [];
 
+      // 1. Buscar aircraft_id vinculado ao cliente via client_aircraft
+      const { data: clientAircraft, error: caError } = await supabase
+        .from("client_aircraft")
+        .select("aircraft_id")
+        .eq("client_id", clientId);
+
+      if (caError) {
+        toast.error("Erro ao buscar aeronave do cliente: " + caError.message);
+        return [];
+      }
+
+      if (!clientAircraft || clientAircraft.length === 0) return [];
+
+      const aircraftIds = clientAircraft.map((ca) => ca.aircraft_id);
+
+      // 2. Buscar abastecimentos pendentes dessas aeronaves
       const { data, error } = await supabase
         .from("abastecimentos")
         .select("*")
-        .eq("client_id", clientId)
-        .or("status_pagamento.is.null,status_pagamento.eq.");
+        .in("aeronave_id", aircraftIds)
+        .or("status_pagamento.is.null,status_pagamento.eq.em_aberto");
 
       if (error) {
         toast.error("Erro ao carregar abastecimentos: " + error.message);
@@ -69,12 +85,11 @@ export function useLinkAbastecimentoDespesa() {
 
       if (updateError) throw updateError;
 
-      // Add reference to partner_expenses linking to abastecimento
+      // Update partner_expenses notes to reference abastecimento
       const { error: linkError } = await supabase
         .from("partner_expenses")
         .update({
-          reference_type: "abastecimento",
-          reference_id: data.abastecimentoId,
+          notes: `Vinculado ao abastecimento: ${data.abastecimentoId}`,
         })
         .eq("id", data.expenseId);
 

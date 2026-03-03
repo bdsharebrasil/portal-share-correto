@@ -142,26 +142,15 @@ export function TransactionsTable({
             </CardTitle>
             <div className="flex gap-2">
               {!limit && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1"
-                    onClick={() => setShowFilters(!showFilters)}
-                  >
-                    <Filter className="h-3 w-3" />
-                    Filtros
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-1"
-                    onClick={() => setShowPDFExport(true)}
-                  >
-                    <FileDown className="h-3 w-3" />
-                    Exportar PDF
-                  </Button>
-                </>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => setShowFilters(!showFilters)}
+                >
+                  <Filter className="h-3 w-3" />
+                  Filtros
+                </Button>
               )}
             </div>
           </div>

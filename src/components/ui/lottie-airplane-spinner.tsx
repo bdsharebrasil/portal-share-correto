@@ -23,14 +23,15 @@ export function LottieAirplaneSpinner({
 
     const loadAnimation = async () => {
       try {
-        const response = await fetch("/animations/airplane-spinner.json");
+        const url = `${import.meta.env.BASE_URL || '/'}animations/airplane-spinner.json`;
+        const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         if (mounted.current) {
           setAnimationData(data);
         }
       } catch (err) {
-        console.warn("Airplane animation not available, using fallback");
+        console.warn("Airplane animation not available, using fallback", err);
         if (mounted.current) {
           setLoadFailed(true);
         }

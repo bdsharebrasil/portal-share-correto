@@ -137,12 +137,48 @@ export function useSocioTransactions(
         status: exp.status,
         bank_name: exp.bank_name || null,
         prazo: exp.prazo || null,
+        payment_method: exp.payment_method || null,
+        doc: exp.invoice_number || null,
       }));
 
-      // Combinar e ordenar por data
+      // Também incluir abastecimentos como transações de despesa
+      const { data: fuels, error: fuelError } = await supabase
+        .from("abastecimentos")
+        .select("*")
+        .eq("client_id", clientId);
+
+      if (fuelError) console.warn("Erro ao carregar abastecimentos:", fuelError);
+
+      const fuelsAsTransactions = (fuels || []).map((f: any) => ({
+        id: f.id,
+        client_id: f.client_id,
+        partner_cpf: "N/A",
+        partner_name: f.partner_name || "Geral",
+        transaction_type: "expense",
+        amount: f.valor_total || 0,
+        balance_before: 0,
+        balance_after: 0,
+        description: `Abastecimento${f.local ? ` - ${f.local}` : ""}`,
+        reference_type: "abastecimento",
+        reference_id: f.id,
+        payment_date: f.data,
+        receipt_url: f.nota_url || null,
+        notes: f.observacao,
+        created_by: null,
+        created_at: f.created_at,
+        expense_type: "abastecimento",
+        status: f.status_pagamento || null,
+        bank_name: null,
+        prazo: null,
+        payment_method: null,
+        doc: f.comanda || null,
+      }));
+
+      // Combinar e ordenar por data (incluindo despesas de abastecimento)
       const combined = [
         ...(transactions || []),
         ...expensesAsTransactions,
+        ...fuelsAsTransactions,
       ].sort((a, b) => {
         const dateA = new Date(a.created_at).getTime();
         const dateB = new Date(b.created_at).getTime();
@@ -377,6 +413,8 @@ export function useCreateExpense() {
       isInstallment?: boolean;
       installmentCount?: number;
       installmentStartDate?: string | null;
+      aircraftId?: string | null;
+      status?: string | null;
     }) => {
       const isInstallment = data.isInstallment && data.paymentMethod === "cartao" && (data.installmentCount || 1) > 1;
       const installmentCount = isInstallment ? (data.installmentCount || 1) : 1;
@@ -386,9 +424,9 @@ export function useCreateExpense() {
       const expenses = [];
 
       if (isInstallment) {
-        // Criar a despesa original (sem parcelar, apenas como referência)
         const originalExpense = {
           client_id: data.clientId,
+          aircraft_id: data.aircraftId || null,
           expense_type: data.expenseType,
           description: data.description,
           total_amount: data.totalAmount,
@@ -400,9 +438,7 @@ export function useCreateExpense() {
           invoice_url: data.invoiceUrl || null,
           payment_method: data.paymentMethod || null,
           notes: `${data.notes || ""}${data.notes ? "\n" : ""}Parcelado em ${installmentCount}x de R$ ${installmentAmount.toFixed(2)}` || null,
-          status: "pending",
-          reference_type: data.referenceType || null,
-          reference_id: data.referenceId || null,
+          status: data.status || "pending",
           prazo: data.prazo || null,
           bank_name: data.bankName || null,
           installment_count: installmentCount,
@@ -413,13 +449,13 @@ export function useCreateExpense() {
 
         expenses.push(originalExpense);
 
-        // Criar as parcelas
         for (let i = 1; i <= installmentCount; i++) {
           const installmentDate = new Date(startDate!);
           installmentDate.setMonth(installmentDate.getMonth() + (i - 1));
 
           const installmentExpense = {
             client_id: data.clientId,
+            aircraft_id: data.aircraftId || null,
             expense_type: data.expenseType,
             description: `${data.description} (${i}/${installmentCount})`,
             total_amount: installmentAmount,
@@ -431,21 +467,18 @@ export function useCreateExpense() {
             invoice_url: data.invoiceUrl || null,
             payment_method: data.paymentMethod || null,
             notes: data.notes || null,
-            status: "pending",
-            reference_type: data.referenceType || null,
-            reference_id: data.referenceId || null,
+            status: data.status || "pending",
             prazo: data.prazo || null,
             bank_name: data.bankName || null,
             installment_count: installmentCount,
             installment_number: i,
             installment_start_date: startDate?.toISOString().split('T')[0] || null,
-            parent_expense_id: null, // Será atualizado depois de criar a original
+            parent_expense_id: null,
           };
 
           expenses.push(installmentExpense);
         }
 
-        // Inserir a despesa original primeiro para obter o ID
         const { data: createdOriginal, error: originalError } = await supabase
           .from("partner_expenses")
           .insert([expenses[0]])
@@ -454,13 +487,11 @@ export function useCreateExpense() {
 
         if (originalError) throw originalError;
 
-        // Atualizar as parcelas com parent_expense_id
         const installmentsWithParent = expenses.slice(1).map((exp) => ({
           ...exp,
           parent_expense_id: createdOriginal.id,
         }));
 
-        // Inserir as parcelas
         if (installmentsWithParent.length > 0) {
           const { error: installmentsError } = await supabase
             .from("partner_expenses")
@@ -469,9 +500,9 @@ export function useCreateExpense() {
           if (installmentsError) throw installmentsError;
         }
       } else {
-        // Criar uma despesa simples (sem parcelamento)
         const { error } = await supabase.from("partner_expenses").insert({
           client_id: data.clientId,
+          aircraft_id: data.aircraftId || null,
           expense_type: data.expenseType,
           description: data.description,
           total_amount: data.totalAmount,
@@ -483,9 +514,7 @@ export function useCreateExpense() {
           invoice_url: data.invoiceUrl || null,
           payment_method: data.paymentMethod || null,
           notes: data.notes || null,
-          status: "pending",
-          reference_type: data.referenceType || null,
-          reference_id: data.referenceId || null,
+          status: data.status || "pending",
           prazo: data.prazo || null,
           bank_name: data.bankName || null,
           installment_count: 1,

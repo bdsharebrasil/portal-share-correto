@@ -193,11 +193,6 @@ export default function FinanceiroSocios() {
           clienteId={clienteSelecionado}
         />
 
-        {/* Parceiros Cadastrados */}
-        {!loadingPartners && partners.length > 0 && (
-          <PartnersSection partners={partners} />
-        )}
-
         {/* Transações Recentes */}
         {!loadingTransactions && transactions.length > 0 && (
           <TransactionsTable
@@ -308,38 +303,4 @@ function DashboardHeader({ cliente, onBack }: DashboardHeaderProps) {
   )
 }
 
-interface PartnersSectionProps {
-  partners: any[]
-}
 
-function PartnersSection({ partners }: PartnersSectionProps) {
-  return (
-    <Card className="border border-border bg-background">
-      <CardHeader>
-        <CardTitle className="text-base">Sócios Cadastrados</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          {partners.map((partner: any) => (
-            <div
-              key={partner.id}
-              className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50"
-            >
-              <div className="flex-1">
-                <p className="font-medium text-sm text-foreground">{partner.nome}</p>
-                {partner.email && (
-                  <p className="text-xs text-muted-foreground mt-0.5">{partner.email}</p>
-                )}
-              </div>
-              {partner.percentual && (
-                <Badge variant="secondary" className="bg-muted/50">
-                  {partner.percentual.toFixed(1)}%
-                </Badge>
-              )}
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}

@@ -106,6 +106,9 @@ export interface NOTAMData {
 export interface ROTAERData {
   icao: string;
   name: string;
+  city?: string;
+  state?: string;
+  country?: string;
   type: string;
   coordinates: { lat: number; lng: number };
   elevation: number;
@@ -133,6 +136,10 @@ export interface ROTAERData {
   };
   operatingHours: string;
   restrictions: string[];
+  contact?: {
+    phone?: string;
+    email?: string;
+  };
 }
 
 export interface AirspaceRestriction {
@@ -463,7 +470,6 @@ function parseROTAERData(rawData: any): ROTAERData | null {
               frequencies.push({
                 type: service.type || 'Unknown',
                 frequency: String(freq['#text'] || freq || ''),
-                name: service.callsign || undefined,
               });
             }
           });

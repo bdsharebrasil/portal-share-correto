@@ -8,16 +8,18 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  SelectValue } from
+"@/components/ui/select";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Receipt, Plus, Sparkles, ChevronRight, ArrowLeft, Fuel } from "lucide-react";
+  DialogTrigger } from
+"@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Receipt, Plus, ChevronRight, ArrowLeft, Fuel, CalendarIcon } from "lucide-react";
 import { Combobox } from "@/components/ui/combobox";
 import { useCreateExpense } from "@/hooks/useFinanceiroSocios";
 import { useClientPartners } from "@/hooks/useClientPartners";
@@ -25,22 +27,25 @@ import { useClientAbastecimentos } from "@/hooks/useAbastecimentos";
 import { useFornecedoresFavoritos } from "@/hooks/useFornecedoresFavoritos";
 import { useContasBancarias } from "@/hooks/useContasBancarias";
 import { formatCPF } from "@/lib/formatters";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 // ─── Categorias ───────────────────────────────────────────────────────────────
 export const EXPENSE_CATEGORIES = [
-  { id: "abastecimento",     label: "Abastecimento",             icon: "⛽" },
-  { id: "hangaragem",        label: "Hangaragem",                icon: "🏠" },
-  { id: "manutencao",        label: "Manutenção",                icon: "🔧" },
-  { id: "pouso_decolagem",   label: "Tarifa de Pouso/Decolagem", icon: "✈️" },
-  { id: "atendimento_pista", label: "Atendimento de Pista",      icon: "🛬" },
-  { id: "subscricoes",       label: "Assinaturas/Subscrições",   icon: "📋" },
-  { id: "contabilidade",     label: "Honorários Contabilidade",  icon: "📊" },
-  { id: "ressarcimento",     label: "Ressarcimento/Reembolso",   icon: "💸" },
-  { id: "viagem",            label: "Despesas de Viagem",        icon: "🧳" },
-  { id: "infraero",          label: "INFRAERO",                  icon: "🏛️" },
-  { id: "outros",            label: "Outros",                    icon: "📎" },
-] as const;
+{ id: "abastecimento", label: "Abastecimento", icon: "⛽" },
+{ id: "hangaragem", label: "Hangaragem", icon: "🏠" },
+{ id: "manutencao", label: "Manutenção", icon: "🔧" },
+{ id: "pouso_decolagem", label: "Tarifa de Pouso/Decolagem", icon: "✈️" },
+{ id: "atendimento_pista", label: "Atendimento de Pista", icon: "🛬" },
+{ id: "subscricoes", label: "Assinaturas/Subscrições", icon: "📋" },
+{ id: "contabilidade", label: "Honorários Contabilidade", icon: "📊" },
+{ id: "ressarcimento", label: "Ressarcimento/Reembolso", icon: "💸" },
+{ id: "viagem", label: "Despesas de Viagem", icon: "🧳" },
+{ id: "infraero", label: "INFRAERO", icon: "🏛️" },
+{ id: "outros", label: "Outros", icon: "📎" }] as
+const;
 
 export type ExpenseCategoryId = typeof EXPENSE_CATEGORIES[number]["id"];
 
@@ -64,7 +69,7 @@ const EMPTY_FORM = {
   prazo: "extra" as "mensal" | "extra",
   isInstallment: false,
   installmentCount: "1",
-  installmentStartDate: format(new Date(), "yyyy-MM-dd"),
+  installmentStartDate: format(new Date(), "yyyy-MM-dd")
 };
 
 interface ExpenseFormProps {
@@ -82,39 +87,93 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const { data: contasBancarias = [], isLoading: loadingContas } = useContasBancarias();
 
   const set = (key: keyof typeof EMPTY_FORM) => (value: string | boolean) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
+  setForm((prev) => ({ ...prev, [key]: value }));
+
+  // Fetch aircraft_id for this client
+  const getAircraftId = async (): Promise<string | null> => {
+    try {
+      const { data } = await supabase
+        .from("client_aircraft")
+        .select("aircraft_id")
+        .eq("client_id", clienteId)
+        .limit(1)
+        .single();
+      return data?.aircraft_id || null;
+    } catch {
+      return null;
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.description || !form.totalAmount || !form.category) return;
 
     const assignedPartnerCpf =
-      form.assignedPartnerCpf === "none" ? null : form.assignedPartnerCpf;
-    const assignedPartner = assignedPartnerCpf
-      ? partners.find((p) => p.cpf === assignedPartnerCpf)
-      : null;
+    form.assignedPartnerCpf === "none" ? null : form.assignedPartnerCpf;
+    const assignedPartner = assignedPartnerCpf ?
+    partners.find((p) => p.cpf === assignedPartnerCpf) :
+    null;
 
-    await addExpense.mutateAsync({
-      clientId: clienteId,
-      description: form.description,
-      totalAmount: parseFloat(form.totalAmount),
-      category: form.category,
-      expenseType: form.expenseType || form.category,
-      assignedPartnerCpf,
-      assignedPartnerName: assignedPartner?.name || null,
-      dueDate: form.dueDate,
-      supplierName: form.supplierName || null,
-      invoiceNumber: form.invoiceNumber || null,
-      invoiceUrl: form.invoiceUrl || null,
-      paymentMethod: form.paymentMethod || null,
-      notes: form.notes || null,
-      referenceType: form.category === "abastecimento" ? "abastecimento" : null,
-      bankName: form.bankName || null,
-      prazo: form.prazo || "extra",
-      isInstallment: form.isInstallment && form.paymentMethod === "cartao",
-      installmentCount: form.isInstallment && form.paymentMethod === "cartao" ? parseInt(form.installmentCount) : 1,
-      installmentStartDate: form.isInstallment && form.paymentMethod === "cartao" ? form.installmentStartDate : null,
-    });
+    // Resolve bank name from ID
+    const selectedConta = contasBancarias.find((c) => c.id === form.bankName);
+    const bankNameResolved = selectedConta ? selectedConta.banco : form.bankName || null;
+
+    // Fetch aircraft_id
+    const aircraftId = await getAircraftId();
+
+    // If no partner assigned, split equally among all partners
+    if (!assignedPartnerCpf && partners.length > 1) {
+      const splitAmount = parseFloat(form.totalAmount) / partners.length;
+      const splitAmountRounded = Math.round(splitAmount * 100) / 100;
+
+      for (const partner of partners) {
+        await addExpense.mutateAsync({
+          clientId: clienteId,
+          description: form.description,
+          totalAmount: splitAmountRounded,
+          category: form.category,
+          expenseType: form.expenseType || form.category,
+          assignedPartnerCpf: partner.cpf,
+          assignedPartnerName: partner.name,
+          dueDate: form.dueDate,
+          supplierName: form.supplierName || null,
+          invoiceNumber: form.invoiceNumber || null,
+          invoiceUrl: form.invoiceUrl || null,
+          paymentMethod: form.paymentMethod === "nao_informado" ? null : form.paymentMethod || null,
+          notes: form.notes || null,
+          bankName: bankNameResolved,
+          prazo: form.prazo || "extra",
+          isInstallment: form.isInstallment && form.paymentMethod === "cartao",
+          installmentCount: form.isInstallment && form.paymentMethod === "cartao" ? parseInt(form.installmentCount) : 1,
+          installmentStartDate: form.isInstallment && form.paymentMethod === "cartao" ? form.installmentStartDate : null,
+          aircraftId,
+          status: form.status,
+        });
+      }
+    } else {
+      await addExpense.mutateAsync({
+        clientId: clienteId,
+        description: form.description,
+        totalAmount: parseFloat(form.totalAmount),
+        category: form.category,
+        expenseType: form.expenseType || form.category,
+        assignedPartnerCpf,
+        assignedPartnerName: assignedPartner?.name || null,
+        dueDate: form.dueDate,
+        supplierName: form.supplierName || null,
+        invoiceNumber: form.invoiceNumber || null,
+        invoiceUrl: form.invoiceUrl || null,
+        paymentMethod: form.paymentMethod === "nao_informado" ? null : form.paymentMethod || null,
+        notes: form.notes || null,
+        bankName: bankNameResolved,
+        prazo: form.prazo || "extra",
+        isInstallment: form.isInstallment && form.paymentMethod === "cartao",
+        installmentCount: form.isInstallment && form.paymentMethod === "cartao" ? parseInt(form.installmentCount) : 1,
+        installmentStartDate: form.isInstallment && form.paymentMethod === "cartao" ? form.installmentStartDate : null,
+        aircraftId,
+        status: form.status,
+      });
+    }
 
     setOpen(false);
     setForm(EMPTY_FORM);
@@ -132,8 +191,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           className="gap-2 h-11 px-5 text-sm font-semibold rounded-xl
                      border-red-200 text-red-700 hover:bg-red-50 hover:border-red-300
                      dark:border-red-800/50 dark:text-red-400 dark:hover:bg-red-950/30
-                     transition-all duration-200 hover:-translate-y-px hover:shadow-sm"
-        >
+                     transition-all duration-200 hover:-translate-y-px hover:shadow-sm">
+          
           <Receipt className="h-4 w-4" />
           Nova Despesa
         </Button>
@@ -141,13 +200,13 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
       <DialogContent
         className="
-          w-full max-w-3xl
+          w-full max-w-5xl
           max-h-[92vh] overflow-y-auto
           rounded-2xl border border-border/60
           bg-background/95 backdrop-blur-sm
           shadow-2xl p-0
-        "
-      >
+        ">
+        
         {/* ── Header ── */}
         <div className="relative px-8 pt-8 pb-6 border-b border-red-700/40 bg-gradient-to-br from-red-700 to-rose-800 rounded-t-2xl overflow-hidden">
           <div className="absolute inset-0 pointer-events-none">
@@ -182,29 +241,29 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   <SelectValue placeholder="Selecione a categoria da despesa" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
-                  {EXPENSE_CATEGORIES.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id} className="py-3">
+                  {EXPENSE_CATEGORIES.map((cat) =>
+                  <SelectItem key={cat.id} value={cat.id} className="py-3">
                       <div className="flex items-center gap-3">
                         <span className="text-lg leading-none">{cat.icon}</span>
                         <span className="font-medium text-sm">{cat.label}</span>
                       </div>
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
 
-              {selectedCategory && (
-                <div className="flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm mt-2 bg-red-50 border border-red-200 text-red-800 dark:bg-red-950/40 dark:border-red-800/50 dark:text-red-300">
+              {selectedCategory &&
+              <div className="flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm mt-2 bg-red-50 border border-red-200 text-red-800 dark:bg-red-950/40 dark:border-red-800/50 dark:text-red-300">
                   <span className="text-base">{selectedCategory.icon}</span>
                   <span className="font-medium">{selectedCategory.label} selecionada</span>
                   <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-50" />
                 </div>
-              )}
+              }
             </FormSection>
 
             {/* Abastecimento */}
-            {isAbastecimento && (
-              <div className="rounded-2xl bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/40 p-5 space-y-4">
+            {isAbastecimento &&
+            <div className="rounded-2xl bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/40 p-5 space-y-4">
                 <div className="flex items-center gap-2.5">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/50">
                     <Fuel className="h-4 w-4 text-amber-600 dark:text-amber-400" />
@@ -214,41 +273,41 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   </p>
                 </div>
 
-                {!form.criarNovoAbastecimento ? (
-                  <>
+                {!form.criarNovoAbastecimento ?
+              <>
                     <Select value={form.abastecimentoId} onValueChange={(v) => set("abastecimentoId")(v)}>
                       <SelectTrigger className="h-12 rounded-xl border-amber-200 bg-white dark:bg-zinc-900 text-sm">
                         <SelectValue placeholder="Selecione um abastecimento registrado" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl">
-                        {abastecimentos.length === 0 ? (
-                          <div className="p-4 text-sm text-muted-foreground text-center">
+                        {abastecimentos.length === 0 ?
+                    <div className="p-4 text-sm text-muted-foreground text-center">
                             Nenhum abastecimento não pago
-                          </div>
-                        ) : (
-                          abastecimentos.map((abast) => (
-                            <SelectItem key={abast.id} value={abast.id} className="py-3">
+                          </div> :
+
+                    abastecimentos.map((abast) =>
+                    <SelectItem key={abast.id} value={abast.id} className="py-3">
                               <span className="text-sm">
                                 {format(new Date(abast.data), "dd/MM/yyyy")} · {abast.local} · R$ {Number(abast.valor_total).toFixed(2)}
                               </span>
                             </SelectItem>
-                          ))
-                        )}
+                    )
+                    }
                       </SelectContent>
                     </Select>
                     <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="w-full gap-2 text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded-xl h-10"
-                      onClick={() => set("criarNovoAbastecimento")(true)}
-                    >
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full gap-2 text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded-xl h-10"
+                  onClick={() => set("criarNovoAbastecimento")(true)}>
+                  
                       <Plus className="h-4 w-4" />
                       Criar novo abastecimento
                     </Button>
-                  </>
-                ) : (
-                  <>
+                  </> :
+
+              <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <FormSection label="Data do Abastecimento">
                         <Input type="date" defaultValue={format(new Date(), "yyyy-MM-dd")} className="h-12 rounded-xl border-amber-200 bg-white dark:bg-zinc-900 text-sm" disabled={addExpense.isPending} />
@@ -266,19 +325,19 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                       </FormSection>
                     </div>
                     <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="w-full gap-2 text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded-xl h-10"
-                      onClick={() => set("criarNovoAbastecimento")(false)}
-                    >
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full gap-2 text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded-xl h-10"
+                  onClick={() => set("criarNovoAbastecimento")(false)}>
+                  
                       <ArrowLeft className="h-4 w-4" />
                       Usar abastecimento existente
                     </Button>
                   </>
-                )}
+              }
               </div>
-            )}
+            }
 
             {/* Descrição */}
             <FormSection label="Descrição" required>
@@ -288,8 +347,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 placeholder={selectedCategory ? `Ex: ${selectedCategory.label} - detalhe da despesa` : "Descreva a despesa"}
                 required
                 disabled={addExpense.isPending}
-                className="h-12 rounded-xl border-border/70 text-sm"
-              />
+                className="h-12 rounded-xl border-border/70 text-sm" />
+              
             </FormSection>
 
             {/* Valor + Datas */}
@@ -306,15 +365,45 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     placeholder="0,00"
                     required
                     disabled={addExpense.isPending}
-                    className="h-12 rounded-xl border-border/70 text-sm pl-10 font-mono"
-                  />
+                    className="h-12 rounded-xl border-border/70 text-sm pl-10 font-mono" />
+                  
                 </div>
               </FormSection>
               <FormSection label="Data de Pagamento" required>
-                <Input type="date" value={form.paidDate} onChange={(e) => set("paidDate")(e.target.value)} required disabled={addExpense.isPending} className="h-12 rounded-xl border-border/70 text-sm" />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("h-12 w-full rounded-xl border-border/70 text-sm justify-start text-left font-normal", !form.paidDate && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {form.paidDate ? format(new Date(form.paidDate + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={form.paidDate ? new Date(form.paidDate + "T12:00:00") : undefined}
+                      onSelect={(date) => date && set("paidDate")(format(date, "yyyy-MM-dd"))}
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
               </FormSection>
               <FormSection label="Data de Vencimento">
-                <Input type="date" value={form.dueDate} onChange={(e) => set("dueDate")(e.target.value)} disabled={addExpense.isPending} className="h-12 rounded-xl border-border/70 text-sm" />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("h-12 w-full rounded-xl border-border/70 text-sm justify-start text-left font-normal", !form.dueDate && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {form.dueDate ? format(new Date(form.dueDate + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={form.dueDate ? new Date(form.dueDate + "T12:00:00") : undefined}
+                      onSelect={(date) => date && set("dueDate")(format(date, "yyyy-MM-dd"))}
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
               </FormSection>
             </div>
 
@@ -328,8 +417,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   <SelectItem value="none" className="py-3">
                     <span className="text-muted-foreground text-sm">— Sem atribuição —</span>
                   </SelectItem>
-                  {partners.map((partner) => (
-                    <SelectItem key={partner.id} value={partner.cpf} className="py-3">
+                  {partners.map((partner) =>
+                  <SelectItem key={partner.id} value={partner.cpf} className="py-3">
                       <div className="flex items-center gap-3">
                         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-bold flex-shrink-0">
                           {partner.name.charAt(0).toUpperCase()}
@@ -342,7 +431,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                         </div>
                       </div>
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
             </FormSection>
@@ -353,7 +442,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 <Combobox
                   options={fornecedoresFavoritos.map((f) => ({
                     value: f.nome_completo,
-                    label: `${f.nome_completo}${f.documento ? ` (${f.documento})` : ""}`,
+                    label: `${f.nome_completo}${f.documento ? ` (${f.documento})` : ""}`
                   }))}
                   value={form.supplierName}
                   onValueChange={set("supplierName")}
@@ -362,8 +451,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   emptyText="Nenhum fornecedor encontrado"
                   disabled={addExpense.isPending}
                   allowCustomValue={true}
-                  className="mt-0 h-12 rounded-xl border-border/70 text-sm"
-                />
+                  className="mt-0 h-12 rounded-xl border-border/70 text-sm" />
+                
               </FormSection>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormSection label="Nº Nota / NF">
@@ -423,8 +512,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             </div>
 
             {/* Parcelamento em Cartão */}
-            {form.paymentMethod === "cartao" && (
-              <div className="rounded-2xl bg-slate-500 border border-slate-900 dark:bg-slate-600 dark:border-slate-900 p-5 space-y-4">
+            {form.paymentMethod === "cartao" &&
+            <div className="rounded-2xl bg-slate-500 border border-slate-900 dark:bg-slate-600 dark:border-slate-900 p-5 space-y-4">
                 <div className="flex items-center gap-2.5">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
                     <span className="text-base">💳</span>
@@ -437,35 +526,35 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 <div className="space-y-1">
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
-                      type="checkbox"
-                      checked={form.isInstallment}
-                      onChange={(e) => set("isInstallment")(e.target.checked)}
-                      disabled={addExpense.isPending}
-                      className="w-4 h-4 rounded border-white/50 cursor-pointer accent-white"
-                    />
+                    type="checkbox"
+                    checked={form.isInstallment}
+                    onChange={(e) => set("isInstallment")(e.target.checked)}
+                    disabled={addExpense.isPending}
+                    className="w-4 h-4 rounded border-white/50 cursor-pointer accent-white" />
+                  
                     <span className="text-sm font-medium text-white">
                       Parcelar despesa
                     </span>
                   </label>
                 </div>
 
-                {form.isInstallment && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/20 [&_label]:text-white">
+                {form.isInstallment &&
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/20 [&_label]:text-white">
                     <FormSection label="Nº de Parcelas" required>
                       <Select value={form.installmentCount} onValueChange={set("installmentCount")}>
                         <SelectTrigger className="h-12 rounded-xl border-white/30 bg-white/10 dark:bg-white/5 text-sm text-white">
                           <SelectValue placeholder="Selecione" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl">
-                          {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => (
-                            <SelectItem key={num} value={String(num)} className="py-3">
+                          {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) =>
+                      <SelectItem key={num} value={String(num)} className="py-3">
                               <span className="text-sm font-medium">{num}x</span>
                             </SelectItem>
-                          ))}
+                      )}
                         </SelectContent>
                       </Select>
-                      {form.installmentCount !== "1" && (
-                        <div className="mt-3 p-3 rounded-lg bg-white/15 text-sm text-white/90">
+                      {form.installmentCount !== "1" &&
+                  <div className="mt-3 p-3 rounded-lg bg-white/15 text-sm text-white/90">
                           <p className="font-medium">Resumo do parcelamento:</p>
                           <p className="mt-1">
                             <strong>{form.description || "Despesa"}</strong> {parseInt(form.installmentCount)}X{" "}
@@ -473,37 +562,37 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                           </p>
                           <div className="mt-2 space-y-1 text-xs">
                             {Array.from({ length: Math.min(parseInt(form.installmentCount), 3) }).map((_, i) => {
-                              const months = i + 1;
-                              const date = new Date(form.installmentStartDate);
-                              date.setMonth(date.getMonth() + i);
-                              return (
-                                <p key={i}>
+                        const months = i + 1;
+                        const date = new Date(form.installmentStartDate);
+                        date.setMonth(date.getMonth() + i);
+                        return (
+                          <p key={i}>
                                   Mês {months}/{form.installmentCount}: R${" "}
                                   {(parseFloat(form.totalAmount || "0") / parseInt(form.installmentCount)).toFixed(2)} - {format(date, "MMM/yyyy", { locale: ptBR })}
-                                </p>
-                              );
-                            })}
-                            {parseInt(form.installmentCount) > 3 && (
-                              <p className="italic opacity-75">... +{parseInt(form.installmentCount) - 3} parcelas</p>
-                            )}
+                                </p>);
+
+                      })}
+                            {parseInt(form.installmentCount) > 3 &&
+                      <p className="italic opacity-75">... +{parseInt(form.installmentCount) - 3} parcelas</p>
+                      }
                           </div>
                         </div>
-                      )}
+                  }
                     </FormSection>
 
                     <FormSection label="Data 1ª Parcela" required>
                       <Input
-                        type="date"
-                        value={form.installmentStartDate}
-                        onChange={(e) => set("installmentStartDate")(e.target.value)}
-                        disabled={addExpense.isPending}
-                        className="h-12 rounded-xl border-white/30 bg-white/10 dark:bg-white/5 text-sm text-white"
-                      />
+                    type="date"
+                    value={form.installmentStartDate}
+                    onChange={(e) => set("installmentStartDate")(e.target.value)}
+                    disabled={addExpense.isPending}
+                    className="h-12 rounded-xl border-white/30 bg-white/10 dark:bg-white/5 text-sm text-white" />
+                  
                     </FormSection>
                   </div>
-                )}
+              }
               </div>
-            )}
+            }
 
             {/* Conta Bancária + Prazo */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -513,24 +602,24 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     <SelectValue placeholder={loadingContas ? "Carregando contas..." : "Selecione a conta"} />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">
-                    {contasBancarias.length === 0 && !loadingContas ? (
-                      <div className="p-4 text-sm text-muted-foreground text-center">
+                    {contasBancarias.length === 0 && !loadingContas ?
+                    <div className="p-4 text-sm text-muted-foreground text-center">
                         Nenhuma conta bancária cadastrada
-                      </div>
-                    ) : (
-                      contasBancarias.map((conta) => (
-                        <SelectItem key={conta.id} value={conta.id} className="py-3">
+                      </div> :
+
+                    contasBancarias.map((conta) =>
+                    <SelectItem key={conta.id} value={conta.id} className="py-3">
                           <div>
                             <div className="font-medium text-sm">{conta.banco}</div>
-                            {conta.numero_conta && (
-                              <div className="text-xs text-muted-foreground font-mono">
+                            {conta.numero_conta &&
+                        <div className="text-xs text-muted-foreground font-mono">
                                 Cta: {conta.numero_conta}{conta.tipo_conta ? ` · ${conta.tipo_conta}` : ""}
                               </div>
-                            )}
+                        }
                           </div>
                         </SelectItem>
-                      ))
-                    )}
+                    )
+                    }
                   </SelectContent>
                 </Select>
               </FormSection>
@@ -571,8 +660,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 placeholder="Informações adicionais sobre a despesa..."
                 rows={3}
                 disabled={addExpense.isPending}
-                className="rounded-xl border-border/70 text-sm resize-none"
-              />
+                className="rounded-xl border-border/70 text-sm resize-none" />
+              
             </FormSection>
 
             {/* Submit */}
@@ -586,35 +675,35 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 transition-all duration-200 hover:-translate-y-px hover:shadow-md
                 disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none
               "
-              disabled={addExpense.isPending || !isValid}
-            >
-              {addExpense.isPending ? (
-                <span className="flex items-center gap-2">
+              disabled={addExpense.isPending || !isValid}>
+              
+              {addExpense.isPending ?
+              <span className="flex items-center gap-2">
                   <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                   Registrando Despesa...
-                </span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4" />
+                </span> :
+
+              <span className="flex items-center gap-2">
+                  
                   {selectedCategory ? `${selectedCategory.icon} Registrar ${selectedCategory.label}` : "Registrar Despesa"}
                 </span>
-              )}
+              }
             </Button>
           </form>
         </div>
       </DialogContent>
-    </Dialog>
-  );
+    </Dialog>);
+
 }
 
 // ─── FormSection ─────────────────────────────────────────────────────────────
 function FormSection({
-  label, required, children,
-}: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
+  label, required, children
+
+
+
+
+}: {label: string;required?: boolean;children: React.ReactNode;}) {
   return (
     <div className="space-y-2">
       <Label className="text-sm font-semibold text-foreground/80 flex items-center gap-1">
@@ -622,6 +711,6 @@ function FormSection({
         {required && <span className="text-red-500 text-base leading-none">*</span>}
       </Label>
       {children}
-    </div>
-  );
+    </div>);
+
 }

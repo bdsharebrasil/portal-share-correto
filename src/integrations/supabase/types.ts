@@ -2300,9 +2300,13 @@ export type Database = {
       components: {
         Row: {
           aircraft_id: string
+          category: string | null
           created_at: string | null
+          csn: number | null
+          cso: number | null
           current_life_cycles: number | null
           current_life_hours: number | null
+          due_date: string | null
           id: string
           installed_cycles: number | null
           installed_date: string
@@ -2312,17 +2316,24 @@ export type Database = {
           name: string
           observations: string | null
           part_number: string
+          remaining_hours: number | null
+          remaining_percentage: number | null
           serial_number: string
           status: string | null
           total_life_cycles: number | null
           total_life_hours: number | null
+          tso: number | null
           updated_at: string | null
         }
         Insert: {
           aircraft_id: string
+          category?: string | null
           created_at?: string | null
+          csn?: number | null
+          cso?: number | null
           current_life_cycles?: number | null
           current_life_hours?: number | null
+          due_date?: string | null
           id?: string
           installed_cycles?: number | null
           installed_date: string
@@ -2332,17 +2343,24 @@ export type Database = {
           name: string
           observations?: string | null
           part_number: string
+          remaining_hours?: number | null
+          remaining_percentage?: number | null
           serial_number: string
           status?: string | null
           total_life_cycles?: number | null
           total_life_hours?: number | null
+          tso?: number | null
           updated_at?: string | null
         }
         Update: {
           aircraft_id?: string
+          category?: string | null
           created_at?: string | null
+          csn?: number | null
+          cso?: number | null
           current_life_cycles?: number | null
           current_life_hours?: number | null
+          due_date?: string | null
           id?: string
           installed_cycles?: number | null
           installed_date?: string
@@ -2352,10 +2370,13 @@ export type Database = {
           name?: string
           observations?: string | null
           part_number?: string
+          remaining_hours?: number | null
+          remaining_percentage?: number | null
           serial_number?: string
           status?: string | null
           total_life_cycles?: number | null
           total_life_hours?: number | null
+          tso?: number | null
           updated_at?: string | null
         }
         Relationships: [
@@ -8131,10 +8152,14 @@ export type Database = {
           due_date: string | null
           expense_type: string
           id: string
+          installment_count: number | null
+          installment_number: number | null
+          installment_start_date: string | null
           invoice_number: string | null
           invoice_url: string | null
           notes: string | null
           paid_date: string | null
+          parent_expense_id: string | null
           payment_method: string | null
           prazo: string | null
           status: string | null
@@ -8156,10 +8181,14 @@ export type Database = {
           due_date?: string | null
           expense_type: string
           id?: string
+          installment_count?: number | null
+          installment_number?: number | null
+          installment_start_date?: string | null
           invoice_number?: string | null
           invoice_url?: string | null
           notes?: string | null
           paid_date?: string | null
+          parent_expense_id?: string | null
           payment_method?: string | null
           prazo?: string | null
           status?: string | null
@@ -8181,10 +8210,14 @@ export type Database = {
           due_date?: string | null
           expense_type?: string
           id?: string
+          installment_count?: number | null
+          installment_number?: number | null
+          installment_start_date?: string | null
           invoice_number?: string | null
           invoice_url?: string | null
           notes?: string | null
           paid_date?: string | null
+          parent_expense_id?: string | null
           payment_method?: string | null
           prazo?: string | null
           status?: string | null
@@ -8276,6 +8309,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "partner_expenses_parent_expense_id_fkey"
+            columns: ["parent_expense_id"]
+            isOneToOne: false
+            referencedRelation: "partner_expenses"
+            referencedColumns: ["id"]
           },
         ]
       }

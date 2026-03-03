@@ -1,7 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
 
-const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? '/api' : 'https://api-workers.sharebrasil.workers.dev');
-
 export interface AirportInfo {
   icao: string;
   name: string;
@@ -48,35 +46,10 @@ function parseCoordinates(coordStr: string | null): { lat: number; lng: number }
 }
 
 /**
- * Fetch airport coordinates by ICAO code
- * Tries backend API first, then falls back to Supabase
+ * Fetch airport coordinates by ICAO code directly from Supabase
  */
 export async function getAirportCoordinates(icao: string): Promise<AirportInfo | null> {
   const upperIcao = icao.toUpperCase().trim();
-
-  // Try backend API first
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/airports/${upperIcao}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      return {
-        icao: data.icao,
-        name: data.name,
-        lat: data.lat,
-        lng: data.lng,
-      };
-    }
-  } catch (error) {
-    console.warn(`Error fetching airport ${upperIcao} from backend:`, error);
-  }
-
-  // Fallback to Supabase
   try {
     const { data, error } = await supabase
       .from('aerodromes')
@@ -124,25 +97,33 @@ export async function getMultipleAirportCoordinates(icaos: string[]): Promise<Ma
 }
 
 /**
- * Search airports by name or ICAO
- * Uses backend API which has fallback to local database and Supabase
+ * Search airports by name or ICAO (Supabase-only)
  */
 export async function searchAirports(query: string): Promise<AirportInfo[]> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/airports/search?q=${encodeURIComponent(query)}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+  const q = query.toLowerCase();
+  const { data, error } = await supabase
+    .from('aerodromes')
+    .select('designativo, name, coordenadas')
+    .or(`designativo.ilike.%${q}%,name.ilike.%${q}%`)
+    .limit(20);
 
-    if (response.ok) {
-      const data = await response.json();
-      return Array.isArray(data) ? data : [];
-    }
-  } catch (error) {
+  if (error) {
     console.warn(`Error searching airports for "${query}":`, error);
+    return [];
   }
-  
-  return [];
+
+  const results: AirportInfo[] = [];
+  for (const item of data || []) {
+    const coords = parseCoordinates(item.coordenadas);
+    if (coords) {
+      results.push({
+        icao: item.designativo,
+        name: item.name,
+        lat: coords.lat,
+        lng: coords.lng,
+      });
+    }
+  }
+
+  return results;
 }

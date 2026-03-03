@@ -52,6 +52,8 @@ export default function RelatorioMensal() {
   const { clienteId } = useParams<{ clienteId: string }>()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedPartners, setSelectedPartners] = useState<string[]>([])
+  const [sortBy, setSortBy] = useState<'date' | 'partner'>('date')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
   // ========================
   // DADOS
@@ -74,6 +76,38 @@ export default function RelatorioMensal() {
     [transactions]
   )
 
+  // Helper functions for display
+  const getStatusLabel = (status: string) => {
+    const map: Record<string, string> = {
+      pending: "Pendente",
+      paid: "Pago",
+      pago: "Pago",
+      pendente: "Pendente",
+      cancelado: "Cancelado",
+      cancelled: "Cancelado",
+      overdue: "Vencido",
+    };
+    return map[status?.toLowerCase()] || status || "-";
+  };
+
+  const getExpenseTypeLabel = (type: string) => {
+    return (type || "").toUpperCase();
+  };
+
+  const getPaymentMethodLabel = (method: string | null | undefined) => {
+    if (!method) return "-";
+    const map: Record<string, string> = {
+      pix: "PIX",
+      ted: "TED",
+      boleto: "Boleto",
+      cartao: "Cartão",
+      dinheiro: "Dinheiro",
+      nao_informado: "-",
+      outros: "Outros",
+    };
+    return map[method?.toLowerCase()] || method;
+  };
+
   const filteredTransactions = useMemo(() => {
     let result = transactions.filter((t) => {
       const date = (t as any).payment_date || t.created_at
@@ -88,8 +122,23 @@ export default function RelatorioMensal() {
       result = result.filter((t) => selectedPartners.includes(t.partner_name))
     }
 
+    // Aplicar ordenação
+    result.sort((a, b) => {
+      let compareValue = 0
+      
+      if (sortBy === 'date') {
+        const dateA = new Date((a as any).payment_date || a.created_at)
+        const dateB = new Date((b as any).payment_date || b.created_at)
+        compareValue = dateA.getTime() - dateB.getTime()
+      } else if (sortBy === 'partner') {
+        compareValue = (a.partner_name || '').localeCompare(b.partner_name || '')
+      }
+
+      return sortOrder === 'asc' ? compareValue : -compareValue
+    })
+
     return result
-  }, [transactions, currentMonth, selectedPartners])
+  }, [transactions, currentMonth, selectedPartners, sortBy, sortOrder])
 
   // ========================
   // COMPUTAÇÕES
@@ -206,7 +255,7 @@ export default function RelatorioMensal() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate(`/financeiro/socios`)}
+                  onClick={() => navigate(`/financeiro/financeiro-socios`)}
                   className="h-8 w-8 p-0"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -300,6 +349,196 @@ export default function RelatorioMensal() {
           />
         </div>
 
+        {/* Tabela de Transações */}
+        <Card className="border border-border bg-background">
+          <CardHeader>
+            <CardTitle className="text-base">Detalhamento de Transações</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {filteredTransactions.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground text-sm">Nenhuma transação neste período</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead className="border-b-2 border-border bg-slate-900/50">
+                    <tr>
+                      <th 
+                        className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+                        onClick={() => {
+                          if (sortBy === 'date') {
+                            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                          } else {
+                            setSortBy('date')
+                            setSortOrder('desc')
+                          }
+                        }}
+                      >
+                        Data {sortBy === 'date' && (sortOrder === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
+                        Descrição
+                      </th>
+                      <th 
+                        className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+                        onClick={() => {
+                          if (sortBy === 'partner') {
+                            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                          } else {
+                            setSortBy('partner')
+                            setSortOrder('asc')
+                          }
+                        }}
+                      >
+                        Sócio {sortBy === 'partner' && (sortOrder === 'asc' ? '↑' : '↓')}
+                      </th>
+                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
+                        Tipo
+                      </th>
+                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
+                        Status
+                      </th>
+                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
+                        Método Pg.
+                      </th>
+                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
+                        Prazo
+                      </th>
+                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
+                        Banco
+                      </th>
+                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
+                        Doc
+                      </th>
+                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
+                        Obs
+                      </th>
+                      <th className="text-right py-3 px-3 text-xs font-semibold text-muted-foreground">
+                        Valor
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTransactions.map((tx: any, idx) => {
+                      const txDate = tx.payment_date || tx.created_at
+                      const formattedDate = format(
+                        new Date(txDate.includes("T") ? txDate : txDate + "T12:00:00"),
+                        "dd/MM/yyyy",
+                        { locale: ptBR }
+                      )
+                      const isEven = idx % 2 === 0
+
+                      return (
+                        <tr
+                          key={tx.id || idx}
+                          className={`border-b border-border/30 transition-colors ${
+                            isEven 
+                              ? "bg-slate-950/30 hover:bg-slate-900/40" 
+                              : "bg-slate-900/30 hover:bg-slate-800/40"
+                          }`}
+                        >
+                          <td className="py-3 px-3 text-foreground">{formattedDate}</td>
+                          <td className="py-3 px-3 text-foreground">{tx.description || "-"}</td>
+                          <td className="py-3 px-3 text-muted-foreground">{tx.partner_name}</td>
+                          <td className="py-3 px-3">
+                            <Badge
+                              variant="outline"
+                              className={`text-xs ${
+                                tx.transaction_type === "deposit"
+                                  ? "border-emerald-500/30 text-emerald-500"
+                                  : tx.transaction_type === "expense"
+                                  ? "border-orange-500/30 text-orange-500"
+                                  : "border-red-500/30 text-red-500"
+                              }`}
+                            >
+                              {tx.expense_type 
+                                ? getExpenseTypeLabel(tx.expense_type)
+                                : tx.transaction_type === "deposit"
+                                ? "ENTRADA"
+                                : tx.transaction_type === "expense"
+                                ? "DESPESA"
+                                : "SAÍDA"}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-3">
+                            <Badge
+                              variant="outline"
+                              className={`text-xs ${
+                                (tx.status === "pago" || tx.status === "paid")
+                                  ? "border-emerald-500/30 text-emerald-500"
+                                  : tx.status === "cancelado"
+                                  ? "border-red-500/30 text-red-500"
+                                  : "border-amber-500/30 text-amber-500"
+                              }`}
+                            >
+                              {getStatusLabel(tx.status)}
+                            </Badge>
+                          </td>
+                          <td className="py-3 px-3 text-foreground text-xs">{getPaymentMethodLabel(tx.payment_method)}</td>
+                          <td className="py-3 px-3 text-foreground text-xs">{tx.prazo || "-"}</td>
+                          <td className="py-3 px-3 text-foreground text-xs">{tx.bank_name || "-"}</td>
+                          <td className="py-3 px-3 text-foreground text-xs">{tx.doc || "-"}</td>
+                          <td className="py-3 px-3 text-foreground text-xs max-w-[150px] truncate" title={tx.notes || ""}>{tx.notes || "-"}</td>
+                          <td
+                            className={`text-right py-3 px-3 font-semibold ${
+                              tx.transaction_type === "deposit" ? "text-emerald-500" : "text-red-500"
+                            }`}
+                          >
+                            {tx.transaction_type === "deposit" ? "+" : "-"}
+                            {fmt(Number(tx.amount))}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Resumo de Sócios */}
+        {partnerData.length > 0 && (
+          <Card className="border border-border bg-background">
+            <CardHeader>
+              <CardTitle className="text-base">Resumo por Sócio</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {partnerData.map((partner) => (
+                  <div
+                    key={partner.name}
+                    className="p-4 rounded-lg border border-border bg-muted/20 space-y-2"
+                  >
+                    <h4 className="font-semibold text-foreground">{partner.name}</h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Entradas:</span>
+                        <span className="font-medium text-emerald-500">{fmt(partner.deposits)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Saídas:</span>
+                        <span className="font-medium text-red-500">{fmt(partner.expenses)}</span>
+                      </div>
+                      <div className="flex justify-between border-t border-border pt-1">
+                        <span className="font-semibold text-foreground">Saldo:</span>
+                        <span
+                          className={`font-semibold ${
+                            partner.balance >= 0 ? "text-emerald-500" : "text-red-500"
+                          }`}
+                        >
+                          {fmt(partner.balance)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Gráficos */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Daily Chart */}
@@ -382,132 +621,6 @@ export default function RelatorioMensal() {
             </CardContent>
           </Card>
         </div>
-
-        {/* Tabela de Transações */}
-        <Card className="border border-border bg-background">
-          <CardHeader>
-            <CardTitle className="text-base">Detalhamento de Transações</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {filteredTransactions.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground text-sm">Nenhuma transação neste período</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b border-border bg-muted/30">
-                    <tr>
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
-                        Data
-                      </th>
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
-                        Descrição
-                      </th>
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
-                        Sócio
-                      </th>
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
-                        Tipo
-                      </th>
-                      <th className="text-right py-3 px-3 text-xs font-semibold text-muted-foreground">
-                        Valor
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredTransactions.map((tx: any, idx) => {
-                      const txDate = tx.payment_date || tx.created_at
-                      const formattedDate = format(
-                        new Date(txDate.includes("T") ? txDate : txDate + "T12:00:00"),
-                        "dd/MM/yyyy",
-                        { locale: ptBR }
-                      )
-
-                      return (
-                        <tr
-                          key={tx.id || idx}
-                          className="border-b border-border/30 hover:bg-muted/20 transition-colors"
-                        >
-                          <td className="py-3 px-3 text-foreground">{formattedDate}</td>
-                          <td className="py-3 px-3 text-foreground">{tx.description || "-"}</td>
-                          <td className="py-3 px-3 text-muted-foreground">{tx.partner_name}</td>
-                          <td className="py-3 px-3">
-                            <Badge
-                              variant="outline"
-                              className={`text-xs ${
-                                tx.transaction_type === "deposit"
-                                  ? "border-emerald-500/30 text-emerald-500"
-                                  : tx.transaction_type === "expense"
-                                  ? "border-orange-500/30 text-orange-500"
-                                  : "border-red-500/30 text-red-500"
-                              }`}
-                            >
-                              {tx.transaction_type === "deposit"
-                                ? "Entrada"
-                                : tx.transaction_type === "expense"
-                                ? "Despesa"
-                                : "Saída"}
-                            </Badge>
-                          </td>
-                          <td
-                            className={`text-right py-3 px-3 font-semibold ${
-                              tx.transaction_type === "deposit" ? "text-emerald-500" : "text-red-500"
-                            }`}
-                          >
-                            {tx.transaction_type === "deposit" ? "+" : "-"}
-                            {fmt(Number(tx.amount))}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Resumo de Sócios */}
-        {partnerData.length > 0 && (
-          <Card className="border border-border bg-background">
-            <CardHeader>
-              <CardTitle className="text-base">Resumo por Sócio</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {partnerData.map((partner) => (
-                  <div
-                    key={partner.name}
-                    className="p-4 rounded-lg border border-border bg-muted/20 space-y-2"
-                  >
-                    <h4 className="font-semibold text-foreground">{partner.name}</h4>
-                    <div className="space-y-1 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Entradas:</span>
-                        <span className="font-medium text-emerald-500">{fmt(partner.deposits)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Saídas:</span>
-                        <span className="font-medium text-red-500">{fmt(partner.expenses)}</span>
-                      </div>
-                      <div className="flex justify-between border-t border-border pt-1">
-                        <span className="font-semibold text-foreground">Saldo:</span>
-                        <span
-                          className={`font-semibold ${
-                            partner.balance >= 0 ? "text-emerald-500" : "text-red-500"
-                          }`}
-                        >
-                          {fmt(partner.balance)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </Layout>
   )
