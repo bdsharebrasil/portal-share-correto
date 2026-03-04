@@ -17,6 +17,7 @@ export interface Abastecimento {
   created_at: string;
   updated_at: string;
   partner_name: string | null;
+  comanda: string | null;
 }
 
 /**

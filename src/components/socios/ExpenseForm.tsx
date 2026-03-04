@@ -285,9 +285,13 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
                     abastecimentos.map((abast) =>
                     <SelectItem key={abast.id} value={abast.id} className="py-3">
-                              <span className="text-sm">
-                                {format(new Date(abast.data), "dd/MM/yyyy")} · {abast.local} · R$ {Number(abast.valor_total).toFixed(2)}
-                              </span>
+                              <div className="text-sm space-y-0.5">
+                                <div>{format(new Date(abast.data), "dd/MM/yyyy")} · {abast.local} · R$ {Number(abast.valor_total).toFixed(2)}</div>
+                                <div className="text-xs text-muted-foreground flex gap-2">
+                                  {abast.comanda && <span>Comanda: {abast.comanda}</span>}
+                                  {abast.partner_name && <span>Sócio: {abast.partner_name}</span>}
+                                </div>
+                              </div>
                             </SelectItem>
                     )
                     }
@@ -368,40 +372,16 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 </div>
               </FormSection>
               <FormSection label="Data de Pagamento" required>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("h-12 w-full rounded-xl border-border/70 text-sm justify-start text-left font-normal", !form.paidDate && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {form.paidDate ? format(new Date(form.paidDate + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={form.paidDate ? new Date(form.paidDate + "T12:00:00") : undefined}
-                      onSelect={(date) => date && set("paidDate")(format(date, "yyyy-MM-dd"))}
-                      locale={ptBR}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DateFieldWithInput
+                  value={form.paidDate}
+                  onChange={(v) => set("paidDate")(v)}
+                />
               </FormSection>
               <FormSection label="Data de Vencimento">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("h-12 w-full rounded-xl border-border/70 text-sm justify-start text-left font-normal", !form.dueDate && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {form.dueDate ? format(new Date(form.dueDate + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR }) : "Selecione"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={form.dueDate ? new Date(form.dueDate + "T12:00:00") : undefined}
-                      onSelect={(date) => date && set("dueDate")(format(date, "yyyy-MM-dd"))}
-                      locale={ptBR}
-                    />
-                  </PopoverContent>
-                </Popover>
+                <DateFieldWithInput
+                  value={form.dueDate}
+                  onChange={(v) => set("dueDate")(v)}
+                />
               </FormSection>
             </div>
 
@@ -711,4 +691,70 @@ function FormSection({
       {children}
     </div>);
 
+}
+
+function DateFieldWithInput({
+  value, onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [inputValue, setInputValue] = useState(
+    value ? format(new Date(value + "T12:00:00"), "dd/MM/yyyy") : ""
+  );
+  const [calendarOpen, setCalendarOpen] = useState(false);
+
+  const dateValue = value ? new Date(value + "T12:00:00") : undefined;
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let v = e.target.value.replace(/\D/g, "");
+    if (v.length > 8) v = v.slice(0, 8);
+    if (v.length >= 5) v = v.slice(0, 2) + "/" + v.slice(2, 4) + "/" + v.slice(4);
+    else if (v.length >= 3) v = v.slice(0, 2) + "/" + v.slice(2);
+    setInputValue(v);
+
+    if (v.length === 10) {
+      const [dd, mm, yyyy] = v.split("/");
+      const parsed = new Date(parseInt(yyyy), parseInt(mm) - 1, parseInt(dd));
+      if (!isNaN(parsed.getTime())) {
+        onChange(format(parsed, "yyyy-MM-dd"));
+      }
+    }
+  };
+
+  const handleCalendarSelect = (date: Date | undefined) => {
+    if (date) {
+      onChange(format(date, "yyyy-MM-dd"));
+      setInputValue(format(date, "dd/MM/yyyy"));
+      setCalendarOpen(false);
+    }
+  };
+
+  return (
+    <div className="flex gap-2">
+      <Input
+        value={inputValue}
+        onChange={handleInputChange}
+        placeholder="dd/mm/aaaa"
+        className="h-12 rounded-xl border-border/70 text-sm flex-1"
+        maxLength={10}
+      />
+      <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="icon" className="h-12 w-12 rounded-xl border-border/70 flex-shrink-0">
+            <CalendarIcon className="h-4 w-4" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0 z-[9999]" align="end" sideOffset={4}>
+          <Calendar
+            mode="single"
+            selected={dateValue}
+            onSelect={handleCalendarSelect}
+            locale={ptBR}
+            className="p-3 pointer-events-auto"
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
 }

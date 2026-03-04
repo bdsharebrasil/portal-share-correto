@@ -647,31 +647,62 @@ function DateField({
   onChange: (v: string) => void;
   label?: string;
 }) {
+  const [inputValue, setInputValue] = useState(
+    value ? format(new Date(value + "T12:00:00"), "dd/MM/yyyy") : ""
+  );
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const dateValue = value ? new Date(value + "T12:00:00") : undefined;
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let v = e.target.value.replace(/\D/g, "");
+    if (v.length > 8) v = v.slice(0, 8);
+    if (v.length >= 5) v = v.slice(0, 2) + "/" + v.slice(2, 4) + "/" + v.slice(4);
+    else if (v.length >= 3) v = v.slice(0, 2) + "/" + v.slice(2);
+    setInputValue(v);
+
+    if (v.length === 10) {
+      const [dd, mm, yyyy] = v.split("/");
+      const parsed = new Date(parseInt(yyyy), parseInt(mm) - 1, parseInt(dd));
+      if (!isNaN(parsed.getTime())) {
+        onChange(format(parsed, "yyyy-MM-dd"));
+      }
+    }
+  };
+
+  const handleCalendarSelect = (date: Date | undefined) => {
+    if (date) {
+      onChange(format(date, "yyyy-MM-dd"));
+      setInputValue(format(date, "dd/MM/yyyy"));
+      setCalendarOpen(false);
+    }
+  };
+
   return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          className={cn(
-            "h-12 w-full rounded-xl border-border/70 text-sm justify-start text-left font-normal",
-            !value && "text-muted-foreground"
-          )}
-        >
-          <CalendarIcon className="mr-2 h-4 w-4" />
-          {value ? format(dateValue!, "dd/MM/yyyy", { locale: ptBR }) : "Selecione a data"}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 z-[9999]" align="start">
-        <Calendar
-          mode="single"
-          selected={dateValue}
-          onSelect={(date) => date && onChange(format(date, "yyyy-MM-dd"))}
-          locale={ptBR}
-          className="p-3 pointer-events-auto"
-        />
-      </PopoverContent>
-    </Popover>
+    <div className="flex gap-2">
+      <Input
+        value={inputValue}
+        onChange={handleInputChange}
+        placeholder="dd/mm/aaaa"
+        className="h-12 rounded-xl border-border/70 text-sm flex-1"
+        maxLength={10}
+      />
+      <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" size="icon" className="h-12 w-12 rounded-xl border-border/70 flex-shrink-0">
+            <CalendarIcon className="h-4 w-4" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0 z-[9999]" align="end" sideOffset={4}>
+          <Calendar
+            mode="single"
+            selected={dateValue}
+            onSelect={handleCalendarSelect}
+            locale={ptBR}
+            className="p-3 pointer-events-auto"
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 }
 

@@ -523,6 +523,26 @@ export function useCreateExpense() {
         if (error) throw error;
       }
 
+      // Sync: se é abastecimento, criar registro na tabela abastecimentos
+      if (data.expenseType === "abastecimento" || data.category === "abastecimento") {
+        try {
+          await supabase.from("abastecimentos").insert({
+            client_id: data.clientId,
+            aeronave_id: data.aircraftId || null,
+            data: data.dueDate || new Date().toISOString().split("T")[0],
+            trecho: data.description || "N/A",
+            local: data.supplierName || "N/A",
+            litros: 0,
+            valor_unitario: 0,
+            valor_total: data.totalAmount,
+            partner_name: data.assignedPartnerName || null,
+            status_pagamento: data.status === "paid" || data.status === "pago" ? "pago" : "pendente",
+          });
+        } catch (syncErr) {
+          console.warn("Erro ao sincronizar abastecimento:", syncErr);
+        }
+      }
+
       return data.clientId;
     },
     onSuccess: (clientId) => {
