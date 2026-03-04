@@ -668,7 +668,15 @@ export function useUpdateTransaction() {
       bankName?: string | null;
       prazo?: string | null;
     }) => {
-      if (data.transactionType === "expense") {
+      console.log("Atualizando transação:", {
+        id: data.id,
+        transactionType: data.transactionType,
+        paymentDate: data.paymentDate,
+      });
+
+      if (data.transactionType === "partner_expense") {
+        // Update partner_expenses table
+        console.log("Atualizando em partner_expenses com due_date:", data.paymentDate);
         const { error } = await supabase
           .from("partner_expenses")
           .update({
@@ -681,7 +689,22 @@ export function useUpdateTransaction() {
           })
           .eq("id", data.id);
         if (error) throw error;
+      } else if (data.transactionType === "abastecimento") {
+        // Update abastecimentos table
+        console.log("Atualizando em abastecimentos com data:", data.paymentDate);
+        const { error } = await supabase
+          .from("abastecimentos")
+          .update({
+            descricao: data.description,
+            valor_total: data.amount,
+            data: data.paymentDate,
+            observacao: data.notes || null,
+          })
+          .eq("id", data.id);
+        if (error) throw error;
       } else {
+        // Update partner_transactions table
+        console.log("Atualizando em partner_transactions com payment_date:", data.paymentDate);
         const { error } = await supabase
           .from("partner_transactions")
           .update({
@@ -699,12 +722,14 @@ export function useUpdateTransaction() {
       return data.clientId;
     },
     onSuccess: (clientId) => {
+      console.log("Transação atualizada com sucesso, invalidando queries para clientId:", clientId);
       queryClient.invalidateQueries({ queryKey: ["partner-accounts", clientId] });
       queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
       queryClient.invalidateQueries({ queryKey: ["partner-expenses", clientId] });
       toast.success("Transação atualizada com sucesso!");
     },
     onError: (err: any) => {
+      console.error("Erro ao atualizar:", err);
       toast.error("Erro ao atualizar: " + err.message);
     },
   });

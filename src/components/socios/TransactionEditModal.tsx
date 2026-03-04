@@ -68,6 +68,15 @@ export function TransactionEditModal({
       const dateObj = new Date(paymentDate.includes("T") ? paymentDate : paymentDate + "T12:00:00")
       const formattedDate = dateObj.toISOString().split("T")[0]
 
+      console.log("Carregando transação para edição:", {
+        id: transaction.id,
+        reference_type: transaction.reference_type,
+        transaction_type: transaction.transaction_type,
+        paymentDate: transaction.payment_date,
+        created_at: transaction.created_at,
+        formattedDate,
+      });
+
       setFormData({
         description: transaction.description || "",
         amount: transaction.amount || 0,
@@ -82,11 +91,28 @@ export function TransactionEditModal({
   const handleSave = async () => {
     if (!transaction) return
 
+    // Validar data
+    if (!formData.paymentDate) {
+      alert("Selecione uma data para o lançamento")
+      return
+    }
+
+    // Determinar corretamente o tipo para atualizar
+    // Se temos reference_type, usar esse (partner_expense, abastecimento)
+    // Senão, usar transaction_type (deposit, payment, etc)
+    const transactionType = transaction.reference_type || transaction.transaction_type
+
+    console.log("Salvando transação com tipo:", {
+      reference_type: transaction.reference_type,
+      transaction_type: transaction.transaction_type,
+      send_type: transactionType,
+    });
+
     try {
       await updateTransaction.mutateAsync({
         id: transaction.id,
         clientId,
-        transactionType: transaction.reference_type || transaction.transaction_type,
+        transactionType,
         description: formData.description,
         amount: formData.amount,
         paymentDate: formData.paymentDate,
