@@ -1227,6 +1227,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     // Carregar dados da entrada no formulário de novo lançamento
     // Para empréstimos: partner_name contém o nome de quem pegou emprestado
     setNewEntry({
+      ...newEntry,
       entry_date: entry.entry_date,
       pic_canac: entry.pic_canac || '',
       sic_canac: entry.sic_canac || '',
