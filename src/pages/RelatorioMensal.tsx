@@ -255,7 +255,7 @@ export default function RelatorioMensal() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate(`/financeiro/financeiro-socios`)}
+                  onClick={() => navigate(-1)}
                   className="h-8 w-8 p-0"
                 >
                   <ChevronLeft className="h-4 w-4" />
