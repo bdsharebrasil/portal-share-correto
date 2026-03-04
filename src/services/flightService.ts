@@ -198,7 +198,7 @@ export class FlightService {
   ): Promise<void> {
     try {
       // Criar registro de empréstimo
-      const { error: loanError } = await supabase
+      const { error: loanError } = await (supabase as any)
         .from('aircraft_loans')
         .insert([
           {

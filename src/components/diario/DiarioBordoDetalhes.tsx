@@ -370,7 +370,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           logSuccess('Client Partners carregados', { count: clientPartnersRes.data.length });
         }
 
-        const loansRes = await supabase
+        const loansRes = await (supabase as any)
           .from('aircraft_loans')
           .select('*')
           .eq('lender_aircraft_id', aircraftId)
