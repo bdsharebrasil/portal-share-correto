@@ -20,11 +20,12 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Receipt, Plus, ChevronRight, ArrowLeft, Fuel, CalendarIcon } from "lucide-react";
-import { Combobox } from "@/components/ui/combobox";
+import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { useCreateExpense } from "@/hooks/useFinanceiroSocios";
 import { useClientPartners } from "@/hooks/useClientPartners";
 import { useClientAbastecimentos } from "@/hooks/useAbastecimentos";
 import { useFornecedoresFavoritos } from "@/hooks/useFornecedoresFavoritos";
+import { useFuelSuppliers } from "@/hooks/useFuelSuppliers";
 import { useContasBancarias } from "@/hooks/useContasBancarias";
 import { formatCPF } from "@/lib/formatters";
 import { format, parse } from "date-fns";
@@ -84,6 +85,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteId);
   const { data: abastecimentos = [] } = useClientAbastecimentos(clienteId);
   const { data: fornecedoresFavoritos = [] } = useFornecedoresFavoritos();
+  const { data: fuelSuppliers = [] } = useFuelSuppliers();
   const { data: contasBancarias = [], isLoading: loadingContas } = useContasBancarias();
 
   const set = (key: keyof typeof EMPTY_FORM) => (value: string | boolean) =>
@@ -417,20 +419,36 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             {/* Fornecedor + NF */}
             <div className="space-y-4">
               <FormSection label="Fornecedor">
-                <Combobox
-                  options={fornecedoresFavoritos.map((f) => ({
-                    value: f.nome_completo,
-                    label: `${f.nome_completo}${f.documento ? ` (${f.documento})` : ""}`
-                  }))}
-                  value={form.supplierName}
-                  onValueChange={set("supplierName")}
-                  placeholder="Selecione ou digite o fornecedor..."
-                  searchPlaceholder="Buscar fornecedor..."
-                  emptyText="Nenhum fornecedor encontrado"
-                  disabled={addExpense.isPending}
-                  allowCustomValue={true}
-                  className="mt-0 h-12 rounded-xl border-border/70 text-sm" />
-                
+                {isAbastecimento ? (
+                  // Para abastecimento, mostrar fornecedores de combustível
+                  <SearchableCombobox
+                    items={fuelSuppliers.map((f) => ({
+                      id: f.supplier_name,
+                      label: `${f.supplier_name} - ${f.city_name} (${f.icao_code})`
+                    }))}
+                    value={form.supplierName}
+                    onChange={(id, label) => set("supplierName")(id)}
+                    placeholder="Selecione um fornecedor de combustível..."
+                    searchPlaceholder="Buscar fornecedor..."
+                    emptyMessage="Nenhum fornecedor de combustível cadastrado"
+                    disabled={addExpense.isPending}
+                  />
+                ) : (
+                  // Para outras categorias, mostrar fornecedores favoritos
+                  <SearchableCombobox
+                    items={fornecedoresFavoritos.map((f) => ({
+                      id: f.nome_completo,
+                      label: `${f.nome_completo}${f.documento ? ` (${f.documento})` : ""}`
+                    }))}
+                    value={form.supplierName}
+                    onChange={(id, label) => set("supplierName")(id)}
+                    placeholder="Selecione ou digite o fornecedor..."
+                    searchPlaceholder="Buscar fornecedor..."
+                    emptyMessage="Nenhum fornecedor encontrado"
+                    disabled={addExpense.isPending}
+                    allowFreeText={true}
+                  />
+                )}
               </FormSection>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormSection label="Nº Nota / NF">
