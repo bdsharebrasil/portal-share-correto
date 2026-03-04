@@ -40,10 +40,10 @@ export function OficinasManager() {
 
   const loadOficinas = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('oficinas')
       .select('*')
-      .order('razao_social') as any;
+      .order('razao_social');
     if (error) {
       toast.error('Erro ao carregar oficinas');
     } else {
@@ -91,9 +91,9 @@ export function OficinasManager() {
 
     let error;
     if (editingId) {
-      ({ error } = await (supabase.from('oficinas') as any).update(payload).eq('id', editingId));
+      ({ error } = await (supabase as any).from('oficinas').update(payload).eq('id', editingId));
     } else {
-      ({ error } = await (supabase.from('oficinas') as any).insert(payload));
+      ({ error } = await (supabase as any).from('oficinas').insert(payload));
     }
 
     if (error) {
@@ -107,7 +107,7 @@ export function OficinasManager() {
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await (supabase.from('oficinas') as any).delete().eq('id', id);
+    const { error } = await (supabase as any).from('oficinas').delete().eq('id', id);
     if (error) {
       toast.error('Erro ao deletar oficina');
     } else {

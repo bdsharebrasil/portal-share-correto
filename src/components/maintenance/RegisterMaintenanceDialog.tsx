@@ -54,7 +54,7 @@ export function RegisterMaintenanceDialog({
 
   useEffect(() => {
     if (open) {
-      supabase
+      (supabase as any)
         .from('oficinas')
         .select('id, razao_social, mecanico_responsavel')
         .eq('ativo', true)

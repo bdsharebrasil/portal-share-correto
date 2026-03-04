@@ -81,8 +81,8 @@ export function useAnniversaryAlerts(userId: string | null) {
         return true;
       });
 
-      setAlerts(allAlerts || []);
-      setVisibleAlerts(filteredAlerts);
+      setAlerts((allAlerts || []) as AnniversaryAlert[]);
+      setVisibleAlerts(filteredAlerts as AnniversaryAlert[]);
     } catch (err) {
       console.error('Error fetching anniversary alerts:', err);
       setError(err instanceof Error ? err.message : 'Failed to load alerts');

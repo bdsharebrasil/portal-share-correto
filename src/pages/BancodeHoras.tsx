@@ -31,6 +31,9 @@ interface AircraftLoan {
     id: string;
     company_name: string;
   };
+  borrower_partner?: {
+    name: string;
+  } | null;
 }
 
 interface ClientInfo {

@@ -401,7 +401,7 @@ export const VirtualizedTransactionTable = ({
     e.preventDefault();
     if (!draggedColumn) return;
 
-    const dragIndex = columnOrder.indexOf(draggedColumn);
+    const dragIndex = columnOrder.indexOf(draggedColumn as ColumnType);
     if (dragIndex === dropIndex) {
       setDraggedColumn(null);
       setDragOverIndex(null);
@@ -410,7 +410,7 @@ export const VirtualizedTransactionTable = ({
 
     const newOrder = [...columnOrder];
     newOrder.splice(dragIndex, 1);
-    newOrder.splice(dropIndex, 0, draggedColumn);
+    newOrder.splice(dropIndex, 0, draggedColumn as ColumnType);
 
     onColumnOrderChange(newOrder);
     setDraggedColumn(null);

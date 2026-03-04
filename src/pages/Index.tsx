@@ -8,9 +8,9 @@ const Index = () => {
   const { userRoles, isLoading } = useUserRole();
 
   useEffect(() => {
-    if (!isLoading && userRoles.length > 0) {
+    if (!isLoading && (userRoles as string[]).length > 0) {
       // Redirecionar para o dashboard correto baseado nas roles
-      const { route } = getDashboardRouteFromRoles(userRoles);
+      const { route } = getDashboardRouteFromRoles(userRoles as string[]);
       navigate(route, { replace: true });
     }
   }, [userRoles, isLoading, navigate]);

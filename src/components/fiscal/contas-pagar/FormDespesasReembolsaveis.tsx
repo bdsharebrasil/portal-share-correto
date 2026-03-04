@@ -64,6 +64,7 @@ export function FormDespesasReembolsaveis({ form, setForm, fornecedores, aeronav
           <label className="text-xs font-bold mb-1 block">CLIENTE *</label>
           <AutocompleteInput
             value={clients.find(c => c.id === form.client_id)?.company_name || ""}
+            onChange={(v) => {}}
             onSelect={(opt) => setForm({ ...form, client_id: opt.id, client_partner_id: null })}
             options={clients.map(c => ({ id: c.id, label: c.company_name || c.proprietario || "Sem nome" }))}
             placeholder="Buscar cliente..."
@@ -75,6 +76,7 @@ export function FormDespesasReembolsaveis({ form, setForm, fornecedores, aeronav
           <label className="text-xs font-bold mb-1 block">AERONAVE *</label>
           <AutocompleteInput
             value={form.aeronave_registro || ""}
+            onChange={(v) => {}}
             onSelect={(opt) => setForm({ ...form, aeronave_registro: opt.label.split(' - ')[0] })}
             options={aeronaves.map((a: any) => ({ id: a.id, label: `${a.registration} - ${a.model}` }))}
             placeholder="Selecione o prefixo..."

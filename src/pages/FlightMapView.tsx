@@ -160,15 +160,6 @@ export default function FlightMapViewPage() {
       <div className="flex-1">
         <FlightRouteMapPro
           points={routePoints}
-          flightData={{
-            altitude: flightData.altitude,
-            speed: flightData.speed,
-            temperature: flightData.temperature,
-            pressure: flightData.pressure,
-            windSpeed: flightData.windSpeed,
-            windDirection: flightData.windDirection,
-            heading: flightData.heading,
-          }}
           className="h-full"
         />
       </div>

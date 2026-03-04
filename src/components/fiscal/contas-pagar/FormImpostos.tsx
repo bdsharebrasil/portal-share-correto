@@ -24,7 +24,7 @@ export function FormImpostos({ form, setForm }: Props) {
   }, []);
 
   const loadEmpresas = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("empresas")
       .select("id, razao_social, cnpj");
     
