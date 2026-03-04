@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,12 @@ import { MaintenanceType, DEFAULT_CONFIGS } from '@/lib/maintenance-alerts';
 import { Wrench, Calendar, Clock, User, Building, FileText, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+
+interface Oficina {
+  id: string;
+  razao_social: string;
+  mecanico_responsavel: string | null;
+}
 
 interface RegisterMaintenanceDialogProps {
   open: boolean;
@@ -30,12 +36,14 @@ export function RegisterMaintenanceDialog({
   const { toast } = useToast();
   const addRecord = useAddMaintenanceRecord();
   
+  const [oficinas, setOficinas] = useState<Oficina[]>([]);
   const [formData, setFormData] = useState({
     maintenanceType: '50h' as MaintenanceType,
     performedAtHours: currentHours.toString(),
     performedDate: format(new Date(), 'yyyy-MM-dd'),
     mechanicName: '',
     maintenanceCenter: '',
+    oficina_id: '',
     serviceOrderNumber: '',
     description: '',
     cost: '',
@@ -43,6 +51,29 @@ export function RegisterMaintenanceDialog({
   });
 
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      supabase
+        .from('oficinas')
+        .select('id, razao_social, mecanico_responsavel')
+        .eq('ativo', true)
+        .order('razao_social')
+        .then(({ data }) => {
+          setOficinas((data as any[]) || []);
+        });
+    }
+  }, [open]);
+
+  const handleOficinaChange = (oficinaId: string) => {
+    const oficina = oficinas.find(o => o.id === oficinaId);
+    setFormData({
+      ...formData,
+      oficina_id: oficinaId,
+      maintenanceCenter: oficina?.razao_social || '',
+      mechanicName: oficina?.mecanico_responsavel || formData.mechanicName,
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,6 +100,29 @@ export function RegisterMaintenanceDialog({
         created_by: userData.user?.id,
       });
 
+      // Also create a CTM service order for this maintenance
+      const tipoMap: Record<string, string> = {
+        '50h': 'PREVENTIVA',
+        '100h': 'PREVENTIVA',
+        '150h': 'REVISÃO',
+        '200h': 'REVISÃO',
+      };
+
+      await supabase.from('ctm_service_orders').insert({
+        aircraft_id: aircraftId,
+        numero: formData.serviceOrderNumber || `MNT-${formData.maintenanceType}-${Date.now().toString().slice(-6)}`,
+        tipo_manutencao: tipoMap[formData.maintenanceType] || 'PREVENTIVA',
+        objetivo: 'CÉLULA',
+        oficina_nome: formData.maintenanceCenter || null,
+        horas_celula: performedHours,
+        data_entrada: formData.performedDate,
+        status: 'concluída',
+        observacoes: formData.observations || null,
+        description: formData.description || `Manutenção preventiva de ${formData.maintenanceType} realizada`,
+        periodo: formData.maintenanceType,
+        total_geral: formData.cost ? parseFloat(formData.cost) : null,
+      } as any);
+
       toast({
         title: 'Manutenção registrada',
         description: `Manutenção de ${formData.maintenanceType} registrada com sucesso. Próxima em ${nextDueHours.toFixed(1)}h.`,
@@ -76,13 +130,13 @@ export function RegisterMaintenanceDialog({
 
       onOpenChange(false);
       
-      // Reset form
       setFormData({
         maintenanceType: '50h',
         performedAtHours: currentHours.toString(),
         performedDate: format(new Date(), 'yyyy-MM-dd'),
         mechanicName: '',
         maintenanceCenter: '',
+        oficina_id: '',
         serviceOrderNumber: '',
         description: '',
         cost: '',
@@ -112,7 +166,6 @@ export function RegisterMaintenanceDialog({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            {/* Maintenance Type */}
             <div className="space-y-2">
               <Label className="text-gray-300">Tipo de Manutenção</Label>
               <Select
@@ -131,7 +184,6 @@ export function RegisterMaintenanceDialog({
               </Select>
             </div>
 
-            {/* Performed Date */}
             <div className="space-y-2">
               <Label className="text-gray-300 flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
@@ -148,7 +200,6 @@ export function RegisterMaintenanceDialog({
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            {/* Performed At Hours */}
             <div className="space-y-2">
               <Label className="text-gray-300 flex items-center gap-1">
                 <Clock className="h-3 w-3" />
@@ -164,7 +215,6 @@ export function RegisterMaintenanceDialog({
               />
             </div>
 
-            {/* Next Due (calculated) */}
             <div className="space-y-2">
               <Label className="text-gray-300">Próxima Manutenção (h)</Label>
               <div className="h-10 px-3 flex items-center bg-slate-800/50 border border-white/10 rounded-md text-green-400 font-semibold">
@@ -173,8 +223,30 @@ export function RegisterMaintenanceDialog({
             </div>
           </div>
 
+          {/* Oficina select */}
+          <div className="space-y-2">
+            <Label className="text-gray-300 flex items-center gap-1">
+              <Building className="h-3 w-3" />
+              Oficina / Centro de Manutenção
+            </Label>
+            <Select
+              value={formData.oficina_id}
+              onValueChange={handleOficinaChange}
+            >
+              <SelectTrigger className="bg-slate-800 border-white/10">
+                <SelectValue placeholder="Selecione a oficina" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 border-white/10">
+                {oficinas.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>
+                    {o.razao_social}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
-            {/* Mechanic */}
             <div className="space-y-2">
               <Label className="text-gray-300 flex items-center gap-1">
                 <User className="h-3 w-3" />
@@ -188,23 +260,6 @@ export function RegisterMaintenanceDialog({
               />
             </div>
 
-            {/* Maintenance Center */}
-            <div className="space-y-2">
-              <Label className="text-gray-300 flex items-center gap-1">
-                <Building className="h-3 w-3" />
-                Centro de Manutenção
-              </Label>
-              <Input
-                value={formData.maintenanceCenter}
-                onChange={(e) => setFormData({ ...formData, maintenanceCenter: e.target.value })}
-                placeholder="Nome da oficina"
-                className="bg-slate-800 border-white/10"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            {/* Service Order */}
             <div className="space-y-2">
               <Label className="text-gray-300 flex items-center gap-1">
                 <FileText className="h-3 w-3" />
@@ -217,25 +272,23 @@ export function RegisterMaintenanceDialog({
                 className="bg-slate-800 border-white/10"
               />
             </div>
-
-            {/* Cost */}
-            <div className="space-y-2">
-              <Label className="text-gray-300 flex items-center gap-1">
-                <DollarSign className="h-3 w-3" />
-                Custo (R$)
-              </Label>
-              <Input
-                type="number"
-                step="0.01"
-                value={formData.cost}
-                onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
-                placeholder="0.00"
-                className="bg-slate-800 border-white/10"
-              />
-            </div>
           </div>
 
-          {/* Description */}
+          <div className="space-y-2">
+            <Label className="text-gray-300 flex items-center gap-1">
+              <DollarSign className="h-3 w-3" />
+              Custo (R$)
+            </Label>
+            <Input
+              type="number"
+              step="0.01"
+              value={formData.cost}
+              onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+              placeholder="0.00"
+              className="bg-slate-800 border-white/10"
+            />
+          </div>
+
           <div className="space-y-2">
             <Label className="text-gray-300">Descrição dos Serviços</Label>
             <Textarea
@@ -246,7 +299,6 @@ export function RegisterMaintenanceDialog({
             />
           </div>
 
-          {/* Observations */}
           <div className="space-y-2">
             <Label className="text-gray-300">Observações</Label>
             <Textarea
