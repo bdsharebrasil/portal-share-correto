@@ -7902,6 +7902,45 @@ export type Database = {
           },
         ]
       }
+      oficinas: {
+        Row: {
+          ativo: boolean | null
+          cnpj: string | null
+          created_at: string | null
+          endereco: string | null
+          id: string
+          mecanico_responsavel: string | null
+          razao_social: string
+          telefone: string | null
+          tipo_aeronave: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          cnpj?: string | null
+          created_at?: string | null
+          endereco?: string | null
+          id?: string
+          mecanico_responsavel?: string | null
+          razao_social: string
+          telefone?: string | null
+          tipo_aeronave?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          cnpj?: string | null
+          created_at?: string | null
+          endereco?: string | null
+          id?: string
+          mecanico_responsavel?: string | null
+          razao_social?: string
+          telefone?: string | null
+          tipo_aeronave?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       oil_analysis: {
         Row: {
           aircraft_id: string
