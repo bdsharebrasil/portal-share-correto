@@ -91,9 +91,8 @@ export class FlightService {
       time: flightTime,
       day_time,
       night_time: night_time,
-      logbook_month_id: config.logbookMonthId || undefined,
       aircraft_id: config.aircraftId,
-    };
+    } as any;
   }
 
   /**

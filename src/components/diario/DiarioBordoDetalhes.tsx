@@ -1235,9 +1235,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       departure_aerodrome: entry.departure_aerodrome || '',
       arrival_aerodrome: entry.arrival_aerodrome || '',
       client_id: entry.client_id || '',
-      borrower_client_id: '', // Será preenchido ao buscar o cliente que pega emprestado
-      partner_name: entry.partner_name || '',
-      borrower_partner_name: entry.is_loan ? entry.partner_name : '',
+      loan_recipient_client_id: entry.is_loan ? (entry.loan_recipient_client_id || null) : null,
       is_equal_split: entry.is_equal_split || false,
       is_loan: entry.is_loan || false,
       ac_time: entry.ac_time || '',
