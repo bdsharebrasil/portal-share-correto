@@ -14,7 +14,9 @@ import {
   TrendingDown,
   DollarSign,
   Calendar,
+  Edit2,
 } from "lucide-react"
+import { TransactionEditModal } from "@/components/socios/TransactionEditModal"
 import {
   ResponsiveContainer,
   LineChart,
@@ -54,6 +56,8 @@ export default function RelatorioMensal() {
   const [selectedPartners, setSelectedPartners] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<'date' | 'partner'>('date')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [editingTransaction, setEditingTransaction] = useState<any>(null)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
   // ========================
   // DADOS
@@ -364,6 +368,9 @@ export default function RelatorioMensal() {
                 <table className="w-full text-sm border-collapse">
                   <thead className="border-b-2 border-border bg-slate-900/50">
                     <tr>
+                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground w-10">
+                        Ação
+                      </th>
                       <th 
                         className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
                         onClick={() => {
@@ -436,8 +443,27 @@ export default function RelatorioMensal() {
                             isEven 
                               ? "bg-slate-950/30 hover:bg-slate-900/40" 
                               : "bg-slate-900/30 hover:bg-slate-800/40"
-                          }`}
+                          } cursor-pointer`}
+                          onClick={() => {
+                            setEditingTransaction(tx)
+                            setIsEditModalOpen(true)
+                          }}
                         >
+                          <td className="py-3 px-3 text-center">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setEditingTransaction(tx)
+                                setIsEditModalOpen(true)
+                              }}
+                              title="Editar lançamento"
+                            >
+                              <Edit2 className="h-4 w-4 text-blue-500" />
+                            </Button>
+                          </td>
                           <td className="py-3 px-3 text-foreground">{formattedDate}</td>
                           <td className="py-3 px-3 text-foreground">{tx.description || "-"}</td>
                           <td className="py-3 px-3 text-muted-foreground">{tx.partner_name}</td>
@@ -622,6 +648,17 @@ export default function RelatorioMensal() {
           </Card>
         </div>
       </div>
+
+      {/* Modal de Edição */}
+      <TransactionEditModal
+        transaction={editingTransaction}
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false)
+          setEditingTransaction(null)
+        }}
+        clientId={clienteId || ""}
+      />
     </Layout>
   )
 }

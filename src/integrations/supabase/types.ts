@@ -9795,6 +9795,7 @@ export type Database = {
           login: string
           observacoes: string | null
           senha: string
+          setor: string | null
           site: string
           updated_at: string | null
         }
@@ -9805,6 +9806,7 @@ export type Database = {
           login: string
           observacoes?: string | null
           senha: string
+          setor?: string | null
           site: string
           updated_at?: string | null
         }
@@ -9815,6 +9817,7 @@ export type Database = {
           login?: string
           observacoes?: string | null
           senha?: string
+          setor?: string | null
           site?: string
           updated_at?: string | null
         }

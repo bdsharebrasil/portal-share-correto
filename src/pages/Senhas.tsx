@@ -7,14 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { Key, Plus, Edit2, Trash2, Lock, AlertCircle } from "lucide-react";
+import { Key, Plus, Edit2, Trash2, Lock, AlertCircle, Folder, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { extractSetor } from "@/utils/extractSetor";
 
 interface Senha {
   id: string;
   site: string;
   login: string;
   senha: string;
+  setor: string | null;
   observacoes: string | null;
   created_by: string;
   created_at: string;
@@ -27,13 +29,17 @@ export default function Senhas() {
   const [showDialog, setShowDialog] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState<Record<string, boolean>>({});
+  const [expandedSetores, setExpandedSetores] = useState<Record<string, boolean>>({});
 
   const [formData, setFormData] = useState({
     site: "",
     login: "",
     senha: "",
     observacoes: "",
+    setor: "",
   });
+
+  const [setorSuggestion, setSetorSuggestion] = useState<string | null>(null);
 
   const loadSenhas = useCallback(async () => {
     try {
@@ -61,7 +67,8 @@ export default function Senhas() {
   }, [loadSenhas]);
 
   const resetForm = () => {
-    setFormData({ site: "", login: "", senha: "", observacoes: "" });
+    setFormData({ site: "", login: "", senha: "", observacoes: "", setor: "" });
+    setSetorSuggestion(null);
     setEditingId(null);
   };
 
@@ -72,7 +79,9 @@ export default function Senhas() {
         login: senha.login,
         senha: senha.senha,
         observacoes: senha.observacoes || "",
+        setor: senha.setor || "",
       });
+      setSetorSuggestion(null);
       setEditingId(senha.id);
     } else {
       resetForm();
@@ -89,6 +98,9 @@ export default function Senhas() {
     try {
       setLoading(true);
 
+      // Auto-fill setor se estiver vazio
+      const setorFinal = formData.setor.trim() || extractSetor(formData.site) || null;
+
       if (editingId) {
         const { error } = await supabase
           .from("senhas")
@@ -96,6 +108,7 @@ export default function Senhas() {
             site: formData.site,
             login: formData.login,
             senha: formData.senha,
+            setor: setorFinal,
             observacoes: formData.observacoes || null,
             updated_at: new Date().toISOString(),
           })
@@ -108,6 +121,7 @@ export default function Senhas() {
           site: formData.site,
           login: formData.login,
           senha: formData.senha,
+          setor: setorFinal,
           observacoes: formData.observacoes || null,
         });
 
@@ -151,6 +165,93 @@ export default function Senhas() {
     }));
   };
 
+  // Agrupa senhas por setor
+  const gruposSetor = senhas.reduce(
+    (acc, senha) => {
+      const setor = senha.setor || "Outros";
+      if (!acc[setor]) {
+        acc[setor] = [];
+      }
+      acc[setor].push(senha);
+      return acc;
+    },
+    {} as Record<string, Senha[]>
+  );
+
+  // Ordena setores (Outros no final)
+  const setoresOrdenados = Object.keys(gruposSetor).sort((a, b) => {
+    if (a === "Outros") return 1;
+    if (b === "Outros") return -1;
+    return a.localeCompare(b);
+  });
+
+  // Renderiza um card de senha
+  const renderSenhaCard = (senha: Senha) => (
+    <Card key={senha.id} className="border-border hover:border-primary/50 transition-colors">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-lg text-foreground truncate">
+              {senha.site}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground truncate mt-1">
+              {senha.login}
+            </p>
+          </div>
+          <div className="flex gap-2 ml-2 flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleOpenDialog(senha)}
+              className="h-8 w-8 p-0"
+            >
+              <Edit2 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleDelete(senha.id)}
+              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Senha */}
+        <div>
+          <Label className="text-xs text-muted-foreground">Senha</Label>
+          <div className="flex items-center gap-2 mt-1">
+            <div className="flex-1 bg-muted p-2 rounded text-sm font-mono text-foreground truncate">
+              {showPassword[senha.id]
+                ? senha.senha
+                : "•".repeat(Math.min(senha.senha.length, 12))}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => togglePasswordVisibility(senha.id)}
+              className="px-2"
+            >
+              {showPassword[senha.id] ? "Ocultar" : "Ver"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Observações */}
+        {senha.observacoes && (
+          <div>
+            <Label className="text-xs text-muted-foreground">Observações</Label>
+            <p className="text-sm text-foreground mt-1 bg-muted p-2 rounded">
+              {senha.observacoes}
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
     <Layout>
       <div className="space-y-6 p-6">
@@ -192,7 +293,7 @@ export default function Senhas() {
           </CardContent>
         </Card>
 
-        {/* Grid de Senhas */}
+        {/* Senhas agrupadas por Setor */}
         {loading && senhas.length === 0 ? (
           <div className="text-center py-12">
             <Lock className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
@@ -208,75 +309,56 @@ export default function Senhas() {
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {senhas.map((senha) => (
-              <Card
-                key={senha.id}
-                className="border-border hover:border-primary/50 transition-colors"
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-lg text-foreground truncate">
-                        {senha.site}
-                      </CardTitle>
-                      <p className="text-sm text-muted-foreground truncate mt-1">
-                        {senha.login}
-                      </p>
-                    </div>
-                    <div className="flex gap-2 ml-2 flex-shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenDialog(senha)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(senha.id)}
-                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {/* Senha */}
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Senha</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="flex-1 bg-muted p-2 rounded text-sm font-mono text-foreground truncate">
-                        {showPassword[senha.id]
-                          ? senha.senha
-                          : "•".repeat(Math.min(senha.senha.length, 12))}
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => togglePasswordVisibility(senha.id)}
-                        className="px-2"
-                      >
-                        {showPassword[senha.id] ? "Ocultar" : "Ver"}
-                      </Button>
-                    </div>
-                  </div>
+          <div className="space-y-4">
+            {setoresOrdenados.map((setor) => {
+              const senhasDoSetor = gruposSetor[setor];
+              const isExpanded = expandedSetores[setor] !== false; // Expandido por padrão
 
-                  {/* Observações */}
-                  {senha.observacoes && (
-                    <div>
-                      <Label className="text-xs text-muted-foreground">Observações</Label>
-                      <p className="text-sm text-foreground mt-1 bg-muted p-2 rounded">
-                        {senha.observacoes}
-                      </p>
-                    </div>
+              return (
+                <Card key={setor} className="border-border/70 bg-card">
+                  {/* Header da Pasta */}
+                  <button
+                    onClick={() =>
+                      setExpandedSetores((prev) => ({
+                        ...prev,
+                        [setor]: !prev[setor],
+                      }))
+                    }
+                    className="w-full text-left"
+                  >
+                    <CardHeader className="pb-3 hover:bg-muted/50 transition-colors cursor-pointer">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Folder className="h-5 w-5 text-primary/70" />
+                          <CardTitle className="text-base">
+                            {setor}
+                          </CardTitle>
+                          <span className="text-xs bg-primary/10 text-primary px-2.5 py-1 rounded-full font-semibold">
+                            {senhasDoSetor.length}
+                          </span>
+                        </div>
+                        <div className="flex-shrink-0">
+                          {isExpanded ? (
+                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                          )}
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </button>
+
+                  {/* Conteúdo - Senhas */}
+                  {isExpanded && (
+                    <CardContent className="pt-0">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {senhasDoSetor.map((senha) => renderSenhaCard(senha))}
+                      </div>
+                    </CardContent>
                   )}
-                </CardContent>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
 
@@ -295,12 +377,41 @@ export default function Senhas() {
                 <Input
                   id="site"
                   value={formData.site}
-                  onChange={(e) =>
-                    setFormData({ ...formData, site: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setFormData({ ...formData, site: e.target.value });
+                    // Atualiza sugestão de setor
+                    setSetorSuggestion(extractSetor(e.target.value));
+                  }}
                   placeholder="Ex: TARIFAS DECEA"
                   disabled={loading}
                 />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label htmlFor="setor">Setor (Pasta)</Label>
+                  {setorSuggestion && !formData.setor && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, setor: setorSuggestion })}
+                      className="text-xs text-primary hover:underline font-medium"
+                    >
+                      Usar: {setorSuggestion}
+                    </button>
+                  )}
+                </div>
+                <Input
+                  id="setor"
+                  value={formData.setor}
+                  onChange={(e) =>
+                    setFormData({ ...formData, setor: e.target.value })
+                  }
+                  placeholder={setorSuggestion ? `Sugestão: ${setorSuggestion}` : "Ex: PR-MDL, TESTE"}
+                  disabled={loading}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  O setor agrupará as senhas em pastas. Deixe vazio para usar a automática.
+                </p>
               </div>
 
               <div>
