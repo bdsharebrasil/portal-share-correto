@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plane, ChevronDown, ChevronRight, Wrench, Clock, CheckCircle2 } from "lucide-react";
+import { Plane, ChevronDown, Wrench, Clock, CheckCircle2, Settings, ArrowLeft } from "lucide-react";
 import { CTMAircraftDetail } from "@/components/ctm/CTMAircraftDetail";
+import { OficinasManager } from "@/components/ctm/OficinasManager";
 import { motion, AnimatePresence } from "framer-motion";
 interface Aircraft {
   id: string;
@@ -21,9 +22,12 @@ export default function GestaoCTM() {
   const [selectedAircraft, setSelectedAircraft] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [showInactive, setShowInactive] = useState(false);
+  const [viewMode, setViewMode] = useState<"dashboard" | "settings">("dashboard");
+
   useEffect(() => {
     loadAircraft();
   }, []);
+
   const loadAircraft = async () => {
     try {
       const {
@@ -38,12 +42,15 @@ export default function GestaoCTM() {
       setLoading(false);
     }
   };
+
   const handleSelectAircraft = (aircraftId: string) => {
     setSelectedAircraft(aircraftId);
   };
+
   const handleBack = () => {
     setSelectedAircraft("");
   };
+
   if (loading) {
     return <Layout>
         <div className="p-6 flex items-center justify-center min-h-[400px]">
@@ -58,6 +65,25 @@ export default function GestaoCTM() {
           </motion.div>
         </div>
       </Layout>;
+  }
+
+  if (viewMode === "settings") {
+    return (
+      <Layout>
+        <div className="p-6 space-y-6">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => setViewMode("dashboard")}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Configurações CTM</h1>
+              <p className="text-muted-foreground">Cadastro de oficinas</p>
+            </div>
+          </div>
+          <OficinasManager />
+        </div>
+      </Layout>
+    );
   }
 
   // If aircraft is selected, show the detail view
@@ -84,18 +110,29 @@ export default function GestaoCTM() {
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/10 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
           
-          <div className="relative z-10 flex items-center gap-6">
-            <div className="p-4 bg-primary/20 rounded-2xl backdrop-blur-sm border border-primary/30">
-              <Wrench className="h-10 w-10 text-primary" />
+          <div className="relative z-10 flex items-start justify-between gap-6">
+            <div className="flex items-center gap-6">
+              <div className="p-4 bg-primary/20 rounded-2xl backdrop-blur-sm border border-primary/30">
+                <Wrench className="h-10 w-10 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-4xl font-black text-foreground tracking-tight">
+                  Gestão CTM
+                </h1>
+                <p className="text-lg text-muted-foreground mt-1">
+                  Controle Técnico de Manutenção
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-4xl font-black text-foreground tracking-tight">
-                Gestão CTM
-              </h1>
-              <p className="text-lg text-muted-foreground mt-1">
-                Controle Técnico de Manutenção
-              </p>
-            </div>
+
+            <Button
+              variant="outline"
+              className="gap-2 bg-background/40 backdrop-blur-sm"
+              onClick={() => setViewMode("settings")}
+            >
+              <Settings className="h-4 w-4" />
+              Configurações
+            </Button>
           </div>
 
           <div className="relative z-10 mt-6 flex gap-6">
