@@ -91,9 +91,8 @@ export class FlightService {
       time: flightTime,
       day_time,
       night_time: night_time,
-      logbook_month_id: config.logbookMonthId || undefined,
       aircraft_id: config.aircraftId,
-    };
+    } as any;
   }
 
   /**
@@ -198,7 +197,7 @@ export class FlightService {
   ): Promise<void> {
     try {
       // Criar registro de empréstimo
-      const { error: loanError } = await supabase
+      const { error: loanError } = await (supabase as any)
         .from('aircraft_loans')
         .insert([
           {

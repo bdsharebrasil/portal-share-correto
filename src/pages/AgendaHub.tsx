@@ -14,7 +14,7 @@ interface TabItem {
   id: TabId;
   title: string;
   icon: LucideIcon;
-  component: React.LazyExoticComponent<() => JSX.Element>;
+  component: React.LazyExoticComponent<() => React.JSX.Element>;
 }
 const DEFAULT_TABS: TabItem[] = [{
   id: "contatos",

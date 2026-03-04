@@ -91,7 +91,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   // Obter a rota correta do dashboard baseado nas roles do usuário
   const dashboardRoute = useMemo(() => {
-    const { route } = getDashboardRouteFromRoles(userRoles);
+    const { route } = getDashboardRouteFromRoles(userRoles as string[]);
     return route;
   }, [userRoles]);
 

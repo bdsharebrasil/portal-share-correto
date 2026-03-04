@@ -20,7 +20,7 @@ export function RoleProtected({ children, allowedRoles }: RoleProtectedProps) {
     );
   }
 
-  const hasAny = allowedRoles.some(r => userRoles.includes(r as any));
+  const hasAny = allowedRoles.some(r => (userRoles as string[]).includes(r));
 
   if (!hasAny) {
     // Mostrar mensagem de Acesso Negado dentro do layout

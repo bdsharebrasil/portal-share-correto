@@ -184,7 +184,7 @@ export function ContasRecorrentesTab() {
         const dataRecebimento = new Date().toISOString().split('T')[0];
 
         // Verificar se já existe uma conta a pagar para este fornecedor/mês
-        const { data: existing } = await supabase
+        const { data: existing } = await (supabase as any)
           .from("contas_apagar")
           .select("id")
           .eq("fornecedor_nome", conta.fornecedor)

@@ -37,7 +37,7 @@ export function FormDespesasEmpresa({ form, setForm, fornecedores, onReloadForne
   }, []);
 
   const loadEmpresas = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("empresas")
       .select("id, razao_social, cnpj");
 

@@ -217,7 +217,7 @@ export async function createContaAPagar(
 
     let nextNumber = 1;
     if (lastRecord && lastRecord.length > 0) {
-      const lastNumero = lastRecord[0].numero;
+      const lastNumero = (lastRecord[0] as any).numero;
       const match = lastNumero.match(/CP-(\d+)\//);
       if (match && match[1]) {
         nextNumber = parseInt(match[1]) + 1;

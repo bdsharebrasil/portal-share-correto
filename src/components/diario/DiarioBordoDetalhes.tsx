@@ -370,7 +370,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           logSuccess('Client Partners carregados', { count: clientPartnersRes.data.length });
         }
 
-        const loansRes = await supabase
+        const loansRes = await (supabase as any)
           .from('aircraft_loans')
           .select('*')
           .eq('lender_aircraft_id', aircraftId)
@@ -1227,6 +1227,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     // Carregar dados da entrada no formulário de novo lançamento
     // Para empréstimos: partner_name contém o nome de quem pegou emprestado
     setNewEntry({
+      ...newEntry,
       entry_date: entry.entry_date,
       pic_canac: entry.pic_canac || '',
       sic_canac: entry.sic_canac || '',
@@ -1235,9 +1236,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       departure_aerodrome: entry.departure_aerodrome || '',
       arrival_aerodrome: entry.arrival_aerodrome || '',
       client_id: entry.client_id || '',
-      borrower_client_id: '', // Será preenchido ao buscar o cliente que pega emprestado
-      partner_name: entry.partner_name || '',
-      borrower_partner_name: entry.is_loan ? entry.partner_name : '',
+      loan_recipient_client_id: entry.is_loan ? (entry.loan_recipient_client_id || null) : null,
       is_equal_split: entry.is_equal_split || false,
       is_loan: entry.is_loan || false,
       ac_time: entry.ac_time || '',

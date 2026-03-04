@@ -87,8 +87,8 @@ export function useExpirationAlerts(userId: string | null) {
         return true;
       });
 
-      setAlerts(allAlerts || []);
-      setVisibleAlerts(filteredAlerts);
+      setAlerts((allAlerts || []) as ExpirationAlert[]);
+      setVisibleAlerts(filteredAlerts as ExpirationAlert[]);
     } catch (err) {
       console.error('Error fetching expiration alerts:', err);
       setError(err instanceof Error ? err.message : 'Failed to load alerts');
