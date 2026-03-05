@@ -335,7 +335,7 @@ export default function RelatorioViagem() {
     }
 
     try {
-      await supabase.from('expense_items').delete().eq('report_id', reportId);
+      await (supabase as any).from('expense_items').delete().eq('report_id', reportId);
 
       const { error } = await supabase
         .from('travel_expense_reports')

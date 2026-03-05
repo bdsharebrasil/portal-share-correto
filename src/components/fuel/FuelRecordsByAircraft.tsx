@@ -47,6 +47,7 @@ interface FuelRecord {
   status_pagamento?: string | null;
   tipo_faturamento?: string | null;
   observacao?: string | null;
+  partner_name?: string | null;
 }
 interface FuelSupplier {
   id: string;
@@ -414,12 +415,9 @@ export function FuelRecordsByAircraft({
       }
       const supplierName = formData.abastecedor_id ? suppliers.find(s => s.id === formData.abastecedor_id)?.supplier_name || null : null;
 
-      let observacaoFinal = formData.observacao || null;
+      const observacaoFinal = formData.observacao || null;
       const selectedPartner = clientPartners.find(p => p.id === formData.client_id);
-      if (selectedPartner && !selectedPartner.isMainClient) {
-        const partnerInfo = `[Partner:${selectedPartner.name}]`;
-        observacaoFinal = observacaoFinal ? `${partnerInfo} ${observacaoFinal}` : partnerInfo;
-      }
+      const partnerNameValue = (selectedPartner && !selectedPartner.isMainClient) ? selectedPartner.name : null;
 
       let partnerIndex: number | null = null;
       if (selectedPartner && !selectedPartner.isMainClient) {
@@ -442,6 +440,7 @@ export function FuelRecordsByAircraft({
         status_pagamento: formData.status_pagamento || "em aberto",
         tipo_faturamento: formData.tipo_faturamento || null,
         observacao: observacaoFinal,
+        partner_name: partnerNameValue,
         partner_index: partnerIndex,
         comanda_url: comandaUrl || null,
         nota_url: notaUrl || null,
@@ -1047,6 +1046,7 @@ export function FuelRecordsByAircraft({
                 <TableHead className="font-semibold text-foreground">Local</TableHead>
                 <TableHead className="font-semibold text-foreground">Comanda</TableHead>
                 <TableHead className="font-semibold text-foreground">Fornecedor</TableHead>
+                <TableHead className="font-semibold text-foreground">Sócio</TableHead>
                 <TableHead className="font-semibold text-foreground">Status</TableHead>
                 <TableHead className="text-right font-semibold text-foreground">Litros</TableHead>
                 <TableHead className="text-right font-semibold text-foreground">Valor Unit.</TableHead>
@@ -1066,6 +1066,7 @@ export function FuelRecordsByAircraft({
                 <TableCell className="text-muted-foreground">{record.local || "-"}</TableCell>
                 <TableCell className="font-mono text-foreground">{record.comanda}</TableCell>
                 <TableCell className="text-muted-foreground">{record.abastecedor || "-"}</TableCell>
+                <TableCell className="text-muted-foreground font-medium">{record.partner_name || "-"}</TableCell>
                 <TableCell>
                   {record.status_pagamento === "pago" ? <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold">
                     <FileCheck className="h-4 w-4" />
@@ -1089,7 +1090,7 @@ export function FuelRecordsByAircraft({
                 </TableCell>
                 <TableCell className="text-muted-foreground max-w-xs">
                   <div className="truncate" title={record.observacao || ""}>
-                    {record.observacao || "-"}
+                    {(record.observacao && record.observacao.replace(/\[Partner:[^\]]*\]\s*/g, '').trim()) || "-"}
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
