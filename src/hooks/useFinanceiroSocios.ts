@@ -877,7 +877,6 @@ export function useUpdateTransaction() {
           .from("abastecimentos")
           .update({
             descricao: data.description,
-            valor_total: data.amount,
             data: data.paymentDate,
             observacao: data.notes || null,
           })
