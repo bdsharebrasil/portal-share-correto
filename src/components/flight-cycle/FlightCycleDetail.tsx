@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Plane, MapPin, Calendar, Clock, User, ChevronDown, ChevronUp, Plus, FileText, Edit2, X } from "lucide-react";
+import { ArrowLeft, Plane, MapPin, Calendar, Clock, User, ChevronDown, ChevronUp, Plus, FileText, Edit2, X, Trash2 } from "lucide-react";
 import { FlightCycle, FlightExpense, FLIGHT_STATUS_CONFIG, EXPENSE_STATUS_CONFIG, ExpenseStatus } from "@/types/flightCycle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,8 +10,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { format, differenceInDays, isPast, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { formatFlightDuration, parseFlightDuration } from "@/lib/duration-utils";
+import { formatFlightDuration } from "@/lib/duration-utils";
 import { AddExpenseDialog } from "./AddExpenseDialog";
+import { FlightDurationInput } from "./FlightDurationInput";
 import { supabase } from "@/integrations/supabase/client";
 import { useCrewMembers } from "@/hooks/useCrewMembers";
 
@@ -38,6 +39,7 @@ interface FlightCycleDetailProps {
   onUpdateExpenseStatus: (expenseId: string, status: ExpenseStatus, additionalData?: Partial<FlightExpense>) => void;
   onUpdateCycleStatus: (cycleId: string, status: FlightCycle['status']) => void;
   onAddExpense: (cycleId: string, expense: Partial<FlightExpense>) => void;
+  onDeleteExpense?: (expenseId: string) => Promise<void>;
   onUpdateCycle?: (cycleId: string, updates: Partial<FlightCycle>) => Promise<void>;
 }
 
@@ -47,6 +49,7 @@ export function FlightCycleDetail({
   onUpdateExpenseStatus,
   onUpdateCycleStatus,
   onAddExpense,
+  onDeleteExpense,
   onUpdateCycle,
 }: FlightCycleDetailProps) {
   const [expandedExpense, setExpandedExpense] = useState<string | null>(null);
@@ -67,7 +70,6 @@ export function FlightCycleDetail({
   });
   const [savingEdit, setSavingEdit] = useState(false);
   const [expenseEdits, setExpenseEdits] = useState<Record<string, { amount: number | null; status: ExpenseStatus }>>({});
-  const [durationInput, setDurationInput] = useState(editData.flight_duration_hours ? formatFlightDuration(parseFloat(editData.flight_duration_hours)) : '');
 
   const statusConfig = FLIGHT_STATUS_CONFIG[cycle.status];
 
@@ -81,7 +83,6 @@ export function FlightCycleDetail({
   useEffect(() => {
     if (isEditing) {
       loadEditData();
-      setDurationInput(editData.flight_duration_hours ? formatFlightDuration(parseFloat(editData.flight_duration_hours)) : '');
     }
   }, [isEditing]);
 
@@ -307,23 +308,10 @@ export function FlightCycleDetail({
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label>Duração do Voo (HH:MM)</Label>
-                <Input
-                  type="text"
-                  value={durationInput}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setDurationInput(value);
-                    // Atualiza editData apenas se for um formato válido ou vazio
-                    const parsed = parseFlightDuration(value);
-                    if (parsed !== null) {
-                      setEditData(prev => ({ ...prev, flight_duration_hours: parsed.toString() }));
-                    } else if (value === '') {
-                      setEditData(prev => ({ ...prev, flight_duration_hours: '' }));
-                    }
-                  }}
-                  placeholder="00:00"
+              <div>
+                <FlightDurationInput
+                  value={editData.flight_duration_hours}
+                  onChange={(value) => setEditData(prev => ({ ...prev, flight_duration_hours: value }))}
                 />
               </div>
             </div>
@@ -597,7 +585,7 @@ export function FlightCycleDetail({
                                   />
                                 </div>
                                 
-                                <Button 
+                                <Button
                                   size="sm"
                                   onClick={() => {
                                     const newStatus = expenseEdits[expense.id]?.status || expense.status;
@@ -611,6 +599,19 @@ export function FlightCycleDetail({
                                   }}
                                 >
                                   Salvar
+                                </Button>
+
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => {
+                                    if (onDeleteExpense && window.confirm('Tem certeza que deseja excluir esta despesa?')) {
+                                      onDeleteExpense(expense.id);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Excluir
                                 </Button>
                               </div>
                             </div>

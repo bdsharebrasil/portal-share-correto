@@ -8,8 +8,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { FlightCycle, CrewMember } from "@/types/flightCycle";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { formatFlightDuration, parseFlightDuration } from "@/lib/duration-utils";
 import { useCrewMembers } from "@/hooks/useCrewMembers";
+import { FlightDurationInput } from "./FlightDurationInput";
 
 interface CreateFlightCycleDialogProps {
   open: boolean;
@@ -40,7 +40,6 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
   const [partners, setPartners] = useState<ClientPartner[]>([]);
   const [loading, setLoading] = useState(false);
   const { crewMembers, fetchCrewMembers } = useCrewMembers();
-  const [durationInput, setDurationInput] = useState('');
 
   const [formData, setFormData] = useState({
     client_id: '',
@@ -62,7 +61,6 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
   useEffect(() => {
     if (open) {
       loadData();
-      setDurationInput('');
     }
   }, [open]);
 
@@ -275,23 +273,10 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Duração do Voo (HH:MM)</Label>
-              <Input
-                type="text"
-                value={durationInput}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setDurationInput(value);
-                  // Atualiza formData apenas se for um formato válido ou vazio
-                  const parsed = parseFlightDuration(value);
-                  if (parsed !== null) {
-                    setFormData(prev => ({ ...prev, flight_duration_hours: parsed.toString() }));
-                  } else if (value === '') {
-                    setFormData(prev => ({ ...prev, flight_duration_hours: '' }));
-                  }
-                }}
-                placeholder="00:00"
+            <div>
+              <FlightDurationInput
+                value={formData.flight_duration_hours}
+                onChange={(value) => setFormData(prev => ({ ...prev, flight_duration_hours: value }))}
               />
             </div>
           </div>

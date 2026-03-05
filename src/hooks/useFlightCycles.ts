@@ -243,6 +243,22 @@ export function useFlightCycles() {
     }
   };
 
+  const deleteExpense = async (expenseId: string) => {
+    try {
+      const { error } = await supabase
+        .from('flight_expenses')
+        .delete()
+        .eq('id', expenseId);
+
+      if (error) throw error;
+
+      toast.success('Despesa excluída!');
+      await fetchCycles();
+    } catch (err: any) {
+      toast.error('Erro ao excluir despesa');
+    }
+  };
+
   // Calculate statistics
   const getStatistics = useCallback(() => {
     const activeFlights = cycles.filter(c => !['finalizado'].includes(c.status)).length;
@@ -271,6 +287,7 @@ export function useFlightCycles() {
     updateCycleStatus,
     updateExpenseStatus,
     addManualExpense,
+    deleteExpense,
     deleteCycle,
     getStatistics,
   };
