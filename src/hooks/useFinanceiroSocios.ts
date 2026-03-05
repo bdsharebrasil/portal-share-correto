@@ -855,9 +855,19 @@ export function useUpdateTransaction() {
       description: string;
       amount: number;
       paymentDate: string;
+      dueDate?: string | null;
       notes?: string | null;
       bankName?: string | null;
       prazo?: string | null;
+      category?: string | null;
+      expenseType?: string | null;
+      supplierName?: string | null;
+      paymentMethod?: string | null;
+      status?: string | null;
+      assignedPartnerCpf?: string | null;
+      assignedPartnerName?: string | null;
+      invoiceNumber?: string | null;
+      invoiceUrl?: string | null;
     }) => {
       if (data.transactionType === "partner_expense") {
         const { error } = await supabase
@@ -865,10 +875,20 @@ export function useUpdateTransaction() {
           .update({
             description: data.description,
             total_amount: data.amount,
-            due_date: data.paymentDate,
+            due_date: data.dueDate || data.paymentDate,
+            paid_date: data.paymentDate,
             notes: data.notes || null,
             bank_name: data.bankName || null,
             prazo: data.prazo || null,
+            category: data.category || null,
+            expense_type: data.expenseType || data.category || undefined,
+            supplier_name: data.supplierName || null,
+            payment_method: data.paymentMethod || null,
+            status: data.status || null,
+            assigned_partner_cpf: data.assignedPartnerCpf || null,
+            assigned_partner_name: data.assignedPartnerName || null,
+            invoice_number: data.invoiceNumber || null,
+            invoice_url: data.invoiceUrl || null,
           })
           .eq("id", data.id);
         if (error) throw error;
@@ -877,6 +897,7 @@ export function useUpdateTransaction() {
           .from("abastecimentos")
           .update({
             descricao: data.description,
+            valor_total: data.amount,
             data: data.paymentDate,
             observacao: data.notes || null,
           })
