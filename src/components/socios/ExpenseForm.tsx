@@ -46,7 +46,8 @@ export const EXPENSE_CATEGORIES = [
 { id: "contabilidade", label: "Honorários Contabilidade", icon: "📊" },
 { id: "ressarcimento", label: "Ressarcimento/Reembolso", icon: "💸" },
 { id: "viagem", label: "Despesas de Viagem", icon: "🧳" },
-{ id: "infraero", label: "INFRAERO", icon: "🏛️" },
+{ id: "infraero", label: "INFRAERO", icon: "🛬" },
+ { id: "decea", label: "DECEA", icon: "🛬" },
 { id: "impostos", label: "Impostos", icon: "🏦" },
 { id: "outros", label: "Outros", icon: "📎" }] as
 const;
