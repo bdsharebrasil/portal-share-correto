@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Trash2, Edit2, Building2, Tag, Users, User, Ban } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -26,6 +28,7 @@ interface Fornecedor {
 const CATEGORIAS = [
   { value: "share", label: "Share", icon: Users, color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
   { value: "particular", label: "Particular", icon: User, color: "bg-green-500/20 text-green-400 border-green-500/30" },
+  { value: "ambos", label: "Ambos", icon: Users, color: "bg-purple-500/20 text-purple-400 border-purple-500/30" },
   { value: "nenhum", label: "Nenhum", icon: Ban, color: "bg-gray-500/20 text-gray-400 border-gray-500/30" },
 ];
 
@@ -38,6 +41,69 @@ export function FornecedoresFavoritos() {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editingFornecedor, setEditingFornecedor] = useState<Fornecedor | null>(null);
   const [categoriaFilter, setCategoriaFilter] = useState<string>("todos");
+
+  // helper function for rendering list of fornecedores
+  const renderFornecedoresList = (list: Fornecedor[]) => (
+    <div className="space-y-3">
+      {list.map((fornecedor) => {
+        const catInfo = getCategoriaInfo(fornecedor.categoria);
+        const CatIcon = catInfo.icon;
+        return (
+          <div
+            key={fornecedor.id}
+            className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50 hover:border-border transition-colors"
+          >
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h4 className="font-medium text-foreground truncate">
+                  {fornecedor.nome_completo}
+                </h4>
+                {fornecedor.apelido && (
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-xs">
+                    <Tag className="w-3 h-3 mr-1" />
+                    {fornecedor.apelido}
+                  </Badge>
+                )}
+                <Badge variant="outline" className={`text-xs ${catInfo.color}`}>
+                  <CatIcon className="w-3 h-3 mr-1" />
+                  {catInfo.label}
+                </Badge>
+              </div>
+              <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
+                {fornecedor.documento && (
+                  <span>CPF/CNPJ: {fornecedor.documento}</span>
+                )}
+                {fornecedor.cidade && (
+                  <span>Cidade: {fornecedor.cidade}</span>
+                )}
+                {fornecedor.telefone && (
+                  <span>Tel: {fornecedor.telefone}</span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 ml-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleOpenDialog(fornecedor)}
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              >
+                <Edit2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setDeleteConfirmId(fornecedor.id)}
+                className="h-8 w-8 text-muted-foreground hover:text-red-500"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 
   const [formData, setFormData] = useState({
     nome_completo: "",
@@ -168,9 +234,15 @@ export function FornecedoresFavoritos() {
   };
 
   const filteredFornecedores = fornecedores.filter(f => {
-    // Filtro de categoria
-    if (categoriaFilter !== "todos" && f.categoria !== categoriaFilter) {
-      return false;
+    // Filtro de categoria com tratamento de "ambos" como pertencente a share e particular
+    if (categoriaFilter !== "todos") {
+      if (categoriaFilter === "share") {
+        if (!(f.categoria === "share" || f.categoria === "ambos")) return false;
+      } else if (categoriaFilter === "particular") {
+        if (!(f.categoria === "particular" || f.categoria === "ambos")) return false;
+      } else {
+        if (f.categoria !== categoriaFilter) return false;
+      }
     }
     
     // Filtro de busca
@@ -182,6 +254,27 @@ export function FornecedoresFavoritos() {
       (f.cidade && f.cidade.toLowerCase().includes(searchLower))
     );
   });
+
+  // agrupamento por categoria com ordenação alfabética
+  const groupedFornecedores = React.useMemo(() => {
+    const sortByName = (arr: Fornecedor[]) =>
+      [...arr].sort((a, b) => a.nome_completo.localeCompare(b.nome_completo));
+
+    const share = sortByName(
+      filteredFornecedores.filter(f => f.categoria === "share" || f.categoria === "ambos")
+    );
+    const particular = sortByName(
+      filteredFornecedores.filter(f => f.categoria === "particular" || f.categoria === "ambos")
+    );
+    const ambos = sortByName(filteredFornecedores.filter(f => f.categoria === "ambos"));
+    const others = sortByName(
+      filteredFornecedores.filter(
+        f => !["share", "particular", "ambos"].includes(f.categoria || "")
+      )
+    );
+
+    return { share, particular, ambos, others };
+  }, [filteredFornecedores]);
 
   return (
     <Card className="bg-card border-border/50">
@@ -227,7 +320,7 @@ export function FornecedoresFavoritos() {
           </Select>
         </div>
 
-        {/* List */}
+        {/* List: tabs with accordion sections */}
         {isLoading ? (
           <div className="flex justify-center items-center h-32">
             <p className="text-muted-foreground">Carregando...</p>
@@ -239,66 +332,160 @@ export function FornecedoresFavoritos() {
             <p className="text-sm text-muted-foreground mt-1">Clique em "Novo Fornecedor" para adicionar</p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredFornecedores.map((fornecedor) => {
-              const catInfo = getCategoriaInfo(fornecedor.categoria);
-              const CatIcon = catInfo.icon;
-              
-              return (
-                <div
-                  key={fornecedor.id}
-                  className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50 hover:border-border transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <h4 className="font-medium text-foreground truncate">
-                        {fornecedor.nome_completo}
-                      </h4>
-                      {fornecedor.apelido && (
-                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-xs">
-                          <Tag className="w-3 h-3 mr-1" />
-                          {fornecedor.apelido}
-                        </Badge>
-                      )}
-                      <Badge variant="outline" className={`text-xs ${catInfo.color}`}>
-                        <CatIcon className="w-3 h-3 mr-1" />
-                        {catInfo.label}
-                      </Badge>
-                    </div>
-                    <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
-                      {fornecedor.documento && (
-                        <span>CPF/CNPJ: {fornecedor.documento}</span>
-                      )}
-                      {fornecedor.cidade && (
-                        <span>Cidade: {fornecedor.cidade}</span>
-                      )}
-                      {fornecedor.telefone && (
-                        <span>Tel: {fornecedor.telefone}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 ml-4">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleOpenDialog(fornecedor)}
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setDeleteConfirmId(fornecedor.id)}
-                      className="h-8 w-8 text-muted-foreground hover:text-red-500"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <Tabs defaultValue="all" className="w-full">
+            <TabsList className="mb-4 grid grid-cols-4 gap-2">
+              <TabsTrigger
+                value="all"
+                className="rounded-lg border border-border/50 px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200"
+              >
+                Todos
+              </TabsTrigger>
+              <TabsTrigger
+                value="share"
+                className="rounded-lg border border-border/50 px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200"
+              >
+                Share
+              </TabsTrigger>
+              <TabsTrigger
+                value="particular"
+                className="rounded-lg border border-border/50 px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200"
+              >
+                Particular
+              </TabsTrigger>
+              <TabsTrigger
+                value="ambos"
+                className="rounded-lg border border-border/50 px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200"
+              >
+                Ambos
+              </TabsTrigger>
+              <TabsTrigger
+                value="others"
+                className="rounded-lg border border-border/50 px-4 py-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md transition-all duration-200"
+              >
+                Outros
+              </TabsTrigger>
+            </TabsList>
+
+            {/* ALL tab shows all groups with collapsible accordion */}
+            <TabsContent value="all">
+              <Accordion type="multiple" defaultValue={[
+                groupedFornecedores.share.length > 0 ? "share" : "",
+                groupedFornecedores.particular.length > 0 ? "particular" : "",
+                groupedFornecedores.others.length > 0 ? "others" : "",
+              ].filter(Boolean) as string[]}
+              >
+                    {groupedFornecedores.share.length > 0 && (
+                  <AccordionItem value="share">
+                    <AccordionTrigger className="border border-border/50 rounded-lg px-4">
+                      Share ({groupedFornecedores.share.length})
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      {renderFornecedoresList(groupedFornecedores.share)}
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+                {groupedFornecedores.particular.length > 0 && (
+                  <AccordionItem value="particular">
+                    <AccordionTrigger className="border border-border/50 rounded-lg px-4">
+                      Particular ({groupedFornecedores.particular.length})
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      {renderFornecedoresList(groupedFornecedores.particular)}
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+                {groupedFornecedores.ambos.length > 0 && (
+                  <AccordionItem value="ambos">
+                    <AccordionTrigger className="border border-border/50 rounded-lg px-4">
+                      Ambos ({groupedFornecedores.ambos.length})
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      {renderFornecedoresList(groupedFornecedores.ambos)}
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+                {groupedFornecedores.others.length > 0 && (
+                  <AccordionItem value="others">
+                    <AccordionTrigger className="border border-border/50 rounded-lg px-4">
+                      Outros ({groupedFornecedores.others.length})
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      {renderFornecedoresList(groupedFornecedores.others)}
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+              </Accordion>
+            </TabsContent>
+
+            {/* Individual group tabs */}
+            <TabsContent value="share">
+              {groupedFornecedores.share.length > 0 ? (
+                <Accordion type="single" collapsible defaultValue="share-group">
+                  <AccordionItem value="share-group">
+                    <AccordionTrigger className="border border-border/50 rounded-lg px-4">
+                      Share ({groupedFornecedores.share.length})
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      {renderFornecedoresList(groupedFornecedores.share)}
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              ) : (
+                <p className="text-muted-foreground">Nenhum fornecedor Share</p>
+              )}
+            </TabsContent>
+
+            <TabsContent value="particular">
+              {groupedFornecedores.particular.length > 0 ? (
+                <Accordion type="single" collapsible defaultValue="particular-group">
+                  <AccordionItem value="particular-group">
+                    <AccordionTrigger className="border border-border/50 rounded-lg px-4">
+                      Particular ({groupedFornecedores.particular.length})
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      {renderFornecedoresList(groupedFornecedores.particular)}
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              ) : (
+                <p className="text-muted-foreground">Nenhum fornecedor Particular</p>
+              )}
+            </TabsContent>
+
+            <TabsContent value="ambos">
+              {groupedFornecedores.ambos.length > 0 ? (
+                <Accordion type="single" collapsible defaultValue="ambos-group">
+                  <AccordionItem value="ambos-group">
+                    <AccordionTrigger className="border border-border/50 rounded-lg px-4">
+                      Ambos ({groupedFornecedores.ambos.length})
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      {renderFornecedoresList(groupedFornecedores.ambos)}
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              ) : (
+                <p className="text-muted-foreground">Nenhum fornecedor Ambos</p>
+              )}
+            </TabsContent>
+
+            <TabsContent value="others">
+              {groupedFornecedores.others.length > 0 ? (
+                <Accordion type="single" collapsible defaultValue="others-group">
+                  <AccordionItem value="others-group">
+                    <AccordionTrigger className="border border-border/50 rounded-lg px-4">
+                      Outros ({groupedFornecedores.others.length})
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      {renderFornecedoresList(groupedFornecedores.others)}
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              ) : (
+                <p className="text-muted-foreground">Nenhum fornecedor em outras categorias</p>
+              )}
+            </TabsContent>
+          </Tabs>
         )}
       </CardContent>
 

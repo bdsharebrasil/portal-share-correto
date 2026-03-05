@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useState, useMemo } from "react"
-import { useNavigate } from "react-router-dom"
+import React, { useState, useMemo, useEffect } from "react"
+import { useNavigate, useLocation } from "react-router-dom"
 import { Layout } from "@/components/layout/Layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -22,8 +22,17 @@ import { useClientPartners } from "@/hooks/useClientPartners"
 
 export default function FinanceiroSocios() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchTerm, setSearchTerm] = useState("")
   const [clienteSelecionado, setClienteSelecionado] = useState<string | null>(null)
+
+  // Restaurar cliente selecionado se voltando do relatório
+  useEffect(() => {
+    const state = location.state as any
+    if (state?.selectedClientId) {
+      setClienteSelecionado(state.selectedClientId)
+    }
+  }, [location])
 
   // ========================
   // CARREGAMENTO DE DADOS

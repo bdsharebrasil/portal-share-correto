@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { apiClient } from "@/lib/api-client";
+import { METAR_MOCK_DATA } from "@/data/metarMockData";
 
 // --- TIPAGEM ---
 interface WxState {
@@ -152,17 +153,35 @@ export default function WeatherWidget() {
       });
     } catch (weatherError) {
       console.error(`[WeatherWidget] Erro ao carregar ${airport.icao}:`, weatherError);
-      setWx({
-        status: "ok",
-        icao: airport.icao,
-        name: airport.name,
-        distKm: 0,
-        raw: null,
-        temp: null,
-        wind: null,
-        cat: "UNK",
-        time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-      });
+      
+      // Fallback to mock data if available
+      const mockData = METAR_MOCK_DATA[airport.icao];
+      if (mockData) {
+        setWx({
+          status: "ok",
+          icao: airport.icao,
+          name: airport.name,
+          distKm: 0,
+          raw: mockData.rawOb,
+          temp: mockData.temp,
+          wind: `${mockData.wdir}° ${mockData.wspd}${mockData.wgst ? ' G' + mockData.wgst : ''}kt`,
+          cat: mockData.flightCategory,
+          time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+        });
+      } else {
+        // No mock data available
+        setWx({
+          status: "ok",
+          icao: airport.icao,
+          name: airport.name,
+          distKm: 0,
+          raw: null,
+          temp: null,
+          wind: null,
+          cat: "UNK",
+          time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+        });
+      }
     }
   }, []);
 

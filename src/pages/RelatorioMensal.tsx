@@ -54,6 +54,7 @@ export default function RelatorioMensal() {
   const { clienteId } = useParams<{ clienteId: string }>()
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedPartners, setSelectedPartners] = useState<string[]>([])
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<'date' | 'partner'>('date')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [editingTransaction, setEditingTransaction] = useState<any>(null)
@@ -77,6 +78,11 @@ export default function RelatorioMensal() {
 
   const allPartners = useMemo(
     () => [...new Set(transactions.map((t) => t.partner_name))].filter(Boolean),
+    [transactions]
+  )
+
+  const allCategories = useMemo(
+    () => [...new Set(transactions.map((t) => t.transaction_subtype || t.category || t.expense_type).filter(Boolean))],
     [transactions]
   )
 
@@ -126,6 +132,13 @@ export default function RelatorioMensal() {
       result = result.filter((t) => selectedPartners.includes(t.partner_name))
     }
 
+    if (selectedCategories.length > 0) {
+      result = result.filter((t) => {
+        const category = t.transaction_subtype || t.category || t.expense_type
+        return selectedCategories.includes(category)
+      })
+    }
+
     // Aplicar ordenação
     result.sort((a, b) => {
       let compareValue = 0
@@ -142,7 +155,7 @@ export default function RelatorioMensal() {
     })
 
     return result
-  }, [transactions, currentMonth, selectedPartners, sortBy, sortOrder])
+  }, [transactions, currentMonth, selectedPartners, selectedCategories, sortBy, sortOrder])
 
   // ========================
   // COMPUTAÇÕES
@@ -259,8 +272,9 @@ export default function RelatorioMensal() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate(-1)}
+                  onClick={() => navigate(`/financeiro/financeiro-socios`, { state: { selectedClientId: clienteId } })}
                   className="h-8 w-8 p-0"
+                  title="Voltar para o cliente"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -317,6 +331,36 @@ export default function RelatorioMensal() {
                       className="rounded border-input cursor-pointer"
                     />
                     <span className="text-sm text-foreground">{partner}</span>
+                  </label>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Filtro de Categorias */}
+        {allCategories.length > 0 && (
+          <Card className="border border-border bg-background">
+            <CardContent className="p-4">
+              <label className="text-sm font-semibold text-foreground block mb-3">
+                Filtrar por Tipo de Categoria
+              </label>
+              <div className="flex flex-wrap gap-3">
+                {allCategories.map((category) => (
+                  <label key={category} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedCategories.includes(category)}
+                      onChange={() =>
+                        setSelectedCategories((prev) =>
+                          prev.includes(category)
+                            ? prev.filter((c) => c !== category)
+                            : [...prev, category]
+                        )
+                      }
+                      className="rounded border-input cursor-pointer"
+                    />
+                    <span className="text-sm text-foreground">{category}</span>
                   </label>
                 ))}
               </div>

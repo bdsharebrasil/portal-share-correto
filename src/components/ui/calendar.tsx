@@ -16,38 +16,32 @@ function Calendar({
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
-      className={cn("p-5 bg-slate-950 rounded-2xl", className)}
+      className={cn("p-6 bg-[#0f172a] rounded-3xl border border-slate-800 shadow-2xl", className)}
       classNames={{
-        months: "flex flex-col sm:flex-row space-y-6 sm:space-x-6 sm:space-y-0",
-        month: "space-y-5",
-        caption: "flex justify-center pt-2 relative items-center mb-4",
-        caption_label: "text-lg font-bold text-white",
-        nav: "space-x-2 flex items-center",
+        months: "flex flex-col space-y-4",
+        month: "space-y-4",
+        caption: "flex justify-center pt-1 relative items-center mb-4",
+        caption_label: "text-md font-medium text-slate-100 capitalize",
+        nav: "space-x-1 flex items-center",
         nav_button: cn(
-          buttonVariants({ variant: "outline" }),
-          "h-8 w-8 bg-transparent p-0 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors"
+          "h-9 w-9 bg-slate-800/50 flex items-center justify-center p-0 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-all border border-slate-700/50"
         ),
-        nav_button_previous: "absolute left-2",
-        nav_button_next: "absolute right-2",
-        table: "w-full border-collapse space-y-2",
-        head_row: "flex",
-        head_cell:
-          "text-slate-400 rounded-md w-10 font-semibold text-[0.75rem] uppercase tracking-wider py-2",
-        row: "flex w-full mt-3 gap-1",
-        cell: "h-10 w-10 text-center text-sm p-0 relative rounded-lg transition-all",
+        nav_button_previous: "absolute left-1",
+        nav_button_next: "absolute right-1",
+        table: "w-full border-collapse space-y-1",
+        head_row: "flex justify-between mb-2",
+        head_cell: "text-slate-500 w-10 font-medium text-[0.85rem] lowercase",
+        row: "flex w-full mt-1 justify-between",
+        cell: "relative p-0 text-center text-sm focus-within:relative focus-within:z-20",
         day: cn(
-          buttonVariants({ variant: "ghost" }),
-          "h-10 w-10 p-0 font-semibold text-slate-300 hover:text-white rounded-lg transition-all hover:bg-slate-800"
+          "h-10 w-10 p-0 font-normal text-slate-400 aria-selected:opacity-100 hover:bg-slate-800 hover:text-white rounded-[14px] transition-all"
         ),
-        day_range_end: "day-range-end",
         day_selected:
-          "bg-cyan-500 text-white hover:bg-cyan-600 focus:bg-cyan-600 font-bold shadow-lg shadow-cyan-500/50",
-        day_today: "bg-slate-800 text-cyan-400 font-bold border border-cyan-500/50",
-        day_outside:
-          "day-outside text-slate-600 opacity-40",
-        day_disabled: "text-slate-600 opacity-30 cursor-not-allowed",
-        day_range_middle:
-          "aria-selected:bg-slate-800 aria-selected:text-cyan-400",
+          "bg-[#22d3ee] text-[#0f172a] hover:bg-[#22d3ee] hover:text-[#0f172a] focus:bg-[#22d3ee] focus:text-[#0f172a] font-bold !rounded-[14px]",
+        day_today: "bg-slate-800/50 text-cyan-400 border border-slate-700",
+        day_outside: "text-slate-600 opacity-30",
+        day_disabled: "text-slate-600 opacity-20",
+        day_range_middle: "aria-selected:bg-slate-800 aria-selected:text-slate-100",
         day_hidden: "invisible",
         ...classNames,
       }}
