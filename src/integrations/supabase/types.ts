@@ -5029,50 +5029,6 @@ export type Database = {
         }
         Relationships: []
       }
-      expense_items: {
-        Row: {
-          amount: number
-          category: string
-          created_at: string | null
-          description: string | null
-          id: string
-          paid_by: string
-          receipt_url: string | null
-          report_id: string
-          report_number: string
-        }
-        Insert: {
-          amount?: number
-          category: string
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          paid_by: string
-          receipt_url?: string | null
-          report_id: string
-          report_number: string
-        }
-        Update: {
-          amount?: number
-          category?: string
-          created_at?: string | null
-          description?: string | null
-          id?: string
-          paid_by?: string
-          receipt_url?: string | null
-          report_id?: string
-          report_number?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "expense_items_report_id_fkey"
-            columns: ["report_id"]
-            isOneToOne: false
-            referencedRelation: "travel_expense_reports"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       expenses: {
         Row: {
           aircraft_id: string
