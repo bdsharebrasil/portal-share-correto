@@ -45,8 +45,21 @@ export const EXPENSE_CATEGORIES = [
 { id: "ressarcimento", label: "Ressarcimento/Reembolso", icon: "💸" },
 { id: "viagem", label: "Despesas de Viagem", icon: "🧳" },
 { id: "infraero", label: "INFRAERO", icon: "🏛️" },
+{ id: "impostos", label: "Impostos", icon: "🏦" },
 { id: "outros", label: "Outros", icon: "📎" }] as
 const;
+
+export const IMPOSTOS_SUBTYPES = [
+  { value: "fgts", label: "FGTS" },
+  { value: "inss", label: "INSS" },
+  { value: "pis", label: "PIS" },
+  { value: "cofins", label: "COFINS" },
+  { value: "das", label: "DAS" },
+  { value: "irpj", label: "IRPJ" },
+  { value: "csll", label: "CSLL" },
+  { value: "iss", label: "ISS" },
+  { value: "outros_impostos", label: "Outros Impostos" },
+] as const;
 
 export type ExpenseCategoryId = typeof EXPENSE_CATEGORIES[number]["id"];
 
@@ -355,8 +368,34 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
               
             </FormSection>
 
+            {/* Impostos subtype */}
+            {form.category === "impostos" && (
+              <div className="rounded-2xl bg-blue-950/40 border border-blue-700/50 p-5 space-y-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-900/60">
+                    <span className="text-base">🏦</span>
+                  </div>
+                  <p className="font-semibold text-sm text-blue-200">
+                    Tipo de Imposto
+                  </p>
+                </div>
+                <Select value={form.expenseType} onValueChange={set("expenseType")}>
+                  <SelectTrigger className="h-12 rounded-xl border-blue-700/50 bg-zinc-900 text-sm">
+                    <SelectValue placeholder="Selecione o tipo de imposto" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    {IMPOSTOS_SUBTYPES.map((imp) => (
+                      <SelectItem key={imp.value} value={imp.value} className="py-3">
+                        <span className="font-medium text-sm">{imp.label}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Valor + Datas */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
               <FormSection label="Valor (R$)" required>
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground select-none">R$</span>
