@@ -61,20 +61,20 @@ export interface PartnerExpense {
 
 export function useSocioAccounts(clientId: string | null) {
   return useQuery({
-    queryKey: ["partner-accounts", clientId], // A chave muda por cliente
+    queryKey: ["partner-accounts", clientId],
     queryFn: async () => {
       if (!clientId) return [];
-      
+
       const { data, error } = await supabase
         .from("partner_accounts")
         .select("*")
         .eq("client_id", clientId)
         .order("partner_name");
-      
+
       if (error) throw error;
       return (data || []) as PartnerAccount[];
     },
-    enabled: !!clientId, // Só busca se tiver cliente selecionado
+    enabled: !!clientId,
   });
 }
 
@@ -92,7 +92,21 @@ export function useSocioTransactions(
     queryFn: async () => {
       if (!clientId) return [];
 
-      // Buscar transações de movimentação
+      // ── 1. Buscar client_partners da tabela (fonte de verdade) ──────────────
+      const { data: clientPartners, error: cpError } = await supabase
+        .from("client_partners")
+        .select("id, name, cpf, share_percentage")
+        .eq("client_id", clientId);
+
+      if (cpError) console.warn("Erro ao carregar client_partners:", cpError);
+      const partnersMap = new Map(
+        (clientPartners || []).map((cp: any) => [cp.id, cp])
+      );
+      const partnersByCpf = new Map(
+        (clientPartners || []).map((cp: any) => [cp.cpf?.replace(/\D/g, ""), cp])
+      );
+
+      // ── 2. Buscar transações de movimentação ────────────────────────────────
       let query = supabase
         .from("partner_transactions")
         .select("*")
@@ -107,7 +121,7 @@ export function useSocioTransactions(
       const { data: transactions, error } = await query;
       if (error) throw error;
 
-      // Buscar despesas também (para mostrar na lista de transações)
+      // ── 3. Buscar despesas ───────────────────────────────────────────────────
       const { data: expenses, error: expenseError } = await supabase
         .from("partner_expenses")
         .select("*")
@@ -115,33 +129,101 @@ export function useSocioTransactions(
 
       if (expenseError) console.warn("Erro ao carregar despesas:", expenseError);
 
-      // Transformar despesas em formato de transação para exibição
-      const expensesAsTransactions = (expenses || []).map((exp: any) => ({
-        id: exp.id,
-        client_id: exp.client_id,
-        partner_cpf: exp.assigned_partner_cpf || "N/A",
-        partner_name: exp.assigned_partner_name || "Geral",
-        transaction_type: "expense",
-        amount: exp.total_amount,
-        balance_before: 0,
-        balance_after: 0,
-        description: exp.description,
-        reference_type: "partner_expense",
-        reference_id: exp.id,
-        payment_date: exp.due_date,
-        receipt_url: null,
-        notes: exp.notes,
-        created_by: null,
-        created_at: exp.created_at,
-        expense_type: exp.expense_type,
-        status: exp.status,
-        bank_name: exp.bank_name || null,
-        prazo: exp.prazo || null,
-        payment_method: exp.payment_method || null,
-        doc: exp.invoice_number || null,
-      }));
+      // ── 4. Buscar relatórios de viagem vinculados às despesas ────────────────
+      //    (para exibir o número do relatório no campo de obs)
+      const travelReportIds = [
+        ...new Set(
+          (expenses || [])
+            .filter(
+              (exp: any) =>
+                exp.reference_type === "travel_expense_report" ||
+                exp.reference_type === "viagem" ||
+                exp.reference_type === "travel_report"
+            )
+            .map((exp: any) => exp.reference_id)
+            .filter(Boolean)
+        ),
+      ];
 
-      // Também incluir abastecimentos como transações de despesa
+      let travelReportsMap = new Map<string, any>();
+
+      if (travelReportIds.length > 0) {
+        const { data: reports, error: rError } = await supabase
+          .from("travel_expense_reports")
+          .select("id, report_number, client_partner")
+          .in("id", travelReportIds as string[]);
+
+        if (rError) console.warn("Erro ao carregar relatórios de viagem:", rError);
+
+        (reports || []).forEach((r: any) => {
+          travelReportsMap.set(r.id, r);
+        });
+      }
+
+      // ── 5. Mapear despesas → formato de transação ────────────────────────────
+      const expensesAsTransactions = (expenses || []).map((exp: any) => {
+        // Resolver nome do parceiro: primeiro tenta pelo CPF na tabela client_partners
+        const cpfClean = (exp.assigned_partner_cpf || "").replace(/\D/g, "");
+        const partnerFromTable = partnersByCpf.get(cpfClean);
+        const resolvedPartnerName =
+          partnerFromTable?.name ?? exp.assigned_partner_name ?? "Geral";
+
+        // Resolver número do relatório de viagem (para o campo de obs)
+        let notesWithReport = exp.notes || null;
+        if (
+          exp.reference_id &&
+          (exp.reference_type === "travel_expense_report" ||
+            exp.reference_type === "viagem" ||
+            exp.reference_type === "travel_report")
+        ) {
+          const linkedReport = travelReportsMap.get(exp.reference_id);
+          if (linkedReport?.report_number) {
+            const reportTag = `Relatório de Viagem: ${linkedReport.report_number}`;
+            notesWithReport = notesWithReport
+              ? `${notesWithReport}\n${reportTag}`
+              : reportTag;
+
+            // Se o relatório tem client_partner, resolver o nome pela tabela
+            if (linkedReport.client_partner) {
+              const partnerFromReport = partnersMap.get(linkedReport.client_partner);
+              if (partnerFromReport) {
+                // Sobrescreve com o parceiro correto do relatório
+                Object.assign(exp, {
+                  _resolved_partner_name: partnerFromReport.name,
+                  _resolved_partner_cpf: partnerFromReport.cpf,
+                });
+              }
+            }
+          }
+        }
+
+        return {
+          id: exp.id,
+          client_id: exp.client_id,
+          partner_cpf: exp._resolved_partner_cpf ?? exp.assigned_partner_cpf ?? "N/A",
+          partner_name: exp._resolved_partner_name ?? resolvedPartnerName,
+          transaction_type: "expense",
+          amount: exp.total_amount,
+          balance_before: 0,
+          balance_after: 0,
+          description: exp.description,
+          reference_type: "partner_expense",
+          reference_id: exp.id,
+          payment_date: exp.due_date,
+          receipt_url: null,
+          notes: notesWithReport,
+          created_by: null,
+          created_at: exp.created_at,
+          expense_type: exp.expense_type,
+          status: exp.status,
+          bank_name: exp.bank_name || null,
+          prazo: exp.prazo || null,
+          payment_method: exp.payment_method || null,
+          doc: exp.invoice_number || null,
+        };
+      });
+
+      // ── 6. Buscar abastecimentos ─────────────────────────────────────────────
       const { data: fuels, error: fuelError } = await supabase
         .from("abastecimentos")
         .select("*")
@@ -149,32 +231,40 @@ export function useSocioTransactions(
 
       if (fuelError) console.warn("Erro ao carregar abastecimentos:", fuelError);
 
-      const fuelsAsTransactions = (fuels || []).map((f: any) => ({
-        id: f.id,
-        client_id: f.client_id,
-        partner_cpf: "N/A",
-        partner_name: f.partner_name || "Geral",
-        transaction_type: "expense",
-        amount: f.valor_total || 0,
-        balance_before: 0,
-        balance_after: 0,
-        description: `Abastecimento${f.local ? ` - ${f.local}` : ""}`,
-        reference_type: "abastecimento",
-        reference_id: f.id,
-        payment_date: f.data,
-        receipt_url: f.nota_url || null,
-        notes: f.observacao,
-        created_by: null,
-        created_at: f.created_at,
-        expense_type: "abastecimento",
-        status: f.status_pagamento || null,
-        bank_name: null,
-        prazo: null,
-        payment_method: null,
-        doc: f.comanda || null,
-      }));
+      const fuelsAsTransactions = (fuels || []).map((f: any) => {
+        // Resolver parceiro pelo nome armazenado no abastecimento (busca por nome na tabela)
+        const partnerByName = (clientPartners || []).find(
+          (cp: any) =>
+            cp.name?.toLowerCase() === (f.partner_name || "").toLowerCase()
+        );
 
-      // Combinar e ordenar por data (incluindo despesas de abastecimento)
+        return {
+          id: f.id,
+          client_id: f.client_id,
+          partner_cpf: partnerByName?.cpf ?? "N/A",
+          partner_name: partnerByName?.name ?? f.partner_name ?? "Geral",
+          transaction_type: "expense",
+          amount: f.valor_total || 0,
+          balance_before: 0,
+          balance_after: 0,
+          description: `Abastecimento${f.local ? ` - ${f.local}` : ""}`,
+          reference_type: "abastecimento",
+          reference_id: f.id,
+          payment_date: f.data,
+          receipt_url: f.nota_url || null,
+          notes: f.observacao,
+          created_by: null,
+          created_at: f.created_at,
+          expense_type: "abastecimento",
+          status: f.status_pagamento || null,
+          bank_name: null,
+          prazo: null,
+          payment_method: null,
+          doc: f.comanda || null,
+        };
+      });
+
+      // ── 7. Combinar e ordenar ────────────────────────────────────────────────
       const combined = [
         ...(transactions || []),
         ...expensesAsTransactions,
@@ -216,7 +306,68 @@ export function useSocioExpenses(
 
       const { data, error } = await query;
       if (error) throw error;
-      return (data || []) as PartnerExpense[];
+
+      const expenses = (data || []) as PartnerExpense[];
+
+      // Buscar client_partners para resolver nomes
+      const { data: clientPartners } = await supabase
+        .from("client_partners")
+        .select("id, name, cpf, share_percentage")
+        .eq("client_id", clientId);
+
+      const partnersByCpf = new Map(
+        (clientPartners || []).map((cp: any) => [cp.cpf?.replace(/\D/g, ""), cp])
+      );
+
+      // Buscar relatórios de viagem vinculados
+      const travelReportIds = [
+        ...new Set(
+          expenses
+            .filter(
+              (exp) =>
+                exp.notes?.includes("travel") ||
+                (exp as any).reference_type === "travel_expense_report" ||
+                (exp as any).reference_type === "viagem"
+            )
+            .map((exp: any) => exp.reference_id)
+            .filter(Boolean)
+        ),
+      ];
+
+      let travelReportsMap = new Map<string, any>();
+      if (travelReportIds.length > 0) {
+        const { data: reports } = await supabase
+          .from("travel_expense_reports")
+          .select("id, report_number, client_partner")
+          .in("id", travelReportIds as string[]);
+
+        (reports || []).forEach((r: any) => travelReportsMap.set(r.id, r));
+      }
+
+      return expenses.map((exp: any) => {
+        const cpfClean = (exp.assigned_partner_cpf || "").replace(/\D/g, "");
+        const partnerFromTable = partnersByCpf.get(cpfClean);
+
+        let notes = exp.notes || null;
+        if (
+          exp.reference_id &&
+          (exp.reference_type === "travel_expense_report" ||
+            exp.reference_type === "viagem" ||
+            exp.reference_type === "travel_report")
+        ) {
+          const linkedReport = travelReportsMap.get(exp.reference_id);
+          if (linkedReport?.report_number) {
+            const reportTag = `Relatório de Viagem: ${linkedReport.report_number}`;
+            notes = notes ? `${notes}\n${reportTag}` : reportTag;
+          }
+        }
+
+        return {
+          ...exp,
+          assigned_partner_name: partnerFromTable?.name ?? exp.assigned_partner_name,
+          notes,
+        };
+      });
     },
     enabled: !!clientId,
   });
@@ -229,7 +380,7 @@ export function useAddDeposit() {
 
   return useMutation({
     mutationFn: async (data: {
-      clientId: string; // Obrigatório passar o ID do cliente
+      clientId: string;
       partnerCpf: string | null;
       partnerName: string;
       amount: number;
@@ -243,7 +394,6 @@ export function useAddDeposit() {
       let balanceBefore = 0;
       let balanceAfter = 0;
 
-      // Get current balance only if there's a partner
       if (data.partnerCpf) {
         const { data: account, error: accErr } = await supabase
           .from("partner_accounts")
@@ -257,7 +407,6 @@ export function useAddDeposit() {
         balanceBefore = Number(account.current_balance);
         balanceAfter = balanceBefore + data.amount;
 
-        // Update account balance only if there's a partner
         const { error: updErr } = await supabase
           .from("partner_accounts")
           .update({
@@ -268,16 +417,14 @@ export function useAddDeposit() {
           .eq("partner_cpf", data.partnerCpf);
         if (updErr) throw updErr;
       } else {
-        // For entries without a specific partner, don't update balance
         balanceAfter = data.amount;
       }
 
-      // Create transaction
       const { error: txErr } = await supabase
         .from("partner_transactions")
         .insert({
           client_id: data.clientId,
-          partner_cpf: data.partnerCpf || "00000000000", // Use special identifier for general account
+          partner_cpf: data.partnerCpf || "00000000000",
           partner_name: data.partnerName,
           transaction_type: "deposit",
           amount: data.amount,
@@ -291,10 +438,9 @@ export function useAddDeposit() {
         });
       if (txErr) throw txErr;
 
-      return data.clientId; // Retorna para usar no onSuccess
+      return data.clientId;
     },
     onSuccess: (clientId) => {
-      // Invalida as queries específicas daquele cliente
       queryClient.invalidateQueries({ queryKey: ["partner-accounts", clientId] });
       queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
       toast.success("Depósito registrado com sucesso!");
@@ -310,14 +456,13 @@ export function usePayExpense() {
 
   return useMutation({
     mutationFn: async (data: {
-      clientId: string; // Obrigatório
+      clientId: string;
       expenseId: string;
       partnerCpf: string;
       partnerName: string;
       amount: number;
       paymentDate: string;
     }) => {
-      // Get current balance
       const { data: account, error: accErr } = await supabase
         .from("partner_accounts")
         .select("current_balance, total_spent")
@@ -333,7 +478,6 @@ export function usePayExpense() {
 
       const balanceAfter = balanceBefore - data.amount;
 
-      // Create transaction
       const { error: txErr } = await supabase
         .from("partner_transactions")
         .insert({
@@ -351,7 +495,6 @@ export function usePayExpense() {
         });
       if (txErr) throw txErr;
 
-      // Update account
       const { error: updErr } = await supabase
         .from("partner_accounts")
         .update({
@@ -362,7 +505,6 @@ export function usePayExpense() {
         .eq("partner_cpf", data.partnerCpf);
       if (updErr) throw updErr;
 
-      // Update expense
       const { error: expErr } = await supabase
         .from("partner_expenses")
         .update({
@@ -417,15 +559,24 @@ export function useCreateExpense() {
       status?: string | null;
       abastecimentoId?: string | null;
     }) => {
-      const isInstallment = data.isInstallment && data.paymentMethod === "cartao" && (data.installmentCount || 1) > 1;
-      const installmentCount = isInstallment ? (data.installmentCount || 1) : 1;
+      const isInstallment =
+        data.isInstallment &&
+        data.paymentMethod === "cartao" &&
+        (data.installmentCount || 1) > 1;
+      const installmentCount = isInstallment ? data.installmentCount || 1 : 1;
       const installmentAmount = data.totalAmount / installmentCount;
-      const startDate = isInstallment ? new Date(data.installmentStartDate || data.dueDate || new Date().toISOString().split('T')[0]) : null;
+      const startDate = isInstallment
+        ? new Date(
+            data.installmentStartDate ||
+              data.dueDate ||
+              new Date().toISOString().split("T")[0]
+          )
+        : null;
 
       const expenses = [];
 
       if (isInstallment) {
-const originalExpense: any = {
+        const originalExpense: any = {
           client_id: data.clientId,
           aircraft_id: data.aircraftId || null,
           expense_type: data.expenseType,
@@ -438,7 +589,9 @@ const originalExpense: any = {
           invoice_number: data.invoiceNumber || null,
           invoice_url: data.invoiceUrl || null,
           payment_method: data.paymentMethod || null,
-          notes: `${data.notes || ""}${data.notes ? "\n" : ""}Parcelado em ${installmentCount}x de R$ ${installmentAmount.toFixed(2)}` || null,
+          notes:
+            `${data.notes || ""}${data.notes ? "\n" : ""}Parcelado em ${installmentCount}x de R$ ${installmentAmount.toFixed(2)}` ||
+            null,
           status: data.status || "pending",
           prazo: data.prazo || null,
           bank_name: data.bankName || null,
@@ -446,7 +599,7 @@ const originalExpense: any = {
           reference_id: data.referenceId || null,
           installment_count: installmentCount,
           installment_number: 0,
-          installment_start_date: startDate?.toISOString().split('T')[0] || null,
+          installment_start_date: startDate?.toISOString().split("T")[0] || null,
           parent_expense_id: null,
         };
 
@@ -456,7 +609,7 @@ const originalExpense: any = {
           const installmentDate = new Date(startDate!);
           installmentDate.setMonth(installmentDate.getMonth() + (i - 1));
 
-          const installmentExpense: any = {
+          expenses.push({
             client_id: data.clientId,
             aircraft_id: data.aircraftId || null,
             expense_type: data.expenseType,
@@ -465,7 +618,7 @@ const originalExpense: any = {
             assigned_partner_cpf: data.assignedPartnerCpf || null,
             assigned_partner_name: data.assignedPartnerName || null,
             supplier_name: data.supplierName || null,
-            due_date: installmentDate.toISOString().split('T')[0],
+            due_date: installmentDate.toISOString().split("T")[0],
             invoice_number: data.invoiceNumber || null,
             invoice_url: data.invoiceUrl || null,
             payment_method: data.paymentMethod || null,
@@ -477,11 +630,9 @@ const originalExpense: any = {
             reference_id: data.referenceId || null,
             installment_count: installmentCount,
             installment_number: i,
-            installment_start_date: startDate?.toISOString().split('T')[0] || null,
+            installment_start_date: startDate?.toISOString().split("T")[0] || null,
             parent_expense_id: null,
-          };
-
-          expenses.push(installmentExpense);
+          });
         }
 
         const { data: createdOriginal, error: originalError } = await supabase
@@ -492,16 +643,14 @@ const originalExpense: any = {
 
         if (originalError) throw originalError;
 
-        const installmentsWithParent = expenses.slice(1).map((exp) => ({
-          ...exp,
-          parent_expense_id: createdOriginal.id,
-        }));
+        const installmentsWithParent = expenses
+          .slice(1)
+          .map((exp) => ({ ...exp, parent_expense_id: createdOriginal.id }));
 
         if (installmentsWithParent.length > 0) {
           const { error: installmentsError } = await supabase
             .from("partner_expenses")
             .insert(installmentsWithParent);
-
           if (installmentsError) throw installmentsError;
         }
       } else {
@@ -530,21 +679,19 @@ const originalExpense: any = {
         if (error) throw error;
       }
 
-      // Sync abastecimento: UPDATE existing or CREATE new
       if (data.expenseType === "abastecimento" || data.category === "abastecimento") {
         try {
           if (data.abastecimentoId) {
-            // UPDATE existing abastecimento status instead of creating a new one
             await supabase
               .from("abastecimentos")
               .update({
-                status_pagamento: data.status === "paid" || data.status === "pago" ? "pago" : "pendente",
+                status_pagamento:
+                  data.status === "paid" || data.status === "pago" ? "pago" : "pendente",
                 partner_name: (data.assignedPartnerName || "").replace(/^\[|\]$/g, "") || null,
                 updated_at: new Date().toISOString(),
               })
               .eq("id", data.abastecimentoId);
           } else {
-            // Only create a new abastecimento if no existing one was selected
             await supabase.from("abastecimentos").insert({
               client_id: data.clientId,
               aeronave_id: data.aircraftId || null,
@@ -555,7 +702,8 @@ const originalExpense: any = {
               valor_unitario: 0,
               valor_total: data.totalAmount,
               partner_name: (data.assignedPartnerName || "").replace(/^\[|\]$/g, "") || null,
-              status_pagamento: data.status === "paid" || data.status === "pago" ? "pago" : "pendente",
+              status_pagamento:
+                data.status === "paid" || data.status === "pago" ? "pago" : "pendente",
             });
           }
         } catch (syncErr) {
@@ -590,22 +738,19 @@ export function useAddBankInterest() {
       bankName: string;
       paymentDate: string;
     }) => {
-      // For shared account interest, use a special identifier (00000000000) to represent shared account
-      const { error } = await supabase
-        .from("partner_transactions")
-        .insert({
-          client_id: data.clientId,
-          partner_cpf: "00000000000",  // Special identifier for shared account
-          partner_name: "Conta Compartilhada",
-          transaction_type: "deposit",
-          amount: data.amount,
-          balance_before: 0,  // Interest doesn't affect individual partner balance
-          balance_after: 0,
-          description: data.description,
-          payment_date: data.paymentDate,
-          bank_name: data.bankName || null,
-          transaction_subtype: "interest",
-        });
+      const { error } = await supabase.from("partner_transactions").insert({
+        client_id: data.clientId,
+        partner_cpf: "00000000000",
+        partner_name: "Conta Compartilhada",
+        transaction_type: "deposit",
+        amount: data.amount,
+        balance_before: 0,
+        balance_after: 0,
+        description: data.description,
+        payment_date: data.paymentDate,
+        bank_name: data.bankName || null,
+        transaction_subtype: "interest",
+      });
 
       if (error) throw error;
       return data.clientId;
@@ -624,17 +769,33 @@ export function useDeleteTransaction() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: { id: string; clientId: string; transactionType: string; partnerCpf: string; amount: number; referenceType?: string }) => {
-      if (data.referenceType === "abastecimento" || data.transactionType === "abastecimento") {
-        // Delete from abastecimentos
-        const { error } = await supabase.from("abastecimentos").delete().eq("id", data.id);
+    mutationFn: async (data: {
+      id: string;
+      clientId: string;
+      transactionType: string;
+      partnerCpf: string;
+      amount: number;
+      referenceType?: string;
+    }) => {
+      if (
+        data.referenceType === "abastecimento" ||
+        data.transactionType === "abastecimento"
+      ) {
+        const { error } = await supabase
+          .from("abastecimentos")
+          .delete()
+          .eq("id", data.id);
         if (error) throw error;
-      } else if (data.transactionType === "expense" || data.referenceType === "partner_expense") {
-        // Delete from partner_expenses
-        const { error } = await supabase.from("partner_expenses").delete().eq("id", data.id);
+      } else if (
+        data.transactionType === "expense" ||
+        data.referenceType === "partner_expense"
+      ) {
+        const { error } = await supabase
+          .from("partner_expenses")
+          .delete()
+          .eq("id", data.id);
         if (error) throw error;
       } else {
-        // Reverse balance changes
         if (data.partnerCpf && data.partnerCpf !== "00000000000") {
           const { data: account, error: accErr } = await supabase
             .from("partner_accounts")
@@ -661,7 +822,10 @@ export function useDeleteTransaction() {
           if (updErr) throw updErr;
         }
 
-        const { error } = await supabase.from("partner_transactions").delete().eq("id", data.id);
+        const { error } = await supabase
+          .from("partner_transactions")
+          .delete()
+          .eq("id", data.id);
         if (error) throw error;
       }
 
@@ -695,15 +859,7 @@ export function useUpdateTransaction() {
       bankName?: string | null;
       prazo?: string | null;
     }) => {
-      console.log("Atualizando transação:", {
-        id: data.id,
-        transactionType: data.transactionType,
-        paymentDate: data.paymentDate,
-      });
-
       if (data.transactionType === "partner_expense") {
-        // Update partner_expenses table
-        console.log("Atualizando em partner_expenses com due_date:", data.paymentDate);
         const { error } = await supabase
           .from("partner_expenses")
           .update({
@@ -717,8 +873,6 @@ export function useUpdateTransaction() {
           .eq("id", data.id);
         if (error) throw error;
       } else if (data.transactionType === "abastecimento") {
-        // Update abastecimentos table
-        console.log("Atualizando em abastecimentos com data:", data.paymentDate);
         const { error } = await supabase
           .from("abastecimentos")
           .update({
@@ -730,8 +884,6 @@ export function useUpdateTransaction() {
           .eq("id", data.id);
         if (error) throw error;
       } else {
-        // Update partner_transactions table
-        console.log("Atualizando em partner_transactions com payment_date:", data.paymentDate);
         const { error } = await supabase
           .from("partner_transactions")
           .update({
@@ -749,14 +901,12 @@ export function useUpdateTransaction() {
       return data.clientId;
     },
     onSuccess: (clientId) => {
-      console.log("Transação atualizada com sucesso, invalidando queries para clientId:", clientId);
       queryClient.invalidateQueries({ queryKey: ["partner-accounts", clientId] });
       queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
       queryClient.invalidateQueries({ queryKey: ["partner-expenses", clientId] });
       toast.success("Transação atualizada com sucesso!");
     },
     onError: (err: any) => {
-      console.error("Erro ao atualizar:", err);
       toast.error("Erro ao atualizar: " + err.message);
     },
   });
