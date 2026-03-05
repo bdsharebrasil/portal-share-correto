@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Receipt,
   Plus,
@@ -27,6 +28,7 @@ import {
   Fuel,
   CalendarIcon,
   UserPlus,
+  Landmark,
 } from "lucide-react";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { useCreateExpense } from "@/hooks/useFinanceiroSocios";
@@ -99,13 +101,39 @@ const EMPTY_FORM = {
   installmentStartDate: format(new Date(), "yyyy-MM-dd"),
 };
 
+const BANK_EXPENSE_CATEGORIES = [
+  { id: "cartao_credito", label: "Cartão de Crédito", icon: "💳" },
+  { id: "anuidade_cartao", label: "Anuidade de Cartão", icon: "📅" },
+  { id: "taxas_bancarias", label: "Taxas Bancárias", icon: "🏦" },
+  { id: "tarifa_manutencao", label: "Tarifa de Manutenção de Conta", icon: "📋" },
+  { id: "iof", label: "IOF", icon: "📊" },
+  { id: "ted_doc", label: "Tarifa TED/DOC", icon: "🔁" },
+  { id: "juros_bancarios", label: "Juros Bancários", icon: "📈" },
+  { id: "seguros_banco", label: "Seguros Bancários", icon: "🛡️" },
+  { id: "outras_taxas_banco", label: "Outras Taxas Bancárias", icon: "📎" },
+] as const;
+
+type BankExpenseCategoryId = (typeof BANK_EXPENSE_CATEGORIES)[number]["id"];
+
+const EMPTY_BANK_FORM = {
+  category: "" as BankExpenseCategoryId | "",
+  description: "",
+  amount: "",
+  date: format(new Date(), "yyyy-MM-dd"),
+  bankName: "",
+  notes: "",
+  prazo: "mensal" as "mensal" | "extra",
+};
+
 interface ExpenseFormProps {
   clienteId: string;
 }
 
 export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"expense" | "bank">("expense");
   const [form, setForm] = useState(EMPTY_FORM);
+  const [bankForm, setBankForm] = useState(EMPTY_BANK_FORM);
   const [showAddFornecedor, setShowAddFornecedor] = useState(false);
   const queryClient = useQueryClient();
 
@@ -311,9 +339,43 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
     setOpen(false);
     setForm(EMPTY_FORM);
+    setTab("expense");
     setLinkOption(null);
     setExistingReports([]);
     setSelectedReport(null);
+  };
+
+  const handleBankSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bankForm.category || !bankForm.amount || !bankForm.description) return;
+
+    const selectedBankCat = BANK_EXPENSE_CATEGORIES.find((c) => c.id === bankForm.category);
+    const aircraftId = await getAircraftId();
+
+    // Resolve bank name from ID
+    const selectedConta = contasBancarias.find((c) => c.id === bankForm.bankName);
+    const bankNameResolved = selectedConta ? selectedConta.banco : bankForm.bankName || null;
+
+    await addExpense.mutateAsync({
+      clientId: clienteId,
+      description: bankForm.description,
+      totalAmount: parseFloat(bankForm.amount),
+      category: "despesa_bancaria",
+      expenseType: bankForm.category,
+      dueDate: bankForm.date,
+      supplierName: bankNameResolved,
+      notes: bankForm.notes || null,
+      bankName: bankNameResolved,
+      prazo: bankForm.prazo,
+      aircraftId,
+      status: "pago",
+      assignedPartnerCpf: null,
+      assignedPartnerName: null,
+    });
+
+    setOpen(false);
+    setBankForm(EMPTY_BANK_FORM);
+    setTab("expense");
   };
 
   const selectedCategory = EXPENSE_CATEGORIES.find((c) => c.id === form.category);
@@ -368,6 +430,32 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
           {/* ── Body ── */}
           <div className="px-8 py-6">
+            <Tabs value={tab} onValueChange={(v) => setTab(v as "expense" | "bank")}>
+              <TabsList className="w-full h-11 rounded-xl bg-muted/60 p-1 mb-8">
+                <TabsTrigger
+                  value="expense"
+                  className="flex-1 gap-2 h-9 rounded-lg text-sm font-medium
+                             data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-800
+                             data-[state=active]:shadow-sm data-[state=active]:text-red-700
+                             dark:data-[state=active]:text-red-400 transition-all"
+                >
+                  <Receipt className="h-4 w-4" />
+                  Despesa
+                </TabsTrigger>
+                <TabsTrigger
+                  value="bank"
+                  className="flex-1 gap-2 h-9 rounded-lg text-sm font-medium
+                             data-[state=active]:bg-white dark:data-[state=active]:bg-zinc-800
+                             data-[state=active]:shadow-sm data-[state=active]:text-blue-700
+                             dark:data-[state=active]:text-blue-400 transition-all"
+                >
+                  <Landmark className="h-4 w-4" />
+                  Despesas Banco
+                </TabsTrigger>
+              </TabsList>
+
+              {/* ── TAB: DESPESA NORMAL ── */}
+              <TabsContent value="expense">
             <form onSubmit={handleSubmit} className="space-y-6">
 
               {/* ── Sócio Responsável (único, no topo) ── */}
@@ -1026,6 +1114,192 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 )}
               </Button>
             </form>
+              </TabsContent>
+
+              {/* ── TAB: DESPESAS BANCO ── */}
+              <TabsContent value="bank">
+                <form onSubmit={handleBankSubmit} className="space-y-6">
+                  {/* Info banner */}
+                  <div className="flex items-start gap-3 rounded-xl bg-blue-50 border border-blue-200 px-4 py-4 text-sm text-blue-800 dark:bg-blue-950/30 dark:border-blue-800/40 dark:text-blue-300">
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/50">
+                      <Landmark className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="font-semibold mb-0.5">Despesas Bancárias</p>
+                      <p className="text-blue-700/80 dark:text-blue-400/70">
+                        Registre despesas relacionadas a instituições bancárias como taxas, anuidades, cartão de crédito, etc.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Categoria bancária */}
+                  <FormSection label="Tipo de Despesa Bancária" required>
+                    <Select
+                      value={bankForm.category}
+                      onValueChange={(v) => setBankForm((p) => ({ ...p, category: v as BankExpenseCategoryId }))}
+                    >
+                      <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                        <SelectValue placeholder="Selecione o tipo de despesa bancária" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl">
+                        {BANK_EXPENSE_CATEGORIES.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id} className="py-3">
+                            <div className="flex items-center gap-3">
+                              <span className="text-lg leading-none">{cat.icon}</span>
+                              <span className="font-medium text-sm">{cat.label}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormSection>
+
+                  {/* Descrição */}
+                  <FormSection label="Descrição" required>
+                    <Input
+                      value={bankForm.description}
+                      onChange={(e) => setBankForm((p) => ({ ...p, description: e.target.value }))}
+                      placeholder="Ex: Anuidade cartão Visa, Taxa TED, etc."
+                      required
+                      disabled={addExpense.isPending}
+                      className="h-12 rounded-xl border-border/70 text-sm"
+                    />
+                  </FormSection>
+
+                  {/* Conta Bancária + Prazo */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormSection label="Instituição Bancária" required>
+                      <Select
+                        value={bankForm.bankName}
+                        onValueChange={(v) => setBankForm((p) => ({ ...p, bankName: v }))}
+                        disabled={loadingContas}
+                      >
+                        <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                          <SelectValue
+                            placeholder={loadingContas ? "Carregando contas..." : "Selecione a conta"}
+                          />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          {contasBancarias.length === 0 && !loadingContas ? (
+                            <div className="p-4 text-sm text-muted-foreground text-center">
+                              Nenhuma conta bancária cadastrada
+                            </div>
+                          ) : (
+                            contasBancarias.map((conta) => (
+                              <SelectItem key={conta.id} value={conta.id} className="py-3">
+                                <div>
+                                  <div className="font-medium text-sm">{conta.banco}</div>
+                                  {conta.numero_conta && (
+                                    <div className="text-xs text-muted-foreground font-mono">
+                                      Cta: {conta.numero_conta}
+                                      {conta.tipo_conta ? ` · ${conta.tipo_conta}` : ""}
+                                    </div>
+                                  )}
+                                </div>
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </FormSection>
+                    <FormSection label="Prazo" required>
+                      <Select
+                        value={bankForm.prazo}
+                        onValueChange={(v) => setBankForm((p) => ({ ...p, prazo: v as "mensal" | "extra" }))}
+                      >
+                        <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                          <SelectValue placeholder="Selecione o tipo" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          <SelectItem value="mensal" className="py-3">
+                            <div className="flex items-center gap-2.5">
+                              <span className="h-2.5 w-2.5 rounded-full bg-blue-500 flex-shrink-0" />
+                              <div>
+                                <div className="font-medium text-sm">Mensal</div>
+                                <div className="text-xs text-muted-foreground">Ciclo mensal regular</div>
+                              </div>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="extra" className="py-3">
+                            <div className="flex items-center gap-2.5">
+                              <span className="h-2.5 w-2.5 rounded-full bg-orange-500 flex-shrink-0" />
+                              <div>
+                                <div className="font-medium text-sm">Extra</div>
+                                <div className="text-xs text-muted-foreground">Evento ou gasto avulso</div>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormSection>
+                  </div>
+
+                  {/* Valor + Data */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormSection label="Valor (R$)" required>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground select-none">
+                          R$
+                        </span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          value={bankForm.amount}
+                          onChange={(e) => setBankForm((p) => ({ ...p, amount: e.target.value }))}
+                          placeholder="0,00"
+                          required
+                          disabled={addExpense.isPending}
+                          className="h-12 rounded-xl border-border/70 text-sm pl-10 font-mono"
+                        />
+                      </div>
+                    </FormSection>
+                    <FormSection label="Data" required>
+                      <DateFieldWithInput
+                        value={bankForm.date}
+                        onChange={(v) => setBankForm((p) => ({ ...p, date: v }))}
+                      />
+                    </FormSection>
+                  </div>
+
+                  {/* Observação */}
+                  <FormSection label="Observação">
+                    <Input
+                      value={bankForm.notes}
+                      onChange={(e) => setBankForm((p) => ({ ...p, notes: e.target.value }))}
+                      placeholder="Informações adicionais..."
+                      disabled={addExpense.isPending}
+                      className="h-12 rounded-xl border-border/70 text-sm"
+                    />
+                  </FormSection>
+
+                  {/* Submit */}
+                  <Button
+                    type="submit"
+                    className="
+                      w-full h-12 rounded-xl font-semibold text-sm
+                      bg-gradient-to-r from-blue-600 to-indigo-600
+                      hover:from-blue-500 hover:to-indigo-500
+                      text-white shadow-blue-500/20
+                      transition-all duration-200 hover:-translate-y-px hover:shadow-md
+                      disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none
+                    "
+                    disabled={addExpense.isPending || !bankForm.category || !bankForm.amount || !bankForm.description || !bankForm.bankName}
+                  >
+                    {addExpense.isPending ? (
+                      <span className="flex items-center gap-2">
+                        <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                        Registrando...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        🏦 Registrar Despesa Bancária
+                      </span>
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
           </div>
         </DialogContent>
       </Dialog>
