@@ -415,6 +415,7 @@ export function useCreateExpense() {
       installmentStartDate?: string | null;
       aircraftId?: string | null;
       status?: string | null;
+      abastecimentoId?: string | null;
     }) => {
       const isInstallment = data.isInstallment && data.paymentMethod === "cartao" && (data.installmentCount || 1) > 1;
       const installmentCount = isInstallment ? (data.installmentCount || 1) : 1;
@@ -529,21 +530,34 @@ const originalExpense: any = {
         if (error) throw error;
       }
 
-      // Sync: se é abastecimento, criar registro na tabela abastecimentos
+      // Sync abastecimento: UPDATE existing or CREATE new
       if (data.expenseType === "abastecimento" || data.category === "abastecimento") {
         try {
-          await supabase.from("abastecimentos").insert({
-            client_id: data.clientId,
-            aeronave_id: data.aircraftId || null,
-            data: data.dueDate || new Date().toISOString().split("T")[0],
-            trecho: data.description || "N/A",
-            local: data.supplierName || "N/A",
-            litros: 0,
-            valor_unitario: 0,
-            valor_total: data.totalAmount,
-            partner_name: (data.assignedPartnerName || "").replace(/^\[|\]$/g, "") || null,
-            status_pagamento: data.status === "paid" || data.status === "pago" ? "pago" : "pendente",
-          });
+          if (data.abastecimentoId) {
+            // UPDATE existing abastecimento status instead of creating a new one
+            await supabase
+              .from("abastecimentos")
+              .update({
+                status_pagamento: data.status === "paid" || data.status === "pago" ? "pago" : "pendente",
+                partner_name: (data.assignedPartnerName || "").replace(/^\[|\]$/g, "") || null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", data.abastecimentoId);
+          } else {
+            // Only create a new abastecimento if no existing one was selected
+            await supabase.from("abastecimentos").insert({
+              client_id: data.clientId,
+              aeronave_id: data.aircraftId || null,
+              data: data.dueDate || new Date().toISOString().split("T")[0],
+              trecho: data.description || "N/A",
+              local: data.supplierName || "N/A",
+              litros: 0,
+              valor_unitario: 0,
+              valor_total: data.totalAmount,
+              partner_name: (data.assignedPartnerName || "").replace(/^\[|\]$/g, "") || null,
+              status_pagamento: data.status === "paid" || data.status === "pago" ? "pago" : "pendente",
+            });
+          }
         } catch (syncErr) {
           console.warn("Erro ao sincronizar abastecimento:", syncErr);
         }
@@ -556,6 +570,7 @@ const originalExpense: any = {
       queryClient.invalidateQueries({ queryKey: ["partner-accounts", clientId] });
       queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
       queryClient.invalidateQueries({ queryKey: ["abastecimentos"] });
+      queryClient.invalidateQueries({ queryKey: ["client-abastecimentos"] });
       toast.success("Despesa criada com sucesso!");
     },
     onError: (err: any) => {
@@ -609,8 +624,12 @@ export function useDeleteTransaction() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: { id: string; clientId: string; transactionType: string; partnerCpf: string; amount: number }) => {
-      if (data.transactionType === "expense") {
+    mutationFn: async (data: { id: string; clientId: string; transactionType: string; partnerCpf: string; amount: number; referenceType?: string }) => {
+      if (data.referenceType === "abastecimento" || data.transactionType === "abastecimento") {
+        // Delete from abastecimentos
+        const { error } = await supabase.from("abastecimentos").delete().eq("id", data.id);
+        if (error) throw error;
+      } else if (data.transactionType === "expense" || data.referenceType === "partner_expense") {
         // Delete from partner_expenses
         const { error } = await supabase.from("partner_expenses").delete().eq("id", data.id);
         if (error) throw error;
@@ -652,6 +671,7 @@ export function useDeleteTransaction() {
       queryClient.invalidateQueries({ queryKey: ["partner-accounts", clientId] });
       queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
       queryClient.invalidateQueries({ queryKey: ["partner-expenses", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["client-abastecimentos"] });
       toast.success("Transação excluída com sucesso!");
     },
     onError: (err: any) => {
