@@ -549,6 +549,7 @@ export function useCreateExpense() {
       queryClient.invalidateQueries({ queryKey: ["partner-expenses", clientId] });
       queryClient.invalidateQueries({ queryKey: ["partner-accounts", clientId] });
       queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["abastecimentos"] });
       toast.success("Despesa criada com sucesso!");
     },
     onError: (err: any) => {
