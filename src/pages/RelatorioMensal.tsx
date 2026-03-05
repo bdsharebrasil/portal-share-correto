@@ -18,6 +18,7 @@ import {
   Filter,
   X,
   Check,
+  Trash2,
 } from "lucide-react"
 import { TransactionEditModal } from "@/components/socios/TransactionEditModal"
 import {
@@ -58,7 +59,7 @@ import {
   addMonths,
 } from "date-fns"
 import { ptBR } from "date-fns/locale"
-import { useSocioTransactions } from "@/hooks/useFinanceiroSocios"
+import { useSocioTransactions, useDeleteTransaction } from "@/hooks/useFinanceiroSocios"
 import { useClientesComSocios } from "@/hooks/useSocioBalanco"
 import { useQuery } from "@tanstack/react-query"
 import { supabase } from "@/integrations/supabase/client"
@@ -116,6 +117,7 @@ export default function RelatorioMensal() {
 
   const { data: clientesComSocios = [] } = useClientesComSocios()
   const { data: transactions = [] } = useSocioTransactions(clienteId)
+  const deleteTransaction = useDeleteTransaction()
 
   // Fetch expense_categories from DB for label enrichment
   const { data: dbCategories = [] } = useQuery({
@@ -691,19 +693,43 @@ export default function RelatorioMensal() {
                           }}
                         >
                           <td className="py-3 px-3 text-center">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 w-7 p-0"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setEditingTransaction(tx)
-                                setIsEditModalOpen(true)
-                              }}
-                              title="Editar lançamento"
-                            >
-                              <Edit2 className="h-4 w-4 text-blue-500" />
-                            </Button>
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setEditingTransaction(tx)
+                                  setIsEditModalOpen(true)
+                                }}
+                                title="Editar lançamento"
+                              >
+                                <Edit2 className="h-4 w-4 text-blue-500" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 w-7 p-0"
+                                disabled={deleteTransaction.isPending}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  if (window.confirm("Tem certeza que deseja excluir este lançamento?")) {
+                                    deleteTransaction.mutate({
+                                      id: tx.id,
+                                      clientId: clienteId!,
+                                      transactionType: tx.transaction_type,
+                                      partnerCpf: tx.partner_cpf || "",
+                                      amount: Number(tx.amount),
+                                      referenceType: tx.reference_type || undefined,
+                                    })
+                                  }
+                                }}
+                                title="Excluir lançamento"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
                           </td>
                           <td className="py-3 px-3 text-foreground">{formattedDate}</td>
                           <td className="py-3 px-3 text-foreground">{tx.description || "-"}</td>
