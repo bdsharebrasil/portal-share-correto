@@ -123,6 +123,8 @@ const EMPTY_BANK_FORM = {
   bankName: "",
   notes: "",
   prazo: "mensal" as "mensal" | "extra",
+  assignMode: "geral" as "geral" | "rateio" | "socio",
+  assignedPartnerCpf: "none",
 };
 
 interface ExpenseFormProps {
@@ -349,14 +351,13 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     e.preventDefault();
     if (!bankForm.category || !bankForm.amount || !bankForm.description) return;
 
-    const selectedBankCat = BANK_EXPENSE_CATEGORIES.find((c) => c.id === bankForm.category);
     const aircraftId = await getAircraftId();
 
     // Resolve bank name from ID
     const selectedConta = contasBancarias.find((c) => c.id === bankForm.bankName);
     const bankNameResolved = selectedConta ? selectedConta.banco : bankForm.bankName || null;
 
-    await addExpense.mutateAsync({
+    const basePayload = {
       clientId: clienteId,
       description: bankForm.description,
       totalAmount: parseFloat(bankForm.amount),
@@ -369,9 +370,33 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       prazo: bankForm.prazo,
       aircraftId,
       status: "pago",
-      assignedPartnerCpf: null,
-      assignedPartnerName: null,
-    });
+    };
+
+    if (bankForm.assignMode === "rateio" && partners.length > 1) {
+      const splitAmount = parseFloat(bankForm.amount) / partners.length;
+      const splitAmountRounded = Math.round(splitAmount * 100) / 100;
+      for (const partner of partners) {
+        await addExpense.mutateAsync({
+          ...basePayload,
+          totalAmount: splitAmountRounded,
+          assignedPartnerCpf: partner.cpf,
+          assignedPartnerName: partner.name,
+        });
+      }
+    } else if (bankForm.assignMode === "socio" && bankForm.assignedPartnerCpf !== "none") {
+      const partner = partners.find((p) => p.cpf === bankForm.assignedPartnerCpf);
+      await addExpense.mutateAsync({
+        ...basePayload,
+        assignedPartnerCpf: bankForm.assignedPartnerCpf,
+        assignedPartnerName: partner?.name || null,
+      });
+    } else {
+      await addExpense.mutateAsync({
+        ...basePayload,
+        assignedPartnerCpf: null,
+        assignedPartnerName: null,
+      });
+    }
 
     setOpen(false);
     setBankForm(EMPTY_BANK_FORM);
@@ -1132,6 +1157,72 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </div>
                   </div>
 
+                  {/* Atribuição: Geral / Rateio / Sócio Específico */}
+                  <FormSection label="Atribuição da Despesa" required>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { value: "geral", label: "Geral", desc: "Sem vínculo com sócio" },
+                        { value: "rateio", label: "Ratear Igual", desc: "Dividir entre todos" },
+                        { value: "socio", label: "Sócio Específico", desc: "Atribuir a um sócio" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setBankForm((p) => ({ ...p, assignMode: opt.value as any, assignedPartnerCpf: "none" }))}
+                          className={cn(
+                            "flex flex-col items-center gap-1 p-3 rounded-xl border text-xs font-medium transition-all",
+                            bankForm.assignMode === opt.value
+                              ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-500"
+                              : "border-border/70 text-muted-foreground hover:border-border"
+                          )}
+                        >
+                          <span className="text-sm font-semibold">{opt.label}</span>
+                          <span className="text-[10px] opacity-70">{opt.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </FormSection>
+
+                  {/* Sócio selector (only when "socio" mode) */}
+                  {bankForm.assignMode === "socio" && (
+                    <FormSection label="Sócio Responsável" required>
+                      <Select
+                        value={bankForm.assignedPartnerCpf}
+                        onValueChange={(v) => setBankForm((p) => ({ ...p, assignedPartnerCpf: v }))}
+                        disabled={loadingPartners}
+                      >
+                        <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                          <SelectValue placeholder={loadingPartners ? "Carregando sócios..." : "Selecione o sócio"} />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          {partners.map((partner) => (
+                            <SelectItem key={partner.id} value={partner.cpf} className="py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-bold flex-shrink-0">
+                                  {partner.name.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                  <div className="font-medium text-sm">{partner.name}</div>
+                                  <div className="text-xs text-muted-foreground font-mono">
+                                    {formatCPF(partner.cpf)}
+                                    {partner.share_percentage && ` · ${partner.share_percentage}%`}
+                                  </div>
+                                </div>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormSection>
+                  )}
+
+                  {bankForm.assignMode === "rateio" && partners.length > 0 && (
+                    <div className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-950/30 dark:border-emerald-800/40 dark:text-emerald-300">
+                      <span>💡</span>
+                      <span>O valor será dividido igualmente entre <strong>{partners.length} sócios</strong></span>
+                    </div>
+                  )}
+
                   {/* Categoria bancária */}
                   <FormSection label="Tipo de Despesa Bancária" required>
                     <Select
@@ -1284,7 +1375,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                       transition-all duration-200 hover:-translate-y-px hover:shadow-md
                       disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none
                     "
-                    disabled={addExpense.isPending || !bankForm.category || !bankForm.amount || !bankForm.description || !bankForm.bankName}
+                    disabled={addExpense.isPending || !bankForm.category || !bankForm.amount || !bankForm.description || !bankForm.bankName || (bankForm.assignMode === "socio" && bankForm.assignedPartnerCpf === "none")}
                   >
                     {addExpense.isPending ? (
                       <span className="flex items-center gap-2">
