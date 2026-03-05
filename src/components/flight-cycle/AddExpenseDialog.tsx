@@ -84,6 +84,7 @@ export function AddExpenseDialog({ open, onOpenChange, onAdd }: AddExpenseDialog
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="imediata">Imediata</SelectItem>
+                    <SelectItem value="relatorio_viagem">Relatório de Viagem</SelectItem>
                     <SelectItem value="regulatoria">Regulatória</SelectItem>
                     <SelectItem value="variavel">Variável</SelectItem>
                   </SelectContent>

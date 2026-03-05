@@ -66,6 +66,8 @@ export function FlightCycleDetail({
     sic_name: cycle.sic_name || '',
   });
   const [savingEdit, setSavingEdit] = useState(false);
+  const [expenseEdits, setExpenseEdits] = useState<Record<string, { amount: number | null; status: ExpenseStatus }>>({});
+  const [durationInput, setDurationInput] = useState(editData.flight_duration_hours ? formatFlightDuration(parseFloat(editData.flight_duration_hours)) : '');
 
   const statusConfig = FLIGHT_STATUS_CONFIG[cycle.status];
 
@@ -79,6 +81,7 @@ export function FlightCycleDetail({
   useEffect(() => {
     if (isEditing) {
       loadEditData();
+      setDurationInput(editData.flight_duration_hours ? formatFlightDuration(parseFloat(editData.flight_duration_hours)) : '');
     }
   }, [isEditing]);
 
@@ -185,12 +188,14 @@ export function FlightCycleDetail({
   // Group expenses by category
   const groupedExpenses = {
     imediata: expenses.filter(e => e.expense_category === 'imediata'),
+    relatorio_viagem: expenses.filter(e => e.expense_category === 'relatorio_viagem'),
     regulatoria: expenses.filter(e => e.expense_category === 'regulatoria'),
     variavel: expenses.filter(e => e.expense_category === 'variavel'),
   };
 
   const categoryLabels = {
     imediata: 'Despesas Imediatas',
+    relatorio_viagem: 'Despesas Relatório de Viagem',
     regulatoria: 'Despesas Regulatórias',
     variavel: 'Despesas Variáveis',
   };
@@ -306,16 +311,16 @@ export function FlightCycleDetail({
                 <Label>Duração do Voo (HH:MM)</Label>
                 <Input
                   type="text"
-                  value={editData.flight_duration_hours ? formatFlightDuration(parseFloat(editData.flight_duration_hours)) : ''}
+                  value={durationInput}
                   onChange={(e) => {
                     const value = e.target.value;
-                    if (value === '') {
+                    setDurationInput(value);
+                    // Atualiza editData apenas se for um formato válido ou vazio
+                    const parsed = parseFlightDuration(value);
+                    if (parsed !== null) {
+                      setEditData(prev => ({ ...prev, flight_duration_hours: parsed.toString() }));
+                    } else if (value === '') {
                       setEditData(prev => ({ ...prev, flight_duration_hours: '' }));
-                    } else {
-                      const parsed = parseFlightDuration(value);
-                      if (parsed !== null) {
-                        setEditData(prev => ({ ...prev, flight_duration_hours: parsed.toString() }));
-                      }
                     }
                   }}
                   placeholder="00:00"
@@ -556,8 +561,11 @@ export function FlightCycleDetail({
                                 <div className="flex-1">
                                   <label className="text-xs text-muted-foreground mb-1 block">Status</label>
                                   <Select
-                                    value={expense.status}
-                                    onValueChange={(value) => onUpdateExpenseStatus(expense.id, value as ExpenseStatus)}
+                                    value={expenseEdits[expense.id]?.status || expense.status}
+                                    onValueChange={(value) => setExpenseEdits(prev => ({
+                                      ...prev,
+                                      [expense.id]: { ...prev[expense.id], amount: prev[expense.id]?.amount ?? expense.amount, status: value as ExpenseStatus }
+                                    }))}
                                   >
                                     <SelectTrigger>
                                       <SelectValue />
@@ -577,14 +585,30 @@ export function FlightCycleDetail({
                                   <Input
                                     type="number"
                                     placeholder="0,00"
-                                    value={expense.amount || ''}
-                                    onChange={(e) => onUpdateExpenseStatus(expense.id, expense.status, { amount: parseFloat(e.target.value) || null })}
+                                    value={expenseEdits[expense.id]?.amount ?? expense.amount ?? ''}
+                                    onChange={(e) => setExpenseEdits(prev => ({
+                                      ...prev,
+                                      [expense.id]: { 
+                                        ...prev[expense.id],
+                                        amount: e.target.value ? parseFloat(e.target.value) : null,
+                                        status: prev[expense.id]?.status ?? expense.status
+                                      }
+                                    }))}
                                   />
                                 </div>
                                 
                                 <Button 
                                   size="sm"
-                                  onClick={() => onUpdateExpenseStatus(expense.id, expense.status)}
+                                  onClick={() => {
+                                    const newStatus = expenseEdits[expense.id]?.status || expense.status;
+                                    const newAmount = expenseEdits[expense.id]?.amount ?? expense.amount;
+                                    onUpdateExpenseStatus(expense.id, newStatus, { amount: newAmount });
+                                    setExpenseEdits(prev => {
+                                      const updated = { ...prev };
+                                      delete updated[expense.id];
+                                      return updated;
+                                    });
+                                  }}
                                 >
                                   Salvar
                                 </Button>

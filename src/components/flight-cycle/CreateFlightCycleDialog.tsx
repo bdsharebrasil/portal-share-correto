@@ -40,6 +40,7 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
   const [partners, setPartners] = useState<ClientPartner[]>([]);
   const [loading, setLoading] = useState(false);
   const { crewMembers, fetchCrewMembers } = useCrewMembers();
+  const [durationInput, setDurationInput] = useState('');
 
   const [formData, setFormData] = useState({
     client_id: '',
@@ -61,6 +62,7 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
   useEffect(() => {
     if (open) {
       loadData();
+      setDurationInput('');
     }
   }, [open]);
 
@@ -277,16 +279,16 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
               <Label>Duração do Voo (HH:MM)</Label>
               <Input
                 type="text"
-                value={formData.flight_duration_hours ? formatFlightDuration(parseFloat(formData.flight_duration_hours)) : ''}
+                value={durationInput}
                 onChange={(e) => {
                   const value = e.target.value;
-                  if (value === '') {
+                  setDurationInput(value);
+                  // Atualiza formData apenas se for um formato válido ou vazio
+                  const parsed = parseFlightDuration(value);
+                  if (parsed !== null) {
+                    setFormData(prev => ({ ...prev, flight_duration_hours: parsed.toString() }));
+                  } else if (value === '') {
                     setFormData(prev => ({ ...prev, flight_duration_hours: '' }));
-                  } else {
-                    const parsed = parseFlightDuration(value);
-                    if (parsed !== null) {
-                      setFormData(prev => ({ ...prev, flight_duration_hours: parsed.toString() }));
-                    }
                   }
                 }}
                 placeholder="00:00"

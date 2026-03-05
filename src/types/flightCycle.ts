@@ -26,7 +26,7 @@ export type ExpenseStatus =
   | 'atrasada'
   | 'nao_aplicavel';
 
-export type ExpenseCategory = 'imediata' | 'regulatoria' | 'variavel';
+export type ExpenseCategory = 'imediata' | 'regulatoria' | 'relatorio_viagem' | 'variavel';
 
 export interface FlightCycle {
   id: string;
@@ -108,11 +108,12 @@ export const EXPENSE_STATUS_CONFIG: Record<ExpenseStatus, { label: string; icon:
 
 export const EXPENSE_TYPES = {
   // Imediatas
-  hospedagem: { name: 'Hospedagem', category: 'imediata' as ExpenseCategory },
-  alimentacao: { name: 'Alimentação', category: 'imediata' as ExpenseCategory },
-  transporte_terrestre: { name: 'Transporte Terrestre', category: 'imediata' as ExpenseCategory },
   combustivel_emergencia: { name: 'Combustível de Emergência', category: 'imediata' as ExpenseCategory },
   diaria_hangar: { name: 'Diária de Hangar', category: 'imediata' as ExpenseCategory },
+  // Relatório de Viagem
+  hospedagem: { name: 'Hospedagem', category: 'relatorio_viagem' as ExpenseCategory },
+  alimentacao: { name: 'Alimentação', category: 'relatorio_viagem' as ExpenseCategory },
+  transporte_terrestre: { name: 'Transporte Terrestre', category: 'relatorio_viagem' as ExpenseCategory },
   // Regulatórias
   tarifa_decea: { name: 'Tarifa DECEA', category: 'regulatoria' as ExpenseCategory },
   tarifa_infraero: { name: 'Tarifa Infraero', category: 'regulatoria' as ExpenseCategory },

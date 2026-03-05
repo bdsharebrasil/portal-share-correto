@@ -91,7 +91,7 @@ export function useFlightCycles() {
       expenses.push({
         flight_cycle_id: cycle.id,
         expense_type: 'hospedagem',
-        expense_category: 'imediata',
+        expense_category: 'relatorio_viagem',
         expense_name: EXPENSE_TYPES.hospedagem.name,
         status: 'aguardando',
         expected_date: format(addDays(flightDate, 3), 'yyyy-MM-dd'),
@@ -100,7 +100,7 @@ export function useFlightCycles() {
       expenses.push({
         flight_cycle_id: cycle.id,
         expense_type: 'alimentacao',
-        expense_category: 'imediata',
+        expense_category: 'relatorio_viagem',
         expense_name: EXPENSE_TYPES.alimentacao.name,
         status: 'aguardando',
         expected_date: format(addDays(flightDate, 3), 'yyyy-MM-dd'),
@@ -159,7 +159,6 @@ export function useFlightCycles() {
 
       if (error) throw error;
       
-      toast.success('Status atualizado!');
       await fetchCycles();
     } catch (err: any) {
       toast.error('Erro ao atualizar status');
@@ -187,7 +186,6 @@ export function useFlightCycles() {
 
       if (error) throw error;
       
-      toast.success('Despesa atualizada!');
       await fetchCycles();
     } catch (err: any) {
       toast.error('Erro ao atualizar despesa');
