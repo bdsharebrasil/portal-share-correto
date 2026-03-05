@@ -741,5 +741,11 @@ export const EXPENSE_TYPES = [
   { value: "hangar", label: "Hangar" },
   { value: "seguro", label: "Seguro" },
   { value: "tripulacao", label: "Tripulação" },
+  { value: "impostos", label: "Impostos" },
+  { value: "fgts", label: "FGTS" },
+  { value: "inss", label: "INSS" },
+  { value: "pis", label: "PIS" },
+  { value: "cofins", label: "COFINS" },
+  { value: "das", label: "DAS" },
   { value: "outros", label: "Outros" },
 ];
