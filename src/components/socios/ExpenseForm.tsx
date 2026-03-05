@@ -238,6 +238,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           status: form.status,
           referenceType,
           referenceId,
+          abastecimentoId: form.abastecimentoId || null,
         });
       }
     } else {
@@ -264,6 +265,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
         status: form.status,
         referenceType,
         referenceId,
+        abastecimentoId: form.abastecimentoId || null,
       });
     }
 
