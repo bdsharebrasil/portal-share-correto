@@ -19,7 +19,7 @@ import {
 "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Receipt, Plus, ChevronRight, ArrowLeft, Fuel, CalendarIcon } from "lucide-react";
+import { Receipt, Plus, ChevronRight, ArrowLeft, Fuel, CalendarIcon, UserPlus } from "lucide-react";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { useCreateExpense } from "@/hooks/useFinanceiroSocios";
 import { useClientPartners } from "@/hooks/useClientPartners";
@@ -27,6 +27,8 @@ import { useClientAbastecimentos } from "@/hooks/useAbastecimentos";
 import { useFornecedoresFavoritos } from "@/hooks/useFornecedoresFavoritos";
 import { useFuelSuppliers } from "@/hooks/useFuelSuppliers";
 import { useContasBancarias } from "@/hooks/useContasBancarias";
+import { AddFornecedorDialog } from "@/components/fiscal/contas-pagar/AddFornecedorDialog";
+import { useQueryClient } from "@tanstack/react-query";
 import { formatCPF } from "@/lib/formatters";
 import { format, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -93,6 +95,8 @@ interface ExpenseFormProps {
 export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [showAddFornecedor, setShowAddFornecedor] = useState(false);
+  const queryClient = useQueryClient();
 
   const addExpense = useCreateExpense();
   const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteId);
@@ -100,6 +104,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const { data: fornecedoresFavoritos = [] } = useFornecedoresFavoritos();
   const { data: fuelSuppliers = [] } = useFuelSuppliers();
   const { data: contasBancarias = [], isLoading: loadingContas } = useContasBancarias();
+
+  // Filtrar apenas fornecedores da categoria 'share'
+  const fornecedoresShare = fornecedoresFavoritos.filter(f => f.categoria === 'share');
 
   const set = (key: keyof typeof EMPTY_FORM) => (value: string | boolean) =>
   setForm((prev) => ({ ...prev, [key]: value }));
@@ -199,6 +206,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const isValid = !!form.description && !!form.totalAmount && !!form.category;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
@@ -473,20 +481,39 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     disabled={addExpense.isPending}
                   />
                 ) : (
-                  // Para outras categorias, mostrar fornecedores favoritos
-                  <SearchableCombobox
-                    items={fornecedoresFavoritos.map((f) => ({
-                      id: f.nome_completo,
-                      label: `${f.nome_completo}${f.documento ? ` (${f.documento})` : ""}`
-                    }))}
-                    value={form.supplierName}
-                    onChange={(id, label) => set("supplierName")(id)}
-                    placeholder="Selecione ou digite o fornecedor..."
-                    searchPlaceholder="Buscar fornecedor..."
-                    emptyMessage="Nenhum fornecedor encontrado"
-                    disabled={addExpense.isPending}
-                    allowFreeText={true}
-                  />
+                  // Para outras categorias, mostrar apenas fornecedores favoritos categoria 'share'
+                  <>
+                    <SearchableCombobox
+                      items={fornecedoresShare.map((f) => ({
+                        id: f.nome_completo,
+                        label: `${f.nome_completo}${f.documento ? ` (${f.documento})` : ""}`
+                      }))}
+                      value={form.supplierName}
+                      onChange={(id, label) => set("supplierName")(id)}
+                      placeholder="Selecione ou digite o fornecedor..."
+                      searchPlaceholder="Buscar fornecedor..."
+                      emptyMessage="Nenhum fornecedor encontrado"
+                      disabled={addExpense.isPending}
+                      allowFreeText={true}
+                    />
+                    {/* Botão para adicionar fornecedor favorito se digitou texto livre */}
+                    {form.supplierName && !fornecedoresShare.some(f => f.nome_completo === form.supplierName) && (
+                      <div className="flex items-center gap-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg mt-2">
+                        <p className="text-xs text-amber-600 dark:text-amber-400 flex-1">
+                          Fornecedor não encontrado nos favoritos.
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setShowAddFornecedor(true)}
+                          className="h-7 text-xs"
+                        >
+                          <UserPlus className="h-3 w-3 mr-1" /> Adicionar
+                        </Button>
+                      </div>
+                    )}
+                  </>
                 )}
               </FormSection>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -727,7 +754,20 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           </form>
         </div>
       </DialogContent>
-    </Dialog>);
+    </Dialog>
+
+    <AddFornecedorDialog
+      open={showAddFornecedor}
+      onOpenChange={setShowAddFornecedor}
+      initialName={form.supplierName}
+      onSaved={(forn) => {
+        set("supplierName")(forn.nome_completo);
+      }}
+      onFornecedorAdded={() => {
+        queryClient.invalidateQueries({ queryKey: ["fornecedores-favoritos"] });
+      }}
+    />
+    </>);
 
 }
 
