@@ -15,8 +15,24 @@ import {
   DollarSign,
   Calendar,
   Edit2,
+  Filter,
+  X,
+  Check,
 } from "lucide-react"
 import { TransactionEditModal } from "@/components/socios/TransactionEditModal"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 import {
   ResponsiveContainer,
   LineChart,
@@ -44,6 +60,38 @@ import {
 import { ptBR } from "date-fns/locale"
 import { useSocioTransactions } from "@/hooks/useFinanceiroSocios"
 import { useClientesComSocios } from "@/hooks/useSocioBalanco"
+import { useQuery } from "@tanstack/react-query"
+import { supabase } from "@/integrations/supabase/client"
+import { cn } from "@/lib/utils"
+
+// Mapa de normalização de categorias
+const CATEGORY_NORMALIZE: Record<string, string> = {
+  hangar: "Hangaragem",
+  hangaragem: "Hangaragem",
+  abastecimento: "Abastecimento",
+  "Abastecimento": "Abastecimento",
+  manutencao: "Manutenção",
+  contabilidade: "Honorários Contabilidade",
+  "Honorários Contabilidade": "Honorários Contabilidade",
+  viagem: "Despesas de Viagem",
+  outros: "Outros",
+  atendimento_pista: "Atendimento de Pista",
+  pouso_decolagem: "Pouso/Decolagem",
+  subscricoes: "Assinaturas",
+  "Assinaturas": "Assinaturas",
+  infraero: "INFRAERO",
+  impostos: "Impostos",
+  ressarcimento: "Ressarcimento",
+  acquisition_refund: "Devolução de Aquisição",
+  deposit: "Entrada",
+  bank_interest: "Juros Bancários",
+  reembolso: "Reembolso",
+}
+
+function normalizeCategory(raw: string | null | undefined): string {
+  if (!raw) return "Outros"
+  return CATEGORY_NORMALIZE[raw] || CATEGORY_NORMALIZE[raw.toLowerCase()] || raw
+}
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
@@ -59,6 +107,8 @@ export default function RelatorioMensal() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [editingTransaction, setEditingTransaction] = useState<any>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [partnerFilterOpen, setPartnerFilterOpen] = useState(false)
+  const [categoryFilterOpen, setCategoryFilterOpen] = useState(false)
 
   // ========================
   // DADOS
@@ -66,6 +116,20 @@ export default function RelatorioMensal() {
 
   const { data: clientesComSocios = [] } = useClientesComSocios()
   const { data: transactions = [] } = useSocioTransactions(clienteId)
+
+  // Fetch expense_categories from DB for label enrichment
+  const { data: dbCategories = [] } = useQuery({
+    queryKey: ["expense_categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("expense_categories")
+        .select("id, label, icon")
+        .order("sort_order")
+      if (error) throw error
+      return data || []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
 
   const selectedClient = useMemo(
     () => clientesComSocios.find((c) => c.id === clienteId),
@@ -77,13 +141,22 @@ export default function RelatorioMensal() {
   // ========================
 
   const allPartners = useMemo(
-    () => [...new Set(transactions.map((t) => t.partner_name))].filter(Boolean),
+    () => [...new Set(transactions.map((t) => t.partner_name))].filter(Boolean).sort(),
     [transactions]
   )
 
+  // Normalizar categorias usando o mapa + db labels
+  const getCategoryFromTx = (t: any): string => {
+    const raw = t.transaction_subtype || t.category || t.expense_type
+    // Try DB label first
+    const dbCat = dbCategories.find(c => c.id === raw)
+    if (dbCat) return dbCat.label
+    return normalizeCategory(raw)
+  }
+
   const allCategories = useMemo(
-    () => [...new Set(transactions.map((t) => t.transaction_subtype || t.category || t.expense_type).filter(Boolean))],
-    [transactions]
+    () => [...new Set(transactions.map(getCategoryFromTx))].filter(Boolean).sort(),
+    [transactions, dbCategories]
   )
 
   // Helper functions for display
@@ -134,7 +207,7 @@ export default function RelatorioMensal() {
 
     if (selectedCategories.length > 0) {
       result = result.filter((t) => {
-        const category = t.transaction_subtype || t.category || t.expense_type
+        const category = getCategoryFromTx(t)
         return selectedCategories.includes(category)
       })
     }
@@ -308,65 +381,189 @@ export default function RelatorioMensal() {
           </div>
         </div>
 
-        {/* Filtro de Sócios */}
-        {allPartners.length > 0 && (
-          <Card className="border border-border bg-background">
-            <CardContent className="p-4">
-              <label className="text-sm font-semibold text-foreground block mb-3">
-                Filtrar por Sócio
-              </label>
-              <div className="flex flex-wrap gap-3">
-                {allPartners.map((partner) => (
-                  <label key={partner} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedPartners.includes(partner)}
-                      onChange={() =>
-                        setSelectedPartners((prev) =>
-                          prev.includes(partner)
-                            ? prev.filter((p) => p !== partner)
-                            : [...prev, partner]
-                        )
-                      }
-                      className="rounded border-input cursor-pointer"
-                    />
-                    <span className="text-sm text-foreground">{partner}</span>
-                  </label>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Filtros */}
+        <div className="flex flex-wrap gap-3">
+          {/* Filtro de Sócios */}
+          {allPartners.length > 0 && (
+            <Popover open={partnerFilterOpen} onOpenChange={setPartnerFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="h-10 rounded-xl border-border/70 gap-2 min-w-[180px] justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">
+                      {selectedPartners.length === 0
+                        ? "Todos os Sócios"
+                        : `${selectedPartners.length} sócio${selectedPartners.length > 1 ? "s" : ""}`}
+                    </span>
+                  </div>
+                  {selectedPartners.length > 0 && (
+                    <Badge variant="secondary" className="rounded-full h-5 w-5 p-0 flex items-center justify-center text-[10px]">
+                      {selectedPartners.length}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[260px] p-0 rounded-xl" align="start">
+                <Command className="rounded-xl">
+                  <CommandInput placeholder="Buscar sócio..." className="h-10" />
+                  <CommandList>
+                    <CommandEmpty>Nenhum sócio encontrado.</CommandEmpty>
+                    <CommandGroup>
+                      {allPartners.map((partner) => (
+                        <CommandItem
+                          key={partner}
+                          onSelect={() =>
+                            setSelectedPartners((prev) =>
+                              prev.includes(partner)
+                                ? prev.filter((p) => p !== partner)
+                                : [...prev, partner]
+                            )
+                          }
+                          className="cursor-pointer"
+                        >
+                          <div className={cn(
+                            "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                            selectedPartners.includes(partner)
+                              ? "bg-primary text-primary-foreground"
+                              : "opacity-50"
+                          )}>
+                            {selectedPartners.includes(partner) && <Check className="h-3 w-3" />}
+                          </div>
+                          <span className="text-sm">{partner}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+                {selectedPartners.length > 0 && (
+                  <div className="border-t border-border p-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-xs h-8"
+                      onClick={() => setSelectedPartners([])}
+                    >
+                      <X className="h-3 w-3 mr-1" /> Limpar filtro
+                    </Button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+          )}
 
-        {/* Filtro de Categorias */}
-        {allCategories.length > 0 && (
-          <Card className="border border-border bg-background">
-            <CardContent className="p-4">
-              <label className="text-sm font-semibold text-foreground block mb-3">
-                Filtrar por Tipo de Categoria
-              </label>
-              <div className="flex flex-wrap gap-3">
-                {allCategories.map((category) => (
-                  <label key={category} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedCategories.includes(category)}
-                      onChange={() =>
-                        setSelectedCategories((prev) =>
-                          prev.includes(category)
-                            ? prev.filter((c) => c !== category)
-                            : [...prev, category]
-                        )
-                      }
-                      className="rounded border-input cursor-pointer"
-                    />
-                    <span className="text-sm text-foreground">{category}</span>
-                  </label>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+          {/* Filtro de Categorias */}
+          {allCategories.length > 0 && (
+            <Popover open={categoryFilterOpen} onOpenChange={setCategoryFilterOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="h-10 rounded-xl border-border/70 gap-2 min-w-[200px] justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">
+                      {selectedCategories.length === 0
+                        ? "Todas as Categorias"
+                        : `${selectedCategories.length} categoria${selectedCategories.length > 1 ? "s" : ""}`}
+                    </span>
+                  </div>
+                  {selectedCategories.length > 0 && (
+                    <Badge variant="secondary" className="rounded-full h-5 w-5 p-0 flex items-center justify-center text-[10px]">
+                      {selectedCategories.length}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[280px] p-0 rounded-xl" align="start">
+                <Command className="rounded-xl">
+                  <CommandInput placeholder="Buscar categoria..." className="h-10" />
+                  <CommandList>
+                    <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+                    <CommandGroup>
+                      {allCategories.map((category) => (
+                        <CommandItem
+                          key={category}
+                          onSelect={() =>
+                            setSelectedCategories((prev) =>
+                              prev.includes(category)
+                                ? prev.filter((c) => c !== category)
+                                : [...prev, category]
+                            )
+                          }
+                          className="cursor-pointer"
+                        >
+                          <div className={cn(
+                            "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                            selectedCategories.includes(category)
+                              ? "bg-primary text-primary-foreground"
+                              : "opacity-50"
+                          )}>
+                            {selectedCategories.includes(category) && <Check className="h-3 w-3" />}
+                          </div>
+                          <span className="text-sm">{category}</span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+                {selectedCategories.length > 0 && (
+                  <div className="border-t border-border p-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-xs h-8"
+                      onClick={() => setSelectedCategories([])}
+                    >
+                      <X className="h-3 w-3 mr-1" /> Limpar filtro
+                    </Button>
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
+          )}
+
+          {/* Chips de filtros ativos */}
+          {(selectedPartners.length > 0 || selectedCategories.length > 0) && (
+            <div className="flex flex-wrap gap-2 items-center">
+              {selectedPartners.map((p) => (
+                <Badge
+                  key={`p-${p}`}
+                  variant="secondary"
+                  className="rounded-full gap-1 pr-1 cursor-pointer hover:bg-destructive/20"
+                  onClick={() => setSelectedPartners((prev) => prev.filter((x) => x !== p))}
+                >
+                  {p}
+                  <X className="h-3 w-3" />
+                </Badge>
+              ))}
+              {selectedCategories.map((c) => (
+                <Badge
+                  key={`c-${c}`}
+                  variant="outline"
+                  className="rounded-full gap-1 pr-1 cursor-pointer hover:bg-destructive/20"
+                  onClick={() => setSelectedCategories((prev) => prev.filter((x) => x !== c))}
+                >
+                  {c}
+                  <X className="h-3 w-3" />
+                </Badge>
+              ))}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-muted-foreground"
+                onClick={() => {
+                  setSelectedPartners([])
+                  setSelectedCategories([])
+                }}
+              >
+                Limpar tudo
+              </Button>
+            </div>
+          )}
+        </div>
 
         {/* KPIs */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
