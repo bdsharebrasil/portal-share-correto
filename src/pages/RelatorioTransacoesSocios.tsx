@@ -689,7 +689,25 @@ export default function RelatorioTransacoesSocios() {
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setShowExportModal(true)}
+                className="gap-1"
+              >
+                <FileDown className="h-4 w-4" />
+                Relatório Completo por Sócio (PDF)
+              </Button>
+              <Button
+                variant={showInlineReport ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setShowInlineReport(!showInlineReport)}
+                className="gap-1"
+              >
+                <Eye className="h-4 w-4" />
+                {showInlineReport ? "Ocultar Relatório" : "Visualizar Relatório"}
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -697,7 +715,7 @@ export default function RelatorioTransacoesSocios() {
                 className="gap-1"
               >
                 <FileDown className="h-4 w-4" />
-                Exportar PDF
+                Exportar Tabela PDF
               </Button>
               <Button
                 variant="outline"
