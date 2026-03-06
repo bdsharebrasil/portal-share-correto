@@ -55,6 +55,9 @@ import { format, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { exportTableToPDF, createFilenameWithTimestamp } from "@/components/utils/exportToPDF";
+import { ExportReportModal } from "@/components/reports/ExportReportModal";
+import { MonthlyPartnerReportPDF } from "@/components/reports/MonthlyPartnerReportPDF";
+import { useMonthlyPartnerReport } from "@/hooks/useMonthlyPartnerReport";
 
 // Helper functions
 function formatCPF(cpf: string) {
@@ -122,6 +125,8 @@ export default function RelatorioTransacoesSocios() {
 
   // Monthly report state
   const [showMonthlyReport, setShowMonthlyReport] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showInlineReport, setShowInlineReport] = useState(false);
   const [dateSortOrder, setDateSortOrder] = useState<"asc" | "desc">("desc");
 
   // Filters state
@@ -164,6 +169,9 @@ export default function RelatorioTransacoesSocios() {
 
   const deleteTransaction = useDeleteTransaction();
   const updateTransaction = useUpdateTransaction();
+
+  // Monthly partner report data
+  const { data: monthlyReportData } = useMonthlyPartnerReport(clienteId || null, filterMonth);
 
   const selectedClientData = useMemo(
     () => clientesComSocios.find((c) => c.id === clienteId),
@@ -681,7 +689,25 @@ export default function RelatorioTransacoesSocios() {
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setShowExportModal(true)}
+                className="gap-1"
+              >
+                <FileDown className="h-4 w-4" />
+                Relatório Completo por Sócio (PDF)
+              </Button>
+              <Button
+                variant={showInlineReport ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setShowInlineReport(!showInlineReport)}
+                className="gap-1"
+              >
+                <Eye className="h-4 w-4" />
+                {showInlineReport ? "Ocultar Relatório" : "Visualizar Relatório"}
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -689,7 +715,7 @@ export default function RelatorioTransacoesSocios() {
                 className="gap-1"
               >
                 <FileDown className="h-4 w-4" />
-                Exportar PDF
+                Exportar Tabela PDF
               </Button>
               <Button
                 variant="outline"
@@ -1247,6 +1273,42 @@ export default function RelatorioTransacoesSocios() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Inline Report Preview */}
+        {showInlineReport && monthlyReportData && (
+          <Card className="border-border/50 bg-card/60 backdrop-blur-sm mt-6">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary" />
+                Relatório Detalhado por Sócio
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 overflow-auto max-h-[800px]">
+              <div id="partner-report-pdf-content">
+                <MonthlyPartnerReportPDF
+                  data={monthlyReportData}
+                  month={filterMonth}
+                  includeCharts={true}
+                  includeFlights={true}
+                  includeFuels={true}
+                  includeExpenses={true}
+                  selectedPartnerIds={[]}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Export Modal */}
+        {clienteId && (
+          <ExportReportModal
+            open={showExportModal}
+            onOpenChange={setShowExportModal}
+            clientId={clienteId}
+            clientName={selectedClientData?.company_name || selectedClientData?.proprietario || ""}
+            defaultMonth={filterMonth}
+          />
+        )}
       </Layout>
     );
   }
