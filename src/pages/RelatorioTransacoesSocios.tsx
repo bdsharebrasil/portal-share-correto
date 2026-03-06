@@ -55,6 +55,9 @@ import { format, addMonths, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { exportTableToPDF, createFilenameWithTimestamp } from "@/components/utils/exportToPDF";
+import { ExportReportModal } from "@/components/reports/ExportReportModal";
+import { MonthlyPartnerReportPDF } from "@/components/reports/MonthlyPartnerReportPDF";
+import { useMonthlyPartnerReport } from "@/hooks/useMonthlyPartnerReport";
 
 // Helper functions
 function formatCPF(cpf: string) {
