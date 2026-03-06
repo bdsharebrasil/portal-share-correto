@@ -125,6 +125,8 @@ export default function RelatorioTransacoesSocios() {
 
   // Monthly report state
   const [showMonthlyReport, setShowMonthlyReport] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showInlineReport, setShowInlineReport] = useState(false);
   const [dateSortOrder, setDateSortOrder] = useState<"asc" | "desc">("desc");
 
   // Filters state
