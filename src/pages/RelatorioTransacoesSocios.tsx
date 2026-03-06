@@ -170,6 +170,9 @@ export default function RelatorioTransacoesSocios() {
   const deleteTransaction = useDeleteTransaction();
   const updateTransaction = useUpdateTransaction();
 
+  // Monthly partner report data
+  const { data: monthlyReportData } = useMonthlyPartnerReport(clienteId || null, filterMonth);
+
   const selectedClientData = useMemo(
     () => clientesComSocios.find((c) => c.id === clienteId),
     [clientesComSocios, clienteId]
