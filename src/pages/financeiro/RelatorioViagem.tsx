@@ -400,6 +400,29 @@ export default function RelatorioViagem() {
       let reportNumber = reportData.report_number;
       if (!isUpdate && (reportNumber.includes('XXX') || reportNumber.startsWith('R-'))) {
         reportNumber = await generateReportNumber(reportData.client);
+        
+        // Verificar se o número já existe e gerar um novo se necessário
+        let attempts = 0;
+        while (attempts < 10) {
+          const { data: existing } = await supabase
+            .from('travel_expense_reports')
+            .select('id')
+            .eq('report_number', reportNumber)
+            .maybeSingle();
+          
+          if (!existing) break;
+          
+          // Incrementar o número
+          const match = reportNumber.match(/^(REL-[A-Z]{3}-)(\d+)(\/\d+)$/);
+          if (match) {
+            const nextNum = parseInt(match[2]) + 1;
+            reportNumber = `${match[1]}${String(nextNum).padStart(3, '0')}${match[3]}`;
+          } else {
+            reportNumber = reportNumber + '-' + Date.now().toString().slice(-4);
+            break;
+          }
+          attempts++;
+        }
       }
 
       const recalculatedTotals = calculateReportTotals(validExpenses);
@@ -417,6 +440,11 @@ export default function RelatorioViagem() {
         }
       }
 
+      // Garantir que crew_member_id2 é null se vazio (evitar erro FK)
+      const crew_member_id2_value = reportData.crew_member_id2 && reportData.crew_member_id2.trim() !== '' 
+        ? reportData.crew_member_id2 
+        : null;
+
       const reportDataToSave = {
         report_number: reportNumber,
         client_id: reportData.client_id || null,
@@ -427,7 +455,7 @@ export default function RelatorioViagem() {
         crew: crew_value,
         crew_member_name: reportData.crew_member_name,
         crew_member_name2: reportData.crew_member_name2 || null,
-        crew_member_id2: reportData.crew_member_id2 || null,
+        crew_member_id2: crew_member_id2_value,
         route: reportData.route,
         start_date: reportData.start_date,
         end_date: reportData.end_date,
@@ -441,6 +469,8 @@ export default function RelatorioViagem() {
         total_transport: recalculatedTotals.total_transport,
         total_other: recalculatedTotals.total_other,
         total_crew: recalculatedTotals.total_crew,
+        total_crew1: recalculatedTotals.total_crew1,
+        total_crew2: recalculatedTotals.total_crew2,
         total_client: recalculatedTotals.total_client,
         total_sharebrasil: recalculatedTotals.total_sharebrasil,
         status: newStatus,

@@ -144,15 +144,30 @@ export function TravelReportForm({
     }
   }, [currentReport.client_id]);
 
-  // Auto-save draft
+  // Auto-save draft - salva a cada 30s para novos relatórios (sem id)
   useEffect(() => {
-    if (!report && onAutoSave) {
-      const autoSaveInterval = setInterval(() => {
-        onAutoSave(currentReport as unknown as TravelReportDraft);
-      }, 30000);
-      return () => clearInterval(autoSaveInterval);
-    }
-  }, [currentReport, onAutoSave, report]);
+    if (!onAutoSave || currentReport.id) return;
+
+    // Salvar imediatamente ao montar e quando currentReport mudar
+    onAutoSave(currentReport as unknown as TravelReportDraft);
+
+    const autoSaveInterval = setInterval(() => {
+      onAutoSave(currentReport as unknown as TravelReportDraft);
+    }, 30000);
+    return () => clearInterval(autoSaveInterval);
+  }, [currentReport, onAutoSave]);
+
+  // Salvar rascunho ao fechar a página
+  useEffect(() => {
+    if (!onAutoSave || currentReport.id) return;
+
+    const handleBeforeUnload = () => {
+      onAutoSave(currentReport as unknown as TravelReportDraft);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [currentReport, onAutoSave]);
 
   // Recalcular totais em tempo real quando as despesas mudam
   useEffect(() => {
