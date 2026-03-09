@@ -282,6 +282,12 @@ export function TravelReportForm({
   };
 
   const handleSave = async (status: 'Rascunho' | 'Finalizado') => {
+    // Validação: não permitir salvar como finalizado se o status atual não é rascunho
+    if (status === 'Finalizado' && currentReport.status !== 'Rascunho') {
+      toast.error('⚠️ Este relatório já foi finalizado anteriormente. Não é possível finalizá-lo novamente.');
+      return;
+    }
+
     if (!currentReport.client_id && (!currentReport.client || currentReport.client.trim() === '')) {
       toast.error('⚠️ Preencha o campo obrigatório: Cliente');
       return;
