@@ -31,6 +31,7 @@ interface DynamicLogbookFormProps {
   prefilledDate?: Date;
   onSuccess?: () => void;
   inline?: boolean;
+  lastArrivalAerodrome?: string;
 }
 
 export function DynamicLogbookForm({
