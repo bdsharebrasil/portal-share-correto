@@ -1,5 +1,5 @@
 // DiarioBordoDetalhes/index.tsx
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DynamicLogbookForm } from '@/components/logbook/DynamicLogbookForm';
@@ -12,6 +12,9 @@ import { useFlightEntries } from './hooks/useFlightEntries';
 import { useMonthManagement } from './hooks/useMonthManagement';
 import { useFlightEdit } from './hooks/useFlightEdit';
 import { useFlightDelete } from './hooks/useFlightDelete';
+import { useTripulantes } from '@/hooks/useTripulantes';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DiarioBordoDetalhesProps {
   aircraftId: string;
@@ -54,6 +57,38 @@ export function DiarioBordoDetalhes({ aircraftId, onBack }: DiarioBordoDetalhesP
     handleConfirmDelete,
     isDeleting,
   } = useFlightDelete(refetch);
+
+  // Buscar tripulantes (crew_members + crew) para resolver nomes
+  const { tripulantes } = useTripulantes();
+  
+  const { data: crewPersons = [] } = useQuery({
+    queryKey: ['crew-for-display'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('crew')
+        .select('id, full_name, canac, status')
+        .eq('status', 'ativo')
+        .order('full_name', { ascending: true });
+      if (error) return [];
+      return data || [];
+    },
+  });
+
+  // Combinar crew_members e crew para display
+  const allCrewMembers = [
+    ...tripulantes.map((t: any) => ({ id: t.id, full_name: t.full_name, canac: t.canac })),
+    ...crewPersons.map((c: any) => ({ id: c.id, full_name: c.full_name, canac: c.canac })),
+  ];
+
+  // Deduplicate by id
+  const uniqueCrewMembers = allCrewMembers.filter(
+    (member, index, self) => index === self.findIndex(m => m.id === member.id)
+  );
+
+  // Obter último aeródromo de pouso para pré-preencher decolagem
+  const lastArrivalAerodrome = entries.length > 0
+    ? entries[entries.length - 1]?.arrival_aerodrome || ''
+    : '';
 
   const handleFormSuccess = () => {
     refetch();
@@ -111,6 +146,7 @@ export function DiarioBordoDetalhes({ aircraftId, onBack }: DiarioBordoDetalhesP
           prefilledDate={new Date(selectedYear, selectedMonth - 1, 1)}
           onSuccess={handleFormSuccess}
           inline={true}
+          lastArrivalAerodrome={lastArrivalAerodrome}
         />
 
         {/* Tabela de Voos */}
@@ -119,6 +155,7 @@ export function DiarioBordoDetalhes({ aircraftId, onBack }: DiarioBordoDetalhesP
           isLoading={isLoading}
           onEdit={openEditDialog}
           onDelete={openDeleteConfirm}
+          crewMembers={uniqueCrewMembers}
         />
 
         {/* Dialog de Edição */}
