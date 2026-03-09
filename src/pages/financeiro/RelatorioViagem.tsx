@@ -206,41 +206,52 @@ export default function RelatorioViagem() {
   };
 
   const loadReportDetails = async (reportId: string) => {
-    const { data: reportData, error: reportError } = await supabase
-      .from('travel_expense_reports')
-      .select(`
-        *,
-        client_id_rel:client_id(company_name),
-        partner_id_rel:client_partner(name)
-      `)
-      .eq('id', reportId)
-      .single();
+    try {
+      const { data: reportData, error: reportError } = await supabase
+        .from('travel_expense_reports')
+        .select(`
+          *,
+          client_id_rel:client_id(company_name),
+          partner_id_rel:client_partner(name)
+        `)
+        .eq('id', reportId)
+        .single();
 
-    if (reportError || !reportData) throw reportError;
+      if (reportError || !reportData) throw reportError;
 
-    const rData = reportData as any;
+      const rData = reportData as any;
 
-    const expenses = (() => {
-      try {
-        if (typeof rData.expenses === 'string') {
-          return JSON.parse(rData.expenses);
+      // Normalizar o status para garantir que está em um dos valores válidos
+      const normalizedStatus = normalizeStatus(rData.status);
+
+      // Log para debug
+      console.log(`Carregando relatório ${reportId}: status original="${rData.status}", normalizado="${normalizedStatus}"`);
+
+      const expenses = (() => {
+        try {
+          if (typeof rData.expenses === 'string') {
+            return JSON.parse(rData.expenses);
+          }
+          return rData.expenses || [];
+        } catch {
+          return [];
         }
-        return rData.expenses || [];
-      } catch {
-        return [];
-      }
-    })();
+      })();
 
-    const clientName = rData.client_partner && rData.partner_id_rel?.name
-      ? rData.partner_id_rel.name
-      : rData.client_id_rel?.company_name || '';
+      const clientName = rData.client_partner && rData.partner_id_rel?.name
+        ? rData.partner_id_rel.name
+        : rData.client_id_rel?.company_name || '';
 
-    return {
-      ...rData,
-      client: clientName,
-      expenses: expenses as Expense[],
-      status: normalizeStatus(rData.status)
-    } as TravelReport;
+      return {
+        ...rData,
+        client: clientName,
+        expenses: expenses as Expense[],
+        status: normalizedStatus
+      } as TravelReport;
+    } catch (error) {
+      console.error('Erro ao carregar detalhes do relatório:', error);
+      throw error;
+    }
   };
 
 
@@ -284,6 +295,14 @@ export default function RelatorioViagem() {
   const editReport = async (reportId: string) => {
     try {
       const reportDetails = await loadReportDetails(reportId);
+
+      // Verificar se o relatório pode ser editado
+      if (reportDetails.status !== 'Rascunho') {
+        console.warn(`Tentativa de editar relatório ${reportId} com status "${reportDetails.status}" (apenas rascunhos podem ser editados)`);
+        toast.error(`⚠️ Este relatório está com status "${reportDetails.status}" e não pode ser editado. Apenas relatórios em "Rascunho" podem ser editados.`);
+        return;
+      }
+
       setCurrentReport(reportDetails);
       setIsCreating(true);
       setIsEditing(true);
@@ -371,11 +390,6 @@ export default function RelatorioViagem() {
   const saveReport = async (newStatus: TravelReport['status'], reportToSave?: TravelReport) => {
     const reportData = reportToSave || currentReport;
     if (!reportData) return;
-
-    if (isEditing && reportData.status !== 'Rascunho') {
-      toast.error('⚠️ Não é possível editar relatórios que já foram finalizados. Apenas rascunhos podem ser editados.');
-      return;
-    }
 
     setIsSaving(true);
     const isUpdate = !!reportData.id;
