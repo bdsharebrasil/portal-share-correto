@@ -11,9 +11,10 @@ interface FlightEntryRowProps {
   entry: FlightEntry;
   onEdit: (entry: FlightEntry) => void;
   onDelete: (entry: FlightEntry) => void;
+  crewMembers?: { id: string; full_name: string; canac: string }[];
 }
 
-export function FlightEntryRow({ entry, onEdit, onDelete }: FlightEntryRowProps) {
+export function FlightEntryRow({ entry, onEdit, onDelete, crewMembers = [] }: FlightEntryRowProps) {
   const [expanded, setExpanded] = useState(false);
 
   const formatTime = (hours: number): string => {
@@ -43,6 +44,19 @@ export function FlightEntryRow({ entry, onEdit, onDelete }: FlightEntryRowProps)
     }
   };
 
+  // Resolver nome do PIC/SIC a partir do UUID
+  const resolveCrewName = (crewId: string | undefined): string => {
+    if (!crewId) return '-';
+    const member = crewMembers.find(c => c.id === crewId);
+    return member ? member.full_name : crewId;
+  };
+
+  const resolveSicDisplay = (): string | null => {
+    if (entry.sic_name) return entry.sic_name;
+    if (entry.sic_canac) return resolveCrewName(entry.sic_canac);
+    return null;
+  };
+
   return (
     <>
       <tr 
@@ -70,7 +84,7 @@ export function FlightEntryRow({ entry, onEdit, onDelete }: FlightEntryRowProps)
           </span>
         </td>
         <td className="p-3">
-          <span className="text-sm text-slate-300">{entry.pic_canac}</span>
+          <span className="text-sm text-slate-300">{resolveCrewName(entry.pic_canac)}</span>
         </td>
         <td className="p-3">
           <span className={cn(
@@ -146,10 +160,10 @@ export function FlightEntryRow({ entry, onEdit, onDelete }: FlightEntryRowProps)
                 <span className="text-slate-500">Combustível:</span>
                 <p className="text-slate-300">{entry.fuel_added} L</p>
               </div>
-              {entry.sic_canac && (
+              {resolveSicDisplay() && (
                 <div>
                   <span className="text-slate-500">SIC:</span>
-                  <p className="text-slate-300">{entry.sic_canac}</p>
+                  <p className="text-slate-300">{resolveSicDisplay()}</p>
                 </div>
               )}
               {entry.passengers > 0 && (
@@ -164,7 +178,7 @@ export function FlightEntryRow({ entry, onEdit, onDelete }: FlightEntryRowProps)
                   <p className="text-slate-300">{entry.cargo_kg} kg</p>
                 </div>
               )}
-              {entry.daily_rate && (
+              {entry.daily_rate != null && entry.daily_rate > 0 && (
                 <div>
                   <span className="text-slate-500">Diárias:</span>
                   <p className="text-slate-300">
