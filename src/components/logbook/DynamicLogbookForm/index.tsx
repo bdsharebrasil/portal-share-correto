@@ -159,13 +159,18 @@ export function DynamicLogbookForm({
     }
   }, [baseAerodrome, formData.departure_airport, formData.arrival_airport, aircraftDailyRate, dailyCount, hasDailyRate]);
 
-  // Initialize date when form opens
+  // Initialize date and departure aerodrome when form opens
   useEffect(() => {
     if (!open) return;
     const initial = prefilledDate ?? new Date();
     setDate(initial);
     setDateText(format(initial, 'dd/MM/yyyy'));
-  }, [open, prefilledDate]);
+
+    // Auto-fill departure with last arrival aerodrome
+    if (lastArrivalAerodrome) {
+      updateField('departure_airport', lastArrivalAerodrome);
+    }
+  }, [open, prefilledDate, lastArrivalAerodrome, updateField]);
 
   // Update entry_date when date changes
   useEffect(() => {
