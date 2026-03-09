@@ -69,10 +69,11 @@ export function useFlightSubmit(
     const totalNight = nightHours + nightMinutes / 60;
     const totalDay = Math.max(0, totalBlockTime - totalNight);
 
-    // Daily rate
+    // Daily rate - calcular apenas se tem diária configurada e quantidade > 0
     let finalDailyRate: number | null = null;
-    if (flightCategory === 'cliente' && dailyCount && aircraftDailyRate && hasDailyRate) {
-      finalDailyRate = (parseInt(dailyCount) || 0) * aircraftDailyRate;
+    const dailyQty = parseInt(dailyCount) || 0;
+    if (hasDailyRate && dailyQty > 0 && aircraftDailyRate && aircraftDailyRate > 0) {
+      finalDailyRate = dailyQty * aircraftDailyRate;
     }
 
     // Flight nature
