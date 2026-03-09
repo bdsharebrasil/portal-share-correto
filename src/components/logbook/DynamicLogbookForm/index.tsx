@@ -42,6 +42,7 @@ export function DynamicLogbookForm({
   prefilledDate,
   onSuccess,
   inline = false,
+  lastArrivalAerodrome,
 }: DynamicLogbookFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
