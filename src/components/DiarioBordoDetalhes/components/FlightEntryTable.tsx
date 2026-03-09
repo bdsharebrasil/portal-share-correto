@@ -9,6 +9,7 @@ interface FlightEntryTableProps {
   isLoading: boolean;
   onEdit: (entry: FlightEntry) => void;
   onDelete: (entry: FlightEntry) => void;
+  crewMembers?: { id: string; full_name: string; canac: string }[];
 }
 
 export function FlightEntryTable({
@@ -16,6 +17,7 @@ export function FlightEntryTable({
   isLoading,
   onEdit,
   onDelete,
+  crewMembers = [],
 }: FlightEntryTableProps) {
   if (isLoading) {
     return (
@@ -81,6 +83,7 @@ export function FlightEntryTable({
                   entry={entry}
                   onEdit={onEdit}
                   onDelete={onDelete}
+                  crewMembers={crewMembers}
                 />
               ))}
             </tbody>
