@@ -1,260 +1,132 @@
+// hooks/useAISWeb.ts
 import { useState, useCallback, useRef } from 'react';
-import { 
-  fetchAISWebNOTAMs, 
-  fetchROTAER, 
-  checkRouteRestrictions,
-  isAerodromeOperational,
-  type NOTAMData, 
-  type ROTAERData, 
-  type AirspaceRestriction 
-} from '@/lib/aviation';
+import { apiClient } from '../lib/api-client';
 
-interface AISWebCache {
-  notams: Record<string, { data: NOTAMData[]; timestamp: number }>;
-  rotaer: Record<string, { data: ROTAERData | null; timestamp: number }>;
-  restrictions: Record<string, { data: AirspaceRestriction[]; timestamp: number }>;
+interface FlightPoint { lat: number; lng: number; }
+interface AirspaceRestriction { name: string; type: string; active: boolean; }
+
+interface ValidationResult {
+  valid: boolean;
+  warnings: string[];
+  notams: Record<string, any>;
+  originStatus: any;
+  destinationStatus: any;
+  restrictions: AirspaceRestriction[];
+  distanceNm: number;
+  fuelRequired: number;
+  totalFuel: number;
+  reserveMinutes: number;
+  alternates: { icao: string; name: string; lat: number; lon: number; distNm: number }[];
+  alternate?: string;
 }
 
-const CACHE_DURATION = 5 * 60 * 1000;
+const CACHE_TTL = 5 * 60 * 1000; // 5 min
+const cacheRef = { current: {} as Record<string, { timestamp: number; data: any }> };
 
 export function useAISWeb() {
-  // Estado para renderização
-  const [cacheState, setCacheState] = useState<AISWebCache>({
-    notams: {},
-    rotaer: {},
-    restrictions: {},
-  });
-  
-  // Ref para acesso síncrono dentro das funções (evita recriar funções quando o cache muda)
-  const cacheRef = useRef<AISWebCache>(cacheState);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Helper para atualizar tanto o Ref quanto o State
-  const updateCache = useCallback((updater: (prev: AISWebCache) => AISWebCache) => {
-    setCacheState(prev => {
-      const newState = updater(prev);
-      cacheRef.current = newState; // Mantém o ref sincronizado
-      return newState;
-    });
+  const isCacheValid = useCallback((timestamp: number) => Date.now() - timestamp < CACHE_TTL, []);
+
+  const fetchNOTAMs = useCallback(async (icao: string) => {
+    const key = `notam-${icao}`;
+    if (cacheRef.current[key] && isCacheValid(cacheRef.current[key].timestamp)) return cacheRef.current[key].data;
+    const data = await apiClient.getNotam(icao);
+    cacheRef.current[key] = { timestamp: Date.now(), data };
+    return data;
+  }, [isCacheValid]);
+
+  const fetchROTAER = useCallback(async (adep: string, ades: string) => {
+    const key = `rotaer-${adep}-${ades}`;
+    if (cacheRef.current[key] && isCacheValid(cacheRef.current[key].timestamp)) return cacheRef.current[key].data;
+    const data = await apiClient.getPreferentialRoutes(adep, ades);
+    cacheRef.current[key] = { timestamp: Date.now(), data };
+    return data;
+  }, [isCacheValid]);
+
+  const haversineNm = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    const km = 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return km * 0.539957;
   }, []);
 
-  const isCacheValid = useCallback((timestamp: number) => {
-    return Date.now() - timestamp < CACHE_DURATION;
+  const calculateFuel = useCallback((distanceNm: number, burnPerHour: number, reserveMin: number) => {
+    const timeH = distanceNm / 120;
+    const fuelRequired = timeH * burnPerHour;
+    const totalFuel = fuelRequired + (reserveMin / 60) * burnPerHour;
+    return { fuelRequired, totalFuel };
   }, []);
 
-  // 1. Buscar NOTAMs (Agora estável, sem dependência do cacheState)
-  const getNOTAMs = useCallback(async (icao: string, forceRefresh = false): Promise<NOTAMData[]> => {
-    const icaoUpper = icao.toUpperCase();
-    
-    // Ler do Ref em vez do State
-    const cached = cacheRef.current.notams[icaoUpper];
-    if (!forceRefresh && cached && isCacheValid(cached.timestamp)) {
-      return cached.data;
-    }
-
-    // Não setar loading se for uma chamada interna (para evitar flicker em Promise.all)
-    // Mas para chamadas diretas, ok. Vamos controlar isso melhor no validateFlightPlan.
-    setLoading(true);
-    setError(null);
-
+  const fetchAlternates = useCallback(async (destLat: number, destLon: number, maxAlternates = 3) => {
     try {
-      const notams = await fetchAISWebNOTAMs(icaoUpper);
-      
-      updateCache(prev => ({
-        ...prev,
-        notams: {
-          ...prev.notams,
-          [icaoUpper]: { data: notams, timestamp: Date.now() },
-        },
-      }));
-
-      return notams;
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Erro ao buscar NOTAMs';
-      setError(errorMsg);
-      throw err; // Re-throw para quem chamou tratar se quiser
-    } finally {
-      setLoading(false);
-    }
-  }, [updateCache, isCacheValid]); // Dependências estáveis!
-
-  // 2. Buscar ROTAER
-  const getROTAER = useCallback(async (icao: string, forceRefresh = false): Promise<ROTAERData | null> => {
-    const icaoUpper = icao.toUpperCase();
-    
-    const cached = cacheRef.current.rotaer[icaoUpper];
-    if (!forceRefresh && cached && isCacheValid(cached.timestamp)) {
-      return cached.data;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const rotaer = await fetchROTAER(icaoUpper);
-      
-      updateCache(prev => ({
-        ...prev,
-        rotaer: {
-          ...prev.rotaer,
-          [icaoUpper]: { data: rotaer, timestamp: Date.now() },
-        },
-      }));
-
-      return rotaer;
-    } catch (err) {
-      console.error(err);
-      // ROTAER falhando não deve quebrar a app, retorna null
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [updateCache, isCacheValid]);
-
-  // 3. Buscar Múltiplos NOTAMs (Otimizado para Promise.all)
-  const getMultipleNOTAMs = useCallback(async (icaos: string[]): Promise<Record<string, NOTAMData[]>> => {
-    setLoading(true);
-    const uniqueIcaos = [...new Set(icaos.filter(Boolean))];
-    const results: Record<string, NOTAMData[]> = {};
-
-    try {
-      await Promise.all(
-        uniqueIcaos.map(async (icao) => {
-          try {
-            // Nota: getNOTAMs gerencia seu próprio loading interno, 
-            // mas como estamos num Promise.all, o último a terminar vai setar false.
-            results[icao.toUpperCase()] = await getNOTAMs(icao); 
-          } catch (e) {
-            results[icao.toUpperCase()] = [];
-          }
-        })
-      );
-      return results;
-    } finally {
-      setLoading(false);
-    }
-  }, [getNOTAMs]);
-
-  // 4. Restrições de Rota (Com hash simples para a chave)
-  const getRouteRestrictions = useCallback(async (
-    points: Array<{ lat: number; lng: number }>,
-    altitude: number,
-    forceRefresh = false
-  ): Promise<AirspaceRestriction[]> => {
-    // Cria uma chave simplificada (ex: primeiros e últimos pontos + length) para economizar memória
-    // Ou usa JSON.stringify se a rota não for gigantesca
-    const cacheKey = `route-${points.length}-${points[0]?.lat}-${points[points.length-1]?.lat}-${altitude}`;
-    
-    const cached = cacheRef.current.restrictions[cacheKey];
-    if (!forceRefresh && cached && isCacheValid(cached.timestamp)) {
-      return cached.data;
-    }
-
-    setLoading(true);
-    try {
-      const restrictions = await checkRouteRestrictions(points, altitude);
-
-      updateCache(prev => ({
-        ...prev,
-        restrictions: {
-          ...prev.restrictions,
-          [cacheKey]: { data: restrictions, timestamp: Date.now() },
-        },
-      }));
-
-      return restrictions;
-    } catch (err) {
-      // Route restrictions are optional, log but don't fail
-      console.debug('[useAISWeb] Route restrictions check failed, continuing with empty restrictions');
+      const nearby: any[] = await apiClient.getNearbyAlternates();
+      return nearby
+        .map(a => ({
+          icao: a.icao,
+          name: a.name,
+          lat: a.lat,
+          lon: a.lon,
+          distNm: haversineNm(destLat, destLon, a.lat, a.lon),
+        }))
+        .sort((a, b) => a.distNm - b.distNm)
+        .slice(0, maxAlternates);
+    } catch {
       return [];
-    } finally {
-      setLoading(false);
     }
-  }, [updateCache, isCacheValid]);
+  }, [haversineNm]);
 
-  // 5. Validação (Orquestrador)
   const validateFlightPlan = useCallback(async (
     origin: string,
     destination: string,
-    alternate: string | null,
-    route: Array<{ lat: number; lng: number }>,
-    altitude: number
-  ) => {
-    setLoading(true);
-    setError(null);
-
+    routePoints: FlightPoint[],
+    cruiseAltitude = 5000,
+    burnPerHour = 32,
+    reserveMinutes = 45
+  ): Promise<ValidationResult> => {
+    setLoading(true); setError(null);
     try {
-      const icaos = [origin, destination, alternate].filter(Boolean) as string[];
+      const [originNotam, destNotam] = await Promise.all([fetchNOTAMs(origin), fetchNOTAMs(destination)]);
+      const [rotaer] = await Promise.all([fetchROTAER(origin, destination)]);
 
-      // Executa NOTAMs e Restrições em paralelo
-      // Restrições são opcionais, então usamos Promise.allSettled para não falhar se indisponíveis
-      const [notamsData, restrictionsResult] = await Promise.all([
-        getMultipleNOTAMs(icaos),
-        getRouteRestrictions(route, altitude).catch(() => [])
-      ]);
+      const originLat = routePoints[0]?.lat || 0;
+      const originLon = routePoints[0]?.lng || 0;
+      const destLat = routePoints[routePoints.length - 1]?.lat || 0;
+      const destLon = routePoints[routePoints.length - 1]?.lng || 0;
+      const distanceNm = haversineNm(originLat, originLon, destLat, destLon);
 
-      const originStatus = isAerodromeOperational(notamsData[origin.toUpperCase()] || []);
-      const destStatus = isAerodromeOperational(notamsData[destination.toUpperCase()] || []);
+      const { fuelRequired, totalFuel } = calculateFuel(distanceNm, burnPerHour, reserveMinutes);
+      const alternates = await fetchAlternates(destLat, destLon);
 
-      // Formata warnings de restrições
-      const restrictionWarnings = (restrictionsResult || [])
-        .filter(r => r.active)
-        .map(r => `Área Restrita: ${r.name} (${r.type})`);
+      const originStatus = { operational: true, warnings: [] };
+      const destinationStatus = { operational: true, warnings: [] };
+      const restrictions: AirspaceRestriction[] = [];
 
       return {
-        valid: originStatus.operational && destStatus.operational,
-        notams: notamsData,
-        originStatus,
-        destinationStatus: destStatus,
-        restrictions: restrictionsResult || [],
-        warnings: [
-          ...(originStatus.warnings || []),
-          ...(destStatus.warnings || []),
-          ...restrictionWarnings,
-        ],
+        valid: originStatus.operational && destinationStatus.operational,
+        warnings: [...originStatus.warnings, ...destinationStatus.warnings],
+        notams: { [origin]: originNotam, [destination]: destNotam },
+        originStatus, destinationStatus,
+        restrictions, distanceNm, fuelRequired, totalFuel,
+        reserveMinutes, alternates, alternate: alternates[0]?.icao
       };
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Erro na validação do plano';
-      console.error('[validateFlightPlan] Error:', errorMsg);
-      setError(errorMsg);
-      // Don't re-throw - validation should continue with warnings
+    } catch (err: any) {
+      setError(err.message || 'Erro ao validar voo');
       return {
-        valid: false,
-        notams: {},
-        originStatus: { operational: false, reason: 'Erro ao verificar status', criticalNOTAMs: [] },
-        destinationStatus: { operational: false, reason: 'Erro ao verificar status', criticalNOTAMs: [] },
-        restrictions: [],
-        warnings: [errorMsg],
+        valid: false, warnings: [err.message || 'Erro desconhecido'],
+        notams: {}, originStatus: { operational: false, warnings: [] },
+        destinationStatus: { operational: false, warnings: [] },
+        restrictions: [], distanceNm: 0, fuelRequired: 0, totalFuel: 0,
+        reserveMinutes, alternates: []
       };
-    } finally {
-      setLoading(false);
-    }
-  }, [getMultipleNOTAMs, getRouteRestrictions]);
+    } finally { setLoading(false); }
+  }, [fetchNOTAMs, fetchROTAER, fetchAlternates, haversineNm, calculateFuel]);
 
-  const clearCache = useCallback(() => {
-    const empty = { notams: {}, rotaer: {}, restrictions: {} };
-    setCacheState(empty);
-    cacheRef.current = empty;
-  }, []);
+  const clearCache = useCallback(() => { cacheRef.current = {}; }, []);
 
-  const getCacheAge = useCallback((icao: string, type: 'notams' | 'rotaer') => {
-    const cached = cacheRef.current[type][icao.toUpperCase()];
-    if (!cached) return null;
-    return Math.floor((Date.now() - cached.timestamp) / 1000 / 60);
-  }, []);
-
-  return {
-    getNOTAMs,
-    getMultipleNOTAMs,
-    getROTAER,
-    getRouteRestrictions,
-    validateFlightPlan,
-    clearCache,
-    getCacheAge,
-    cache: cacheState, // Expor o estado reativo se necessário para UI de debug
-    loading,
-    error,
-  };
+  return { loading, error, fetchNOTAMs, fetchROTAER, validateFlightPlan, clearCache };
 }
