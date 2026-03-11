@@ -159,7 +159,7 @@ export function SocioDashboard({
   const partnerChartData = useMemo(() => {
     const map: Record<string, { entradas: number; saidas: number }> = {}
     filteredTransactions.forEach((t) => {
-      const name = t.partner_name || "Outros"
+      const name = t.partner_name || "Conta Bancária"
       if (!map[name]) map[name] = { entradas: 0, saidas: 0 }
       if (t.transaction_type === "deposit") map[name].entradas += Number(t.amount)
       else map[name].saidas += Number(t.amount)
@@ -482,6 +482,9 @@ export function SocioDashboard({
                     <th className="text-left text-xs font-medium text-muted-foreground">
                       Tipo
                     </th>
+                    <th className="text-center text-xs font-medium text-muted-foreground">
+                      Status
+                    </th>
                     <th className="text-right text-xs font-medium text-muted-foreground">
                       Valor
                     </th>
@@ -512,9 +515,26 @@ export function SocioDashboard({
                           {tx.transaction_type === "deposit"
                             ? "Entrada"
                             : tx.transaction_type === "expense"
-                            ? "Despesa"
+                            ? (tx.expense_type || "Despesa").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
                             : "Saída"}
                         </Badge>
+                      </td>
+                      <td className="text-center">
+                        {tx.transaction_type === "deposit" ? (
+                          <Badge variant="outline" className="text-xs border-emerald-500/30 text-emerald-500">
+                            Recebido
+                          </Badge>
+                        ) : tx.status ? (
+                          <Badge variant="outline" className={`text-xs ${
+                            tx.status === "paid" || tx.status === "pago"
+                              ? "border-emerald-500/30 text-emerald-500"
+                              : "border-amber-500/30 text-amber-500"
+                          }`}>
+                            {tx.status === "paid" || tx.status === "pago" ? "Pago" : tx.status.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">-</span>
+                        )}
                       </td>
                       <td
                         className={`text-right font-semibold ${

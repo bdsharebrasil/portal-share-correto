@@ -470,10 +470,13 @@ export default function RelatorioTransacoesSocios() {
     }
   };
 
+  const formatLabel = (raw: string) =>
+    raw.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+
   const getCategoryLabel = (tx: any) => {
     const catId = tx.expense_type || tx.category || tx.transaction_subtype;
     const found = expenseCategories.find((c: any) => c.id === catId);
-    return found ? `${found.icon || ""} ${found.label}`.trim() : catId || "—";
+    return found ? `${found.icon || ""} ${found.label}`.trim() : catId ? formatLabel(catId) : "—";
   };
 
   // PDF export handler
@@ -646,7 +649,7 @@ export default function RelatorioTransacoesSocios() {
                           <td className="px-3 py-3 text-sm text-foreground">{tx.description}</td>
                           <td className="px-3 py-3 text-center">
                             <Badge variant="secondary" className="text-xs">
-                              {tx.status || "—"}
+                              {tx.transaction_type === "deposit" ? "Recebido" : tx.status === "paid" || tx.status === "pago" ? "Pago" : tx.status ? formatLabel(tx.status) : "—"}
                             </Badge>
                           </td>
                           <td className={`px-3 py-3 text-sm text-right font-mono font-medium ${tx.transaction_type === "deposit" ? "text-emerald-500" : "text-destructive"}`}>
@@ -893,10 +896,9 @@ export default function RelatorioTransacoesSocios() {
                         const txDate =
                           tx.payment_date || tx.due_date || tx.created_at;
                         const status =
-                          tx.status ||
-                          (tx.transaction_type === "deposit"
-                            ? "pago"
-                            : "pendente");
+                          tx.transaction_type === "deposit"
+                            ? "recebido"
+                            : tx.status || "pendente";
                         const hasAttachment =
                           tx.receipt_url || tx.invoice_url;
 

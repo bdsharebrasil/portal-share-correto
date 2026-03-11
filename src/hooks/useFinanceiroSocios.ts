@@ -165,8 +165,8 @@ export function useSocioTransactions(
         // Resolver nome do parceiro: primeiro tenta pelo CPF na tabela client_partners
         const cpfClean = (exp.assigned_partner_cpf || "").replace(/\D/g, "");
         const partnerFromTable = partnersByCpf.get(cpfClean);
-        const resolvedPartnerName =
-          partnerFromTable?.name ?? exp.assigned_partner_name ?? "Geral";
+          const resolvedPartnerName =
+          partnerFromTable?.name ?? exp.assigned_partner_name ?? "Conta Bancária";
 
         // Resolver número do relatório de viagem (para o campo de obs)
         let notesWithReport = exp.notes || null;
@@ -242,7 +242,7 @@ export function useSocioTransactions(
           id: f.id,
           client_id: f.client_id,
           partner_cpf: partnerByName?.cpf ?? "N/A",
-          partner_name: partnerByName?.name ?? f.partner_name ?? "Geral",
+          partner_name: partnerByName?.name ?? f.partner_name ?? "Conta Bancária",
           transaction_type: "expense",
           amount: f.valor_total || 0,
           balance_before: 0,
@@ -264,12 +264,23 @@ export function useSocioTransactions(
         };
       });
 
-      // ── 7. Combinar e ordenar ────────────────────────────────────────────────
+      // ── 7. Combinar, normalizar e ordenar ──────────────────────────────────
+      const normalizePartnerName = (name: string) => {
+        const lower = (name || "").toLowerCase();
+        if (!name || lower === "conta compartilhada" || lower === "geral" || lower === "outros" || lower === "n/a") {
+          return "Conta Bancária";
+        }
+        return name;
+      };
+
       const combined = [
         ...(transactions || []),
         ...expensesAsTransactions,
         ...fuelsAsTransactions,
-      ].sort((a, b) => {
+      ].map((t) => ({
+        ...t,
+        partner_name: normalizePartnerName(t.partner_name),
+      })).sort((a, b) => {
         const dateA = new Date(a.created_at).getTime();
         const dateB = new Date(b.created_at).getTime();
         return dateB - dateA;
@@ -390,6 +401,7 @@ export function useAddDeposit() {
       bankName?: string | null;
       transactionSubtype?: string;
       prazo?: string;
+      referenceId?: string;
     }) => {
       let balanceBefore = 0;
       let balanceAfter = 0;
@@ -435,6 +447,8 @@ export function useAddDeposit() {
           payment_date: data.paymentDate,
           bank_name: data.bankName || null,
           transaction_subtype: data.transactionSubtype || "deposit",
+          reference_type: data.referenceId ? "partner_expense" : null,
+          reference_id: data.referenceId || null,
         });
       if (txErr) throw txErr;
 
@@ -741,7 +755,7 @@ export function useAddBankInterest() {
       const { error } = await supabase.from("partner_transactions").insert({
         client_id: data.clientId,
         partner_cpf: "00000000000",
-        partner_name: "Conta Compartilhada",
+        partner_name: "Conta Bancária",
         transaction_type: "deposit",
         amount: data.amount,
         balance_before: 0,

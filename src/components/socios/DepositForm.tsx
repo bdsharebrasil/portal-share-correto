@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,11 +21,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, TrendingUp, Landmark, ArrowDownCircle, Sparkles, ChevronRight, CalendarIcon } from "lucide-react";
-import { useAddDeposit, type PartnerAccount } from "@/hooks/useFinanceiroSocios";
+import { useAddDeposit, useSocioExpenses, type PartnerAccount } from "@/hooks/useFinanceiroSocios";
 import { useClientPartners } from "@/hooks/useClientPartners";
 import { formatCPF, formatMoney } from "@/lib/formatters";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
@@ -110,15 +111,29 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
   const [tab, setTab] = useState<"entry" | "interest">("entry");
   const [entry, setEntry] = useState(EMPTY_ENTRY);
   const [interest, setInterest] = useState(EMPTY_INTEREST);
+  const [selectedExpenseId, setSelectedExpenseId] = useState<string>("");
 
   const addDeposit = useAddDeposit();
   const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteId);
+  const { data: expenses = [] } = useSocioExpenses(clienteId);
 
   const getAccount = (cpf: string) => accounts.find((a) => a.partner_cpf === cpf);
   const getPartner = (cpf: string) => partners.find((p) => p.cpf === cpf);
 
   const selectedEntryType = ENTRY_TYPES.find((t) => t.id === entry.entryType);
   const requiresPartner = selectedEntryType?.requires_partner ?? false;
+  const isReversal = entry.entryType === "reversal";
+
+  // Expenses available for reversal (only paid/completed ones)
+  const reversableExpenses = useMemo(() => {
+    return expenses.filter((exp) => exp.status === "paid" || exp.status === "pago");
+  }, [expenses]);
+
+  // Selected expense for reversal
+  const selectedExpense = useMemo(() => {
+    if (!isReversal || !selectedExpenseId) return null;
+    return expenses.find((exp) => exp.id === selectedExpenseId) || null;
+  }, [isReversal, selectedExpenseId, expenses]);
 
   const handleEntryTypeChange = (value: EntryTypeId) => {
     const type = ENTRY_TYPES.find((t) => t.id === value);
@@ -127,18 +142,32 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
       entryType: value,
       cpf: type?.requires_partner ? p.cpf : "",
     }));
+    setSelectedExpenseId("");
   };
+
+  // Auto-fill fields when an expense is selected for reversal
+  useEffect(() => {
+    if (selectedExpense) {
+      setEntry((p) => ({
+        ...p,
+        amount: String(selectedExpense.total_amount),
+        description: `Estorno: ${selectedExpense.description}`,
+      }));
+    }
+  }, [selectedExpense]);
 
   const resetAndClose = () => {
     setOpen(false);
     setEntry(EMPTY_ENTRY);
     setInterest(EMPTY_INTEREST);
     setTab("entry");
+    setSelectedExpenseId("");
   };
 
   const isEntryValid = () => {
     if (!entry.entryType || !entry.amount || !entry.description) return false;
     if (requiresPartner && !entry.cpf) return false;
+    if (isReversal && !selectedExpenseId) return false;
     return true;
   };
 
@@ -146,21 +175,34 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
     e.preventDefault();
     if (!isEntryValid()) return;
 
-    const partner = getPartner(entry.cpf);
-    const account = getAccount(entry.cpf);
+    let partnerCpf: string | null = null;
+    let partnerName = "Conta Bancária";
+
+    if (isReversal && selectedExpense) {
+      // Reversal: credit goes back to whoever the original expense was for
+      if (selectedExpense.assigned_partner_cpf) {
+        partnerCpf = selectedExpense.assigned_partner_cpf;
+        partnerName = selectedExpense.assigned_partner_name || "Conta Bancária";
+      }
+      // If no partner assigned, it goes to "Conta Bancária" (default)
+    } else if (requiresPartner) {
+      const partner = getPartner(entry.cpf);
+      const account = getAccount(entry.cpf);
+      partnerCpf = entry.cpf;
+      partnerName = partner?.name || account?.partner_name || "";
+    }
 
     await addDeposit.mutateAsync({
       clientId: clienteId,
-      partnerCpf: requiresPartner ? entry.cpf : null,
-      partnerName: requiresPartner
-        ? (partner?.name || account?.partner_name || "")
-        : (selectedEntryType?.label ?? "Conta Geral"),
+      partnerCpf,
+      partnerName,
       amount: parseFloat(entry.amount),
       description: entry.description,
       paymentDate: entry.date,
       bankName: entry.bankName || null,
       transactionSubtype: selectedEntryType?.subtype ?? "deposit",
       prazo: entry.prazo,
+      referenceId: isReversal ? selectedExpenseId : undefined,
     });
 
     resetAndClose();
@@ -173,7 +215,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
     await addDeposit.mutateAsync({
       clientId: clienteId,
       partnerCpf: null,
-      partnerName: "Conta Compartilhada",
+      partnerName: "Conta Bancária",
       amount: parseFloat(interest.amount),
       description: `Rendimento bancário - ${interest.bankName}${interest.notes ? ` (${interest.notes})` : ""}`,
       paymentDate: interest.date,
@@ -296,15 +338,41 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                     >
                       <span className="text-base">{selectedEntryType.icon}</span>
                       <span className="font-medium">
-                        {requiresPartner ? "Entrada vinculada a um sócio" : "Entrada da conta geral"}
+                        {requiresPartner ? "Entrada vinculada a um sócio" : "Entrada da Conta Bancária"}
                       </span>
                       <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-50" />
                     </div>
                   )}
                 </FormSection>
 
+                {/* Despesa vinculada (Estorno) */}
+                {isReversal && (
+                <FormSection label="Despesa Original" required>
+                    <SearchableCombobox
+                      items={reversableExpenses.map((exp) => ({
+                        id: exp.id,
+                        label: `${exp.description} — ${exp.assigned_partner_name || "Conta Bancária"} • R$ ${Number(exp.total_amount).toFixed(2)}`,
+                      }))}
+                      value={selectedExpenseId}
+                      onChange={(val) => setSelectedExpenseId(val)}
+                      placeholder="Busque a despesa a ser estornada"
+                      searchPlaceholder="Buscar por descrição, sócio ou valor..."
+                      emptyMessage="Nenhuma despesa paga encontrada"
+                    />
+
+                    {selectedExpense && (
+                      <div className="flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm mt-2 border bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/40 dark:border-amber-800/50 dark:text-amber-300">
+                        <span className="text-base">↩️</span>
+                        <span className="font-medium">
+                          Estorno será creditado para: {selectedExpense.assigned_partner_name || "Conta Bancária"}
+                        </span>
+                      </div>
+                    )}
+                  </FormSection>
+                )}
+
                 {/* Sócio */}
-                {requiresPartner && (
+                {requiresPartner && !isReversal && (
                   <FormSection label="Sócio" required>
                     <PartnerSelect
                       value={entry.cpf}
@@ -388,9 +456,9 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                     <TrendingUp className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                   </div>
                   <div>
-                    <p className="font-semibold mb-0.5">Conta Compartilhada</p>
+                    <p className="font-semibold mb-0.5">Conta Bancária</p>
                     <p className="text-amber-700/80 dark:text-amber-400/70">
-                      Rendimento registrado no centro de custo do cliente e distribuído entre os sócios.
+                      Rendimento registrado na conta bancária do cliente.
                     </p>
                   </div>
                 </div>
