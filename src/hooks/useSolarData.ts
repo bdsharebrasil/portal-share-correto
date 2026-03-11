@@ -27,7 +27,7 @@ export function useSolarData(icao: string | null) {
 
       try {
         const response = await fetch(
-          `${API_ENDPOINTS.solar(code)}`,
+          API_ENDPOINTS.solar(code),
           {
             headers: {
               'Accept': 'application/json',

@@ -368,10 +368,10 @@ export function TravelReportForm({
       };
 
       await onSave(reportToSave, status);
-      toast.success(`✓ Relatório ${status === 'Finalizado' ? 'finalizado' : 'salvo como rascunho'} com sucesso!`);
+      // Mensagem consolidada é exibida pelo componente pai (RelatorioViagem)
     } catch (error: any) {
       console.error('Erro ao salvar:', error);
-      toast.error(error.message || 'Erro ao salvar relatório');
+      // Erro também tratado pelo componente pai
     } finally {
       setIsSaving(false);
     }

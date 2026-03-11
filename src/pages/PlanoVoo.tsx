@@ -225,10 +225,14 @@ export default function PlanoVooPage() {
 
       // Validate
       const altitude = formData.altitude || 5500;
-      const vResult = await validateFlightPlan(formData.origin, formData.destination, formData.alternate || null, [oc, dc], altitude);
+      const vResult = await validateFlightPlan(formData.origin, formData.destination, [oc, dc], altitude);
       setValidation(vResult);
 
-      const altData = calculateOptimalAltitude(bearing, formData.flightRule, vResult?.restrictions || []);
+      const altData = calculateOptimalAltitude(
+        bearing,
+        formData.flightRule,
+        (vResult?.restrictions as any[]) || []
+      );
 
       setCalculations({
         distance: Math.round(distance), bearing: Math.round(bearing), time: timeHours,

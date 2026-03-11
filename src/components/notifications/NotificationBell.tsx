@@ -29,7 +29,7 @@ function NotificationBell() {
 
     // Subscribe to new notifications (with error handling)
     let channel: any = null;
-    let subscriptionTimeout: NodeJS.Timeout;
+    let subscriptionTimeout: ReturnType<typeof setTimeout> | undefined;
 
     try {
       channel = supabase
@@ -74,7 +74,9 @@ function NotificationBell() {
     }
 
     return () => {
-      clearTimeout(subscriptionTimeout);
+      if (subscriptionTimeout) {
+        clearTimeout(subscriptionTimeout);
+      }
       if (channel) {
         try {
           supabase.removeChannel(channel);

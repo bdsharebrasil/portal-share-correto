@@ -50,7 +50,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   ? 'Parece que há um problema de conexão. Verifique sua internet e tente novamente.'
                   : 'Desculpe, ocorreu um erro inesperado.'}
               </p>
-              {process.env.NODE_ENV === 'development' && this.state.error && (
+              {import.meta.env.DEV && this.state.error && (
                 <p className="text-xs text-slate-500 mt-4 font-mono break-all">
                   {this.state.error.message}
                 </p>

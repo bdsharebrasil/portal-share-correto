@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { Layout } from "@/components/layout/Layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -121,6 +122,7 @@ export default function RelatorioMensal() {
   const [categoryFilterOpen, setCategoryFilterOpen] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
   const [showInlineReport, setShowInlineReport] = useState(false)
+  const [selectedPartnerCard, setSelectedPartnerCard] = useState<string | null>(null)
 
   // ========================
   // DADOS
@@ -326,6 +328,15 @@ export default function RelatorioMensal() {
       balance: data.deposits - data.expenses,
     }))
   }, [filteredTransactions])
+
+  // Transações filtradas pelo sócio selecionado no card
+  const partnerCardTransactions = useMemo(() => {
+    if (!selectedPartnerCard) return []
+    return filteredTransactions.filter((t) => {
+      const name = t.partner_name || "Outros"
+      return name === selectedPartnerCard
+    })
+  }, [filteredTransactions, selectedPartnerCard])
 
   // ========================
   // HELPERS
@@ -847,7 +858,8 @@ export default function RelatorioMensal() {
                 {partnerData.map((partner) => (
                   <div
                     key={partner.name}
-                    className="p-4 rounded-lg border border-border bg-muted/20 space-y-2"
+                    className="p-4 rounded-lg border border-border bg-muted/20 space-y-2 cursor-pointer hover:border-primary/50 hover:bg-muted/40 transition-all duration-200"
+                    onClick={() => setSelectedPartnerCard(partner.name)}
                   >
                     <h4 className="font-semibold text-foreground">{partner.name}</h4>
                     <div className="space-y-1 text-sm">
@@ -1008,6 +1020,116 @@ export default function RelatorioMensal() {
         }}
         clientId={clienteId || ""}
       />
+
+      {/* Dialog de transações do sócio selecionado */}
+      <Dialog open={!!selectedPartnerCard} onOpenChange={(open) => !open && setSelectedPartnerCard(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-primary" />
+              Transações — {selectedPartnerCard}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            {partnerCardTransactions.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">Nenhuma transação encontrada.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-background z-10">
+                  <tr className="border-b border-border">
+                    <th className="text-left py-2 px-3 text-xs font-semibold text-muted-foreground">Data</th>
+                    <th className="text-left py-2 px-3 text-xs font-semibold text-muted-foreground">Descrição</th>
+                    <th className="text-left py-2 px-3 text-xs font-semibold text-muted-foreground">Tipo</th>
+                    <th className="text-left py-2 px-3 text-xs font-semibold text-muted-foreground">Status</th>
+                    <th className="text-left py-2 px-3 text-xs font-semibold text-muted-foreground">Pgto</th>
+                    <th className="text-right py-2 px-3 text-xs font-semibold text-muted-foreground">Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {partnerCardTransactions.map((tx: any, idx) => {
+                    const txDate = tx.payment_date || tx.created_at
+                    const formattedDate = format(
+                      new Date(txDate.includes("T") ? txDate : txDate + "T12:00:00"),
+                      "dd/MM/yyyy",
+                      { locale: ptBR }
+                    )
+                    return (
+                      <tr
+                        key={tx.id || idx}
+                        className={`border-b border-border/30 transition-colors ${
+                          idx % 2 === 0 ? "bg-muted/10" : "bg-muted/5"
+                        } hover:bg-muted/30 cursor-pointer`}
+                        onClick={() => {
+                          setSelectedPartnerCard(null)
+                          setEditingTransaction(tx)
+                          setIsEditModalOpen(true)
+                        }}
+                      >
+                        <td className="py-2.5 px-3 text-foreground">{formattedDate}</td>
+                        <td className="py-2.5 px-3 text-foreground max-w-[200px] truncate">{tx.description || "-"}</td>
+                        <td className="py-2.5 px-3">
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${
+                              tx.transaction_type === "deposit"
+                                ? "border-emerald-500/30 text-emerald-500"
+                                : "border-red-500/30 text-red-500"
+                            }`}
+                          >
+                            {tx.transaction_type === "deposit" ? "ENTRADA" : "SAÍDA"}
+                          </Badge>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <Badge
+                            variant="outline"
+                            className={`text-xs ${
+                              (tx.status === "pago" || tx.status === "paid")
+                                ? "border-emerald-500/30 text-emerald-500"
+                                : "border-amber-500/30 text-amber-500"
+                            }`}
+                          >
+                            {getStatusLabel(tx.status)}
+                          </Badge>
+                        </td>
+                        <td className="py-2.5 px-3 text-foreground text-xs">{getPaymentMethodLabel(tx.payment_method)}</td>
+                        <td
+                          className={`text-right py-2.5 px-3 font-semibold ${
+                            tx.transaction_type === "deposit" ? "text-emerald-500" : "text-red-500"
+                          }`}
+                        >
+                          {tx.transaction_type === "deposit" ? "+" : "-"}
+                          {fmt(Number(tx.amount))}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-border">
+                    <td colSpan={5} className="py-3 px-3 font-semibold text-foreground text-right">Total:</td>
+                    <td className="py-3 px-3 text-right font-bold">
+                      {(() => {
+                        const deposits = partnerCardTransactions
+                          .filter((t: any) => t.transaction_type === "deposit")
+                          .reduce((s: number, t: any) => s + Number(t.amount), 0)
+                        const expenses = partnerCardTransactions
+                          .filter((t: any) => t.transaction_type !== "deposit")
+                          .reduce((s: number, t: any) => s + Number(t.amount), 0)
+                        const balance = deposits - expenses
+                        return (
+                          <span className={balance >= 0 ? "text-emerald-500" : "text-red-500"}>
+                            {fmt(balance)}
+                          </span>
+                        )
+                      })()}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   )
 }

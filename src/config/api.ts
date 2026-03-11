@@ -21,7 +21,6 @@ const _hasDevProxy = _base === '/api';
 const apiPrefix = _hasDevProxy ? '' : '/api';
 
 export const API_ENDPOINTS = {
-
   weather: (icao: string) =>
     `${_base}${apiPrefix}/weather/${icao}`,
 
@@ -38,6 +37,14 @@ export const API_ENDPOINTS = {
 
   rotaer: (adep: string, ades: string) =>
     `${_base}${apiPrefix}/rotaer?adep=${adep}&ades=${ades}`,
+
+  routes: (adep: string, ades: string) =>
+    `${_base}${apiPrefix}/routes?adep=${adep}&ades=${ades}`,
+
+  solar: (icao: string) =>
+    `${_base}${apiPrefix}/solar/${icao}`,
+
+  flightCalculations: `${_base}${apiPrefix}/flight-calculations`,
 
   flightplan: (adep: string, ades: string, speed = 120, burn = 32, reserve = 45) =>
     `${_base}${apiPrefix}/flightplan?adep=${adep}&ades=${ades}&speed=${speed}&fuel_burn=${burn}&reserve=${reserve}`,

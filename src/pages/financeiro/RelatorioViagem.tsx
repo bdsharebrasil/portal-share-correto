@@ -335,7 +335,7 @@ export default function RelatorioViagem() {
     }
 
     try {
-      await supabase.from('expense_items').delete().eq('report_id', reportId);
+      await (supabase as any).from('expense_items').delete().eq('report_id', reportId);
 
       const { error } = await supabase
         .from('travel_expense_reports')
@@ -408,9 +408,16 @@ export default function RelatorioViagem() {
     const reportData = reportToSave || currentReport;
     if (!reportData) return;
 
-    if (isEditing && reportData.status !== 'Rascunho') {
-      toast.error('⚠️ Não é possível editar relatórios que já foram finalizados. Apenas rascunhos podem ser editados.');
-      return;
+    // Quando vindo do TravelReportForm, o report já tem o novo status.
+    // Verificar edição usando o status original (no DB) ou se é update com status não-rascunho
+    if (isEditing && reportData.id) {
+      // Buscar status original no banco para verificação correta
+      const originalReport = reports.find(r => r.id === reportData.id);
+      const originalStatus = originalReport?.status || 'Rascunho';
+      if (originalStatus !== 'Rascunho' && newStatus === 'Finalizado') {
+        toast.error('⚠️ Não é possível finalizar relatórios que já foram finalizados. Apenas rascunhos podem ser editados.');
+        return;
+      }
     }
 
     setIsSaving(true);
@@ -727,7 +734,13 @@ export default function RelatorioViagem() {
         }
       }
 
-      toast.success('✓ Relatório salvo com sucesso!');
+      const statusLabel = newStatus === 'Finalizado' ? 'finalizado' : newStatus === 'Enviado' ? 'enviado' : 'salvo como rascunho';
+      const steps = [`Relatório ${statusLabel} com sucesso`];
+      if (newStatus === 'Finalizado' || newStatus === 'Enviado') {
+        steps.push('Conciliações financeiras registradas');
+        steps.push('PDF gerado');
+      }
+      toast.success(`✅ ${steps.join(' · ')}`);
       draftStorage.clearDraft();
       setHasSavedDraft(false);
       setIsCreating(false);

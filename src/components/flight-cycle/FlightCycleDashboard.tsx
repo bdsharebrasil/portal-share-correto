@@ -20,6 +20,7 @@ export function FlightCycleDashboard() {
     updateExpenseStatus,
     addManualExpense,
     deleteExpense,
+    deleteCycle,
     getStatistics
   } = useFlightCycles();
   const [selectedCycle, setSelectedCycle] = useState<FlightCycle | null>(null);
@@ -42,7 +43,7 @@ export function FlightCycleDashboard() {
   if (selectedCycle) {
     // Find the updated cycle from the list
     const currentCycle = cycles.find(c => c.id === selectedCycle.id) || selectedCycle;
-    return <FlightCycleDetail cycle={currentCycle} onBack={() => setSelectedCycle(null)} onUpdateExpenseStatus={updateExpenseStatus} onUpdateCycleStatus={updateCycleStatus} onAddExpense={addManualExpense} onDeleteExpense={deleteExpense} onUpdateCycle={updateCycle} />;
+    return <FlightCycleDetail cycle={currentCycle} onBack={() => setSelectedCycle(null)} onUpdateExpenseStatus={updateExpenseStatus} onUpdateCycleStatus={updateCycleStatus} onAddExpense={addManualExpense} onDeleteExpense={deleteExpense} onUpdateCycle={updateCycle} onDeleteCycle={deleteCycle} />;
   }
   return <div className="space-y-6">
       {/* Header */}

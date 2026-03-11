@@ -30,7 +30,7 @@ export function usePreferredRoutes() {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_ENDPOINTS.routes}?adep=${adep.toUpperCase()}&ades=${ades.toUpperCase()}`);
+      const response = await fetch(API_ENDPOINTS.routes(adep.toUpperCase(), ades.toUpperCase()));
       if (!response.ok) {
         setRoutes([]);
         return [];

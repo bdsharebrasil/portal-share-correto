@@ -109,13 +109,22 @@ export function CreateFlightCycleDialog({ open, onOpenChange, onCreate }: Create
       }
 
       await onCreate({
-        ...formData,
+        client_id: formData.client_id || null,
+        partner_id: formData.partner_id || null,
+        aircraft_id: formData.aircraft_id || null,
+        origin_icao: formData.origin_icao || null,
+        destination_icao: formData.destination_icao || null,
+        flight_date: formData.flight_date || null,
+        flight_type: formData.flight_type,
         partner_name: partnerName,
         flight_duration_hours: formData.flight_duration_hours ? parseFloat(formData.flight_duration_hours) : null,
         return_date: formData.return_date || null,
         status: 'confirmado',
         pic_name: formData.pic_name || null,
         sic_name: formData.sic_name || null,
+        has_overnight: formData.has_overnight,
+        is_controlled_airport: formData.is_controlled_airport,
+        has_private_hangar: formData.has_private_hangar,
       });
 
       // Reset form

@@ -137,6 +137,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [bankForm, setBankForm] = useState(EMPTY_BANK_FORM);
   const [showAddFornecedor, setShowAddFornecedor] = useState(false);
+  const [showAddFuelSupplier, setShowAddFuelSupplier] = useState(false);
+  const [newFuelSupplier, setNewFuelSupplier] = useState({ supplier_name: '', city_name: '', icao_code: '' });
+  const [savingFuelSupplier, setSavingFuelSupplier] = useState(false);
   const queryClient = useQueryClient();
 
   // Travel report linking states
@@ -641,7 +644,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                         value={form.abastecimentoId}
                         onValueChange={(v) => set("abastecimentoId")(v)}
                       >
-                        <SelectTrigger className="h-12 rounded-xl border-amber-700/50 bg-zinc-900 text-sm">
+                        <SelectTrigger className="h-12 rounded-xl border-amber-700/50 bg-background text-foreground text-sm">
                           <SelectValue placeholder="Selecione um abastecimento registrado" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl">
@@ -687,14 +690,14 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                           <Input
                             type="date"
                             defaultValue={format(new Date(), "yyyy-MM-dd")}
-                            className="h-12 rounded-xl border-amber-200 bg-white dark:bg-zinc-900 text-sm"
+                            className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
                             disabled={addExpense.isPending}
                           />
                         </FormSection>
                         <FormSection label="Local">
                           <Input
                             placeholder="Ex: Portimão, Portugal"
-                            className="h-12 rounded-xl border-amber-200 bg-white dark:bg-zinc-900 text-sm"
+                            className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
                             disabled={addExpense.isPending}
                           />
                         </FormSection>
@@ -705,7 +708,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             type="number"
                             step="0.01"
                             placeholder="0,00"
-                            className="h-12 rounded-xl border-amber-200 bg-white dark:bg-zinc-900 text-sm"
+                            className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
                             disabled={addExpense.isPending}
                           />
                         </FormSection>
@@ -714,7 +717,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             type="number"
                             step="0.01"
                             placeholder="0,00"
-                            className="h-12 rounded-xl border-amber-200 bg-white dark:bg-zinc-900 text-sm"
+                            className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
                             disabled={addExpense.isPending}
                           />
                         </FormSection>
@@ -806,23 +809,38 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
               <div className="space-y-4">
                 <FormSection label="Fornecedor">
                   {isAbastecimento ? (
-                    <SearchableCombobox
-                      items={fuelSuppliers.map((f) => ({
-                        id: f.id,
-                        label: `${f.supplier_name} - ${f.city_name} (${f.icao_code})`,
-                      }))}
-                      value={
-                        fuelSuppliers.find((f) => f.supplier_name === form.supplierName)?.id || ""
-                      }
-                      onChange={(id) => {
-                        const supplier = fuelSuppliers.find((f) => f.id === id);
-                        set("supplierName")(supplier?.supplier_name || "");
-                      }}
-                      placeholder="Selecione um fornecedor de combustível..."
-                      searchPlaceholder="Buscar fornecedor..."
-                      emptyMessage="Nenhum fornecedor de combustível cadastrado"
-                      disabled={addExpense.isPending}
-                    />
+                    <div className="space-y-2">
+                      <SearchableCombobox
+                        items={fuelSuppliers.map((f) => ({
+                          id: f.id,
+                          label: `${f.supplier_name} - ${f.city_name} (${f.icao_code})`,
+                        }))}
+                        value={
+                          fuelSuppliers.find((f) => f.supplier_name === form.supplierName)?.id || ""
+                        }
+                        onChange={(id) => {
+                          const supplier = fuelSuppliers.find((f) => f.id === id);
+                          set("supplierName")(supplier?.supplier_name || "");
+                        }}
+                        placeholder="Selecione um fornecedor de combustível..."
+                        searchPlaceholder="Buscar fornecedor..."
+                        emptyMessage="Nenhum fornecedor cadastrado"
+                        disabled={addExpense.isPending}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setNewFuelSupplier({ supplier_name: '', city_name: '', icao_code: '' });
+                          setShowAddFuelSupplier(true);
+                        }}
+                        className="w-full gap-2 h-9 text-xs rounded-lg border-dashed border-border/60 text-muted-foreground hover:text-foreground"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Cadastrar novo fornecedor de combustível
+                      </Button>
+                    </div>
                   ) : (
                     <>
                       <SearchableCombobox
@@ -1406,6 +1424,88 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           queryClient.invalidateQueries({ queryKey: ["fornecedores-favoritos"] });
         }}
       />
+
+      {/* Dialog para cadastrar fornecedor de combustível inline */}
+      <Dialog open={showAddFuelSupplier} onOpenChange={setShowAddFuelSupplier}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Fuel className="h-5 w-5 text-amber-500" />
+              Novo Fornecedor de Combustível
+            </DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!newFuelSupplier.supplier_name.trim() || !newFuelSupplier.city_name.trim() || !newFuelSupplier.icao_code.trim()) {
+                toast.error('Preencha todos os campos obrigatórios');
+                return;
+              }
+              setSavingFuelSupplier(true);
+              try {
+                const { data, error } = await supabase
+                  .from('fuel_suppliers')
+                  .insert({
+                    supplier_name: newFuelSupplier.supplier_name.trim(),
+                    city_name: newFuelSupplier.city_name.trim(),
+                    icao_code: newFuelSupplier.icao_code.trim().toUpperCase(),
+                  })
+                  .select()
+                  .single();
+                if (error) throw error;
+                queryClient.invalidateQueries({ queryKey: ['fuel-suppliers'] });
+                set('supplierName')(data.supplier_name);
+                setShowAddFuelSupplier(false);
+                toast.success('Fornecedor de combustível cadastrado!');
+              } catch (err: any) {
+                toast.error('Erro ao cadastrar: ' + (err.message || 'Erro desconhecido'));
+              } finally {
+                setSavingFuelSupplier(false);
+              }
+            }}
+            className="space-y-4 mt-2"
+          >
+            <div className="space-y-1">
+              <Label>Nome do Fornecedor *</Label>
+              <Input
+                value={newFuelSupplier.supplier_name}
+                onChange={(e) => setNewFuelSupplier(prev => ({ ...prev, supplier_name: e.target.value }))}
+                placeholder="Ex: BR Aviation"
+                className="h-10"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Cidade *</Label>
+                <Input
+                  value={newFuelSupplier.city_name}
+                  onChange={(e) => setNewFuelSupplier(prev => ({ ...prev, city_name: e.target.value }))}
+                  placeholder="Ex: São Paulo"
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Código ICAO *</Label>
+                <Input
+                  value={newFuelSupplier.icao_code}
+                  onChange={(e) => setNewFuelSupplier(prev => ({ ...prev, icao_code: e.target.value }))}
+                  placeholder="Ex: SBSP"
+                  className="h-10 uppercase"
+                  maxLength={4}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setShowAddFuelSupplier(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={savingFuelSupplier}>
+                {savingFuelSupplier ? 'Salvando...' : 'Cadastrar'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -41,6 +41,7 @@ interface FlightCycleDetailProps {
   onAddExpense: (cycleId: string, expense: Partial<FlightExpense>) => void;
   onDeleteExpense?: (expenseId: string) => Promise<void>;
   onUpdateCycle?: (cycleId: string, updates: Partial<FlightCycle>) => Promise<void>;
+  onDeleteCycle?: (cycleId: string) => Promise<void>;
 }
 
 export function FlightCycleDetail({
@@ -51,6 +52,7 @@ export function FlightCycleDetail({
   onAddExpense,
   onDeleteExpense,
   onUpdateCycle,
+  onDeleteCycle,
 }: FlightCycleDetailProps) {
   const [expandedExpense, setExpandedExpense] = useState<string | null>(null);
   const [addExpenseOpen, setAddExpenseOpen] = useState(false);
@@ -418,6 +420,20 @@ export function FlightCycleDetail({
               >
                 <Edit2 className="h-4 w-4" />
                 Editar
+              </Button>
+
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => {
+                  if (onDeleteCycle && window.confirm('Tem certeza que deseja excluir este ciclo de voo? Todas as despesas associadas também serão excluídas.')) {
+                    onDeleteCycle(cycle.id).then(() => onBack());
+                  }
+                }}
+                className="gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Excluir Ciclo
               </Button>
 
               {cycle.status === 'confirmado' && (
