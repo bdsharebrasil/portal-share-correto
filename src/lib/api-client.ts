@@ -1,5 +1,6 @@
 // lib/apiClient.ts
 import { get, set } from 'idb-keyval';
+import { API_ENDPOINTS } from '@/config/api';
 
 const AIS_API_BASE_URL =
   import.meta.env.VITE_BACKEND_URL ||
@@ -24,53 +25,48 @@ async function fetchJson(endpoint: string, options: RequestInit = {}) {
 // Cache persistente offline (IDB)
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 async function cachedFetch(key: string, fetcher: () => Promise<any>) {
-  const cached = (await get(key)) as { timestamp: number; data: any } | undefined;
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) return cached.data;
+  try {
+    const cached = (await get(key)) as { timestamp: number; data: any } | undefined;
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) return cached.data;
+  } catch (err) {
+    console.warn('Erro ao ler cache:', err);
+  }
   const data = await fetcher();
-  await set(key, { timestamp: Date.now(), data });
+  try {
+    await set(key, { timestamp: Date.now(), data });
+  } catch (err) {
+    console.warn('Erro ao salvar cache:', err);
+  }
   return data;
 }
 
 export const apiClient = {
   getWeather: (icao: string) =>
-    cachedFetch(`weather-${icao.toUpperCase()}`, () => fetchJson(`/weather/${icao.toUpperCase()}`)),
+    cachedFetch(`weather-${icao.toUpperCase()}`, () => fetchJson(API_ENDPOINTS.weather(icao))),
 
-  getNotam: (icao: string) =>
-    cachedFetch(`notam-${icao.toUpperCase()}`, () => fetchJson(`/notam/${icao.toUpperCase()}`)),
-
-  getROTAER: (adep: string, ades: string) =>
-    cachedFetch(`rotaer-${adep.toUpperCase()}-${ades.toUpperCase()}`, () =>
-      fetchJson(`/routes?adep=${adep.toUpperCase()}&ades=${ades.toUpperCase()}`)
+  getCharts: (icao: string, especie?: string, tipo?: string) =>
+    cachedFetch(`charts-${icao.toUpperCase()}-${especie || ''}-${tipo || ''}`, () =>
+      fetchJson(API_ENDPOINTS.charts(icao, especie, tipo))
     ),
 
-  getInfoTemp: (icao: string) =>
-    cachedFetch(`infotemp-${icao.toUpperCase()}`, () => fetchJson(`/infotemp/${icao.toUpperCase()}`)),
-
-  getCharts: (icao: string, especie?: string, tipo?: string) => {
-    const params: Record<string, string> = {};
-    if (especie) params.especie = especie;
-    if (tipo) params.tipo = tipo;
-    const query = Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : '';
-    return cachedFetch(`charts-${icao.toUpperCase()}-${query}`, () =>
-      fetchJson(`/charts/${icao.toUpperCase()}${query}`)
-    );
-  },
-
-  getSolar: (icao: string, date?: string) => {
-    const query = date ? `?date=${encodeURIComponent(date)}` : '';
-    return cachedFetch(`solar-${icao.toUpperCase()}-${query}`, () =>
-      fetchJson(`/solar/${icao.toUpperCase()}${query}`)
-    );
-  },
-
-  getWaypoints: () => cachedFetch('waypoints', () => fetchJson('/waypoints')),
+  getNotam: (icao: string) =>
+    cachedFetch(`notam-${icao.toUpperCase()}`, () => fetchJson(API_ENDPOINTS.notam(icao))),
 
   getPreferentialRoutes: (adep: string, ades: string) =>
     cachedFetch(`routes-${adep.toUpperCase()}-${ades.toUpperCase()}`, () =>
-      fetchJson(`/routes?adep=${adep.toUpperCase()}&ades=${ades.toUpperCase()}`)
+      fetchJson(API_ENDPOINTS.rotaer(adep, ades))
     ),
 
-  getNearbyAlternates: () => cachedFetch('geiloc-nearby', () => fetchJson('/geiloc/nearby')),
+  getFlightPlan: (adep: string, ades: string, speed = 120, burn = 32, reserve = 45) =>
+    fetchJson(API_ENDPOINTS.flightplan(adep, ades, speed, burn, reserve)),
+
+  getNearestAirport: (lat: number, lon: number) =>
+    fetchJson(API_ENDPOINTS.nearestAirport(lat, lon)),
+
+  getNearbyAlternates: (lat: number, lon: number) =>
+    cachedFetch(`geiloc-nearby-${lat}-${lon}`, () =>
+      fetchJson(API_ENDPOINTS.geilocNearby(lat, lon))
+    ),
 };
 
 export function handleApiError(error: any): string {

@@ -97,8 +97,8 @@ export function AeronauticalInfoTab({
         [destination.toUpperCase()]: destRotaer as ROTAERData | null,
       });
 
-      // Validate flight plan - using empty route and default altitude since not available here
-      const validationResult = await validateFlightPlan(origin, destination, alternate || null, [], 5000);
+      // Validate flight plan - usando array vazio pois coordenadas não disponíveis aqui
+      const validationResult = await validateFlightPlan(origin, destination, [], 5000);
       
       // Add routeStatus if missing
       const fullValidation: RouteValidation = {

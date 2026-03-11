@@ -96,7 +96,7 @@ export default function PlanoVooPage() {
   const { user } = useAuth();
   const { aerodromes } = useAerodromes();
   const { aeronaves } = useAeronaves();
-  const { getNOTAMs, getMultipleNOTAMs, getROTAER, getRouteRestrictions, validateFlightPlan, loading: aiswebLoading, error: aiswebError } = useAISWeb();
+  const { getNOTAMs, getMultipleNOTAMs, getROTAER, validateFlightPlan, loading: aiswebLoading, error: aiswebError } = useAISWeb();
   const { flightPlans, createFlightPlan, deleteFlightPlan } = useFlightPlans();
   const { routes: preferredRoutes, loading: loadingRoutes, fetchRoutes } = usePreferredRoutes();
   const { solarData: originSolar } = useSolarData(formData.origin || null);

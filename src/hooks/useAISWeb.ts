@@ -21,29 +21,107 @@ interface ValidationResult {
 }
 
 const CACHE_TTL = 5 * 60 * 1000; // 5 min
-const cacheRef = { current: {} as Record<string, { timestamp: number; data: any }> };
+const MAX_CACHE_SIZE = 100; // Evitar vazamento de memória
+
+// Chaves de cache centralizadas
+const CACHE_KEYS = {
+  NOTAM: (icao: string) => `notam-${icao.toUpperCase()}`,
+  ROTAER: (icao: string) => `rotaer-${icao.toUpperCase()}`,
+  ROTAER_ROUTE: (adep: string, ades: string) => `rotaer-${adep.toUpperCase()}-${ades.toUpperCase()}`,
+} as const;
 
 export function useAISWeb() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const cacheRef = useRef<Record<string, { timestamp: number; data: any }>>({});
+  const inFlightRef = useRef<Map<string, Promise<any>>>(new Map());
 
   const isCacheValid = useCallback((timestamp: number) => Date.now() - timestamp < CACHE_TTL, []);
 
-  const fetchNOTAMs = useCallback(async (icao: string) => {
-    const key = `notam-${icao}`;
-    if (cacheRef.current[key] && isCacheValid(cacheRef.current[key].timestamp)) return cacheRef.current[key].data;
-    const data = await apiClient.getNotam(icao);
-    cacheRef.current[key] = { timestamp: Date.now(), data };
-    return data;
-  }, [isCacheValid]);
+  // Helper para limpar cache LRU quando atinge limite
+  const cleanupCache = useCallback(() => {
+    const keys = Object.keys(cacheRef.current);
+    if (keys.length >= MAX_CACHE_SIZE) {
+      const oldest = keys.reduce((prev, curr) =>
+        cacheRef.current[curr].timestamp < cacheRef.current[prev].timestamp ? curr : prev
+      );
+      delete cacheRef.current[oldest];
+    }
+  }, []);
+
+  // Helper genérico com proteção contra race condition
+  const withCache = useCallback(async <T,>(
+    cacheKey: string,
+    fetcher: () => Promise<T>,
+    forceRefresh = false
+  ): Promise<T> => {
+    // Se há uma requisição em voo, retorna promise existente
+    if (inFlightRef.current.has(cacheKey)) {
+      return inFlightRef.current.get(cacheKey)!;
+    }
+
+    // Se cache válido e não forçar refresh, retorna cache
+    if (!forceRefresh && cacheRef.current[cacheKey]?.data !== undefined &&
+        isCacheValid(cacheRef.current[cacheKey].timestamp)) {
+      return cacheRef.current[cacheKey].data;
+    }
+
+    // Inicia nova requisição
+    const promise = fetcher().then(data => {
+      cleanupCache();
+      cacheRef.current[cacheKey] = { timestamp: Date.now(), data };
+      inFlightRef.current.delete(cacheKey);
+      return data;
+    }).catch(err => {
+      inFlightRef.current.delete(cacheKey);
+      throw err;
+    });
+
+    inFlightRef.current.set(cacheKey, promise);
+    return promise;
+  }, [isCacheValid, cleanupCache]);
+
+  // Busca NOTAMs de um único ICAO
+  const getNOTAMs = useCallback(async (icao: string, forceRefresh = false) => {
+    return withCache(
+      CACHE_KEYS.NOTAM(icao),
+      () => apiClient.getNotam(icao),
+      forceRefresh
+    );
+  }, [withCache]);
+
+  // Busca NOTAMs para múltiplos ICAOs
+  const getMultipleNOTAMs = useCallback(async (icaos: string[], forceRefresh = false): Promise<Record<string, any>> => {
+    const result: Record<string, any> = {};
+    await Promise.all(
+      icaos.map(async (icao) => {
+        try {
+          const data = await getNOTAMs(icao, forceRefresh);
+          result[icao.toUpperCase()] = data;
+        } catch (err) {
+          console.error(`Erro ao buscar NOTAMs para ${icao}:`, err);
+          result[icao.toUpperCase()] = [];
+        }
+      })
+    );
+    return result;
+  }, [getNOTAMs]);
+
+  // Busca dados ROTAER
+  const getROTAER = useCallback(async (icao: string, forceRefresh = false) => {
+    return withCache(
+      CACHE_KEYS.ROTAER(icao),
+      () => apiClient.getPreferentialRoutes(icao, icao),
+      forceRefresh
+    );
+  }, [withCache]);
 
   const fetchROTAER = useCallback(async (adep: string, ades: string) => {
-    const key = `rotaer-${adep}-${ades}`;
-    if (cacheRef.current[key] && isCacheValid(cacheRef.current[key].timestamp)) return cacheRef.current[key].data;
-    const data = await apiClient.getPreferentialRoutes(adep, ades);
-    cacheRef.current[key] = { timestamp: Date.now(), data };
-    return data;
-  }, [isCacheValid]);
+    return withCache(
+      CACHE_KEYS.ROTAER_ROUTE(adep, ades),
+      () => apiClient.getPreferentialRoutes(adep, ades)
+    );
+  }, [withCache]);
 
   const haversineNm = useCallback((lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371;
@@ -64,11 +142,13 @@ export function useAISWeb() {
 
   const fetchAlternates = useCallback(async (destLat: number, destLon: number, maxAlternates = 3) => {
     try {
-      const nearby: any[] = await apiClient.getNearbyAlternates();
-      return nearby
+      const response = await apiClient.getNearbyAlternates(destLat, destLon);
+      const nearby = response?.nearest || response?.alternates || [];
+      return (Array.isArray(nearby) ? nearby : [nearby])
+        .filter(a => a && a.icao)
         .map(a => ({
           icao: a.icao,
-          name: a.name,
+          name: a.name || a.icao,
           lat: a.lat,
           lon: a.lon,
           distNm: haversineNm(destLat, destLon, a.lat, a.lon),
@@ -83,24 +163,31 @@ export function useAISWeb() {
   const validateFlightPlan = useCallback(async (
     origin: string,
     destination: string,
-    routePoints: FlightPoint[],
+    routePoints: FlightPoint[] = [],
     cruiseAltitude = 5000,
     burnPerHour = 32,
     reserveMinutes = 45
   ): Promise<ValidationResult> => {
     setLoading(true); setError(null);
     try {
-      const [originNotam, destNotam] = await Promise.all([fetchNOTAMs(origin), fetchNOTAMs(destination)]);
-      const [rotaer] = await Promise.all([fetchROTAER(origin, destination)]);
+      // Executar NOTAMs, ROTAER e alternates em PARALELO
+      const [originNotam, destNotam, rotaer, alternates] = await Promise.all([
+        getNOTAMs(origin),
+        getNOTAMs(destination),
+        fetchROTAER(origin, destination),
+        fetchAlternates(
+          routePoints[routePoints.length - 1]?.lat || 0,
+          routePoints[routePoints.length - 1]?.lng || 0
+        )
+      ]);
 
+      // Calcular distância e combustível
       const originLat = routePoints[0]?.lat || 0;
       const originLon = routePoints[0]?.lng || 0;
       const destLat = routePoints[routePoints.length - 1]?.lat || 0;
       const destLon = routePoints[routePoints.length - 1]?.lng || 0;
       const distanceNm = haversineNm(originLat, originLon, destLat, destLon);
-
       const { fuelRequired, totalFuel } = calculateFuel(distanceNm, burnPerHour, reserveMinutes);
-      const alternates = await fetchAlternates(destLat, destLon);
 
       const originStatus = { operational: true, warnings: [] };
       const destinationStatus = { operational: true, warnings: [] };
@@ -124,9 +211,53 @@ export function useAISWeb() {
         reserveMinutes, alternates: []
       };
     } finally { setLoading(false); }
-  }, [fetchNOTAMs, fetchROTAER, fetchAlternates, haversineNm, calculateFuel]);
+  }, [getNOTAMs, fetchROTAER, fetchAlternates, haversineNm, calculateFuel]);
 
-  const clearCache = useCallback(() => { cacheRef.current = {}; }, []);
+  const clearCache = useCallback(() => {
+    cacheRef.current = {};
+    inFlightRef.current.clear();
+  }, []);
 
-  return { loading, error, fetchNOTAMs, fetchROTAER, validateFlightPlan, clearCache };
+  const getCacheAge = useCallback((icao: string, type: 'notams' | 'rotaer'): number | null => {
+    const key = type === 'notams' ? CACHE_KEYS.NOTAM(icao) : CACHE_KEYS.ROTAER(icao);
+    if (!cacheRef.current[key]) return null;
+    const ageMs = Date.now() - cacheRef.current[key].timestamp;
+    return Math.floor(ageMs / 60000); // Retorna idade em minutos
+  }, []);
+
+  // Compatibilidade com código antigo
+  const fetchNOTAMs = useCallback((icao: string) => getNOTAMs(icao, false), [getNOTAMs]);
+
+  // Busca dados de weather (METAR)
+  const getWeather = useCallback(async (icao: string, forceRefresh = false) => {
+    return withCache(
+      `weather-${icao.toUpperCase()}`,
+      () => apiClient.getWeather(icao),
+      forceRefresh
+    );
+  }, [withCache]);
+
+  // Busca cartas aeronáuticas
+  const getCharts = useCallback(async (icao: string, especie?: string, tipo?: string) => {
+    const cacheKey = `charts-${icao.toUpperCase()}-${especie || ''}-${tipo || ''}`;
+    return withCache(
+      cacheKey,
+      () => apiClient.getCharts(icao, especie, tipo)
+    );
+  }, [withCache]);
+
+  return {
+    loading,
+    error,
+    getNOTAMs,
+    getMultipleNOTAMs,
+    getROTAER,
+    getWeather,
+    getCharts,
+    fetchNOTAMs,
+    fetchROTAER,
+    validateFlightPlan,
+    clearCache,
+    getCacheAge,
+  };
 }

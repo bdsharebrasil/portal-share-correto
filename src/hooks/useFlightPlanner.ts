@@ -40,12 +40,21 @@ export function useFlightPlanner() {
 
   // Inicializa cache do IndexedDB
   const initCache = useCallback(async () => {
-    const stored: Cache = (await get(CACHE_KEY)) || {};
-    cacheRef.current = stored;
+    try {
+      const stored: Cache = (await get(CACHE_KEY)) || {};
+      cacheRef.current = stored;
+    } catch (err) {
+      console.warn('Erro ao carregar cache:', err);
+      cacheRef.current = {};
+    }
   }, []);
 
   const saveCache = useCallback(async () => {
-    await set(CACHE_KEY, cacheRef.current);
+    try {
+      await set(CACHE_KEY, cacheRef.current);
+    } catch (err) {
+      console.warn('Erro ao salvar cache:', err);
+    }
   }, []);
 
   const isCacheValid = useCallback((timestamp: number) => {

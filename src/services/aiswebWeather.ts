@@ -1,4 +1,12 @@
-import { API_ENDPOINTS } from '@/config/api';
+/**
+ * AISWeb Weather Service
+ * Utilities para parsing e processamento de dados meteorológicos da AISWEB
+ *
+ * NOTA: O fetch é feito via apiClient.getWeather() que já inclui caching
+ * Este service fornece apenas utilitários de parsing
+ */
+
+import { apiClient } from '@/lib/api-client';
 
 export interface AISWebMETARData {
   icao: string;
@@ -14,12 +22,10 @@ export interface AISWebMETARData {
   taf?: string;
 }
 
-// Cache simples
-const weatherCache: Record<string, { data: AISWebMETARData; timestamp: number }> = {};
-const CACHE_DURATION = 5 * 60 * 1000; // 5 min
-
-// Parser de METAR string para extrair dados
-const parseMetarString = (raw: string) => {
+/**
+ * Parser de METAR string para extrair dados estruturados
+ */
+export const parseMetarString = (raw: string) => {
   const tempMatch = raw.match(/(M?\d{2})\/(M?\d{2})/);
   const windMatch = raw.match(/(\d{3}|VRB)(\d{2})(G\d{2})?KT/);
   const visibMatch = raw.match(/\s(\d{4})\s/);
@@ -35,8 +41,13 @@ const parseMetarString = (raw: string) => {
   };
 };
 
-// Determinar categoria de voo a partir do METAR
-const determineFlightCategory = (cat: string | undefined, visib: number | string | null): 'VFR' | 'MVFR' | 'IFR' | 'LIFR' | 'UNKNOWN' => {
+/**
+ * Determinar categoria de voo a partir do METAR
+ */
+export const determineFlightCategory = (
+  cat: string | undefined,
+  visib: number | string | null
+): 'VFR' | 'MVFR' | 'IFR' | 'LIFR' | 'UNKNOWN' => {
   if (cat) {
     const upper = cat.toUpperCase();
     if (['VFR', 'MVFR', 'IFR', 'LIFR'].includes(upper)) return upper as any;
@@ -49,57 +60,51 @@ const determineFlightCategory = (cat: string | undefined, visib: number | string
   return 'LIFR';
 };
 
+/**
+ * Transform dados brutos da API AISWEB em formato estruturado
+ */
+export const transformAISWebMETAR = (data: any, icao: string): AISWebMETARData => {
+  const metarRaw = typeof data.metar === 'string'
+    ? data.metar
+    : (data.met?.metar?.metar || data.met?.metar?.raw || '');
+
+  const tafRaw = typeof data.taf === 'string'
+    ? data.taf
+    : (data.met?.taf?.taf || data.met?.taf?.raw || '');
+
+  const loc = data.loc || data.met?.metar?.loc || icao.toUpperCase();
+
+  const parsed = metarRaw ? parseMetarString(metarRaw) : {
+    temp: null, dewp: null, wdir: null, wspd: null, wgst: null, visib: null
+  };
+
+  return {
+    icao: loc,
+    rawOb: metarRaw,
+    temp: parsed.temp,
+    dewp: parsed.dewp,
+    wdir: parsed.wdir,
+    wspd: parsed.wspd,
+    wgst: parsed.wgst,
+    visib: parsed.visib,
+    flightCategory: determineFlightCategory(data.cat || data.met?.metar?.cat, parsed.visib),
+    updatedTime: data.date || new Date().toISOString(),
+    taf: tafRaw || undefined,
+  };
+};
+
+/**
+ * @deprecated Use apiClient.getWeather() or useAISWeb().getWeather() instead
+ * Wrapper de compatibilidade para código legado
+ */
 export async function fetchAISWebMETAR(icao: string): Promise<AISWebMETARData | null> {
-  const icaoUpper = icao.toUpperCase();
-  
-  // 1. Verifica Cache
-  const cached = weatherCache[icaoUpper];
-  if (cached && (Date.now() - cached.timestamp < CACHE_DURATION)) {
-    return cached.data;
-  }
-
   try {
-    const response = await fetch(API_ENDPOINTS.weather(icaoUpper));
-    if (!response.ok) throw new Error('Falha na rede');
-    
-    const data = await response.json();
-    
-    // A API retorna flat: { loc, metar, taf } OU nested: { met: { metar: {...} } }
-    // Suportar ambos os formatos
-    const metarRaw = typeof data.metar === 'string' 
-      ? data.metar 
-      : (data.met?.metar?.metar || data.met?.metar?.raw || '');
-    
-    const tafRaw = typeof data.taf === 'string'
-      ? data.taf
-      : (data.met?.taf?.taf || data.met?.taf?.raw || '');
-    
-    const loc = data.loc || data.met?.metar?.loc || icaoUpper;
-    
-    // Parsear dados do METAR
-    const parsed = metarRaw ? parseMetarString(metarRaw) : {
-      temp: null, dewp: null, wdir: null, wspd: null, wgst: null, visib: null
-    };
-
-    const metarData: AISWebMETARData = {
-      icao: loc,
-      rawOb: metarRaw,
-      temp: parsed.temp,
-      dewp: parsed.dewp,
-      wdir: parsed.wdir,
-      wspd: parsed.wspd,
-      wgst: parsed.wgst,
-      visib: parsed.visib,
-      flightCategory: determineFlightCategory(data.cat || data.met?.metar?.cat, parsed.visib),
-      updatedTime: data.date || new Date().toISOString(),
-      taf: tafRaw || undefined,
-    };
-
-    // Guardar no cache
-    weatherCache[icaoUpper] = { data: metarData, timestamp: Date.now() };
-    return metarData;
+    const data = await apiClient.getWeather(icao);
+    if (!data) return null;
+    return transformAISWebMETAR(data, icao);
   } catch (error) {
-    console.error(`[AISWeb] Erro ao buscar ${icaoUpper}:`, error);
+    console.error(`[AISWeb] Erro ao buscar ${icao}:`, error);
     return null;
   }
 }
+

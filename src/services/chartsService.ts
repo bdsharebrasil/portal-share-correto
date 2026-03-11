@@ -1,4 +1,4 @@
-import { API_ENDPOINTS } from '@/config/api';
+import { apiClient } from '@/lib/api-client';
 
 export interface ChartData {
   type: 'IFR' | 'VFR' | 'APPROACH' | 'DEPARTURE' | 'STAR' | 'SID' | 'IAP' | 'AIRPORT';
@@ -14,44 +14,10 @@ export async function fetchAirportCharts(icao: string): Promise<ChartData[]> {
   const icaoUpper = icao.toUpperCase();
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-
-    try {
-      const response = await fetch(
-        `${API_ENDPOINTS.charts(icaoUpper)}`,
-        {
-          headers: {
-            'Accept': 'application/json',
-          },
-          signal: controller.signal,
-        }
-      );
-
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        if (response.status === 404) {
-          console.debug(`[chartsService] No charts found for ${icaoUpper}`);
-          return [];
-        }
-        console.warn(`[chartsService] API error for ${icaoUpper}: ${response.status}`);
-        return [];
-      }
-
-      const data = await response.json();
-      return parseChartsData(data);
-    } catch (fetchError) {
-      clearTimeout(timeout);
-      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-        console.warn(`[chartsService] Timeout fetching charts for ${icaoUpper}`);
-      } else {
-        console.warn(`[chartsService] Failed to fetch charts for ${icaoUpper}:`, fetchError);
-      }
-      return [];
-    }
+    const data = await apiClient.getCharts(icaoUpper);
+    return parseChartsData(data);
   } catch (error) {
-    console.error(`[chartsService] Unexpected error for ${icaoUpper}:`, error);
+    console.error(`[chartsService] Erro ao buscar cartas para ${icaoUpper}:`, error);
     return [];
   }
 }
@@ -136,3 +102,4 @@ function parseChartsData(rawData: any): ChartData[] {
       return (typeOrder[a.type] || 99) - (typeOrder[b.type] || 99);
     });
 }
+

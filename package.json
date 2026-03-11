@@ -55,6 +55,7 @@
     "framer-motion": "^12.23.26",
     "html2canvas": "^1.4.1",
     "idb": "^8.0.3",
+    "idb-keyval": "^6.2.2",
     "input-otp": "^1.2.4",
     "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.2",

@@ -25,8 +25,22 @@ export const API_ENDPOINTS = {
   weather: (icao: string) =>
     `${_base}${apiPrefix}/weather/${icao}`,
 
-  flightplan: (adep: string, ades: string, speed = 120, burn = 32) =>
-    `${_base}${apiPrefix}/flightplan?adep=${adep}&ades=${ades}&speed=${speed}&fuel_burn=${burn}`,
+  charts: (icao: string, especie?: string, tipo?: string) => {
+    const params = new URLSearchParams();
+    if (especie) params.append('especie', especie);
+    if (tipo) params.append('tipo', tipo);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return `${_base}${apiPrefix}/charts/${icao}${query}`;
+  },
+
+  notam: (icao: string) =>
+    `${_base}${apiPrefix}/notam/${icao}`,
+
+  rotaer: (adep: string, ades: string) =>
+    `${_base}${apiPrefix}/rotaer?adep=${adep}&ades=${ades}`,
+
+  flightplan: (adep: string, ades: string, speed = 120, burn = 32, reserve = 45) =>
+    `${_base}${apiPrefix}/flightplan?adep=${adep}&ades=${ades}&speed=${speed}&fuel_burn=${burn}&reserve=${reserve}`,
 
   nearestAirport: (lat: number, lon: number) =>
     `${_base}${apiPrefix}/nearest?lat=${lat}&lon=${lon}`,
