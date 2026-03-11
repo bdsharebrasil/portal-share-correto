@@ -228,11 +228,34 @@ export function useAISWeb() {
   // Compatibilidade com código antigo
   const fetchNOTAMs = useCallback((icao: string) => getNOTAMs(icao, false), [getNOTAMs]);
 
-  // Busca dados de weather (METAR)
+  // Busca dados de weather (METAR) com fallback automático para mock
   const getWeather = useCallback(async (icao: string, forceRefresh = false) => {
     return withCache(
       `weather-${icao.toUpperCase()}`,
-      () => apiClient.getWeather(icao),
+      async () => {
+        try {
+          return await apiClient.getWeather(icao);
+        } catch (error: any) {
+          // Se a API falhar, tentar usar mock data como fallback
+          console.warn(`[useAISWeb] getWeather failed for ${icao}, attempting mock data fallback`, error.message);
+
+          try {
+            // Dinamicamente importar mock data
+            const { METAR_MOCK_DATA } = await import('@/data/metarMockData');
+            const mockData = METAR_MOCK_DATA[icao];
+
+            if (mockData) {
+              console.info(`[useAISWeb] Using mock data for ${icao}`);
+              return mockData;
+            }
+          } catch (mockError) {
+            console.error(`[useAISWeb] Failed to load mock data for ${icao}:`, mockError);
+          }
+
+          // Se nenhum fallback funcionar, relançar o erro original
+          throw error;
+        }
+      },
       forceRefresh
     );
   }, [withCache]);

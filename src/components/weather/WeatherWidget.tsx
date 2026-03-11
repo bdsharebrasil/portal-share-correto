@@ -114,12 +114,15 @@ export default function WeatherWidget() {
         cat: metarData.flightCategory,
         time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
       });
-    } catch (weatherError) {
-      console.error(`[WeatherWidget] Erro ao carregar ${airport.icao}:`, weatherError);
+    } catch (weatherError: any) {
+      const errorMsg = weatherError?.message || String(weatherError);
+      console.warn(`[WeatherWidget] Erro ao carregar dados de ${airport.icao}: ${errorMsg}`);
+      console.warn(`[WeatherWidget] Usando dados offline/mock para ${airport.icao}`);
 
       // Fallback to mock data if available
       const mockData = METAR_MOCK_DATA[airport.icao];
       if (mockData) {
+        console.info(`[WeatherWidget] Dados mock disponíveis para ${airport.icao}`);
         setWx({
           status: "ok",
           icao: airport.icao,
@@ -132,6 +135,7 @@ export default function WeatherWidget() {
           time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
         });
       } else {
+        console.info(`[WeatherWidget] Sem dados disponíveis para ${airport.icao}, exibindo estado desconhecido`);
         setWx({
           status: "ok",
           icao: airport.icao,

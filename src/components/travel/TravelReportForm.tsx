@@ -917,6 +917,22 @@ export function TravelReportForm({
             </div>
           </CardContent>
         </Card>
+
+        {currentReport.observations && currentReport.observations.trim() !== '' && (
+          <Card className="shadow-md rounded-xl border-border/50 border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/50 to-indigo-50/50">
+            <CardHeader className="p-6 border-b border-border/30">
+              <CardTitle className="text-lg font-bold flex items-center gap-2">
+                <span className="text-xl">📝</span>
+                Observações
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6">
+              <p className="text-foreground whitespace-pre-wrap leading-relaxed">
+                {currentReport.observations}
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
