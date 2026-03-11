@@ -81,8 +81,12 @@ window.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     }
   }
 
-  console.error(`Max retries exceeded for ${url}:`, lastError);
+  console.error(`❌ Max retries exceeded for ${url}. Last error:`, lastError?.message || lastError);
   throw lastError;
 }) as typeof fetch;
 
-console.log('✓ Fetch retry interceptor initialized');
+console.log('✓ Fetch retry interceptor initialized', {
+  maxRetries: RETRY_CONFIG.maxRetries,
+  timeout: RETRY_CONFIG.maxDelayMs,
+  retryableHosts: RETRY_CONFIG.retryableHosts,
+});
