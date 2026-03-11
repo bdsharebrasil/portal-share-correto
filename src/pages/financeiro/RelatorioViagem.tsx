@@ -50,7 +50,6 @@ type TravelReport = {
   updated_at?: string;
 };
 
-const REPORT_STATUSES = ['Rascunho', 'Finalizado', 'Enviado'] as const;
 
 const normalizeStatus = (status: string): TravelReport['status'] => {
   const validStatuses: TravelReport['status'][] = ['Rascunho', 'Finalizado', 'Enviado'];
@@ -65,7 +64,7 @@ import { ReceiptViewer } from '@/components/financeiro/ReceiptViewer';
 import { TravelReportForm } from '@/components/travel/TravelReportForm';
 
 export default function RelatorioViagem() {
-  const [activeStatusFilter, setActiveStatusFilter] = useState<'Todos' | TravelReport['status']>('Todos');
+  const [activeTab, setActiveTab] = useState<'criar' | 'historico' | 'relatorios'>('relatorios');
   const [reports, setReports] = useState<TravelReport[]>([]);
   const [currentReport, setCurrentReport] = useState<TravelReport | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -100,20 +99,9 @@ export default function RelatorioViagem() {
     return () => clearInterval(autoSaveInterval);
   }, [currentReport, isCreating, isEditing]);
 
-  const filteredReports = useMemo(() => {
-    if (activeStatusFilter === 'Todos') {
-      return reports;
-    }
-    return reports.filter(report => report.status === activeStatusFilter);
-  }, [reports, activeStatusFilter]);
-
-  const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { 'Todos': reports.length };
-    REPORT_STATUSES.forEach(status => {
-      counts[status] = reports.filter(r => r.status === status).length;
-    });
-    return counts;
-  }, [reports]);
+  // Separar relatórios com cliente (Relatórios) e sem cliente (Histórico)
+  const reportsWithClient = useMemo(() => reports.filter(r => r.client && r.client.trim()), [reports]);
+  const reportsWithoutClient = useMemo(() => reports.filter(r => !r.client || !r.client.trim()), [reports]);
 
   const discardDraft = () => {
     draftStorage.clearDraft();
@@ -315,6 +303,7 @@ export default function RelatorioViagem() {
     draftStorage.saveDraft(newReport as unknown as TravelReportDraft);
     setIsCreating(true);
     setIsEditing(false);
+    setActiveTab('criar');
   };
 
   const editReport = async (reportId: string) => {
@@ -323,6 +312,7 @@ export default function RelatorioViagem() {
       setCurrentReport(reportDetails);
       setIsCreating(true);
       setIsEditing(true);
+      setActiveTab('criar');
     } catch (error) {
       console.error('Erro ao carregar relatório para edição:', error);
       toast.error('❌ Não foi possível carregar os detalhes do relatório.');
@@ -888,102 +878,6 @@ export default function RelatorioViagem() {
     </div>
   );
 
-  const renderReportList = () => {
-    if (filteredReports.length === 0) {
-      return (
-        <div className="flex flex-col items-center justify-center py-12">
-          <FileText className="h-12 w-12 text-muted-foreground/40 mb-3" />
-          <p className="text-center text-muted-foreground font-medium">Nenhum relatório encontrado</p>
-          <p className="text-center text-muted-foreground text-sm">na pasta {activeStatusFilter}</p>
-        </div>
-      );
-    }
-
-    // Always group by client
-    const grouped: Record<string, TravelReport[]> = {};
-    filteredReports.forEach(r => {
-      const key = r.client || 'Sem Cliente';
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(r);
-    });
-
-    return (
-      <div className="space-y-3">
-        {Object.entries(grouped).map(([clientName, group]) => {
-          if (group.length <= 1) {
-            const report = group[0];
-            return report ? renderReportCard(report) : null;
-          }
-
-          const open = !!openClientGroups[clientName];
-          return (
-            <div key={clientName} className="p-4 rounded-xl bg-card border border-border/50 shadow-sm">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-md bg-primary/10">
-                    <FolderOpen className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-foreground">{clientName}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {group.length} {group.length === 1 ? 'relatório' : 'relatórios'}
-                    </div>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setOpenClientGroups(prev => ({ ...prev, [clientName]: !prev[clientName] }))}
-                >
-                  {open ? 'Fechar' : 'Abrir'}
-                </Button>
-              </div>
-              {open && (
-                <div className="space-y-2 mt-2">
-                  {group.map((report) => (
-                    <div
-                      key={report.id}
-                      className="flex items-center justify-between p-3 rounded-md border border-border/40 hover:bg-accent"
-                    >
-                      <div>
-                        <div className="font-medium text-foreground">{report.report_number}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {format(parseISO(report.start_date), 'dd MMM yyyy', { locale: ptBR })} • R$ {report.total_amount.toFixed(2).replace('.', ',')}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {report.status === 'Finalizado' && (
-                          <Button variant="ghost" size="sm" onClick={() => {
-                            setSendReportTarget(report);
-                            setSendDueDate('');
-                            setSendDialogOpen(true);
-                          }} title="Enviar ao Cliente" className="text-emerald-400 hover:bg-emerald-500/10">
-                            <Send className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {report.status === 'Rascunho' && (
-                          <Button variant="ghost" size="sm" onClick={() => editReport(report.id!)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="sm" onClick={() => handleViewPDF(report.id!)}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => deleteReport(report.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
   return (
     <Layout>
       <div className="p-6 space-y-6">
@@ -1021,6 +915,7 @@ export default function RelatorioViagem() {
                             setCurrentReport(draft as unknown as TravelReport);
                             setIsCreating(true);
                             setIsEditing(false);
+                            setActiveTab('criar');
                             toast.success('✓ Rascunho restaurado com sucesso!');
                           }
                         }}
@@ -1036,60 +931,205 @@ export default function RelatorioViagem() {
             )}
 
             <Card className="shadow-md rounded-xl border-border/50">
-              <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 p-6">
-                <div>
-                  <CardTitle className="text-2xl font-bold text-foreground">Histórico de Relatórios</CardTitle>
-                  {reports.length === 0 && (
-                    <p className="text-sm text-muted-foreground mt-2 leading-relaxed">Carregando relatórios...</p>
-                  )}
+              <CardHeader className="p-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                  <CardTitle className="text-2xl font-bold text-foreground">Relatório de Despesa de Viagem</CardTitle>
                 </div>
-                <div className="flex gap-3 w-full md:w-auto">
+
+                {/* Tabs Navigation */}
+                <div className="flex gap-2 border-b border-border">
                   <Button
-                    onClick={createNewReport}
-                    className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] w-full md:w-auto"
+                    onClick={() => setActiveTab('criar')}
+                    variant={activeTab === 'criar' ? 'default' : 'ghost'}
+                    className={cn(
+                      'px-4 py-2 rounded-none border-b-2 font-medium transition-all',
+                      activeTab === 'criar'
+                        ? 'border-b-primary text-primary bg-primary/5'
+                        : 'border-b-transparent text-muted-foreground hover:text-foreground'
+                    )}
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Novo Relatório
+                    Criar Novo
+                  </Button>
+                  <Button
+                    onClick={() => setActiveTab('historico')}
+                    variant={activeTab === 'historico' ? 'default' : 'ghost'}
+                    className={cn(
+                      'px-4 py-2 rounded-none border-b-2 font-medium transition-all',
+                      activeTab === 'historico'
+                        ? 'border-b-primary text-primary bg-primary/5'
+                        : 'border-b-transparent text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Histórico ({reportsWithoutClient.length})
+                  </Button>
+                  <Button
+                    onClick={() => setActiveTab('relatorios')}
+                    variant={activeTab === 'relatorios' ? 'default' : 'ghost'}
+                    className={cn(
+                      'px-4 py-2 rounded-none border-b-2 font-medium transition-all',
+                      activeTab === 'relatorios'
+                        ? 'border-b-primary text-primary bg-primary/5'
+                        : 'border-b-transparent text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    <FolderOpen className="h-4 w-4 mr-2" />
+                    Relatórios ({reportsWithClient.length})
                   </Button>
                 </div>
               </CardHeader>
 
               <CardContent className="p-6">
-                <div className="flex flex-wrap gap-3 mb-6">
-                  {(['Todos', ...REPORT_STATUSES] as const).map(status => {
-                    const isActive = activeStatusFilter === status;
-                    const statusColors: Record<string, { bg: string; activeBg: string; activeText: string }> = {
-                      'Todos': { bg: 'bg-slate-700/10 text-slate-200', activeBg: 'bg-slate-700', activeText: 'text-white' },
-                      'Rascunho': { bg: 'bg-amber-800/10 text-amber-300', activeBg: 'bg-amber-600', activeText: 'text-white' },
-                      'Finalizado': { bg: 'bg-blue-800/10 text-blue-300', activeBg: 'bg-gradient-to-r from-blue-600 to-cyan-500', activeText: 'text-white' },
-                      'Enviado': { bg: 'bg-green-800/10 text-green-300', activeBg: 'bg-gradient-to-r from-emerald-600 to-green-500', activeText: 'text-white' }
-                    };
-                    const colors = statusColors[status] || statusColors['Todos'];
-
-                    return (
+                {/* Tab: Criar Novo */}
+                {activeTab === 'criar' && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4 text-foreground">Criar Novo Relatório</h3>
+                    <p className="text-muted-foreground mb-6">Preencha os dados do relatório de despesa de viagem abaixo.</p>
+                    <div className="flex">
                       <Button
-                        key={status}
-                        onClick={() => setActiveStatusFilter(status as 'Todos' | TravelReport['status'])}
-                        className={cn(
-                          'rounded-full px-4 py-2 h-auto transition-all duration-200 font-medium text-sm flex items-center gap-2',
-                          isActive
-                            ? `${colors.activeBg} ${colors.activeText} shadow-sm ring-2 ring-offset-2 ring-white/10`
-                            : `${colors.bg} hover:brightness-105 active:scale-[0.98]`
-                        )}
+                        onClick={createNewReport}
+                        className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                       >
-                        <span>{status}</span>
-                        <span className={cn(
-                          'px-2 py-0.5 rounded-full text-xs font-semibold',
-                          isActive ? 'bg-white/20' : 'bg-white/5'
-                        )}>
-                          {status === 'Todos' ? statusCounts['Todos'] : statusCounts[status]}
-                        </span>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Iniciar Novo Relatório
                       </Button>
-                    );
-                  })}
-                </div>
+                    </div>
+                  </div>
+                )}
 
-                {renderReportList()}
+                {/* Tab: Histórico */}
+                {activeTab === 'historico' && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4 text-foreground">Histórico</h3>
+                    {reportsWithoutClient.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12">
+                        <FileText className="h-12 w-12 text-muted-foreground/40 mb-3" />
+                        <p className="text-center text-muted-foreground font-medium">Nenhum relatório no histórico</p>
+                        <p className="text-center text-muted-foreground text-sm">Todos os relatórios estão organizados em pastas de clientes</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {reportsWithoutClient.map(report => renderReportCard(report))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Tab: Relatórios (Pastas de Clientes) */}
+                {activeTab === 'relatorios' && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4 text-foreground">Pastas de Clientes</h3>
+                    {reportsWithClient.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12">
+                        <FolderOpen className="h-12 w-12 text-muted-foreground/40 mb-3" />
+                        <p className="text-center text-muted-foreground font-medium">Nenhum relatório de clientes</p>
+                        <p className="text-center text-muted-foreground text-sm">Crie um novo relatório para começar</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {Object.entries(
+                          reportsWithClient.reduce((acc, report) => {
+                            const key = report.client || 'Sem Cliente';
+                            if (!acc[key]) acc[key] = [];
+                            acc[key].push(report);
+                            return acc;
+                          }, {} as Record<string, TravelReport[]>)
+                        ).map(([clientName, group]) => (
+                          <div
+                            key={clientName}
+                            className="p-5 rounded-lg bg-gradient-to-br from-blue-50/50 to-cyan-50/50 border border-blue-200/40 hover:border-blue-300/60 hover:shadow-md transition-all duration-200 cursor-pointer group"
+                            onClick={() => setOpenClientGroups(prev => ({ ...prev, [clientName]: !prev[clientName] }))}
+                          >
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="p-2 rounded-lg bg-blue-100/80 group-hover:bg-blue-200/80 transition-all">
+                                <FolderOpen className="h-6 w-6 text-blue-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-foreground truncate text-base">{clientName}</p>
+                                <p className="text-sm text-muted-foreground">{group.length} {group.length === 1 ? 'relatório' : 'relatórios'}</p>
+                              </div>
+                            </div>
+
+                            {openClientGroups[clientName] && (
+                              <div className="mt-4 pt-4 border-t border-blue-200/40 space-y-2">
+                                {group.map(report => (
+                                  <div
+                                    key={report.id}
+                                    className="flex items-center justify-between p-2 rounded-md bg-white/60 hover:bg-white/100 transition-all border border-blue-100/50"
+                                  >
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-foreground truncate">{report.report_number}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {format(parseISO(report.start_date), 'dd MMM yyyy', { locale: ptBR })}
+                                      </p>
+                                    </div>
+                                    <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                                      {report.status === 'Finalizado' && (
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSendReportTarget(report);
+                                            setSendDueDate('');
+                                            setSendDialogOpen(true);
+                                          }}
+                                          title="Enviar ao Cliente"
+                                          className="h-7 w-7 p-0 text-emerald-600 hover:bg-emerald-100/50"
+                                        >
+                                          <Send className="h-3.5 w-3.5" />
+                                        </Button>
+                                      )}
+                                      {report.status === 'Rascunho' && (
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            editReport(report.id!);
+                                          }}
+                                          title="Editar"
+                                          className="h-7 w-7 p-0 text-primary hover:bg-primary/10"
+                                        >
+                                          <Edit className="h-3.5 w-3.5" />
+                                        </Button>
+                                      )}
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleViewPDF(report.id!);
+                                        }}
+                                        title="Visualizar"
+                                        className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-100/50"
+                                      >
+                                        <Eye className="h-3.5 w-3.5" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          deleteReport(report.id);
+                                        }}
+                                        title="Excluir"
+                                        className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                                      >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </>
