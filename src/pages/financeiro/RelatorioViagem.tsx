@@ -488,13 +488,38 @@ export default function RelatorioViagem() {
         if (error) throw error;
         savedReport = data;
       } else {
-        const { data, error } = await supabase
-          .from('travel_expense_reports')
-          .insert([reportDataToSave])
-          .select()
-          .single();
-        if (error) throw error;
-        savedReport = data;
+        let insertError: any = null;
+        let insertAttempts = 0;
+        const maxInsertAttempts = 3;
+
+        while (insertAttempts < maxInsertAttempts) {
+          const { data, error } = await supabase
+            .from('travel_expense_reports')
+            .insert([reportDataToSave])
+            .select()
+            .single();
+
+          if (error) {
+            // Se o erro for de constraint única no report_number, tentar com um novo número
+            if (error.code === '23505' && error.message?.includes('report_number')) {
+              insertAttempts++;
+              if (insertAttempts < maxInsertAttempts) {
+                // Regenerar o número e tentar novamente
+                const newReportNumber = await generateReportNumber(reportData.client);
+                reportDataToSave.report_number = newReportNumber;
+                continue;
+              }
+            }
+            insertError = error;
+            break;
+          }
+
+          savedReport = data;
+          insertError = null;
+          break;
+        }
+
+        if (insertError) throw insertError;
       }
 
       try {
@@ -743,8 +768,16 @@ export default function RelatorioViagem() {
       toast.success(`✅ ${steps.join(' · ')}`);
       draftStorage.clearDraft();
       setHasSavedDraft(false);
-      setIsCreating(false);
-      setCurrentReport(null);
+
+      // Se foi um INSERT bem-sucedido (novo relatório), atualizar currentReport com o novo ID
+      // para evitar erro de constraint única se o usuário tentar editar novamente
+      if (!isUpdate && savedReport?.id) {
+        setCurrentReport(prev => prev ? { ...prev, id: savedReport.id } : null);
+      } else {
+        setIsCreating(false);
+        setCurrentReport(null);
+      }
+
       loadReports();
     } catch (error: any) {
       console.error('Erro ao salvar relatório:', error);
@@ -1064,8 +1097,14 @@ export default function RelatorioViagem() {
           <TravelReportForm
             report={currentReport}
             onSave={async (report, status) => {
-              setCurrentReport(report);
-              await saveReport(status, report);
+              // Manter o ID se já existir, caso contrário usar o report como está
+              const reportToSave = {
+                ...report,
+                // Se não tem ID, deixar vazio para que o saveReport gere
+                id: report.id || undefined
+              };
+              setCurrentReport(reportToSave);
+              await saveReport(status, reportToSave);
             }}
             onCancel={() => {
               if (draftStorage.hasDraft()) {
