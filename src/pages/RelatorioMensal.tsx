@@ -311,7 +311,7 @@ export default function RelatorioMensal() {
     const map: Record<string, { deposits: number; expenses: number }> = {}
 
     filteredTransactions.forEach((t) => {
-      const name = t.partner_name || "Outros"
+      const name = t.partner_name || "Sem Sócio"
       if (!map[name]) map[name] = { deposits: 0, expenses: 0 }
 
       if (t.transaction_type === "deposit") {
@@ -333,7 +333,7 @@ export default function RelatorioMensal() {
   const partnerCardTransactions = useMemo(() => {
     if (!selectedPartnerCard) return []
     return filteredTransactions.filter((t) => {
-      const name = t.partner_name || "Outros"
+      const name = t.partner_name || "Sem Sócio"
       return name === selectedPartnerCard
     })
   }, [filteredTransactions, selectedPartnerCard])
@@ -853,15 +853,43 @@ export default function RelatorioMensal() {
             <CardHeader>
               <CardTitle className="text-base">Resumo por Sócio</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {/* Cards de Totais Gerais */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Saldo Total */}
+                <div className="p-4 rounded-lg border border-primary/30 bg-gradient-to-br from-primary/20 to-primary/10 space-y-2">
+                  <h4 className="font-semibold text-foreground">Saldo Total</h4>
+                  <p className="text-2xl font-bold text-primary">{fmt(monthlySummary.balance)}</p>
+                </div>
+
+                {/* Entrada Total do Mês */}
+                <div className="p-4 rounded-lg border border-emerald-500/30 bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 space-y-2">
+                  <h4 className="font-semibold text-foreground">Entrada Mês</h4>
+                  <p className="text-2xl font-bold text-emerald-500">{fmt(monthlySummary.totalDeposits)}</p>
+                </div>
+
+                {/* Saída Total do Mês */}
+                <div className="p-4 rounded-lg border border-red-500/30 bg-gradient-to-br from-red-500/20 to-red-600/10 space-y-2">
+                  <h4 className="font-semibold text-foreground">Saída Mês</h4>
+                  <p className="text-2xl font-bold text-red-500">{fmt(monthlySummary.totalExpenses)}</p>
+                </div>
+              </div>
+
+              {/* Cards dos Sócios e Sem Sócio */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {partnerData.map((partner) => (
                   <div
                     key={partner.name}
-                    className="p-4 rounded-lg border border-border bg-muted/20 space-y-2 cursor-pointer hover:border-primary/50 hover:bg-muted/40 transition-all duration-200"
+                    className={`p-4 rounded-lg border space-y-2 cursor-pointer transition-all duration-200 ${
+                      partner.name === "Sem Sócio"
+                        ? "border-slate-500/30 bg-gradient-to-br from-slate-500/20 to-slate-600/10 hover:border-slate-400/50 hover:bg-slate-600/15"
+                        : "border-border bg-muted/20 hover:border-primary/50 hover:bg-muted/40"
+                    }`}
                     onClick={() => setSelectedPartnerCard(partner.name)}
                   >
-                    <h4 className="font-semibold text-foreground">{partner.name}</h4>
+                    <h4 className={`font-semibold ${partner.name === "Sem Sócio" ? "text-slate-400" : "text-foreground"}`}>
+                      {partner.name === "Sem Sócio" ? "Conta (Sem Sócio)" : partner.name}
+                    </h4>
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Entradas:</span>
