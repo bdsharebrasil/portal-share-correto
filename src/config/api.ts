@@ -21,17 +21,19 @@ const _hasDevProxy = _base === '/api';
 const apiPrefix = _hasDevProxy ? '' : '/api';
 
 export const API_ENDPOINTS = {
-  weather: (icao: string) => `${_base}${apiPrefix}/weather/${icao}`,
-  notam: (icao: string) => `${_base}${apiPrefix}/notam/${icao}`,
-  charts: (icao: string) => `${_base}${apiPrefix}/charts/${icao}`,
-  infotemp: (icao: string) => `${_base}${apiPrefix}/infotemp/${icao}`,
-  solar: (icao: string) => `${_base}${apiPrefix}/solar/${icao}`,
-  routes: `${_base}${apiPrefix}/routes`,
-  waypoints: `${_base}${apiPrefix}/waypoints`,
-  flightCalculations: `${_base}${apiPrefix}/flight-calculations`,
-  geiloc: (icao?: string) =>
-    icao ? `${_base}${apiPrefix}/geiloc?icao=${icao}` : `${_base}${apiPrefix}/geiloc`,
-  geilocNearby: `${_base}${apiPrefix}/geiloc/nearby`,
+
+  weather: (icao: string) =>
+    `${_base}${apiPrefix}/weather/${icao}`,
+
+  flightplan: (adep: string, ades: string, speed = 120, burn = 32) =>
+    `${_base}${apiPrefix}/flightplan?adep=${adep}&ades=${ades}&speed=${speed}&fuel_burn=${burn}`,
+
+  nearestAirport: (lat: number, lon: number) =>
+    `${_base}${apiPrefix}/nearest?lat=${lat}&lon=${lon}`,
+
+  geilocNearby: (lat: number, lon: number) =>
+    `${_base}${apiPrefix}/geiloc/nearby?lat=${lat}&lon=${lon}`,
+
 } as const;
 
 // Log de configuração (útil para debug)
