@@ -31,12 +31,21 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}) {
 }
 
 async function fetchJson(endpoint: string, options: RequestInit = {}) {
-  const base = AIS_API_BASE_URL.replace(/\/$/, '');
-  let ep = endpoint.replace(/^\/+/, '');
-  if (ep.startsWith('api/')) ep = ep.replace(/^api\//, '');
-  const url = `${base}/${ep}`;
+  // Se o endpoint é uma URL completa (começa com http), usar direto
+  let url: string;
+
+  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+    url = endpoint;
+  } else {
+    // Caso contrário, construir a URL
+    const base = AIS_API_BASE_URL.replace(/\/$/, '');
+    let ep = endpoint.replace(/^\/+/, '');
+    if (ep.startsWith('api/')) ep = ep.replace(/^api\//, '');
+    url = `${base}/${ep}`;
+  }
 
   try {
+    console.debug(`[API] Fetching: ${url}`);
     const res = await fetchWithTimeout(url, {
       headers: { 'Content-Type': 'application/json' },
       ...options,
@@ -47,7 +56,7 @@ async function fetchJson(endpoint: string, options: RequestInit = {}) {
     }
     return res.json();
   } catch (error: any) {
-    console.error(`[API Error] Failed to fetch ${ep}:`, error.message);
+    console.error(`[API Error] Failed to fetch ${url}:`, error.message);
     throw error;
   }
 }
