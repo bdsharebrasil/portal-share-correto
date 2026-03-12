@@ -287,6 +287,12 @@ export function TransactionEditModal({
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="recebido">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-blue-500" />
+                        Recebido
+                      </div>
+                    </SelectItem>
                     <SelectItem value="pago">
                       <div className="flex items-center gap-2">
                         <span className="h-2 w-2 rounded-full bg-emerald-500" />
