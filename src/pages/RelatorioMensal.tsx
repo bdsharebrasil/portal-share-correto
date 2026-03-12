@@ -70,6 +70,7 @@ import { cn } from "@/lib/utils"
 import { useMonthlyPartnerReport } from "@/hooks/useMonthlyPartnerReport"
 import { MonthlyPartnerReportPDF } from "@/components/reports/MonthlyPartnerReportPDF"
 import { ExportReportModal } from "@/components/reports/ExportReportModal"
+import { toast } from "sonner"
 
 // Mapa de normalização de categorias
 const CATEGORY_NORMALIZE: Record<string, string> = {
@@ -407,6 +408,97 @@ export default function RelatorioMensal() {
 
   const monthLabel = format(currentMonth, "MMMM yyyy", { locale: ptBR })
   const monthLabelCapitalized = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
+
+  // ========================
+  // NAVEGAÇÃO
+  // ========================
+
+  const handleExpenseTypeClick = async (tx: any, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    if (tx.reference_type === "abastecimento") {
+      // Verificar se o abastecimento existe
+      try {
+        const { data: abastecimento, error } = await supabase
+          .from("abastecimentos")
+          .select("id, data, local, litros")
+          .eq("id", tx.reference_id)
+          .single()
+
+        if (error || !abastecimento) {
+          toast.error("Essa despesa não foi vinculada a um abastecimento")
+          return
+        }
+
+        // Navegar para a página de abastecimento com o ID do abastecimento selecionado
+        navigate("/abastecimento", {
+          state: {
+            selectedAbastecimentoId: tx.reference_id,
+            fromRelatorioMensal: true,
+            clienteId: clienteId,
+            abastecimentoFound: true
+          }
+        })
+      } catch (err) {
+        console.error("Erro ao buscar abastecimento:", err)
+        toast.error("Essa despesa não foi vinculada a um abastecimento")
+      }
+    } else if (
+      tx.reference_type === "partner_expense" &&
+      tx.expense_type &&
+      (tx.expense_type.toLowerCase() === "viagem" || tx.expense_type.toLowerCase() === "despesas de viagem")
+    ) {
+      // Para despesas de viagem, precisamos encontrar o relatório de viagem associado
+      try {
+        // Primeiro buscar a despesa para obter o reference_id do travel report
+        const { data: expense, error: expError } = await supabase
+          .from("partner_expenses")
+          .select("reference_id, reference_type, description")
+          .eq("id", tx.reference_id)
+          .single()
+
+        if (expError || !expense) {
+          toast.error("Essa despesa não foi vinculada a um relatório de viagem")
+          return
+        }
+
+        // Verificar se tem um relatório de viagem vinculado
+        if (!expense.reference_id ||
+            (expense.reference_type !== "travel_expense_report" &&
+             expense.reference_type !== "travel_report" &&
+             expense.reference_type !== "viagem")) {
+          toast.error("Essa despesa não foi vinculada a um relatório de viagem")
+          return
+        }
+
+        // Buscar o relatório de viagem para verificar se existe
+        const { data: travelReport, error: reportError } = await supabase
+          .from("travel_expense_reports")
+          .select("id, report_number, start_date, client")
+          .eq("id", expense.reference_id)
+          .single()
+
+        if (reportError || !travelReport) {
+          toast.error("O relatório de viagem vinculado não foi encontrado")
+          return
+        }
+
+        // Navegar para a página de viagem com o ID do relatório selecionado
+        navigate("/financeiro/viagem", {
+          state: {
+            selectedReportId: expense.reference_id,
+            fromRelatorioMensal: true,
+            clienteId: clienteId,
+            reportFound: true,
+            reportNumber: travelReport.report_number
+          }
+        })
+      } catch (err) {
+        console.error("Erro ao navegar para viagem:", err)
+        toast.error("Essa despesa não foi vinculada a um relatório de viagem")
+      }
+    }
+  }
 
   // ========================
   // RENDER
@@ -899,15 +991,16 @@ export default function RelatorioMensal() {
                           <td className="py-3 px-3">
                             <Badge
                               variant="outline"
-                              className={`text-xs ${
+                              className={`text-xs cursor-pointer hover:opacity-80 transition-opacity ${
                                 tx.transaction_type === "deposit"
                                   ? "border-emerald-500/30 text-emerald-500"
                                   : tx.transaction_type === "expense"
                                   ? "border-orange-500/30 text-orange-500"
                                   : "border-red-500/30 text-red-500"
                               }`}
+                              onClick={(e) => void handleExpenseTypeClick(tx, e)}
                             >
-                              {tx.expense_type 
+                              {tx.expense_type
                                 ? getExpenseTypeLabel(tx.expense_type)
                                 : tx.transaction_type === "deposit"
                                 ? "ENTRADA"

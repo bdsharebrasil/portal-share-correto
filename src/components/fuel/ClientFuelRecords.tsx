@@ -22,11 +22,19 @@ interface Aircraft {
   model?: string;
 }
 
-export function ClientFuelRecords() {
+interface ClientFuelRecordsProps {
+  selectedAbastecimentoId?: string | null;
+}
+
+export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecordsProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [aircrafts, setAircrafts] = useState<Aircraft[]>([]);
   const [selectedAircraft, setSelectedAircraft] = useState<Aircraft | null>(null);
+  const [pendingAbastecimento, setPendingAbastecimento] = useState<{
+    clientId?: string;
+    aircraftId?: string;
+  } | null>(null);
 
   useEffect(() => {
     loadClients();
@@ -37,6 +45,64 @@ export function ClientFuelRecords() {
       loadClientAircrafts();
     }
   }, [selectedClient]);
+
+  // Buscar dados do abastecimento selecionado
+  useEffect(() => {
+    if (selectedAbastecimentoId && clients.length > 0) {
+      loadAbastecimentoData();
+    }
+  }, [selectedAbastecimentoId, clients.length > 0]);
+
+  // Selecionar cliente e aeronave quando dados forem carregados
+  useEffect(() => {
+    if (pendingAbastecimento?.clientId && clients.length > 0) {
+      const clientToSelect = clients.find(c => c.id === pendingAbastecimento.clientId);
+      if (clientToSelect) {
+        setSelectedClient(clientToSelect);
+      } else {
+        toast.error('Cliente do abastecimento não encontrado');
+        setPendingAbastecimento(null);
+      }
+    }
+  }, [pendingAbastecimento?.clientId, clients.length > 0]);
+
+  // Selecionar aeronave quando aircrafts forem carregados
+  useEffect(() => {
+    if (pendingAbastecimento?.aircraftId && aircrafts.length > 0) {
+      const aircraftToSelect = aircrafts.find(a => a.id === pendingAbastecimento.aircraftId);
+      if (aircraftToSelect) {
+        setSelectedAircraft(aircraftToSelect);
+        setPendingAbastecimento(null);
+      } else {
+        toast.error('Aeronave do abastecimento não encontrada');
+        setPendingAbastecimento(null);
+      }
+    }
+  }, [pendingAbastecimento?.aircraftId, aircrafts.length > 0]);
+
+  const loadAbastecimentoData = async () => {
+    try {
+      const { data: abastecimento, error } = await supabase
+        .from('abastecimentos')
+        .select('client_id, aeronave_id')
+        .eq('id', selectedAbastecimentoId)
+        .single();
+
+      if (error || !abastecimento) {
+        toast.error('Abastecimento não encontrado');
+        return;
+      }
+
+      // Armazenar os IDs para selecionar depois
+      setPendingAbastecimento({
+        clientId: abastecimento.client_id,
+        aircraftId: abastecimento.aeronave_id
+      });
+    } catch (err) {
+      console.error('Erro ao carregar abastecimento:', err);
+      toast.error('Erro ao carregar abastecimento');
+    }
+  };
 
   const loadClients = async () => {
     const { data, error } = await supabase

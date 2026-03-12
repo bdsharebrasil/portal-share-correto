@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,6 +65,9 @@ import { ReceiptViewer } from '@/components/financeiro/ReceiptViewer';
 import { TravelReportForm } from '@/components/travel/TravelReportForm';
 
 export default function RelatorioViagem() {
+  const location = useLocation();
+  const navigationState = (location.state as any) || {};
+
   const [activeTab, setActiveTab] = useState<'criar' | 'historico' | 'relatorios'>('relatorios');
   const [reports, setReports] = useState<TravelReport[]>([]);
   const [currentReport, setCurrentReport] = useState<TravelReport | null>(null);
@@ -80,6 +84,9 @@ export default function RelatorioViagem() {
   const [sendReportTarget, setSendReportTarget] = useState<TravelReport | null>(null);
   const [sendDueDate, setSendDueDate] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [selectedReportIdToLoad, setSelectedReportIdToLoad] = useState<string | null>(
+    navigationState.selectedReportId || null
+  );
 
   // ✅ FIX: useEffect inicial para carregar relatórios e verificar rascunho salvo
   useEffect(() => {
@@ -87,6 +94,17 @@ export default function RelatorioViagem() {
     const hasDraft = draftStorage.hasDraft();
     setHasSavedDraft(hasDraft);
   }, []);
+
+  // ✅ FIX: Carregar e abrir relatório selecionado quando navegado do RelatorioMensal
+  useEffect(() => {
+    if (selectedReportIdToLoad && reports.length > 0) {
+      const report = reports.find(r => r.id === selectedReportIdToLoad);
+      if (report) {
+        editReport(selectedReportIdToLoad);
+        setSelectedReportIdToLoad(null); // Limpar para evitar re-trigger
+      }
+    }
+  }, [selectedReportIdToLoad, reports]);
 
   // ✅ FIX: Auto-save do rascunho a cada 30 segundos
   useEffect(() => {
@@ -1038,12 +1056,12 @@ export default function RelatorioViagem() {
                         ).map(([clientName, group]) => (
                           <div
                             key={clientName}
-                            className="p-5 rounded-lg bg-gradient-to-br from-blue-50/50 to-cyan-50/50 border border-blue-200/40 hover:border-blue-300/60 hover:shadow-md transition-all duration-200 cursor-pointer group"
+                            className="p-5 rounded-lg bg-slate-900 border border-slate-700/60 hover:border-slate-600 hover:shadow-md transition-all duration-200 cursor-pointer group"
                             onClick={() => setOpenClientGroups(prev => ({ ...prev, [clientName]: !prev[clientName] }))}
                           >
                             <div className="flex items-center gap-3 mb-3">
-                              <div className="p-2 rounded-lg bg-blue-100/80 group-hover:bg-blue-200/80 transition-all">
-                                <FolderOpen className="h-6 w-6 text-blue-600" />
+                              <div className="p-2 rounded-lg bg-slate-800/80 group-hover:bg-slate-700/80 transition-all">
+                                <FolderOpen className="h-6 w-6 text-slate-400" />
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="font-semibold text-foreground truncate text-base">{clientName}</p>
@@ -1052,15 +1070,15 @@ export default function RelatorioViagem() {
                             </div>
 
                             {openClientGroups[clientName] && (
-                              <div className="mt-4 pt-4 border-t border-blue-200/40 space-y-2">
+                              <div className="mt-4 pt-4 border-t border-slate-700/40 space-y-2">
                                 {group.map(report => (
                                   <div
                                     key={report.id}
-                                    className="flex items-center justify-between p-2 rounded-md bg-white/60 hover:bg-white/100 transition-all border border-blue-100/50"
+                                    className="flex items-center justify-between p-2 rounded-md bg-slate-800/60 hover:bg-slate-700/80 transition-all border border-slate-700/50"
                                   >
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium text-foreground truncate">{report.report_number}</p>
-                                      <p className="text-xs text-muted-foreground">
+                                      <p className="text-sm font-medium text-slate-200 truncate">{report.report_number}</p>
+                                      <p className="text-xs text-slate-400">
                                         {format(parseISO(report.start_date), 'dd MMM yyyy', { locale: ptBR })}
                                       </p>
                                     </div>
@@ -1076,7 +1094,7 @@ export default function RelatorioViagem() {
                                             setSendDialogOpen(true);
                                           }}
                                           title="Enviar ao Cliente"
-                                          className="h-7 w-7 p-0 text-emerald-600 hover:bg-emerald-100/50"
+                                          className="h-7 w-7 p-0 text-emerald-500 hover:bg-emerald-500/20"
                                         >
                                           <Send className="h-3.5 w-3.5" />
                                         </Button>
@@ -1090,7 +1108,7 @@ export default function RelatorioViagem() {
                                             editReport(report.id!);
                                           }}
                                           title="Editar"
-                                          className="h-7 w-7 p-0 text-primary hover:bg-primary/10"
+                                          className="h-7 w-7 p-0 text-cyan-500 hover:bg-cyan-500/20"
                                         >
                                           <Edit className="h-3.5 w-3.5" />
                                         </Button>
@@ -1103,7 +1121,7 @@ export default function RelatorioViagem() {
                                           handleViewPDF(report.id!);
                                         }}
                                         title="Visualizar"
-                                        className="h-7 w-7 p-0 text-blue-600 hover:bg-blue-100/50"
+                                        className="h-7 w-7 p-0 text-cyan-500 hover:bg-cyan-500/20"
                                       >
                                         <Eye className="h-3.5 w-3.5" />
                                       </Button>
@@ -1115,7 +1133,7 @@ export default function RelatorioViagem() {
                                           deleteReport(report.id);
                                         }}
                                         title="Excluir"
-                                        className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                                        className="h-7 w-7 p-0 text-red-500 hover:bg-red-500/20"
                                       >
                                         <Trash2 className="h-3.5 w-3.5" />
                                       </Button>
