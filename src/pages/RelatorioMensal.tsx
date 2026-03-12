@@ -23,6 +23,7 @@ import {
   Eye,
   FileDown,
   Loader2,
+  Landmark,
 } from "lucide-react"
 import { TransactionEditModal } from "@/components/socios/TransactionEditModal"
 import {
@@ -312,6 +313,9 @@ export default function RelatorioMensal() {
 
     filteredTransactions.forEach((t) => {
       const name = t.partner_name
+      // Excluir "Conta Bancária" do resumo por sócio (será mostrada separadamente)
+      if (name === "Conta Bancária") return
+
       if (!map[name]) map[name] = { deposits: 0, expenses: 0 }
 
       if (t.transaction_type === "deposit") {
@@ -327,6 +331,28 @@ export default function RelatorioMensal() {
       expenses: data.expenses,
       balance: data.deposits - data.expenses,
     }))
+  }, [filteredTransactions])
+
+  // Agregar dados de "Conta Bancária" separadamente
+  const bankAccountData = useMemo(() => {
+    let deposits = 0
+    let expenses = 0
+
+    filteredTransactions.forEach((t) => {
+      if (t.partner_name === "Conta Bancária") {
+        if (t.transaction_type === "deposit") {
+          deposits += Number(t.amount)
+        } else {
+          expenses += Number(t.amount)
+        }
+      }
+    })
+
+    return {
+      deposits,
+      expenses,
+      balance: deposits - expenses,
+    }
   }, [filteredTransactions])
 
   // Transações filtradas pelo sócio selecionado no card
@@ -640,6 +666,41 @@ export default function RelatorioMensal() {
             <CardContent className="space-y-4">
               {/* Cards dos Sócios */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Card de Conta Bancária (se houver movimentação) */}
+                {bankAccountData.deposits > 0 || bankAccountData.expenses > 0 ? (
+                  <div
+                    key="conta-bancaria"
+                    className={`p-4 rounded-lg border space-y-2 cursor-pointer transition-all duration-200 border-amber-200/50 dark:border-amber-800/50 bg-amber-50/20 dark:bg-amber-950/20 hover:border-amber-300 dark:hover:border-amber-700 hover:bg-amber-100/20`}
+                    onClick={() => setSelectedPartnerCard("Conta Bancária")}
+                  >
+                    <h4 className="font-semibold text-foreground flex items-center gap-2">
+                      <Landmark className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                      Conta Bancária
+                    </h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Entradas:</span>
+                        <span className="font-medium text-emerald-500">{fmt(bankAccountData.deposits)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Saídas:</span>
+                        <span className="font-medium text-red-500">{fmt(bankAccountData.expenses)}</span>
+                      </div>
+                      <div className="flex justify-between border-t border-border pt-1">
+                        <span className="font-semibold text-foreground">Saldo:</span>
+                        <span
+                          className={`font-semibold ${
+                            bankAccountData.balance >= 0 ? "text-emerald-500" : "text-red-500"
+                          }`}
+                        >
+                          {fmt(bankAccountData.balance)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Cards dos Sócios */}
                 {partnerData.map((partner) => (
                   <div
                     key={partner.name}
@@ -932,7 +993,14 @@ export default function RelatorioMensal() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={partnerData}>
+                <BarChart data={
+                  (bankAccountData.deposits > 0 || bankAccountData.expenses > 0)
+                    ? [
+                        { name: "Conta Bancária", deposits: bankAccountData.deposits, expenses: bankAccountData.expenses },
+                        ...partnerData
+                      ]
+                    : partnerData
+                }>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
                   <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
