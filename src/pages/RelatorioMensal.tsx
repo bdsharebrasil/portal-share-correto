@@ -311,7 +311,7 @@ export default function RelatorioMensal() {
     const map: Record<string, { deposits: number; expenses: number }> = {}
 
     filteredTransactions.forEach((t) => {
-      const name = t.partner_name || "Sem Sócio"
+      const name = t.partner_name
       if (!map[name]) map[name] = { deposits: 0, expenses: 0 }
 
       if (t.transaction_type === "deposit") {
@@ -332,10 +332,7 @@ export default function RelatorioMensal() {
   // Transações filtradas pelo sócio selecionado no card
   const partnerCardTransactions = useMemo(() => {
     if (!selectedPartnerCard) return []
-    return filteredTransactions.filter((t) => {
-      const name = t.partner_name || "Sem Sócio"
-      return name === selectedPartnerCard
-    })
+    return filteredTransactions.filter((t) => t.partner_name === selectedPartnerCard)
   }, [filteredTransactions, selectedPartnerCard])
 
   // ========================
@@ -875,20 +872,16 @@ export default function RelatorioMensal() {
                 </div>
               </div>
 
-              {/* Cards dos Sócios e Sem Sócio */}
+              {/* Cards dos Sócios */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {partnerData.map((partner) => (
                   <div
                     key={partner.name}
-                    className={`p-4 rounded-lg border space-y-2 cursor-pointer transition-all duration-200 ${
-                      partner.name === "Sem Sócio"
-                        ? "border-slate-500/30 bg-gradient-to-br from-slate-500/20 to-slate-600/10 hover:border-slate-400/50 hover:bg-slate-600/15"
-                        : "border-border bg-muted/20 hover:border-primary/50 hover:bg-muted/40"
-                    }`}
+                    className={`p-4 rounded-lg border space-y-2 cursor-pointer transition-all duration-200 border-border bg-muted/20 hover:border-primary/50 hover:bg-muted/40`}
                     onClick={() => setSelectedPartnerCard(partner.name)}
                   >
-                    <h4 className={`font-semibold ${partner.name === "Sem Sócio" ? "text-slate-400" : "text-foreground"}`}>
-                      {partner.name === "Sem Sócio" ? "Conta (Sem Sócio)" : partner.name}
+                    <h4 className="font-semibold text-foreground">
+                      {partner.name}
                     </h4>
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
