@@ -206,6 +206,7 @@ export default function FinanceiroSocios() {
         {!loadingTransactions && transactions.length > 0 && (
           <TransactionsTable
             transactions={transactions}
+            limit={5}
             clienteId={clienteSelecionado}
             clienteName={selectedClientData?.company_name || selectedClientData?.proprietario || "Cliente"}
           />
@@ -311,5 +312,3 @@ function DashboardHeader({ cliente, onBack }: DashboardHeaderProps) {
     </div>
   )
 }
-
-
