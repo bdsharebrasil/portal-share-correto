@@ -189,6 +189,8 @@ export default function RelatorioMensal() {
       cancelado: "Cancelado",
       cancelled: "Cancelado",
       overdue: "Vencido",
+      recebido: "Recebido",
+      received: "Recebido",
     };
     return map[status?.toLowerCase()] || status || "-";
   };
@@ -920,6 +922,8 @@ export default function RelatorioMensal() {
                               className={`text-xs ${
                                 (tx.status === "pago" || tx.status === "paid")
                                   ? "border-emerald-500/30 text-emerald-500"
+                                  : (tx.status === "recebido" || tx.status === "received")
+                                  ? "border-blue-500/30 text-blue-500"
                                   : tx.status === "cancelado"
                                   ? "border-red-500/30 text-red-500"
                                   : "border-amber-500/30 text-amber-500"

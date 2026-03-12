@@ -277,10 +277,25 @@ export function useSocioTransactions(
         ...(transactions || []),
         ...expensesAsTransactions,
         ...fuelsAsTransactions,
-      ].map((t) => ({
-        ...t,
-        partner_name: normalizePartnerName(t.partner_name),
-      })).sort((a, b) => {
+      ].map((t) => {
+        // Adicionar status padrão se não existir
+        let defaultStatus = t.status;
+        if (!defaultStatus) {
+          if (t.transaction_type === "deposit") {
+            defaultStatus = "recebido";
+          } else if (t.transaction_type === "payment") {
+            defaultStatus = "pago";
+          } else if (t.transaction_type === "expense") {
+            defaultStatus = "pendente";
+          }
+        }
+
+        return {
+          ...t,
+          partner_name: normalizePartnerName(t.partner_name),
+          status: defaultStatus,
+        };
+      }).sort((a, b) => {
         const dateA = new Date(a.created_at).getTime();
         const dateB = new Date(b.created_at).getTime();
         return dateB - dateA;
@@ -449,6 +464,7 @@ export function useAddDeposit() {
           transaction_subtype: data.transactionSubtype || "deposit",
           reference_type: data.referenceId ? "partner_expense" : null,
           reference_id: data.referenceId || null,
+          status: "recebido",
         });
       if (txErr) throw txErr;
 
@@ -506,6 +522,7 @@ export function usePayExpense() {
           reference_type: "expense",
           reference_id: data.expenseId,
           payment_date: data.paymentDate,
+          status: "pago",
         });
       if (txErr) throw txErr;
 
