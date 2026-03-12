@@ -409,6 +409,75 @@ export default function RelatorioMensal() {
   const monthLabelCapitalized = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
 
   // ========================
+  // NAVEGAÇÃO
+  // ========================
+
+  const handleExpenseTypeClick = async (tx: any, e: React.MouseEvent) => {
+    e.stopPropagation()
+
+    if (tx.reference_type === "abastecimento") {
+      // Navegar para a página de abastecimento com o ID do abastecimento
+      navigate("/abastecimento", {
+        state: {
+          selectedAbastecimentoId: tx.reference_id,
+          fromRelatorioMensal: true,
+          clienteId: clienteId
+        }
+      })
+    } else if (
+      tx.reference_type === "partner_expense" &&
+      tx.expense_type &&
+      (tx.expense_type.toLowerCase() === "viagem" || tx.expense_type.toLowerCase() === "despesas de viagem")
+    ) {
+      // Para despesas de viagem, precisamos encontrar o relatório de viagem associado
+      // Primeiro, vamos buscar a despesa para obter o reference_id do travel report
+      try {
+        const { data: expense, error } = await supabase
+          .from("partner_expenses")
+          .select("reference_id, reference_type")
+          .eq("id", tx.reference_id)
+          .single()
+
+        if (error) {
+          console.error("Erro ao buscar despesa:", error)
+          return
+        }
+
+        // Se a despesa tem um reference_id que aponta para um travel report
+        if (expense?.reference_id &&
+            (expense?.reference_type === "travel_expense_report" ||
+             expense?.reference_type === "travel_report" ||
+             expense?.reference_type === "viagem")) {
+          navigate("/financeiro/viagem", {
+            state: {
+              selectedReportId: expense.reference_id,
+              fromRelatorioMensal: true,
+              clienteId: clienteId
+            }
+          })
+        } else {
+          // Se não conseguir encontrar o relatório, navega para a página de viagem normalmente
+          navigate("/financeiro/viagem", {
+            state: {
+              fromRelatorioMensal: true,
+              clienteId: clienteId
+            }
+          })
+        }
+      } catch (err) {
+        console.error("Erro ao navegar para viagem:", err)
+        // Fallback: navega para a página de viagem
+        navigate("/financeiro/viagem", {
+          state: {
+            fromRelatorioMensal: true,
+            clienteId: clienteId
+          }
+        })
+      }
+    }
+  }
+
+  // ========================
   // RENDER
   // ========================
 
@@ -899,15 +968,16 @@ export default function RelatorioMensal() {
                           <td className="py-3 px-3">
                             <Badge
                               variant="outline"
-                              className={`text-xs ${
+                              className={`text-xs cursor-pointer hover:opacity-80 transition-opacity ${
                                 tx.transaction_type === "deposit"
                                   ? "border-emerald-500/30 text-emerald-500"
                                   : tx.transaction_type === "expense"
                                   ? "border-orange-500/30 text-orange-500"
                                   : "border-red-500/30 text-red-500"
                               }`}
+                              onClick={(e) => void handleExpenseTypeClick(tx, e)}
                             >
-                              {tx.expense_type 
+                              {tx.expense_type
                                 ? getExpenseTypeLabel(tx.expense_type)
                                 : tx.transaction_type === "deposit"
                                 ? "ENTRADA"
