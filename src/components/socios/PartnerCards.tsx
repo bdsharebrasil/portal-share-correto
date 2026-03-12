@@ -44,32 +44,6 @@ function calculatePartnerBalance(partnerCpf: string, transactions: PartnerTransa
 export function PartnerCards({ accounts, transactions = [], clienteId }: PartnerCardsProps) {
   const queryClient = useQueryClient();
 
-  // Calcula o saldo total automaticamente baseado em TODAS as transações
-  const totalDepositsAll = transactions.
-  filter((t) => t.transaction_type === "deposit").
-  reduce((sum, t) => sum + Number(t.amount), 0);
-  const totalExpensesAll = transactions.
-  filter((t) => t.transaction_type !== "deposit").
-  reduce((sum, t) => sum + Number(t.amount), 0);
-  const totalBalance = totalDepositsAll - totalExpensesAll;
-
-  // Calcula valores do mês atual
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
-  const thisMonthTransactions = transactions.filter(t => {
-    const transactionDate = new Date(t.created_at);
-    return transactionDate >= monthStart && transactionDate <= monthEnd;
-  });
-
-  const monthDeposits = thisMonthTransactions
-    .filter((t) => t.transaction_type === "deposit")
-    .reduce((sum, t) => sum + Number(t.amount), 0);
-
-  const monthExpenses = thisMonthTransactions
-    .filter((t) => t.transaction_type !== "deposit")
-    .reduce((sum, t) => sum + Number(t.amount), 0);
 
   // Calcula valores SEM sócio específico (null ou vazio)
   const transactionsWithoutPartner = transactions.filter((t) => !t.partner_cpf || t.partner_cpf.trim() === "");
@@ -93,53 +67,6 @@ export function PartnerCards({ accounts, transactions = [], clienteId }: Partner
 
   return (
     <div className="space-y-4">
-      {/* Cards de Totais Gerais */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Saldo Total */}
-        <Card className="bg-gradient-to-br from-primary/20 to-primary/10 border-primary/30">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-lg text-primary">Saldo Total</h3>
-              <DollarSign className="h-5 w-5 text-primary" />
-            </div>
-            <p className="text-2xl font-bold text-foreground">
-              {fmt(totalBalance)}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Entrada Total do Mês */}
-        <Card className="bg-gradient-to-br from-emerald-500/20 to-emerald-600/10 border-emerald-500/30">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-lg text-emerald-400">Entrada Mês</h3>
-              <TrendingUp className="h-5 w-5 text-emerald-400" />
-            </div>
-            <p className="text-2xl font-bold text-foreground">
-              {fmt(monthDeposits)}
-            </p>
-            <p className="text-xs text-muted-foreground mt-2">
-              {monthStart.toLocaleDateString("pt-BR")} - {monthEnd.toLocaleDateString("pt-BR")}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Saída Total do Mês */}
-        <Card className="bg-gradient-to-br from-red-500/20 to-red-600/10 border-red-500/30">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-lg text-red-400">Saída Mês</h3>
-              <TrendingDown className="h-5 w-5 text-red-400" />
-            </div>
-            <p className="text-2xl font-bold text-foreground">
-              {fmt(monthExpenses)}
-            </p>
-            <p className="text-xs text-muted-foreground mt-2">
-              {monthStart.toLocaleDateString("pt-BR")} - {monthEnd.toLocaleDateString("pt-BR")}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Cards dos Sócios */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
