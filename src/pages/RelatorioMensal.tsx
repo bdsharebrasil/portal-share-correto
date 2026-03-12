@@ -1096,7 +1096,7 @@ export default function RelatorioMensal() {
 
       {/* Dialog de transações do sócio selecionado */}
       <Dialog open={!!selectedPartnerCard} onOpenChange={(open) => !open && setSelectedPartnerCard(null)}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-primary" />
