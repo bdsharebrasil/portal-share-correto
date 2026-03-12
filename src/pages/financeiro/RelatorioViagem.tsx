@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,6 +65,9 @@ import { ReceiptViewer } from '@/components/financeiro/ReceiptViewer';
 import { TravelReportForm } from '@/components/travel/TravelReportForm';
 
 export default function RelatorioViagem() {
+  const location = useLocation();
+  const navigationState = (location.state as any) || {};
+
   const [activeTab, setActiveTab] = useState<'criar' | 'historico' | 'relatorios'>('relatorios');
   const [reports, setReports] = useState<TravelReport[]>([]);
   const [currentReport, setCurrentReport] = useState<TravelReport | null>(null);
@@ -80,6 +84,9 @@ export default function RelatorioViagem() {
   const [sendReportTarget, setSendReportTarget] = useState<TravelReport | null>(null);
   const [sendDueDate, setSendDueDate] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [selectedReportIdToLoad, setSelectedReportIdToLoad] = useState<string | null>(
+    navigationState.selectedReportId || null
+  );
 
   // ✅ FIX: useEffect inicial para carregar relatórios e verificar rascunho salvo
   useEffect(() => {
@@ -87,6 +94,17 @@ export default function RelatorioViagem() {
     const hasDraft = draftStorage.hasDraft();
     setHasSavedDraft(hasDraft);
   }, []);
+
+  // ✅ FIX: Carregar e abrir relatório selecionado quando navegado do RelatorioMensal
+  useEffect(() => {
+    if (selectedReportIdToLoad && reports.length > 0) {
+      const report = reports.find(r => r.id === selectedReportIdToLoad);
+      if (report) {
+        editReport(selectedReportIdToLoad);
+        setSelectedReportIdToLoad(null); // Limpar para evitar re-trigger
+      }
+    }
+  }, [selectedReportIdToLoad, reports]);
 
   // ✅ FIX: Auto-save do rascunho a cada 30 segundos
   useEffect(() => {

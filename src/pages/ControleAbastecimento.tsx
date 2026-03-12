@@ -4,8 +4,24 @@ import { SupplierDirectory } from "@/components/fuel/SupplierDirectory";
 import { ClientFuelRecords } from "@/components/fuel/ClientFuelRecords";
 import { PartnerExpenseReport } from "@/components/reports/PartnerExpenseReport";
 import { Fuel, Users, BarChart3 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 
 export default function ControleAbastecimento() {
+  const location = useLocation();
+  const navigationState = (location.state as any) || {};
+  const [selectedAbastecimentoId, setSelectedAbastecimentoId] = useState<string | null>(
+    navigationState.selectedAbastecimentoId || null
+  );
+  const [activeTab, setActiveTab] = useState("records");
+
+  // Se foi navegado de RelatorioMensal com um abastecimento específico, abrir a aba de registros
+  useEffect(() => {
+    if (selectedAbastecimentoId) {
+      setActiveTab("records");
+    }
+  }, [selectedAbastecimentoId]);
+
   return (
     <Layout>
       <div className="p-6 space-y-8">
@@ -23,7 +39,7 @@ export default function ControleAbastecimento() {
           </p>
         </div>
 
-        <Tabs defaultValue="suppliers" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 max-w-2xl bg-muted/50 p-1 rounded-lg">
             <TabsTrigger value="suppliers" className="gap-2 text-base">
               <Fuel className="h-4 w-4" />
@@ -44,7 +60,7 @@ export default function ControleAbastecimento() {
           </TabsContent>
 
           <TabsContent value="records" className="mt-8">
-            <ClientFuelRecords />
+            <ClientFuelRecords selectedAbastecimentoId={selectedAbastecimentoId} />
           </TabsContent>
 
           <TabsContent value="partner-report" className="mt-8">
