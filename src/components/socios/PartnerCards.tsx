@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PartnerAccount, PartnerTransaction } from "@/hooks/useFinanceiroSocios";
 import { useQueryClient } from "@tanstack/react-query";
@@ -44,18 +44,6 @@ function calculatePartnerBalance(partnerCpf: string, transactions: PartnerTransa
 export function PartnerCards({ accounts, transactions = [], clienteId }: PartnerCardsProps) {
   const queryClient = useQueryClient();
 
-
-  // Calcula valores SEM sócio específico (null ou vazio)
-  const transactionsWithoutPartner = transactions.filter((t) => !t.partner_cpf || t.partner_cpf.trim() === "");
-  const depositsWithoutPartner = transactionsWithoutPartner
-    .filter((t) => t.transaction_type === "deposit")
-    .reduce((sum, t) => sum + Number(t.amount), 0);
-
-  const expensesWithoutPartner = transactionsWithoutPartner
-    .filter((t) => t.transaction_type !== "deposit")
-    .reduce((sum, t) => sum + Number(t.amount), 0);
-
-  const balanceWithoutPartner = depositsWithoutPartner - expensesWithoutPartner;
 
   const handleRefresh = () => {
     if (clienteId) {
@@ -112,28 +100,6 @@ export function PartnerCards({ accounts, transactions = [], clienteId }: Partner
         })}
       </div>
 
-      {/* Card de Valores sem Sócio */}
-      <Card className="bg-gradient-to-br from-slate-500/20 to-slate-600/10 border-slate-500/30">
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-lg text-slate-400">Conta (Sem Sócio)</h3>
-            <DollarSign className="h-5 w-5 text-slate-400" />
-          </div>
-          <p className="text-2xl font-bold text-foreground mb-3">
-            {fmt(balanceWithoutPartner)}
-          </p>
-          <div className="flex justify-between text-sm">
-            <span className="flex items-center gap-1 text-emerald-400">
-              <TrendingUp className="h-3 w-3" />
-              {fmt(depositsWithoutPartner)}
-            </span>
-            <span className="flex items-center gap-1 text-red-400">
-              <TrendingDown className="h-3 w-3" />
-              {fmt(expensesWithoutPartner)}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Botão de Atualizar */}
       {clienteId && (
