@@ -459,11 +459,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     setNewEntry(prev => ({ ...prev, entry_date: isoDate }));
   }, [selectedMonth, selectedYear]);
 
-  useEffect(() => {
-    if (entries.length > 0 && logbookMonth) {
-      updateCelulaAtual(entries);
-    }
-  }, [entries, logbookMonth?.id]);
+  // Removido: updateCelulaAtual não deve ser chamado aqui, apenas quando um voo é adicionado/editado/deletado
 
   useEffect(() => {
     if (newEntry.departure_aerodrome && newEntry.arrival_aerodrome) {
@@ -560,24 +556,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     return availableMonths.some(m => m.month === month && m.year === year);
   };
 
-  const updateCelulaAtual = async (entriesData?: any[]) => {
+  const updateCelulaAtual = async (flightTimeIncrement: number = 0) => {
     if (!logbookMonth) return;
 
     try {
-      const entriesToUse = entriesData || entries;
-
-      const periodEntries = entriesToUse.filter((e: any) => {
-        const date = new Date(e.entry_date);
-        return date.getUTCMonth() + 1 === selectedMonth &&
-          date.getUTCFullYear() === selectedYear;
-      });
-
-      const totalFlightTimeThisMonth = periodEntries.reduce((sum: number, e: any) => {
-        const flightTime = Number(e.total_time) || 0;
-        return sum + flightTime;
-      }, 0);
-
-      const newCelulaAtual = parseFloat(((logbookMonth.celula_anterior ?? 0) + totalFlightTimeThisMonth).toFixed(2));
+      // Incremento apenas do novo voo (ou diferença se foi editado)
+      const newCelulaAtual = parseFloat(((logbookMonth.celula_atual ?? logbookMonth.celula_anterior ?? 0) + flightTimeIncrement).toFixed(2));
       const newCelulaDisponivel = parseFloat(((logbookMonth.celula_prox_revisao ?? 0) - newCelulaAtual).toFixed(2));
 
       const { error } = await supabase
@@ -1172,7 +1156,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
       if (updatedEntries) {
         setEntries(updatedEntries);
-        await updateCelulaAtual(updatedEntries);
+
+        // Calcular incremento apenas do voo adicionado/editado (não de todos do mês)
+        let flightTimeIncrement = newEntry.total_time || 0;
+        if (isEdit && oldEntry) {
+          // Se está editando, o incremento é a diferença
+          flightTimeIncrement = (newEntry.total_time || 0) - (oldEntry.total_time || 0);
+        }
+
+        await updateCelulaAtual(flightTimeIncrement);
       }
 
       // Resetar formulário
@@ -1375,7 +1367,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         .order('sequential_number', { ascending: true });
       if (data) {
         setEntries(data);
-        await updateCelulaAtual(data);
+        // Subtrair o tempo do voo deletado
+        const deletedFlightTime = -(entryToDelete.total_time || 0);
+        await updateCelulaAtual(deletedFlightTime);
       }
     } catch (error: any) {
       logError("Erro ao deletar lançamento:", error);
