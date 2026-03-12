@@ -840,26 +840,31 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       }
 
       // ==================== CALCULAR DIÁRIAS ====================
-      let dailyAllowance = 0;
+      let dailyCount = 0;
+      let dailyValue = 0;
 
       if (newEntry.daily_quantity > 0) {
-        dailyAllowance = newEntry.daily_quantity * (logbookMonth.daily_rate || 0);
+        dailyCount = newEntry.daily_quantity;
+        dailyValue = dailyCount * (logbookMonth.daily_rate || 0);
         logInfo('Diárias (Manual):', {
-          quantidade: newEntry.daily_quantity,
+          quantidade: dailyCount,
           taxa_diaria: logbookMonth.daily_rate,
-          total: dailyAllowance
+          total: dailyValue
         });
       } else {
-        dailyAllowance = calculateDailyAllowanceForEntry(
+        dailyCount = calculateDailyAllowanceForEntry(
           newEntry,
           logbookMonth.base_aerodrome || '',
           allEntriesForCalc
         );
+        dailyValue = dailyCount * (logbookMonth.daily_rate || 0);
         logInfo('Diárias (Automático):', {
           base: logbookMonth.base_aerodrome,
           origem: newEntry.departure_aerodrome,
           destino: newEntry.arrival_aerodrome,
-          diarias_calculadas: dailyAllowance
+          quantidade: dailyCount,
+          taxa_diaria: logbookMonth.daily_rate,
+          total: dailyValue
         });
       }
 
@@ -907,7 +912,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         discrepancies: newEntry.discrepancies || null,
         corrective_actions: newEntry.corrective_actions || null,
         confirmed: isEdit ? (oldEntry?.confirmed || false) : false,
-        daily_rate: dailyAllowance,
+        daily_rate: dailyValue,
+        diarias: dailyCount > 0 ? dailyCount : null,
         trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`
       };
 
@@ -2629,7 +2635,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
               <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Diárias do Período</p>
               <p className="text-lg font-black text-yellow-400">{calculatePerDiemInfo.count} diárias</p>
-              <p className="text-xs text-emerald-400 mt-1">R$ {(calculatePerDiemInfo.total || 0).toFixed(2)}</p>
+              <p className="text-xs text-emerald-400 mt-1">R$ {(calculatePerDiemInfo.total || 0).toFixed(2).replace('.', ',')}</p>
             </div>
           )}
           {logbookMonth?.has_daily_rate && calculatePerDiemInfo.count > 0 && (
@@ -2679,8 +2685,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               <div className="mt-4 pt-4 border-t border-slate-800 text-right">
                 <p className="text-sm text-slate-400">
                   Total: <span className="text-2xl font-black text-yellow-400">
-                    {calculatePerDiemInfo.count} × R$ {(logbookMonth.daily_rate || 0).toFixed(2)} =
-                    R$ {(calculatePerDiemInfo.total || 0).toFixed(2)}
+                    {calculatePerDiemInfo.count} × R$ {(logbookMonth.daily_rate || 0).toFixed(2).replace('.', ',')} =
+                    R$ {(calculatePerDiemInfo.total || 0).toFixed(2).replace('.', ',')}
                   </span>
                 </p>
               </div>
