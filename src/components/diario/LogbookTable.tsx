@@ -457,7 +457,7 @@ export function LogbookTable({ entries, isLoading, aircraft, isReadOnly = false,
                           step="0.01"
                         />
                       ) : (
-                        entry.daily_rate || "-"
+                        entry.daily_rate ? `R$ ${entry.daily_rate.toFixed(2).replace('.', ',')}` : "-"
                       )}
                     </TableCell>
                   )}

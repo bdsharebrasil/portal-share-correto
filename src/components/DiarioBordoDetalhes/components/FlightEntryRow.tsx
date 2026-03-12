@@ -182,7 +182,7 @@ export function FlightEntryRow({ entry, onEdit, onDelete, crewMembers = [] }: Fl
                 <div>
                   <span className="text-slate-500">Diárias:</span>
                   <p className="text-slate-300">
-                    R$ {entry.daily_rate.toFixed(2)}
+                    R$ {entry.daily_rate.toFixed(2).replace('.', ',')}
                   </p>
                 </div>
               )}
