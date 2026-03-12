@@ -106,7 +106,7 @@ export function PartnerReportSection({ partner, index, flights, fuels, expenses,
                   <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{f.pic_name || f.pic_canac}</td>
                   <td className="px-2 py-1.5 border-b border-[#e2e8f0] font-medium">{(f.total_time || 0).toFixed(1)}</td>
                   <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{f.pousos || 0}</td>
-                  <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{f.fuel_liters || "—"}</td>
+                  <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{f.fuel_added || "—"}</td>
                   <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{f.passengers || 0}</td>
                 </tr>
               ))}
@@ -116,7 +116,7 @@ export function PartnerReportSection({ partner, index, flights, fuels, expenses,
                 <td className="px-2 py-2" colSpan={4}>TOTAL</td>
                 <td className="px-2 py-2">{totalHours.toFixed(1)}</td>
                 <td className="px-2 py-2">{totalPousos}</td>
-                <td className="px-2 py-2">{flights.reduce((s, f) => s + (f.fuel_liters || 0), 0).toFixed(0)}</td>
+                <td className="px-2 py-2">{flights.reduce((s, f) => s + (f.fuel_added || 0), 0).toFixed(0)}</td>
                 <td className="px-2 py-2">{flights.reduce((s, f) => s + (f.passengers || 0), 0)}</td>
               </tr>
             </tfoot>
