@@ -139,6 +139,7 @@ export function FuelRecordsByAircraft({
   const [filterMonth, setFilterMonth] = useState<string>("all");
   const [filterYear, setFilterYear] = useState<string>(new Date().getFullYear().toString());
   const [filterPartner, setFilterPartner] = useState<string>("all");
+  const [searchText, setSearchText] = useState<string>("");
   const [currentPage, setCurrentPage] = useState(1);
 
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -429,7 +430,7 @@ export function FuelRecordsByAircraft({
 
   const getFilteredRecords = () => {
     let filtered = records;
-    
+
     // Filter by partner
     if (filterPartner && filterPartner !== "all") {
       if (filterPartner === "__no_partner__") {
@@ -438,7 +439,7 @@ export function FuelRecordsByAircraft({
         filtered = filtered.filter(record => record.partner_name === filterPartner);
       }
     }
-    
+
     // Filter by month/year
     if (filterMonth !== "all" && filterYear) {
       filtered = filtered.filter(record => {
@@ -448,7 +449,25 @@ export function FuelRecordsByAircraft({
         return recordMonth === filterMonth && recordYear === filterYear;
       });
     }
-    
+
+    // Filter by search text
+    if (searchText) {
+      const lowerSearchText = searchText.toLowerCase();
+      filtered = filtered.filter(record => {
+        return (
+          record.trecho?.toLowerCase().includes(lowerSearchText) ||
+          record.local?.toLowerCase().includes(lowerSearchText) ||
+          record.abastecedor?.toLowerCase().includes(lowerSearchText) ||
+          record.comanda?.toLowerCase().includes(lowerSearchText) ||
+          record.nf?.toLowerCase().includes(lowerSearchText) ||
+          record.observacao?.toLowerCase().includes(lowerSearchText) ||
+          record.partner_name?.toLowerCase().includes(lowerSearchText) ||
+          record.litros?.toString().includes(lowerSearchText) ||
+          record.valor_total?.toString().includes(lowerSearchText)
+        );
+      });
+    }
+
     return filtered;
   };
   const filteredRecords = getFilteredRecords();
@@ -946,7 +965,20 @@ export function FuelRecordsByAircraft({
     </div>}
 
     <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 flex-1">
+        <div>
+          <Label className="text-xs font-semibold text-muted-foreground">Buscar</Label>
+          <Input
+            type="text"
+            placeholder="Buscar por qualquer campo..."
+            value={searchText}
+            onChange={(e) => {
+              setSearchText(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="mt-1 h-9 text-sm"
+          />
+        </div>
         <div>
           <Label className="text-xs font-semibold text-muted-foreground">Filtrar por Sócio</Label>
           <Select value={filterPartner} onValueChange={value => {
@@ -1013,10 +1045,11 @@ export function FuelRecordsByAircraft({
           </Select>
         </div>
       </div>
-      {(filterMonth || filterYear !== new Date().getFullYear().toString() || filterPartner !== "all") && <Button variant="outline" size="sm" onClick={() => {
+      {(filterMonth || filterYear !== new Date().getFullYear().toString() || filterPartner !== "all" || searchText) && <Button variant="outline" size="sm" onClick={() => {
         setFilterMonth("");
         setFilterYear(new Date().getFullYear().toString());
         setFilterPartner("all");
+        setSearchText("");
         setCurrentPage(1);
       }} className="h-9 text-sm">
         Limpar Filtros
