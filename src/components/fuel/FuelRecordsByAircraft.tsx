@@ -1562,8 +1562,8 @@ export function FuelRecordsByAircraft({
     </Card>
 
     {viewingAttachment && <Dialog open={!!viewingAttachment} onOpenChange={open => !open && setViewingAttachment(null)}>
-      <DialogContent className="max-w-3xl w-[95vw] max-h-[90vh] flex flex-col">
-        <DialogHeader className="border-b pb-4">
+      <DialogContent className="max-w-7xl w-[98vw] h-[95vh] flex flex-col">
+        <DialogHeader className="border-b pb-4 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             {viewingAttachment.name === 'Comanda' && <FileText className="h-5 w-5 text-blue-600" />}
             {viewingAttachment.name === 'Nota Fiscal' && <FileCheck className="h-5 w-5 text-green-600" />}
@@ -1573,7 +1573,7 @@ export function FuelRecordsByAircraft({
         </DialogHeader>
         <div className="flex-1 overflow-auto flex items-center justify-center bg-gradient-to-br from-muted/50 to-muted/30 rounded-lg p-6">
           {viewingAttachment.type === 'pdf' ? <div className="w-full h-full flex flex-col gap-3">
-            <embed src={viewingAttachment.url + '#toolbar=0'} type="application/pdf" className="w-full flex-1 rounded-lg" />
+            <embed src={viewingAttachment.url + '#toolbar=1'} type="application/pdf" className="w-full flex-1 rounded-lg" style={{ minHeight: '600px' }} />
             <Button onClick={() => window.open(viewingAttachment.url, '_blank')} variant="outline" className="gap-2 self-center">
               <Download className="h-4 w-4" />
               Abrir em Nova Aba
