@@ -50,6 +50,7 @@ interface FuelRecord {
   status_pagamento?: string | null;
   tipo_faturamento?: string | null;
   observacao?: string | null;
+  nf?: string | null;
   partner_name?: string | null;
   comprovante_pagamento?: string | null;
   data_pagamento?: string | null;
@@ -166,6 +167,7 @@ export function FuelRecordsByAircraft({
     status_pagamento: "em aberto",
     tipo_faturamento: "",
     observacao: "",
+    nf: "",
     comanda_file: null as File | null,
     nota_file: null as File | null,
     boleto_file: null as File | null,
@@ -611,6 +613,7 @@ export function FuelRecordsByAircraft({
         data_pagamento: statusFinal === "pago" ? formData.data_pagamento : null,
         criado_por: currentUserName || null,
         logbook_entry_id: (linkToLogbook && selectedFlightId) ? selectedFlightId : null,
+        nf: formData.nf || null,
       };
 
       if (editingRecord) {
@@ -678,6 +681,7 @@ export function FuelRecordsByAircraft({
       status_pagamento: record.status_pagamento || "em aberto",
       tipo_faturamento: record.tipo_faturamento || "",
       observacao: record.observacao?.replace(/\[Partner:[^\]]+\]\s*/, "") || "",
+      nf: record.nf || "",
       comanda_file: null,
       nota_file: null,
       boleto_file: null,
@@ -725,6 +729,7 @@ export function FuelRecordsByAircraft({
       status_pagamento: "em aberto",
       tipo_faturamento: "",
       observacao: "",
+      nf: "",
       comanda_file: null,
       nota_file: null,
       boleto_file: null,
@@ -1270,6 +1275,14 @@ export function FuelRecordsByAircraft({
               })} placeholder="Adicione observações sobre este abastecimento..." className="mt-1 w-full min-h-24 p-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background" />
             </div>
 
+            <div>
+              <Label className="text-xs text-muted-foreground">Número da NF</Label>
+              <input type="text" value={formData.nf} onChange={e => setFormData({
+                ...formData,
+                nf: e.target.value
+              })} placeholder="Número da nota fiscal (opcional)" className="mt-1 w-full px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background" />
+            </div>
+
             {formData.litros && formData.valor_unitario && <div className="bg-gradient-to-r from-success/10 to-success/5 border border-success/20 p-2 rounded-lg">
               <p className="text-xs text-muted-foreground">Valor Total</p>
               <p className="text-lg font-bold text-success">
@@ -1387,6 +1400,7 @@ export function FuelRecordsByAircraft({
                 <TableHead className="text-right font-semibold text-foreground">Valor Total</TableHead>
                 <TableHead className="text-right font-semibold text-foreground">Galões</TableHead>
                 <TableHead className="font-semibold text-foreground">Observações</TableHead>
+                <TableHead className="font-semibold text-foreground">NF</TableHead>
                 <TableHead className="text-right font-semibold text-foreground">Anexos</TableHead>
                 <TableHead className="text-right font-semibold text-foreground">Ações</TableHead>
               </TableRow>
@@ -1435,6 +1449,9 @@ export function FuelRecordsByAircraft({
                     <div className="truncate" title={record.observacao || ""}>
                       {(record.observacao && record.observacao.replace(/\[Partner:[^\]]*\]\s*/g, '').trim()) || "-"}
                     </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {record.nf || "-"}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
