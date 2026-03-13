@@ -482,75 +482,93 @@ export default function RelatorioMensal() {
         toast.error("Esse abastecimento não está vinculado a nenhum registro")
       }
     } else if (
-      tx.reference_type === "partner_expense" &&
-      tx.expense_type &&
-      (tx.expense_type.toLowerCase() === "viagem" || tx.expense_type.toLowerCase() === "despesas de viagem")
+      tx.reference_type === "travel_expense_report" ||
+      (tx.reference_type === "partner_expense" &&
+       tx.expense_type &&
+       (tx.expense_type.toLowerCase() === "viagem" || tx.expense_type.toLowerCase() === "despesas de viagem"))
     ) {
-      // Para despesas de viagem, precisamos encontrar o relatório de viagem associado
+      // Para despesas/relatórios de viagem
       try {
-        // Primeiro buscar a despesa para obter o reference_id do travel report
-        const { data: expense, error: expError } = await supabase
-          .from("partner_expenses")
-          .select("id, reference_id, reference_type, description, notes")
-          .eq("id", tx.reference_id)
-          .single()
-
-        if (expError || !expense) {
-          toast.error("Essa despesa não foi vinculada a um relatório de viagem")
-          return
-        }
-
         let travelReportId: string | null = null
         let travelReport: any = null
 
-        // Verificar se tem um relatório de viagem vinculado via reference_id
-        if (expense.reference_id &&
-            (expense.reference_type === "travel_expense_report" ||
-             expense.reference_type === "travel_report" ||
-             expense.reference_type === "viagem")) {
-          // Buscar o relatório de viagem para verificar se existe
+        // Se já tem reference_id como viagem (travel_expense_report), usar diretamente
+        if (tx.reference_type === "travel_expense_report" && tx.reference_id) {
           const { data: report, error: reportError } = await supabase
             .from("travel_expense_reports")
             .select("id, report_number, start_date, client")
-            .eq("id", expense.reference_id)
+            .eq("id", tx.reference_id)
             .single()
 
           if (!reportError && report) {
-            travelReportId = expense.reference_id
+            travelReportId = tx.reference_id
             travelReport = report
           }
         }
+        
+        // Se é uma despesa de partner_expense, buscar a referência ao relatório
+        if (!travelReport && tx.reference_type === "partner_expense") {
+          // Primeiro buscar a despesa para obter o reference_id do travel report
+          const { data: expense, error: expError } = await supabase
+            .from("partner_expenses")
+            .select("id, reference_id, reference_type, description, notes")
+            .eq("id", tx.reference_id)
+            .single()
 
-        // Se não encontrou via reference_id, tentar extrair o número do relatório das observações
-        if (!travelReport && expense.notes) {
-          // Procurar por padrão REL-XXX-###/## nas observações
-          const reportPattern = /REL-[A-Z]{3}-\d{3}\/\d{2}/g
-          const matches = expense.notes.match(reportPattern)
+          if (expError || !expense) {
+            toast.error("Essa despesa não foi vinculada a um relatório de viagem")
+            return
+          }
 
-          if (matches && matches.length > 0) {
-            const reportNumber = matches[0] // Pegar o primeiro match
-            const { data: reportByNumber, error: searchError } = await supabase
+          // Verificar se tem um relatório de viagem vinculado via reference_id
+          if (expense.reference_id &&
+              (expense.reference_type === "travel_expense_report" ||
+               expense.reference_type === "travel_report" ||
+               expense.reference_type === "viagem")) {
+            // Buscar o relatório de viagem para verificar se existe
+            const { data: report, error: reportError } = await supabase
               .from("travel_expense_reports")
               .select("id, report_number, start_date, client")
-              .eq("report_number", reportNumber)
-              .eq("client_id", clienteId)
+              .eq("id", expense.reference_id)
               .single()
 
-            if (!searchError && reportByNumber) {
-              travelReportId = reportByNumber.id
-              travelReport = reportByNumber
+            if (!reportError && report) {
+              travelReportId = expense.reference_id
+              travelReport = report
+            }
+          }
 
-              // Atualizar a despesa com reference_id e reference_type para evitar inconsistência futura
-              try {
-                await supabase
-                  .from("partner_expenses")
-                  .update({
-                    reference_id: travelReportId,
-                    reference_type: "travel_report"
-                  })
-                  .eq("id", expense.id)
-              } catch (updateErr) {
-                console.warn("Não foi possível atualizar despesa com reference_id:", updateErr)
+          // Se não encontrou via reference_id, tentar extrair o número do relatório das observações
+          if (!travelReport && expense.notes) {
+            // Procurar por padrão REL-XXX-###/## nas observações
+            const reportPattern = /REL-[A-Z]{3}-\d{3}\/\d{2}/g
+            const matches = expense.notes.match(reportPattern)
+
+            if (matches && matches.length > 0) {
+              const reportNumber = matches[0] // Pegar o primeiro match
+              const { data: reportByNumber, error: searchError } = await supabase
+                .from("travel_expense_reports")
+                .select("id, report_number, start_date, client")
+                .eq("report_number", reportNumber)
+                .eq("client_id", clienteId)
+                .single()
+
+              if (!searchError && reportByNumber) {
+                travelReportId = reportByNumber.id
+                travelReport = reportByNumber
+
+                // Atualizar a despesa com reference_id e reference_type para evitar inconsistência futura
+                try {
+                  await supabase
+                    .from("partner_expenses")
+                    .update({
+                      reference_id: travelReportId,
+                      reference_type: "travel_report"
+                    })
+                    .eq("id", expense.id)
+                } catch (updateErr) {
+                  console.warn("Não foi possível atualizar despesa com reference_id:", updateErr)
+                }
               }
             }
           }

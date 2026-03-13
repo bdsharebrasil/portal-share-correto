@@ -95,6 +95,11 @@ const EMPTY_FORM = {
   status: "pago",
   abastecimentoId: "",
   criarNovoAbastecimento: false,
+  // Campos para novo abastecimento
+  novoAbastData: format(new Date(), "yyyy-MM-dd"),
+  novoAbastLocal: "",
+  novoAbastLitros: "",
+  // Não incluir valor unitário - será calculado a partir do totalAmount
   bankName: "",
   prazo: "extra" as "mensal" | "extra",
   isInstallment: false,
@@ -291,6 +296,48 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       }
     }
 
+    // ─── CRIAR NOVO ABASTECIMENTO SE NECESSÁRIO ───
+    let abastecimentoId = form.abastecimentoId || null;
+
+    if (form.category === "ABASTECIMENTO" && form.criarNovoAbastecimento) {
+      if (!form.novoAbastLocal || !form.novoAbastLitros || !form.totalAmount) {
+        toast.error("Preencha Local, Litros e Valor Total para criar novo abastecimento");
+        return;
+      }
+
+      try {
+        const litros = parseFloat(form.novoAbastLitros);
+        const valorTotal = parseFloat(form.totalAmount);
+        const valorUnitario = valorTotal / litros;
+
+        const { data: newAbastecimento, error: abastError } = await supabase
+          .from("abastecimentos")
+          .insert({
+            client_id: clienteId,
+            aeronave_id: aircraftId || null,
+            data: form.novoAbastData,
+            trecho: form.description || "N/A",
+            local: form.novoAbastLocal,
+            litros: litros,
+            valor_unitario: valorUnitario,
+            valor_total: valorTotal,
+            abastecedor: form.supplierName || null,
+            partner_name: assignedPartner?.name || null,
+            status_pagamento: form.status === "pago" ? "pago" : "pendente",
+            data_pagamento: form.status === "pago" ? form.paidDate : null,
+          })
+          .select()
+          .single();
+
+        if (abastError) throw abastError;
+        abastecimentoId = newAbastecimento.id;
+      } catch (err: any) {
+        console.error("Erro ao criar abastecimento:", err);
+        toast.error("Erro ao criar novo abastecimento: " + err.message);
+        return;
+      }
+    }
+
     const basePayload = {
       clientId: clienteId,
       description: form.description,
@@ -319,7 +366,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       status: form.status,
       referenceType,
       referenceId,
-      abastecimentoId: form.abastecimentoId || null,
+      abastecimentoId: abastecimentoId,
     };
 
     // If no partner assigned, split equally among all partners
@@ -692,7 +739,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                         <FormSection label="Data do Abastecimento">
                           <Input
                             type="date"
-                            defaultValue={format(new Date(), "yyyy-MM-dd")}
+                            value={form.novoAbastData}
+                            onChange={(e) => set("novoAbastData")(e.target.value)}
                             className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
                             disabled={addExpense.isPending}
                           />
@@ -700,30 +748,30 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                         <FormSection label="Local">
                           <Input
                             placeholder="Ex: Portimão, Portugal"
+                            value={form.novoAbastLocal}
+                            onChange={(e) => set("novoAbastLocal")(e.target.value)}
                             className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
                             disabled={addExpense.isPending}
                           />
                         </FormSection>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 gap-3">
                         <FormSection label="Litros">
                           <Input
                             type="number"
                             step="0.01"
                             placeholder="0,00"
+                            value={form.novoAbastLitros}
+                            onChange={(e) => set("novoAbastLitros")(e.target.value)}
                             className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
                             disabled={addExpense.isPending}
                           />
                         </FormSection>
-                        <FormSection label="Valor Unitário">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="0,00"
-                            className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
-                            disabled={addExpense.isPending}
-                          />
-                        </FormSection>
+                        <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3">
+                          <p className="text-xs text-amber-600 dark:text-amber-400">
+                            💡 <strong>Valor Unitário:</strong> Será calculado automaticamente a partir do valor total da despesa e dos litros informados.
+                          </p>
+                        </div>
                       </div>
                       <Button
                         type="button"

@@ -171,11 +171,30 @@ export function useSocioTransactions(
 
         // Resolver número do relatório de viagem (para o campo de obs)
         let notesWithReport = exp.notes || null;
+        let finalReferenceType = exp.reference_type || "partner_expense";
+        let finalReferenceId = exp.reference_id || exp.id;
+
+        // Se a despesa é de abastecimento, deve ter reference_type "abastecimento"
+        if (exp.expense_type === "abastecimento" || exp.category === "abastecimento") {
+          finalReferenceType = "abastecimento";
+          // Mantém reference_id se já tiver, senão usa exp.id
+          if (!exp.reference_id) {
+            finalReferenceId = exp.id;
+          }
+        }
+        // Se é viagem, garante que reference_type seja travel_expense_report
+        else if (
+          exp.reference_type === "travel_expense_report" ||
+          exp.reference_type === "viagem" ||
+          exp.reference_type === "travel_report" ||
+          exp.expense_type === "viagem"
+        ) {
+          finalReferenceType = "travel_expense_report";
+        }
+
         if (
           exp.reference_id &&
-          (exp.reference_type === "travel_expense_report" ||
-            exp.reference_type === "viagem" ||
-            exp.reference_type === "travel_report")
+          (finalReferenceType === "travel_expense_report")
         ) {
           const linkedReport = travelReportsMap.get(exp.reference_id);
           if (linkedReport?.report_number) {
@@ -208,8 +227,8 @@ export function useSocioTransactions(
           balance_before: 0,
           balance_after: 0,
           description: exp.description,
-          reference_type: "partner_expense",
-          reference_id: exp.id,
+          reference_type: finalReferenceType,
+          reference_id: finalReferenceId,
           payment_date: exp.due_date,
           receipt_url: null,
           notes: notesWithReport,
@@ -221,6 +240,43 @@ export function useSocioTransactions(
           prazo: exp.prazo || null,
           payment_method: exp.payment_method || null,
           doc: exp.invoice_number || null,
+          // Campos adicionais para abastecimentos (quando vêm de partner_expenses)
+          ...(exp.expense_type === "abastecimento" && {
+            comanda: exp.comanda || null,
+            nf: exp.nf || null,
+            trecho: exp.trecho || null,
+            local: exp.local || null,
+            litros: exp.litros || 0,
+            abastecedor: exp.abastecedor || exp.supplier_name || null,
+            abastecimento_galoes: exp.abastecimento_galoes || null,
+            comanda_url: exp.comanda_url || null,
+            nota_url: exp.nota_url || null,
+            boleto_url: exp.boleto_url || null,
+            comprovante_pagamento: exp.comprovante_url || null,
+            observacao: exp.notes || null,
+          }),
+          // Campos adicionais para viagens (quando vêm de partner_expenses)
+          ...(exp.expense_type === "viagem" && {
+            report_number: exp.invoice_number || null,
+            route: exp.supplier_name || null,
+            days_count: 0,
+            crew_member_name: exp.supplier_name || null,
+            crew_member_name2: null,
+            aircraft_registration: null,
+            total_crew: 0,
+            total_crew1: 0,
+            total_crew2: 0,
+            total_sharebrasil: 0,
+            total_client: 0,
+            pdf_url: null,
+            spent_crew: 0,
+            remaining_crew: 0,
+            spent_sharebrasil: 0,
+            remaining_sharebrasil: 0,
+            start_date: exp.due_date,
+            end_date: exp.due_date,
+            observations: exp.notes || null,
+          }),
         };
       });
 
@@ -664,6 +720,39 @@ export function usePayExpense() {
         .eq("id", data.expenseId);
       if (expErr) throw expErr;
 
+      // Sincroniza para abastecimentos se for uma despesa de abastecimento
+      try {
+        const { data: expense } = await supabase
+          .from("partner_expenses")
+          .select("*")
+          .eq("id", data.expenseId)
+          .single();
+        
+        if (expense && (expense.expense_type === "abastecimento" || expense.category === "abastecimento")) {
+          // Busca abastecimento vinculado
+          const { data: abastecimentos } = await supabase
+            .from("abastecimentos")
+            .select("*")
+            .eq("partner_name", data.partnerName)
+            .eq("status_pagamento", "pendente")
+            .order("created_at", { ascending: false })
+            .limit(1);
+          
+          if (abastecimentos && abastecimentos.length > 0) {
+            await supabase
+              .from("abastecimentos")
+              .update({
+                status_pagamento: "pago",
+                data_pagamento: data.paymentDate,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", abastecimentos[0].id);
+          }
+        }
+      } catch (syncErr) {
+        console.warn("Erro ao sincronizar data_pagamento com abastecimento:", syncErr);
+      }
+
       return data.clientId;
     },
     onSuccess: (clientId) => {
@@ -830,30 +919,25 @@ export function useCreateExpense(showToast = true) {
       if (data.expenseType === "abastecimento" || data.category === "abastecimento") {
         try {
           if (data.abastecimentoId) {
-            await supabase
-              .from("abastecimentos")
-              .update({
-                status_pagamento:
-                  data.status === "paid" || data.status === "pago" ? "pago" : "pendente",
-                partner_name: (data.assignedPartnerName || "").replace(/^\[|\]$/g, "") || null,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", data.abastecimentoId);
-          } else {
-            await supabase.from("abastecimentos").insert({
-              client_id: data.clientId,
-              aeronave_id: data.aircraftId || null,
-              data: data.dueDate || new Date().toISOString().split("T")[0],
-              trecho: data.description || "N/A",
-              local: data.supplierName || "N/A",
-              litros: 0,
-              valor_unitario: 0,
-              valor_total: data.totalAmount,
-              partner_name: (data.assignedPartnerName || "").replace(/^\[|\]$/g, "") || null,
+            const updatePayload: any = {
               status_pagamento:
                 data.status === "paid" || data.status === "pago" ? "pago" : "pendente",
-            });
+              partner_name: (data.assignedPartnerName || "").replace(/^\[|\]$/g, "") || null,
+              updated_at: new Date().toISOString(),
+            };
+            
+            // Se a despesa foi marcada como paga, sincroniza a data_pagamento
+            if ((data.status === "paid" || data.status === "pago") && data.dueDate) {
+              updatePayload.data_pagamento = data.dueDate;
+            }
+            
+            await supabase
+              .from("abastecimentos")
+              .update(updatePayload)
+              .eq("id", data.abastecimentoId);
           }
+          // Se for abastecimento mas NÃO tiver abastecimentoId, significa que foi criado no formulário
+          // então NÃO precisamos criar novamente aqui. Apenas sincronizar já foi feito acima.
         } catch (syncErr) {
           console.warn("Erro ao sincronizar abastecimento:", syncErr);
         }
@@ -1018,7 +1102,8 @@ export function useUpdateTransaction() {
       invoiceNumber?: string | null;
       invoiceUrl?: string | null;
     }) => {
-      if (data.transactionType === "partner_expense") {
+      // Handle partner expenses (including travel_report type)
+      if (data.transactionType === "partner_expense" || data.transactionType === "travel_report") {
         const { error } = await supabase
           .from("partner_expenses")
           .update({
@@ -1042,14 +1127,22 @@ export function useUpdateTransaction() {
           .eq("id", data.id);
         if (error) throw error;
       } else if (data.transactionType === "abastecimento") {
+        const updatePayload: any = {
+          descricao: data.description,
+          valor_total: data.amount,
+          data: data.paymentDate,
+          observacao: data.notes || null,
+        };
+        
+        // Se foi marcado como pago, atualiza data_pagamento também
+        if (data.status === "paid" || data.status === "pago") {
+          updatePayload.status_pagamento = "pago";
+          updatePayload.data_pagamento = data.paymentDate;
+        }
+        
         const { error } = await supabase
           .from("abastecimentos")
-          .update({
-            descricao: data.description,
-            valor_total: data.amount,
-            data: data.paymentDate,
-            observacao: data.notes || null,
-          })
+          .update(updatePayload)
           .eq("id", data.id);
         if (error) throw error;
       } else {
