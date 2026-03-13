@@ -18,6 +18,7 @@ export function RelatorioFinanceiro() {
   const [agendamentos, setAgendamentos] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"));
+  const [selectedDay, setSelectedDay] = useState("");
   const [viewMode, setViewMode] = useState<"mes" | "trimestre" | "ano">("mes");
 
   useEffect(() => {
@@ -59,9 +60,18 @@ export function RelatorioFinanceiro() {
     const { start, end } = getDateRange();
     return movimentacoes.filter(m => {
       const date = new Date(m.data);
-      return date >= start && date <= end;
+      const matchesDateRange = date >= start && date <= end;
+
+      if (!matchesDateRange) return false;
+
+      if (selectedDay) {
+        const dayNumber = parseInt(selectedDay);
+        return date.getDate() === dayNumber;
+      }
+
+      return true;
     });
-  }, [movimentacoes, selectedMonth, viewMode]);
+  }, [movimentacoes, selectedMonth, selectedDay, viewMode]);
 
   const totals = useMemo(() => {
     const entradas = filteredData
@@ -196,6 +206,19 @@ export function RelatorioFinanceiro() {
                 onChange={(e) => setSelectedMonth(e.target.value)}
                 className="w-40 bg-background"
               />
+              <Select value={selectedDay} onValueChange={setSelectedDay}>
+                <SelectTrigger className="w-40 bg-background">
+                  <SelectValue placeholder="Todos os dias" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos os dias</SelectItem>
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                    <SelectItem key={day} value={String(day)}>
+                      Dia {String(day).padStart(2, "0")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Button onClick={exportReport} variant="outline">
                 <Download className="w-4 h-4 mr-2" />
                 Exportar CSV

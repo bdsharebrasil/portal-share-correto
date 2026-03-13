@@ -5,6 +5,8 @@ export type FlightCycleStatus =
   | 'concluido' 
   | 'aguardando_despesas' 
   | 'em_cobranca' 
+  | 'pago'
+  | 'enviado_ao_cliente'
   | 'finalizado';
 
 export interface CrewMember {
@@ -94,6 +96,8 @@ export const FLIGHT_STATUS_CONFIG: Record<FlightCycleStatus, { label: string; co
   concluido: { label: 'Concluído', color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
   aguardando_despesas: { label: 'Aguardando Despesas', color: 'text-orange-400', bgColor: 'bg-orange-500/20' },
   em_cobranca: { label: 'Em Cobrança', color: 'text-purple-400', bgColor: 'bg-purple-500/20' },
+  pago: { label: 'Pago', color: 'text-green-400', bgColor: 'bg-green-500/20' },
+  enviado_ao_cliente: { label: 'Enviado ao Cliente', color: 'text-indigo-400', bgColor: 'bg-indigo-500/20' },
   finalizado: { label: 'Finalizado', color: 'text-emerald-400', bgColor: 'bg-emerald-500/20' },
 };
 

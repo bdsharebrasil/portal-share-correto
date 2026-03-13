@@ -69,6 +69,7 @@ export function SocioDashboard({
 }: SocioDashboardProps) {
   const navigate = useNavigate()
   const [filterMonth, setFilterMonth] = useState("")
+  const [filterDay, setFilterDay] = useState("")
   const [visiblePartners, setVisiblePartners] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<"date" | "amount">("date")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
@@ -112,11 +113,22 @@ export function SocioDashboard({
         }
       })
     }
+    if (filterDay) {
+      const dayNumber = parseInt(filterDay)
+      result = result.filter((t) => {
+        const date = (t as any).payment_date || t.created_at
+        try {
+          return new Date(date.includes("T") ? date : date + "T12:00:00").getDate() === dayNumber
+        } catch {
+          return false
+        }
+      })
+    }
     if (visiblePartners.length > 0) {
       result = result.filter((t) => visiblePartners.includes(t.partner_name))
     }
     return result
-  }, [transactions, filterMonth, visiblePartners])
+  }, [transactions, filterMonth, filterDay, visiblePartners])
 
   // Mês anterior para comparação
   const previousMonthTransactions = useMemo(() => {
@@ -235,6 +247,18 @@ export function SocioDashboard({
             onChange={(e) => setFilterMonth(e.target.value)}
             className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           />
+          <select
+            value={filterDay}
+            onChange={(e) => setFilterDay(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Todos os dias</option>
+            {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+              <option key={day} value={day}>
+                Dia {String(day).padStart(2, "0")}
+              </option>
+            ))}
+          </select>
           <div className="flex gap-2">
             <Button variant="outline" onClick={onBack} size="sm">
               <ArrowLeft className="h-4 w-4 mr-1" />

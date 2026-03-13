@@ -116,6 +116,7 @@ export default function RelatorioMensal() {
   })
   const [selectedPartners, setSelectedPartners] = useState<string[]>([])
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [selectedDay, setSelectedDay] = useState<string>("")
   const [sortBy, setSortBy] = useState<'date' | 'partner'>('date')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [editingTransaction, setEditingTransaction] = useState<any>(null)
@@ -235,7 +236,17 @@ export default function RelatorioMensal() {
       })
     }
 
-    // Aplicar ordenação
+    if (selectedDay) {
+      const dayNumber = parseInt(selectedDay)
+      result = result.filter((t) => {
+        const date = (t as any).payment_date || t.created_at
+        try {
+          return new Date(date.includes("T") ? date : date + "T12:00:00").getDate() === dayNumber
+        } catch {
+          return false
+        }
+      })
+    }
     result.sort((a, b) => {
       let compareValue = 0
       
@@ -251,7 +262,7 @@ export default function RelatorioMensal() {
     })
 
     return result
-  }, [transactions, currentMonth, selectedPartners, selectedCategories, sortBy, sortOrder])
+  }, [transactions, currentMonth, selectedPartners, selectedCategories, selectedDay, sortBy, sortOrder])
 
   // ========================
   // COMPUTAÇÕES
@@ -759,8 +770,35 @@ export default function RelatorioMensal() {
             </Popover>
           )}
 
+          {/* Filtro de Data */}
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <select
+              value={selectedDay}
+              onChange={(e) => setSelectedDay(e.target.value)}
+              className="h-10 px-3 rounded-xl border border-border/70 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            >
+              <option value="">Todos os dias</option>
+              {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                <option key={day} value={String(day)}>
+                  Dia {String(day).padStart(2, "0")}
+                </option>
+              ))}
+            </select>
+            {selectedDay && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2"
+                onClick={() => setSelectedDay("")}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+
           {/* Chips de filtros ativos */}
-          {(selectedPartners.length > 0 || selectedCategories.length > 0) && (
+          {(selectedPartners.length > 0 || selectedCategories.length > 0 || selectedDay) && (
             <div className="flex flex-wrap gap-2 items-center">
               {selectedPartners.map((p) => (
                 <Badge
@@ -784,6 +822,16 @@ export default function RelatorioMensal() {
                   <X className="h-3 w-3" />
                 </Badge>
               ))}
+              {selectedDay && (
+                <Badge
+                  variant="outline"
+                  className="rounded-full gap-1 pr-1 cursor-pointer hover:bg-destructive/20"
+                  onClick={() => setSelectedDay("")}
+                >
+                  Dia {String(selectedDay).padStart(2, "0")}
+                  <X className="h-3 w-3" />
+                </Badge>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -791,6 +839,7 @@ export default function RelatorioMensal() {
                 onClick={() => {
                   setSelectedPartners([])
                   setSelectedCategories([])
+                  setSelectedDay("")
                 }}
               >
                 Limpar tudo
@@ -1229,26 +1278,77 @@ export default function RelatorioMensal() {
 
       {/* Dialog de transações do sócio selecionado */}
       <Dialog open={!!selectedPartnerCard} onOpenChange={(open) => !open && setSelectedPartnerCard(null)}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-primary" />
-              Transações — {selectedPartnerCard}
-            </DialogTitle>
+        <DialogContent className="max-w-[95vw] min-w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
+          <DialogHeader className="px-6 py-4 border-b border-border bg-muted/30 shrink-0">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2 text-lg">
+                <DollarSign className="h-5 w-5 text-primary" />
+                Transações — {selectedPartnerCard}
+              </DialogTitle>
+            </div>
           </DialogHeader>
+
+          {/* Stats Summary */}
+          {partnerCardTransactions.length > 0 && (
+            <div className="px-6 py-3 border-b border-border bg-background grid grid-cols-4 gap-4 shrink-0">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground font-semibold uppercase">Total Entradas</p>
+                <p className="text-lg font-bold text-emerald-500">
+                  {fmt(partnerCardTransactions
+                    .filter((t: any) => t.transaction_type === "deposit")
+                    .reduce((s: number, t: any) => s + Number(t.amount), 0)
+                  )}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground font-semibold uppercase">Total Saídas</p>
+                <p className="text-lg font-bold text-red-500">
+                  {fmt(partnerCardTransactions
+                    .filter((t: any) => t.transaction_type !== "deposit")
+                    .reduce((s: number, t: any) => s + Number(t.amount), 0)
+                  )}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground font-semibold uppercase">Saldo</p>
+                <p className={`text-lg font-bold ${
+                  (() => {
+                    const deposits = partnerCardTransactions.filter((t: any) => t.transaction_type === "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
+                    const expenses = partnerCardTransactions.filter((t: any) => t.transaction_type !== "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
+                    return deposits - expenses >= 0 ? "text-emerald-500" : "text-red-500"
+                  })()
+                }`}>
+                  {fmt(
+                    (() => {
+                      const deposits = partnerCardTransactions.filter((t: any) => t.transaction_type === "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
+                      const expenses = partnerCardTransactions.filter((t: any) => t.transaction_type !== "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
+                      return deposits - expenses
+                    })()
+                  )}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground font-semibold uppercase">Transações</p>
+                <p className="text-lg font-bold text-primary">{partnerCardTransactions.length}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Transactions Table */}
           <div className="flex-1 overflow-auto">
             {partnerCardTransactions.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">Nenhuma transação encontrada.</p>
+              <p className="text-center text-muted-foreground py-16">Nenhuma transação encontrada.</p>
             ) : (
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-background z-10">
-                  <tr className="border-b border-border">
-                    <th className="text-left py-2 px-3 text-xs font-semibold text-muted-foreground">Data</th>
-                    <th className="text-left py-2 px-3 text-xs font-semibold text-muted-foreground">Descrição</th>
-                    <th className="text-left py-2 px-3 text-xs font-semibold text-muted-foreground">Tipo</th>
-                    <th className="text-left py-2 px-3 text-xs font-semibold text-muted-foreground">Status</th>
-                    <th className="text-left py-2 px-3 text-xs font-semibold text-muted-foreground">Pgto</th>
-                    <th className="text-right py-2 px-3 text-xs font-semibold text-muted-foreground">Valor</th>
+                <thead className="sticky top-0 bg-slate-900/50 z-10 border-b border-border">
+                  <tr>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Data</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Descrição</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Tipo</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Status</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Método</th>
+                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Obs</th>
+                    <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground">Valor</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1263,17 +1363,17 @@ export default function RelatorioMensal() {
                       <tr
                         key={tx.id || idx}
                         className={`border-b border-border/30 transition-colors ${
-                          idx % 2 === 0 ? "bg-muted/10" : "bg-muted/5"
-                        } hover:bg-muted/30 cursor-pointer`}
+                          idx % 2 === 0 ? "bg-slate-950/30 hover:bg-slate-900/40" : "bg-slate-900/30 hover:bg-slate-800/40"
+                        } cursor-pointer`}
                         onClick={() => {
                           setSelectedPartnerCard(null)
                           setEditingTransaction(tx)
                           setIsEditModalOpen(true)
                         }}
                       >
-                        <td className="py-2.5 px-3 text-foreground">{formattedDate}</td>
-                        <td className="py-2.5 px-3 text-foreground max-w-[200px] truncate">{tx.description || "-"}</td>
-                        <td className="py-2.5 px-3">
+                        <td className="py-3 px-4 text-foreground font-medium">{formattedDate}</td>
+                        <td className="py-3 px-4 text-foreground max-w-[250px] truncate" title={tx.description}>{tx.description || "-"}</td>
+                        <td className="py-3 px-4">
                           <Badge
                             variant="outline"
                             className={`text-xs ${
@@ -1285,21 +1385,26 @@ export default function RelatorioMensal() {
                             {tx.transaction_type === "deposit" ? "ENTRADA" : "SAÍDA"}
                           </Badge>
                         </td>
-                        <td className="py-2.5 px-3">
+                        <td className="py-3 px-4">
                           <Badge
                             variant="outline"
                             className={`text-xs ${
                               (tx.status === "pago" || tx.status === "paid")
                                 ? "border-emerald-500/30 text-emerald-500"
+                                : (tx.status === "recebido" || tx.status === "received")
+                                ? "border-blue-500/30 text-blue-500"
+                                : tx.status === "cancelado"
+                                ? "border-red-500/30 text-red-500"
                                 : "border-amber-500/30 text-amber-500"
                             }`}
                           >
                             {getStatusLabel(tx.status)}
                           </Badge>
                         </td>
-                        <td className="py-2.5 px-3 text-foreground text-xs">{getPaymentMethodLabel(tx.payment_method)}</td>
+                        <td className="py-3 px-4 text-foreground text-xs">{getPaymentMethodLabel(tx.payment_method)}</td>
+                        <td className="py-3 px-4 text-muted-foreground text-xs max-w-[200px] truncate" title={tx.notes}>{tx.notes || "-"}</td>
                         <td
-                          className={`text-right py-2.5 px-3 font-semibold ${
+                          className={`text-right py-3 px-4 font-bold text-base ${
                             tx.transaction_type === "deposit" ? "text-emerald-500" : "text-red-500"
                           }`}
                         >
@@ -1310,27 +1415,6 @@ export default function RelatorioMensal() {
                     )
                   })}
                 </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-border">
-                    <td colSpan={5} className="py-3 px-3 font-semibold text-foreground text-right">Total:</td>
-                    <td className="py-3 px-3 text-right font-bold">
-                      {(() => {
-                        const deposits = partnerCardTransactions
-                          .filter((t: any) => t.transaction_type === "deposit")
-                          .reduce((s: number, t: any) => s + Number(t.amount), 0)
-                        const expenses = partnerCardTransactions
-                          .filter((t: any) => t.transaction_type !== "deposit")
-                          .reduce((s: number, t: any) => s + Number(t.amount), 0)
-                        const balance = deposits - expenses
-                        return (
-                          <span className={balance >= 0 ? "text-emerald-500" : "text-red-500"}>
-                            {fmt(balance)}
-                          </span>
-                        )
-                      })()}
-                    </td>
-                  </tr>
-                </tfoot>
               </table>
             )}
           </div>
