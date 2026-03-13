@@ -262,10 +262,118 @@ export function useSocioTransactions(
           prazo: null,
           payment_method: null,
           doc: f.comanda || null,
+          // Campos adicionais de abastecimento para exibição detalhada
+          comanda: f.comanda || null,
+          nf: f.nf || null,
+          trecho: f.trecho || null,
+          local: f.local || null,
+          litros: f.litros || 0,
+          abastecedor: f.abastecedor || null,
+          abastecimento_galoes: f.abastecimento_galoes || null,
+          comanda_url: f.comanda_url || null,
+          nota_url: f.nota_url || null,
+          boleto_url: f.boleto_url || null,
+          comprovante_pagamento: f.comprovante_pagamento || null,
+          observacao: f.observacao || null,
         };
       });
 
-      // ── 7. Combinar, normalizar e ordenar ──────────────────────────────────
+      // ── 7. Buscar relatórios de viagem ───────────────────────────────────────
+      const { data: travelReports, error: travelError } = await supabase
+        .from("travel_expense_reports")
+        .select("*")
+        .eq("client_id", clientId);
+
+      if (travelError) console.warn("Erro ao carregar relatórios de viagem:", travelError);
+
+      // Buscar despesas associadas aos relatórios de viagem para calcular valores despendidos
+      const { data: travelExpenses, error: travelExpError } = await supabase
+        .from("partner_expenses")
+        .select("*")
+        .eq("client_id", clientId)
+        .or("reference_type.eq.travel_expense_report,reference_type.eq.travel_report,reference_type.eq.viagem");
+
+      if (travelExpError) console.warn("Erro ao carregar despesas de viagem:", travelExpError);
+
+      const travelReportsAsTransactions = (travelReports || []).map((t: any) => {
+        // Buscar parceiro associado ao relatório
+        const partnerByName = (clientPartners || []).find(
+          (cp: any) =>
+            cp.id === t.client_partner ||
+            cp.name?.toLowerCase() === (t.crew_member_name || "").toLowerCase()
+        );
+
+        // Calcular valores já despendidos
+        const relatedExpenses = (travelExpenses || []).filter(
+          (exp: any) => exp.reference_id === t.id
+        );
+
+        const spentCrew = relatedExpenses.reduce((sum: number, exp: any) => {
+          // Se a despesa é para reembolso de crew, abate do total_crew
+          if (exp.assigned_partner_cpf === partnerByName?.cpf) {
+            return sum + (exp.total_amount || 0);
+          }
+          return sum;
+        }, 0);
+
+        const spentShareBrasil = relatedExpenses.reduce((sum: number, exp: any) => {
+          // Se a despesa é para Share Brasil, abate do total_sharebrasil
+          if (!exp.assigned_partner_cpf || (clientPartners || []).find(cp => cp.cpf === exp.assigned_partner_cpf)) {
+            return sum + (exp.total_amount || 0);
+          }
+          return sum;
+        }, 0);
+
+        const remainingCrew = Math.max(0, (t.total_crew || 0) - spentCrew);
+        const remainingShareBrasil = Math.max(0, (t.total_sharebrasil || 0) - spentShareBrasil);
+
+        return {
+          id: t.id,
+          client_id: t.client_id,
+          partner_cpf: partnerByName?.cpf ?? "N/A",
+          partner_name: partnerByName?.name ?? t.crew_member_name ?? "Conta Bancária",
+          transaction_type: "expense",
+          amount: t.total_amount || 0,
+          balance_before: 0,
+          balance_after: 0,
+          description: `Relatório de Viagem #${t.report_number}${t.route ? ` - ${t.route}` : ""}`,
+          reference_type: "travel_expense_report",
+          reference_id: t.id,
+          payment_date: t.start_date,
+          receipt_url: null,
+          notes: t.observations,
+          created_by: null,
+          created_at: t.created_at || new Date().toISOString(),
+          expense_type: "viagem",
+          status: t.status || "pendente",
+          bank_name: null,
+          prazo: null,
+          payment_method: null,
+          doc: t.report_number || null,
+          // Campos adicionais de relatório de viagem para exibição detalhada
+          report_number: t.report_number || null,
+          route: t.route || null,
+          days_count: t.days_count || 0,
+          crew_member_name: t.crew_member_name || null,
+          crew_member_name2: t.crew_member_name2 || null,
+          aircraft_registration: t.aircraft_id || null,
+          total_crew: t.total_crew || 0,
+          total_crew1: t.total_crew1 || 0,
+          total_crew2: t.total_crew2 || 0,
+          total_sharebrasil: t.total_sharebrasil || 0,
+          total_client: t.total_client || 0,
+          pdf_url: t.pdf_url || null,
+          spent_crew: spentCrew,
+          remaining_crew: remainingCrew,
+          spent_sharebrasil: spentShareBrasil,
+          remaining_sharebrasil: remainingShareBrasil,
+          start_date: t.start_date,
+          end_date: t.end_date,
+          observations: t.observations,
+        };
+      });
+
+      // ── 8. Combinar, normalizar e ordenar ──────────────────────────────────
       const normalizePartnerName = (name: string) => {
         const lower = (name || "").toLowerCase();
         if (!name || lower === "conta compartilhada" || lower === "geral" || lower === "outros" || lower === "n/a") {
@@ -278,6 +386,7 @@ export function useSocioTransactions(
         ...(transactions || []),
         ...expensesAsTransactions,
         ...fuelsAsTransactions,
+        ...travelReportsAsTransactions,
       ].map((t) => {
         // Adicionar status padrão se não existir
         let defaultStatus = t.status;
