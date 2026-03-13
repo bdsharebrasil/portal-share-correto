@@ -443,7 +443,11 @@ export function FuelRecordsByAircraft({
     // Filter by month/year
     if (filterMonth !== "all" && filterYear) {
       filtered = filtered.filter(record => {
-        const recordDate = new Date(record.data);
+        // Use data_pagamento if status is "pago", otherwise use data (data do abastecimento)
+        const dateToUse = (record.status_pagamento === "pago" && record.data_pagamento)
+          ? record.data_pagamento
+          : record.data;
+        const recordDate = new Date(dateToUse);
         const recordMonth = (recordDate.getMonth() + 1).toString().padStart(2, '0');
         const recordYear = recordDate.getFullYear().toString();
         return recordMonth === filterMonth && recordYear === filterYear;
@@ -709,7 +713,14 @@ export function FuelRecordsByAircraft({
     }
   };
   const handleEdit = (record: FuelRecord) => {
-    const supplierRecord = suppliers.find(s => s.supplier_name === record.abastecedor);
+    // Try to find supplier by name, or by matching the supplier_name field
+    let supplierRecord = suppliers.find(s => s.supplier_name === record.abastecedor);
+    // If not found, try to find any supplier that matches case-insensitive
+    if (!supplierRecord && record.abastecedor) {
+      supplierRecord = suppliers.find(s =>
+        s.supplier_name?.toLowerCase() === record.abastecedor?.toLowerCase()
+      );
+    }
     setEditingRecord(record);
     setFormData({
       data: record.data,
@@ -804,12 +815,20 @@ export function FuelRecordsByAircraft({
     let exportRecords = records;
     if (month !== null) {
       exportRecords = records.filter((r) => {
-        const recordDate = new Date(r.data + "T00:00:00");
+        // Use data_pagamento if status is "pago", otherwise use data (data do abastecimento)
+        const dateToUse = (r.status_pagamento === "pago" && r.data_pagamento)
+          ? r.data_pagamento
+          : r.data;
+        const recordDate = new Date(dateToUse + "T00:00:00");
         return recordDate.getMonth() + 1 === month && recordDate.getFullYear() === parseInt(year);
       });
     } else {
       exportRecords = records.filter((r) => {
-        const recordDate = new Date(r.data + "T00:00:00");
+        // Use data_pagamento if status is "pago", otherwise use data (data do abastecimento)
+        const dateToUse = (r.status_pagamento === "pago" && r.data_pagamento)
+          ? r.data_pagamento
+          : r.data;
+        const recordDate = new Date(dateToUse + "T00:00:00");
         return recordDate.getFullYear() === parseInt(year);
       });
     }
