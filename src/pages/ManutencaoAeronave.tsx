@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ModernNotification } from '@/components/notifications/ModernNotification';
+import { SearchableCombobox } from '@/components/ui/SearchableCombobox';
 
 interface Aircraft {
   id: string;
@@ -18,6 +19,17 @@ interface Aircraft {
   model: string;
   manufacturer: string;
   image_url?: string;
+}
+
+interface Oficina {
+  id: string;
+  razao_social: string;
+  cnpj?: string;
+  endereco?: string;
+  telefone?: string;
+  mecanico_responsavel?: string;
+  tipo_aeronave?: string;
+  ativo?: boolean;
 }
 
 interface ManutencaoItem {
@@ -42,6 +54,7 @@ export default function ManutencaoAeronave() {
   const { subscribe } = useVencimentosSync();
   const [manutencoes, setManutencoes] = useState<ManutencaoItem[]>([]);
   const [aeronaves, setAeronaves] = useState<Aircraft[]>([]);
+  const [oficinas, setOficinas] = useState<Oficina[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAeronave, setSelectedAeronave] = useState<string>('todas');
@@ -55,6 +68,7 @@ export default function ManutencaoAeronave() {
     aeronaveId: '',
     descricao: '',
     mecanico: '',
+    oficinaSelecionada: '',
     dataProxima: '',
     horasProxima: ''
   });
@@ -83,6 +97,15 @@ export default function ManutencaoAeronave() {
 
       if (aircraftError) throw aircraftError;
       setAeronaves(aircraftData || []);
+
+      // Carregar oficinas
+      const { data: oficinasData, error: oficinasError } = await supabase
+        .from('oficinas')
+        .select('*')
+        .eq('ativo', true);
+
+      if (oficinasError) throw oficinasError;
+      setOficinas(oficinasData || []);
 
       // Carregar horas atuais de cada aeronave
       const { data: logbookData } = await supabase
@@ -137,11 +160,11 @@ export default function ManutencaoAeronave() {
   };
 
   const handleAddManutencao = async () => {
-    if (!newManutencao.aeronaveId || !newManutencao.descricao) {
+    if (!newManutencao.aeronaveId) {
       setNotification({
         type: 'warning',
-        title: 'Campos obrigatórios',
-        description: 'Preencha todos os campos marcados como obrigatórios'
+        title: 'Campo obrigatório',
+        description: 'Selecione uma aeronave'
       });
       return;
     }
@@ -176,6 +199,7 @@ export default function ManutencaoAeronave() {
         aeronaveId: '',
         descricao: '',
         mecanico: '',
+        oficinaSelecionada: '',
         dataProxima: '',
         horasProxima: ''
       });
@@ -313,7 +337,23 @@ export default function ManutencaoAeronave() {
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-sm font-medium text-white">Descrição *</label>
+                      <label className="text-sm font-medium text-white">Oficina</label>
+                      <SearchableCombobox
+                        items={oficinas.map(o => ({
+                          value: o.id,
+                          label: o.razao_social,
+                          description: o.endereco || ''
+                        }))}
+                        value={newManutencao.oficinaSelecionada}
+                        onValueChange={(value) => setNewManutencao({...newManutencao, oficinaSelecionada: value})}
+                        placeholder="Selecione uma oficina..."
+                        searchPlaceholder="Buscar oficina..."
+                        emptyMessage="Nenhuma oficina encontrada"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-white">Descrição</label>
                       <textarea
                         value={newManutencao.descricao}
                         onChange={(e) => setNewManutencao({...newManutencao, descricao: e.target.value})}
