@@ -45,6 +45,14 @@ export interface FuelEntry {
   tipo_faturamento: string | null;
   status_pagamento: string | null;
   observacao: string | null;
+  comanda: string | null;
+  nf: string | null;
+  comanda_url: string | null;
+  nota_url: string | null;
+  boleto_url: string | null;
+  comprovante_pagamento: string | null;
+  abastecedor: string | null;
+  abastecimento_galoes: number | null;
 }
 
 export interface ExpenseEntry {
@@ -145,7 +153,7 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
 
         supabase
           .from("abastecimentos")
-          .select("id, data, trecho, local, litros, valor_unitario, valor_total, partner_name, tipo_faturamento, status_pagamento, observacao")
+          .select("id, data, trecho, local, litros, valor_unitario, valor_total, partner_name, tipo_faturamento, status_pagamento, observacao, comanda, nf, comanda_url, nota_url, boleto_url, comprovante_pagamento, abastecedor, abastecimento_galoes")
           .eq("client_id", clientId)
           .gte("data", startDate)
           .lte("data", endDate)

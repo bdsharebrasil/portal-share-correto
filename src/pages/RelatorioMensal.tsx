@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Download,
   TrendingUp,
   TrendingDown,
@@ -126,6 +127,7 @@ export default function RelatorioMensal() {
   const [showExportModal, setShowExportModal] = useState(false)
   const [showInlineReport, setShowInlineReport] = useState(false)
   const [selectedPartnerCard, setSelectedPartnerCard] = useState<string | null>(null)
+  const [expandedFuels, setExpandedFuels] = useState<Set<string>>(new Set())
 
   // ========================
   // DADOS
@@ -419,6 +421,20 @@ export default function RelatorioMensal() {
 
   const monthLabel = format(currentMonth, "MMMM yyyy", { locale: ptBR })
   const monthLabelCapitalized = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
+
+  // ========================
+  // FUNCIONALIDADES
+  // ========================
+
+  const toggleFuelExpanded = (fuelId: string) => {
+    const newSet = new Set(expandedFuels)
+    if (newSet.has(fuelId)) {
+      newSet.delete(fuelId)
+    } else {
+      newSet.add(fuelId)
+    }
+    setExpandedFuels(newSet)
+  }
 
   // ========================
   // NAVEGAÇÃO
@@ -1023,11 +1039,11 @@ export default function RelatorioMensal() {
                       const isEven = idx % 2 === 0
 
                       return (
+                        <React.Fragment key={tx.id || idx}>
                         <tr
-                          key={tx.id || idx}
                           className={`border-b border-border/30 transition-colors ${
-                            isEven 
-                              ? "bg-slate-950/30 hover:bg-slate-900/40" 
+                            isEven
+                              ? "bg-slate-950/30 hover:bg-slate-900/40"
                               : "bg-slate-900/30 hover:bg-slate-800/40"
                           } cursor-pointer`}
                           onClick={() => {
@@ -1078,25 +1094,45 @@ export default function RelatorioMensal() {
                           <td className="py-3 px-3 text-foreground">{tx.description || "-"}</td>
                           <td className="py-3 px-3 text-muted-foreground">{tx.partner_name}</td>
                           <td className="py-3 px-3">
-                            <Badge
-                              variant="outline"
-                              className={`text-xs cursor-pointer hover:opacity-80 transition-opacity ${
-                                tx.transaction_type === "deposit"
-                                  ? "border-emerald-500/30 text-emerald-500"
+                            <div className="flex items-center gap-2">
+                              {tx.reference_type === "abastecimento" && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleFuelExpanded(tx.reference_id)
+                                  }}
+                                  title={expandedFuels.has(tx.reference_id) ? "Ocultar detalhes" : "Mostrar detalhes"}
+                                >
+                                  {expandedFuels.has(tx.reference_id) ? (
+                                    <ChevronDown className="h-4 w-4 text-blue-500" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </Button>
+                              )}
+                              <Badge
+                                variant="outline"
+                                className={`text-xs cursor-pointer hover:opacity-80 transition-opacity ${
+                                  tx.transaction_type === "deposit"
+                                    ? "border-emerald-500/30 text-emerald-500"
+                                    : tx.transaction_type === "expense"
+                                    ? "border-orange-500/30 text-orange-500"
+                                    : "border-red-500/30 text-red-500"
+                                }`}
+                                onClick={(e) => void handleExpenseTypeClick(tx, e)}
+                              >
+                                {tx.expense_type
+                                  ? getExpenseTypeLabel(tx.expense_type)
+                                  : tx.transaction_type === "deposit"
+                                  ? "ENTRADA"
                                   : tx.transaction_type === "expense"
-                                  ? "border-orange-500/30 text-orange-500"
-                                  : "border-red-500/30 text-red-500"
-                              }`}
-                              onClick={(e) => void handleExpenseTypeClick(tx, e)}
-                            >
-                              {tx.expense_type
-                                ? getExpenseTypeLabel(tx.expense_type)
-                                : tx.transaction_type === "deposit"
-                                ? "ENTRADA"
-                                : tx.transaction_type === "expense"
-                                ? "DESPESA"
-                                : "SAÍDA"}
-                            </Badge>
+                                  ? "DESPESA"
+                                  : "SAÍDA"}
+                              </Badge>
+                            </div>
                           </td>
                           <td className="py-3 px-3">
                             <Badge
@@ -1128,6 +1164,105 @@ export default function RelatorioMensal() {
                             {fmt(Number(tx.amount))}
                           </td>
                         </tr>
+                        {tx.reference_type === "abastecimento" && expandedFuels.has(tx.reference_id) && (
+                          <tr className={`border-b border-border/30 ${isEven ? "bg-blue-950/20" : "bg-blue-900/20"}`}>
+                            <td colSpan={12} className="py-4 px-4">
+                              <div className="bg-blue-950/30 rounded-lg p-4 border border-blue-500/20">
+                                <h5 className="text-sm font-semibold text-blue-400 mb-3 flex items-center gap-2">
+                                  <ChevronDown className="h-4 w-4" />
+                                  Detalhes do Abastecimento
+                                </h5>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                                  <div className="space-y-1">
+                                    <p className="text-muted-foreground font-semibold">Comanda</p>
+                                    <p className="text-foreground">{tx.comanda || "-"}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-muted-foreground font-semibold">NF</p>
+                                    <p className="text-foreground">{tx.nf || "-"}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-muted-foreground font-semibold">Trecho</p>
+                                    <p className="text-foreground">{tx.trecho || "-"}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-muted-foreground font-semibold">Litros</p>
+                                    <p className="text-foreground">{typeof tx.litros === 'number' ? tx.litros.toFixed(2) : "-"}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-muted-foreground font-semibold">Local</p>
+                                    <p className="text-foreground">{tx.local || "-"}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-muted-foreground font-semibold">Abastecedor</p>
+                                    <p className="text-foreground">{tx.abastecedor || "-"}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-muted-foreground font-semibold">Galões</p>
+                                    <p className="text-foreground">{typeof tx.abastecimento_galoes === 'number' ? tx.abastecimento_galoes.toFixed(2) : "-"}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-muted-foreground font-semibold">Observação</p>
+                                    <p className="text-foreground text-xs">{tx.observacao || "-"}</p>
+                                  </div>
+                                </div>
+
+                                {(tx.comanda_url || tx.nota_url || tx.boleto_url || tx.comprovante_pagamento) && (
+                                  <div className="mt-4 pt-4 border-t border-blue-500/20">
+                                    <p className="text-muted-foreground font-semibold mb-2">Anexos</p>
+                                    <div className="flex flex-wrap gap-2">
+                                      {tx.comanda_url && (
+                                        <a
+                                          href={tx.comanda_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-md transition-colors text-xs"
+                                        >
+                                          <FileDown className="h-3 w-3" />
+                                          Comanda
+                                        </a>
+                                      )}
+                                      {tx.nota_url && (
+                                        <a
+                                          href={tx.nota_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-md transition-colors text-xs"
+                                        >
+                                          <FileDown className="h-3 w-3" />
+                                          NF
+                                        </a>
+                                      )}
+                                      {tx.boleto_url && (
+                                        <a
+                                          href={tx.boleto_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-md transition-colors text-xs"
+                                        >
+                                          <FileDown className="h-3 w-3" />
+                                          Boleto
+                                        </a>
+                                      )}
+                                      {tx.comprovante_pagamento && (
+                                        <a
+                                          href={tx.comprovante_pagamento}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-md transition-colors text-xs"
+                                        >
+                                          <FileDown className="h-3 w-3" />
+                                          Comprovante
+                                        </a>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        </React.Fragment>
                       )
                     })}
                   </tbody>

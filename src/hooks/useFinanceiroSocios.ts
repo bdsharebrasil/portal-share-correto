@@ -262,6 +262,19 @@ export function useSocioTransactions(
           prazo: null,
           payment_method: null,
           doc: f.comanda || null,
+          // Campos adicionais de abastecimento para exibição detalhada
+          comanda: f.comanda || null,
+          nf: f.nf || null,
+          trecho: f.trecho || null,
+          local: f.local || null,
+          litros: f.litros || 0,
+          abastecedor: f.abastecedor || null,
+          abastecimento_galoes: f.abastecimento_galoes || null,
+          comanda_url: f.comanda_url || null,
+          nota_url: f.nota_url || null,
+          boleto_url: f.boleto_url || null,
+          comprovante_pagamento: f.comprovante_pagamento || null,
+          observacao: f.observacao || null,
         };
       });
 
