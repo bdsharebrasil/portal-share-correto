@@ -1076,7 +1076,7 @@ export function FuelRecordsByAircraft({
                   id={`fuel-record-${record.id}`}
                   className={`border-b border-border/50 transition-colors ${
                     selectedAbastecimentoId === record.id
-                      ? 'bg-yellow-100 dark:bg-yellow-900/30 border-l-4 border-l-yellow-500 hover:bg-yellow-100/80 dark:hover:bg-yellow-900/40'
+                      ? 'bg-yellow-200 dark:bg-yellow-800/70 border-l-4 border-l-yellow-600 hover:bg-yellow-200/90 dark:hover:bg-yellow-800/80 shadow-sm'
                       : 'hover:bg-muted/30'
                   }`}
                 >
