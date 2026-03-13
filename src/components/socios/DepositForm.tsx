@@ -29,6 +29,7 @@ import { format } from "date-fns";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { toast } from "@/components/ui/modern-toast";
 
 export const ENTRY_TYPES = [
   {
@@ -112,8 +113,11 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
   const [entry, setEntry] = useState(EMPTY_ENTRY);
   const [interest, setInterest] = useState(EMPTY_INTEREST);
   const [selectedExpenseId, setSelectedExpenseId] = useState<string>("");
+  const [customReversalAmount, setCustomReversalAmount] = useState<string>("");
 
-  const addDeposit = useAddDeposit();
+  // Use two instances: one with toasts for simple deposits, one without for ratios
+  const addDepositWithToast = useAddDeposit(true);
+  const addDepositSilent = useAddDeposit(false);
   const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteId);
   const { data: expenses = [] } = useSocioExpenses(clienteId);
 
@@ -135,6 +139,28 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
     return expenses.find((exp) => exp.id === selectedExpenseId) || null;
   }, [isReversal, selectedExpenseId, expenses]);
 
+  // Find all related expenses (for ratios/installments) based on description and date
+  const relatedExpenses = useMemo(() => {
+    if (!selectedExpense) return [];
+
+    // Find expenses with same base description and created around the same time
+    const baseDescription = selectedExpense.description;
+    const selectedDate = new Date(selectedExpense.created_at);
+    const timeTolerance = 5 * 60 * 1000; // 5 minutes tolerance
+
+    return expenses.filter((exp) => {
+      // Check if descriptions match (ignoring installment numbers like "(1/3)")
+      const expBaseDesc = exp.description.replace(/\s*\(\d+\/\d+\)$/, "");
+      const selectedBaseDesc = baseDescription.replace(/\s*\(\d+\/\d+\)$/, "");
+
+      const descMatches = expBaseDesc === selectedBaseDesc;
+      const expDate = new Date(exp.created_at);
+      const dateMatches = Math.abs(selectedDate.getTime() - expDate.getTime()) < timeTolerance;
+
+      return descMatches && dateMatches && (exp.status === "paid" || exp.status === "pago");
+    });
+  }, [selectedExpense, expenses]);
+
   const handleEntryTypeChange = (value: EntryTypeId) => {
     const type = ENTRY_TYPES.find((t) => t.id === value);
     setEntry((p) => ({
@@ -153,6 +179,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
         amount: String(selectedExpense.total_amount),
         description: `Estorno: ${selectedExpense.description}`,
       }));
+      setCustomReversalAmount("");
     }
   }, [selectedExpense]);
 
@@ -175,35 +202,87 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
     e.preventDefault();
     if (!isEntryValid()) return;
 
-    let partnerCpf: string | null = null;
-    let partnerName = "Conta Bancária";
+    if (isReversal && selectedExpense && relatedExpenses.length > 1) {
+      // Reversal with ratio distribution (multiple partners)
+      const reversalAmount = customReversalAmount ? parseFloat(customReversalAmount) : parseFloat(entry.amount);
+      const amountPerPartner = reversalAmount / relatedExpenses.length;
+      const amountPerPartnerRounded = Math.round(amountPerPartner * 100) / 100;
 
-    if (isReversal && selectedExpense) {
-      // Reversal: credit goes back to whoever the original expense was for
-      if (selectedExpense.assigned_partner_cpf) {
-        partnerCpf = selectedExpense.assigned_partner_cpf;
-        partnerName = selectedExpense.assigned_partner_name || "Conta Bancária";
+      // Get unique partners involved in this reversal
+      const partnersInvolved = new Map<string, string>();
+      relatedExpenses.forEach((exp) => {
+        if (exp.assigned_partner_cpf) {
+          partnersInvolved.set(
+            exp.assigned_partner_cpf,
+            exp.assigned_partner_name || "Conta Bancária"
+          );
+        }
+      });
+
+      // If no specific partners, add to shared account
+      if (partnersInvolved.size === 0) {
+        await addDepositWithToast.mutateAsync({
+          clientId: clienteId,
+          partnerCpf: null,
+          partnerName: "Conta Bancária",
+          amount: reversalAmount,
+          description: entry.description,
+          paymentDate: entry.date,
+          bankName: entry.bankName || null,
+          transactionSubtype: selectedEntryType?.subtype ?? "deposit",
+          prazo: entry.prazo,
+          referenceId: selectedExpenseId,
+        });
+      } else {
+        // Create reversals for each partner involved (without toast)
+        for (const [cpf, name] of partnersInvolved.entries()) {
+          await addDepositSilent.mutateAsync({
+            clientId: clienteId,
+            partnerCpf: cpf,
+            partnerName: name,
+            amount: amountPerPartnerRounded,
+            description: entry.description,
+            paymentDate: entry.date,
+            bankName: entry.bankName || null,
+            transactionSubtype: selectedEntryType?.subtype ?? "deposit",
+            prazo: entry.prazo,
+            referenceId: selectedExpenseId,
+          });
+        }
+        // Show single success toast after all reversals
+        toast.success("Estorno registrado com sucesso!");
       }
-      // If no partner assigned, it goes to "Conta Bancária" (default)
-    } else if (requiresPartner) {
-      const partner = getPartner(entry.cpf);
-      const account = getAccount(entry.cpf);
-      partnerCpf = entry.cpf;
-      partnerName = partner?.name || account?.partner_name || "";
-    }
+    } else {
+      // Standard entry (non-reversal or single reversal)
+      let partnerCpf: string | null = null;
+      let partnerName = "Conta Bancária";
 
-    await addDeposit.mutateAsync({
-      clientId: clienteId,
-      partnerCpf,
-      partnerName,
-      amount: parseFloat(entry.amount),
-      description: entry.description,
-      paymentDate: entry.date,
-      bankName: entry.bankName || null,
-      transactionSubtype: selectedEntryType?.subtype ?? "deposit",
-      prazo: entry.prazo,
-      referenceId: isReversal ? selectedExpenseId : undefined,
-    });
+      if (isReversal && selectedExpense) {
+        // Single reversal: credit goes back to whoever the original expense was for
+        if (selectedExpense.assigned_partner_cpf) {
+          partnerCpf = selectedExpense.assigned_partner_cpf;
+          partnerName = selectedExpense.assigned_partner_name || "Conta Bancária";
+        }
+      } else if (requiresPartner) {
+        const partner = getPartner(entry.cpf);
+        const account = getAccount(entry.cpf);
+        partnerCpf = entry.cpf;
+        partnerName = partner?.name || account?.partner_name || "";
+      }
+
+      await addDepositWithToast.mutateAsync({
+        clientId: clienteId,
+        partnerCpf,
+        partnerName,
+        amount: parseFloat(entry.amount),
+        description: entry.description,
+        paymentDate: entry.date,
+        bankName: entry.bankName || null,
+        transactionSubtype: selectedEntryType?.subtype ?? "deposit",
+        prazo: entry.prazo,
+        referenceId: isReversal ? selectedExpenseId : undefined,
+      });
+    }
 
     resetAndClose();
   };
@@ -212,7 +291,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
     e.preventDefault();
     if (!interest.amount || !interest.bankName) return;
 
-    await addDeposit.mutateAsync({
+    await addDepositWithToast.mutateAsync({
       clientId: clienteId,
       partnerCpf: null,
       partnerName: "Conta Bancária",
@@ -360,7 +439,17 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                       emptyMessage="Nenhuma despesa paga encontrada"
                     />
 
-                    {selectedExpense && (
+                    {selectedExpense && relatedExpenses.length > 1 && (
+                      <div className="flex items-start gap-2.5 rounded-xl px-4 py-4 text-sm mt-2 border bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-950/40 dark:border-blue-800/50 dark:text-blue-300">
+                        <span className="text-base flex-shrink-0">💡</span>
+                        <div>
+                          <p className="font-semibold mb-1">Despesa Rateada</p>
+                          <p>Esta despesa foi dividida entre {relatedExpenses.length} sócios. O estorno será distribuído igualmente entre eles.</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedExpense && relatedExpenses.length === 1 && (
                       <div className="flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm mt-2 border bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/40 dark:border-amber-800/50 dark:text-amber-300">
                         <span className="text-base">↩️</span>
                         <span className="font-medium">
@@ -368,6 +457,57 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                         </span>
                       </div>
                     )}
+                  </FormSection>
+                )}
+
+                {/* Valor customizado do estorno */}
+                {isReversal && selectedExpense && relatedExpenses.length > 1 && (
+                  <FormSection label="Valor do Estorno (R$)">
+                    <div className="space-y-3">
+                      <div className="text-sm text-muted-foreground">
+                        <p>Deixe em branco para estornar o valor total: <span className="font-semibold text-foreground">R$ {Number(entry.amount).toFixed(2)}</span></p>
+                      </div>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground select-none">
+                          R$
+                        </span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          value={customReversalAmount}
+                          onChange={(e) => setCustomReversalAmount(e.target.value)}
+                          placeholder={entry.amount}
+                          disabled={addDepositWithToast.isPending}
+                          className="h-12 rounded-xl border-border/70 text-sm pl-10 font-mono"
+                        />
+                      </div>
+                    </div>
+                  </FormSection>
+                )}
+
+                {/* Prévia de distribuição */}
+                {isReversal && selectedExpense && relatedExpenses.length > 1 && (customReversalAmount || entry.amount) && (
+                  <FormSection label="Distribuição do Estorno">
+                    <div className="space-y-2">
+                      {Array.from(
+                        new Map(relatedExpenses.map((exp) => [
+                          exp.assigned_partner_cpf,
+                          exp.assigned_partner_name || "Conta Bancária"
+                        ])).entries()
+                      ).map(([cpf, name]) => {
+                        const reversalAmount = customReversalAmount ? parseFloat(customReversalAmount) : parseFloat(entry.amount);
+                        const amountPerPartner = Math.round((reversalAmount / relatedExpenses.length) * 100) / 100;
+                        return (
+                          <div key={cpf} className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2.5 text-sm">
+                            <span className="font-medium text-foreground">{name}</span>
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                              + R$ {amountPerPartner.toFixed(2)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </FormSection>
                 )}
 
@@ -434,13 +574,13 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                         : "Descreva a entrada"
                     }
                     required
-                    disabled={addDeposit.isPending || !entry.entryType}
+                    disabled={addDepositWithToast.isPending || !entry.entryType}
                     className="h-12 rounded-xl border-border/70 text-sm"
                   />
                 </FormSection>
 
                 <SubmitButton
-                  loading={addDeposit.isPending}
+                  loading={addDepositWithToast.isPending}
                   disabled={!isEntryValid()}
                   label={selectedEntryType ? `Confirmar ${selectedEntryType.label}` : "Confirmar Entrada"}
                 />
@@ -503,13 +643,13 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                     value={interest.notes}
                     onChange={(e) => setInterest((p) => ({ ...p, notes: e.target.value }))}
                     placeholder="Ex: Rendimento FacilCred Janeiro"
-                    disabled={addDeposit.isPending}
+                    disabled={addDepositWithToast.isPending}
                     className="h-12 rounded-xl border-border/70 text-sm"
                   />
                 </FormSection>
 
                 <SubmitButton
-                  loading={addDeposit.isPending}
+                  loading={addDepositWithToast.isPending}
                   disabled={!interest.amount || !interest.bankName}
                   label="Registrar Rendimento"
                   variant="interest"

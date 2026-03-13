@@ -155,7 +155,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   } | null>(null);
   const [loadingReports, setLoadingReports] = useState(false);
 
-  const addExpense = useCreateExpense();
+  const addExpense = useCreateExpense(false);
   const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteId);
   const { data: abastecimentos = [] } = useClientAbastecimentos(clienteId);
   const { data: fornecedoresFavoritos = [] } = useFornecedoresFavoritos();
@@ -343,6 +343,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       });
     }
 
+    toast.success("Despesa criada com sucesso!");
     setOpen(false);
     setForm(EMPTY_FORM);
     setTab("expense");
@@ -402,6 +403,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       });
     }
 
+    toast.success("Despesa criada com sucesso!");
     setOpen(false);
     setBankForm(EMPTY_BANK_FORM);
     setTab("expense");
