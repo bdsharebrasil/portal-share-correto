@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ChevronRight, ChevronLeft, Building2, Plane } from "lucide-react";
 import { FuelRecordsByAircraft } from "./FuelRecordsByAircraft";
 
@@ -35,6 +36,9 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
     clientId?: string;
     aircraftId?: string;
   } | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredClients = clients.filter(client => client.company_name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   useEffect(() => {
     loadClients();
@@ -192,20 +196,29 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
               <Building2 className="h-6 w-6 text-primary" />
               Selecione um Cliente
             </h2>
-            <p className="text-sm text-muted-foreground mt-1">{clients.length} cliente(s) disponível(is)</p>
+            <p className="text-sm text-muted-foreground mt-1">{filteredClients.length} cliente(s) disponível(is)</p>
           </div>
 
-          {clients.length === 0 ? (
+          <div className="mb-4">
+            <Input
+              placeholder="Buscar cliente por nome..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
+
+          {filteredClients.length === 0 ? (
             <Card className="border border-border/50">
               <CardContent className="py-16 text-center">
                 <Building2 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                <p className="font-medium text-foreground">Nenhum cliente cadastrado</p>
-                <p className="text-sm text-muted-foreground mt-1">Crie um cliente primeiro para começar</p>
+                <p className="font-medium text-foreground">{searchTerm ? "Nenhum cliente encontrado" : "Nenhum cliente cadastrado"}</p>
+                <p className="text-sm text-muted-foreground mt-1">{searchTerm ? "Tente outro termo de busca" : "Crie um cliente primeiro para começar"}</p>
               </CardContent>
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {clients.map((client) => (
+              {filteredClients.map((client) => (
                 <Card
                   key={client.id}
                   className="cursor-pointer border border-border/50 hover:border-primary/50 hover:shadow-lg transition-all duration-200 group"

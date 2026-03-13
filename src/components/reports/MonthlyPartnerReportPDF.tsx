@@ -145,9 +145,14 @@ export function MonthlyPartnerReportPDF({
   }));
 
   // Shared expenses by category
+  const formatCategoryLabel = (cat: string) => {
+    return cat.replace(/_/g, ' ').toUpperCase();
+  };
+
   const sharedByCategory: Record<string, { items: typeof data.sharedExpenses; total: number }> = {};
   (data.sharedExpenses || []).forEach(e => {
-    const cat = e.category || e.expense_type || "Outros";
+    const rawCat = e.category || e.expense_type || "Outros";
+    const cat = formatCategoryLabel(rawCat);
     if (!sharedByCategory[cat]) sharedByCategory[cat] = { items: [], total: 0 };
     sharedByCategory[cat].items.push(e);
     sharedByCategory[cat].total += e.total_amount;
@@ -204,36 +209,20 @@ export function MonthlyPartnerReportPDF({
           </div>
         </div>
 
-        {/* CARDS DE RESUMO */}
-        <div className="grid grid-cols-4 gap-4 mb-6" style={{ breakInside: "avoid" }}>
-          {[
-            { label: "Horas Voadas", value: `${totalFlightHours.toFixed(1)}h`, sub: `${data.flights.length} voos` },
-            { label: "Combustível", value: `${totalFuelLiters.toFixed(0)}L`, sub: fmt(totalFuelValue) },
-            { label: "Despesas Operacionais", value: fmt(totalExpenses), sub: "Atribuídas a Sócios" },
-            { label: "Custo Operacional Total", value: fmt(totalFuelValue + totalExpenses + totalTravelReports + totalSharedExpenses), sub: "Inclui conta compartilhada" },
-          ].map((card) => (
-            <div key={card.label} className="bg-gray-50 rounded-xl p-5 border border-gray-200 shadow-sm">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{card.label}</p>
-              <p className="text-xl font-black text-[#1a1a2e]">{card.value}</p>
-              <p className="text-[10px] font-semibold text-blue-600">{card.sub}</p>
+        {/* CARD DE RESUMO - apenas horas voadas */}
+        <div className="grid grid-cols-2 gap-4 mb-8" style={{ breakInside: "avoid" }}>
+          <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 shadow-sm">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Horas Voadas</p>
+            <p className="text-xl font-black text-[#1a1a2e]">{totalFlightHours.toFixed(1)}h</p>
+            <p className="text-[10px] font-semibold text-blue-600">{data.flights.length} voos</p>
+          </div>
+          {hourlyRate > 0 && (
+            <div className="bg-gray-50 rounded-xl p-5 border border-gray-200 shadow-sm">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Preço Hora Voo</p>
+              <p className="text-xl font-black text-[#1a1a2e]">{fmt(hourlyRate)}</p>
+              <p className="text-[10px] font-semibold text-blue-600">valor/hora</p>
             </div>
-          ))}
-        </div>
-
-        {/* MÉDIAS E INDICADORES */}
-        <div className="grid grid-cols-5 gap-3 mb-8" style={{ breakInside: "avoid" }}>
-          {[
-            { label: "Média Combustível/L", value: fmt(avgFuelPerLiter) },
-            { label: "Combustível/Hora", value: fmt(avgFuelPerHour) },
-            { label: "Despesa/Hora", value: fmt(avgExpPerHour) },
-            { label: "Custo Total/Hora", value: fmt(costPerHour) },
-            { label: "Preço Hora Voo", value: hourlyRate > 0 ? fmt(hourlyRate) : "—" },
-          ].map((item) => (
-            <div key={item.label} className="bg-blue-50 rounded-lg p-3 border border-blue-100 text-center">
-              <p className="text-[9px] font-bold text-blue-400 uppercase tracking-widest mb-1">{item.label}</p>
-              <p className="text-base font-black text-[#1a1a2e]">{item.value}</p>
-            </div>
-          ))}
+          )}
         </div>
 
         {/* TABELA RESUMO POR SÓCIO */}
@@ -358,18 +347,33 @@ export function MonthlyPartnerReportPDF({
           </div>
 
           {/* KPIs rápidos do sócio */}
-          <div className="grid grid-cols-6 gap-3 mb-6" style={{ breakInside: "avoid" }}>
+          <div className="grid grid-cols-4 gap-3 mb-4" style={{ breakInside: "avoid" }}>
             {[
-              { label: "Horas", value: `${pd.hours.toFixed(1)}h` },
-              { label: "Combustível", value: fmt(pd.fuelTotal) },
-              { label: "Média Comb./h", value: pd.hours > 0 ? fmt(pd.fuelTotal / pd.hours) : "—" },
-              { label: "Despesas", value: fmt(pd.expTotal) },
-              { label: "Viagens", value: fmt(pd.travelTotal) },
-              { label: "Total", value: fmt(pd.fuelTotal + pd.expTotal + pd.travelTotal) },
+              { label: "Horas Voadas", value: `${pd.hours.toFixed(1)}h` },
+              { label: "Combustível", value: `${pd.fuelLiters.toFixed(0)}L`, sub: fmt(pd.fuelTotal) },
+              { label: "Despesas Operacionais", value: fmt(pd.expTotal) },
+              { label: "Custo Total", value: fmt(pd.fuelTotal + pd.expTotal + pd.travelTotal) },
             ].map(k => (
-              <div key={k.label} className="bg-gray-50 rounded-lg p-2 border border-gray-200 text-center">
-                <p className="text-[9px] font-bold text-gray-400 uppercase">{k.label}</p>
-                <p className="text-sm font-black text-[#1a1a2e]">{k.value}</p>
+              <div key={k.label} className="bg-gray-50 rounded-lg p-3 border border-gray-200 text-center">
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{k.label}</p>
+                <p className="text-base font-black text-[#1a1a2e]">{k.value}</p>
+                {'sub' in k && k.sub && <p className="text-[10px] font-semibold text-blue-600">{k.sub}</p>}
+              </div>
+            ))}
+          </div>
+
+          {/* Médias individuais do sócio */}
+          <div className="grid grid-cols-5 gap-3 mb-6" style={{ breakInside: "avoid" }}>
+            {[
+              { label: "Média Combustível/L", value: pd.fuelLiters > 0 ? fmt(pd.fuelTotal / pd.fuelLiters) : "—" },
+              { label: "Combustível/Hora", value: pd.hours > 0 ? fmt(pd.fuelTotal / pd.hours) : "—" },
+              { label: "Despesa/Hora", value: pd.hours > 0 ? fmt(pd.expTotal / pd.hours) : "—" },
+              { label: "Custo Total/Hora", value: pd.hours > 0 ? fmt((pd.fuelTotal + pd.expTotal + pd.travelTotal) / pd.hours) : "—" },
+              { label: "Viagens", value: fmt(pd.travelTotal) },
+            ].map(item => (
+              <div key={item.label} className="bg-blue-50 rounded-lg p-2 border border-blue-100 text-center">
+                <p className="text-[9px] font-bold text-blue-400 uppercase tracking-widest mb-1">{item.label}</p>
+                <p className="text-sm font-black text-[#1a1a2e]">{item.value}</p>
               </div>
             ))}
           </div>
@@ -435,7 +439,7 @@ export function MonthlyPartnerReportPDF({
                   <tr key={e.id} className={i % 2 === 0 ? "bg-white" : "bg-[#f8fafc]"}>
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.due_date ? fmtDate(e.due_date) : "—"}</td>
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0] max-w-[200px] truncate">{e.description}</td>
-                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.category || e.expense_type}</td>
+                    <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{formatCategoryLabel(e.category || e.expense_type || '')}</td>
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.payment_method || "—"}</td>
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0]">{e.bank_name || "—"}</td>
                     <td className="px-2 py-1.5 border-b border-[#e2e8f0] font-medium text-[#ef4444]">{fmt(e.total_amount)}</td>
@@ -466,6 +470,57 @@ export function MonthlyPartnerReportPDF({
           </div>
         </div>
       )}
+
+      {/* ===== RESUMO MENSAL CONSOLIDADO ===== */}
+      <div className="p-8" style={{ pageBreakBefore: "always" }}>
+        <div className="flex items-center justify-between border-b-2 border-[#1a1a2e] pb-2 mb-6">
+          <div>
+            <h2 className="text-2xl font-black text-[#1a1a2e] uppercase">Resumo Mensal Consolidado</h2>
+            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Total Geral — {monthLabelUpper}/{yearShort}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-6" style={{ breakInside: "avoid" }}>
+          <div className="bg-emerald-50 rounded-xl p-6 border border-emerald-200 text-center">
+            <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-2">Total de Entradas</p>
+            <p className="text-2xl font-black text-emerald-700">
+              {fmt(partnerData.reduce((s, pd) => {
+                const partnerDeposits = data.flights
+                  .filter(f => f.is_equal_split || f.client_partner_id === pd.partner.id)
+                  .reduce((sum, f) => sum + (f.total_time || 0) * hourlyRate / (f.is_equal_split ? data.partners.length : 1), 0);
+                return s + partnerDeposits;
+              }, 0) || 0)}
+            </p>
+          </div>
+          <div className="bg-red-50 rounded-xl p-6 border border-red-200 text-center">
+            <p className="text-[10px] font-bold text-red-600 uppercase tracking-widest mb-2">Total de Saídas</p>
+            <p className="text-2xl font-black text-red-700">
+              {fmt(totalFuelValue + totalExpenses + totalTravelReports + totalSharedExpenses)}
+            </p>
+          </div>
+          <div className="bg-blue-50 rounded-xl p-6 border border-blue-200 text-center">
+            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-2">Saldo do Mês</p>
+            <p className={`text-2xl font-black ${
+              (() => {
+                const totalOut = totalFuelValue + totalExpenses + totalTravelReports + totalSharedExpenses;
+                const totalIn = partnerData.reduce((s, pd) => s + pd.fuelTotal + pd.expTotal + pd.travelTotal, 0);
+                return totalIn >= totalOut ? "text-emerald-700" : "text-red-700";
+              })()
+            }`}>
+              {(() => {
+                const totalOut = totalFuelValue + totalExpenses + totalTravelReports + totalSharedExpenses;
+                return fmt(-totalOut);
+              })()}
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-8 pt-4 border-t border-gray-100 flex justify-between items-center text-[9px] text-gray-400 font-bold uppercase">
+          <span>Share Brasil - Gestão Compartilhada</span>
+          <span>Resumo Consolidado</span>
+        </div>
+      </div>
     </div>
   );
 }

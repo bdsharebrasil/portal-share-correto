@@ -897,7 +897,6 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         corrective_actions: newEntry.corrective_actions || null,
         confirmed: isEdit ? (oldEntry?.confirmed || false) : false,
         daily_rate: dailyValue,
-        diarias: dailyCount > 0 ? dailyCount : null,
         trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`
       };
 

@@ -780,15 +780,7 @@ export default function RelatorioViagem() {
                 .update({ pdf_url: pdfUrl })
                 .eq('id', savedReport.id);
 
-              toast.success(`✅ PDF gerado! URL copiada para a área de transferência`, {
-                action: {
-                  label: 'Copiar novamente',
-                  onClick: () => {
-                    navigator.clipboard.writeText(pdfUrl);
-                    toast.success('URL copiada!');
-                  }
-                }
-              });
+              // PDF gerado com sucesso - URL será copiada automaticamente
               navigator.clipboard.writeText(pdfUrl).catch(err => {
                 console.warn('Não foi possível copiar URL automaticamente:', err);
               });
@@ -810,13 +802,20 @@ export default function RelatorioViagem() {
       draftStorage.clearDraft();
       setHasSavedDraft(false);
 
-      // Se foi um INSERT bem-sucedido (novo relatório), atualizar currentReport com o novo ID
-      // para evitar erro de constraint única se o usuário tentar editar novamente
-      if (!isUpdate && savedReport?.id) {
-        setCurrentReport(prev => prev ? { ...prev, id: savedReport.id } : null);
-      } else {
+      // Sempre fechar o formulário quando o relatório for finalizado ou enviado
+      if (newStatus === 'Finalizado' || newStatus === 'Enviado') {
         setIsCreating(false);
         setCurrentReport(null);
+        setActiveTab('relatorios'); // Voltar para a aba de relatórios
+      } else {
+        // Se foi um INSERT bem-sucedido (novo relatório), atualizar currentReport com o novo ID
+        // para evitar erro de constraint única se o usuário tentar editar novamente
+        if (!isUpdate && savedReport?.id) {
+          setCurrentReport(prev => prev ? { ...prev, id: savedReport.id } : null);
+        } else {
+          setIsCreating(false);
+          setCurrentReport(null);
+        }
       }
 
       loadReports();

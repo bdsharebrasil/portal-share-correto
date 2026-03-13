@@ -73,7 +73,6 @@ export interface FlightEntry {
   sic_canac?: string;
   sic_name?: string;
   pic_name?: string;
-  diarias?: number;
   extras?: string;
   voo_para?: string;
   trecho?: string;

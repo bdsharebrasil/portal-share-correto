@@ -6,6 +6,7 @@ import { toast } from "sonner";
 export interface PartnerAccount {
   id: string;
   client_id: string;
+  client_partner_id: string | null;
   partner_cpf: string;
   partner_name: string;
   current_balance: number;
@@ -422,13 +423,20 @@ export function useAddDeposit(showToast = true) {
       let balanceAfter = 0;
 
       if (data.partnerCpf) {
-        const { data: account, error: accErr } = await supabase
+        // Try to find by client_partner_id first, fallback to CPF
+        let accountQuery = supabase
           .from("partner_accounts")
-          .select("current_balance, total_deposited")
-          .eq("client_id", data.clientId)
-          .eq("partner_cpf", data.partnerCpf)
-          .single();
+          .select("id, current_balance, total_deposited, client_partner_id")
+          .eq("client_id", data.clientId);
+        
+        // If we have a client_partner_id, prefer it
+        if ((data as any).clientPartnerId) {
+          accountQuery = accountQuery.eq("client_partner_id", (data as any).clientPartnerId);
+        } else {
+          accountQuery = accountQuery.eq("partner_cpf", data.partnerCpf);
+        }
 
+        const { data: account, error: accErr } = await accountQuery.single();
         if (accErr) throw accErr;
 
         balanceBefore = Number(account.current_balance);
@@ -440,8 +448,7 @@ export function useAddDeposit(showToast = true) {
             current_balance: balanceAfter,
             total_deposited: Number(account.total_deposited) + data.amount,
           })
-          .eq("client_id", data.clientId)
-          .eq("partner_cpf", data.partnerCpf);
+          .eq("id", account.id);
         if (updErr) throw updErr;
       } else {
         balanceAfter = data.amount;
@@ -497,7 +504,7 @@ export function usePayExpense() {
     }) => {
       const { data: account, error: accErr } = await supabase
         .from("partner_accounts")
-        .select("current_balance, total_spent")
+        .select("id, current_balance, total_spent")
         .eq("client_id", data.clientId)
         .eq("partner_cpf", data.partnerCpf)
         .single();
@@ -534,8 +541,7 @@ export function usePayExpense() {
           current_balance: balanceAfter,
           total_spent: Number(account.total_spent) + data.amount,
         })
-        .eq("client_id", data.clientId)
-        .eq("partner_cpf", data.partnerCpf);
+        .eq("id", account.id);
       if (updErr) throw updErr;
 
       const { error: expErr } = await supabase
@@ -834,7 +840,7 @@ export function useDeleteTransaction() {
         if (data.partnerCpf && data.partnerCpf !== "00000000000") {
           const { data: account, error: accErr } = await supabase
             .from("partner_accounts")
-            .select("current_balance, total_deposited, total_spent")
+            .select("id, current_balance, total_deposited, total_spent")
             .eq("client_id", data.clientId)
             .eq("partner_cpf", data.partnerCpf)
             .single();
@@ -852,8 +858,7 @@ export function useDeleteTransaction() {
           const { error: updErr } = await supabase
             .from("partner_accounts")
             .update(updates)
-            .eq("client_id", data.clientId)
-            .eq("partner_cpf", data.partnerCpf);
+            .eq("id", account.id);
           if (updErr) throw updErr;
         }
 

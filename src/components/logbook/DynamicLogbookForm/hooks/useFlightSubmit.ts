@@ -130,7 +130,6 @@ export function useFlightSubmit(
         fuel_added: parseFloat(formData.fuel_added) || 0,
         celula: parseFloat(formData.fuel_cell) || 0,
         daily_rate: finalDailyRate,
-        diarias: dailyQty > 0 ? dailyQty : null,
         distance_nm: parseFloat(formData.distance_nm) || 0,
         passengers: parseInt(passengers) || 0,
         cargo_kg: parseFloat(cargoKg) || 0,

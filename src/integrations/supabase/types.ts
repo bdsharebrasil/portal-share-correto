@@ -8074,6 +8074,7 @@ export type Database = {
         Row: {
           bank_name: string | null
           client_id: string
+          client_partner_id: string | null
           created_at: string | null
           current_balance: number | null
           id: string
@@ -8087,6 +8088,7 @@ export type Database = {
         Insert: {
           bank_name?: string | null
           client_id: string
+          client_partner_id?: string | null
           created_at?: string | null
           current_balance?: number | null
           id?: string
@@ -8100,6 +8102,7 @@ export type Database = {
         Update: {
           bank_name?: string | null
           client_id?: string
+          client_partner_id?: string | null
           created_at?: string | null
           current_balance?: number | null
           id?: string
@@ -8152,6 +8155,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "partner_accounts_client_partner_id_fkey"
+            columns: ["client_partner_id"]
+            isOneToOne: false
+            referencedRelation: "client_partners"
+            referencedColumns: ["id"]
           },
         ]
       }

@@ -437,7 +437,7 @@ export default function RelatorioMensal() {
           .single()
 
         if (error || !abastecimento) {
-          toast.error("Essa despesa não foi vinculada a um abastecimento")
+          toast.error("Esse abastecimento não está vinculado a nenhum registro")
           return
         }
 
@@ -452,7 +452,7 @@ export default function RelatorioMensal() {
         })
       } catch (err) {
         console.error("Erro ao buscar abastecimento:", err)
-        toast.error("Essa despesa não foi vinculada a um abastecimento")
+        toast.error("Esse abastecimento não está vinculado a nenhum registro")
       }
     } else if (
       tx.reference_type === "partner_expense" &&

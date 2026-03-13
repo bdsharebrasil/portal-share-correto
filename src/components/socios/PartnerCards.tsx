@@ -7,14 +7,23 @@ import { useQueryClient } from "@tanstack/react-query";
 const PARTNER_COLORS: Record<string, string> = {
   GUAVIRA: "from-emerald-500/20 to-emerald-600/10 border-emerald-500/30",
   ARMANDO: "from-blue-500/20 to-blue-600/10 border-blue-500/30",
-  DJALMA: "from-amber-500/20 to-amber-600/10 border-amber-500/30"
+  DJALMA: "from-amber-500/20 to-amber-600/10 border-amber-500/30",
+  DEJALMO: "from-amber-500/20 to-amber-600/10 border-amber-500/30"
 };
 
 const PARTNER_TEXT: Record<string, string> = {
   GUAVIRA: "text-emerald-400",
   ARMANDO: "text-blue-400",
-  DJALMA: "text-amber-400"
+  DJALMA: "text-amber-400",
+  DEJALMO: "text-amber-400"
 };
+
+const normalizePartnerName = (name: string) =>
+  name
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .trim();
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -72,11 +81,11 @@ export function PartnerCards({ accounts, transactions = [], clienteId }: Partner
           return (
             <Card
               key={acc.id}
-              className={`bg-gradient-to-br ${PARTNER_COLORS[acc.partner_name] || "from-muted/20 to-muted/10 border-muted/30"} border`}>
+              className={`bg-gradient-to-br ${PARTNER_COLORS[normalizePartnerName(acc.partner_name)] || "from-muted/20 to-muted/10 border-muted/30"} border`}>
 
               <CardContent className="p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className={`font-bold text-lg ${PARTNER_TEXT[acc.partner_name] || "text-foreground"}`}>
+                  <h3 className={`font-bold text-lg ${PARTNER_TEXT[normalizePartnerName(acc.partner_name)] || "text-foreground"}`}>
                     {acc.partner_name}
                   </h3>
                   <span className="text-xs text-muted-foreground">{acc.partner_cpf}</span>

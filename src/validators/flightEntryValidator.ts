@@ -24,7 +24,6 @@ export interface FlightEntry {
   celula?: number;
   pic_canac: string;
   sic_canac?: string;
-  diarias?: number;
   extras?: string;
   voo_para?: string;
   confirmed?: boolean;
