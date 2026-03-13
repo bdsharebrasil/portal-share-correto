@@ -116,6 +116,39 @@ export function useLinkAbastecimentoDespesa() {
 }
 
 /**
+ * Busca abastecimentos de um cliente em um período específico
+ * Usado para o relatório de sócios
+ */
+export function useAbastecimentosByPeriod(
+  clientId: string | null,
+  startDate: string,
+  endDate: string
+) {
+  return useQuery({
+    queryKey: ["abastecimentos-by-period", clientId, startDate, endDate],
+    enabled: !!clientId,
+    queryFn: async () => {
+      if (!clientId) return [];
+
+      const { data, error } = await supabase
+        .from("abastecimentos")
+        .select("*")
+        .eq("client_id", clientId)
+        .gte("data", startDate)
+        .lte("data", endDate)
+        .order("data", { ascending: false });
+
+      if (error) {
+        console.error("Erro ao carregar abastecimentos por período:", error);
+        return [];
+      }
+
+      return (data || []) as Abastecimento[];
+    },
+  });
+}
+
+/**
  * Cria um novo abastecimento
  */
 export function useCreateAbastecimento() {
