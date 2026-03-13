@@ -574,13 +574,13 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                         : "Descreva a entrada"
                     }
                     required
-                    disabled={addDeposit.isPending || !entry.entryType}
+                    disabled={addDepositWithToast.isPending || !entry.entryType}
                     className="h-12 rounded-xl border-border/70 text-sm"
                   />
                 </FormSection>
 
                 <SubmitButton
-                  loading={addDeposit.isPending}
+                  loading={addDepositWithToast.isPending}
                   disabled={!isEntryValid()}
                   label={selectedEntryType ? `Confirmar ${selectedEntryType.label}` : "Confirmar Entrada"}
                 />
@@ -643,13 +643,13 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
                     value={interest.notes}
                     onChange={(e) => setInterest((p) => ({ ...p, notes: e.target.value }))}
                     placeholder="Ex: Rendimento FacilCred Janeiro"
-                    disabled={addDeposit.isPending}
+                    disabled={addDepositWithToast.isPending}
                     className="h-12 rounded-xl border-border/70 text-sm"
                   />
                 </FormSection>
 
                 <SubmitButton
-                  loading={addDeposit.isPending}
+                  loading={addDepositWithToast.isPending}
                   disabled={!interest.amount || !interest.bankName}
                   label="Registrar Rendimento"
                   variant="interest"
