@@ -80,6 +80,13 @@ export function FuelPaymentDialog({
         receiptUrl = publicUrlData.publicUrl;
       }
 
+      // Validar comprovante obrigatório
+      if (!receiptFile && !fuelRecord.comprovante_pagamento) {
+        toast.error("É obrigatório anexar o comprovante de pagamento para dar baixa");
+        setLoading(false);
+        return;
+      }
+
       // Atualizar status do abastecimento
       const { error } = await supabase
         .from("abastecimentos")
@@ -87,6 +94,7 @@ export function FuelPaymentDialog({
           status_pagamento: "pago",
           data_pagamento: paymentDate,
           forma_pagamento: paymentMethod,
+          comprovante_pagamento: receiptUrl,
           comprovante_url: receiptUrl,
           updated_at: new Date().toISOString(),
         })

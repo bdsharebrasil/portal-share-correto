@@ -38,22 +38,30 @@ export const calculateCostPerPartner = (
 };
 
 /**
- * Calcula as horas diurnas e noturnas
- * Usa simplificação: Sunrise 06:00, Sunset 18:00
+ * @deprecated FUNÇÃO DESCONTINUADA - Usa valores hardcoded de nascer/pôr(06:00-18:00)
+ *
+ * Não use esta função! Use calculateNightTimeWithSolar() de @/utils/solarCalculationUtils
+ * que calcula os tempos com base em dados solares reais.
+ *
+ * Esta função estava causando cálculos incorretos de tempo diurno/noturno,
+ * especialmente em período de mudança de estação quando nascer/pôr não são 06:00-18:00.
  */
 export const calculateDayNightTimes = (entry: {
   dep_time: string;
   pou_time: string;
   total_time?: number;
 }) => {
+  // DESCONTINUADO: Use calculateNightTimeWithSolar() em seu lugar
+  console.warn('⚠️ calculateDayNightTimes está descontinuado. Use calculateNightTimeWithSolar() de solarCalculationUtils');
+
   if (!entry.dep_time || !entry.pou_time) {
     return { day_time: 0, night_time: 0 };
   }
 
   const flightStartMin = timeStringToMinutes(entry.dep_time);
   const flightEndMin = timeStringToMinutes(entry.pou_time);
-  const sunriseMin = 360; // 06:00
-  const sunsetMin = 1080; // 18:00
+  const sunriseMin = 360; // 06:00 - HARDCODED (ERRADO!)
+  const sunsetMin = 1080; // 18:00 - HARDCODED (ERRADO!)
 
   let nightTimeMinutes = 0;
   const flightDurationMin = (entry.total_time || 0) * 60;

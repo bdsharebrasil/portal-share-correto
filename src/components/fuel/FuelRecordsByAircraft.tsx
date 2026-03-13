@@ -51,6 +51,8 @@ interface FuelRecord {
   tipo_faturamento?: string | null;
   observacao?: string | null;
   partner_name?: string | null;
+  comprovante_pagamento?: string | null;
+  data_pagamento?: string | null;
 }
 interface FuelSupplier {
   id: string;
@@ -167,14 +169,18 @@ export function FuelRecordsByAircraft({
     comanda_file: null as File | null,
     nota_file: null as File | null,
     boleto_file: null as File | null,
+    comprovante_file: null as File | null,
     comanda_url: "",
     nota_url: "",
-    boleto_url: ""
+    boleto_url: "",
+    comprovante_url: "",
+    data_pagamento: ""
   });
   const [uploadedFiles, setUploadedFiles] = useState({
     comanda_url: "",
     nota_url: "",
-    boleto_url: ""
+    boleto_url: "",
+    comprovante_url: ""
   });
   const [viewingAttachment, setViewingAttachment] = useState<{
     url: string;
@@ -259,7 +265,7 @@ export function FuelRecordsByAircraft({
         ...prev,
         trecho,
         data: flight.entry_date,
-        litros: flight.fuel_liters?.toString() || flight.fuel_added?.toString() || prev.litros,
+        litros: flight.fuel_added?.toString() || prev.litros,
       }));
     }
   };
@@ -529,6 +535,7 @@ export function FuelRecordsByAircraft({
       let comandaUrl = uploadedFiles.comanda_url;
       let notaUrl = uploadedFiles.nota_url;
       let boletoUrl = uploadedFiles.boleto_url;
+      let comprovanteUrl = uploadedFiles.comprovante_url;
       if (formData.comanda_file && !comandaUrl) {
         comandaUrl = (await uploadFile(formData.comanda_file, "comanda")) || "";
       }
@@ -537,6 +544,20 @@ export function FuelRecordsByAircraft({
       }
       if (formData.boleto_file && !boletoUrl) {
         boletoUrl = (await uploadFile(formData.boleto_file, "boleto")) || "";
+      }
+      if (formData.comprovante_file && !comprovanteUrl) {
+        comprovanteUrl = (await uploadFile(formData.comprovante_file, "comprovante-pagamento")) || "";
+      }
+
+      // Validação: se status é "pago", precisa de comprovante e data de pagamento
+      let statusFinal = formData.status_pagamento || "em aberto";
+      if (statusFinal === "pago") {
+        const temComprovante = comprovanteUrl || (editingRecord as any)?.comprovante_pagamento;
+        const temDataPagamento = formData.data_pagamento;
+        if (!temComprovante || !temDataPagamento) {
+          toast.warning("Não é possível marcar como pago sem comprovante e data de pagamento. Salvando como 'em aberto'.");
+          statusFinal = "em aberto";
+        }
       }
 
       const dateStr = formData.data;
@@ -578,7 +599,7 @@ export function FuelRecordsByAircraft({
         valor_unitario: valorUnitario,
         abastecimento_galoes: formData.abastecimento_galoes ? parseFloat(formData.abastecimento_galoes) : null,
         abastecedor: supplierName,
-        status_pagamento: formData.status_pagamento || "em aberto",
+        status_pagamento: statusFinal,
         tipo_faturamento: formData.tipo_faturamento || null,
         observacao: observacaoFinal,
         partner_name: partnerNameValue ? partnerNameValue.replace(/^\[|\]$/g, "") : null,
@@ -586,6 +607,8 @@ export function FuelRecordsByAircraft({
         comanda_url: comandaUrl || null,
         nota_url: notaUrl || null,
         boleto_url: boletoUrl || null,
+        comprovante_pagamento: comprovanteUrl || null,
+        data_pagamento: statusFinal === "pago" ? formData.data_pagamento : null,
         criado_por: currentUserName || null,
         logbook_entry_id: (linkToLogbook && selectedFlightId) ? selectedFlightId : null,
       };
@@ -658,14 +681,18 @@ export function FuelRecordsByAircraft({
       comanda_file: null,
       nota_file: null,
       boleto_file: null,
+      comprovante_file: null,
       comanda_url: record.comanda_url || "",
       nota_url: record.nota_url || "",
-      boleto_url: record.boleto_url || ""
+      boleto_url: record.boleto_url || "",
+      comprovante_url: (record as any).comprovante_pagamento || "",
+      data_pagamento: (record as any).data_pagamento || ""
     });
     setUploadedFiles({
       comanda_url: record.comanda_url || "",
       nota_url: record.nota_url || "",
-      boleto_url: record.boleto_url || ""
+      boleto_url: record.boleto_url || "",
+      comprovante_url: (record as any).comprovante_pagamento || ""
     });
     setIsDialogOpen(true);
   };
@@ -701,14 +728,18 @@ export function FuelRecordsByAircraft({
       comanda_file: null,
       nota_file: null,
       boleto_file: null,
+      comprovante_file: null,
       comanda_url: "",
       nota_url: "",
-      boleto_url: ""
+      boleto_url: "",
+      comprovante_url: "",
+      data_pagamento: ""
     });
     setUploadedFiles({
       comanda_url: "",
       nota_url: "",
-      boleto_url: ""
+      boleto_url: "",
+      comprovante_url: ""
     });
     setEditingRecord(null);
     setLinkToLogbook(false);
@@ -1144,7 +1175,45 @@ export function FuelRecordsByAircraft({
                   </SelectContent>
                 </Select>
               </div>
+
+              {formData.status_pagamento === "pago" && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Data do Pagamento *</Label>
+                  <Input type="date" value={formData.data_pagamento} onChange={e => setFormData({
+                    ...formData,
+                    data_pagamento: e.target.value
+                  })} className="mt-1 h-9 text-sm" required />
+                </div>
+              )}
             </div>
+
+            {formData.status_pagamento === "pago" && (
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
+                <Label className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-2 block">
+                  ⚠️ Para marcar como pago, é obrigatório anexar o comprovante de pagamento e informar a data.
+                </Label>
+                <ModernFileUpload 
+                  label="Comprovante de Pagamento" 
+                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp" 
+                  onChange={file => {
+                    setFormData({
+                      ...formData,
+                      comprovante_file: file
+                    });
+                    if (!file) {
+                      setUploadedFiles({
+                        ...uploadedFiles,
+                        comprovante_url: ""
+                      });
+                    }
+                  }} 
+                  currentFile={formData.comprovante_file} 
+                  uploadedUrl={formData.comprovante_url} 
+                  disabled={isUploading} 
+                  allowedFormats={["PDF", "PNG", "JPG", "JPEG", "GIF", "WEBP"]} 
+                />
+              </div>
+            )}
 
             <div>
               <Label className="text-xs text-muted-foreground">Tipo de Faturamento</Label>

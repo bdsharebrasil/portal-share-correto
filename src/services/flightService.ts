@@ -9,7 +9,6 @@ import {
 import {
   calculateBlockTime,
   calculateFlightTime,
-  calculateDayNightTimes,
   calculateDailyAllowanceForEntry,
 } from '@/utils/calculationUtils';
 import { updateCrewFlightHours } from '@/services/crewFlightHours';
@@ -79,18 +78,12 @@ export class FlightService {
   ): FlightEntry {
     const blockTime = calculateBlockTime(entry.ac_time, entry.cor_time);
     const flightTime = calculateFlightTime(entry.dep_time, entry.pou_time);
-    const { day_time, night_time } = calculateDayNightTimes({
-      dep_time: entry.dep_time,
-      pou_time: entry.pou_time,
-      total_time: blockTime,
-    });
 
     return {
       ...entry,
       total_time: blockTime,
       time: flightTime,
-      day_time,
-      night_time: night_time,
+      // day_time e night_time já foram calculados no frontend com cálculo solar correto
       aircraft_id: config.aircraftId,
     } as any;
   }

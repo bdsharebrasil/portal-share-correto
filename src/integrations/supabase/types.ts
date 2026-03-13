@@ -23,9 +23,11 @@ export type Database = {
           client_id: string | null
           comanda: string | null
           comanda_url: string | null
+          comprovante_pagamento: string | null
           created_at: string | null
           criado_por: string | null
           data: string
+          data_pagamento: string | null
           data_vencimento_boleto: string | null
           descricao: string | null
           id: string
@@ -51,9 +53,11 @@ export type Database = {
           client_id?: string | null
           comanda?: string | null
           comanda_url?: string | null
+          comprovante_pagamento?: string | null
           created_at?: string | null
           criado_por?: string | null
           data: string
+          data_pagamento?: string | null
           data_vencimento_boleto?: string | null
           descricao?: string | null
           id?: string
@@ -79,9 +83,11 @@ export type Database = {
           client_id?: string | null
           comanda?: string | null
           comanda_url?: string | null
+          comprovante_pagamento?: string | null
           created_at?: string | null
           criado_por?: string | null
           data?: string
+          data_pagamento?: string | null
           data_vencimento_boleto?: string | null
           descricao?: string | null
           id?: string
