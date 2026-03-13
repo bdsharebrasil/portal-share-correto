@@ -128,6 +128,7 @@ export default function RelatorioMensal() {
   const [showInlineReport, setShowInlineReport] = useState(false)
   const [selectedPartnerCard, setSelectedPartnerCard] = useState<string | null>(null)
   const [expandedFuels, setExpandedFuels] = useState<Set<string>>(new Set())
+  const [expandedTravelReports, setExpandedTravelReports] = useState<Set<string>>(new Set())
 
   // ========================
   // DADOS
@@ -434,6 +435,16 @@ export default function RelatorioMensal() {
       newSet.add(fuelId)
     }
     setExpandedFuels(newSet)
+  }
+
+  const toggleTravelReportExpanded = (reportId: string) => {
+    const newSet = new Set(expandedTravelReports)
+    if (newSet.has(reportId)) {
+      newSet.delete(reportId)
+    } else {
+      newSet.add(reportId)
+    }
+    setExpandedTravelReports(newSet)
   }
 
   // ========================
@@ -1095,18 +1106,27 @@ export default function RelatorioMensal() {
                           <td className="py-3 px-3 text-muted-foreground">{tx.partner_name}</td>
                           <td className="py-3 px-3">
                             <div className="flex items-center gap-2">
-                              {tx.reference_type === "abastecimento" && (
+                              {(tx.reference_type === "abastecimento" || tx.reference_type === "travel_expense_report") && (
                                 <Button
                                   size="sm"
                                   variant="ghost"
                                   className="h-6 w-6 p-0"
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    toggleFuelExpanded(tx.reference_id)
+                                    if (tx.reference_type === "abastecimento") {
+                                      toggleFuelExpanded(tx.reference_id)
+                                    } else if (tx.reference_type === "travel_expense_report") {
+                                      toggleTravelReportExpanded(tx.reference_id)
+                                    }
                                   }}
-                                  title={expandedFuels.has(tx.reference_id) ? "Ocultar detalhes" : "Mostrar detalhes"}
+                                  title={
+                                    tx.reference_type === "abastecimento"
+                                      ? (expandedFuels.has(tx.reference_id) ? "Ocultar detalhes" : "Mostrar detalhes")
+                                      : (expandedTravelReports.has(tx.reference_id) ? "Ocultar detalhes" : "Mostrar detalhes")
+                                  }
                                 >
-                                  {expandedFuels.has(tx.reference_id) ? (
+                                  {(tx.reference_type === "abastecimento" && expandedFuels.has(tx.reference_id)) ||
+                                   (tx.reference_type === "travel_expense_report" && expandedTravelReports.has(tx.reference_id)) ? (
                                     <ChevronDown className="h-4 w-4 text-blue-500" />
                                   ) : (
                                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -1256,6 +1276,126 @@ export default function RelatorioMensal() {
                                         </a>
                                       )}
                                     </div>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                        {tx.reference_type === "travel_expense_report" && expandedTravelReports.has(tx.reference_id) && (
+                          <tr className={`border-b border-border/30 ${isEven ? "bg-purple-950/20" : "bg-purple-900/20"}`}>
+                            <td colSpan={12} className="py-4 px-4">
+                              <div className="bg-purple-950/30 rounded-lg p-4 border border-purple-500/20">
+                                <h5 className="text-sm font-semibold text-purple-400 mb-4 flex items-center gap-2">
+                                  <ChevronDown className="h-4 w-4" />
+                                  Detalhes do Relatório de Viagem
+                                </h5>
+
+                                {/* Informações Básicas */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 text-xs">
+                                  <div className="space-y-1">
+                                    <p className="text-muted-foreground font-semibold">Relatório</p>
+                                    <p className="text-foreground font-mono">{tx.report_number || "-"}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-muted-foreground font-semibold">Rota</p>
+                                    <p className="text-foreground">{tx.route || "-"}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-muted-foreground font-semibold">Período</p>
+                                    <p className="text-foreground text-xs">{tx.start_date ? format(new Date(tx.start_date), "dd/MM/yyyy", { locale: ptBR }) : "-"} a {tx.end_date ? format(new Date(tx.end_date), "dd/MM/yyyy", { locale: ptBR }) : "-"}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-muted-foreground font-semibold">Dias</p>
+                                    <p className="text-foreground">{tx.days_count || 0}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-muted-foreground font-semibold">Tripulação 1</p>
+                                    <p className="text-foreground text-xs">{tx.crew_member_name || "-"}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-muted-foreground font-semibold">Tripulação 2</p>
+                                    <p className="text-foreground text-xs">{tx.crew_member_name2 || "-"}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-muted-foreground font-semibold">Status</p>
+                                    <p className="text-foreground">{getStatusLabel(tx.status)}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <p className="text-muted-foreground font-semibold">Observação</p>
+                                    <p className="text-foreground text-xs truncate" title={tx.observations}>{tx.observations || "-"}</p>
+                                  </div>
+                                </div>
+
+                                {/* Valores */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-3 bg-purple-500/10 rounded-lg">
+                                  <div className="space-y-2">
+                                    <p className="text-muted-foreground font-semibold text-xs uppercase">Crew</p>
+                                    <div className="space-y-1">
+                                      <div className="flex justify-between text-xs">
+                                        <span className="text-muted-foreground">Total:</span>
+                                        <span className="font-semibold text-purple-400">{fmt(tx.total_crew || 0)}</span>
+                                      </div>
+                                      <div className="flex justify-between text-xs">
+                                        <span className="text-muted-foreground">Despendido:</span>
+                                        <span className="font-semibold text-red-400">{fmt(tx.spent_crew || 0)}</span>
+                                      </div>
+                                      <div className="border-t border-purple-500/20 pt-1 flex justify-between text-xs">
+                                        <span className="text-muted-foreground">Pendente:</span>
+                                        <span className={`font-semibold ${(tx.remaining_crew || 0) > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+                                          {fmt(tx.remaining_crew || 0)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <p className="text-muted-foreground font-semibold text-xs uppercase">Share Brasil</p>
+                                    <div className="space-y-1">
+                                      <div className="flex justify-between text-xs">
+                                        <span className="text-muted-foreground">Total:</span>
+                                        <span className="font-semibold text-purple-400">{fmt(tx.total_sharebrasil || 0)}</span>
+                                      </div>
+                                      <div className="flex justify-between text-xs">
+                                        <span className="text-muted-foreground">Despendido:</span>
+                                        <span className="font-semibold text-red-400">{fmt(tx.spent_sharebrasil || 0)}</span>
+                                      </div>
+                                      <div className="border-t border-purple-500/20 pt-1 flex justify-between text-xs">
+                                        <span className="text-muted-foreground">Pendente:</span>
+                                        <span className={`font-semibold ${(tx.remaining_sharebrasil || 0) > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+                                          {fmt(tx.remaining_sharebrasil || 0)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <p className="text-muted-foreground font-semibold text-xs uppercase">Cliente</p>
+                                    <div className="space-y-1">
+                                      <div className="flex justify-between text-xs">
+                                        <span className="text-muted-foreground">Total:</span>
+                                        <span className="font-semibold text-blue-400">{fmt(tx.total_client || 0)}</span>
+                                      </div>
+                                      <div className="text-xs text-muted-foreground pt-1">
+                                        <span>Não contabilizado</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* PDF e Ações */}
+                                {tx.pdf_url && (
+                                  <div className="mt-4 pt-4 border-t border-purple-500/20">
+                                    <p className="text-muted-foreground font-semibold mb-2">Documento</p>
+                                    <a
+                                      href={tx.pdf_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 px-4 py-2 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-md transition-colors text-sm font-medium"
+                                    >
+                                      <FileDown className="h-4 w-4" />
+                                      Baixar PDF do Relatório
+                                    </a>
                                   </div>
                                 )}
                               </div>

@@ -89,11 +89,16 @@ export interface TravelReportEntry {
   total_client: number | null;
   total_crew: number | null;
   total_sharebrasil: number | null;
+  total_crew1: number | null;
+  total_crew2: number | null;
   client_partner: string | null;
   crew_member_name: string | null;
   crew_member_name2: string | null;
+  crew_member_id: string | null;
+  crew_member_id2: string | null;
   aircraft_registration: string | null;
   observations: string | null;
+  pdf_url: string | null;
 }
 
 export interface AircraftInfo {
@@ -187,7 +192,7 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
 
         supabase
           .from("travel_expense_reports")
-          .select("id, report_number, start_date, end_date, route, days_count, status, total_amount, total_fuel, total_lodging, total_food, total_transport, total_other, total_client, total_crew, total_sharebrasil, client_partner, crew_member_name, crew_member_name2, aircraft_registration, observations")
+          .select("id, report_number, start_date, end_date, route, days_count, status, total_amount, total_fuel, total_lodging, total_food, total_transport, total_other, total_client, total_crew, total_crew1, total_crew2, total_sharebrasil, client_partner, crew_member_name, crew_member_name2, crew_member_id, crew_member_id2, aircraft_registration, observations, pdf_url")
           .eq("client_id", clientId)
           .gte("start_date", startDate)
           .lte("start_date", endDate)
