@@ -561,7 +561,7 @@ export function usePayExpense() {
   });
 }
 
-export function useCreateExpense() {
+export function useCreateExpense(showToast = true) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -750,7 +750,9 @@ export function useCreateExpense() {
       queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
       queryClient.invalidateQueries({ queryKey: ["abastecimentos"] });
       queryClient.invalidateQueries({ queryKey: ["client-abastecimentos"] });
-      toast.success("Despesa criada com sucesso!");
+      if (showToast) {
+        toast.success("Despesa criada com sucesso!");
+      }
     },
     onError: (err: any) => {
       toast.error("Erro ao criar despesa: " + err.message);
