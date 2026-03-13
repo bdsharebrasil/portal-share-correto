@@ -190,9 +190,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       ? partners.find((p) => p.cpf === form.assignedPartnerCpf)
       : null;
 
-  // when category changes away from viagem, reset link state
+  // when category changes away from DESPESA_VIAGEM, reset link state
   useEffect(() => {
-    if (form.category !== "viagem") {
+    if (form.category !== "DESPESA_VIAGEM") {
       setLinkOption(null);
       setExistingReports([]);
       setSelectedReport(null);
@@ -227,7 +227,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     e.preventDefault();
     if (!form.description || !form.totalAmount || !form.category) return;
 
-    if (form.category === "viagem" && linkOption === "existing" && !selectedReport) {
+    if (form.category === "DESPESA_VIAGEM" && linkOption === "existing" && !selectedReport) {
       toast.error("Selecione um relatório de viagem para vincular");
       return;
     }
@@ -246,7 +246,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     let referenceType: string | null = null;
     let referenceId: string | null = null;
 
-    if (form.category === "viagem") {
+    if (form.category === "DESPESA_VIAGEM") {
       if (linkOption === "existing" && selectedReport) {
         referenceType = "travel_report";
         referenceId = selectedReport.id;
@@ -410,7 +410,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   };
 
   const selectedCategory = EXPENSE_CATEGORIES.find((c) => c.id === form.category);
-  const isAbastecimento = form.category === "abastecimento";
+  const isAbastecimento = form.category === "ABASTECIMENTO";
   const isValid = !!form.description && !!form.totalAmount && !!form.category;
 
   return (
@@ -557,7 +557,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
               </FormSection>
 
               {/* ── Vincular Relatório de Viagem ── */}
-              {form.category === "viagem" && (
+              {form.category === "DESPESA_VIAGEM" && (
                 <FormSection label="Deseja vincular a um relatório de viagem?">
                   <div className="flex flex-col sm:flex-row gap-4">
                     <Button
@@ -757,7 +757,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
               </FormSection>
 
               {/* ── Impostos subtype ── */}
-              {form.category === "impostos" && (
+              {(form.category as string) === "IMPOSTOS" && (
                 <div className="rounded-2xl bg-blue-950/40 border border-blue-700/50 p-5 space-y-4">
                   <div className="flex items-center gap-2.5">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-900/60">

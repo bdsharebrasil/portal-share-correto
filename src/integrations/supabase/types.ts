@@ -24,12 +24,14 @@ export type Database = {
           comanda: string | null
           comanda_url: string | null
           created_at: string | null
+          criado_por: string | null
           data: string
           data_vencimento_boleto: string | null
           descricao: string | null
           id: string
           litros: number
           local: string
+          logbook_entry_id: string | null
           nota_url: string | null
           observacao: string | null
           partner_index: number | null
@@ -50,12 +52,14 @@ export type Database = {
           comanda?: string | null
           comanda_url?: string | null
           created_at?: string | null
+          criado_por?: string | null
           data: string
           data_vencimento_boleto?: string | null
           descricao?: string | null
           id?: string
           litros?: number
           local: string
+          logbook_entry_id?: string | null
           nota_url?: string | null
           observacao?: string | null
           partner_index?: number | null
@@ -76,12 +80,14 @@ export type Database = {
           comanda?: string | null
           comanda_url?: string | null
           created_at?: string | null
+          criado_por?: string | null
           data?: string
           data_vencimento_boleto?: string | null
           descricao?: string | null
           id?: string
           litros?: number
           local?: string
+          logbook_entry_id?: string | null
           nota_url?: string | null
           observacao?: string | null
           partner_index?: number | null
@@ -177,6 +183,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_reembolsos_pendentes"
             referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "abastecimentos_logbook_entry_id_fkey"
+            columns: ["logbook_entry_id"]
+            isOneToOne: false
+            referencedRelation: "crew_flight_history"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "abastecimentos_logbook_entry_id_fkey"
+            columns: ["logbook_entry_id"]
+            isOneToOne: false
+            referencedRelation: "logbook_entries"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -8343,6 +8363,7 @@ export type Database = {
           receipt_url: string | null
           reference_id: string | null
           reference_type: string | null
+          status: string | null
           transaction_subtype: string | null
           transaction_type: string
           updated_at: string | null
@@ -8366,6 +8387,7 @@ export type Database = {
           receipt_url?: string | null
           reference_id?: string | null
           reference_type?: string | null
+          status?: string | null
           transaction_subtype?: string | null
           transaction_type: string
           updated_at?: string | null
@@ -8389,6 +8411,7 @@ export type Database = {
           receipt_url?: string | null
           reference_id?: string | null
           reference_type?: string | null
+          status?: string | null
           transaction_subtype?: string | null
           transaction_type?: string
           updated_at?: string | null
@@ -10225,6 +10248,7 @@ export type Database = {
           client_id: string | null
           client_partner: string | null
           created_at: string | null
+          created_by: string | null
           crew: string | null
           crew_member_id: string | null
           crew_member_id2: string | null
@@ -10259,6 +10283,7 @@ export type Database = {
           client_id?: string | null
           client_partner?: string | null
           created_at?: string | null
+          created_by?: string | null
           crew?: string | null
           crew_member_id?: string | null
           crew_member_id2?: string | null
@@ -10293,6 +10318,7 @@ export type Database = {
           client_id?: string | null
           client_partner?: string | null
           created_at?: string | null
+          created_by?: string | null
           crew?: string | null
           crew_member_id?: string | null
           crew_member_id2?: string | null

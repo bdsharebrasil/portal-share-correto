@@ -7,7 +7,7 @@ const AIS_API_BASE_URL =
   (import.meta.env.DEV ? '/api' : 'https://api-workers.sharebrasil.workers.dev');
 
 // Configuração de timeout para fetch
-const FETCH_TIMEOUT_MS = 8000; // 8 segundos
+const FETCH_TIMEOUT_MS = 15000; // 15 segundos (cold start do Worker + AISWEB lento)
 
 // Helper para fetch com timeout
 async function fetchWithTimeout(url: string, options: RequestInit = {}) {

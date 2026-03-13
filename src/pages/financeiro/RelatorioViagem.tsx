@@ -48,6 +48,7 @@ type TravelReport = {
   status: 'Rascunho' | 'Finalizado' | 'Enviado';
   pdf_url?: string;
   created_at?: string;
+  created_by?: string;
   updated_at?: string;
 };
 
@@ -395,15 +396,28 @@ export default function RelatorioViagem() {
         total_sharebrasil: correctedTotals.total_sharebrasil,
         valor_total: correctedTotals.total_amount
       };
-      const { data: { user } } = await supabase.auth.getUser();
+
+      // Use report creator's name instead of current user
       let userName = 'Usuário';
-      if (user?.id) {
-        const { data: profile } = await supabase
+      const reportCreatedBy = reportWithDetails.created_by;
+      if (reportCreatedBy) {
+        const { data: creatorProfile } = await supabase
           .from('user_profiles')
           .select('full_name')
-          .eq('id', user.id)
+          .eq('id', reportCreatedBy)
           .single();
-        if (profile?.full_name) userName = profile.full_name;
+        if (creatorProfile?.full_name) userName = creatorProfile.full_name;
+      } else {
+        // Fallback to current user if created_by is null (old reports)
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.id) {
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('full_name')
+            .eq('id', user.id)
+            .single();
+          if (profile?.full_name) userName = profile.full_name;
+        }
       }
       await previewPDFForPrint(pdfReport, userName);
     } catch (error) {
@@ -454,7 +468,10 @@ export default function RelatorioViagem() {
         }
       }
 
-      const reportDataToSave = {
+      // Get current user for created_by
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const reportDataToSave: any = {
         report_number: reportNumber,
         client_id: reportData.client_id || null,
         client_partner: reportData.client_partner || null,
@@ -483,6 +500,11 @@ export default function RelatorioViagem() {
         status: newStatus,
         updated_at: new Date().toISOString()
       };
+
+      // Only set created_by on new inserts
+      if (!isUpdate && user?.id) {
+        reportDataToSave.created_by = user.id;
+      }
 
       let savedReport: any;
 
@@ -727,8 +749,19 @@ export default function RelatorioViagem() {
               valor_total: recalculatedTotals.total_amount
             };
 
+            // Get creator name for PDF
+            let pdfUserName = 'Usuário';
+            if (user?.id) {
+              const { data: creatorProfile } = await supabase
+                .from('user_profiles')
+                .select('full_name')
+                .eq('id', user.id)
+                .single();
+              if (creatorProfile?.full_name) pdfUserName = creatorProfile.full_name;
+            }
+
             const { generatePDF } = await import('@/lib/travelReportPDF');
-            const pdfBlob = await generatePDF(pdfData);
+            const pdfBlob = await generatePDF(pdfData, pdfUserName);
 
             const pdfFileName = `${savedReport.report_number.replace(/\//g, '-')}-${Date.now()}.pdf`;
             const pdfPath = `reports/${pdfFileName}`;

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Download, Edit, Trash2, ChevronLeft, Plane, TrendingUp, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign } from "lucide-react";
+import { Plus, Download, Edit, Trash2, ChevronLeft, Plane, TrendingUp, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign, BookOpen } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -121,6 +123,7 @@ export function FuelRecordsByAircraft({
   onBack,
   selectedAbastecimentoId
 }: Props) {
+  const { user } = useAuth();
   const [records, setRecords] = useState<FuelRecord[]>([]);
   const [suppliers, setSuppliers] = useState<FuelSupplier[]>([]);
   const [allClients, setAllClients] = useState<Client[]>([]);
@@ -131,7 +134,16 @@ export function FuelRecordsByAircraft({
   const [isUploading, setIsUploading] = useState(false);
   const [filterMonth, setFilterMonth] = useState<string>("");
   const [filterYear, setFilterYear] = useState<string>(new Date().getFullYear().toString());
+  const [filterPartner, setFilterPartner] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Logbook flight linking state
+  const [linkToLogbook, setLinkToLogbook] = useState(false);
+  const [logbookFlights, setLogbookFlights] = useState<any[]>([]);
+  const [selectedFlightId, setSelectedFlightId] = useState<string>("");
+  const [loadingFlights, setLoadingFlights] = useState(false);
+  const [currentUserName, setCurrentUserName] = useState<string>("");
+
   const [formData, setFormData] = useState({
     data: "",
     trecho: "",
@@ -164,6 +176,88 @@ export function FuelRecordsByAircraft({
     name: string;
   } | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+
+  // Load current user name for criado_por
+  useEffect(() => {
+    const loadUserName = async () => {
+      if (!user?.id) return;
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single();
+      if (data?.full_name) setCurrentUserName(data.full_name);
+    };
+    loadUserName();
+  }, [user?.id]);
+
+  // Load logbook flights when linking is enabled
+  useEffect(() => {
+    if (linkToLogbook && aircraft.id) {
+      loadLogbookFlights();
+    }
+  }, [linkToLogbook, aircraft.id, formData.client_id]);
+
+  const loadLogbookFlights = async () => {
+    setLoadingFlights(true);
+    try {
+      // Get IDs of flights already linked to abastecimentos
+      const { data: linkedAbast } = await supabase
+        .from('abastecimentos')
+        .select('logbook_entry_id')
+        .eq('aeronave_id', aircraft.id)
+        .not('logbook_entry_id', 'is', null);
+
+      const linkedIds = (linkedAbast || []).map(a => a.logbook_entry_id).filter(Boolean);
+
+      // Get flights with fuel_added > 0 for this aircraft
+      let query = supabase
+        .from('logbook_entries')
+        .select('id, entry_date, departure_aerodrome, arrival_aerodrome, trecho, fuel_added, fuel_liters, client_id, total_time')
+        .eq('aircraft_id', aircraft.id)
+        .gt('fuel_added', 0)
+        .order('entry_date', { ascending: false })
+        .limit(50);
+
+      // Filter by client if selected
+      const effectiveClientId = formData.client_id || client.id;
+      if (effectiveClientId) {
+        query = query.eq('client_id', effectiveClientId);
+      }
+
+      const { data: flights, error } = await query;
+
+      if (error) {
+        console.error('Error loading logbook flights:', error);
+        setLogbookFlights([]);
+        return;
+      }
+
+      // Filter out already linked flights
+      const availableFlights = (flights || []).filter(f => !linkedIds.includes(f.id));
+      setLogbookFlights(availableFlights);
+    } catch (err) {
+      console.error('Error loading logbook flights:', err);
+      setLogbookFlights([]);
+    } finally {
+      setLoadingFlights(false);
+    }
+  };
+
+  const handleFlightSelect = (flightId: string) => {
+    setSelectedFlightId(flightId);
+    const flight = logbookFlights.find(f => f.id === flightId);
+    if (flight) {
+      const trecho = flight.trecho || `${flight.departure_aerodrome} → ${flight.arrival_aerodrome}`;
+      setFormData(prev => ({
+        ...prev,
+        trecho,
+        data: flight.entry_date,
+        litros: flight.fuel_liters?.toString() || flight.fuel_added?.toString() || prev.litros,
+      }));
+    }
+  };
+
   useEffect(() => {
     loadRecords();
     loadSuppliers();
@@ -304,15 +398,28 @@ export function FuelRecordsByAircraft({
   };
 
   const getFilteredRecords = () => {
-    if (!filterMonth || !filterYear) {
-      return records;
+    let filtered = records;
+    
+    // Filter by partner
+    if (filterPartner && filterPartner !== "all") {
+      if (filterPartner === "__no_partner__") {
+        filtered = filtered.filter(record => !record.partner_name);
+      } else {
+        filtered = filtered.filter(record => record.partner_name === filterPartner);
+      }
     }
-    return records.filter(record => {
-      const recordDate = new Date(record.data);
-      const recordMonth = (recordDate.getMonth() + 1).toString().padStart(2, '0');
-      const recordYear = recordDate.getFullYear().toString();
-      return recordMonth === filterMonth && recordYear === filterYear;
-    });
+    
+    // Filter by month/year
+    if (filterMonth && filterYear) {
+      filtered = filtered.filter(record => {
+        const recordDate = new Date(record.data);
+        const recordMonth = (recordDate.getMonth() + 1).toString().padStart(2, '0');
+        const recordYear = recordDate.getFullYear().toString();
+        return recordMonth === filterMonth && recordYear === filterYear;
+      });
+    }
+    
+    return filtered;
   };
   const filteredRecords = getFilteredRecords();
   const itemsPerPage = 10;
@@ -438,7 +545,7 @@ export function FuelRecordsByAircraft({
         else if (formData.client_id.includes('-partner3')) partnerIndex = 3;
       }
 
-      const recordData = {
+      const recordData: any = {
         client_id: client.id,
         aeronave_id: aircraft.id,
         data: isoDateString,
@@ -456,7 +563,9 @@ export function FuelRecordsByAircraft({
         partner_index: partnerIndex,
         comanda_url: comandaUrl || null,
         nota_url: notaUrl || null,
-        boleto_url: boletoUrl || null
+        boleto_url: boletoUrl || null,
+        criado_por: currentUserName || null,
+        logbook_entry_id: (linkToLogbook && selectedFlightId) ? selectedFlightId : null,
       };
 
       if (editingRecord) {
@@ -580,35 +689,101 @@ export function FuelRecordsByAircraft({
       boleto_url: ""
     });
     setEditingRecord(null);
+    setLinkToLogbook(false);
+    setSelectedFlightId("");
+    setLogbookFlights([]);
   };
+  const MONTHS_PT = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
   const handleExportPDF = () => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
-    const content = printRef.current?.innerHTML || "";
+
+    // Use filtered records for export
+    const exportRecords = getFilteredRecords();
+    const monthLabel = filterMonth ? MONTHS_PT[parseInt(filterMonth) - 1] : "Todos os meses";
+    const yearLabel = filterYear || new Date().getFullYear().toString();
+    const partnerLabel = filterPartner === "all" ? "" : filterPartner === "__no_partner__" ? " - Sem sócio" : ` - ${filterPartner}`;
+    const periodLabel = filterMonth ? `${monthLabel} / ${yearLabel}` : yearLabel;
+
+    const totalLitros = exportRecords.reduce((sum, r) => sum + r.litros, 0);
+    const totalValue = exportRecords.reduce((sum, r) => sum + r.valor_total, 0);
+
+    const rowsHtml = exportRecords.map(r => `
+      <tr>
+        <td>${formatDateBrazil(r.data, "dd/MM/yyyy")}</td>
+        <td>${r.trecho || "-"}</td>
+        <td>${r.local || "-"}</td>
+        <td>${r.comanda || "-"}</td>
+        <td>${r.partner_name || "-"}</td>
+        <td class="text-right">${r.litros.toFixed(2)}</td>
+        <td class="text-right">R$ ${r.valor_unitario.toFixed(2)}</td>
+        <td class="text-right">R$ ${r.valor_total.toFixed(2)}</td>
+        <td class="text-right">${r.abastecimento_galoes?.toFixed(2) || "-"}</td>
+      </tr>
+    `).join("");
+
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Controle de Abastecimento - ${client.company_name} - ${aircraft.registration}</title>
+          <title>Controle de Abastecimento - ${client.company_name} - ${aircraft.registration} - ${periodLabel}</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; }
             .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
-            .logo { max-width: 150px; }
+            .logo { max-width: 150px; max-height: 80px; object-fit: contain; }
             .title { text-align: center; flex: 1; }
-            .title h1 { margin: 0; font-size: 24px; }
-            .title p { margin: 5px 0; color: #666; }
-            .year { text-align: right; font-size: 20px; font-weight: bold; }
+            .title h1 { margin: 0; font-size: 22px; }
+            .title p { margin: 4px 0; color: #666; font-size: 14px; }
+            .period { text-align: right; font-size: 16px; font-weight: bold; color: #333; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 11px; }
             th { background-color: #f4f4f4; font-weight: bold; }
             .text-right { text-align: right; }
+            .totals { margin-top: 20px; font-size: 13px; }
+            .totals td { font-weight: bold; background-color: #f9f9f9; }
             @media print {
               body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
             }
           </style>
         </head>
         <body>
-          ${content}
+          <div class="header">
+            <img src="/logo.share.png" alt="Logo" class="logo" />
+            <div class="title">
+              <h1>CONTROLE DE COMBUSTÍVEL</h1>
+              <p>${client.company_name}</p>
+              <p>${aircraft.registration}${partnerLabel}</p>
+            </div>
+            <div class="period">${periodLabel}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>DATA</th>
+                <th>TRECHOS</th>
+                <th>LOCAL ABAST</th>
+                <th>COMANDA</th>
+                <th>SÓCIO</th>
+                <th class="text-right">LITROS</th>
+                <th class="text-right">VALOR LITRO</th>
+                <th class="text-right">VALOR TOTAL</th>
+                <th class="text-right">GALÕES</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+            <tfoot class="totals">
+              <tr>
+                <td colspan="5" class="text-right">TOTAIS</td>
+                <td class="text-right">${totalLitros.toFixed(2)}</td>
+                <td></td>
+                <td class="text-right">R$ ${totalValue.toFixed(2)}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
         </body>
       </html>
     `);
@@ -678,7 +853,28 @@ export function FuelRecordsByAircraft({
     </div>}
 
     <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
+        <div>
+          <Label className="text-xs font-semibold text-muted-foreground">Filtrar por Sócio</Label>
+          <Select value={filterPartner} onValueChange={value => {
+            setFilterPartner(value);
+            setCurrentPage(1);
+          }}>
+            <SelectTrigger className="mt-1 h-9 text-sm">
+              <SelectValue placeholder="Todos os sócios" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="__no_partner__">Sem sócio (Cliente)</SelectItem>
+              {(() => {
+                const uniquePartners = Array.from(new Set(records.map(r => r.partner_name).filter(Boolean))) as string[];
+                return uniquePartners.map(name => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ));
+              })()}
+            </SelectContent>
+          </Select>
+        </div>
         <div>
           <Label className="text-xs font-semibold text-muted-foreground">Filtrar por Mês</Label>
           <Select value={filterMonth} onValueChange={value => {
@@ -724,9 +920,10 @@ export function FuelRecordsByAircraft({
           </Select>
         </div>
       </div>
-      {(filterMonth || filterYear !== new Date().getFullYear().toString()) && <Button variant="outline" size="sm" onClick={() => {
+      {(filterMonth || filterYear !== new Date().getFullYear().toString() || filterPartner !== "all") && <Button variant="outline" size="sm" onClick={() => {
         setFilterMonth("");
         setFilterYear(new Date().getFullYear().toString());
+        setFilterPartner("all");
         setCurrentPage(1);
       }} className="h-9 text-sm">
         Limpar Filtros
@@ -808,6 +1005,59 @@ export function FuelRecordsByAircraft({
                 </div>}
               </div>
             </div>
+
+            {/* ── Vincular ao Diário de Bordo ── */}
+            {!editingRecord && (
+              <div className="rounded-lg border border-border/50 p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    id="link-logbook"
+                    checked={linkToLogbook}
+                    onCheckedChange={(checked) => {
+                      setLinkToLogbook(!!checked);
+                      if (!checked) {
+                        setSelectedFlightId("");
+                        setLogbookFlights([]);
+                      }
+                    }}
+                  />
+                  <Label htmlFor="link-logbook" className="text-sm font-semibold cursor-pointer flex items-center gap-2">
+                    <BookOpen className="h-4 w-4 text-primary" />
+                    Vincular a um registro no Diário de Bordo?
+                  </Label>
+                </div>
+
+                {linkToLogbook && (
+                  <div className="pl-7 space-y-2">
+                    {loadingFlights ? (
+                      <p className="text-xs text-muted-foreground">Carregando voos...</p>
+                    ) : logbookFlights.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Nenhum voo com abastecimento não vinculado encontrado</p>
+                    ) : (
+                      <Select value={selectedFlightId} onValueChange={handleFlightSelect}>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Selecione um voo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {logbookFlights.map((flight) => (
+                            <SelectItem key={flight.id} value={flight.id} className="py-2">
+                              <div className="text-sm">
+                                <span className="font-medium">{flight.entry_date}</span>
+                                {' · '}
+                                <span>{flight.trecho || `${flight.departure_aerodrome} → ${flight.arrival_aerodrome}`}</span>
+                                {flight.fuel_added && (
+                                  <span className="text-muted-foreground"> · {flight.fuel_added}L</span>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div>
               <Label className="text-sm font-semibold mb-2 block">Rota</Label>
@@ -1006,46 +1256,6 @@ export function FuelRecordsByAircraft({
       </Button>
     </div>
 
-    <div style={{
-      display: "none"
-    }}>
-      <div ref={printRef}>
-        <div className="header">
-          <img src="/placeholder.svg" alt="Logo" className="logo" />
-          <div className="title">
-            <h1>CONTROLE DE COMBUSTÍVEL</h1>
-            <p>{client.company_name}</p>
-            <p>{aircraft.registration}</p>
-          </div>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>DATA</th>
-              <th>TRECHOS</th>
-              <th>LOCAL ABAST</th>
-              <th>COMANDA</th>
-              <th className="text-right">ABAST. LITROS</th>
-              <th className="text-right">VALOR LITRO</th>
-              <th className="text-right">VALOR TOTAL</th>
-              <th className="text-right">ABASTECIMENTO GALÕES</th>
-            </tr>
-          </thead>
-          <tbody>
-            {records.map(record => <tr key={record.id}>
-              <td>{formatDateBrazil(record.data, "dd/MM/yyyy")}</td>
-              <td>{record.trecho || "-"}</td>
-              <td>{record.local || "-"}</td>
-              <td>{record.comanda}</td>
-              <td className="text-right">{record.litros.toFixed(2)}</td>
-              <td className="text-right">R$ {record.valor_unitario.toFixed(2)}</td>
-              <td className="text-right">R$ {record.valor_total.toFixed(2)}</td>
-              <td className="text-right">{record.abastecimento_galoes?.toFixed(2) || "-"}</td>
-            </tr>)}
-          </tbody>
-        </table>
-      </div>
-    </div>
 
     <Card className="border border-border/50 shadow-card">
       <CardContent className="p-0">
