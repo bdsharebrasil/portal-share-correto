@@ -1039,8 +1039,7 @@ export function FuelRecordsByAircraft({
             </div>
 
             {/* ── Vincular ao Diário de Bordo ── */}
-            {!editingRecord && (
-              <div className="rounded-lg border border-border/50 p-4 space-y-3">
+            <div className="rounded-lg border border-border/50 p-4 space-y-3">
                 <div className="flex items-center gap-3">
                   <Checkbox
                     id="link-logbook"
@@ -1089,7 +1088,6 @@ export function FuelRecordsByAircraft({
                   </div>
                 )}
               </div>
-            )}
 
             <div>
               <Label className="text-sm font-semibold mb-2 block">Rota</Label>
