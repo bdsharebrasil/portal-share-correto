@@ -340,12 +340,11 @@ export default function ManutencaoAeronave() {
                       <label className="text-sm font-medium text-white">Oficina</label>
                       <SearchableCombobox
                         items={oficinas.map(o => ({
-                          value: o.id,
-                          label: o.razao_social,
-                          description: o.endereco || ''
+                          id: o.id,
+                          label: o.razao_social
                         }))}
                         value={newManutencao.oficinaSelecionada}
-                        onValueChange={(value) => setNewManutencao({...newManutencao, oficinaSelecionada: value})}
+                        onChange={(id) => setNewManutencao({...newManutencao, oficinaSelecionada: id})}
                         placeholder="Selecione uma oficina..."
                         searchPlaceholder="Buscar oficina..."
                         emptyMessage="Nenhuma oficina encontrada"
