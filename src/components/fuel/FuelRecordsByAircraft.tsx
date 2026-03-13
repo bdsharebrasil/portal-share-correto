@@ -460,10 +460,17 @@ export function FuelRecordsByAircraft({
   const filteredTotalRecords = filteredRecords.length;
   const filteredTotalLitros = filteredRecords.reduce((sum, r) => sum + r.litros, 0);
   const filteredTotalValue = filteredRecords.reduce((sum, r) => sum + r.valor_total, 0);
+  const getFileExtension = (file: File): string => {
+    const name = file.name.toLowerCase();
+    const ext = name.split('.').pop() || '';
+    return ext;
+  };
+
   const uploadFile = async (file: File | null, fieldName: string): Promise<string | null> => {
     if (!file) return null;
     try {
       const timestamp = Date.now();
+      const extension = getFileExtension(file);
       const sanitizedFileName = file.name
         .replace(/[^a-zA-Z0-9.\-_]/g, "_")
         .substring(0, 100);
@@ -480,13 +487,31 @@ export function FuelRecordsByAircraft({
       const {
         data
       } = supabase.storage.from("abastecimento").getPublicUrl(fileName);
-      return data.publicUrl;
+      // Store extension with URL using a separator
+      return `${data.publicUrl}||${extension}`;
     } catch (err: any) {
       const errorMessage = getErrorMessage(err);
       toast.error(`Erro de upload - ${fieldName}: ${errorMessage}`);
       console.error(`Upload exception for ${fieldName}:`, err);
       return null;
     }
+  };
+
+  const parseFileUrl = (urlWithExt: string | null | undefined, fieldName?: string): { url: string; extension: string } => {
+    if (!urlWithExt) return { url: '', extension: '' };
+    const parts = urlWithExt.split('||');
+    if (parts.length === 2) {
+      return { url: parts[0], extension: parts[1].toLowerCase() };
+    }
+    // Fallback: try to detect from field name for backwards compatibility
+    if (fieldName && ['nota', 'boleto'].includes(fieldName)) {
+      return { url: urlWithExt, extension: 'pdf' };
+    }
+    return { url: urlWithExt, extension: '' };
+  };
+
+  const getFileType = (extension: string): 'pdf' | 'image' => {
+    return ['pdf'].includes(extension) ? 'pdf' : 'image';
   };
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1455,27 +1480,36 @@ export function FuelRecordsByAircraft({
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      {record.comanda_url && <Button variant="ghost" size="sm" onClick={() => setViewingAttachment({
-                        url: record.comanda_url!,
-                        type: record.comanda_url?.endsWith('.pdf') ? 'pdf' : 'image',
-                        name: 'Comanda'
-                      })} className="h-7 px-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 font-semibold text-xs gap-1" title="Visualizar Comanda">
+                      {record.comanda_url && <Button variant="ghost" size="sm" onClick={() => {
+                        const parsed = parseFileUrl(record.comanda_url, 'comanda');
+                        setViewingAttachment({
+                          url: parsed.url,
+                          type: getFileType(parsed.extension),
+                          name: 'Comanda'
+                        });
+                      }} className="h-7 px-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 font-semibold text-xs gap-1" title="Visualizar Comanda">
                         <FileText className="h-4 w-4" />
                         Comanda
                       </Button>}
-                      {record.nota_url && <Button variant="ghost" size="sm" onClick={() => setViewingAttachment({
-                        url: record.nota_url!,
-                        type: record.nota_url?.endsWith('.pdf') ? 'pdf' : 'image',
-                        name: 'Nota Fiscal'
-                      })} className="h-7 px-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 font-semibold text-xs gap-1" title="Visualizar Nota Fiscal">
+                      {record.nota_url && <Button variant="ghost" size="sm" onClick={() => {
+                        const parsed = parseFileUrl(record.nota_url, 'nota');
+                        setViewingAttachment({
+                          url: parsed.url,
+                          type: getFileType(parsed.extension),
+                          name: 'Nota Fiscal'
+                        });
+                      }} className="h-7 px-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 font-semibold text-xs gap-1" title="Visualizar Nota Fiscal">
                         <FileCheck className="h-4 w-4" />
                         NF
                       </Button>}
-                      {record.boleto_url && <Button variant="ghost" size="sm" onClick={() => setViewingAttachment({
-                        url: record.boleto_url!,
-                        type: record.boleto_url?.endsWith('.pdf') ? 'pdf' : 'image',
-                        name: 'Boleto'
-                      })} className="h-7 px-2 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/30 font-semibold text-xs gap-1" title="Visualizar Boleto">
+                      {record.boleto_url && <Button variant="ghost" size="sm" onClick={() => {
+                        const parsed = parseFileUrl(record.boleto_url, 'boleto');
+                        setViewingAttachment({
+                          url: parsed.url,
+                          type: getFileType(parsed.extension),
+                          name: 'Boleto'
+                        });
+                      }} className="h-7 px-2 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/30 font-semibold text-xs gap-1" title="Visualizar Boleto">
                         <DollarSign className="h-4 w-4" />
                         Boleto
                       </Button>}
@@ -1538,13 +1572,9 @@ export function FuelRecordsByAircraft({
           </DialogTitle>
         </DialogHeader>
         <div className="flex-1 overflow-auto flex items-center justify-center bg-gradient-to-br from-muted/50 to-muted/30 rounded-lg p-6">
-          {viewingAttachment.type === 'pdf' ? <div className="flex flex-col items-center justify-center gap-6 w-full">
-            <div className="flex flex-col items-center gap-3">
-              <FileText className="h-20 w-20 text-primary/40" />
-              <p className="text-lg font-semibold text-foreground">Arquivo PDF</p>
-              <p className="text-sm text-muted-foreground">Para visualizar o PDF completo, abra em uma nova aba</p>
-            </div>
-            <Button onClick={() => window.open(viewingAttachment.url, '_blank')} className="gap-2 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold">
+          {viewingAttachment.type === 'pdf' ? <div className="w-full h-full flex flex-col gap-3">
+            <embed src={viewingAttachment.url + '#toolbar=0'} type="application/pdf" className="w-full flex-1 rounded-lg" />
+            <Button onClick={() => window.open(viewingAttachment.url, '_blank')} variant="outline" className="gap-2 self-center">
               <Download className="h-4 w-4" />
               Abrir em Nova Aba
             </Button>
