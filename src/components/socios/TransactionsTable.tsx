@@ -18,6 +18,7 @@ import {
   Filter,
   FileDown,
   Clock,
+  FileText,
 } from "lucide-react";
 import type { PartnerTransaction } from "@/hooks/useFinanceiroSocios";
 import { format } from "date-fns";
@@ -215,45 +216,68 @@ export function TransactionsTable({
             </p>
           ) : (
             <div className="space-y-2">
-              {items.map((tx: any) => (
-                <div
-                  key={tx.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50 group"
-                >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    {tx.transaction_type === "deposit" ? (
-                      <ArrowUpCircle className="h-5 w-5 text-emerald-500 flex-shrink-0" />
-                    ) : tx.transaction_type === "expense" ? (
-                      <Receipt className="h-5 w-5 text-orange-500 flex-shrink-0" />
-                    ) : (
-                      <ArrowDownCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {tx.description || tx.transaction_type}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {tx.partner_name} • {getTransactionDate(tx)}
-                        {tx.transaction_type === "expense" && tx.status && ` • ${tx.status}`}
+              {items.map((tx: any) => {
+                const isTravelReport = tx.is_travel_report === true;
+
+                return (
+                  <div
+                    key={tx.id}
+                    className={`flex items-center justify-between p-3 rounded-lg border group transition-colors ${
+                      isTravelReport
+                        ? "bg-gradient-to-r from-indigo-50/50 to-blue-50/30 dark:from-indigo-950/20 dark:to-blue-950/20 border-indigo-200/50 dark:border-indigo-800/50"
+                        : "bg-muted/30 border-border/50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      {isTravelReport ? (
+                        <FileText className="h-5 w-5 text-indigo-500 flex-shrink-0" />
+                      ) : tx.transaction_type === "deposit" ? (
+                        <ArrowUpCircle className="h-5 w-5 text-emerald-500 flex-shrink-0" />
+                      ) : tx.transaction_type === "expense" ? (
+                        <Receipt className="h-5 w-5 text-orange-500 flex-shrink-0" />
+                      ) : (
+                        <ArrowDownCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+                      )}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {tx.description || tx.transaction_type}
+                          </p>
+                          {isTravelReport && (
+                            <Badge
+                              variant="secondary"
+                              className="text-xs whitespace-nowrap bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60"
+                            >
+                              Relatório
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {tx.partner_name} • {getTransactionDate(tx)}
+                          {!isTravelReport && tx.transaction_type === "expense" && tx.status && ` • ${tx.status}`}
+                          {isTravelReport && tx.status && ` • ${tx.status}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      <p
+                        className={`text-sm font-bold whitespace-nowrap ${
+                          isTravelReport
+                            ? "text-indigo-500 dark:text-indigo-400"
+                            : tx.transaction_type === "deposit"
+                            ? "text-emerald-400"
+                            : tx.transaction_type === "expense"
+                            ? "text-orange-400"
+                            : "text-red-400"
+                        }`}
+                      >
+                        {tx.transaction_type === "deposit" ? "+" : "-"}
+                        {fmt(Number(tx.amount))}
                       </p>
                     </div>
                   </div>
-                  <div>
-                    <p
-                      className={`text-sm font-bold whitespace-nowrap ${
-                        tx.transaction_type === "deposit"
-                          ? "text-emerald-400"
-                          : tx.transaction_type === "expense"
-                          ? "text-orange-400"
-                          : "text-red-400"
-                      }`}
-                    >
-                      {tx.transaction_type === "deposit" ? "+" : "-"}
-                      {fmt(Number(tx.amount))}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
 
               {/* Summary at the bottom */}
               <div className="mt-4 p-3 rounded-lg border border-border/50 bg-muted/20 space-y-1">
