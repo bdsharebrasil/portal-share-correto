@@ -139,6 +139,7 @@ export function FuelRecordsByAircraft({
   const [currentPage, setCurrentPage] = useState(1);
 
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [currentClientId, setCurrentClientId] = useState<string>(client.id);
 
   const [displayClient, setDisplayClient] = useState<Client>(client);
 
@@ -281,9 +282,6 @@ export function FuelRecordsByAircraft({
     }
   }, [selectedAbastecimentoId, records.length]);
 
-  useEffect(() => {
-    setExportMode(false);
-  }, [filterMonth, filterYear, filterPartner]);
 
   const loadSuppliers = async () => {
     try {
@@ -787,7 +785,7 @@ export function FuelRecordsByAircraft({
             <div class="title">
               <h1>CONTROLE DE COMBUSTÍVEL</h1>
               <p>${displayClient.company_name}</p>
-              <p>${aircraft.registration}${partnerLabel}</p>
+              <p>${aircraft.registration}</p>
             </div>
             <div class="period">${periodLabel}</div>
           </div>
