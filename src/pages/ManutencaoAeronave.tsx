@@ -134,7 +134,7 @@ export default function ManutencaoAeronave() {
           aeronaveRegistro: aircraft?.registration || '-',
           tipo: m.tipo === 'preventiva' ? 'preventiva' : 'corretiva',
           subtipo: m.vencimento_horas === 50 ? 'preventiva_50h' : m.vencimento_horas === 100 ? 'preventiva_100h' : m.tipo,
-          descricao: m.descricao || m.tipo,
+          descricao: m.observacoes || m.tipo,
           statusExecutado: (['pendente', 'em_andamento', 'concluida', 'cancelada'].includes(m.etapa) ? m.etapa : 'pendente') as 'pendente' | 'em_andamento' | 'concluida' | 'cancelada',
           dataProximaManutencao: m.data_programada,
           horasProximaManutencao: m.vencimento_horas,
@@ -176,12 +176,12 @@ export default function ManutencaoAeronave() {
       const { error } = await supabase.from('manutencoes').insert([{
         aeronave_id: newManutencao.aeronaveId,
         tipo: tipoManutencao,
-        descricao: newManutencao.descricao,
         mecanico: newManutencao.mecanico || 'A designar',
         data_programada: newManutencao.dataProxima || new Date().toISOString().split('T')[0],
         vencimento_horas: vencimentoHoras,
         etapa: 'aguardando',
-        observacoes: ''
+        observacoes: newManutencao.descricao || '',
+        oficina_id: newManutencao.oficinaSelecionada || null
       }]);
 
       if (error) throw error;
