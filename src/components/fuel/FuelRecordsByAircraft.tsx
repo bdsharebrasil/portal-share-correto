@@ -15,6 +15,7 @@ import { format } from "date-fns";
 import { Combobox } from "@/components/ui/combobox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ModernFileUpload } from "@/components/ui/modern-file-upload";
+import { ExportFuelRecordsModal } from "./ExportFuelRecordsModal";
 interface Client {
   id: string;
   company_name: string;
@@ -132,10 +133,14 @@ export function FuelRecordsByAircraft({
   const [editingRecord, setEditingRecord] = useState<FuelRecord | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [filterMonth, setFilterMonth] = useState<string>("");
+  const [filterMonth, setFilterMonth] = useState<string>("all");
   const [filterYear, setFilterYear] = useState<string>(new Date().getFullYear().toString());
   const [filterPartner, setFilterPartner] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
+
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  const [displayClient, setDisplayClient] = useState<Client>(client);
 
   // Logbook flight linking state
   const [linkToLogbook, setLinkToLogbook] = useState(false);
@@ -262,8 +267,9 @@ export function FuelRecordsByAircraft({
     loadRecords();
     loadSuppliers();
     loadClients();
+    loadClientPartners();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aircraft.id]);
+  }, [aircraft.id, currentClientId]);
 
   // Scroll para o abastecimento selecionado quando disponível
   useEffect(() => {
@@ -274,6 +280,11 @@ export function FuelRecordsByAircraft({
       }
     }
   }, [selectedAbastecimentoId, records.length]);
+
+  useEffect(() => {
+    setExportMode(false);
+  }, [filterMonth, filterYear, filterPartner]);
+
   const loadSuppliers = async () => {
     try {
       const {
@@ -348,43 +359,56 @@ export function FuelRecordsByAircraft({
         return;
       }
       setAllClients((data as any) || []);
-
-      const clientData = data?.find(c => c.id === client.id) || client;
-      let partners = getClientPartners(clientData.id, clientData.company_name);
-
-      const { data: partnersData, error: partnersError } = await supabase
-        .from("client_partners")
-        .select("id, name, cpf, share_percentage")
-        .eq("client_id", client.id);
-
-      if (!partnersError && partnersData) {
-        partnersData.forEach((partner: any) => {
-          partners.push({
-            id: partner.id,
-            name: partner.name,
-            cpf: partner.cpf,
-            share_percentage: partner.share_percentage || 0
-          });
-        });
-      }
-
-      const partnersWithPercentages = await loadPartnerPercentages(partners);
-      setClientPartners(partnersWithPercentages);
-      setFormData(prev => ({
-        ...prev,
-        client_id: client.id
-      }));
     } catch (err) {
       const errorMessage = getErrorMessage(err);
       toast.error(`Erro ao carregar clientes: ${errorMessage}`);
       console.error("Exception loading clients:", err);
     }
   };
+  const loadClientPartners = async () => {
+    if (currentClientId === "all") {
+      setDisplayClient({ id: "all", company_name: "Todos os Clientes" });
+      setClientPartners([]);
+      return;
+    }
+    const { data: clientData, error: clientError } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('id', currentClientId)
+      .single();
+    if (clientError) {
+      console.error('Error loading client:', clientError);
+      return;
+    }
+    setDisplayClient(clientData);
+    let partners = getClientPartners(clientData.id, clientData.company_name);
+    const { data: aircraftData, error: aircraftError } = await supabase
+      .from('client_aircraft')
+      .select('share_percentage, aircraft_id')
+      .eq('client_id', clientData.id);
+    if (aircraftError) {
+      console.error('Error loading aircraft shares:', aircraftError);
+    } else {
+      partners = partners.map(partner => {
+        const share = aircraftData.find(a => a.aircraft_id === aircraft.id);
+        return { ...partner, share_percentage: share?.share_percentage || partner.share_percentage };
+      });
+    }
+    const partnersWithPercentages = partners.map(partner => ({
+      ...partner,
+      share_percentage: aircraftData.find(a => a.aircraft_id === aircraft.id)?.share_percentage || partner.share_percentage
+    }));
+    setClientPartners(partnersWithPercentages);
+  };
   const loadRecords = async () => {
+    let query = supabase.from("abastecimentos").select("*").eq("aeronave_id", aircraft.id);
+    if (currentClientId !== "all") {
+      query = query.eq("client_id", currentClientId);
+    }
     const {
       data,
       error
-    } = await supabase.from("abastecimentos").select("*").eq("aeronave_id", aircraft.id).eq("client_id", client.id).order("data", {
+    } = await query.order("data", {
       ascending: false
     });
     if (error) {
@@ -410,7 +434,7 @@ export function FuelRecordsByAircraft({
     }
     
     // Filter by month/year
-    if (filterMonth && filterYear) {
+    if (filterMonth !== "all" && filterYear) {
       filtered = filtered.filter(record => {
         const recordDate = new Date(record.data);
         const recordMonth = (recordDate.getMonth() + 1).toString().padStart(2, '0');
@@ -693,18 +717,28 @@ export function FuelRecordsByAircraft({
     setSelectedFlightId("");
     setLogbookFlights([]);
   };
-  const MONTHS_PT = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
-  const handleExportPDF = () => {
+  const handleExportPDF = (month: number | null, year: string) => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
-    // Use filtered records for export
-    const exportRecords = getFilteredRecords();
-    const monthLabel = filterMonth ? MONTHS_PT[parseInt(filterMonth) - 1] : "Todos os meses";
-    const yearLabel = filterYear || new Date().getFullYear().toString();
-    const partnerLabel = filterPartner === "all" ? "" : filterPartner === "__no_partner__" ? " - Sem sócio" : ` - ${filterPartner}`;
-    const periodLabel = filterMonth ? `${monthLabel} / ${yearLabel}` : yearLabel;
+    // Filter records by month and year
+    let exportRecords = records;
+    if (month !== null) {
+      exportRecords = records.filter((r) => {
+        const recordDate = new Date(r.data + "T00:00:00");
+        return recordDate.getMonth() + 1 === month && recordDate.getFullYear() === parseInt(year);
+      });
+    } else {
+      exportRecords = records.filter((r) => {
+        const recordDate = new Date(r.data + "T00:00:00");
+        return recordDate.getFullYear() === parseInt(year);
+      });
+    }
+
+    const MONTHS_PT = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    const monthLabel = month === null ? "Todos os meses" : MONTHS_PT[month - 1] || "Todos os meses";
+    const periodLabel = month !== null ? `${monthLabel} / ${year}` : year;
 
     const totalLitros = exportRecords.reduce((sum, r) => sum + r.litros, 0);
     const totalValue = exportRecords.reduce((sum, r) => sum + r.valor_total, 0);
@@ -727,7 +761,7 @@ export function FuelRecordsByAircraft({
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Controle de Abastecimento - ${client.company_name} - ${aircraft.registration} - ${periodLabel}</title>
+          <title>Controle de Abastecimento - ${displayClient.company_name} - ${aircraft.registration} - ${periodLabel}</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 20px; }
             .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
@@ -752,7 +786,7 @@ export function FuelRecordsByAircraft({
             <img src="/logo.share.png" alt="Logo" class="logo" />
             <div class="title">
               <h1>CONTROLE DE COMBUSTÍVEL</h1>
-              <p>${client.company_name}</p>
+              <p>${displayClient.company_name}</p>
               <p>${aircraft.registration}${partnerLabel}</p>
             </div>
             <div class="period">${periodLabel}</div>
@@ -795,9 +829,9 @@ export function FuelRecordsByAircraft({
     }, 250);
   };
 
-  const displayTotalRecords = filterMonth && filterYear ? filteredTotalRecords : records.length;
-  const displayTotalLitros = filterMonth && filterYear ? filteredTotalLitros : records.reduce((sum, r) => sum + r.litros, 0);
-  const displayTotalValue = filterMonth && filterYear ? filteredTotalValue : records.reduce((sum, r) => sum + r.valor_total, 0);
+  const displayTotalRecords = filterMonth !== "all" && filterYear ? filteredTotalRecords : records.length;
+  const displayTotalLitros = filterMonth !== "all" && filterYear ? filteredTotalLitros : records.reduce((sum, r) => sum + r.litros, 0);
+  const displayTotalValue = filterMonth !== "all" && filterYear ? filteredTotalValue : records.reduce((sum, r) => sum + r.valor_total, 0);
   return <div className="space-y-6">
     <div className="flex items-center gap-3">
       <Button variant="outline" size="sm" onClick={onBack} className="gap-2">
@@ -809,7 +843,7 @@ export function FuelRecordsByAircraft({
           <Plane className="h-6 w-6 text-primary" />
           Registros de Abastecimento
         </h2>
-        <p className="text-sm text-muted-foreground mt-0.5">{client.company_name} • {aircraft.registration}</p>
+        <p className="text-sm text-muted-foreground mt-0.5">{displayClient.company_name} • {aircraft.registration}</p>
       </div>
     </div>
 
@@ -1250,7 +1284,20 @@ export function FuelRecordsByAircraft({
           </div>
         </AlertDialogContent>
       </AlertDialog>
-      <Button onClick={handleExportPDF} className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200">
+
+      <ExportFuelRecordsModal
+        open={isExportModalOpen}
+        onOpenChange={setIsExportModalOpen}
+        records={records}
+        clientName={displayClient.company_name}
+        aircraftRegistration={aircraft.registration}
+        onExportPDF={handleExportPDF}
+      />
+
+      <Button
+        onClick={() => setIsExportModalOpen(true)}
+        className="gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+      >
         <Download className="h-5 w-5" />
         Exportar PDF
       </Button>
@@ -1284,9 +1331,9 @@ export function FuelRecordsByAircraft({
                 <TableRow
                   key={record.id}
                   id={`fuel-record-${record.id}`}
-                  className={`border-b border-border/50 transition-colors ${
+                  className={`border-b border-border/50 transition-all duration-300 ${
                     selectedAbastecimentoId === record.id
-                      ? 'bg-yellow-200 dark:bg-yellow-800/70 border-l-4 border-l-yellow-600 hover:bg-yellow-200/90 dark:hover:bg-yellow-800/80 shadow-sm'
+                      ? 'bg-primary/8 dark:bg-primary/12 border-l-4 border-l-primary ring-1 ring-primary/20 hover:bg-primary/12 dark:hover:bg-primary/16 shadow-md'
                       : 'hover:bg-muted/30'
                   }`}
                 >
