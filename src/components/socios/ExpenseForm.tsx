@@ -212,7 +212,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
         .from("travel_expense_reports")
         .select("id, report_number, status")
         .eq("client_partner", partnerId)
-        .in("status", ["Finalizado", "Rascunho"])
+        .in("status", ["Finalizado", "Rascunho", "Enviado"])
         .order("created_at", { ascending: false });
       if (error) {
         console.error("Erro ao carregar relatórios para sócio:", error);

@@ -134,7 +134,7 @@ export default function ManutencaoAeronave() {
           aeronaveRegistro: aircraft?.registration || '-',
           tipo: m.tipo === 'preventiva' ? 'preventiva' : 'corretiva',
           subtipo: m.vencimento_horas === 50 ? 'preventiva_50h' : m.vencimento_horas === 100 ? 'preventiva_100h' : m.tipo,
-          descricao: m.descricao || m.tipo,
+          descricao: m.observacoes || m.tipo,
           statusExecutado: (['pendente', 'em_andamento', 'concluida', 'cancelada'].includes(m.etapa) ? m.etapa : 'pendente') as 'pendente' | 'em_andamento' | 'concluida' | 'cancelada',
           dataProximaManutencao: m.data_programada,
           horasProximaManutencao: m.vencimento_horas,
@@ -173,18 +173,45 @@ export default function ManutencaoAeronave() {
       const tipoManutencao = newManutencao.tipo === 'preventiva' ? 'preventiva' : 'corretiva';
       const vencimentoHoras = newManutencao.subtipo === 'preventiva_50h' ? 50 : newManutencao.subtipo === 'preventiva_100h' ? 100 : null;
 
-      const { error } = await supabase.from('manutencoes').insert([{
+      // Criar registro em manutencoes
+      const { data: manutencaoData, error: manutencaoError } = await supabase.from('manutencoes').insert([{
         aeronave_id: newManutencao.aeronaveId,
         tipo: tipoManutencao,
-        descricao: newManutencao.descricao,
         mecanico: newManutencao.mecanico || 'A designar',
         data_programada: newManutencao.dataProxima || new Date().toISOString().split('T')[0],
         vencimento_horas: vencimentoHoras,
         etapa: 'aguardando',
-        observacoes: ''
-      }]);
+        observacoes: newManutencao.descricao || '',
+        oficina_id: newManutencao.oficinaSelecionada || null
+      }]).select();
 
-      if (error) throw error;
+      if (manutencaoError) throw manutencaoError;
+
+      // Sincronizar com CTM: criar service order
+      if (manutencaoData && manutencaoData.length > 0) {
+        const manutencao = manutencaoData[0];
+        const serviceOrderType =
+          tipoManutencao === 'preventiva' && vencimentoHoras === 100 ? 'REVISAO_100H' :
+          tipoManutencao === 'preventiva' && vencimentoHoras === 50 ? 'REVISAO_50H' :
+          tipoManutencao === 'preventiva' ? 'PREVENTIVA' : 'CORRETIVA';
+
+        const { error: ctmError } = await supabase.from('ctm_service_orders').insert([{
+          aircraft_id: newManutencao.aeronaveId,
+          reference_table: 'manutencoes',
+          reference_id: manutencao.id,
+          service_order_type: serviceOrderType,
+          description: newManutencao.descricao || `${serviceOrderType}`,
+          scheduled_date: newManutencao.dataProxima || new Date().toISOString().split('T')[0],
+          status: 'em_andamento',
+          priority: 'normal',
+          assigned_to: newManutencao.mecanico || 'A designar'
+        }]);
+
+        if (ctmError) {
+          console.warn('Aviso: Não foi possível sincronizar com CTM', ctmError);
+          // Não impedir a conclusão da operação se CTM falhar
+        }
+      }
 
       setNotification({
         type: 'success',
@@ -340,12 +367,11 @@ export default function ManutencaoAeronave() {
                       <label className="text-sm font-medium text-white">Oficina</label>
                       <SearchableCombobox
                         items={oficinas.map(o => ({
-                          value: o.id,
-                          label: o.razao_social,
-                          description: o.endereco || ''
+                          id: o.id,
+                          label: o.razao_social
                         }))}
                         value={newManutencao.oficinaSelecionada}
-                        onValueChange={(value) => setNewManutencao({...newManutencao, oficinaSelecionada: value})}
+                        onChange={(id) => setNewManutencao({...newManutencao, oficinaSelecionada: id})}
                         placeholder="Selecione uma oficina..."
                         searchPlaceholder="Buscar oficina..."
                         emptyMessage="Nenhuma oficina encontrada"

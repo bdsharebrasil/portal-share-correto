@@ -411,6 +411,7 @@ export function useSocioTransactions(
           prazo: null,
           payment_method: null,
           doc: t.report_number || null,
+          is_travel_report: true,
           // Campos adicionais de relatório de viagem para exibição detalhada
           report_number: t.report_number || null,
           route: t.route || null,

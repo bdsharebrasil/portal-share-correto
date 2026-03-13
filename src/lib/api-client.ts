@@ -7,12 +7,13 @@ const AIS_API_BASE_URL =
   (import.meta.env.DEV ? '/api' : 'https://api-workers.sharebrasil.workers.dev');
 
 // Configuração de timeout para fetch
-const FETCH_TIMEOUT_MS = 15000; // 15 segundos (cold start do Worker + AISWEB lento)
+const FETCH_TIMEOUT_MS = 30000; // 30 segundos (cold start do Worker + AISWEB pode ser lento)
 
 // Helper para fetch com timeout
 async function fetchWithTimeout(url: string, options: RequestInit = {}) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timeoutError = new Error(`Request timeout after ${FETCH_TIMEOUT_MS}ms`);
+  const timeoutId = setTimeout(() => controller.abort(timeoutError), FETCH_TIMEOUT_MS);
 
   try {
     const res = await fetch(url, {
@@ -24,7 +25,7 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}) {
   } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
-      throw new Error(`Request timeout after ${FETCH_TIMEOUT_MS}ms`);
+      throw error.reason instanceof Error ? error.reason : new Error(`Request timeout after ${FETCH_TIMEOUT_MS}ms`);
     }
     throw error;
   }
