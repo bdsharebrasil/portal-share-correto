@@ -178,6 +178,7 @@ export function ClientFuelRecords({ selectedAbastecimentoId }: ClientFuelRecords
         client={selectedClient}
         aircraft={selectedAircraft}
         onBack={handleBack}
+        selectedAbastecimentoId={selectedAbastecimentoId}
       />
     );
   }

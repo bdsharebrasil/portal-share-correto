@@ -59,6 +59,7 @@ interface Props {
   client: Client;
   aircraft: Aircraft;
   onBack: () => void;
+  selectedAbastecimentoId?: string | null;
 }
 
 /**
@@ -117,7 +118,8 @@ const formatDateBrazil = (dateValue: string | Date, formatStr: string = "dd/MM/y
 export function FuelRecordsByAircraft({
   client,
   aircraft,
-  onBack
+  onBack,
+  selectedAbastecimentoId
 }: Props) {
   const [records, setRecords] = useState<FuelRecord[]>([]);
   const [suppliers, setSuppliers] = useState<FuelSupplier[]>([]);
@@ -168,6 +170,16 @@ export function FuelRecordsByAircraft({
     loadClients();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aircraft.id]);
+
+  // Scroll para o abastecimento selecionado quando disponível
+  useEffect(() => {
+    if (selectedAbastecimentoId && records.length > 0) {
+      const selectedRow = document.getElementById(`fuel-record-${selectedAbastecimentoId}`);
+      if (selectedRow) {
+        selectedRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [selectedAbastecimentoId, records.length]);
   const loadSuppliers = async () => {
     try {
       const {
@@ -1058,81 +1070,91 @@ export function FuelRecordsByAircraft({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedRecords.map(record => <TableRow key={record.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors">
-                <TableCell className="font-medium text-foreground">
-                  {formatDateBrazil(record.data, "dd/MM/yyyy")}
-                </TableCell>
-                <TableCell className="text-muted-foreground">{record.trecho || "-"}</TableCell>
-                <TableCell className="text-muted-foreground">{record.local || "-"}</TableCell>
-                <TableCell className="font-mono text-foreground">{record.comanda}</TableCell>
-                <TableCell className="text-muted-foreground">{record.abastecedor || "-"}</TableCell>
-                <TableCell className="text-muted-foreground font-medium">{record.partner_name || "-"}</TableCell>
-                <TableCell>
-                  {record.status_pagamento === "pago" ? <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold">
-                    <FileCheck className="h-4 w-4" />
-                    Pago
-                  </span> : <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 text-xs font-semibold">
-                    <DollarSign className="h-4 w-4" />
-                    Em Aberto
-                  </span>}
-                </TableCell>
-                <TableCell className="text-right font-medium text-foreground">
-                  {record.litros.toFixed(2)}
-                </TableCell>
-                <TableCell className="text-right text-muted-foreground">
-                  R$ {record.valor_unitario.toFixed(2)}
-                </TableCell>
-                <TableCell className="text-right font-semibold text-success">
-                  R$ {record.valor_total.toFixed(2)}
-                </TableCell>
-                <TableCell className="text-right text-muted-foreground">
-                  {record.abastecimento_galoes?.toFixed(2) || "-"}
-                </TableCell>
-                <TableCell className="text-muted-foreground max-w-xs">
-                  <div className="truncate" title={record.observacao || ""}>
-                    {(record.observacao && record.observacao.replace(/\[Partner:[^\]]*\]\s*/g, '').trim()) || "-"}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    {record.comanda_url && <Button variant="ghost" size="sm" onClick={() => setViewingAttachment({
-                      url: record.comanda_url!,
-                      type: record.comanda_url?.endsWith('.pdf') ? 'pdf' : 'image',
-                      name: 'Comanda'
-                    })} className="h-7 px-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 font-semibold text-xs gap-1" title="Visualizar Comanda">
-                      <FileText className="h-4 w-4" />
-                      Comanda
-                    </Button>}
-                    {record.nota_url && <Button variant="ghost" size="sm" onClick={() => setViewingAttachment({
-                      url: record.nota_url!,
-                      type: record.nota_url?.endsWith('.pdf') ? 'pdf' : 'image',
-                      name: 'Nota Fiscal'
-                    })} className="h-7 px-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 font-semibold text-xs gap-1" title="Visualizar Nota Fiscal">
+              {paginatedRecords.map(record => (
+                <TableRow
+                  key={record.id}
+                  id={`fuel-record-${record.id}`}
+                  className={`border-b border-border/50 transition-colors ${
+                    selectedAbastecimentoId === record.id
+                      ? 'bg-yellow-100 dark:bg-yellow-900/30 border-l-4 border-l-yellow-500 hover:bg-yellow-100/80 dark:hover:bg-yellow-900/40'
+                      : 'hover:bg-muted/30'
+                  }`}
+                >
+                  <TableCell className="font-medium text-foreground">
+                    {formatDateBrazil(record.data, "dd/MM/yyyy")}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{record.trecho || "-"}</TableCell>
+                  <TableCell className="text-muted-foreground">{record.local || "-"}</TableCell>
+                  <TableCell className="font-mono text-foreground">{record.comanda}</TableCell>
+                  <TableCell className="text-muted-foreground">{record.abastecedor || "-"}</TableCell>
+                  <TableCell className="text-muted-foreground font-medium">{record.partner_name || "-"}</TableCell>
+                  <TableCell>
+                    {record.status_pagamento === "pago" ? <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold">
                       <FileCheck className="h-4 w-4" />
-                      NF
-                    </Button>}
-                    {record.boleto_url && <Button variant="ghost" size="sm" onClick={() => setViewingAttachment({
-                      url: record.boleto_url!,
-                      type: record.boleto_url?.endsWith('.pdf') ? 'pdf' : 'image',
-                      name: 'Boleto'
-                    })} className="h-7 px-2 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/30 font-semibold text-xs gap-1" title="Visualizar Boleto">
+                      Pago
+                    </span> : <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 text-xs font-semibold">
                       <DollarSign className="h-4 w-4" />
-                      Boleto
-                    </Button>}
-                    {!record.comanda_url && !record.nota_url && !record.boleto_url && <span className="text-xs text-muted-foreground">—</span>}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => handleEdit(record)} className="h-8 w-8 hover:bg-primary/10 hover:text-primary">
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(record.id)} className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>)}
+                      Em Aberto
+                    </span>}
+                  </TableCell>
+                  <TableCell className="text-right font-medium text-foreground">
+                    {record.litros.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    R$ {record.valor_unitario.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold text-success">
+                    R$ {record.valor_total.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    {record.abastecimento_galoes?.toFixed(2) || "-"}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground max-w-xs">
+                    <div className="truncate" title={record.observacao || ""}>
+                      {(record.observacao && record.observacao.replace(/\[Partner:[^\]]*\]\s*/g, '').trim()) || "-"}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      {record.comanda_url && <Button variant="ghost" size="sm" onClick={() => setViewingAttachment({
+                        url: record.comanda_url!,
+                        type: record.comanda_url?.endsWith('.pdf') ? 'pdf' : 'image',
+                        name: 'Comanda'
+                      })} className="h-7 px-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 font-semibold text-xs gap-1" title="Visualizar Comanda">
+                        <FileText className="h-4 w-4" />
+                        Comanda
+                      </Button>}
+                      {record.nota_url && <Button variant="ghost" size="sm" onClick={() => setViewingAttachment({
+                        url: record.nota_url!,
+                        type: record.nota_url?.endsWith('.pdf') ? 'pdf' : 'image',
+                        name: 'Nota Fiscal'
+                      })} className="h-7 px-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 font-semibold text-xs gap-1" title="Visualizar Nota Fiscal">
+                        <FileCheck className="h-4 w-4" />
+                        NF
+                      </Button>}
+                      {record.boleto_url && <Button variant="ghost" size="sm" onClick={() => setViewingAttachment({
+                        url: record.boleto_url!,
+                        type: record.boleto_url?.endsWith('.pdf') ? 'pdf' : 'image',
+                        name: 'Boleto'
+                      })} className="h-7 px-2 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/30 font-semibold text-xs gap-1" title="Visualizar Boleto">
+                        <DollarSign className="h-4 w-4" />
+                        Boleto
+                      </Button>}
+                      {!record.comanda_url && !record.nota_url && !record.boleto_url && <span className="text-xs text-muted-foreground">—</span>}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(record)} className="h-8 w-8 hover:bg-primary/10 hover:text-primary">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(record.id)} className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
           {records.length === 0 && <div className="text-center py-16 text-muted-foreground">

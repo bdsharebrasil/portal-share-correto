@@ -5,10 +5,12 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building, Users, BarChart3, TrendingUp, TrendingDown, Minus, Calendar, Filter } from "lucide-react";
+import { Building, Users, BarChart3, TrendingUp, TrendingDown, Minus, Calendar, Filter, Fuel, ChevronRight } from "lucide-react";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useNavigate } from "react-router-dom";
 import { usePartnerExpenses, useAllClientsWithPartners } from "@/hooks/usePartnerExpenses";
+import { useAbastecimentosByPeriod } from "@/hooks/useAbastecimentos";
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
@@ -27,10 +29,11 @@ interface PartnerExpenseReportProps {
 }
 
 export function PartnerExpenseReport({ defaultClientId, defaultAircraftId }: PartnerExpenseReportProps) {
+  const navigate = useNavigate();
   const [selectedClientId, setSelectedClientId] = useState<string>(defaultClientId || "");
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  
+
   const startDate = startOfMonth(new Date(selectedYear, selectedMonth));
   const endDate = endOfMonth(new Date(selectedYear, selectedMonth));
 
@@ -41,6 +44,11 @@ export function PartnerExpenseReport({ defaultClientId, defaultAircraftId }: Par
     startDate,
     endDate
   });
+  const { data: abastecimentos = [], isLoading: loadingAbastecimentos } = useAbastecimentosByPeriod(
+    selectedClientId || null,
+    format(startDate, 'yyyy-MM-dd'),
+    format(endDate, 'yyyy-MM-dd')
+  );
 
   // Generate last 12 months for selection
   const monthOptions = Array.from({ length: 12 }, (_, i) => {
@@ -149,7 +157,7 @@ export function PartnerExpenseReport({ defaultClientId, defaultAircraftId }: Par
         </Card>
       ) : (
         <Tabs defaultValue="cnpj" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 max-w-lg">
+          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
             <TabsTrigger value="cnpj" className="gap-2">
               <Building className="h-4 w-4" />
               Visão CNPJ
@@ -161,6 +169,10 @@ export function PartnerExpenseReport({ defaultClientId, defaultAircraftId }: Par
             <TabsTrigger value="comparison" className="gap-2">
               <BarChart3 className="h-4 w-4" />
               Comparativo
+            </TabsTrigger>
+            <TabsTrigger value="fuels" className="gap-2">
+              <Fuel className="h-4 w-4" />
+              Abastecimentos
             </TabsTrigger>
           </TabsList>
 
@@ -357,6 +369,97 @@ export function PartnerExpenseReport({ defaultClientId, defaultAircraftId }: Par
                     </TableRow>
                   </TableBody>
                 </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Fuels/Abastecimentos Table */}
+          <TabsContent value="fuels" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Fuel className="h-5 w-5" />
+                  Abastecimentos
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Clique em um abastecimento para visualizar detalhes no controle de abastecimento
+                </p>
+              </CardHeader>
+              <CardContent>
+                {loadingAbastecimentos ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    Carregando abastecimentos...
+                  </div>
+                ) : abastecimentos.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Fuel className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                    <p>Nenhum abastecimento encontrado neste período</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Data</TableHead>
+                          <TableHead>Rota</TableHead>
+                          <TableHead>Local</TableHead>
+                          <TableHead className="text-right">Litros</TableHead>
+                          <TableHead className="text-right">Valor</TableHead>
+                          <TableHead>Sócio</TableHead>
+                          <TableHead className="text-right">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {abastecimentos.map((fuel) => (
+                          <TableRow
+                            key={fuel.id}
+                            className="cursor-pointer hover:bg-muted/50 transition-colors"
+                          >
+                            <TableCell className="font-medium">
+                              {format(new Date(fuel.data), 'dd/MM/yyyy', { locale: ptBR })}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {fuel.trecho || '-'}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {fuel.local || '-'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {fuel.litros.toFixed(2)}L
+                            </TableCell>
+                            <TableCell className="text-right font-semibold">
+                              {formatCurrency(fuel.valor_total)}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {fuel.partner_name || '-'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  // Navegar para a página de controle de abastecimento
+                                  // com o abastecimento selecionado
+                                  navigate('/abastecimento', {
+                                    state: {
+                                      selectedAbastecimentoId: fuel.id,
+                                      fromRelatorio: true,
+                                      clientId: selectedClientId
+                                    }
+                                  });
+                                }}
+                                className="gap-1"
+                              >
+                                Ver
+                                <ChevronRight className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
