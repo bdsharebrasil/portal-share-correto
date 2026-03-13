@@ -401,7 +401,7 @@ export function useSocioExpenses(
 
 // --- HOOKS DE ESCRITA (MUTATIONS) ---
 
-export function useAddDeposit() {
+export function useAddDeposit(showToast = true) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -473,7 +473,9 @@ export function useAddDeposit() {
     onSuccess: (clientId) => {
       queryClient.invalidateQueries({ queryKey: ["partner-accounts", clientId] });
       queryClient.invalidateQueries({ queryKey: ["partner-transactions", clientId] });
-      toast.success("Depósito registrado com sucesso!");
+      if (showToast) {
+        toast.success("Depósito registrado com sucesso!");
+      }
     },
     onError: (err: any) => {
       toast.error("Erro ao registrar depósito: " + err.message);
