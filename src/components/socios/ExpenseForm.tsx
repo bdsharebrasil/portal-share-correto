@@ -49,19 +49,20 @@ import toast from "../ui/modern-toast";
 
 // ─── Categorias ───────────────────────────────────────────────────────────────
 export const EXPENSE_CATEGORIES = [
-  { id: "abastecimento", label: "Abastecimento", icon: "⛽" },
-  { id: "hangaragem", label: "Hangaragem", icon: "🏠" },
-  { id: "manutencao", label: "Manutenção", icon: "🔧" },
-  { id: "pouso_decolagem", label: "Tarifa de Pouso/Decolagem", icon: "✈️" },
-  { id: "atendimento_pista", label: "Atendimento de Pista", icon: "🛬" },
-  { id: "subscricoes", label: "Assinaturas/Subscrições", icon: "📋" },
-  { id: "contabilidade", label: "Honorários Contabilidade", icon: "📊" },
-  { id: "ressarcimento", label: "Ressarcimento/Reembolso", icon: "💸" },
-  { id: "viagem", label: "Despesas de Viagem", icon: "🧳" },
-  { id: "infraero", label: "INFRAERO", icon: "🛬" },
-  { id: "decea", label: "DECEA", icon: "🛬" },
-  { id: "impostos", label: "Impostos", icon: "🏦" },
-  { id: "outros", label: "Outros", icon: "📎" },
+  { id: "ABASTECIMENTO", label: "ABASTECIMENTO", icon: "⛽" },
+  { id: "ASSINATURAS", label: "Assinaturas", icon: "📋" },
+  { id: "ATENDIMENTO_PISTA", label: "Atendimento de Pista", icon: "🛬" },
+  { id: "COMPRAS", label: "Compras / Aquisições", icon: "🛒" },
+  { id: "CONTABILIDADE", label: "Honorários Contabilidade", icon: "📊" },
+  { id: "DECEA", label: "DECEA", icon: "🛬" },
+  { id: "DESPESA_VIAGEM", label: "Despesas de Viagem", icon: "🧳" },
+  { id: "HANGAR", label: "Hangaragem", icon: "🏠" },
+  { id: "INFRAERO", label: "INFRAERO", icon: "🛬" },
+  { id: "MANUTENCAO", label: "Manutenção", icon: "🔧" },
+  { id: "OUTROS", label: "Outros", icon: "📎" },
+  { id: "POUSO_DECOLAGEM", label: "Tarifa de Pouso/Decolagem", icon: "✈️" },
+  { id: "REEMBOLSO", label: "Ressarcimento/Reembolso", icon: "💸" },
+  { id: "TAXAS_BANCO", label: "TARIFAS BANCARIAS", icon: "🏦" },
 ] as const;
 
 export const IMPOSTOS_SUBTYPES = [
