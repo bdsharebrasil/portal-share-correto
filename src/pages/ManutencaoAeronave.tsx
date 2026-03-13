@@ -173,7 +173,8 @@ export default function ManutencaoAeronave() {
       const tipoManutencao = newManutencao.tipo === 'preventiva' ? 'preventiva' : 'corretiva';
       const vencimentoHoras = newManutencao.subtipo === 'preventiva_50h' ? 50 : newManutencao.subtipo === 'preventiva_100h' ? 100 : null;
 
-      const { error } = await supabase.from('manutencoes').insert([{
+      // Criar registro em manutencoes
+      const { data: manutencaoData, error: manutencaoError } = await supabase.from('manutencoes').insert([{
         aeronave_id: newManutencao.aeronaveId,
         tipo: tipoManutencao,
         mecanico: newManutencao.mecanico || 'A designar',
@@ -182,9 +183,35 @@ export default function ManutencaoAeronave() {
         etapa: 'aguardando',
         observacoes: newManutencao.descricao || '',
         oficina_id: newManutencao.oficinaSelecionada || null
-      }]);
+      }]).select();
 
-      if (error) throw error;
+      if (manutencaoError) throw manutencaoError;
+
+      // Sincronizar com CTM: criar service order
+      if (manutencaoData && manutencaoData.length > 0) {
+        const manutencao = manutencaoData[0];
+        const serviceOrderType =
+          tipoManutencao === 'preventiva' && vencimentoHoras === 100 ? 'REVISAO_100H' :
+          tipoManutencao === 'preventiva' && vencimentoHoras === 50 ? 'REVISAO_50H' :
+          tipoManutencao === 'preventiva' ? 'PREVENTIVA' : 'CORRETIVA';
+
+        const { error: ctmError } = await supabase.from('ctm_service_orders').insert([{
+          aircraft_id: newManutencao.aeronaveId,
+          reference_table: 'manutencoes',
+          reference_id: manutencao.id,
+          service_order_type: serviceOrderType,
+          description: newManutencao.descricao || `${serviceOrderType}`,
+          scheduled_date: newManutencao.dataProxima || new Date().toISOString().split('T')[0],
+          status: 'em_andamento',
+          priority: 'normal',
+          assigned_to: newManutencao.mecanico || 'A designar'
+        }]);
+
+        if (ctmError) {
+          console.warn('Aviso: Não foi possível sincronizar com CTM', ctmError);
+          // Não impedir a conclusão da operação se CTM falhar
+        }
+      }
 
       setNotification({
         type: 'success',
