@@ -34,11 +34,34 @@ export function GestorDashboard() {
   const { data: pendingApprovals = [] } = useQuery({
     queryKey: ["pending-approvals"],
     queryFn: async () => {
-      const { data } = await supabase
+      // Buscar voos pendentes
+      const { data: flightData } = await supabase
         .from("flight_schedules")
         .select("*")
         .eq("status", "pendente");
-      return data || [];
+
+      // Buscar orçamentos aguardando aprovação financeira
+      const { data: budgetsData } = await supabase
+        .from("ctm_budgets")
+        .select("*")
+        .eq("status", "submitted");
+
+      // Combinar e formatar os dados
+      const flights = (flightData || []).map(f => ({
+        ...f,
+        type: 'flight',
+        title: `${f.origin} → ${f.destination}`,
+        date: f.flight_date
+      }));
+
+      const budgets = (budgetsData || []).map(b => ({
+        ...b,
+        type: 'budget',
+        title: `Orçamento #${(b as any).numero_orcamento || b.id.slice(0, 8)}`,
+        date: b.created_at
+      }));
+
+      return [...flights, ...budgets] || [];
     },
   });
 
@@ -229,17 +252,28 @@ export function GestorDashboard() {
             <p className="text-center text-muted-foreground py-8">Nenhuma aprovação pendente</p>
           ) : (
             <div className="space-y-3">
-              {pendingApprovals.slice(0, 4).map((item: any) => (
-                <div key={item.id} className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50">
+              {pendingApprovals.slice(0, 5).map((item: any) => (
+                <div key={`${item.type}-${item.id}`} className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50">
                   <div>
                     <p className="font-medium text-foreground">
-                      {item.origin} → {item.destination}
+                      {item.type === 'flight'
+                        ? `${item.origin} → ${item.destination}`
+                        : item.title
+                      }
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {format(new Date(item.flight_date), "dd/MM/yyyy", { locale: ptBR })}
+                      {item.type === 'flight'
+                        ? 'Voo Agendado'
+                        : 'Orçamento de Manutenção'
+                      }
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {format(new Date(item.date), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                     </p>
                   </div>
-                  <Badge className="bg-warning/20 text-warning border-warning">Pendente</Badge>
+                  <Badge className={item.type === 'budget' ? "bg-blue-500/20 text-blue-400 border-blue-500/30" : "bg-warning/20 text-warning border-warning"}>
+                    {item.type === 'budget' ? 'Orçamento' : 'Voo'}
+                  </Badge>
                 </div>
               ))}
             </div>

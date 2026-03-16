@@ -458,6 +458,23 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
     }
   };
 
+  const handleSubmitForApproval = async (budgetId: string) => {
+    try {
+      const { error } = await supabase
+        .from("ctm_budgets")
+        .update({ status: "submitted", updated_at: new Date().toISOString() })
+        .eq("id", budgetId);
+
+      if (error) throw error;
+
+      toast.success("Orçamento enviado para aprovação do financeiro!");
+      await loadBudgets();
+    } catch (error: any) {
+      console.error("Error submitting budget:", error);
+      toast.error("Erro ao enviar orçamento para aprovação");
+    }
+  };
+
   const handleApproveBudget = async (budgetId: string) => {
     try {
       const { error } = await supabase
@@ -550,6 +567,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
           <table className="w-full text-left border-collapse min-w-[800px]">
             <thead className="bg-slate-900/30 text-muted-foreground text-xs uppercase font-medium">
               <tr>
+                <th className="px-6 py-4">Nº Orçamento</th>
                 <th className="px-6 py-4">Data Emissão</th>
                 <th className="px-6 py-4">Período</th>
                 <th className="px-6 py-4">Fornecedor/Oficina</th>
@@ -562,7 +580,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
             <tbody className="text-foreground text-sm divide-y divide-border">
               {filteredBudgets.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-6 py-8 text-center text-muted-foreground">
                     Nenhum orçamento encontrado
                   </td>
                 </tr>
@@ -571,6 +589,9 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
                   const budgetTotal = budget.budget_details?.items?.reduce((sum, item) => sum + item.total, 0) || 0;
                   return (
                     <tr key={budget.id} className="hover:bg-slate-800/30 transition-colors group">
+                      <td className="px-6 py-4 whitespace-nowrap font-bold text-primary">
+                        #{(budget as any).numero_orcamento || "—"}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
                         {format(new Date(budget.created_at), "dd MMM yyyy", { locale: ptBR })}
                       </td>
@@ -634,7 +655,16 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
                           >
                             <Edit className="h-4 w-4" />
                           </button>
-                          {budget.status !== "approved" && (
+                          {budget.status === "draft" && (
+                            <button
+                              onClick={() => handleSubmitForApproval(budget.id)}
+                              className="p-1.5 rounded hover:bg-slate-700 text-muted-foreground hover:text-blue-400 transition-colors"
+                              title="Enviar para Aprovação Financeira"
+                            >
+                              <FileUp className="h-4 w-4" />
+                            </button>
+                          )}
+                          {budget.status === "submitted" && (
                             <button
                               onClick={() => handleApproveBudget(budget.id)}
                               className="p-1.5 rounded hover:bg-slate-700 text-muted-foreground hover:text-green-400 transition-colors"
