@@ -1031,6 +1031,34 @@ export function useDeleteTransaction() {
         data.transactionType === "expense" ||
         data.referenceType === "partner_expense"
       ) {
+        // 1. Buscar despesas de manutenção vinculadas a esta partner_expense
+        const { data: despesasManutencao, error: fetchError } = await supabase
+          .from("despesas_manutencao")
+          .select("id")
+          .eq("partner_expense_id", data.id);
+
+        if (fetchError) throw fetchError;
+
+        // 2. Deletar rateios dessas despesas de manutenção
+        if (despesasManutencao && despesasManutencao.length > 0) {
+          const despesaIds = despesasManutencao.map((d) => d.id);
+          const { error: rateioError } = await supabase
+            .from("despesas_manutencao_rateio")
+            .delete()
+            .in("despesa_manutencao_id", despesaIds);
+
+          if (rateioError) throw rateioError;
+
+          // 3. Deletar as despesas de manutenção
+          const { error: despesaError } = await supabase
+            .from("despesas_manutencao")
+            .delete()
+            .in("id", despesaIds);
+
+          if (despesaError) throw despesaError;
+        }
+
+        // 4. Deletar a partner_expense
         const { error } = await supabase
           .from("partner_expenses")
           .delete()
