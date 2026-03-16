@@ -18,6 +18,16 @@ interface NewServiceOrderDialogProps {
 }
 const MAINTENANCE_TYPES = ["CORRETIVO", "50HORAS", "100HORAS", "CVA", "HELICE_GOVERNADOR", "OLEO", "PNEU_DIREITO", "PNEU_ESQUERDO", "PNEU_TREM_NARIZ"];
 const SERVICE_STATUS = ["PLANEJADA", "INICIADA", "EM_ANDAMENTO", "CONCLUÍDA", "CANCELADA", "SUSPENSA"];
+
+// Helper para obter data de hoje sem problemas de timezone
+const getTodayString = (): string => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export function NewServiceOrderDialog({
   open,
   onOpenChange,
@@ -32,7 +42,7 @@ export function NewServiceOrderDialog({
     os_oficina: "",
     oficina_nome: "",
     oficina_contato: "",
-    data_entrada: format(new Date(), "yyyy-MM-dd"),
+    data_entrada: getTodayString(),
     data_saida: "",
     dias_previstos: "",
     dias_efetivos: "",
@@ -95,7 +105,7 @@ export function NewServiceOrderDialog({
         os_oficina: "",
         oficina_nome: "",
         oficina_contato: "",
-        data_entrada: format(new Date(), "yyyy-MM-dd"),
+        data_entrada: getTodayString(),
         data_saida: "",
         dias_previstos: "",
         dias_efetivos: "",
