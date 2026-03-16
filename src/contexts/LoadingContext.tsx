@@ -1,36 +1,134 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import Lottie from "lottie-react";
+import { cn } from "@/lib/utils";
+import { Plane } from "lucide-react";
 
-interface LoadingContextType {
-  isLoading: boolean;
-  setIsLoading: (loading: boolean) => void;
-  startLoading: () => void;
-  stopLoading: () => void;
+interface LottieAirplaneSpinnerProps {
+  size?: "sm" | "md" | "lg";
+  text?: string;
+  className?: string;
 }
 
-const LoadingContext = createContext<LoadingContextType | undefined>(undefined);
+export function LottieAirplaneSpinner({
+  size = "md",
+  text = "Carregando...",
+  className,
+}: LottieAirplaneSpinnerProps) {
+  const [animationData, setAnimationData] = useState<object | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const mounted = useRef(true);
 
-export function LoadingProvider({ children }: { children: React.ReactNode }) {
-  const [isLoading, setIsLoading] = useState(false);
+  useEffect(() => {
+    mounted.current = true;
 
-  const startLoading = useCallback(() => {
-    setIsLoading(true);
+    const loadAnimation = async () => {
+      try {
+        const url = `${import.meta.env.BASE_URL || '/'}animations/airplane-spinner.json`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (mounted.current) {
+          setAnimationData(data);
+        }
+      } catch (err) {
+        console.warn("Airplane animation not available, using fallback", err);
+        if (mounted.current) {
+          setLoadFailed(true);
+        }
+      }
+    };
+
+    loadAnimation();
+
+    return () => {
+      mounted.current = false;
+    };
   }, []);
 
-  const stopLoading = useCallback(() => {
-    setIsLoading(false);
-  }, []);
+  const lottieSize = {
+    sm: 120,
+    md: 180,
+    lg: 240,
+  };
+
+  const iconSize = {
+    sm: 40,
+    md: 60,
+    lg: 80,
+  };
+
+  const textClasses = {
+    sm: "text-sm",
+    md: "text-base",
+    lg: "text-lg",
+  };
+
+  // Fallback spinner when animation fails to load
+  if (loadFailed || !animationData) {
+    return (
+      <div
+        className={cn(
+          "flex flex-col items-center justify-center gap-4",
+          className
+        )}
+      >
+        <div
+          className="flex items-center justify-center animate-spin"
+          style={{ width: lottieSize[size], height: lottieSize[size] }}
+        >
+          <Plane
+            size={iconSize[size]}
+            className="text-primary opacity-70"
+            style={{
+              animation: "spin 3s linear infinite",
+            }}
+          />
+        </div>
+
+        {text && (
+          <p className={cn("text-muted-foreground font-medium", textClasses[size])}>
+            {text}
+          </p>
+        )}
+
+        <style>{`
+          @keyframes spin {
+            from {
+              transform: rotate(0deg);
+            }
+            to {
+              transform: rotate(360deg);
+            }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
-    <LoadingContext.Provider value={{ isLoading, setIsLoading, startLoading, stopLoading }}>
-      {children}
-    </LoadingContext.Provider>
-  );
-}
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center gap-4",
+        className
+      )}
+    >
+      <div
+        className="flex items-center justify-center"
+        style={{ width: lottieSize[size], height: lottieSize[size] }}
+      >
+        <Lottie
+          animationData={animationData}
+          loop={true}
+          autoplay={true}
+          style={{ width: "100%", height: "100%" }}
+        />
+      </div>
 
-export function useLoading() {
-  const context = useContext(LoadingContext);
-  if (!context) {
-    throw new Error("useLoading must be used within LoadingProvider");
-  }
-  return context;
+      {text && (
+        <p className={cn("text-muted-foreground font-medium", textClasses[size])}>
+          {text}
+        </p>
+      )}
+    </div>
+  );
 }
