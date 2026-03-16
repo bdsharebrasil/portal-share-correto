@@ -342,7 +342,7 @@ export function CTMServiceItemsForm({
       {/* Header */}
       <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
         <CardHeader>
-          <CardTitle className="text-xl">Lançamento de Serviço </CardTitle>
+          <CardTitle className="text-xl">ORDEM DE SERVIÇO </CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
             
           </p>
@@ -354,7 +354,7 @@ export function CTMServiceItemsForm({
         <CardContent className="pt-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Número do Serviço *</Label>
+              <Label>Número O.S</Label>
               <Input
                 value={financialData.numero_servico}
                 onChange={(e) => setFinancialData({ ...financialData, numero_servico: e.target.value })}
@@ -461,7 +461,7 @@ export function CTMServiceItemsForm({
       {/* Cabeçalho do Serviço */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Serviço</CardTitle>
+          <CardTitle className="text-base">Descrição</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
