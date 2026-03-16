@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   ArrowLeft, Plus, Wrench, FileText, Calendar, DollarSign,
-  Trash2, Edit, Download, Printer, AlertCircle, Users, PieChart
+  Trash2, Edit, Download, Printer, AlertCircle, Users, PieChart, Clock, Check
 } from "lucide-react";
 import { format, eachMonthOfInterval, startOfMonth, endOfMonth, isWithinInterval, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -33,6 +33,11 @@ interface OASData {
   total_geral: number;
   status: string;
   created_at: string;
+  approval_status?: string;
+  submitted_for_approval_at?: string | null;
+  approved_by?: string | null;
+  approved_at?: string | null;
+  rejection_reason?: string | null;
 }
 
 interface ServicoOAS {
@@ -43,6 +48,11 @@ interface ServicoOAS {
   periodo: string;
   valor: number;
   nota_fiscal: string;
+  modelo?: string;
+  modo_pagamento?: string;
+  dados_pagamento?: string;
+  quantidade?: number;
+  valor_unitario?: number;
 }
 
 interface PecaOAS {
@@ -89,6 +99,7 @@ export function CTMServiceOrderDetail({
   const [editingPeca, setEditingPeca] = useState<PecaOAS | null>(null);
   const [showServicoDialog, setShowServicoDialog] = useState(false);
   const [showPecaDialog, setShowPecaDialog] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     loadOASData();
@@ -273,6 +284,75 @@ export function CTMServiceOrderDetail({
     }
   };
 
+  const handleSaveChanges = async () => {
+    if (!oas) return;
+    try {
+      setIsSubmitting(true);
+
+      // Atualizar OAS
+      const { error: oasError } = await supabase
+        .from("ctm_service_orders")
+        .update({
+          approval_status: 'draft',
+          total_geral: totalGeral,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", serviceOrderId);
+
+      if (oasError) throw oasError;
+
+      toast.success("Alterações salvas com sucesso");
+    } catch (error) {
+      console.error("Erro ao salvar:", error);
+      toast.error("Erro ao salvar alterações");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSubmitForApproval = async () => {
+    if (!oas) return;
+    if (servicos.length === 0 && pecas.length === 0) {
+      toast.error("Adicione pelo menos um serviço ou peça antes de enviar para aprovação");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      // Atualizar status de aprovação
+      const { error: updateError } = await supabase
+        .from("ctm_service_orders")
+        .update({
+          approval_status: 'pending_approval',
+          submitted_for_approval_at: new Date().toISOString(),
+          total_geral: totalGeral
+        })
+        .eq("id", serviceOrderId);
+
+      if (updateError) throw updateError;
+
+      // Criar registro de aprovação
+      const { error: approvalError } = await supabase
+        .from("ctm_service_order_approvals")
+        .insert({
+          service_order_id: serviceOrderId,
+          status: 'pending',
+          submitted_by: (await supabase.auth.getUser()).data.user?.id
+        });
+
+      if (approvalError) throw approvalError;
+
+      setOas({ ...oas, approval_status: 'pending_approval' });
+      toast.success("Orçamento enviado para aprovação");
+    } catch (error) {
+      console.error("Erro ao enviar para aprovação:", error);
+      toast.error("Erro ao enviar para aprovação");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -306,8 +386,41 @@ export function CTMServiceOrderDetail({
             <p className="text-muted-foreground">OAS Nº {oas.numero}</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          {getStatusBadge(oas.status)}
+        <div className="flex gap-2 items-center">
+          {getStatusBadge(oas.approval_status === 'pending_approval' ? 'pendente' : oas.status)}
+          {oas.approval_status === 'approved' && (
+            <Badge className="bg-green-500/20 text-green-600 border-green-500/30">
+              ✓ Aprovado
+            </Badge>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isSubmitting}
+            onClick={handleSaveChanges}
+          >
+            <DollarSign className="h-4 w-4 mr-2" />
+            Salvar
+          </Button>
+          <Button
+            variant={oas.approval_status === 'pending_approval' ? "outline" : "default"}
+            size="sm"
+            disabled={isSubmitting || oas.approval_status === 'pending_approval'}
+            onClick={handleSubmitForApproval}
+            className="gap-2"
+          >
+            {oas.approval_status === 'pending_approval' ? (
+              <>
+                <Clock className="h-4 w-4" />
+                Aguardando Aprovação
+              </>
+            ) : (
+              <>
+                <FileText className="h-4 w-4" />
+                Enviar para Aprovação
+              </>
+            )}
+          </Button>
           <Button variant="outline" size="sm">
             <Printer className="h-4 w-4 mr-2" />
             Imprimir
@@ -526,9 +639,11 @@ export function CTMServiceOrderDetail({
                 <thead>
                   <tr className="border-b border-border">
                     <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">DESCRIÇÃO</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">MODELO</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">FORNECEDOR</th>
                     <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">PERÍODO</th>
                     <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">VALOR</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">MODO PAG.</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">NF</th>
                     <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">AÇÕES</th>
                   </tr>
@@ -537,11 +652,13 @@ export function CTMServiceOrderDetail({
                   {servicos.map((servico) => (
                     <tr key={servico.id} className="border-b border-border/50 hover:bg-background/50">
                       <td className="px-4 py-3 text-sm text-foreground">{servico.descricao}</td>
+                      <td className="px-4 py-3 text-sm text-foreground">{servico.modelo || '-'}</td>
                       <td className="px-4 py-3 text-sm text-foreground">{servico.fornecedor}</td>
                       <td className="px-4 py-3 text-sm text-center text-foreground">{servico.periodo}</td>
                       <td className="px-4 py-3 text-sm text-right text-foreground font-medium">
                         R$ {servico.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
+                      <td className="px-4 py-3 text-sm text-foreground text-muted-foreground text-xs">{servico.modo_pagamento || '-'}</td>
                       <td className="px-4 py-3 text-sm text-foreground text-muted-foreground">{servico.nota_fiscal || '-'}</td>
                       <td className="px-4 py-3 text-sm text-center">
                         <Button variant="ghost" size="sm" onClick={() => handleDeleteServico(servico.id)}>
@@ -551,11 +668,11 @@ export function CTMServiceOrderDetail({
                     </tr>
                   ))}
                   <tr className="border-t-2 border-border bg-background/50 font-semibold">
-                    <td colSpan={3} className="px-4 py-3 text-sm text-foreground">SUBTOTAL SERVIÇOS</td>
+                    <td colSpan={4} className="px-4 py-3 text-sm text-foreground">SUBTOTAL SERVIÇOS</td>
                     <td className="px-4 py-3 text-sm text-right text-foreground">
                       R$ {totalServicos.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </td>
-                    <td colSpan={2}></td>
+                    <td colSpan={3}></td>
                   </tr>
                 </tbody>
               </table>
@@ -591,9 +708,11 @@ export function CTMServiceOrderDetail({
                 <thead>
                   <tr className="border-b border-border">
                     <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">DESCRIÇÃO</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">MODELO</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">FORNECEDOR</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">PERÍODO</th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">QTD</th>
                     <th className="px-4 py-3 text-right text-sm font-semibold text-foreground">VALOR</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">MODO PAG.</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">NF</th>
                     <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">AÇÕES</th>
                   </tr>
@@ -602,11 +721,13 @@ export function CTMServiceOrderDetail({
                   {pecas.map((peca) => (
                     <tr key={peca.id} className="border-b border-border/50 hover:bg-background/50">
                       <td className="px-4 py-3 text-sm text-foreground">{peca.descricao}</td>
+                      <td className="px-4 py-3 text-sm text-foreground">{peca.modelo || '-'}</td>
                       <td className="px-4 py-3 text-sm text-foreground">{peca.fornecedor}</td>
-                      <td className="px-4 py-3 text-sm text-center text-foreground">-</td>
+                      <td className="px-4 py-3 text-sm text-center text-foreground">{peca.quantidade || '-'}</td>
                       <td className="px-4 py-3 text-sm text-right text-foreground font-medium">
                         R$ {(peca.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </td>
+                      <td className="px-4 py-3 text-sm text-foreground text-muted-foreground text-xs">{peca.modo_pagamento || '-'}</td>
                       <td className="px-4 py-3 text-sm text-foreground text-muted-foreground">{peca.nota_fiscal || '-'}</td>
                       <td className="px-4 py-3 text-sm text-center">
                         <Button variant="ghost" size="sm" onClick={() => handleDeletePeca(peca.id)}>
@@ -616,11 +737,11 @@ export function CTMServiceOrderDetail({
                     </tr>
                   ))}
                   <tr className="border-t-2 border-border bg-background/50 font-semibold">
-                    <td colSpan={3} className="px-4 py-3 text-sm text-foreground">SUBTOTAL PEÇAS</td>
+                    <td colSpan={4} className="px-4 py-3 text-sm text-foreground">SUBTOTAL PEÇAS</td>
                     <td className="px-4 py-3 text-sm text-right text-foreground">
                       R$ {totalPecas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </td>
-                    <td colSpan={2}></td>
+                    <td colSpan={3}></td>
                   </tr>
                 </tbody>
               </table>
@@ -661,6 +782,208 @@ export function CTMServiceOrderDetail({
           </div>
         </CardContent>
       </Card>
+
+      {/* Diálogo de Novo Serviço */}
+      <Dialog open={showServicoDialog} onOpenChange={setShowServicoDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingServico ? 'Editar Serviço' : 'Novo Serviço'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <Label htmlFor="descricao">Descrição *</Label>
+              <Input
+                id="descricao"
+                placeholder="Descrição do serviço"
+                defaultValue={editingServico?.descricao || ''}
+              />
+            </div>
+            <div>
+              <Label htmlFor="modelo">Modelo</Label>
+              <Input
+                id="modelo"
+                placeholder="ex: 25140/22A703"
+                defaultValue={editingServico?.modelo || ''}
+              />
+            </div>
+            <div>
+              <Label htmlFor="quantidade">Quantidade</Label>
+              <Input
+                id="quantidade"
+                type="number"
+                placeholder="1"
+                defaultValue={editingServico?.quantidade || 1}
+              />
+            </div>
+            <div>
+              <Label htmlFor="valor_unitario">Valor Unitário (R$)</Label>
+              <Input
+                id="valor_unitario"
+                type="number"
+                placeholder="0,00"
+                defaultValue={editingServico?.valor_unitario || editingServico?.valor || 0}
+              />
+            </div>
+            <div>
+              <Label htmlFor="valor_total">Valor Total (R$)</Label>
+              <Input
+                id="valor_total"
+                type="number"
+                placeholder="0,00"
+                defaultValue={editingServico?.valor || 0}
+              />
+            </div>
+            <div className="col-span-2">
+              <Label htmlFor="fornecedor">Fornecedor</Label>
+              <Input
+                id="fornecedor"
+                placeholder="Nome do fornecedor"
+                defaultValue={editingServico?.fornecedor || ''}
+              />
+            </div>
+            <div>
+              <Label htmlFor="modo_pagamento">Modo de Pagamento</Label>
+              <Input
+                id="modo_pagamento"
+                placeholder="ex: Boleto, Transferência, Cartão"
+                defaultValue={editingServico?.modo_pagamento || ''}
+              />
+            </div>
+            <div>
+              <Label htmlFor="nota_fiscal">Nota Fiscal</Label>
+              <Input
+                id="nota_fiscal"
+                placeholder="ex: NF-000123"
+                defaultValue={editingServico?.nota_fiscal || ''}
+              />
+            </div>
+            <div className="col-span-2">
+              <Label htmlFor="dados_pagamento">Dados para Pagamento</Label>
+              <Textarea
+                id="dados_pagamento"
+                placeholder="Banco: XXX | Agência: 0000-0 | Conta: 00000-0"
+                defaultValue={editingServico?.dados_pagamento || ''}
+                rows={3}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end mt-6">
+            <Button variant="outline" onClick={() => setShowServicoDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={() => setShowServicoDialog(false)}>
+              Salvar Serviço
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de Nova Peça */}
+      <Dialog open={showPecaDialog} onOpenChange={setShowPecaDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingPeca ? 'Editar Peça' : 'Nova Peça'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <Label htmlFor="descricao_peca">Descrição *</Label>
+              <Input
+                id="descricao_peca"
+                placeholder="Descrição da peça"
+                defaultValue={editingPeca?.descricao || ''}
+              />
+            </div>
+            <div>
+              <Label htmlFor="modelo_peca">Modelo (P/N)</Label>
+              <Input
+                id="modelo_peca"
+                placeholder="ex: 32005-007"
+                defaultValue={editingPeca?.modelo || ''}
+              />
+            </div>
+            <div>
+              <Label htmlFor="serial_number">Número de Série (N/S)</Label>
+              <Input
+                id="serial_number"
+                placeholder="ex: 318551"
+                defaultValue={editingPeca?.serial_number || ''}
+              />
+            </div>
+            <div>
+              <Label htmlFor="quantidade_peca">Quantidade</Label>
+              <Input
+                id="quantidade_peca"
+                type="number"
+                placeholder="1"
+                defaultValue={editingPeca?.quantidade || 1}
+              />
+            </div>
+            <div>
+              <Label htmlFor="valor_unitario_peca">Valor Unitário (R$)</Label>
+              <Input
+                id="valor_unitario_peca"
+                type="number"
+                placeholder="0,00"
+                defaultValue={editingPeca?.valor_unitario || 0}
+              />
+            </div>
+            <div>
+              <Label htmlFor="valor_total_peca">Valor Total (R$)</Label>
+              <Input
+                id="valor_total_peca"
+                type="number"
+                placeholder="0,00"
+                defaultValue={editingPeca?.valor_total || 0}
+              />
+            </div>
+            <div className="col-span-2">
+              <Label htmlFor="fornecedor_peca">Fornecedor</Label>
+              <Input
+                id="fornecedor_peca"
+                placeholder="Nome do fornecedor"
+                defaultValue={editingPeca?.fornecedor || ''}
+              />
+            </div>
+            <div>
+              <Label htmlFor="modo_pagamento_peca">Modo de Pagamento</Label>
+              <Input
+                id="modo_pagamento_peca"
+                placeholder="ex: Boleto, Transferência, Cartão"
+                defaultValue={editingPeca?.modo_pagamento || ''}
+              />
+            </div>
+            <div>
+              <Label htmlFor="nota_fiscal_peca">Nota Fiscal</Label>
+              <Input
+                id="nota_fiscal_peca"
+                placeholder="ex: NF-000123"
+                defaultValue={editingPeca?.nota_fiscal || ''}
+              />
+            </div>
+            <div className="col-span-2">
+              <Label htmlFor="dados_pagamento_peca">Dados para Pagamento</Label>
+              <Textarea
+                id="dados_pagamento_peca"
+                placeholder="Banco: XXX | Agência: 0000-0 | Conta: 00000-0"
+                defaultValue={editingPeca?.dados_pagamento || ''}
+                rows={3}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end mt-6">
+            <Button variant="outline" onClick={() => setShowPecaDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={() => setShowPecaDialog(false)}>
+              Salvar Peça
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

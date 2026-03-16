@@ -46,6 +46,13 @@ export function GestorDashboard() {
         .select("*")
         .eq("status", "submitted");
 
+      // Buscar ordens de serviço CTM pendentes de aprovação
+      const { data: ctmOrdersData } = await supabase
+        .from("ctm_service_orders")
+        .select("*, aircraft(registration)")
+        .eq("approval_status", "pending_approval")
+        .order("submitted_for_approval_at", { ascending: false });
+
       // Combinar e formatar os dados
       const flights = (flightData || []).map(f => ({
         ...f,
@@ -61,7 +68,16 @@ export function GestorDashboard() {
         date: b.created_at
       }));
 
-      return [...flights, ...budgets] || [];
+      const ctmOrders = (ctmOrdersData || []).map(o => ({
+        ...o,
+        type: 'ctm_order',
+        title: `OAS #${o.numero} - ${(o.aircraft as any)?.registration || 'N/A'}`,
+        date: o.submitted_for_approval_at || o.data_entrada,
+        description: o.objetivo,
+        total: o.total_geral
+      }));
+
+      return [...flights, ...budgets, ...ctmOrders] || [];
     },
   });
 
@@ -253,26 +269,46 @@ export function GestorDashboard() {
           ) : (
             <div className="space-y-3">
               {pendingApprovals.slice(0, 5).map((item: any) => (
-                <div key={`${item.type}-${item.id}`} className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50">
+                <div
+                  key={`${item.type}-${item.id}`}
+                  onClick={() => {
+                    if (item.type === 'ctm_order') {
+                      navigate(`/manutencao/ctm?serviceOrderId=${item.id}`);
+                    }
+                  }}
+                  className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50 hover:border-primary/50 hover:bg-background/80 transition-all cursor-pointer"
+                >
                   <div>
                     <p className="font-medium text-foreground">
-                      {item.type === 'flight'
-                        ? `${item.origin} → ${item.destination}`
-                        : item.title
-                      }
+                      {item.title}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {item.type === 'flight'
                         ? 'Voo Agendado'
+                        : item.type === 'ctm_order'
+                        ? 'Ordem de Serviço CTM'
                         : 'Orçamento de Manutenção'
                       }
                     </p>
+                    {item.type === 'ctm_order' && item.total && (
+                      <p className="text-sm font-semibold text-primary mt-1">
+                        R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    )}
                     <p className="text-xs text-muted-foreground mt-1">
                       {format(new Date(item.date), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                     </p>
                   </div>
-                  <Badge className={item.type === 'budget' ? "bg-blue-500/20 text-blue-400 border-blue-500/30" : "bg-warning/20 text-warning border-warning"}>
-                    {item.type === 'budget' ? 'Orçamento' : 'Voo'}
+                  <Badge
+                    className={
+                      item.type === 'ctm_order'
+                        ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                        : item.type === 'budget'
+                        ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                        : "bg-warning/20 text-warning border-warning"
+                    }
+                  >
+                    {item.type === 'ctm_order' ? 'OAS' : item.type === 'budget' ? 'Orçamento' : 'Voo'}
                   </Badge>
                 </div>
               ))}
