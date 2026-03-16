@@ -32,6 +32,12 @@ import { validateFlightEntry, formatValidationErrors } from '@/validators/flight
 import { FlightService } from '@/services/flightService';
 import { useFlightTimeCalculation } from '@/hooks/useFlightTimeCalculation';
 import { TimeInput, CompactTimeInput, TimeInputGroup } from './shared/TimeInput';
+// Importar funções centralizadas de cálculo de tempos
+import {
+  calculateCelulaAtual,
+  calculateCelulaDisponivel,
+  calculateRunningCelula
+} from '@/utils/flightTime';
 
 // ===================== CONSTANTES LOCAIS =====================
 const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -560,29 +566,39 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     if (!logbookMonth) return;
 
     try {
-      // Recalcular a partir da soma real de todos os voos do mês (evita drift incremental)
+      // Buscar TODOS os voos do mês com sequential_number para cálculo correto
       const { data: monthEntries } = await supabase
         .from('logbook_entries')
-        .select('total_time')
+        .select('id, total_time, sequential_number')
         .eq('aircraft_id', aircraftId)
         .gte('entry_date', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`)
         .lt('entry_date', selectedMonth === 12
           ? `${selectedYear + 1}-01-01`
-          : `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`);
-
-      const totalFlightTimeThisMonth = (monthEntries || []).reduce(
-        (sum: number, entry: any) => sum + (Number(entry.total_time) || 0), 0
-      );
+          : `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`)
+        .order('sequential_number', { ascending: true });
 
       const celulaAnterior = logbookMonth.celula_anterior ?? 0;
-      const newCelulaAtual = parseFloat((celulaAnterior + totalFlightTimeThisMonth).toFixed(2));
-      const newCelulaDisponivel = parseFloat(((logbookMonth.celula_prox_revisao ?? 0) - newCelulaAtual).toFixed(2));
+
+      // Usar funções centralizadas para cálculo correto
+      const newCelulaAtual = calculateCelulaAtual(
+        monthEntries || [],
+        celulaAnterior
+      );
+
+      const newCelulaDisponivel = calculateCelulaDisponivel(
+        logbookMonth.celula_prox_revisao ?? 0,
+        newCelulaAtual
+      );
+
+      // Arredondar para 2 casas decimais (conforme especificação)
+      const newCelulaAtualFormatted = parseFloat(newCelulaAtual.toFixed(2));
+      const newCelulaDisponvelFormatted = parseFloat(newCelulaDisponivel.toFixed(2));
 
       const { error } = await supabase
         .from('logbook_months')
         .update({
-          celula_atual: newCelulaAtual,
-          celula_disponivel: newCelulaDisponivel
+          celula_atual: newCelulaAtualFormatted,
+          celula_disponivel: newCelulaDisponvelFormatted
         })
         .eq('id', logbookMonth.id);
 
@@ -591,12 +607,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       } else {
         setLogbookMonth({
           ...logbookMonth,
-          celula_atual: newCelulaAtual,
-          celula_disponivel: newCelulaDisponivel
+          celula_atual: newCelulaAtualFormatted,
+          celula_disponivel: newCelulaDisponvelFormatted
         });
-        logInfo(`✅ Célula_Atual recalculada: ${celulaAnterior} + ${totalFlightTimeThisMonth.toFixed(2)} = ${newCelulaAtual.toFixed(2)} | Disponível: ${newCelulaDisponivel.toFixed(2)}`);
+        const totalThisMonth = newCelulaAtualFormatted - celulaAnterior;
+        logInfo(`✅ Célula_Atual recalculada: ${celulaAnterior.toFixed(2)} + ${totalThisMonth.toFixed(2)} = ${newCelulaAtualFormatted.toFixed(2)} | Disponível: ${newCelulaDisponvelFormatted.toFixed(2)}`);
 
-        await updateMaintenanceHours(newCelulaAtual);
+        await updateMaintenanceHours(newCelulaAtualFormatted);
       }
     } catch (error) {
       logError('Erro ao recalcular célula:', error);

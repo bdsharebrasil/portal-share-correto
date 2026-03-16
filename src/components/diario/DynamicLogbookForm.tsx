@@ -34,6 +34,11 @@ import { useLogbookForm } from '@/hooks/useLogbookForm';
 import { useTripulantes } from '@/hooks/useTripulantes';
 import { updateCrewFlightHours } from '@/services/crewFlightHours';
 import type { Aerodrome } from '@/types';
+import {
+  calculateBlockTime,
+  calculateDayTime,
+  validateTimes
+} from '@/utils/flightTime';
 
 // Tipos de voo especiais que dividem custos igualmente entre sócios
 const SPECIAL_FLIGHT_TYPES = [
@@ -518,22 +523,21 @@ export function DynamicLogbookForm({
       const flightMinutes = parseFloat(formData.flight_time_minutes) || 0;
       const flightTime = flightHours + flightMinutes / 60;
 
-      // Calcular bloco (AC até COR)
-      const acTimeParts = formData.ac_time.split(':').map(Number);
-      const corTimeParts = formData.cor_time.split(':').map(Number);
-      const acTotalMinutes = acTimeParts[0] * 60 + acTimeParts[1];
-      const corTotalMinutes = corTimeParts[0] * 60 + corTimeParts[1];
-      let blockMinutes = corTotalMinutes - acTotalMinutes;
-      if (blockMinutes < 0) blockMinutes += 24 * 60;
-      const totalBlockTime = blockMinutes / 60;
+      // Calcular tempo de bloco (AC até COR) usando função centralizada
+      const totalBlockTime = calculateBlockTime(formData.ac_time, formData.cor_time);
 
       // Calcular tempo noturno do bloco
       const nightHours = parseFloat(formData.night_time_hours) || 0;
       const nightMinutes = parseFloat(formData.night_time_minutes) || 0;
       const totalNight = nightHours + nightMinutes / 60;
 
-      // Calcular tempo diurno (bloco total - noturno)
-      const totalDay = Math.max(0, totalBlockTime - totalNight);
+      // Calcular tempo diurno de forma CONSISTENTE (day_time + night_hours = flight_time)
+      const totalDay = calculateDayTime(flightTime, totalNight);
+
+      // VALIDAÇÃO OBRIGATÓRIA: blockTime >= flightTime
+      if (!validateTimes(totalBlockTime, flightTime)) {
+        throw new Error(`Validação falhou: Tempo Total (${totalBlockTime.toFixed(2)}h) não pode ser menor que Tempo de Voo (${flightTime.toFixed(2)}h)`);
+      }
 
       // Calcular valor das diárias
       let finalDailyRate: number | null = null;
@@ -579,6 +583,24 @@ export function DynamicLogbookForm({
         borrowerPartnerName = borrowerClient?.company_name || '';
       }
 
+      // Calcular célula progressiva (célula anterior + total_time)
+      let celulaAnterior = 0;
+
+      // Se há um logbook_month_id, buscar a célula_anterior desse mês
+      if (logbookMonthId) {
+        const { data: monthData } = await supabase
+          .from('logbook_months')
+          .select('celula_anterior')
+          .eq('id', logbookMonthId)
+          .single();
+
+        celulaAnterior = monthData?.celula_anterior || 0;
+      }
+
+      // Calcular a célula acumulada para esta entrada
+      // celula = celula_anterior + total_time
+      const entrycelula = celulaAnterior + totalBlockTime;
+
       const { data: insertedEntry, error } = await supabase.from('logbook_entries').insert([
         {
           logbook_month_id: typeof logbookMonthId !== 'undefined' ? logbookMonthId : null,
@@ -606,7 +628,7 @@ export function DynamicLogbookForm({
           ifr_time: parseFloat(formData.ifr_count) || 0,
           pousos: parseInt(formData.landings) || 1,
           fuel_added: parseFloat(formData.fuel_added) || 0,
-          celula: parseFloat(formData.fuel_cell) || 0,
+          celula: parseFloat(entrycelula.toFixed(2)),
           daily_rate: finalDailyRate || (formData.daily_rate ? parseBRL(formData.daily_rate) : null),
           distance_nm: parseFloat(formData.distance_nm) || 0,
           passengers: parseInt(passengers) || 0,
