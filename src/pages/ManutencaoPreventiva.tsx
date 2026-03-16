@@ -1,6 +1,6 @@
 import React from 'react';
 import { Layout } from '@/components/layout/Layout';
-import { MaintenanceDashboard } from '@/components/maintenance';
+import { DashboardManutenção } from '@/components/manutencao';
 
 export default function ManutencaoPreventiva() {
   return (
@@ -13,7 +13,7 @@ export default function ManutencaoPreventiva() {
         </div>
 
         <div className="relative z-10 p-6">
-          <MaintenanceDashboard />
+          <DashboardManutenção />
         </div>
       </div>
     </Layout>

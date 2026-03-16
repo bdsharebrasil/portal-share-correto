@@ -18,7 +18,7 @@ interface Oficina {
   mecanico_responsavel: string | null;
 }
 
-interface RegisterMaintenanceDialogProps {
+interface ManutencaoRegistroDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   aircraftId: string;
@@ -26,13 +26,13 @@ interface RegisterMaintenanceDialogProps {
   currentHours: number;
 }
 
-export function RegisterMaintenanceDialog({
+export function ManutencaoRegistroDialog({
   open,
   onOpenChange,
   aircraftId,
   aircraftRegistration,
   currentHours,
-}: RegisterMaintenanceDialogProps) {
+}: ManutencaoRegistroDialogProps) {
   const { toast } = useToast();
   const addRecord = useAddMaintenanceRecord();
   

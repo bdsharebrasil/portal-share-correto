@@ -8,19 +8,19 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { LottieAirplaneSpinner } from '@/components/ui/lottie-airplane-spinner';
 
-interface MaintenanceHistoryDialogProps {
+interface ManutencaoHistoricoDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   aircraftId: string;
   aircraftRegistration: string;
 }
 
-export function MaintenanceHistoryDialog({
+export function ManutencaoHistoricoDialog({
   open,
   onOpenChange,
   aircraftId,
   aircraftRegistration,
-}: MaintenanceHistoryDialogProps) {
+}: ManutencaoHistoricoDialogProps) {
   const { data: records, isLoading } = useMaintenanceRecords(aircraftId);
 
   return (

@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pencil, Plus, Loader2 } from "lucide-react";
-import { fetchAircrafts, createMaintenance, updateMaintenance } from "@/services/maintenance";
+import { createManutencao, fetchAircraftMap } from "@/services/manutencoes";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -74,8 +74,13 @@ export function ManutencaoDialog({ manutencao, onSave, mode = "create" }: Manute
 
   const loadAircrafts = async () => {
     try {
-      const list = await fetchAircrafts();
-      setAircrafts(list);
+      const { data, error } = await supabase
+        .from("aircraft")
+        .select("id, registration")
+        .order("registration");
+
+      if (error) throw error;
+      setAircrafts((data || []) as Aircraft[]);
     } catch (error) {
       console.error("Erro ao carregar aeronaves:", error);
       toast({
@@ -133,16 +138,33 @@ export function ManutencaoDialog({ manutencao, onSave, mode = "create" }: Manute
       };
 
       if (mode === "edit" && manutencao?.id) {
-        await updateMaintenance(manutencao.id, payload as any);
+        // Atualizar manutenção
+        const { error } = await supabase
+          .from("manutencoes")
+          .update(payload)
+          .eq("id", manutencao.id)
+          .select();
+
+        if (error) throw error;
 
         toast({
           title: "Sucesso",
           description: "Manutenção atualizada com sucesso.",
         });
       } else {
-        const data = await createMaintenance(payload as any) as any[];
-        if (data && data[0]?.id) {
-          (formData as any).id = data[0].id;
+        const createdData = await createManutencao({
+          aeronave_id: formData.aeronave_id!,
+          tipo: formData.tipo,
+          data_programada: formData.data_programada,
+          mecanico: formData.mecanico,
+          oficina: formData.oficina || undefined,
+          etapa: formData.etapa,
+          custo_estimado: formData.custo_estimado || undefined,
+          descricao: formData.observacoes || undefined,
+        });
+
+        if (createdData?.id) {
+          (formData as any).id = createdData.id;
         }
 
         toast({

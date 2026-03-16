@@ -1,4 +1,4 @@
-export { CTMServiceOrderList } from './CTMServiceOrderDetails';
+export { CTMServiceOrderList } from './CTMServiceOrderList';
 export { CTMServiceOrderForm } from './CTMServiceOrderForm';
 export { CTMDashboard } from './CTMDashboard';
 export { RASList } from './RASList';
