@@ -342,7 +342,7 @@ export function CTMServiceItemsForm({
       {/* Header */}
       <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
         <CardHeader>
-          <CardTitle className="text-xl">Lançamento de Serviço com Múltiplos Itens</CardTitle>
+          <CardTitle className="text-xl">Lançamento de Serviço </CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
             Configure o número, oficina e itens do serviço
           </p>
