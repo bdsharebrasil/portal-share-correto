@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus, Download, Eye, Edit, Trash2, DollarSign, FileUp, Building2, X } from "lucide-react";
@@ -48,6 +49,32 @@ interface CTMBudget {
   updated_at?: string;
 }
 
+interface Oficina {
+  id: string;
+  razao_social: string;
+  cnpj?: string;
+  endereco?: string;
+  telefone?: string;
+  mecanico_responsavel?: string;
+  tipo_aeronave?: string;
+  ativo?: boolean;
+}
+
+interface FornecedorFavorito {
+  id: string;
+  nome_completo: string;
+  categoria?: string;
+  cidade?: string;
+  telefone?: string;
+  documento?: string;
+}
+
+interface ComboboxItem {
+  id: string;
+  label: string;
+  type: "oficina" | "fornecedor";
+}
+
 interface CTMBudgetManagementProps {
   aircraftId: string;
   aircraftRegistration: string;
@@ -58,20 +85,167 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<"all" | "draft" | "submitted" | "approved">("all");
   const [showNewBudgetDialog, setShowNewBudgetDialog] = useState(false);
+  const [showNewSupplierDialog, setShowNewSupplierDialog] = useState(false);
   const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([{ code: "", description: "", quantity: 1, unit_value: 0, total: 0 }]);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfFileName, setPdfFileName] = useState<string>("");
+  const [comboboxItems, setComboboxItems] = useState<ComboboxItem[]>([]);
+  const [suppliers, setSuppliers] = useState<ComboboxItem[]>([]);
+  const [loadingSuppliers, setLoadingSuppliers] = useState(false);
+
   const [formData, setFormData] = useState({
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
+    supplier_id: "",
     supplier_name: "",
     supplier_type: "" as "" | "oficina" | "fornecedor",
     notes: "",
   });
 
+  const [newSupplierData, setNewSupplierData] = useState({
+    type: "oficina" as "oficina" | "fornecedor",
+    name: "",
+    cnpj_documento: "",
+    ciudad_endereco: "",
+    telefone: "",
+    mecanico_responsavel: "",
+    tipo_aeronave: "",
+    categoria: "",
+  });
+
   useEffect(() => {
     loadBudgets();
+    loadSuppliers();
   }, [aircraftId]);
+
+  const loadSuppliers = async () => {
+    try {
+      setLoadingSuppliers(true);
+      const items: ComboboxItem[] = [];
+
+      // Carregar oficinas
+      const { data: oficinas, error: oficinasError } = await supabase
+        .from("oficinas")
+        .select("id, razao_social")
+        .eq("ativo", true)
+        .order("razao_social", { ascending: true });
+
+      if (oficinas) {
+        oficinas.forEach((o) => {
+          items.push({
+            id: o.id,
+            label: o.razao_social,
+            type: "oficina",
+          });
+        });
+      }
+
+      // Carregar fornecedores (categoria = "share")
+      const { data: fornecedores, error: fornecedoresError } = await supabase
+        .from("fornecedores_favoritos")
+        .select("id, nome_completo")
+        .eq("categoria", "share")
+        .order("nome_completo", { ascending: true });
+
+      if (fornecedores) {
+        fornecedores.forEach((f) => {
+          items.push({
+            id: f.id,
+            label: f.nome_completo,
+            type: "fornecedor",
+          });
+        });
+      }
+
+      setComboboxItems(items);
+      setSuppliers(items);
+    } catch (error: any) {
+      console.error("Error loading suppliers:", error);
+      toast.error("Erro ao carregar fornecedores/oficinas");
+    } finally {
+      setLoadingSuppliers(false);
+    }
+  };
+
+  const handleCreateNewSupplier = async () => {
+    try {
+      if (!newSupplierData.name.trim()) {
+        toast.error("Nome é obrigatório");
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Você precisa estar logado");
+        return;
+      }
+
+      let supplierId: string;
+
+      if (newSupplierData.type === "oficina") {
+        const { data, error } = await supabase
+          .from("oficinas")
+          .insert([
+            {
+              razao_social: newSupplierData.name,
+              cnpj: newSupplierData.cnpj_documento || null,
+              endereco: newSupplierData.ciudad_endereco || null,
+              telefone: newSupplierData.telefone || null,
+              mecanico_responsavel: newSupplierData.mecanico_responsavel || null,
+              tipo_aeronave: newSupplierData.tipo_aeronave || null,
+              ativo: true,
+            },
+          ])
+          .select("id")
+          .single();
+
+        if (error) throw error;
+        supplierId = data.id;
+      } else {
+        const { data, error } = await supabase
+          .from("fornecedores_favoritos")
+          .insert([
+            {
+              nome_completo: newSupplierData.name,
+              documento: newSupplierData.cnpj_documento || null,
+              cidade: newSupplierData.ciudad_endereco || null,
+              telefone: newSupplierData.telefone || null,
+              categoria: "share",
+              criado_por: user.id,
+            },
+          ])
+          .select("id")
+          .single();
+
+        if (error) throw error;
+        supplierId = data.id;
+      }
+
+      toast.success("Fornecedor/Oficina criado com sucesso!");
+      setShowNewSupplierDialog(false);
+      setNewSupplierData({
+        type: "oficina",
+        name: "",
+        cnpj_documento: "",
+        ciudad_endereco: "",
+        telefone: "",
+        mecanico_responsavel: "",
+        tipo_aeronave: "",
+        categoria: "",
+      });
+
+      // Recarregar fornecedores e selecionar o novo
+      await loadSuppliers();
+      setFormData({
+        ...formData,
+        supplier_id: supplierId,
+        supplier_type: newSupplierData.type,
+      });
+    } catch (error: any) {
+      console.error("Error creating supplier:", error);
+      toast.error("Erro ao criar fornecedor/oficina: " + error.message);
+    }
+  };
 
   const handleAddItem = () => {
     setBudgetItems(prev => [...prev, { code: "", description: "", quantity: 1, unit_value: 0, total: 0 }]);
@@ -125,6 +299,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
     setFormData({
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
+      supplier_id: "",
       supplier_name: "",
       supplier_type: "",
       notes: "",
@@ -186,8 +361,8 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
 
   const handleCreateBudget = async () => {
     try {
-      if (!formData.supplier_name.trim()) {
-        toast.error("Nome do fornecedor/oficina é obrigatório");
+      if (!formData.supplier_id) {
+        toast.error("Selecione um fornecedor/oficina");
         return;
       }
 
@@ -245,19 +420,33 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
         pdf_file_name: pdfName,
       };
 
-      const { error } = await supabase.from("ctm_budgets").insert([
-        {
-          aircraft_id: aircraftId,
-          month: formData.month,
-          year: formData.year,
-          status: "draft",
-          created_by: user.id,
-          created_at: new Date().toISOString(),
-          budget_details: budgetDetails,
-        },
-      ]);
+      const budgetPayload = {
+        aircraft_id: aircraftId,
+        month: formData.month,
+        year: formData.year,
+        status: "draft",
+        created_by: user.id,
+        created_at: new Date().toISOString(),
+        supplier_name: formData.supplier_name,
+        supplier_type: formData.supplier_type,
+        notes: formData.notes || null,
+        budget_items: budgetItems.filter(i => i.description),
+        budget_details: budgetDetails,
+      };
 
-      if (error) throw error;
+      console.log("Inserting budget with payload:", budgetPayload);
+
+      const { data, error } = await supabase
+        .from("ctm_budgets")
+        .insert([budgetPayload])
+        .select();
+
+      console.log("Insert response - Data:", data, "Error:", error);
+
+      if (error) {
+        console.error("Supabase insert error:", error);
+        throw new Error(error.message || "Erro ao salvar orçamento no banco de dados");
+      }
 
       toast.success("Orçamento criado com sucesso!");
       setShowNewBudgetDialog(false);
@@ -265,7 +454,24 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
       await loadBudgets();
     } catch (error: any) {
       console.error("Error creating budget:", error);
-      toast.error("Erro ao criar orçamento: " + error.message);
+      toast.error("Erro ao criar orçamento: " + (error.message || "Erro desconhecido"));
+    }
+  };
+
+  const handleSubmitForApproval = async (budgetId: string) => {
+    try {
+      const { error } = await supabase
+        .from("ctm_budgets")
+        .update({ status: "submitted", updated_at: new Date().toISOString() })
+        .eq("id", budgetId);
+
+      if (error) throw error;
+
+      toast.success("Orçamento enviado para aprovação do financeiro!");
+      await loadBudgets();
+    } catch (error: any) {
+      console.error("Error submitting budget:", error);
+      toast.error("Erro ao enviar orçamento para aprovação");
     }
   };
 
@@ -361,6 +567,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
           <table className="w-full text-left border-collapse min-w-[800px]">
             <thead className="bg-slate-900/30 text-muted-foreground text-xs uppercase font-medium">
               <tr>
+                <th className="px-6 py-4">Nº Orçamento</th>
                 <th className="px-6 py-4">Data Emissão</th>
                 <th className="px-6 py-4">Período</th>
                 <th className="px-6 py-4">Fornecedor/Oficina</th>
@@ -373,7 +580,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
             <tbody className="text-foreground text-sm divide-y divide-border">
               {filteredBudgets.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-6 py-8 text-center text-muted-foreground">
                     Nenhum orçamento encontrado
                   </td>
                 </tr>
@@ -382,6 +589,9 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
                   const budgetTotal = budget.budget_details?.items?.reduce((sum, item) => sum + item.total, 0) || 0;
                   return (
                     <tr key={budget.id} className="hover:bg-slate-800/30 transition-colors group">
+                      <td className="px-6 py-4 whitespace-nowrap font-bold text-primary">
+                        #{(budget as any).numero_orcamento || "—"}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
                         {format(new Date(budget.created_at), "dd MMM yyyy", { locale: ptBR })}
                       </td>
@@ -445,7 +655,16 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
                           >
                             <Edit className="h-4 w-4" />
                           </button>
-                          {budget.status !== "approved" && (
+                          {budget.status === "draft" && (
+                            <button
+                              onClick={() => handleSubmitForApproval(budget.id)}
+                              className="p-1.5 rounded hover:bg-slate-700 text-muted-foreground hover:text-blue-400 transition-colors"
+                              title="Enviar para Aprovação Financeira"
+                            >
+                              <FileUp className="h-4 w-4" />
+                            </button>
+                          )}
+                          {budget.status === "submitted" && (
                             <button
                               onClick={() => handleApproveBudget(budget.id)}
                               className="p-1.5 rounded hover:bg-slate-700 text-muted-foreground hover:text-green-400 transition-colors"
@@ -526,26 +745,39 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
             <div className="border-t border-border pt-4" />
 
             {/* Fornecedor/Oficina */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
                 <Label className="text-sm font-semibold">Fornecedor ou Oficina *</Label>
-                <Input
-                  placeholder="Nome da empresa"
-                  value={formData.supplier_name}
-                  onChange={(e) => setFormData({ ...formData, supplier_name: e.target.value })}
-                  className="mt-1"
-                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNewSupplierDialog(true)}
+                  className="gap-1"
+                >
+                  <Plus className="h-3 w-3" /> Adicionar
+                </Button>
               </div>
-              <div>
-                <Label className="text-sm font-semibold">Tipo *</Label>
-                <Select value={formData.supplier_type} onValueChange={(v) => setFormData({ ...formData, supplier_type: v as "oficina" | "fornecedor" })}>
-                  <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="oficina">Oficina</SelectItem>
-                    <SelectItem value="fornecedor">Fornecedor</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <SearchableCombobox
+                items={comboboxItems}
+                value={formData.supplier_id}
+                onChange={(supplierId, label) => {
+                  const selectedItem = comboboxItems.find(item => item.id === supplierId);
+                  if (selectedItem) {
+                    setFormData({
+                      ...formData,
+                      supplier_id: supplierId,
+                      supplier_name: label,
+                      supplier_type: selectedItem.type,
+                    });
+                  }
+                }}
+                placeholder="Selecione um fornecedor ou oficina"
+                searchPlaceholder="Buscar empresa..."
+                emptyMessage={loadingSuppliers ? "Carregando..." : "Nenhuma empresa encontrada"}
+                icon={<Building2 className="h-4 w-4" />}
+                disabled={loadingSuppliers}
+              />
             </div>
 
             <div className="border-t border-border pt-4" />
@@ -677,6 +909,125 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => { setShowNewBudgetDialog(false); resetForm(); }}>Cancelar</Button>
               <Button onClick={handleCreateBudget}>Criar Orçamento</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog for New Supplier/Workshop */}
+      <Dialog open={showNewSupplierDialog} onOpenChange={setShowNewSupplierDialog}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              Adicionar Nova Empresa
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* Tipo */}
+            <div>
+              <Label className="text-sm font-semibold">Tipo de Empresa *</Label>
+              <Select value={newSupplierData.type} onValueChange={(v) => setNewSupplierData({ ...newSupplierData, type: v as "oficina" | "fornecedor" })}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="oficina">Oficina</SelectItem>
+                  <SelectItem value="fornecedor">Fornecedor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Nome */}
+            <div>
+              <Label className="text-sm font-semibold">
+                {newSupplierData.type === "oficina" ? "Razão Social" : "Nome Completo"} *
+              </Label>
+              <Input
+                placeholder={newSupplierData.type === "oficina" ? "Razão Social" : "Nome completo"}
+                value={newSupplierData.name}
+                onChange={(e) => setNewSupplierData({ ...newSupplierData, name: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+
+            {/* CNPJ/Documento */}
+            <div>
+              <Label className="text-sm font-semibold">
+                {newSupplierData.type === "oficina" ? "CNPJ" : "Documento"}
+              </Label>
+              <Input
+                placeholder={newSupplierData.type === "oficina" ? "CNPJ" : "CPF/Documento"}
+                value={newSupplierData.cnpj_documento}
+                onChange={(e) => setNewSupplierData({ ...newSupplierData, cnpj_documento: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+
+            {/* Endereço/Cidade */}
+            <div>
+              <Label className="text-sm font-semibold">
+                {newSupplierData.type === "oficina" ? "Endereço" : "Cidade"}
+              </Label>
+              <Input
+                placeholder={newSupplierData.type === "oficina" ? "Endereço completo" : "Cidade"}
+                value={newSupplierData.ciudad_endereco}
+                onChange={(e) => setNewSupplierData({ ...newSupplierData, ciudad_endereco: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+
+            {/* Telefone */}
+            <div>
+              <Label className="text-sm font-semibold">Telefone</Label>
+              <Input
+                placeholder="Telefone"
+                value={newSupplierData.telefone}
+                onChange={(e) => setNewSupplierData({ ...newSupplierData, telefone: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+
+            {/* Campos específicos por tipo */}
+            {newSupplierData.type === "oficina" && (
+              <>
+                <div>
+                  <Label className="text-sm font-semibold">Mecânico Responsável</Label>
+                  <Input
+                    placeholder="Nome do mecânico responsável"
+                    value={newSupplierData.mecanico_responsavel}
+                    onChange={(e) => setNewSupplierData({ ...newSupplierData, mecanico_responsavel: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-sm font-semibold">Tipo de Aeronave</Label>
+                  <Input
+                    placeholder="Ex: Cessna 172, Beechcraft Baron"
+                    value={newSupplierData.tipo_aeronave}
+                    onChange={(e) => setNewSupplierData({ ...newSupplierData, tipo_aeronave: e.target.value })}
+                    className="mt-1"
+                  />
+                </div>
+              </>
+            )}
+
+            {newSupplierData.type === "fornecedor" && (
+              <div>
+                <Label className="text-sm font-semibold">Categoria</Label>
+                <Select value={newSupplierData.categoria} onValueChange={(v) => setNewSupplierData({ ...newSupplierData, categoria: v })}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="share">Share</SelectItem>
+                    <SelectItem value="combustivel">Combustível</SelectItem>
+                    <SelectItem value="pecas">Peças</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setShowNewSupplierDialog(false)}>Cancelar</Button>
+              <Button onClick={handleCreateNewSupplier}>Criar Empresa</Button>
             </div>
           </div>
         </DialogContent>
