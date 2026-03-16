@@ -344,7 +344,7 @@ export function CTMServiceItemsForm({
         <CardHeader>
           <CardTitle className="text-xl">Lançamento de Serviço </CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure o número, oficina e itens do serviço
+            
           </p>
         </CardHeader>
       </Card>
