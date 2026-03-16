@@ -83,7 +83,7 @@ export default function ManutencaoAeronave() {
     horasProximaManutencao: '',
     dataProximaManutencao: '',
     observacoes: '',
-    oficina: ''
+    oficinaId: ''
   });
 
   useEffect(() => {
@@ -136,10 +136,12 @@ export default function ManutencaoAeronave() {
       if (manutencaoError) throw manutencaoError;
 
       const aircraftMap = new Map(aircraftData?.map(a => [a.id, a]) || []);
+      const oficinaMap = new Map(oficinasData?.map(o => [o.id, o.razao_social]) || []);
 
       const manutencoesList = (manutencaoData || []).map((m: any) => {
         const aircraft = aircraftMap.get(m.aeronave_id);
         const currentHours = hoursMap.get(m.aeronave_id) || 0;
+        const oficinaNome = oficinaMap.get(m.oficina_id) || 'Não especificada';
 
         return {
           id: m.id,
@@ -155,7 +157,7 @@ export default function ManutencaoAeronave() {
           mecanico: m.mecanico,
           observacoes: m.observacoes,
           custoPrevisto: m.custo_estimado,
-          oficina: m.oficina,
+          oficina: oficinaNome,
           createdAt: m.created_at
         } as ManutencaoItem;
       });
@@ -257,6 +259,10 @@ export default function ManutencaoAeronave() {
   };
 
   const handleEditManutencao = (manutencao: ManutencaoItem) => {
+    // Encontrar o id da oficina pelo nome
+    const oficinaEncontrada = oficinas.find(o => o.razao_social === manutencao.oficina);
+    const oficinaId = oficinaEncontrada?.id || '';
+
     setEditingManutencao(manutencao);
     setEditFormData({
       descricao: manutencao.descricao || '',
@@ -265,7 +271,7 @@ export default function ManutencaoAeronave() {
       horasProximaManutencao: manutencao.horasProximaManutencao?.toString() || '',
       dataProximaManutencao: manutencao.dataProximaManutencao || '',
       observacoes: manutencao.observacoes || '',
-      oficina: manutencao.oficina || ''
+      oficinaId: oficinaId
     });
     setEditDialogOpen(true);
   };
@@ -281,7 +287,7 @@ export default function ManutencaoAeronave() {
           etapa: editFormData.statusExecutado,
           vencimento_horas: editFormData.horasProximaManutencao ? parseInt(editFormData.horasProximaManutencao) : null,
           data_programada: editFormData.dataProximaManutencao || undefined,
-          oficina: editFormData.oficina || null,
+          oficina_id: editFormData.oficinaId || null,
         })
         .eq('id', editingManutencao.id);
       if (error) throw error;
@@ -672,6 +678,12 @@ export default function ManutencaoAeronave() {
                         </p>
                       )}
 
+                      {manutencao.oficina && manutencao.oficina !== 'Não especificada' && (
+                        <p className="text-xs text-gray-400 mb-3">
+                          <span className="font-medium">Oficina:</span> {manutencao.oficina}
+                        </p>
+                      )}
+
                       <div className="flex gap-2">
                         <Button
                           variant="outline"
@@ -727,15 +739,15 @@ export default function ManutencaoAeronave() {
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-white">Oficina</label>
                     <Select
-                      value={editFormData.oficina}
-                      onValueChange={(value) => setEditFormData({...editFormData, oficina: value})}
+                      value={editFormData.oficinaId}
+                      onValueChange={(value) => setEditFormData({...editFormData, oficinaId: value})}
                     >
                       <SelectTrigger className="bg-slate-800 border-white/10 text-white">
                         <SelectValue placeholder="Selecione uma oficina" />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-800 border-white/10">
                         {oficinas.map((oficina) => (
-                          <SelectItem key={oficina.id} value={oficina.razao_social}>
+                          <SelectItem key={oficina.id} value={oficina.id}>
                             {oficina.razao_social}
                           </SelectItem>
                         ))}

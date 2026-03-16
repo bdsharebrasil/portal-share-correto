@@ -560,8 +560,22 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     if (!logbookMonth) return;
 
     try {
-      // Incremento apenas do novo voo (ou diferença se foi editado)
-      const newCelulaAtual = parseFloat(((logbookMonth.celula_atual ?? logbookMonth.celula_anterior ?? 0) + flightTimeIncrement).toFixed(2));
+      // Recalcular a partir da soma real de todos os voos do mês (evita drift incremental)
+      const { data: monthEntries } = await supabase
+        .from('logbook_entries')
+        .select('total_time')
+        .eq('aircraft_id', aircraftId)
+        .gte('entry_date', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`)
+        .lt('entry_date', selectedMonth === 12
+          ? `${selectedYear + 1}-01-01`
+          : `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`);
+
+      const totalFlightTimeThisMonth = (monthEntries || []).reduce(
+        (sum: number, entry: any) => sum + (Number(entry.total_time) || 0), 0
+      );
+
+      const celulaAnterior = logbookMonth.celula_anterior ?? 0;
+      const newCelulaAtual = parseFloat((celulaAnterior + totalFlightTimeThisMonth).toFixed(2));
       const newCelulaDisponivel = parseFloat(((logbookMonth.celula_prox_revisao ?? 0) - newCelulaAtual).toFixed(2));
 
       const { error } = await supabase
@@ -580,7 +594,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           celula_atual: newCelulaAtual,
           celula_disponivel: newCelulaDisponivel
         });
-        logInfo(`✅ Célula_Atual atualizada: ${Number(newCelulaAtual).toFixed(2)} | Disponível: ${newCelulaDisponivel.toFixed(2)}`);
+        logInfo(`✅ Célula_Atual recalculada: ${celulaAnterior} + ${totalFlightTimeThisMonth.toFixed(2)} = ${newCelulaAtual.toFixed(2)} | Disponível: ${newCelulaDisponivel.toFixed(2)}`);
 
         await updateMaintenanceHours(newCelulaAtual);
       }

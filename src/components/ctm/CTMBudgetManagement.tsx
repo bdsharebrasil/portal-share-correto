@@ -9,9 +9,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Download, Eye, Edit, Trash2, DollarSign } from "lucide-react";
+import { Plus, Download, Eye, Edit, Trash2, DollarSign, FileUp, Building2, X } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+interface BudgetItem {
+  code: string;
+  description: string;
+  quantity: number;
+  unit_value: number;
+  total: number;
+}
+
+interface BudgetDetails {
+  supplier_name?: string;
+  supplier_type?: "oficina" | "fornecedor";
+  items?: BudgetItem[];
+  notes?: string;
+  pdf_file_path?: string;
+  pdf_file_name?: string;
+}
 
 interface CTMBudget {
   id: string;
@@ -24,6 +41,7 @@ interface CTMBudget {
   report_file_name?: string;
   budget_file_path?: string;
   budget_file_name?: string;
+  budget_details?: BudgetDetails;
   status: "draft" | "submitted" | "approved";
   created_by?: string;
   created_at: string;
@@ -40,15 +58,81 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<"all" | "draft" | "submitted" | "approved">("all");
   const [showNewBudgetDialog, setShowNewBudgetDialog] = useState(false);
+  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([{ code: "", description: "", quantity: 1, unit_value: 0, total: 0 }]);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfFileName, setPdfFileName] = useState<string>("");
   const [formData, setFormData] = useState({
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
-    description: "",
+    supplier_name: "",
+    supplier_type: "" as "" | "oficina" | "fornecedor",
+    notes: "",
   });
 
   useEffect(() => {
     loadBudgets();
   }, [aircraftId]);
+
+  const handleAddItem = () => {
+    setBudgetItems(prev => [...prev, { code: "", description: "", quantity: 1, unit_value: 0, total: 0 }]);
+  };
+
+  const handleRemoveItem = (index: number) => {
+    setBudgetItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleItemChange = (index: number, field: keyof BudgetItem, value: string | number) => {
+    setBudgetItems(prev => {
+      const updated = [...prev];
+      const item = { ...updated[index] };
+
+      if (field === "code") {
+        item.code = value as string;
+      } else if (field === "description") {
+        item.description = value as string;
+      } else if (field === "quantity") {
+        item.quantity = Number(value) || 0;
+        item.total = item.quantity * item.unit_value;
+      } else if (field === "unit_value") {
+        item.unit_value = Number(value) || 0;
+        item.total = item.quantity * item.unit_value;
+      }
+
+      updated[index] = item;
+      return updated;
+    });
+  };
+
+  const budgetItemsTotal = budgetItems.reduce((sum, item) => sum + item.total, 0);
+
+  const handlePdfFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type !== "application/pdf") {
+        toast.error("Apenas arquivos PDF são permitidos");
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("Arquivo deve ter no máximo 10MB");
+        return;
+      }
+      setPdfFile(file);
+      setPdfFileName(file.name);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      month: new Date().getMonth() + 1,
+      year: new Date().getFullYear(),
+      supplier_name: "",
+      supplier_type: "",
+      notes: "",
+    });
+    setBudgetItems([{ code: "", description: "", quantity: 1, unit_value: 0, total: 0 }]);
+    setPdfFile(null);
+    setPdfFileName("");
+  };
 
   const loadBudgets = async () => {
     try {
@@ -102,13 +186,74 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
 
   const handleCreateBudget = async () => {
     try {
+      if (!formData.supplier_name.trim()) {
+        toast.error("Nome do fornecedor/oficina é obrigatório");
+        return;
+      }
+
+      if (!formData.supplier_type) {
+        toast.error("Tipo de fornecedor é obrigatório");
+        return;
+      }
+
+      if (budgetItems.filter(i => i.description).length === 0) {
+        toast.error("Adicione pelo menos um item ao orçamento");
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { 
+        toast.error("Você precisa estar logado"); 
+        return; 
+      }
+
+      let pdfPath: string | undefined;
+      let pdfName: string | undefined;
+
+      // Upload PDF se fornecido
+      if (pdfFile) {
+        try {
+          const fileExt = "pdf";
+          const fileName = `${aircraftId}_${formData.month}_${formData.year}_${Date.now()}.${fileExt}`;
+          const filePath = `ctm_budgets/${aircraftId}/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from("documents")
+            .upload(filePath, pdfFile, { upsert: true });
+
+          if (uploadError) {
+            console.error("Upload error:", uploadError);
+            toast.error("Erro ao fazer upload do PDF");
+            return;
+          }
+
+          pdfPath = filePath;
+          pdfName = pdfFileName;
+        } catch (error) {
+          console.error("PDF upload failed:", error);
+          toast.error("Falha ao enviar PDF");
+          return;
+        }
+      }
+
+      const budgetDetails: BudgetDetails = {
+        supplier_name: formData.supplier_name,
+        supplier_type: formData.supplier_type as "oficina" | "fornecedor",
+        items: budgetItems.filter(i => i.description),
+        notes: formData.notes || undefined,
+        pdf_file_path: pdfPath,
+        pdf_file_name: pdfName,
+      };
+
       const { error } = await supabase.from("ctm_budgets").insert([
         {
           aircraft_id: aircraftId,
           month: formData.month,
           year: formData.year,
           status: "draft",
+          created_by: user.id,
           created_at: new Date().toISOString(),
+          budget_details: budgetDetails,
         },
       ]);
 
@@ -116,13 +261,10 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
 
       toast.success("Orçamento criado com sucesso!");
       setShowNewBudgetDialog(false);
-      setFormData({
-        month: new Date().getMonth() + 1,
-        year: new Date().getFullYear(),
-        description: "",
-      });
+      resetForm();
       await loadBudgets();
     } catch (error: any) {
+      console.error("Error creating budget:", error);
       toast.error("Erro ao criar orçamento: " + error.message);
     }
   };
@@ -221,7 +363,9 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
               <tr>
                 <th className="px-6 py-4">Data Emissão</th>
                 <th className="px-6 py-4">Período</th>
-                <th className="px-6 py-4 w-1/3">Arquivos</th>
+                <th className="px-6 py-4">Fornecedor/Oficina</th>
+                <th className="px-6 py-4">Valor Total</th>
+                <th className="px-6 py-4 w-1/4">Arquivos</th>
                 <th className="px-6 py-4 text-center">Status</th>
                 <th className="px-6 py-4 text-right">Ações</th>
               </tr>
@@ -229,83 +373,99 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
             <tbody className="text-foreground text-sm divide-y divide-border">
               {filteredBudgets.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground">
                     Nenhum orçamento encontrado
                   </td>
                 </tr>
               ) : (
-                filteredBudgets.map((budget) => (
-                  <tr key={budget.id} className="hover:bg-slate-800/30 transition-colors group">
-                    <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
-                      {format(new Date(budget.created_at), "dd MMM yyyy", { locale: ptBR })}
-                    </td>
-                    <td className="px-6 py-4 font-medium">
-                      {budget.month}/{budget.year}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        {budget.budget_file_name && (
-                          <Badge variant="outline" className="text-xs">
-                            <Download className="h-3 w-3 mr-1" />
-                            Orçamento
-                          </Badge>
-                        )}
-                        {budget.report_file_name && (
-                          <Badge variant="outline" className="text-xs">
-                            <Download className="h-3 w-3 mr-1" />
-                            Relatório
-                          </Badge>
-                        )}
-                        {budget.oas_file_name && (
-                          <Badge variant="outline" className="text-xs">
-                            <Download className="h-3 w-3 mr-1" />
-                            OAS
-                          </Badge>
-                        )}
-                        {!budget.budget_file_name && !budget.report_file_name && !budget.oas_file_name && (
-                          <span className="text-xs text-muted-foreground italic">Sem arquivos</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <Badge className={`text-xs font-bold border ${getStatusColor(budget.status)}`}>
-                        {getStatusLabel(budget.status)}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          className="p-1.5 rounded hover:bg-slate-700 text-muted-foreground hover:text-foreground transition-colors"
-                          title="Visualizar"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          className="p-1.5 rounded hover:bg-slate-700 text-muted-foreground hover:text-blue-400 transition-colors"
-                          title="Editar"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        {budget.status !== "approved" && (
+                filteredBudgets.map((budget) => {
+                  const budgetTotal = budget.budget_details?.items?.reduce((sum, item) => sum + item.total, 0) || 0;
+                  return (
+                    <tr key={budget.id} className="hover:bg-slate-800/30 transition-colors group">
+                      <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
+                        {format(new Date(budget.created_at), "dd MMM yyyy", { locale: ptBR })}
+                      </td>
+                      <td className="px-6 py-4 font-medium">
+                        {budget.month}/{budget.year}
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        <div>
+                          <p className="font-medium">{budget.budget_details?.supplier_name || "—"}</p>
+                          {budget.budget_details?.supplier_type && (
+                            <Badge variant="outline" className="text-xs mt-1">
+                              {budget.budget_details.supplier_type === "oficina" ? "Oficina" : "Fornecedor"}
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 font-medium text-primary">
+                        {budgetTotal > 0 ? `R$ ${budgetTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          {budget.budget_details?.pdf_file_name && (
+                            <Badge variant="outline" className="text-xs">
+                              <Download className="h-3 w-3 mr-1" />
+                              PDF
+                            </Badge>
+                          )}
+                          {budget.budget_file_name && (
+                            <Badge variant="outline" className="text-xs">
+                              <Download className="h-3 w-3 mr-1" />
+                              Orçamento
+                            </Badge>
+                          )}
+                          {budget.report_file_name && (
+                            <Badge variant="outline" className="text-xs">
+                              <Download className="h-3 w-3 mr-1" />
+                              Relatório
+                            </Badge>
+                          )}
+                          {!budget.budget_details?.pdf_file_name && !budget.budget_file_name && !budget.report_file_name && (
+                            <span className="text-xs text-muted-foreground italic">Sem arquivos</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <Badge className={`text-xs font-bold border ${getStatusColor(budget.status)}`}>
+                          {getStatusLabel(budget.status)}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
-                            onClick={() => handleApproveBudget(budget.id)}
-                            className="p-1.5 rounded hover:bg-slate-700 text-muted-foreground hover:text-green-400 transition-colors"
-                            title="Aprovar"
+                            className="p-1.5 rounded hover:bg-slate-700 text-muted-foreground hover:text-foreground transition-colors"
+                            title="Visualizar"
                           >
-                            ✓
+                            <Eye className="h-4 w-4" />
                           </button>
-                        )}
-                        <button
-                          onClick={() => handleDeleteBudget(budget.id)}
-                          className="p-1.5 rounded hover:bg-slate-700 text-muted-foreground hover:text-red-400 transition-colors"
-                          title="Deletar"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                          <button
+                            className="p-1.5 rounded hover:bg-slate-700 text-muted-foreground hover:text-blue-400 transition-colors"
+                            title="Editar"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          {budget.status !== "approved" && (
+                            <button
+                              onClick={() => handleApproveBudget(budget.id)}
+                              className="p-1.5 rounded hover:bg-slate-700 text-muted-foreground hover:text-green-400 transition-colors"
+                              title="Aprovar"
+                            >
+                              ✓
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteBudget(budget.id)}
+                            className="p-1.5 rounded hover:bg-slate-700 text-muted-foreground hover:text-red-400 transition-colors"
+                            title="Deletar"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -329,54 +489,193 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
 
       {/* Dialog for New Budget */}
       <Dialog open={showNewBudgetDialog} onOpenChange={setShowNewBudgetDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Adicionar Novo Orçamento</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-primary" />
+              Novo Orçamento — {aircraftRegistration}
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-5">
+            {/* Período */}
+            <div className="grid grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="month">Mês</Label>
-                <Select
-                  value={formData.month.toString()}
-                  onValueChange={(value) => setFormData({ ...formData, month: parseInt(value) })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                <Label>Mês</Label>
+                <Select value={formData.month.toString()} onValueChange={(v) => setFormData({ ...formData, month: parseInt(v) })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
-                      <SelectItem key={month} value={month.toString()}>
-                        {format(new Date(2024, month - 1), "MMMM", { locale: ptBR })}
-                      </SelectItem>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                      <SelectItem key={m} value={m.toString()}>{format(new Date(2024, m - 1), "MMMM", { locale: ptBR })}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label htmlFor="year">Ano</Label>
-                <Select
-                  value={formData.year.toString()}
-                  onValueChange={(value) => setFormData({ ...formData, year: parseInt(value) })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
+                <Label>Ano</Label>
+                <Select value={formData.year.toString()} onValueChange={(v) => setFormData({ ...formData, year: parseInt(v) })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map((year) => (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}
-                      </SelectItem>
+                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map((y) => (
+                      <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
+            <div className="border-t border-border pt-4" />
+
+            {/* Fornecedor/Oficina */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-sm font-semibold">Fornecedor ou Oficina *</Label>
+                <Input
+                  placeholder="Nome da empresa"
+                  value={formData.supplier_name}
+                  onChange={(e) => setFormData({ ...formData, supplier_name: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold">Tipo *</Label>
+                <Select value={formData.supplier_type} onValueChange={(v) => setFormData({ ...formData, supplier_type: v as "oficina" | "fornecedor" })}>
+                  <SelectTrigger className="mt-1"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="oficina">Oficina</SelectItem>
+                    <SelectItem value="fornecedor">Fornecedor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-4" />
+
+            {/* Itens do Orçamento */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <Label className="text-sm font-semibold">Itens do Orçamento *</Label>
+                <Button type="button" variant="outline" size="sm" onClick={handleAddItem}>
+                  <Plus className="h-3 w-3 mr-1" /> Adicionar Item
+                </Button>
+              </div>
+
+              <div className="space-y-2 border border-border rounded-lg p-3 bg-slate-900/20">
+                {/* Header */}
+                <div className="grid grid-cols-12 gap-2 text-xs text-muted-foreground font-medium px-1">
+                  <div className="col-span-2">Código</div>
+                  <div className="col-span-4">Descrição</div>
+                  <div className="col-span-2 text-center">Qtd</div>
+                  <div className="col-span-2 text-center">Vlr. Unit.</div>
+                  <div className="col-span-1 text-right">Vlr. Total</div>
+                  <div className="col-span-1"></div>
+                </div>
+
+                {budgetItems.map((item, index) => (
+                  <div key={index} className="grid grid-cols-12 gap-2 items-center bg-background/40 p-2 rounded">
+                    <div className="col-span-2">
+                      <Input
+                        placeholder="Código"
+                        value={item.code}
+                        onChange={(e) => handleItemChange(index, "code", e.target.value)}
+                        className="text-xs"
+                      />
+                    </div>
+                    <div className="col-span-4">
+                      <Input
+                        placeholder="Descrição"
+                        value={item.description}
+                        onChange={(e) => handleItemChange(index, "description", e.target.value)}
+                        className="text-xs"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => handleItemChange(index, "quantity", e.target.value)}
+                        className="text-center text-xs"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0,00"
+                        value={item.unit_value || ""}
+                        onChange={(e) => handleItemChange(index, "unit_value", e.target.value)}
+                        className="text-center text-xs"
+                      />
+                    </div>
+                    <div className="col-span-1 text-right font-medium text-xs pr-1">
+                      R$ {item.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </div>
+                    <div className="col-span-1 text-center">
+                      {budgetItems.length > 1 && (
+                        <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveItem(index)} className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10">
+                          <X className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Total geral */}
+                <div className="grid grid-cols-12 gap-2 items-center pt-2 border-t border-border mt-2 font-semibold text-sm">
+                  <div className="col-span-9 text-right">Total do Orçamento:</div>
+                  <div className="col-span-2 text-right text-primary text-base">
+                    R$ {budgetItemsTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </div>
+                  <div className="col-span-1"></div>
+                </div>
+              </div>
+            </div>
+
+            {/* Upload PDF */}
+            <div>
+              <Label className="text-sm font-semibold">Anexar PDF (Orçamento)</Label>
+              <div className="mt-2 flex items-center gap-2">
+                <label className="flex-1 flex items-center justify-center px-4 py-3 border border-dashed border-border rounded-lg cursor-pointer hover:bg-slate-900/30 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <FileUp className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">
+                      {pdfFileName ? pdfFileName : "Clique para selecionar PDF"}
+                    </span>
+                  </div>
+                  <input type="file" accept=".pdf" onChange={handlePdfFileChange} className="hidden" />
+                </label>
+                {pdfFileName && (
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      setPdfFile(null);
+                      setPdfFileName("");
+                    }}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Observações */}
+            <div>
+              <Label className="text-sm font-semibold">Observações</Label>
+              <Textarea
+                placeholder="Observações adicionais..."
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                className="mt-1"
+                rows={3}
+              />
+            </div>
+
             <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setShowNewBudgetDialog(false)}>
-                Cancelar
-              </Button>
+              <Button variant="outline" onClick={() => { setShowNewBudgetDialog(false); resetForm(); }}>Cancelar</Button>
               <Button onClick={handleCreateBudget}>Criar Orçamento</Button>
             </div>
           </div>

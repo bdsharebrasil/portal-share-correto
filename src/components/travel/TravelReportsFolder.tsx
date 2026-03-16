@@ -112,6 +112,7 @@ export function TravelReportsFolder({ searchTerm = '' }: TravelReportsFolderProp
       .from('travel_expense_reports')
       .select('*')
       .eq('client_id', clientId)
+      .eq('status', 'finalizado')
       .order('created_at', { ascending: false });
 
     if (error) {

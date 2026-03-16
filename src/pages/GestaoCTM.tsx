@@ -116,7 +116,7 @@ export default function GestaoCTM() {
                 <Wrench className="h-10 w-10 text-primary" />
               </div>
               <div>
-                <h1 className="text-4xl font-black text-foreground tracking-tight">
+              <h1 className="text-4xl font-black text-foreground tracking-tight">
                   Gestão CTM
                 </h1>
                 <p className="text-lg text-muted-foreground mt-1">

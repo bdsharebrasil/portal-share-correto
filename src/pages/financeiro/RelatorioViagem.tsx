@@ -118,9 +118,15 @@ export default function RelatorioViagem() {
     return () => clearInterval(autoSaveInterval);
   }, [currentReport, isCreating, isEditing]);
 
-  // Separar relatórios com cliente (Relatórios) e sem cliente (Histórico)
-  const reportsWithClient = useMemo(() => reports.filter(r => r.client && r.client.trim()), [reports]);
-  const reportsWithoutClient = useMemo(() => reports.filter(r => !r.client || !r.client.trim()), [reports]);
+  // Separar relatórios: Rascunhos no Histórico, Finalizados nas Pastas
+  const reportsWithClient = useMemo(() => 
+    reports.filter(r => r.client && r.client.trim() && (r.status === 'Finalizado' || r.status === 'Enviado')), 
+    [reports]
+  );
+  const reportsWithoutClient = useMemo(() => 
+    reports.filter(r => r.status === 'Rascunho'), 
+    [reports]
+  );
 
   const discardDraft = () => {
     draftStorage.clearDraft();
@@ -259,33 +265,73 @@ export default function RelatorioViagem() {
     const yearShort = year.toString().slice(-2);
 
     const getClientInitials = (name: string): string => {
-      const words = name.trim().split(/\s+/);
-      return words
-        .map(w => w.charAt(0).toUpperCase())
-        .join('')
-        .substring(0, 3)
-        .padEnd(3, 'X');
+      // Remover espaços e accents, pegar as 3 primeiras letras
+      const cleanName = name
+        .trim()
+        .replace(/\s+/g, '') // Remove todos os espaços
+        .toUpperCase();
+      
+      // Pegar os primeiros 3 caracteres alfabéticos
+      const letters = cleanName.replace(/[^A-Z]/g, '').substring(0, 3);
+      
+      // Completar com 'X' se tiver menos de 3 caracteres
+      return letters.padEnd(3, 'X');
     };
 
     const clientInitials = getClientInitials(clientName);
 
-    const { data: existingReports } = await supabase
-      .from('travel_expense_reports')
-      .select('report_number')
-      .ilike('report_number', `REL-${clientInitials}-%`)
-      .order('created_at', { ascending: false })
-      .limit(1);
+    // ✅ FIX: Melhorar geração de números com verificação robusta
+    let attempts = 0;
+    const maxAttempts = 5;
+    
+    while (attempts < maxAttempts) {
+      // Buscar todos os relatórios deste cliente para encontrar o próximo número
+      const { data: existingReports } = await supabase
+        .from('travel_expense_reports')
+        .select('report_number')
+        .ilike('report_number', `REL-${clientInitials}%`)
+        .order('report_number', { ascending: false });
 
-    let nextNumber = 1;
-    if (existingReports && existingReports.length > 0) {
-      const lastNumber = existingReports[0].report_number;
-      const match = lastNumber.match(/REL-[A-Z]{3}-(\d+)/);
-      if (match && match[1]) {
-        nextNumber = parseInt(match[1]) + 1;
+      let nextNumber = 1;
+      
+      if (existingReports && existingReports.length > 0) {
+        // Extrair o maior número entre todos os relatórios
+        let maxNumber = 0;
+        for (const report of existingReports) {
+          // Regex padrão: REL-GAS-001/26
+          const match = report.report_number.match(/REL-[A-Z]{3}-(\d+)\/\d{2}/);
+          if (match && match[1]) {
+            const num = parseInt(match[1]);
+            if (num > maxNumber) maxNumber = num;
+          }
+        }
+        nextNumber = maxNumber + 1;
+      }
+
+      const candidateReportNumber = `REL-${clientInitials}-${String(nextNumber).padStart(3, '0')}/${yearShort}`;
+      
+      // ✅ Verificar se o número candidato já existe
+      const { data: checkExists } = await supabase
+        .from('travel_expense_reports')
+        .select('id')
+        .eq('report_number', candidateReportNumber)
+        .maybeSingle();
+      
+      if (!checkExists) {
+        return candidateReportNumber;
+      }
+      
+      // Se o número já existe, tentar novamente
+      attempts++;
+      if (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
     }
-
-    return `REL-${clientInitials}-${String(nextNumber).padStart(3, '0')}/${yearShort}`;
+    
+    // Fallback: se não conseguir após tentativas, gerar com timestamp
+    // Garante número único sem usar string aleatória
+    const timestamp = Date.now().toString().slice(-3);
+    return `REL-${clientInitials}-${timestamp}/${yearShort}`;
   };
 
   const createNewReport = () => {
@@ -449,7 +495,8 @@ export default function RelatorioViagem() {
       const validExpenses = getValidExpenses(reportData.expenses);
 
       let reportNumber = reportData.report_number;
-      if (!isUpdate && (reportNumber.includes('XXX') || reportNumber.startsWith('R-'))) {
+      if (!isUpdate) {
+        // Sempre gerar novo número para inserts para evitar conflito de chave única
         reportNumber = await generateReportNumber(reportData.client);
       }
 
@@ -520,7 +567,7 @@ export default function RelatorioViagem() {
       } else {
         let insertError: any = null;
         let insertAttempts = 0;
-        const maxInsertAttempts = 3;
+        const maxInsertAttempts = 10;
 
         while (insertAttempts < maxInsertAttempts) {
           const { data, error } = await supabase
@@ -537,6 +584,8 @@ export default function RelatorioViagem() {
                 // Regenerar o número e tentar novamente
                 const newReportNumber = await generateReportNumber(reportData.client);
                 reportDataToSave.report_number = newReportNumber;
+                // Pequeno delay para evitar race conditions
+                await new Promise(resolve => setTimeout(resolve, 100 * insertAttempts));
                 continue;
               }
             }
@@ -1012,7 +1061,7 @@ export default function RelatorioViagem() {
                     )}
                   >
                     <FileText className="h-4 w-4 mr-2" />
-                    Histórico ({reportsWithoutClient.length})
+                    Rascunhos ({reportsWithoutClient.length})
                   </Button>
                   <Button
                     onClick={() => setActiveTab('relatorios')}
@@ -1025,7 +1074,7 @@ export default function RelatorioViagem() {
                     )}
                   >
                     <FolderOpen className="h-4 w-4 mr-2" />
-                    Relatórios ({reportsWithClient.length})
+                    Relatórios Finalizados ({reportsWithClient.length})
                   </Button>
                 </div>
               </CardHeader>
@@ -1048,15 +1097,15 @@ export default function RelatorioViagem() {
                   </div>
                 )}
 
-                {/* Tab: Histórico */}
+                {/* Tab: Rascunhos */}
                 {activeTab === 'historico' && (
                   <div>
-                    <h3 className="text-lg font-semibold mb-4 text-foreground">Histórico</h3>
+                    <h3 className="text-lg font-semibold mb-4 text-foreground">Rascunhos</h3>
                     {reportsWithoutClient.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12">
                         <FileText className="h-12 w-12 text-muted-foreground/40 mb-3" />
-                        <p className="text-center text-muted-foreground font-medium">Nenhum relatório no histórico</p>
-                        <p className="text-center text-muted-foreground text-sm">Todos os relatórios estão organizados em pastas de clientes</p>
+                        <p className="text-center text-muted-foreground font-medium">Nenhum rascunho</p>
+                        <p className="text-center text-muted-foreground text-sm">Crie um novo relatório para começar</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -1066,15 +1115,15 @@ export default function RelatorioViagem() {
                   </div>
                 )}
 
-                {/* Tab: Relatórios (Pastas de Clientes) */}
+                {/* Tab: Relatórios Finalizados */}
                 {activeTab === 'relatorios' && (
                   <div>
                     <h3 className="text-lg font-semibold mb-4 text-foreground">Pastas de Clientes</h3>
                     {reportsWithClient.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12">
                         <FolderOpen className="h-12 w-12 text-muted-foreground/40 mb-3" />
-                        <p className="text-center text-muted-foreground font-medium">Nenhum relatório de clientes</p>
-                        <p className="text-center text-muted-foreground text-sm">Crie um novo relatório para começar</p>
+                        <p className="text-center text-muted-foreground font-medium">Nenhum relatório finalizado</p>
+                        <p className="text-center text-muted-foreground text-sm">Finalize um rascunho para vê-lo aqui</p>
                       </div>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
