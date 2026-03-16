@@ -232,24 +232,53 @@ function SummaryCard({ label, value, color, highlight }: { label: string; value:
 // ===== Services Section =====
 function ServicesSection({ orderId, services, onRefetch }: { orderId: string; services: any[]; onRefetch: () => void }) {
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ descricao: "", fornecedor: "", valor: "", categoria: "", nota_fiscal: "" });
+  const [form, setForm] = useState({
+    descricao: "",
+    fornecedor: "",
+    valor: "",
+    categoria: "",
+    nota_fiscal: "",
+    modelo: "",
+    modo_pagamento: "",
+    dados_pagamento: "",
+    quantidade: "1",
+    valor_unitario: ""
+  });
   const [saving, setSaving] = useState(false);
 
   const handleAdd = async () => {
     if (!form.descricao) return toast.error("Descrição é obrigatória");
     setSaving(true);
+    const qty = parseInt(form.quantidade) || 1;
+    const unitVal = form.valor_unitario ? parseFloat(form.valor_unitario) : (form.valor ? parseFloat(form.valor) : 0);
     try {
       const { error } = await supabase.from("ctm_services").insert([{
         service_order_id: orderId,
         descricao: form.descricao,
         fornecedor: form.fornecedor || null,
-        valor: form.valor ? parseFloat(form.valor) : 0,
+        valor: qty * unitVal,
         categoria: form.categoria || null,
         nota_fiscal: form.nota_fiscal || null,
+        modelo: form.modelo || null,
+        modo_pagamento: form.modo_pagamento || null,
+        dados_pagamento: form.dados_pagamento || null,
+        quantidade: qty,
+        valor_unitario: unitVal,
       }]);
       if (error) throw error;
       toast.success("Serviço adicionado");
-      setForm({ descricao: "", fornecedor: "", valor: "", categoria: "", nota_fiscal: "" });
+      setForm({
+        descricao: "",
+        fornecedor: "",
+        valor: "",
+        categoria: "",
+        nota_fiscal: "",
+        modelo: "",
+        modo_pagamento: "",
+        dados_pagamento: "",
+        quantidade: "1",
+        valor_unitario: ""
+      });
       setAdding(false);
       onRefetch();
     } catch (err: any) {
@@ -272,8 +301,10 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
           <TableHeader>
             <TableRow>
               <TableHead>Descrição</TableHead>
+              <TableHead>Modelo</TableHead>
               <TableHead>Fornecedor</TableHead>
-              <TableHead>Categoria</TableHead>
+              <TableHead>Qtd</TableHead>
+              <TableHead>Modo Pag.</TableHead>
               <TableHead>NF</TableHead>
               <TableHead className="text-right">Valor</TableHead>
               <TableHead />
@@ -283,8 +314,10 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
             {services.map((s: any) => (
               <TableRow key={s.id}>
                 <TableCell className="font-medium">{s.descricao}</TableCell>
+                <TableCell className="text-sm">{s.modelo || "-"}</TableCell>
                 <TableCell>{s.fornecedor || "-"}</TableCell>
-                <TableCell>{s.categoria || "-"}</TableCell>
+                <TableCell className="text-center">{s.quantidade || 1}</TableCell>
+                <TableCell className="text-xs">{s.modo_pagamento || "-"}</TableCell>
                 <TableCell>{s.nota_fiscal || "-"}</TableCell>
                 <TableCell className="text-right">R$ {(s.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                 <TableCell>
@@ -300,12 +333,17 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
 
       {adding ? (
         <div className="bg-muted/30 rounded-lg p-4 space-y-3">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <div><Label className="text-xs">Descrição *</Label><Input value={form.descricao} onChange={(e) => setForm(f => ({ ...f, descricao: e.target.value }))} /></div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="col-span-2 md:col-span-4"><Label className="text-xs">Descrição *</Label><Input value={form.descricao} onChange={(e) => setForm(f => ({ ...f, descricao: e.target.value }))} placeholder="Descrição do serviço" /></div>
+            <div><Label className="text-xs">Modelo (P/N)</Label><Input value={form.modelo} onChange={(e) => setForm(f => ({ ...f, modelo: e.target.value }))} placeholder="ex: 25140/22A703" /></div>
+            <div><Label className="text-xs">Quantidade</Label><Input type="number" min="1" value={form.quantidade} onChange={(e) => setForm(f => ({ ...f, quantidade: e.target.value }))} /></div>
+            <div><Label className="text-xs">Valor Unit. (R$)</Label><Input type="number" step="0.01" value={form.valor_unitario} onChange={(e) => setForm(f => ({ ...f, valor_unitario: e.target.value }))} /></div>
+            <div><Label className="text-xs">Valor Total (R$)</Label><Input type="number" step="0.01" value={form.valor} onChange={(e) => setForm(f => ({ ...f, valor: e.target.value }))} /></div>
             <div><Label className="text-xs">Fornecedor</Label><Input value={form.fornecedor} onChange={(e) => setForm(f => ({ ...f, fornecedor: e.target.value }))} /></div>
-            <div><Label className="text-xs">Valor (R$)</Label><Input type="number" step="0.01" value={form.valor} onChange={(e) => setForm(f => ({ ...f, valor: e.target.value }))} /></div>
+            <div><Label className="text-xs">Modo Pagamento</Label><Input value={form.modo_pagamento} onChange={(e) => setForm(f => ({ ...f, modo_pagamento: e.target.value }))} placeholder="Boleto, Transferência..." /></div>
             <div><Label className="text-xs">Categoria</Label><Input value={form.categoria} onChange={(e) => setForm(f => ({ ...f, categoria: e.target.value }))} /></div>
             <div><Label className="text-xs">Nota Fiscal</Label><Input value={form.nota_fiscal} onChange={(e) => setForm(f => ({ ...f, nota_fiscal: e.target.value }))} /></div>
+            <div className="col-span-2 md:col-span-4"><Label className="text-xs">Dados para Pagamento</Label><Textarea value={form.dados_pagamento} onChange={(e) => setForm(f => ({ ...f, dados_pagamento: e.target.value }))} placeholder="Banco: 001 | Agência: 0000-0 | Conta: 00000-0" rows={2} /></div>
           </div>
           <div className="flex gap-2 justify-end">
             <Button variant="outline" size="sm" onClick={() => setAdding(false)}>Cancelar</Button>
@@ -326,7 +364,17 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
 // ===== Parts Section =====
 function PartsSection({ orderId, parts, onRefetch }: { orderId: string; parts: any[]; onRefetch: () => void }) {
   const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ descricao: "", part_number: "", serial_number: "", fornecedor: "", quantidade: "1", valor_unitario: "", nota_fiscal: "" });
+  const [form, setForm] = useState({
+    descricao: "",
+    part_number: "",
+    serial_number: "",
+    fornecedor: "",
+    quantidade: "1",
+    valor_unitario: "",
+    nota_fiscal: "",
+    modo_pagamento: "",
+    dados_pagamento: ""
+  });
   const [saving, setSaving] = useState(false);
 
   const handleAdd = async () => {
@@ -345,10 +393,23 @@ function PartsSection({ orderId, parts, onRefetch }: { orderId: string; parts: a
         valor_unitario: unitVal,
         valor_total: qty * unitVal,
         nota_fiscal: form.nota_fiscal || null,
+        modelo: form.part_number || null,
+        modo_pagamento: form.modo_pagamento || null,
+        dados_pagamento: form.dados_pagamento || null,
       }]);
       if (error) throw error;
       toast.success("Peça adicionada");
-      setForm({ descricao: "", part_number: "", serial_number: "", fornecedor: "", quantidade: "1", valor_unitario: "", nota_fiscal: "" });
+      setForm({
+        descricao: "",
+        part_number: "",
+        serial_number: "",
+        fornecedor: "",
+        quantidade: "1",
+        valor_unitario: "",
+        nota_fiscal: "",
+        modo_pagamento: "",
+        dados_pagamento: ""
+      });
       setAdding(false);
       onRefetch();
     } catch (err: any) {
@@ -375,6 +436,7 @@ function PartsSection({ orderId, parts, onRefetch }: { orderId: string; parts: a
               <TableHead>S/N</TableHead>
               <TableHead>Fornecedor</TableHead>
               <TableHead>Qtd</TableHead>
+              <TableHead>Modo Pag.</TableHead>
               <TableHead>NF</TableHead>
               <TableHead className="text-right">Valor Total</TableHead>
               <TableHead />
@@ -388,6 +450,7 @@ function PartsSection({ orderId, parts, onRefetch }: { orderId: string; parts: a
                 <TableCell>{p.serial_number || "-"}</TableCell>
                 <TableCell>{p.fornecedor || "-"}</TableCell>
                 <TableCell>{p.quantidade}</TableCell>
+                <TableCell className="text-xs">{p.modo_pagamento || "-"}</TableCell>
                 <TableCell>{p.nota_fiscal || "-"}</TableCell>
                 <TableCell className="text-right">R$ {(p.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                 <TableCell>
@@ -404,13 +467,15 @@ function PartsSection({ orderId, parts, onRefetch }: { orderId: string; parts: a
       {adding ? (
         <div className="bg-muted/30 rounded-lg p-4 space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div><Label className="text-xs">Descrição *</Label><Input value={form.descricao} onChange={(e) => setForm(f => ({ ...f, descricao: e.target.value }))} /></div>
-            <div><Label className="text-xs">Part Number</Label><Input value={form.part_number} onChange={(e) => setForm(f => ({ ...f, part_number: e.target.value }))} /></div>
-            <div><Label className="text-xs">Serial Number</Label><Input value={form.serial_number} onChange={(e) => setForm(f => ({ ...f, serial_number: e.target.value }))} /></div>
+            <div className="col-span-2 md:col-span-4"><Label className="text-xs">Descrição *</Label><Input value={form.descricao} onChange={(e) => setForm(f => ({ ...f, descricao: e.target.value }))} placeholder="Descrição da peça" /></div>
+            <div><Label className="text-xs">Part Number</Label><Input value={form.part_number} onChange={(e) => setForm(f => ({ ...f, part_number: e.target.value }))} placeholder="ex: 32005-007" /></div>
+            <div><Label className="text-xs">Serial Number</Label><Input value={form.serial_number} onChange={(e) => setForm(f => ({ ...f, serial_number: e.target.value }))} placeholder="ex: 318551" /></div>
             <div><Label className="text-xs">Fornecedor</Label><Input value={form.fornecedor} onChange={(e) => setForm(f => ({ ...f, fornecedor: e.target.value }))} /></div>
             <div><Label className="text-xs">Quantidade</Label><Input type="number" min="1" value={form.quantidade} onChange={(e) => setForm(f => ({ ...f, quantidade: e.target.value }))} /></div>
             <div><Label className="text-xs">Valor Unitário</Label><Input type="number" step="0.01" value={form.valor_unitario} onChange={(e) => setForm(f => ({ ...f, valor_unitario: e.target.value }))} /></div>
+            <div><Label className="text-xs">Modo Pagamento</Label><Input value={form.modo_pagamento} onChange={(e) => setForm(f => ({ ...f, modo_pagamento: e.target.value }))} placeholder="Boleto, Transferência..." /></div>
             <div><Label className="text-xs">Nota Fiscal</Label><Input value={form.nota_fiscal} onChange={(e) => setForm(f => ({ ...f, nota_fiscal: e.target.value }))} /></div>
+            <div className="col-span-2 md:col-span-4"><Label className="text-xs">Dados para Pagamento</Label><Textarea value={form.dados_pagamento} onChange={(e) => setForm(f => ({ ...f, dados_pagamento: e.target.value }))} placeholder="Banco: 001 | Agência: 0000-0 | Conta: 00000-0" rows={2} /></div>
           </div>
           <div className="flex gap-2 justify-end">
             <Button variant="outline" size="sm" onClick={() => setAdding(false)}>Cancelar</Button>
