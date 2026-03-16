@@ -4,10 +4,10 @@ import { Plane, AlertCircle, CheckCircle, Clock, Wrench, Settings, Plus, History
 import { cn } from '@/lib/utils';
 import { useAeronaves } from '@/hooks/useAeronaves';
 import { useMaintenanceStatuses } from '@/hooks/useMaintenanceAlerts';
-import { MaintenanceAlertCard } from './MaintenanceAlertCard';
-import { RegisterMaintenanceDialog } from './RegisterMaintenanceDialog';
-import { MaintenanceHistoryDialog } from './MaintenanceHistoryDialog';
-import { MaintenanceConfigDialog } from './MaintenanceConfigDialog';
+import { ManutencaoAlertCard } from './ManutencaoAlertCard';
+import { ManutencaoRegistroDialog } from './ManutencaoRegistroDialog';
+import { ManutencaoHistoricoDialog } from './ManutencaoHistoricoDialog';
+import { ManutencaoConfigDialog } from './ManutencaoConfigDialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LottieAirplaneSpinner } from '@/components/ui/lottie-airplane-spinner';
@@ -129,7 +129,7 @@ function AircraftMaintenanceCard({ aircraft }: AircraftMaintenanceCardProps) {
               exit={{ opacity: 0, x: 20 }}
               transition={{ delay: index * 0.1 }}
             >
-              <MaintenanceAlertCard
+              <ManutencaoAlertCard
                 status={status}
                 aircraftRegistration={aircraft.registration}
               />
@@ -166,20 +166,20 @@ function AircraftMaintenanceCard({ aircraft }: AircraftMaintenanceCardProps) {
       </div>
 
       {/* Dialogs */}
-      <RegisterMaintenanceDialog
+      <ManutencaoRegistroDialog
         open={registerOpen}
         onOpenChange={setRegisterOpen}
         aircraftId={aircraft.id}
         aircraftRegistration={aircraft.registration}
         currentHours={currentHours || 0}
       />
-      <MaintenanceHistoryDialog
+      <ManutencaoHistoricoDialog
         open={historyOpen}
         onOpenChange={setHistoryOpen}
         aircraftId={aircraft.id}
         aircraftRegistration={aircraft.registration}
       />
-      <MaintenanceConfigDialog
+      <ManutencaoConfigDialog
         open={configOpen}
         onOpenChange={setConfigOpen}
         aircraftId={aircraft.id}
@@ -189,11 +189,11 @@ function AircraftMaintenanceCard({ aircraft }: AircraftMaintenanceCardProps) {
   );
 }
 
-interface MaintenanceDashboardProps {
+interface DashboardManutencaoProps {
   aircraftWithHours?: Set<string>;
 }
 
-export function MaintenanceDashboard({ aircraftWithHours }: MaintenanceDashboardProps = {}) {
+export function DashboardManutenção({ aircraftWithHours }: DashboardManutencaoProps = {}) {
   const { aeronaves, isLoadingAeronaves } = useAeronaves();
   const [selectedTab, setSelectedTab] = useState<'all' | 'critical' | 'ok'>('all');
 

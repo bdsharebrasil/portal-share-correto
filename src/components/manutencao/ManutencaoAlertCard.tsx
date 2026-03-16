@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { MaintenanceStatus, ALERT_STYLES, AlertLevel } from '@/lib/maintenance-alerts';
 import { Progress } from '@/components/ui/progress';
 
-interface MaintenanceAlertCardProps {
+interface ManutencaoAlertCardProps {
   status: MaintenanceStatus;
   aircraftRegistration?: string;
   compact?: boolean;
@@ -19,12 +19,12 @@ const ALERT_ICONS: Record<AlertLevel, React.ComponentType<{ className?: string }
   red: AlertCircle,
 };
 
-export function MaintenanceAlertCard({
+export function ManutencaoAlertCard({
   status,
   aircraftRegistration,
   compact = false,
   onClick,
-}: MaintenanceAlertCardProps) {
+}: ManutencaoAlertCardProps) {
   const styles = ALERT_STYLES[status.alertLevel];
   const Icon = ALERT_ICONS[status.alertLevel];
 

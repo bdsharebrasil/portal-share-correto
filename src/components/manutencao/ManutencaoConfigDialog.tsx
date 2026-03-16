@@ -11,7 +11,7 @@ import { Settings, Clock, AlertCircle, AlertTriangle, Info, CheckCircle } from '
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
-interface MaintenanceConfigDialogProps {
+interface ManutencaoConfigDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   aircraftId: string;
@@ -29,12 +29,12 @@ interface ConfigFormData {
 
 const MAINTENANCE_TYPES: MaintenanceType[] = ['50h', '100h', '150h', '200h'];
 
-export function MaintenanceConfigDialog({
+export function ManutencaoConfigDialog({
   open,
   onOpenChange,
   aircraftId,
   aircraftRegistration,
-}: MaintenanceConfigDialogProps) {
+}: ManutencaoConfigDialogProps) {
   const { toast } = useToast();
   const { data: currentConfigs } = useMaintenanceConfigs(aircraftId);
   const updateConfig = useUpdateMaintenanceConfig();
