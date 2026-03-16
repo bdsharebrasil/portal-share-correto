@@ -461,7 +461,7 @@ export function CTMServiceItemsForm({
       {/* Cabeçalho do Serviço */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Cabeçalho do Serviço</CardTitle>
+          <CardTitle className="text-base">Serviço</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
