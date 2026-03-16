@@ -12,11 +12,19 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronUp, Plus, Trash2, Save, Loader2, Wrench, Package, Users, DollarSign, Building } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { CTMServiceItemsForm } from "./CTMServiceItemsForm";
 
 interface CTMOASDetailProps {
   orderId: string;
   onClose: () => void;
 }
+
+// Helper para formatar data sem problemas de timezone
+const formatDateFromString = (dateStr: string): string => {
+  if (!dateStr) return "-";
+  const [year, month, day] = dateStr.split("T")[0].split("-");
+  return `${day}/${month}/${year}`;
+};
 
 export function CTMOASDetail({ orderId, onClose }: CTMOASDetailProps) {
   const queryClient = useQueryClient();
@@ -99,8 +107,8 @@ export function CTMOASDetail({ orderId, onClose }: CTMOASDetailProps) {
               </CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
                 {order?.oficina_nome && `Oficina: ${order.oficina_nome}`}
-                {order?.data_entrada && ` • Entrada: ${new Date(order.data_entrada).toLocaleDateString("pt-BR")}`}
-                {order?.data_saida && ` • Saída: ${new Date(order.data_saida).toLocaleDateString("pt-BR")}`}
+                {order?.data_entrada && ` • Entrada: ${formatDateFromString(order.data_entrada)}`}
+                {order?.data_saida && ` • Saída: ${formatDateFromString(order.data_saida)}`}
               </p>
             </div>
             <Button variant="ghost" size="sm" onClick={onClose}>
@@ -232,6 +240,7 @@ function SummaryCard({ label, value, color, highlight }: { label: string; value:
 // ===== Services Section =====
 function ServicesSection({ orderId, services, onRefetch }: { orderId: string; services: any[]; onRefetch: () => void }) {
   const [adding, setAdding] = useState(false);
+  const [showMultipleItems, setShowMultipleItems] = useState(false);
   const [form, setForm] = useState({
     descricao: "",
     fornecedor: "",
@@ -296,6 +305,7 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
 
   return (
     <div className="space-y-4">
+      {/* Tabela de serviços simples */}
       {services.length > 0 && (
         <Table>
           <TableHeader>
@@ -331,6 +341,21 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
         </Table>
       )}
 
+      {/* Formulário inline de múltiplos itens */}
+      {showMultipleItems && (
+        <div className="border-t pt-6">
+          <CTMServiceItemsForm
+            orderId={orderId}
+            onSaved={() => {
+              setShowMultipleItems(false);
+              onRefetch();
+            }}
+            onCancel={() => setShowMultipleItems(false)}
+          />
+        </div>
+      )}
+
+      {/* Formulário de serviço simples */}
       {adding ? (
         <div className="bg-muted/30 rounded-lg p-4 space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -352,10 +377,15 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
             </Button>
           </div>
         </div>
-      ) : (
-        <Button variant="outline" size="sm" onClick={() => setAdding(true)} className="gap-1.5">
-          <Plus className="h-3.5 w-3.5" /> Adicionar Serviço
-        </Button>
+      ) : !showMultipleItems && (
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setAdding(true)} className="gap-1.5 flex-1">
+            <Plus className="h-3.5 w-3.5" /> Serviço Simples
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowMultipleItems(true)} className="gap-1.5 flex-1">
+            <Plus className="h-3.5 w-3.5" /> Múltiplos Itens
+          </Button>
+        </div>
       )}
     </div>
   );

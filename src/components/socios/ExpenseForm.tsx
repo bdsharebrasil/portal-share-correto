@@ -189,6 +189,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     if (clienteId) fetchAircraft();
   }, [clienteId]);
 
+  // Fetch manutencoes for the aircraft
   const { data: manutencoes = [] } = useAircraftMaintenances(clientAircraftId);
 
   // Filtrar apenas fornecedores da categoria 'share'

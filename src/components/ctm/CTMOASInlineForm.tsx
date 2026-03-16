@@ -37,6 +37,15 @@ const STATUS_LABELS: Record<string, string> = {
   pendente: "Pendente",
 };
 
+// Helper para obter data de hoje sem problemas de timezone
+const getTodayString = (): string => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export function CTMOASInlineForm({
   aircraftId,
   aircraftRegistration,
@@ -51,7 +60,7 @@ export function CTMOASInlineForm({
     os_oficina: "",
     oficina_nome: "",
     oficina_contato: "",
-    data_entrada: format(new Date(), "yyyy-MM-dd"),
+    data_entrada: getTodayString(),
     data_saida: "",
     dias_previstos: "",
     dias_efetivos: "",

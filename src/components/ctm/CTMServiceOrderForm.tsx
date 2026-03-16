@@ -193,8 +193,8 @@ export function CTMServiceOrderForm({
                   id="data_entrada"
                   type="date"
                   value={
-                    formData.data_entrada
-                      ? new Date(formData.data_entrada).toISOString().split('T')[0]
+                    formData.data_entrada && typeof formData.data_entrada === 'string'
+                      ? formData.data_entrada.split('T')[0]
                       : ''
                   }
                   onChange={(e) => handleChange('data_entrada', e.target.value)}
@@ -207,8 +207,8 @@ export function CTMServiceOrderForm({
                   id="data_saida"
                   type="date"
                   value={
-                    formData.data_saida
-                      ? new Date(formData.data_saida).toISOString().split('T')[0]
+                    formData.data_saida && typeof formData.data_saida === 'string'
+                      ? formData.data_saida.split('T')[0]
                       : ''
                   }
                   onChange={(e) => handleChange('data_saida', e.target.value)}
