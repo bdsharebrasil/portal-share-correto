@@ -420,23 +420,33 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
         pdf_file_name: pdfName,
       };
 
-      const { error } = await supabase.from("ctm_budgets").insert([
-        {
-          aircraft_id: aircraftId,
-          month: formData.month,
-          year: formData.year,
-          status: "draft",
-          created_by: user.id,
-          created_at: new Date().toISOString(),
-          supplier_name: formData.supplier_name,
-          supplier_type: formData.supplier_type,
-          notes: formData.notes,
-          budget_items: budgetItems.filter(i => i.description),
-          budget_details: budgetDetails,
-        },
-      ]);
+      const budgetPayload = {
+        aircraft_id: aircraftId,
+        month: formData.month,
+        year: formData.year,
+        status: "draft",
+        created_by: user.id,
+        created_at: new Date().toISOString(),
+        supplier_name: formData.supplier_name,
+        supplier_type: formData.supplier_type,
+        notes: formData.notes || null,
+        budget_items: budgetItems.filter(i => i.description),
+        budget_details: budgetDetails,
+      };
 
-      if (error) throw error;
+      console.log("Inserting budget with payload:", budgetPayload);
+
+      const { data, error } = await supabase
+        .from("ctm_budgets")
+        .insert([budgetPayload])
+        .select();
+
+      console.log("Insert response - Data:", data, "Error:", error);
+
+      if (error) {
+        console.error("Supabase insert error:", error);
+        throw new Error(error.message || "Erro ao salvar orçamento no banco de dados");
+      }
 
       toast.success("Orçamento criado com sucesso!");
       setShowNewBudgetDialog(false);
@@ -444,7 +454,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
       await loadBudgets();
     } catch (error: any) {
       console.error("Error creating budget:", error);
-      toast.error("Erro ao criar orçamento: " + error.message);
+      toast.error("Erro ao criar orçamento: " + (error.message || "Erro desconhecido"));
     }
   };
 
