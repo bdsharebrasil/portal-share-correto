@@ -239,63 +239,7 @@ function SummaryCard({ label, value, color, highlight }: { label: string; value:
 
 // ===== Services Section =====
 function ServicesSection({ orderId, services, onRefetch }: { orderId: string; services: any[]; onRefetch: () => void }) {
-  const [adding, setAdding] = useState(false);
   const [showMultipleItems, setShowMultipleItems] = useState(false);
-  const [form, setForm] = useState({
-    descricao: "",
-    fornecedor: "",
-    valor: "",
-    categoria: "",
-    nota_fiscal: "",
-    modelo: "",
-    modo_pagamento: "",
-    dados_pagamento: "",
-    quantidade: "1",
-    valor_unitario: ""
-  });
-  const [saving, setSaving] = useState(false);
-
-  const handleAdd = async () => {
-    if (!form.descricao) return toast.error("Descrição é obrigatória");
-    setSaving(true);
-    const qty = parseInt(form.quantidade) || 1;
-    const unitVal = form.valor_unitario ? parseFloat(form.valor_unitario) : (form.valor ? parseFloat(form.valor) : 0);
-    try {
-      const { error } = await supabase.from("ctm_services").insert([{
-        service_order_id: orderId,
-        descricao: form.descricao,
-        fornecedor: form.fornecedor || null,
-        valor: qty * unitVal,
-        categoria: form.categoria || null,
-        nota_fiscal: form.nota_fiscal || null,
-        modelo: form.modelo || null,
-        modo_pagamento: form.modo_pagamento || null,
-        dados_pagamento: form.dados_pagamento || null,
-        quantidade: qty,
-        valor_unitario: unitVal,
-      }]);
-      if (error) throw error;
-      toast.success("Serviço adicionado");
-      setForm({
-        descricao: "",
-        fornecedor: "",
-        valor: "",
-        categoria: "",
-        nota_fiscal: "",
-        modelo: "",
-        modo_pagamento: "",
-        dados_pagamento: "",
-        quantidade: "1",
-        valor_unitario: ""
-      });
-      setAdding(false);
-      onRefetch();
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("ctm_services").delete().eq("id", id);
@@ -355,37 +299,11 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
         </div>
       )}
 
-      {/* Formulário de serviço simples */}
-      {adding ? (
-        <div className="bg-muted/30 rounded-lg p-4 space-y-3">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="col-span-2 md:col-span-4"><Label className="text-xs">Descrição *</Label><Input value={form.descricao} onChange={(e) => setForm(f => ({ ...f, descricao: e.target.value }))} placeholder="Descrição do serviço" /></div>
-            <div><Label className="text-xs">Modelo (P/N)</Label><Input value={form.modelo} onChange={(e) => setForm(f => ({ ...f, modelo: e.target.value }))} placeholder="ex: 25140/22A703" /></div>
-            <div><Label className="text-xs">Quantidade</Label><Input type="number" min="1" value={form.quantidade} onChange={(e) => setForm(f => ({ ...f, quantidade: e.target.value }))} /></div>
-            <div><Label className="text-xs">Valor Unit. (R$)</Label><Input type="number" step="0.01" value={form.valor_unitario} onChange={(e) => setForm(f => ({ ...f, valor_unitario: e.target.value }))} /></div>
-            <div><Label className="text-xs">Valor Total (R$)</Label><Input type="number" step="0.01" value={form.valor} onChange={(e) => setForm(f => ({ ...f, valor: e.target.value }))} /></div>
-            <div><Label className="text-xs">Fornecedor</Label><Input value={form.fornecedor} onChange={(e) => setForm(f => ({ ...f, fornecedor: e.target.value }))} /></div>
-            <div><Label className="text-xs">Modo Pagamento</Label><Input value={form.modo_pagamento} onChange={(e) => setForm(f => ({ ...f, modo_pagamento: e.target.value }))} placeholder="Boleto, Transferência..." /></div>
-            <div><Label className="text-xs">Categoria</Label><Input value={form.categoria} onChange={(e) => setForm(f => ({ ...f, categoria: e.target.value }))} /></div>
-            <div><Label className="text-xs">Nota Fiscal</Label><Input value={form.nota_fiscal} onChange={(e) => setForm(f => ({ ...f, nota_fiscal: e.target.value }))} /></div>
-            <div className="col-span-2 md:col-span-4"><Label className="text-xs">Dados para Pagamento</Label><Textarea value={form.dados_pagamento} onChange={(e) => setForm(f => ({ ...f, dados_pagamento: e.target.value }))} placeholder="Banco: 001 | Agência: 0000-0 | Conta: 00000-0" rows={2} /></div>
-          </div>
-          <div className="flex gap-2 justify-end">
-            <Button variant="outline" size="sm" onClick={() => setAdding(false)}>Cancelar</Button>
-            <Button size="sm" onClick={handleAdd} disabled={saving} className="gap-1.5">
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Salvar
-            </Button>
-          </div>
-        </div>
-      ) : !showMultipleItems && (
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setAdding(true)} className="gap-1.5 flex-1">
-            <Plus className="h-3.5 w-3.5" /> Serviço Simples
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowMultipleItems(true)} className="gap-1.5 flex-1">
-            <Plus className="h-3.5 w-3.5" /> Múltiplos Itens
-          </Button>
-        </div>
+      {/* Botão para criar serviço com múltiplos itens */}
+      {!showMultipleItems && (
+        <Button variant="outline" size="sm" onClick={() => setShowMultipleItems(true)} className="gap-1.5 w-full">
+          <Plus className="h-3.5 w-3.5" /> Criar Serviços
+        </Button>
       )}
     </div>
   );

@@ -148,6 +148,9 @@ export function NovoVencimentoDialog({ onSave }: NovoVencimentoDialogProps) {
           const horasValue = parseFloat(formData.vencimentoHoras);
           const osNumero = `MNT-${horasValue}H-${Date.now().toString().slice(-6)}`;
 
+          const today = new Date();
+          const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
           const serviceOrderData = {
             aircraft_id: formData.aeronave_id,
             numero: osNumero,
@@ -157,7 +160,7 @@ export function NovoVencimentoDialog({ onSave }: NovoVencimentoDialogProps) {
             objetivo: formData.tipo,
             observacoes: formData.descricao || `Manutenção de ${horasValue}h - ${formData.tipo}`,
             status: "EM_ANDAMENTO",
-            data_entrada: new Date().toISOString().split("T")[0],
+            data_entrada: todayString,
           };
 
           const { error: ctmError } = await supabase

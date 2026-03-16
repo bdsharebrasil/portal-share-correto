@@ -212,12 +212,15 @@ export default function ManutencaoAeronave() {
           tipoManutencao === 'preventiva' ? 'PREVENTIVA' : 'CORRETIVA';
 
         const vencimentoLabel = vencimentoHoras ? `${vencimentoHoras}HORAS` : 'CORRETIVO';
+        const today = new Date();
+        const todayString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
         const { error: ctmError } = await supabase.from('ctm_service_orders').insert([{
           aircraft_id: newManutencao.aeronaveId,
           numero: `MNT-${Date.now().toString().slice(-6)}`,
           tipo_manutencao: vencimentoLabel,
           description: newManutencao.descricao || serviceOrderType,
-          data_entrada: newManutencao.dataProxima || new Date().toISOString().split('T')[0],
+          data_entrada: newManutencao.dataProxima || todayString,
           status: 'em_andamento',
           observacoes: newManutencao.descricao || '',
           oficina_nome: '',

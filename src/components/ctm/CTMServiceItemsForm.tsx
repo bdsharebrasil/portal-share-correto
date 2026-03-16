@@ -16,8 +16,6 @@ interface ServiceItem {
   id?: string;
   ordenacao: number;
   descricao: string;
-  modelo?: string;
-  numero_serie?: string;
   quantidade: number;
   valor_unitario: number;
   subtotal: number;
@@ -51,8 +49,6 @@ export function CTMServiceItemsForm({
   const [newItem, setNewItem] = useState<ServiceItem>({
     ordenacao: 1,
     descricao: "",
-    modelo: "",
-    numero_serie: "",
     quantidade: 1,
     valor_unitario: 0,
     subtotal: 0,
@@ -169,8 +165,6 @@ export function CTMServiceItemsForm({
     setNewItem({
       ordenacao: items.length + 2,
       descricao: "",
-      modelo: "",
-      numero_serie: "",
       quantidade: 1,
       valor_unitario: 0,
       subtotal: 0,
@@ -267,8 +261,6 @@ export function CTMServiceItemsForm({
         service_id: serviceId,
         ordenacao: item.ordenacao,
         descricao: item.descricao,
-        modelo: item.modelo || null,
-        numero_serie: item.numero_serie || null,
         quantidade: item.quantidade,
         valor_unitario: item.valor_unitario,
         subtotal: item.subtotal,
@@ -310,8 +302,6 @@ export function CTMServiceItemsForm({
       setNewItem({
         ordenacao: 1,
         descricao: "",
-        modelo: "",
-        numero_serie: "",
         quantidade: 1,
         valor_unitario: 0,
         subtotal: 0,
@@ -352,9 +342,9 @@ export function CTMServiceItemsForm({
       {/* Header */}
       <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
         <CardHeader>
-          <CardTitle className="text-xl">Lançamento de Serviço com Múltiplos Itens</CardTitle>
+          <CardTitle className="text-xl">ORDEM DE SERVIÇO </CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure o número, oficina e itens do serviço
+            
           </p>
         </CardHeader>
       </Card>
@@ -364,7 +354,7 @@ export function CTMServiceItemsForm({
         <CardContent className="pt-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Número do Serviço *</Label>
+              <Label>Número O.S</Label>
               <Input
                 value={financialData.numero_servico}
                 onChange={(e) => setFinancialData({ ...financialData, numero_servico: e.target.value })}
@@ -471,7 +461,7 @@ export function CTMServiceItemsForm({
       {/* Cabeçalho do Serviço */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Cabeçalho do Serviço</CardTitle>
+          <CardTitle className="text-base">Descrição</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -540,28 +530,12 @@ export function CTMServiceItemsForm({
                     <TableRow key={idx} className="hover:bg-muted/30">
                       <TableCell className="font-bold text-center text-xs">{item.ordenacao.toString().padStart(2, "0")}</TableCell>
                       <TableCell>
-                        <div className="space-y-1.5">
-                          <Input
-                            value={item.descricao}
-                            onChange={(e) => handleUpdateItem(idx, "descricao", e.target.value)}
-                            placeholder="Descrição"
-                            className="text-xs h-8"
-                          />
-                          <div className="grid grid-cols-2 gap-1">
-                            <Input
-                              value={item.modelo || ""}
-                              onChange={(e) => handleUpdateItem(idx, "modelo", e.target.value)}
-                              placeholder="Modelo"
-                              className="text-xs h-7"
-                            />
-                            <Input
-                              value={item.numero_serie || ""}
-                              onChange={(e) => handleUpdateItem(idx, "numero_serie", e.target.value)}
-                              placeholder="N/S"
-                              className="text-xs h-7"
-                            />
-                          </div>
-                        </div>
+                        <Input
+                          value={item.descricao}
+                          onChange={(e) => handleUpdateItem(idx, "descricao", e.target.value)}
+                          placeholder="Descrição"
+                          className="text-xs h-8"
+                        />
                       </TableCell>
                       <TableCell className="text-center">
                         <Input
@@ -615,31 +589,13 @@ export function CTMServiceItemsForm({
           {/* Add New Item Form */}
           <div className="space-y-3 pt-4 border-t">
             <h4 className="text-sm font-semibold">Adicionar Novo Item</h4>
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
               <div>
                 <Label className="text-xs">Descrição *</Label>
                 <Input
                   value={newItem.descricao}
                   onChange={(e) => setNewItem({ ...newItem, descricao: e.target.value })}
                   placeholder="Ex: REVISÃO"
-                  className="text-xs h-8"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">Modelo</Label>
-                <Input
-                  value={newItem.modelo || ""}
-                  onChange={(e) => setNewItem({ ...newItem, modelo: e.target.value })}
-                  placeholder="Modelo"
-                  className="text-xs h-8"
-                />
-              </div>
-              <div>
-                <Label className="text-xs">N/S</Label>
-                <Input
-                  value={newItem.numero_serie || ""}
-                  onChange={(e) => setNewItem({ ...newItem, numero_serie: e.target.value })}
-                  placeholder="Série"
                   className="text-xs h-8"
                 />
               </div>
