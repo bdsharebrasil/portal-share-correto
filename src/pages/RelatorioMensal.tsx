@@ -548,7 +548,7 @@ export default function RelatorioMensal() {
               const reportNumber = matches[0] // Pegar o primeiro match
               const { data: reportByNumber, error: searchError } = await supabase
                 .from("travel_expense_reports")
-                .select("id, report_number, start_date, client")
+                .select("id, report_number, start_date, client_id")
                 .eq("report_number", reportNumber)
                 .eq("client_id", clienteId)
                 .single()

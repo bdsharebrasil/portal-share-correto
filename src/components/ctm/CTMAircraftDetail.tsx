@@ -3,17 +3,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ArrowLeft, Plus, Wrench, FileText, Table as TableIcon, Scale, Users, Layers, BarChart3, DollarSign } from "lucide-react";
+import { ArrowLeft, Plus, Wrench, FileText, Scale, Layers, BarChart3, DollarSign, Clock, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useCTMServiceOrders, usePartnerFlightHours, useAircraftCellHours } from "@/hooks/useCTMData";
+import { useCTMServiceOrders, useAircraftCellHours } from "@/hooks/useCTMData";
 import { CTMComponentMap } from "./CTMComponentMap";
 import { CTMRASReports } from "./CTMRASReports";
 import { CTMWeightBalanceComplete } from "./CTMWeightBalanceComplete";
-import { CTMBudgetManagement } from "./CTMBudgetManagement"; // <-- Importado aqui
+import { CTMBudgetManagement } from "./CTMBudgetManagement";
 import { NewServiceOrderDialog } from "./NewServiceOrderDialog";
 import { MAINTENANCE_CATEGORIES, MaintenanceCategory, CTMTab } from "@/types/ctm";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { useCTMServiceOrders as useCTMServiceOrdersHook } from "@/hooks/useCTMServiceOrders";
 
 interface Aircraft {
   id: string;
@@ -49,7 +52,7 @@ const MAIN_TABS = [
   {
     value: "os",
     label: "Ordem de Acompanhamento",
-    shortLabel: "O.S.",
+    shortLabel: "O.A.S.",
     icon: FileText,
     color: "primary"
   },
@@ -75,7 +78,7 @@ const MAIN_TABS = [
     color: "purple"
   },
   {
-    value: "orcamentos", // <-- Nova Aba
+    value: "orcamentos",
     label: "Orçamentos",
     shortLabel: "Orçam.",
     icon: DollarSign,
@@ -83,14 +86,46 @@ const MAIN_TABS = [
   }
 ] as const;
 
+// Hook to fetch ongoing maintenance from manutencoes table
+function useOngoingMaintenance(aircraftId: string) {
+  return useQuery({
+    queryKey: ["ongoing-maintenance", aircraftId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("manutencoes")
+        .select("*")
+        .eq("aeronave_id", aircraftId)
+        .in("etapa", ["aguardando", "pendente", "em_andamento"])
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!aircraftId,
+  });
+}
+
 export function CTMAircraftDetail({
   aircraft,
   onBack
 }: CTMAircraftDetailProps) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<CTMTab>("os");
-  const [categoryFilter, setCategoryFilter] = useState<MaintenanceCategory>("TUDO");
-  const [showNewOAS, setShowNewOAS] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string>("TUDO");
+  const [showNewOSForm, setShowNewOSForm] = useState(false);
+  
+  // Load maintenance categories dynamically
+  const { data: dynamicCategories = [] } = useQuery({
+    queryKey: ["ctm-maintenance-categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ctm_maintenance_categories")
+        .select("id, nome, descricao")
+        .eq("ativo", true)
+        .order("nome");
+      if (error) throw error;
+      return data || [];
+    }
+  });
   
   const {
     data: serviceOrders = [],
@@ -99,19 +134,41 @@ export function CTMAircraftDetail({
   } = useCTMServiceOrders(aircraft.id);
   
   const {
-    data: partnerHours = []
-  } = usePartnerFlightHours(aircraft.id);
+    data: ongoingMaintenance = [],
+  } = useOngoingMaintenance(aircraft.id);
   
   const {
     data: cellData
   } = useAircraftCellHours(aircraft.id);
   
+  // Create category options from dynamic data
+  const categoryOptions = [
+    { label: "Todas", value: "TUDO" },
+    ...dynamicCategories.map(cat => ({
+      label: cat.nome,
+      value: cat.nome.toUpperCase().replace(/\s+/g, "_")
+    }))
+  ];
+  
   const filteredOrders = categoryFilter === "TUDO" 
     ? serviceOrders 
-    : serviceOrders.filter(o => o.tipo_manutencao === categoryFilter);
+    : serviceOrders.filter(o => {
+        // Match against dynamic category names
+        const categoryName = dynamicCategories.find(cat => 
+          cat.nome.toUpperCase().replace(/\s+/g, "_") === categoryFilter
+        )?.nome;
+        return categoryName && o.tipo_manutencao === categoryName;
+      });
     
   const handleServiceOrderCreated = () => {
     refetchOrders();
+    setShowNewOSForm(false);
+  };
+
+  const statusLabels: Record<string, { label: string; color: string }> = {
+    aguardando: { label: "Aguardando", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
+    pendente: { label: "Pendente", color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
+    em_andamento: { label: "Em Andamento", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
   };
 
   return (
@@ -146,9 +203,9 @@ export function CTMAircraftDetail({
             </div>
           </div>
           
-          {activeTab === "os" && (
+          {activeTab === "os" && !showNewOSForm && (
             <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}>
-              <Button onClick={() => setShowNewOAS(true)} className="gap-2 shadow-lg shadow-primary/20 w-full md:w-auto">
+              <Button onClick={() => setShowNewOSForm(true)} className="gap-2 shadow-lg shadow-primary/20 w-full md:w-auto">
                 <Plus className="h-4 w-4" />
                 NOVA O.S.
               </Button>
@@ -170,7 +227,7 @@ export function CTMAircraftDetail({
               transition={{ delay: index * 0.05 }} 
               whileHover={{ scale: 1.02 }} 
               whileTap={{ scale: 0.98 }} 
-              onClick={() => setActiveTab(tab.value as CTMTab)} 
+              onClick={() => { setActiveTab(tab.value as CTMTab); setShowNewOSForm(false); }}
               className={cn("relative flex items-center gap-2 px-5 py-3 rounded-xl font-medium transition-all whitespace-nowrap", "border backdrop-blur-sm", isActive ? "bg-primary/10 border-primary/30 text-primary shadow-lg shadow-primary/10" : "bg-background/50 border-border/50 text-muted-foreground hover:bg-muted/50 hover:border-border")}
             >
               <Icon className="h-4 w-4" />
@@ -192,11 +249,25 @@ export function CTMAircraftDetail({
           {/* OS Tab */}
           {activeTab === "os" && (
             <div className="space-y-6">
-              {/* Category Filters with Colors */}
+
+              {/* Inline New OS Form */}
+              {showNewOSForm && (
+                <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+                  <NewServiceOrderDialog 
+                    open={true} 
+                    onOpenChange={(open) => { if (!open) setShowNewOSForm(false); }} 
+                    aircraftId={aircraft.id} 
+                    aircraftRegistration={aircraft.registration} 
+                    onServiceOrderCreated={handleServiceOrderCreated} 
+                  />
+                </motion.div>
+              )}
+
+              {/* Category Filters */}
               <Card className="border-border/50 bg-background/50 backdrop-blur-sm">
                 <CardContent className="p-4">
                   <div className="flex gap-2 flex-wrap">
-                    {MAINTENANCE_CATEGORIES.map(cat => {
+                    {categoryOptions.map(cat => {
                       const colors = CATEGORY_COLORS[cat.value] || CATEGORY_COLORS.TUDO;
                       const isActive = categoryFilter === cat.value;
                       return (
@@ -211,35 +282,60 @@ export function CTMAircraftDetail({
                         </motion.button>
                       );
                     })}
-                    
-                    <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="px-4 py-2 rounded-lg font-medium text-sm border border-dashed border-border/50 text-muted-foreground hover:border-primary/50 hover:text-primary transition-all flex items-center gap-2">
-                      <Plus className="h-3.5 w-3.5" />
-                      Adicionar Aba
-                    </motion.button>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Partner Hours Summary */}
-              {partnerHours.length > 0 && (
+              {/* Ongoing Maintenance from manutencoes */}
+              {ongoingMaintenance.length > 0 && (
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
                   <Card className="border-border/50 bg-gradient-to-br from-background to-muted/20 overflow-hidden">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-sm flex items-center gap-2">
-                        <div className="p-2 bg-primary/10 rounded-lg">
-                          <Users className="h-4 w-4 text-primary" />
+                        <div className="p-2 bg-orange-500/10 rounded-lg">
+                          <Wrench className="h-4 w-4 text-orange-500" />
                         </div>
-                        Horas Voadas por Sócio
+                        Manutenções em Andamento
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {partnerHours.map((p, index) => (
-                          <div key={index} className="bg-muted/50 rounded-lg p-3 text-center">
-                            <p className="text-xs text-muted-foreground">{p.client_name || 'Sócio'}</p>
-                            <p className="text-lg font-bold text-foreground">{p.total_hours?.toFixed(1) || 0}h</p>
-                          </div>
-                        ))}
+                      <div className="space-y-3">
+                        {ongoingMaintenance.map((m: any) => {
+                          const status = statusLabels[m.etapa] || statusLabels.pendente;
+                          return (
+                            <div key={m.id} className="flex items-center justify-between bg-muted/30 rounded-lg p-3 border border-border/30">
+                              <div className="flex items-center gap-3">
+                                <div className="p-2 bg-orange-500/10 rounded-lg">
+                                  {m.etapa === 'em_andamento' ? <Clock className="h-4 w-4 text-blue-400" /> : <AlertTriangle className="h-4 w-4 text-yellow-400" />}
+                                </div>
+                                <div>
+                                  <p className="text-sm font-semibold text-foreground">
+                                    {m.tipo === 'preventiva' ? `Preventiva ${m.vencimento_horas ? m.vencimento_horas + 'h' : ''}` : 'Corretiva'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">{m.observacoes || 'Sem descrição'}</p>
+                                  {m.mecanico && <p className="text-xs text-muted-foreground">Mecânico: {m.mecanico}</p>}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {m.data_programada && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {(() => {
+                                      const dateStr = m.data_programada;
+                                      if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                                        const [year, month, day] = dateStr.split("-");
+                                        return `${day}/${month}/${year}`;
+                                      }
+                                      return new Date(dateStr).toLocaleDateString('pt-BR');
+                                    })()}
+                                  </span>
+                                )}
+                                <Badge className={status.color}>
+                                  {status.label}
+                                </Badge>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </CardContent>
                   </Card>
@@ -268,10 +364,15 @@ export function CTMAircraftDetail({
               ) : (
                 <div className="space-y-3">
                   {filteredOrders.map((order, index) => {
-                    const colors = CATEGORY_COLORS[order.tipo_manutencao] || CATEGORY_COLORS.TUDO;
+                    // Get colors based on dynamic category or fallback
+                    const categoryKey = order.tipo_manutencao?.replace(/\s+/g, "_").toUpperCase() || "TUDO";
+                    const colors = CATEGORY_COLORS[categoryKey] || CATEGORY_COLORS.TUDO;
+                    const handleCardClick = () => {
+                      navigate(`/manutencao/ctm?aircraftId=${aircraft.id}&registration=${aircraft.registration}`);
+                    };
                     return (
                       <motion.div key={order.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.05 }} whileHover={{ scale: 1.01 }}>
-                        <Card className="border-border/50 hover:border-primary/30 transition-all cursor-pointer overflow-hidden group">
+                        <Card onClick={handleCardClick} className="border-border/50 hover:border-primary/30 transition-all cursor-pointer overflow-hidden group">
                           <CardContent className="p-0">
                             <div className="flex">
                               {/* Color indicator */}
@@ -291,7 +392,7 @@ export function CTMAircraftDetail({
                                       <span className="w-1 h-1 rounded-full bg-muted-foreground/50" />
                                       <span>{order.horas_celula?.toFixed(1) || 0}H CÉLULA</span>
                                       <Badge className={cn("text-xs", colors.bg, colors.text, colors.border)}>
-                                        {MAINTENANCE_CATEGORIES.find(c => c.value === order.tipo_manutencao)?.label || order.tipo_manutencao}
+                                        {dynamicCategories.find(cat => cat.nome === order.tipo_manutencao)?.nome || order.tipo_manutencao || "Sem categoria"}
                                       </Badge>
                                     </div>
                                   </div>
@@ -323,14 +424,11 @@ export function CTMAircraftDetail({
           {/* RAS Tab */}
           {activeTab === "ras" && <CTMRASReports aircraftId={aircraft.id} aircraftRegistration={aircraft.registration} />}
 
-          {/* Budgets Tab - A Nova Aba Integrada Aqui */}
+          {/* Budgets Tab */}
           {activeTab === "orcamentos" && <CTMBudgetManagement aircraftId={aircraft.id} aircraftRegistration={aircraft.registration} />}
 
         </motion.div>
       </AnimatePresence>
-
-      {/* New Service Order Dialog */}
-      <NewServiceOrderDialog open={showNewOAS} onOpenChange={setShowNewOAS} aircraftId={aircraft.id} aircraftRegistration={aircraft.registration} onServiceOrderCreated={handleServiceOrderCreated} />
     </div>
   );
 }

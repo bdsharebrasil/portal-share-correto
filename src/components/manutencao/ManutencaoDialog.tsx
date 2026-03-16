@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Pencil, Plus, Loader2 } from "lucide-react";
 import { fetchAircrafts, createMaintenance, updateMaintenance } from "@/services/maintenance";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Manutencao {
   id: string;
@@ -28,6 +29,11 @@ interface Aircraft {
   registration: string;
 }
 
+interface Oficina {
+  id: string;
+  razao_social: string;
+}
+
 interface ManutencaoDialogProps {
   manutencao?: Manutencao;
   onSave: (manutencao: Manutencao) => void;
@@ -38,6 +44,7 @@ export function ManutencaoDialog({ manutencao, onSave, mode = "create" }: Manute
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [aircrafts, setAircrafts] = useState<Aircraft[]>([]);
+  const [oficinas, setOficinas] = useState<Oficina[]>([]);
   const { toast } = useToast();
   
   const [formData, setFormData] = useState<Manutencao>(
@@ -57,6 +64,11 @@ export function ManutencaoDialog({ manutencao, onSave, mode = "create" }: Manute
   useEffect(() => {
     if (open) {
       loadAircrafts();
+      loadOficinas();
+      // Inicializar formData com os dados da manutenção existente se em modo edit
+      if (manutencao) {
+        setFormData(manutencao);
+      }
     }
   }, [open]);
 
@@ -69,6 +81,26 @@ export function ManutencaoDialog({ manutencao, onSave, mode = "create" }: Manute
       toast({
         title: "Erro",
         description: "Não foi possível carregar as aeronaves.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const loadOficinas = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("oficinas")
+        .select("id, razao_social")
+        .eq("ativo", true)
+        .order("razao_social");
+
+      if (error) throw error;
+      setOficinas(data || []);
+    } catch (error) {
+      console.error("Erro ao carregar oficinas:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar as oficinas.",
         variant: "destructive",
       });
     }
@@ -225,12 +257,21 @@ export function ManutencaoDialog({ manutencao, onSave, mode = "create" }: Manute
             </div>
             <div className="space-y-2">
               <Label htmlFor="oficina">Oficina</Label>
-              <Input
-                id="oficina"
+              <Select
                 value={formData.oficina || ""}
-                onChange={(e) => setFormData({ ...formData, oficina: e.target.value })}
-                placeholder="Nome da oficina"
-              />
+                onValueChange={(value) => setFormData({ ...formData, oficina: value })}
+              >
+                <SelectTrigger id="oficina">
+                  <SelectValue placeholder="Selecione uma oficina" />
+                </SelectTrigger>
+                <SelectContent>
+                  {oficinas.map((oficina) => (
+                    <SelectItem key={oficina.id} value={oficina.razao_social}>
+                      {oficina.razao_social}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

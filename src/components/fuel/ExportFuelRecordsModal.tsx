@@ -16,7 +16,7 @@ interface FuelRecord {
   litros: number;
   valor_unitario: number;
   valor_total: number;
-  partner_name: string | null;
+  partner_name?: string | null;
   abastecimento_galoes?: number | null;
 }
 

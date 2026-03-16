@@ -34,6 +34,9 @@ import { useNavigate } from "react-router-dom"
 import type { PartnerAccount, PartnerTransaction } from "@/hooks/useFinanceiroSocios"
 import { DepositForm } from "./DepositForm"
 import { ExpenseForm } from "./ExpenseForm"
+import { MaintenanceReportDialog } from "./MaintenanceReportDialog"
+import { useEffect } from "react"
+import { supabase } from "@/integrations/supabase/client"
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
@@ -73,6 +76,20 @@ export function SocioDashboard({
   const [visiblePartners, setVisiblePartners] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<"date" | "amount">("date")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc")
+  const [clientAircraftId, setClientAircraftId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchAircraft = async () => {
+      const { data } = await supabase
+        .from("client_aircraft")
+        .select("aircraft_id")
+        .eq("client_id", clienteId)
+        .limit(1)
+        .single();
+      setClientAircraftId(data?.aircraft_id || null);
+    };
+    if (clienteId) fetchAircraft();
+  }, [clienteId]);
 
   // ========================
   // COMPUTAÇÕES
@@ -280,6 +297,7 @@ export function SocioDashboard({
           <BarChart3 className="h-4 w-4" />
           Relatório Mensal
         </Button>
+        <MaintenanceReportDialog aircraftId={clientAircraftId} clienteId={clienteId} />
       </div>
 
       {/* Summary Cards */}

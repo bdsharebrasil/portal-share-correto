@@ -34,6 +34,7 @@ import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
 import { useCreateExpense } from "@/hooks/useFinanceiroSocios";
 import { useClientPartners } from "@/hooks/useClientPartners";
 import { useClientAbastecimentos } from "@/hooks/useAbastecimentos";
+import { useAircraftMaintenances, useCreateMaintenanceExpense } from "@/hooks/useMaintenanceExpenses";
 import { useFornecedoresFavoritos } from "@/hooks/useFornecedoresFavoritos";
 import { useFuelSuppliers } from "@/hooks/useFuelSuppliers";
 import { useContasBancarias } from "@/hooks/useContasBancarias";
@@ -160,12 +161,35 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   } | null>(null);
   const [loadingReports, setLoadingReports] = useState(false);
 
+  // Maintenance linking states
+  const [selectedManutencaoId, setSelectedManutencaoId] = useState<string>("");
+  const [manutencaoTipoRateio, setManutencaoTipoRateio] = useState<"igual" | "por_uso" | "manual">("igual");
+  const [manualRateios, setManualRateios] = useState<Record<string, number>>({});
+
   const addExpense = useCreateExpense(false);
+  const createMaintenanceExpense = useCreateMaintenanceExpense();
   const { data: partners = [], isLoading: loadingPartners } = useClientPartners(clienteId);
   const { data: abastecimentos = [] } = useClientAbastecimentos(clienteId);
   const { data: fornecedoresFavoritos = [] } = useFornecedoresFavoritos();
   const { data: fuelSuppliers = [] } = useFuelSuppliers();
   const { data: contasBancarias = [], isLoading: loadingContas } = useContasBancarias();
+
+  // Fetch aircraft ID for this client
+  const [clientAircraftId, setClientAircraftId] = useState<string | null>(null);
+  useEffect(() => {
+    const fetchAircraft = async () => {
+      const { data } = await supabase
+        .from("client_aircraft")
+        .select("aircraft_id")
+        .eq("client_id", clienteId)
+        .limit(1)
+        .single();
+      setClientAircraftId(data?.aircraft_id || null);
+    };
+    if (clienteId) fetchAircraft();
+  }, [clienteId]);
+
+  const { data: manutencoes = [] } = useAircraftMaintenances(clientAircraftId);
 
   // Filtrar apenas fornecedores da categoria 'share'
   const fornecedoresShare = fornecedoresFavoritos.filter((f) => f.categoria === "share");
@@ -195,12 +219,17 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       ? partners.find((p) => p.cpf === form.assignedPartnerCpf)
       : null;
 
-  // when category changes away from DESPESA_VIAGEM, reset link state
+  // when category changes, reset link states
   useEffect(() => {
     if (form.category !== "DESPESA_VIAGEM") {
       setLinkOption(null);
       setExistingReports([]);
       setSelectedReport(null);
+    }
+    if (form.category !== "MANUTENCAO") {
+      setSelectedManutencaoId("");
+      setManutencaoTipoRateio("igual");
+      setManualRateios({});
     }
   }, [form.category]);
 
@@ -390,6 +419,66 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       });
     }
 
+    // If MANUTENCAO category with a selected maintenance, create despesa_manutencao record
+    if (form.category === "MANUTENCAO" && selectedManutencaoId) {
+      try {
+        const valor = parseFloat(form.totalAmount);
+        let rateios: Array<{ clientPartnerId: string; percentual: number; valor: number }> = [];
+
+        if (manutencaoTipoRateio === "igual" && partners.length > 0) {
+          const pct = 100 / partners.length;
+          const partVal = Math.round((valor / partners.length) * 100) / 100;
+          rateios = partners.map((p) => ({
+            clientPartnerId: p.id,
+            percentual: Math.round(pct * 100) / 100,
+            valor: partVal,
+          }));
+        } else if (manutencaoTipoRateio === "por_uso" && partners.length > 0) {
+          // Use share_percentage or equal if not set
+          const totalPct = partners.reduce((s, p) => s + (p.share_percentage || 0), 0);
+          if (totalPct > 0) {
+            rateios = partners.map((p) => {
+              const pct = (p.share_percentage || 0) / totalPct * 100;
+              return {
+                clientPartnerId: p.id,
+                percentual: Math.round(pct * 100) / 100,
+                valor: Math.round((valor * pct / 100) * 100) / 100,
+              };
+            });
+          } else {
+            // Fallback to equal
+            const pct = 100 / partners.length;
+            rateios = partners.map((p) => ({
+              clientPartnerId: p.id,
+              percentual: Math.round(pct * 100) / 100,
+              valor: Math.round((valor / partners.length) * 100) / 100,
+            }));
+          }
+        } else if (manutencaoTipoRateio === "manual") {
+          rateios = partners.map((p) => {
+            const pct = manualRateios[p.id] || 0;
+            return {
+              clientPartnerId: p.id,
+              percentual: pct,
+              valor: Math.round((valor * pct / 100) * 100) / 100,
+            };
+          });
+        }
+
+        await createMaintenanceExpense.mutateAsync({
+          manutencaoId: selectedManutencaoId,
+          aircraftId: clientAircraftId,
+          clientId: clienteId,
+          descricao: form.description,
+          valor,
+          tipoRateio: manutencaoTipoRateio,
+          rateios,
+        });
+      } catch (err) {
+        console.error("Erro ao criar despesa de manutenção:", err);
+      }
+    }
+
     toast.success("Despesa criada com sucesso!");
     setOpen(false);
     setForm(EMPTY_FORM);
@@ -397,6 +486,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     setLinkOption(null);
     setExistingReports([]);
     setSelectedReport(null);
+    setSelectedManutencaoId("");
+    setManutencaoTipoRateio("igual");
+    setManualRateios({});
   };
 
   const handleBankSubmit = async (e: React.FormEvent) => {
@@ -788,7 +880,151 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                 </div>
               )}
 
-              {/* ── Descrição ── */}
+              {/* ── Manutenção ── */}
+              {form.category === "MANUTENCAO" && (
+                <div className="rounded-2xl bg-muted/50 border border-border/60 p-5 space-y-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                      <span className="text-base">🔧</span>
+                    </div>
+                    <p className="font-semibold text-sm text-foreground">
+                      Vincular com Manutenção
+                    </p>
+                  </div>
+
+                  <Select value={selectedManutencaoId} onValueChange={setSelectedManutencaoId}>
+                    <SelectTrigger className="h-12 rounded-xl border-border/60 text-sm">
+                      <SelectValue placeholder="Selecione a manutenção da aeronave" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      {manutencoes.length === 0 ? (
+                        <div className="p-4 text-sm text-muted-foreground text-center">
+                          Nenhuma manutenção encontrada
+                        </div>
+                      ) : (
+                        manutencoes.map((m) => {
+                          const formatDate = (dateStr: string) => {
+                            try {
+                              const parsed = parse(dateStr, "yyyy-MM-dd", new Date());
+                              return format(parsed, "dd/MM/yyyy", { locale: ptBR });
+                            } catch {
+                              return dateStr;
+                            }
+                          };
+
+                          const formatStatus = (status: string) => {
+                            return status
+                              .toLowerCase()
+                              .replace(/_/g, " ")
+                              .replace(/\b\w/g, (char) => char.toUpperCase());
+                          };
+
+                          return (
+                            <SelectItem key={m.id} value={m.id} className="py-3">
+                              <div className="text-sm space-y-0.5">
+                                <div className="font-medium">
+                                  {m.tipo} {m.numero_os ? `(${m.numero_os})` : ""}
+                                </div>
+                                <div className="text-xs text-muted-foreground flex gap-2">
+                                  <span>{formatDate(m.data_programada)}</span>
+                                  <span>{formatStatus(m.etapa)}</span>
+                                  {m.oficina && <span>• {m.oficina}</span>}
+                                </div>
+                              </div>
+                            </SelectItem>
+                          );
+                        })
+                      )}
+                    </SelectContent>
+                  </Select>
+
+                  {selectedManutencaoId && (
+                    <div className="space-y-3 pt-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Tipo de Rateio
+                      </p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { value: "igual" as const, label: "Igual", desc: "Dividido igualmente" },
+                          { value: "por_uso" as const, label: "Por Uso", desc: "Proporcional ao uso" },
+                          { value: "manual" as const, label: "Manual", desc: "Definir percentuais" },
+                        ].map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setManutencaoTipoRateio(opt.value)}
+                            className={cn(
+                              "p-3 rounded-xl border text-left transition-all text-sm",
+                              manutencaoTipoRateio === opt.value
+                                ? "border-primary bg-primary/10 text-foreground"
+                                : "border-border/50 hover:border-border text-muted-foreground"
+                            )}
+                          >
+                            <div className="font-medium">{opt.label}</div>
+                            <div className="text-xs mt-0.5 opacity-70">{opt.desc}</div>
+                          </button>
+                        ))}
+                      </div>
+
+                      {manutencaoTipoRateio === "manual" && partners.length > 0 && (
+                        <div className="space-y-2 rounded-xl border border-border/40 p-3">
+                          <p className="text-xs font-medium text-muted-foreground">Percentual por sócio</p>
+                          {partners.map((p) => (
+                            <div key={p.id} className="flex items-center gap-3">
+                              <span className="text-sm flex-1 truncate">{p.name}</span>
+                              <div className="flex items-center gap-1.5">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max="100"
+                                  step="0.01"
+                                  value={manualRateios[p.id] || ""}
+                                  onChange={(e) =>
+                                    setManualRateios((prev) => ({
+                                      ...prev,
+                                      [p.id]: parseFloat(e.target.value) || 0,
+                                    }))
+                                  }
+                                  className="w-20 h-8 text-sm rounded-lg"
+                                />
+                                <span className="text-xs text-muted-foreground">%</span>
+                              </div>
+                            </div>
+                          ))}
+                          {(() => {
+                            const total = Object.values(manualRateios).reduce((s, v) => s + v, 0);
+                            return (
+                              <p className={cn(
+                                "text-xs font-medium text-right",
+                                Math.abs(total - 100) < 0.01 ? "text-emerald-500" : "text-destructive"
+                              )}>
+                                Total: {total.toFixed(2)}%
+                              </p>
+                            );
+                          })()}
+                        </div>
+                      )}
+
+                      {manutencaoTipoRateio === "por_uso" && partners.length > 0 && (
+                        <div className="rounded-xl border border-border/40 p-3 space-y-1.5">
+                          <p className="text-xs font-medium text-muted-foreground">Rateio estimado por uso</p>
+                          {partners.map((p) => {
+                            const totalPct = partners.reduce((s, pp) => s + (pp.share_percentage || 0), 0);
+                            const pct = totalPct > 0 ? ((p.share_percentage || 0) / totalPct * 100) : (100 / partners.length);
+                            return (
+                              <div key={p.id} className="flex items-center justify-between text-sm">
+                                <span className="truncate">{p.name}</span>
+                                <span className="text-muted-foreground font-mono">{pct.toFixed(1)}%</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <FormSection label="Descrição" required>
                 <Input
                   value={form.description}

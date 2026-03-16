@@ -1142,7 +1142,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       toast.success(
         isEdit
           ? `Voo atualizado!`
-          : `Voo registrado! ${dailyAllowance > 0 ? `${dailyAllowance} diária(s)` : 'Sem diárias'}`
+          : `Voo registrado!`
       );
 
       // Recarregar entradas

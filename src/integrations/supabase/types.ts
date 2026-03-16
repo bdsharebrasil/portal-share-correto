@@ -19,6 +19,7 @@ export type Database = {
           abastecedor: string | null
           abastecimento_galoes: number | null
           aeronave_id: string | null
+          banco: string | null
           boleto_url: string | null
           client_id: string | null
           comanda: string | null
@@ -30,6 +31,7 @@ export type Database = {
           data_pagamento: string | null
           data_vencimento_boleto: string | null
           descricao: string | null
+          forma_pagamento: string | null
           id: string
           litros: number
           local: string
@@ -39,6 +41,7 @@ export type Database = {
           observacao: string | null
           partner_index: number | null
           partner_name: string | null
+          prazo: string | null
           status_pagamento: string | null
           tipo_faturamento: string | null
           trecho: string
@@ -50,6 +53,7 @@ export type Database = {
           abastecedor?: string | null
           abastecimento_galoes?: number | null
           aeronave_id?: string | null
+          banco?: string | null
           boleto_url?: string | null
           client_id?: string | null
           comanda?: string | null
@@ -61,6 +65,7 @@ export type Database = {
           data_pagamento?: string | null
           data_vencimento_boleto?: string | null
           descricao?: string | null
+          forma_pagamento?: string | null
           id?: string
           litros?: number
           local: string
@@ -70,6 +75,7 @@ export type Database = {
           observacao?: string | null
           partner_index?: number | null
           partner_name?: string | null
+          prazo?: string | null
           status_pagamento?: string | null
           tipo_faturamento?: string | null
           trecho: string
@@ -81,6 +87,7 @@ export type Database = {
           abastecedor?: string | null
           abastecimento_galoes?: number | null
           aeronave_id?: string | null
+          banco?: string | null
           boleto_url?: string | null
           client_id?: string | null
           comanda?: string | null
@@ -92,6 +99,7 @@ export type Database = {
           data_pagamento?: string | null
           data_vencimento_boleto?: string | null
           descricao?: string | null
+          forma_pagamento?: string | null
           id?: string
           litros?: number
           local?: string
@@ -101,6 +109,7 @@ export type Database = {
           observacao?: string | null
           partner_index?: number | null
           partner_name?: string | null
+          prazo?: string | null
           status_pagamento?: string | null
           tipo_faturamento?: string | null
           trecho?: string
@@ -4636,6 +4645,195 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_financeiro_caixa"
             referencedColumns: ["lancamento_caixa_id"]
+          },
+        ]
+      }
+      despesas_manutencao: {
+        Row: {
+          aircraft_id: string | null
+          client_id: string | null
+          created_at: string | null
+          created_by: string | null
+          descricao: string
+          id: string
+          manutencao_id: string
+          partner_expense_id: string | null
+          tipo_rateio: string
+          updated_at: string | null
+          valor: number
+        }
+        Insert: {
+          aircraft_id?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao: string
+          id?: string
+          manutencao_id: string
+          partner_expense_id?: string | null
+          tipo_rateio?: string
+          updated_at?: string | null
+          valor?: number
+        }
+        Update: {
+          aircraft_id?: string | null
+          client_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          descricao?: string
+          id?: string
+          manutencao_id?: string
+          partner_expense_id?: string | null
+          tipo_rateio?: string
+          updated_at?: string | null
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "despesas_manutencao_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "aircraft"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despesas_manutencao_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "aircraft_availability"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despesas_manutencao_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "despesas_manutencao_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_aeronave_simples"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "despesas_manutencao_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_despesas_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "despesas_manutencao_aircraft_id_fkey"
+            columns: ["aircraft_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "despesas_manutencao_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despesas_manutencao_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "despesas_manutencao_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_balanco_cliente_simples"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "despesas_manutencao_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_aeronave"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "despesas_manutencao_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_extrato_cliente"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "despesas_manutencao_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "vw_reembolsos_pendentes"
+            referencedColumns: ["cliente_id"]
+          },
+          {
+            foreignKeyName: "despesas_manutencao_manutencao_id_fkey"
+            columns: ["manutencao_id"]
+            isOneToOne: false
+            referencedRelation: "manutencoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despesas_manutencao_partner_expense_id_fkey"
+            columns: ["partner_expense_id"]
+            isOneToOne: false
+            referencedRelation: "partner_expenses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      despesas_manutencao_rateio: {
+        Row: {
+          client_partner_id: string
+          created_at: string | null
+          despesa_manutencao_id: string
+          id: string
+          percentual: number | null
+          status_pagamento: string | null
+          updated_at: string | null
+          valor: number | null
+        }
+        Insert: {
+          client_partner_id: string
+          created_at?: string | null
+          despesa_manutencao_id: string
+          id?: string
+          percentual?: number | null
+          status_pagamento?: string | null
+          updated_at?: string | null
+          valor?: number | null
+        }
+        Update: {
+          client_partner_id?: string
+          created_at?: string | null
+          despesa_manutencao_id?: string
+          id?: string
+          percentual?: number | null
+          status_pagamento?: string | null
+          updated_at?: string | null
+          valor?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "despesas_manutencao_rateio_client_partner_id_fkey"
+            columns: ["client_partner_id"]
+            isOneToOne: false
+            referencedRelation: "client_partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "despesas_manutencao_rateio_despesa_manutencao_id_fkey"
+            columns: ["despesa_manutencao_id"]
+            isOneToOne: false
+            referencedRelation: "despesas_manutencao"
+            referencedColumns: ["id"]
           },
         ]
       }

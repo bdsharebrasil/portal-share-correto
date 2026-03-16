@@ -46,6 +46,7 @@ interface ManutencaoItem {
   mecanico?: string;
   observacoes?: string;
   custoPrevisto?: number;
+  oficina?: string;
   createdAt: string;
 }
 
@@ -71,6 +72,18 @@ export default function ManutencaoAeronave() {
     oficinaSelecionada: '',
     dataProxima: '',
     horasProxima: ''
+  });
+
+  const [editingManutencao, setEditingManutencao] = useState<ManutencaoItem | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    descricao: '',
+    mecanico: '',
+    statusExecutado: 'pendente' as string,
+    horasProximaManutencao: '',
+    dataProximaManutencao: '',
+    observacoes: '',
+    oficina: ''
   });
 
   useEffect(() => {
@@ -142,6 +155,7 @@ export default function ManutencaoAeronave() {
           mecanico: m.mecanico,
           observacoes: m.observacoes,
           custoPrevisto: m.custo_estimado,
+          oficina: m.oficina,
           createdAt: m.created_at
         } as ManutencaoItem;
       });
@@ -195,16 +209,16 @@ export default function ManutencaoAeronave() {
           tipoManutencao === 'preventiva' && vencimentoHoras === 50 ? 'REVISAO_50H' :
           tipoManutencao === 'preventiva' ? 'PREVENTIVA' : 'CORRETIVA';
 
+        const vencimentoLabel = vencimentoHoras ? `${vencimentoHoras}HORAS` : 'CORRETIVO';
         const { error: ctmError } = await supabase.from('ctm_service_orders').insert([{
           aircraft_id: newManutencao.aeronaveId,
-          reference_table: 'manutencoes',
-          reference_id: manutencao.id,
-          service_order_type: serviceOrderType,
-          description: newManutencao.descricao || `${serviceOrderType}`,
-          scheduled_date: newManutencao.dataProxima || new Date().toISOString().split('T')[0],
+          numero: `MNT-${Date.now().toString().slice(-6)}`,
+          tipo_manutencao: vencimentoLabel,
+          description: newManutencao.descricao || serviceOrderType,
+          data_entrada: newManutencao.dataProxima || new Date().toISOString().split('T')[0],
           status: 'em_andamento',
-          priority: 'normal',
-          assigned_to: newManutencao.mecanico || 'A designar'
+          observacoes: newManutencao.descricao || '',
+          oficina_nome: '',
         }]);
 
         if (ctmError) {
@@ -239,6 +253,58 @@ export default function ManutencaoAeronave() {
         title: 'Erro ao adicionar manutenção',
         description: 'Tente novamente'
       });
+    }
+  };
+
+  const handleEditManutencao = (manutencao: ManutencaoItem) => {
+    setEditingManutencao(manutencao);
+    setEditFormData({
+      descricao: manutencao.descricao || '',
+      mecanico: manutencao.mecanico || '',
+      statusExecutado: manutencao.statusExecutado,
+      horasProximaManutencao: manutencao.horasProximaManutencao?.toString() || '',
+      dataProximaManutencao: manutencao.dataProximaManutencao || '',
+      observacoes: manutencao.observacoes || '',
+      oficina: manutencao.oficina || ''
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingManutencao) return;
+    try {
+      const { error } = await supabase
+        .from('manutencoes')
+        .update({
+          observacoes: editFormData.descricao,
+          mecanico: editFormData.mecanico,
+          etapa: editFormData.statusExecutado,
+          vencimento_horas: editFormData.horasProximaManutencao ? parseInt(editFormData.horasProximaManutencao) : null,
+          data_programada: editFormData.dataProximaManutencao || undefined,
+          oficina: editFormData.oficina || null,
+        })
+        .eq('id', editingManutencao.id);
+      if (error) throw error;
+      setNotification({ type: 'success', title: 'Manutenção atualizada!' });
+      setEditDialogOpen(false);
+      setEditingManutencao(null);
+      loadData();
+    } catch (error) {
+      console.error('Erro ao editar manutenção:', error);
+      setNotification({ type: 'error', title: 'Erro ao editar manutenção' });
+    }
+  };
+
+  const handleDeleteManutencao = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta manutenção?')) return;
+    try {
+      const { error } = await supabase.from('manutencoes').delete().eq('id', id);
+      if (error) throw error;
+      setNotification({ type: 'success', title: 'Manutenção excluída!' });
+      loadData();
+    } catch (error) {
+      console.error('Erro ao excluir:', error);
+      setNotification({ type: 'error', title: 'Erro ao excluir manutenção' });
     }
   };
 
@@ -611,9 +677,18 @@ export default function ManutencaoAeronave() {
                           variant="outline"
                           size="sm"
                           className="flex-1 bg-slate-700/50 border-white/10 text-gray-300 hover:bg-slate-600 text-xs h-8"
+                          onClick={() => handleEditManutencao(manutencao)}
                         >
                           <Edit className="h-3 w-3 mr-1" />
                           Editar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="bg-red-900/30 border-red-500/30 text-red-400 hover:bg-red-900/50 text-xs h-8"
+                          onClick={() => handleDeleteManutencao(manutencao.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
                     </div>
@@ -621,6 +696,97 @@ export default function ManutencaoAeronave() {
                 })}
               </div>
             )}
+
+            {/* Edit Dialog */}
+            <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+              <DialogContent className="max-w-md bg-slate-900 border-white/10">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-white">
+                    <Edit className="h-5 w-5 text-orange-400" />
+                    Editar Manutenção - {editingManutencao?.aeronaveRegistro}
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-white">Descrição</label>
+                    <textarea
+                      value={editFormData.descricao}
+                      onChange={(e) => setEditFormData({...editFormData, descricao: e.target.value})}
+                      className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white text-sm min-h-[80px]"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-white">Mecânico</label>
+                    <input
+                      type="text"
+                      value={editFormData.mecanico}
+                      onChange={(e) => setEditFormData({...editFormData, mecanico: e.target.value})}
+                      className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white text-sm"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-white">Oficina</label>
+                    <Select
+                      value={editFormData.oficina}
+                      onValueChange={(value) => setEditFormData({...editFormData, oficina: value})}
+                    >
+                      <SelectTrigger className="bg-slate-800 border-white/10 text-white">
+                        <SelectValue placeholder="Selecione uma oficina" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-white/10">
+                        {oficinas.map((oficina) => (
+                          <SelectItem key={oficina.id} value={oficina.razao_social}>
+                            {oficina.razao_social}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-white">Status</label>
+                    <select
+                      value={editFormData.statusExecutado}
+                      onChange={(e) => setEditFormData({...editFormData, statusExecutado: e.target.value})}
+                      className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white text-sm"
+                    >
+                      <option value="pendente">Pendente</option>
+                      <option value="aguardando">Aguardando</option>
+                      <option value="em_andamento">Em Andamento</option>
+                      <option value="concluida">Concluída</option>
+                      <option value="cancelada">Cancelada</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-white">Horas Vencimento</label>
+                      <input
+                        type="number"
+                        value={editFormData.horasProximaManutencao}
+                        onChange={(e) => setEditFormData({...editFormData, horasProximaManutencao: e.target.value})}
+                        className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white text-sm"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-white">Data Programada</label>
+                      <input
+                        type="date"
+                        value={editFormData.dataProximaManutencao}
+                        onChange={(e) => setEditFormData({...editFormData, dataProximaManutencao: e.target.value})}
+                        className="w-full px-3 py-2 rounded-lg bg-slate-800 border border-white/10 text-white text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="flex-1" onClick={() => setEditDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button className="flex-1 bg-orange-600 hover:bg-orange-700" onClick={handleSaveEdit}>
+                      Salvar
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </main>
         </div>
       </div>
