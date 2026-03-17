@@ -128,7 +128,7 @@ export function PartnerReportSection({ partner, index, flights, fuels, expenses,
       <div className="mb-6">
         <h4 className="text-sm font-bold text-[#1a1a2e] uppercase tracking-wider mb-3 flex items-center gap-2">
           <span className="w-1.5 h-4 rounded-sm" style={{ backgroundColor: color }} />
-          Abastecimentos
+          Combustível
         </h4>
         {fuels.length === 0 ? (
           <p className="text-sm text-gray-400 italic">Nenhum abastecimento registrado.</p>
@@ -303,18 +303,14 @@ export function PartnerReportSection({ partner, index, flights, fuels, expenses,
       {/* RESUMO FINANCEIRO */}
       <div className="rounded-lg p-4" style={{ backgroundColor: `${color}10`, border: `1px solid ${color}30` }}>
         <h4 className="text-sm font-bold text-[#1a1a2e] uppercase tracking-wider mb-3">Resumo Financeiro</h4>
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <div className="text-center">
-            <p className="text-[10px] text-gray-500 uppercase">Abastecimentos</p>
+            <p className="text-[10px] text-gray-500 uppercase">Combustível</p>
             <p className="text-sm font-bold text-[#1a1a2e]">{fmt(totalFuelR)}</p>
           </div>
           <div className="text-center">
             <p className="text-[10px] text-gray-500 uppercase">Despesas</p>
-            <p className="text-sm font-bold text-[#1a1a2e]">{fmt(totalExpR)}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-[10px] text-gray-500 uppercase">Viagens</p>
-            <p className="text-sm font-bold text-[#1a1a2e]">{fmt(totalTravelR)}</p>
+            <p className="text-sm font-bold text-[#1a1a2e]">{fmt(totalExpR + totalTravelR)}</p>
           </div>
           <div className="text-center">
             <p className="text-[10px] text-gray-500 uppercase">Total Geral</p>

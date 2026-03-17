@@ -138,9 +138,8 @@ export function MonthlyPartnerReportPDF({
 
   const costsChartData = partnerData.map((pd) => ({
     name: pd.partner.name.split(" ")[0],
-    abastecimento: pd.fuelTotal,
-    despesas: pd.expTotal,
-    viagens: pd.travelTotal,
+    combustivel: pd.fuelTotal,
+    despesas: pd.expTotal + pd.travelTotal,
     total: pd.fuelTotal + pd.expTotal + pd.travelTotal,
   }));
 
@@ -235,14 +234,15 @@ export function MonthlyPartnerReportPDF({
             <table className="w-full text-[11px] border-collapse">
               <thead>
                 <tr className="bg-gray-100 text-gray-600 border-b border-gray-200">
-                  {["Sócio", "Quota", "Horas", "Abast. R$", "Despesas R$", "Viagens R$", "Custo/Hora", "Total Devido"].map((h) => (
+                  {["Sócio", "Quota", "Horas", "Combustível R$", "Despesas R$", "Custo/Hora", "Total Devido"].map((h) => (
                     <th key={h} className="px-3 py-3 text-left font-bold uppercase tracking-tighter">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {partnerData.map((pd, i) => {
-                  const partnerTotal = pd.fuelTotal + pd.expTotal + pd.travelTotal;
+                  const partnerDespesas = pd.expTotal + pd.travelTotal;
+                  const partnerTotal = pd.fuelTotal + partnerDespesas;
                   const partnerCostPerHour = pd.hours > 0 ? partnerTotal / pd.hours : 0;
                   return (
                     <tr key={pd.partner.id} className="border-b border-gray-100 hover:bg-gray-50">
@@ -253,8 +253,7 @@ export function MonthlyPartnerReportPDF({
                       <td className="px-3 py-3 text-gray-500">{pd.partner.share_percentage?.toFixed(1) || "0"}%</td>
                       <td className="px-3 py-3 font-medium">{pd.hours.toFixed(1)}h</td>
                       <td className="px-3 py-3">{fmt(pd.fuelTotal)}</td>
-                      <td className="px-3 py-3">{fmt(pd.expTotal)}</td>
-                      <td className="px-3 py-3">{fmt(pd.travelTotal)}</td>
+                      <td className="px-3 py-3">{fmt(partnerDespesas)}</td>
                       <td className="px-3 py-3 text-gray-500">{fmt(partnerCostPerHour)}/h</td>
                       <td className="px-3 py-3 font-black text-blue-700">{fmt(partnerTotal)}</td>
                     </tr>
@@ -266,8 +265,7 @@ export function MonthlyPartnerReportPDF({
                   <td className="px-3 py-2" colSpan={2}>TOTAL</td>
                   <td className="px-3 py-2">{totalFlightHours.toFixed(1)}h</td>
                   <td className="px-3 py-2">{fmt(totalFuelValue)}</td>
-                  <td className="px-3 py-2">{fmt(totalExpenses)}</td>
-                  <td className="px-3 py-2">{fmt(totalTravelReports)}</td>
+                  <td className="px-3 py-2">{fmt(totalExpenses + totalTravelReports)}</td>
                   <td className="px-3 py-2">{fmt(costPerHour)}/h</td>
                   <td className="px-3 py-2">{fmt(totalFuelValue + totalExpenses + totalTravelReports)}</td>
                 </tr>
@@ -303,7 +301,7 @@ export function MonthlyPartnerReportPDF({
                           {pd.partner.name.split(" ")[0]}
                         </td>
                         <td className="px-3 py-2">{pd.hours > 0 ? fmt(pd.fuelTotal / pd.hours) : "—"}</td>
-                        <td className="px-3 py-2">{pd.hours > 0 ? fmt(pd.expTotal / pd.hours) : "—"}</td>
+                        <td className="px-3 py-2">{pd.hours > 0 ? fmt((pd.expTotal + pd.travelTotal) / pd.hours) : "—"}</td>
                         <td className="px-3 py-2">{pd.hours > 0 ? `${(pd.fuelLiters / pd.hours).toFixed(1)}L` : "—"}</td>
                         <td className="px-3 py-2">{totalFlightHours > 0 ? `${((pd.hours / totalFlightHours) * 100).toFixed(1)}%` : "—"}</td>
                         <td className="px-3 py-2">{totalCost > 0 ? `${((partnerTotal / totalCost) * 100).toFixed(1)}%` : "—"}</td>
@@ -351,7 +349,7 @@ export function MonthlyPartnerReportPDF({
             {[
               { label: "Horas Voadas", value: `${pd.hours.toFixed(1)}h` },
               { label: "Combustível", value: `${pd.fuelLiters.toFixed(0)}L`, sub: fmt(pd.fuelTotal) },
-              { label: "Despesas Operacionais", value: fmt(pd.expTotal) },
+              { label: "Despesas", value: fmt(pd.expTotal + pd.travelTotal) },
               { label: "Custo Total", value: fmt(pd.fuelTotal + pd.expTotal + pd.travelTotal) },
             ].map(k => (
               <div key={k.label} className="bg-gray-50 rounded-lg p-3 border border-gray-200 text-center">
@@ -363,13 +361,12 @@ export function MonthlyPartnerReportPDF({
           </div>
 
           {/* Médias individuais do sócio */}
-          <div className="grid grid-cols-5 gap-3 mb-6" style={{ breakInside: "avoid" }}>
+          <div className="grid grid-cols-4 gap-3 mb-6" style={{ breakInside: "avoid" }}>
             {[
               { label: "Média Combustível/L", value: pd.fuelLiters > 0 ? fmt(pd.fuelTotal / pd.fuelLiters) : "—" },
               { label: "Combustível/Hora", value: pd.hours > 0 ? fmt(pd.fuelTotal / pd.hours) : "—" },
-              { label: "Despesa/Hora", value: pd.hours > 0 ? fmt(pd.expTotal / pd.hours) : "—" },
+              { label: "Despesa/Hora", value: pd.hours > 0 ? fmt((pd.expTotal + pd.travelTotal) / pd.hours) : "—" },
               { label: "Custo Total/Hora", value: pd.hours > 0 ? fmt((pd.fuelTotal + pd.expTotal + pd.travelTotal) / pd.hours) : "—" },
-              { label: "Viagens", value: fmt(pd.travelTotal) },
             ].map(item => (
               <div key={item.label} className="bg-blue-50 rounded-lg p-2 border border-blue-100 text-center">
                 <p className="text-[9px] font-bold text-blue-400 uppercase tracking-widest mb-1">{item.label}</p>

@@ -5,15 +5,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileDown, Loader2, Eye, Maximize2, Filter } from "lucide-react";
+import { FileDown, Loader2, Eye, Maximize2, Filter, ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useMonthlyPartnerReport } from "@/hooks/useMonthlyPartnerReport";
 import { MonthlyPartnerReportPDF, type ReportFilter } from "./MonthlyPartnerReportPDF";
 import { generatePartnerMonthlyPDF } from "@/components/utils/generatePartnerReport";
 import { ReportFullPagePreview } from "./ReportFullPagePreview";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 interface Props {
   open: boolean;
@@ -22,6 +24,11 @@ interface Props {
   clientName: string;
   defaultMonth: string;
 }
+
+const MONTHS = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
 
 export function ExportReportModal({ open, onOpenChange, clientId, clientName, defaultMonth }: Props) {
   const [month, setMonth] = useState(defaultMonth);
@@ -34,6 +41,11 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
   const [showFullPage, setShowFullPage] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [activeFilter, setActiveFilter] = useState<ReportFilter>("todos");
+  const [monthPickerOpen, setMonthPickerOpen] = useState(false);
+
+  // Parse month into year/monthIndex for the picker
+  const [pickerYear, setPickerYear] = useState(() => parseInt(month.split("-")[0]));
+  const selectedMonthIndex = parseInt(month.split("-")[1]) - 1;
 
   const { data: reportData, isLoading } = useMonthlyPartnerReport(clientId, month);
 
@@ -41,6 +53,12 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
     setSelectedPartners((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
     );
+  };
+
+  const handleSelectMonth = (monthIdx: number) => {
+    const m = `${pickerYear}-${String(monthIdx + 1).padStart(2, "0")}`;
+    setMonth(m);
+    setMonthPickerOpen(false);
   };
 
   const handleExport = async () => {
@@ -63,6 +81,11 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
     }
   };
 
+  // Month label
+  const monthDate = new Date(parseInt(month.split("-")[0]), parseInt(month.split("-")[1]) - 1, 15);
+  const monthLabel = format(monthDate, "MMMM yyyy", { locale: ptBR });
+  const monthLabelCap = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+
   if (showFullPage && reportData) {
     return (
       <ReportFullPagePreview
@@ -81,57 +104,95 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
+          <DialogTitle className="flex items-center gap-2 text-lg">
             <FileDown className="w-5 h-5 text-primary" />
-            Exportar Relatório Completo por Sócio
+            Exportar Relatório por Sócio
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-4">
-              <div>
-                <Label className="text-sm font-semibold">Mês do Relatório</Label>
-                <Input
-                  type="month"
-                  value={month}
-                  onChange={(e) => setMonth(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <Label className="text-sm font-semibold">Incluir no Relatório</Label>
-                <div className="space-y-2">
-                  {[
-                    { label: "Gráficos", checked: includeCharts, set: setIncludeCharts },
-                    { label: "Voos", checked: includeFlights, set: setIncludeFlights },
-                    { label: "Abastecimentos", checked: includeFuels, set: setIncludeFuels },
-                    { label: "Despesas", checked: includeExpenses, set: setIncludeExpenses },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center gap-2">
-                      <Checkbox
-                        checked={item.checked}
-                        onCheckedChange={(c) => item.set(!!c)}
-                        id={`chk-${item.label}`}
-                      />
-                      <Label htmlFor={`chk-${item.label}`} className="text-sm cursor-pointer">
-                        {item.label}
-                      </Label>
-                    </div>
-                  ))}
+        <div className="space-y-5 mt-2">
+          {/* Month Picker */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Mês do Relatório</Label>
+            <Popover open={monthPickerOpen} onOpenChange={setMonthPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-between text-left font-medium h-11"
+                >
+                  <span className="flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4 text-primary" />
+                    {monthLabelCap}
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px] p-0 pointer-events-auto" align="start">
+                <div className="p-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPickerYear(y => y - 1)}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="font-semibold text-sm">{pickerYear}</span>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPickerYear(y => y + 1)}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {MONTHS.map((name, idx) => {
+                      const isSelected = pickerYear === parseInt(month.split("-")[0]) && idx === selectedMonthIndex;
+                      return (
+                        <Button
+                          key={idx}
+                          variant={isSelected ? "default" : "ghost"}
+                          size="sm"
+                          className={`text-xs h-9 ${isSelected ? "" : "hover:bg-accent"}`}
+                          onClick={() => handleSelectMonth(idx)}
+                        >
+                          {name.slice(0, 3)}
+                        </Button>
+                      );
+                    })}
+                  </div>
                 </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Include options */}
+            <div className="space-y-3">
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Incluir no Relatório</Label>
+              <div className="space-y-2">
+                {[
+                  { label: "Gráficos", checked: includeCharts, set: setIncludeCharts },
+                  { label: "Voos", checked: includeFlights, set: setIncludeFlights },
+                  { label: "Abastecimentos", checked: includeFuels, set: setIncludeFuels },
+                  { label: "Despesas", checked: includeExpenses, set: setIncludeExpenses },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-2">
+                    <Checkbox
+                      checked={item.checked}
+                      onCheckedChange={(c) => item.set(!!c)}
+                      id={`chk-${item.label}`}
+                    />
+                    <Label htmlFor={`chk-${item.label}`} className="text-sm cursor-pointer">
+                      {item.label}
+                    </Label>
+                  </div>
+                ))}
               </div>
             </div>
 
+            {/* Partners */}
             <div className="space-y-3">
-              <Label className="text-sm font-semibold">Sócios (vazio = todos)</Label>
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sócios (vazio = todos)</Label>
               {isLoading ? (
                 <p className="text-sm text-muted-foreground">Carregando...</p>
               ) : (
-                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                <div className="space-y-2 max-h-[160px] overflow-y-auto">
                   {reportData?.partners.map((p) => (
                     <div key={p.id} className="flex items-center gap-2">
                       <Checkbox
@@ -150,27 +211,25 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
                 </div>
               )}
             </div>
+          </div>
 
-            <div className="space-y-3">
-              <Label className="text-sm font-semibold flex items-center gap-1">
-                <Filter className="h-3 w-3" /> Filtro de Visualização
-              </Label>
-              <Select value={activeFilter} onValueChange={(v) => setActiveFilter(v as ReportFilter)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos os dados</SelectItem>
-                  <SelectItem value="voos">Somente Voos</SelectItem>
-                  <SelectItem value="abastecimentos">Somente Abastecimentos</SelectItem>
-                  <SelectItem value="despesas">Somente Despesas</SelectItem>
-                  <SelectItem value="viagens">Somente Viagens</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-[11px] text-muted-foreground">
-                O filtro define quais seções aparecem no relatório e no PDF exportado.
-              </p>
-            </div>
+          {/* Filter */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+              <Filter className="h-3 w-3" /> Filtro de Visualização
+            </Label>
+            <Select value={activeFilter} onValueChange={(v) => setActiveFilter(v as ReportFilter)}>
+              <SelectTrigger className="h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os dados</SelectItem>
+                <SelectItem value="voos">Somente Voos</SelectItem>
+                <SelectItem value="abastecimentos">Somente Abastecimentos</SelectItem>
+                <SelectItem value="despesas">Somente Despesas</SelectItem>
+                <SelectItem value="viagens">Somente Viagens</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Action buttons */}
@@ -192,7 +251,7 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
               disabled={!reportData}
             >
               <Maximize2 className="h-4 w-4" />
-              Visualizar Relatório Completo
+              Visualizar Completo
             </Button>
           </div>
 
@@ -215,7 +274,7 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
           )}
         </div>
 
-        <DialogFooter className="mt-6">
+        <DialogFooter className="mt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Fechar
           </Button>
@@ -223,7 +282,7 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
             {isExporting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Gerando PDF...
+                Gerando...
               </>
             ) : (
               <>

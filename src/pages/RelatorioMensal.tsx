@@ -659,6 +659,16 @@ export default function RelatorioMensal() {
               </Button>
 
               <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(`/financeiro/centro-custos/${clienteId}`)}
+                className="gap-2"
+              >
+                <DollarSign className="h-4 w-4" />
+                Centro de Custos
+              </Button>
+
+              <Button
                 variant={showInlineReport ? "secondary" : "outline"}
                 size="sm"
                 onClick={() => setShowInlineReport(!showInlineReport)}

@@ -12,11 +12,10 @@ interface PartnerHours {
   percentage: number;
 }
 
-interface PartnerCosts {
+export interface PartnerCosts {
   name: string;
-  abastecimento: number;
+  combustivel: number;
   despesas: number;
-  viagens?: number;
   total: number;
 }
 
@@ -61,9 +60,8 @@ export function CostsBarChart({ data }: { data: PartnerCosts[] }) {
           <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
           <Tooltip formatter={(v: number) => formatCurrency(v)} />
           <Legend iconSize={10} wrapperStyle={{ fontSize: 10 }} />
-          <Bar dataKey="abastecimento" name="Abastecimento" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="combustivel" name="Combustível" fill="#3b82f6" radius={[4, 4, 0, 0]} />
           <Bar dataKey="despesas" name="Despesas" fill="#f97316" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="viagens" name="Viagens" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

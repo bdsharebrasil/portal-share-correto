@@ -53,6 +53,7 @@ interface Transaction {
   due_date?: string | null
   paid_date?: string | null
   aircraft_id?: string | null
+  reference_id?: string | null
 }
 
 interface TransactionEditModalProps {
@@ -225,8 +226,8 @@ export function TransactionEditModal({
         } else {
           setServiceOrders(data || []);
         }
-      })
-      .finally(() => setLoadingServiceOrders(false));
+        setLoadingServiceOrders(false);
+      });
   }, [aircraftId]);
 
   useEffect(() => {
