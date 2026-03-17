@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { formatDateToBR } from "@/lib/date-utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -281,7 +282,7 @@ export function CTMAircraftDetail({ aircraft, onBack }: CTMAircraftDetailProps) 
                                     <span className="font-medium" style={{ color: catColor }}>{order.tipo_manutencao}</span>
                                     {order.oficina_nome && <span>• {order.oficina_nome}</span>}
                                     {order.horas_celula && <span>• {order.horas_celula}H</span>}
-                                    {order.data_entrada && <span>• {new Date(order.data_entrada).toLocaleDateString("pt-BR")}</span>}
+                                    {order.data_entrada && <span>• {formatDateToBR(order.data_entrada)}</span>}
                                   </div>
                                 </div>
                               </div>

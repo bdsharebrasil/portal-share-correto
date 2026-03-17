@@ -240,6 +240,7 @@ export function useSocioTransactions(
           prazo: exp.prazo || null,
           payment_method: exp.payment_method || null,
           doc: exp.invoice_number || null,
+          aircraft_id: exp.aircraft_id || null,
           // Campos adicionais para abastecimentos (quando vêm de partner_expenses)
           ...(exp.expense_type === "abastecimento" && {
             comanda: exp.comanda || null,
@@ -1136,6 +1137,9 @@ export function useUpdateTransaction() {
       assignedPartnerName?: string | null;
       invoiceNumber?: string | null;
       invoiceUrl?: string | null;
+      referenceType?: string | null;
+      referenceId?: string | null;
+      aircraftId?: string | null;
     }) => {
       // Handle partner expenses (including travel_report type)
       if (data.transactionType === "partner_expense" || data.transactionType === "travel_report") {
@@ -1158,6 +1162,9 @@ export function useUpdateTransaction() {
             assigned_partner_name: data.assignedPartnerName || null,
             invoice_number: data.invoiceNumber || null,
             invoice_url: data.invoiceUrl || null,
+            reference_type: data.referenceType || null,
+            reference_id: data.referenceId || null,
+            aircraft_id: data.aircraftId || null,
           })
           .eq("id", data.id);
         if (error) throw error;

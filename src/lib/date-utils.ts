@@ -133,3 +133,20 @@ export const formatMonthShort = (dateStr?: string | null): string => {
     return '';
   }
 };
+
+/**
+ * Parse a date-only string (YYYY-MM-DD) without timezone shift.
+ * new Date("2026-03-01") → UTC midnight → Feb 28 in Brazil.
+ * This creates a local date object to avoid timezone rollback.
+ */
+export function parseDateSafe(dateStr: string | null | undefined): Date | null {
+  if (!dateStr) return null;
+  // If it's a date-only string (YYYY-MM-DD), parse as local
+  if (dateStr.length === 10 && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }
+  // Otherwise parse as-is
+  const d = new Date(dateStr);
+  return isNaN(d.getTime()) ? null : d;
+}

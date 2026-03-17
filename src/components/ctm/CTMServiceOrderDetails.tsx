@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { parseDateSafe, formatDateToBR } from '@/lib/date-utils';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -26,6 +28,8 @@ import { CTMWeightBalance } from './CTMWeightBalance';
 import { CTMBudgetHistory } from './CTMBudgetHistory';
 import { CTMBudgetFromOAS } from './CTMBudgetFromOAS';
 import { CTMOASDocumentGenerator } from './CTMOASDocumentGenerator';
+import { OASFlightHoursRateio } from './OASFlightHoursRateio';
+import { OASBudgetsSection } from './OASBudgetsSection';
 import { useCTMBudgetTracking } from '@/hooks/useCTMBudgetTracking';
 import { useCTMDocumentGeneration } from '@/hooks/useCTMDocumentGeneration';
 
@@ -156,6 +160,10 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
   // New data states
   const [linkedBudgets, setLinkedBudgets] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
+  const [costSharingData, setCostSharingData] = useState<any[]>([]);
+  const [oasBudgets, setOasBudgets] = useState<any[]>([]);
+  const [rateioPeriodoInicio, setRateioPeriodoInicio] = useState('');
+  const [rateioPeriodoFim, setRateioPeriodoFim] = useState('');
 
   // Hooks
   const { getOASBudgetLinks } = useCTMBudgetTracking();
@@ -185,8 +193,11 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
   useEffect(() => {
     if (activeTab === 'orcamentos' && order) {
       getOASBudgetLinks(order.id).then(setLinkedBudgets);
+      loadOASBudgets();
     } else if (activeTab === 'documentos' && order) {
       listGeneratedDocuments(order.id).then(setDocuments);
+    } else if (activeTab === 'rateio' && order) {
+      loadCostSharing();
     }
   }, [activeTab, order, getOASBudgetLinks, listGeneratedDocuments]);
 
@@ -241,10 +252,26 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
   };
 
   const loadPartners = async () => {
-    // Load from client_partners — adapt query to your schema
     const { data } = await (supabase as any)
       .from('client_partners').select('id, name').order('name');
     setPartners(data || []);
+  };
+
+  const loadCostSharing = async () => {
+    const { data } = await supabase
+      .from('ctm_cost_sharing')
+      .select('*, client:clients(id, company_name, proprietario)')
+      .eq('service_order_id', orderId);
+    setCostSharingData(data || []);
+  };
+
+  const loadOASBudgets = async () => {
+    const { data } = await (supabase as any)
+      .from('oas_budgets')
+      .select('*')
+      .eq('service_order_id', orderId)
+      .order('created_at', { ascending: false });
+    setOasBudgets(data || []);
   };
 
   // ── Computed ─────────────────────────────────────────────────────────────────
@@ -446,7 +473,7 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
                 {order.oficina_nome || '—'} · {order.tipo_manutencao}
-                {order.data_entrada && ` · ${format(new Date(order.data_entrada), 'dd/MM/yyyy', { locale: ptBR })}`}
+                {order.data_entrada && ` · ${formatDateToBR(order.data_entrada)}`}
               </p>
             </div>
           </div>
@@ -520,8 +547,8 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
               { label: 'Objetivo', value: order.objetivo },
               { label: 'Tipo Rateio', value: order.tipo_rateio },
               { label: 'Tipo Manutenção', value: order.tipo_manutencao },
-              { label: 'Data Entrada', value: order.data_entrada ? format(new Date(order.data_entrada), 'dd/MM/yyyy', { locale: ptBR }) : undefined },
-              { label: 'Data Saída', value: order.data_saida ? format(new Date(order.data_saida), 'dd/MM/yyyy', { locale: ptBR }) : undefined },
+              { label: 'Data Entrada', value: order.data_entrada ? formatDateToBR(order.data_entrada) : undefined },
+              { label: 'Data Saída', value: order.data_saida ? formatDateToBR(order.data_saida) : undefined },
               { label: 'OS Oficina', value: (order as any).os_oficina },
               { label: 'Período', value: (order as any).periodo },
             ].map(({ label, value }) => (
@@ -701,87 +728,49 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
         )}
 
         {/* ══ RATEIO ═══════════════════════════════════════════════════════════ */}
-        {activeTab === 'rateio' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-semibold text-white">Rateio entre Sócios</h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {rateio ? (rateio.tipo_rateio === 'por_uso' ? 'Proporcional às horas voadas' : 'Divisão igualitária') : 'Nenhum rateio definido'}
-                </p>
-              </div>
-              <Button onClick={openRateioForm} className="bg-cyan-600 hover:bg-cyan-700 gap-2 h-9 text-sm">
-                <Edit2 className="h-4 w-4" /> {rateio ? 'Editar Rateio' : 'Criar Rateio'}
-              </Button>
+        {activeTab === 'rateio' && order && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-base font-semibold text-white">Rateio entre Sócios</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Selecione o período do diário de bordo para calcular o rateio por horas voadas
+              </p>
             </div>
 
-            {!rateio ? (
-              <EmptyState icon={<Users className="h-8 w-8" />} label="Rateio ainda não definido" />
-            ) : (
-              <div className="space-y-4">
-                {/* Período */}
-                {(rateio.periodo_inicio || rateio.periodo_fim) && (
-                  <div className="flex gap-4 text-sm text-slate-400">
-                    <span>Período:
-                      <span className="text-white ml-1">
-                        {rateio.periodo_inicio ? format(new Date(rateio.periodo_inicio), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
-                        {' até '}
-                        {rateio.periodo_fim ? format(new Date(rateio.periodo_fim), 'dd/MM/yyyy', { locale: ptBR }) : '—'}
-                      </span>
-                    </span>
-                  </div>
-                )}
-
-                {/* Tabela de sócios */}
-                <div className="border border-white/8 rounded-xl overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-white/5 bg-slate-800/50">
-                        <TableHead className="text-slate-400">Sócio</TableHead>
-                        {rateio.tipo_rateio === 'por_uso' && (
-                          <TableHead className="text-slate-400 text-right">Horas Voadas</TableHead>
-                        )}
-                        <TableHead className="text-slate-400 text-right">%</TableHead>
-                        <TableHead className="text-slate-400 text-right">Valor Devido</TableHead>
-                        <TableHead className="text-slate-400 text-center">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {rateio.socios.map(socio => (
-                        <TableRow key={socio.id} className="border-white/5 hover:bg-white/2">
-                          <TableCell className="font-semibold text-white">{socio.socio_nome}</TableCell>
-                          {rateio.tipo_rateio === 'por_uso' && (
-                            <TableCell className="text-right font-mono text-slate-300">
-                              {socio.horas_uso != null ? `${socio.horas_uso}h` : '—'}
-                            </TableCell>
-                          )}
-                          <TableCell className="text-right">
-                            <span className="font-mono font-bold text-cyan-400">{socio.percentual.toFixed(2)}%</span>
-                          </TableCell>
-                          <TableCell className="text-right font-bold text-white">{fmt(socio.valor_devido)}</TableCell>
-                          <TableCell className="text-center">
-                            <span className={`text-xs px-2 py-0.5 rounded-full border ${socio.status_pagamento === 'pago'
-                                ? 'bg-green-500/10 text-green-400 border-green-500/30'
-                                : 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30'
-                              }`}>
-                              {socio.status_pagamento === 'pago' ? 'Pago' : 'Pendente'}
-                            </span>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+            {/* Date Range Selector */}
+            <div className="bg-slate-800/40 border border-white/5 rounded-xl p-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-slate-300 text-xs">Período Início</Label>
+                  <Input
+                    type="date"
+                    value={rateioPeriodoInicio}
+                    onChange={e => setRateioPeriodoInicio(e.target.value)}
+                    className="bg-slate-800 border-white/10 text-white"
+                  />
                 </div>
-
-                {/* Total */}
-                <div className="flex justify-end">
-                  <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-xl px-6 py-3 text-right">
-                    <p className="text-xs text-slate-400">Total Rateado</p>
-                    <p className="text-2xl font-black text-cyan-400">{fmt(rateio.valor_total)}</p>
-                  </div>
+                <div className="space-y-2">
+                  <Label className="text-slate-300 text-xs">Período Fim</Label>
+                  <Input
+                    type="date"
+                    value={rateioPeriodoFim}
+                    onChange={e => setRateioPeriodoFim(e.target.value)}
+                    className="bg-slate-800 border-white/10 text-white"
+                  />
                 </div>
               </div>
-            )}
+            </div>
+
+            {/* Flight Hours Rateio Table */}
+            <OASFlightHoursRateio
+              orderId={orderId}
+              aircraftId={order.aircraft_id}
+              costSharing={costSharingData}
+              totalGeral={order.total_geral || 0}
+              periodoInicio={rateioPeriodoInicio || null}
+              periodoFim={rateioPeriodoFim || null}
+              onRefetch={loadCostSharing}
+            />
           </div>
         )}
 
@@ -871,52 +860,89 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
           <CTMWeightBalance aircraftId={order.aircraft_id} aircraftRegistration="" />
         )}
 
-        {/* ══ ORÇAMENTOS ═══════════════════════════════════════════════════════════ */}
+        {/* ══ ORÇAMENTOS (Histórico) ═══════════════════════════════════════════ */}
         {activeTab === 'orcamentos' && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-white">Orçamentos Associados</h2>
-              <Button
-                onClick={() => setShowBudgetForm(true)}
-                className="bg-cyan-600 hover:bg-cyan-700 gap-2 h-9 text-sm"
-              >
-                <Plus className="h-4 w-4" />
-                Gerar Orçamento
-              </Button>
+            <div className="mb-4">
+              <h2 className="text-base font-semibold text-white">Histórico de Orçamentos</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Orçamentos gerados a partir dos serviços e peças desta OAS
+              </p>
             </div>
 
-            {linkedBudgets.length === 0 ? (
+            {oasBudgets.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center bg-slate-800/20 rounded-lg border border-white/5">
                 <TrendingUp className="h-12 w-12 text-slate-600 mb-3" />
-                <p className="text-slate-400 text-sm">Nenhum orçamento vinculado</p>
-                <p className="text-xs text-slate-500 mb-4">Gere um orçamento a partir desta OAS</p>
+                <p className="text-slate-400 text-sm">Nenhum orçamento registrado</p>
+                <p className="text-xs text-slate-500">Adicione serviços ou peças e envie para aprovação</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {linkedBudgets.map(link => (
-                  <div key={link.id} className="border border-white/5 rounded-lg p-4 bg-slate-800/20">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h3 className="font-semibold text-white">{link.budget?.titulo || 'Orçamento'}</h3>
-                        <p className="text-xs text-slate-500">Versão {link.version} · {format(new Date(link.created_at), 'dd/MM/yyyy', { locale: ptBR })}</p>
-                      </div>
-                      <Badge className={`text-xs ${
-                        link.status === 'approved' ? 'bg-green-500/20 text-green-300' :
-                        link.status === 'rejected' ? 'bg-red-500/20 text-red-300' :
-                        link.status === 'submitted' ? 'bg-blue-500/20 text-blue-300' :
-                        'bg-slate-500/20 text-slate-300'
-                      }`}>
-                        {link.status}
-                      </Badge>
-                    </div>
-                    {link.budget?.total_estimado && (
-                      <p className="text-sm text-cyan-400 font-mono mb-3">
-                        R$ {link.budget.total_estimado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </p>
-                    )}
+              <>
+                {/* Summary */}
+                <div className="flex gap-4 text-sm flex-wrap">
+                  <div className="bg-green-500/10 rounded-lg px-3 py-2 border border-green-500/20">
+                    <span className="text-green-400 font-bold">
+                      Aprovado: R$ {oasBudgets.filter((b: any) => b.status === 'aprovado').reduce((s: number, b: any) => s + (b.valor_total || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
                   </div>
-                ))}
-              </div>
+                  <div className="bg-yellow-500/10 rounded-lg px-3 py-2 border border-yellow-500/20">
+                    <span className="text-yellow-400 font-bold">
+                      Pendente: R$ {oasBudgets.filter((b: any) => b.status === 'pendente_aprovacao').reduce((s: number, b: any) => s + (b.valor_total || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Table */}
+                <div className="border border-white/8 rounded-xl overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-white/5 bg-slate-800/50">
+                        <TableHead className="text-slate-400">Tipo</TableHead>
+                        <TableHead className="text-slate-400">Descrição</TableHead>
+                        <TableHead className="text-slate-400">Empresa</TableHead>
+                        <TableHead className="text-slate-400 text-center">Qtd</TableHead>
+                        <TableHead className="text-slate-400 text-right">Valor Total</TableHead>
+                        <TableHead className="text-slate-400 text-center">Status</TableHead>
+                        <TableHead className="text-slate-400 text-center">Pago</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {oasBudgets.map((b: any) => {
+                        const statusMap: Record<string, { label: string; cls: string }> = {
+                          rascunho: { label: 'Rascunho', cls: 'bg-muted text-muted-foreground' },
+                          pendente_aprovacao: { label: 'Aguard. Aprovação', cls: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
+                          aprovado: { label: 'Aprovado', cls: 'bg-green-500/20 text-green-400 border-green-500/30' },
+                          rejeitado: { label: 'Rejeitado', cls: 'bg-red-500/20 text-red-400 border-red-500/30' },
+                        };
+                        const s = statusMap[b.status] || statusMap.rascunho;
+                        return (
+                          <TableRow key={b.id} className="border-white/5 hover:bg-white/2">
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">{b.tipo === 'peca' ? 'Peça' : 'Serviço'}</Badge>
+                            </TableCell>
+                            <TableCell className="font-medium text-white">{b.descricao}</TableCell>
+                            <TableCell className="text-slate-400 text-sm">{b.empresa_nome || '—'}</TableCell>
+                            <TableCell className="text-center text-slate-300">{b.quantidade}</TableCell>
+                            <TableCell className="text-right font-mono text-white">
+                              R$ {(b.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge className={cn('text-xs', s.cls)}>{s.label}</Badge>
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                                b.pago ? 'bg-green-500/10 text-green-400 border-green-500/30' : 'bg-slate-500/10 text-slate-400 border-slate-500/30'
+                              }`}>
+                                {b.pago ? '✓ Pago' : '—'}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </div>
         )}
@@ -951,7 +977,7 @@ export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CT
                       <div>
                         <p className="text-sm font-medium text-white">{doc.file_name}</p>
                         <p className="text-xs text-slate-500">
-                          {format(new Date(doc.generated_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                          {formatDateToBR(doc.generated_at)}
                         </p>
                       </div>
                     </div>

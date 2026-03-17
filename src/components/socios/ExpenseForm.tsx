@@ -350,7 +350,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             local: form.novoAbastLocal,
             litros: litros,
             valor_unitario: valorUnitario,
-            valor_total: valorTotal,
             abastecedor: form.supplierName || null,
             partner_name: assignedPartner?.name || null,
             status_pagamento: form.status === "pago" ? "pago" : "pendente",
