@@ -505,7 +505,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           }
         }
 
-        const newCelula = parseFloat((baseParaCalculo + totalTime).toFixed(1));
+        const newCelula = parseFloat((baseParaCalculo + flightTime).toFixed(1));
 
         const calculated = calculateTimes({
           ...newEntry,

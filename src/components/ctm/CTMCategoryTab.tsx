@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus, FileText, ChevronDown, ChevronRight, Wrench } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { formatDateToBR } from "@/lib/date-utils";
 import { CTMOASInlineForm } from "./CTMOASInlineForm";
 import { CTMOASDetail } from "./CTMOASDetail";
 
@@ -42,7 +43,7 @@ export function CTMCategoryTab({ aircraftId, aircraftRegistration, categoryName,
     const groups: Record<number, typeof orders> = {};
     orders.forEach((o) => {
       const year = o.data_entrada
-        ? new Date(o.data_entrada).getFullYear()
+        ? parseISODateString(o.data_entrada).getFullYear()
         : o.created_at
         ? new Date(o.created_at).getFullYear()
         : new Date().getFullYear();
@@ -184,7 +185,7 @@ export function CTMCategoryTab({ aircraftId, aircraftRegistration, categoryName,
                                     {order.oficina_nome && <span>Oficina: {order.oficina_nome}</span>}
                                     {order.horas_celula && <span>{order.horas_celula}H célula</span>}
                                     {order.data_entrada && (
-                                      <span>{new Date(order.data_entrada).toLocaleDateString("pt-BR")}</span>
+                                      <span>{formatDateToBR(order.data_entrada)}</span>
                                     )}
                                   </div>
                                 </div>
@@ -226,3 +227,7 @@ export function CTMCategoryTab({ aircraftId, aircraftRegistration, categoryName,
     </div>
   );
 }
+function parseISODateString(data_entrada: string): Date {
+  return new Date(data_entrada);
+}
+

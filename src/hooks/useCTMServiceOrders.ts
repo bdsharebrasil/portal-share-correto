@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { fromUntyped } from '@/lib/supabase-helpers';
 import { toast } from 'sonner';
 
 export interface CTMMaintenanceCategory {
@@ -275,17 +276,15 @@ export function useCTMServiceOrders() {
         if (orderError) throw orderError;
 
         // Create new budget with data from OAS
-        const { data: newBudget, error: budgetError } = await supabase
-          .from('ctm_budgets')
+        const { data: newBudget, error: budgetError } = await fromUntyped('ctm_budgets')
           .insert([
             {
               aircraft_id: order.aircraft_id,
-              titulo: `Orçamento - OAS ${order.numero}`,
-              descricao: order.objetivo || order.observacoes || `Budget for service order ${order.numero}`,
+              description: `Orçamento - OAS ${order.numero}`,
               status: 'draft',
-              data_criacao: new Date().toISOString(),
-              total_estimado: order.total_geral || 0,
+              total_value: order.total_geral || 0,
               created_by: userId,
+              service_order_id: oasId,
             },
           ])
           .select()
@@ -295,8 +294,7 @@ export function useCTMServiceOrders() {
 
         // Create linking record
         if (newBudget) {
-          const { error: linkError } = await supabase
-            .from('ctm_service_order_budgets')
+          const { error: linkError } = await fromUntyped('ctm_service_order_budgets')
             .insert([
               {
                 service_order_id: oasId,
@@ -326,8 +324,7 @@ export function useCTMServiceOrders() {
     async (oasId: string, budgetId: string, version: number = 1, userId?: string, notes?: string) => {
       try {
         // Check if linking already exists
-        const { data: existing } = await supabase
-          .from('ctm_service_order_budgets')
+        const { data: existing } = await fromUntyped('ctm_service_order_budgets')
           .select('id')
           .eq('service_order_id', oasId)
           .eq('budget_id', budgetId)
@@ -339,8 +336,7 @@ export function useCTMServiceOrders() {
         }
 
         // Create linking record
-        const { data, error } = await supabase
-          .from('ctm_service_order_budgets')
+        const { data, error } = await fromUntyped('ctm_service_order_budgets')
           .insert([
             {
               service_order_id: oasId,
@@ -371,8 +367,7 @@ export function useCTMServiceOrders() {
   const getLinkedBudgets = useCallback(
     async (oasId: string) => {
       try {
-        const { data, error } = await supabase
-          .from('ctm_service_order_budgets')
+        const { data, error } = await fromUntyped('ctm_service_order_budgets')
           .select('*, budget:ctm_budgets(*)')
           .eq('service_order_id', oasId)
           .order('created_at', { ascending: false });

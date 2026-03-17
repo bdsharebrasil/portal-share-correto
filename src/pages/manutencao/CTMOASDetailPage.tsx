@@ -8,18 +8,18 @@ import {
   Weight, TrendingUp, ChevronLeft, Download, Plus, Settings, MapPin
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatDateToBR } from '@/lib/date-utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useCTMServiceOrders } from '@/hooks/useCTMServiceOrders';
 import { useCTMBudgetTracking } from '@/hooks/useCTMBudgetTracking';
 import { useCTMDocumentGeneration } from '@/hooks/useCTMDocumentGeneration';
-import { CTMServiceOrderDetails } from './CTMServiceOrderDetails';
-import { CTMComponentMap } from './CTMComponentMap';
-import { CTMWeightBalance } from './CTMWeightBalance';
-import { CTMBudgetHistory } from './CTMBudgetHistory';
-import { CTMBudgetFromOAS } from './CTMBudgetFromOAS';
-import { CTMOASDocumentGenerator } from './CTMOASDocumentGenerator';
+import { CTMOASDetail } from '@/components/ctm/CTMOASDetail';
+import { CTMComponentMap } from '@/components/ctm/CTMComponentMap';
+import { CTMWeightBalanceComplete } from '@/components/ctm/CTMWeightBalanceComplete';
+import { CTMBudgetFromOAS } from '@/components/ctm/CTMBudgetFromOAS';
+import { CTMOASDocumentGenerator } from '@/components/ctm/CTMOASDocumentGenerator';
 
 interface CTMOASDetailPageProps {
   oasId: string;
@@ -163,7 +163,7 @@ export function CTMOASDetailPage({
               </div>
               <p className="text-sm text-slate-400">
                 {aircraftRegistration || aircraft?.registration} · {oasData.tipo_manutencao}
-                {oasData.data_entrada && ` · ${format(new Date(oasData.data_entrada), 'dd/MM/yyyy', { locale: ptBR })}`}
+                {oasData.data_entrada && ` · ${formatDateToBR(oasData.data_entrada)}`}
               </p>
             </div>
           </div>
@@ -228,7 +228,7 @@ export function CTMOASDetailPage({
                 { label: 'Dias Efetivos', value: oasData.dias_efetivos },
                 { label: 'Objetivo', value: oasData.objetivo },
                 { label: 'Tipo Rateio', value: oasData.tipo_rateio },
-                { label: 'Data Entrada', value: oasData.data_entrada ? format(new Date(oasData.data_entrada), 'dd/MM/yyyy', { locale: ptBR }) : undefined },
+                { label: 'Data Entrada', value: oasData.data_entrada ? formatDateToBR(oasData.data_entrada) : undefined },
               ].map(({ label, value }) => (
                 <div key={label} className="bg-slate-800/40 border border-white/5 rounded-xl p-4">
                   <p className="text-xs text-slate-500 mb-1">{label}</p>
@@ -238,13 +238,9 @@ export function CTMOASDetailPage({
             </div>
           )}
 
-          {/* Servicos, Pecas, Rateio, Financeiro - Use original component */}
+          {/* Servicos, Pecas, Rateio, Financeiro - Use CTMOASDetail component */}
           {['servicos', 'pecas', 'rateio', 'financeiro'].includes(activeTab) && (
-            <CTMServiceOrderDetails
-              serviceOrderId={oasId}
-              aircraftRegistration={aircraftRegistration || ''}
-              onBack={() => {}}
-            />
+            <CTMOASDetail orderId={oasId} onClose={() => {}} />
           )}
 
           {/* Componentes */}
@@ -254,7 +250,7 @@ export function CTMOASDetailPage({
 
           {/* Peso e Balanceamento */}
           {activeTab === 'peso' && (
-            <CTMWeightBalance aircraftId={aircraftId} aircraftRegistration={aircraftRegistration} />
+            <CTMWeightBalanceComplete aircraftId={aircraftId} aircraftRegistration={aircraftRegistration || ''} />
           )}
 
           {/* Orçamentos */}
@@ -293,7 +289,7 @@ export function CTMOASDetailPage({
                         </p>
                       )}
                       {link.budget?.id && (
-                        <CTMBudgetHistory budgetId={link.budget.id} />
+                        <p className="text-xs text-muted-foreground mt-2">ID: {link.budget.id.slice(0,8)}...</p>
                       )}
                     </div>
                   ))}

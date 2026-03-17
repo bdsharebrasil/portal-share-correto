@@ -3646,94 +3646,104 @@ export type Database = {
       ctm_budgets: {
         Row: {
           aircraft_id: string
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
+          budget_details: Json | null
           budget_file_name: string | null
           budget_file_path: string | null
+          budget_items: Json | null
           created_at: string | null
           created_by: string | null
+          description: string | null
           id: string
           month: number
+          notes: string | null
+          numero_orcamento: number | null
           oas_file_name: string | null
           oas_file_path: string | null
+          pdf_file_name: string | null
+          pdf_file_path: string | null
+          rejection_reason: string | null
           report_file_name: string | null
           report_file_path: string | null
+          service_order_id: string | null
           status: string | null
+          supplier_name: string | null
+          supplier_type: string | null
+          total_value: number | null
           updated_at: string | null
           year: number
         }
         Insert: {
           aircraft_id: string
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          budget_details?: Json | null
           budget_file_name?: string | null
           budget_file_path?: string | null
+          budget_items?: Json | null
           created_at?: string | null
           created_by?: string | null
+          description?: string | null
           id?: string
           month: number
+          notes?: string | null
+          numero_orcamento?: number | null
           oas_file_name?: string | null
           oas_file_path?: string | null
+          pdf_file_name?: string | null
+          pdf_file_path?: string | null
+          rejection_reason?: string | null
           report_file_name?: string | null
           report_file_path?: string | null
+          service_order_id?: string | null
           status?: string | null
+          supplier_name?: string | null
+          supplier_type?: string | null
+          total_value?: number | null
           updated_at?: string | null
           year: number
         }
         Update: {
           aircraft_id?: string
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          budget_details?: Json | null
           budget_file_name?: string | null
           budget_file_path?: string | null
+          budget_items?: Json | null
           created_at?: string | null
           created_by?: string | null
+          description?: string | null
           id?: string
           month?: number
+          notes?: string | null
+          numero_orcamento?: number | null
           oas_file_name?: string | null
           oas_file_path?: string | null
+          pdf_file_name?: string | null
+          pdf_file_path?: string | null
+          rejection_reason?: string | null
           report_file_name?: string | null
           report_file_path?: string | null
+          service_order_id?: string | null
           status?: string | null
+          supplier_name?: string | null
+          supplier_type?: string | null
+          total_value?: number | null
           updated_at?: string | null
           year?: number
         }
         Relationships: [
           {
-            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
-            columns: ["aircraft_id"]
+            foreignKeyName: "ctm_budgets_service_order_id_fkey"
+            columns: ["service_order_id"]
             isOneToOne: false
-            referencedRelation: "aircraft"
+            referencedRelation: "ctm_service_orders"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "aircraft_availability"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_balanco_aeronave_simples"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_despesas_aeronave"
-            referencedColumns: ["aeronave_id"]
-          },
-          {
-            foreignKeyName: "ctm_budgets_aircraft_id_fkey"
-            columns: ["aircraft_id"]
-            isOneToOne: false
-            referencedRelation: "vw_extrato_aeronave"
-            referencedColumns: ["aeronave_id"]
           },
         ]
       }
@@ -3974,14 +3984,67 @@ export type Database = {
         }
         Relationships: []
       }
+      ctm_oas_documents: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          document_type: string | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string | null
+          id: string
+          service_order_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          document_type?: string | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          service_order_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          document_type?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string | null
+          id?: string
+          service_order_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_oas_documents_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_service_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ctm_parts: {
         Row: {
           created_at: string | null
+          dados_pagamento: string | null
           data_compra: string | null
           descricao: string
           fornecedor: string | null
           garantia_meses: number | null
           id: string
+          modelo: string | null
+          modo_pagamento: string | null
           nota_fiscal: string | null
           observacoes: string | null
           part_number: string | null
@@ -3993,11 +4056,14 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          dados_pagamento?: string | null
           data_compra?: string | null
           descricao: string
           fornecedor?: string | null
           garantia_meses?: number | null
           id?: string
+          modelo?: string | null
+          modo_pagamento?: string | null
           nota_fiscal?: string | null
           observacoes?: string | null
           part_number?: string | null
@@ -4009,11 +4075,14 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          dados_pagamento?: string | null
           data_compra?: string | null
           descricao?: string
           fornecedor?: string | null
           garantia_meses?: number | null
           id?: string
+          modelo?: string | null
+          modo_pagamento?: string | null
           nota_fiscal?: string | null
           observacoes?: string | null
           part_number?: string | null
@@ -4033,9 +4102,150 @@ export type Database = {
           },
         ]
       }
+      ctm_service_attachments: {
+        Row: {
+          arquivo_nome: string
+          arquivo_path: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          service_id: string
+          tamanho_bytes: number | null
+          tipo: string | null
+        }
+        Insert: {
+          arquivo_nome: string
+          arquivo_path: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          service_id: string
+          tamanho_bytes?: number | null
+          tipo?: string | null
+        }
+        Update: {
+          arquivo_nome?: string
+          arquivo_path?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          service_id?: string
+          tamanho_bytes?: number | null
+          tipo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_service_attachments_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ctm_service_items: {
+        Row: {
+          created_at: string | null
+          descricao: string
+          id: string
+          modelo: string | null
+          numero_serie: string | null
+          ordenacao: number
+          quantidade: number
+          service_id: string
+          subtotal: number | null
+          updated_at: string | null
+          valor_unitario: number
+        }
+        Insert: {
+          created_at?: string | null
+          descricao: string
+          id?: string
+          modelo?: string | null
+          numero_serie?: string | null
+          ordenacao: number
+          quantidade?: number
+          service_id: string
+          subtotal?: number | null
+          updated_at?: string | null
+          valor_unitario?: number
+        }
+        Update: {
+          created_at?: string | null
+          descricao?: string
+          id?: string
+          modelo?: string | null
+          numero_serie?: string | null
+          ordenacao?: number
+          quantidade?: number
+          service_id?: string
+          subtotal?: number | null
+          updated_at?: string | null
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_service_items_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ctm_service_order_approvals: {
+        Row: {
+          created_at: string | null
+          id: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          service_order_id: string
+          status: string
+          submitted_at: string
+          submitted_by: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          service_order_id: string
+          status?: string
+          submitted_at?: string
+          submitted_by: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          service_order_id?: string
+          status?: string
+          submitted_at?: string
+          submitted_by?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ctm_service_order_approvals_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_service_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ctm_service_orders: {
         Row: {
           aircraft_id: string
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
           created_at: string | null
           created_by: string | null
           data_entrada: string | null
@@ -4051,7 +4261,11 @@ export type Database = {
           oficina_nome: string | null
           os_oficina: string | null
           periodo: string | null
+          periodo_fim: string | null
+          periodo_inicio: string | null
+          rejection_reason: string | null
           status: string | null
+          submitted_for_approval_at: string | null
           tipo_manutencao: string
           tipo_rateio: string | null
           total_geral: number | null
@@ -4062,6 +4276,9 @@ export type Database = {
         }
         Insert: {
           aircraft_id: string
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string | null
           created_by?: string | null
           data_entrada?: string | null
@@ -4077,7 +4294,11 @@ export type Database = {
           oficina_nome?: string | null
           os_oficina?: string | null
           periodo?: string | null
+          periodo_fim?: string | null
+          periodo_inicio?: string | null
+          rejection_reason?: string | null
           status?: string | null
+          submitted_for_approval_at?: string | null
           tipo_manutencao?: string
           tipo_rateio?: string | null
           total_geral?: number | null
@@ -4088,6 +4309,9 @@ export type Database = {
         }
         Update: {
           aircraft_id?: string
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string | null
           created_by?: string | null
           data_entrada?: string | null
@@ -4103,7 +4327,11 @@ export type Database = {
           oficina_nome?: string | null
           os_oficina?: string | null
           periodo?: string | null
+          periodo_fim?: string | null
+          periodo_inicio?: string | null
+          rejection_reason?: string | null
           status?: string | null
+          submitted_for_approval_at?: string | null
           tipo_manutencao?: string
           tipo_rateio?: string | null
           total_geral?: number | null
@@ -4160,42 +4388,78 @@ export type Database = {
       ctm_services: {
         Row: {
           categoria: string | null
+          condicoes_pagamento: string | null
           created_at: string | null
+          dados_pagamento: string | null
           data_execucao: string | null
           descricao: string
           fornecedor: string | null
+          fornecedor_id: string | null
           id: string
+          modelo: string | null
+          modo_pagamento: string | null
+          n_s: string | null
           nota_fiscal: string | null
+          numero_servico: string | null
           observacoes: string | null
+          p_n: string | null
           periodo: string | null
+          quantidade: number | null
+          quantidade_items: number | null
           service_order_id: string
+          status: string | null
           valor: number | null
+          valor_unitario: number | null
         }
         Insert: {
           categoria?: string | null
+          condicoes_pagamento?: string | null
           created_at?: string | null
+          dados_pagamento?: string | null
           data_execucao?: string | null
           descricao: string
           fornecedor?: string | null
+          fornecedor_id?: string | null
           id?: string
+          modelo?: string | null
+          modo_pagamento?: string | null
+          n_s?: string | null
           nota_fiscal?: string | null
+          numero_servico?: string | null
           observacoes?: string | null
+          p_n?: string | null
           periodo?: string | null
+          quantidade?: number | null
+          quantidade_items?: number | null
           service_order_id: string
+          status?: string | null
           valor?: number | null
+          valor_unitario?: number | null
         }
         Update: {
           categoria?: string | null
+          condicoes_pagamento?: string | null
           created_at?: string | null
+          dados_pagamento?: string | null
           data_execucao?: string | null
           descricao?: string
           fornecedor?: string | null
+          fornecedor_id?: string | null
           id?: string
+          modelo?: string | null
+          modo_pagamento?: string | null
+          n_s?: string | null
           nota_fiscal?: string | null
+          numero_servico?: string | null
           observacoes?: string | null
+          p_n?: string | null
           periodo?: string | null
+          quantidade?: number | null
+          quantidade_items?: number | null
           service_order_id?: string
+          status?: string | null
           valor?: number | null
+          valor_unitario?: number | null
         }
         Relationships: [
           {
@@ -8098,11 +8362,256 @@ export type Database = {
           },
         ]
       }
+      oas_budgets: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string | null
+          descricao: string
+          fornecedor: string | null
+          id: string
+          observacoes: string | null
+          part_number: string | null
+          quantidade: number | null
+          rejection_reason: string | null
+          service_order_id: string
+          status: string | null
+          submitted_at: string | null
+          submitted_by: string | null
+          tipo: string
+          updated_at: string | null
+          valor_total: number | null
+          valor_unitario: number | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          descricao: string
+          fornecedor?: string | null
+          id?: string
+          observacoes?: string | null
+          part_number?: string | null
+          quantidade?: number | null
+          rejection_reason?: string | null
+          service_order_id: string
+          status?: string | null
+          submitted_at?: string | null
+          submitted_by?: string | null
+          tipo?: string
+          updated_at?: string | null
+          valor_total?: number | null
+          valor_unitario?: number | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string | null
+          descricao?: string
+          fornecedor?: string | null
+          id?: string
+          observacoes?: string | null
+          part_number?: string | null
+          quantidade?: number | null
+          rejection_reason?: string | null
+          service_order_id?: string
+          status?: string | null
+          submitted_at?: string | null
+          submitted_by?: string | null
+          tipo?: string
+          updated_at?: string | null
+          valor_total?: number | null
+          valor_unitario?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oas_budgets_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_service_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oas_fotos: {
+        Row: {
+          arquivo_nome: string
+          arquivo_path: string
+          created_at: string | null
+          id: string
+          legenda: string | null
+          ordem: number | null
+          service_order_id: string
+        }
+        Insert: {
+          arquivo_nome: string
+          arquivo_path: string
+          created_at?: string | null
+          id?: string
+          legenda?: string | null
+          ordem?: number | null
+          service_order_id: string
+        }
+        Update: {
+          arquivo_nome?: string
+          arquivo_path?: string
+          created_at?: string | null
+          id?: string
+          legenda?: string | null
+          ordem?: number | null
+          service_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oas_fotos_order_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_service_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oas_pecas_trocadas: {
+        Row: {
+          created_at: string | null
+          descricao: string
+          fornecedor: string | null
+          id: string
+          observacoes: string | null
+          p_n_instalado: string | null
+          p_n_removido: string | null
+          quantidade: number
+          s_n_instalado: string | null
+          s_n_removido: string | null
+          service_order_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          descricao: string
+          fornecedor?: string | null
+          id?: string
+          observacoes?: string | null
+          p_n_instalado?: string | null
+          p_n_removido?: string | null
+          quantidade?: number
+          s_n_instalado?: string | null
+          s_n_removido?: string | null
+          service_order_id: string
+        }
+        Update: {
+          created_at?: string | null
+          descricao?: string
+          fornecedor?: string | null
+          id?: string
+          observacoes?: string | null
+          p_n_instalado?: string | null
+          p_n_removido?: string | null
+          quantidade?: number
+          s_n_instalado?: string | null
+          s_n_removido?: string | null
+          service_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oas_pecas_trocadas_order_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_service_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oas_rateio: {
+        Row: {
+          created_at: string | null
+          id: string
+          observacoes: string | null
+          periodo_fim: string | null
+          periodo_inicio: string | null
+          service_order_id: string
+          tipo_rateio: string
+          updated_at: string | null
+          valor_total: number
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          observacoes?: string | null
+          periodo_fim?: string | null
+          periodo_inicio?: string | null
+          service_order_id: string
+          tipo_rateio?: string
+          updated_at?: string | null
+          valor_total?: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          observacoes?: string | null
+          periodo_fim?: string | null
+          periodo_inicio?: string | null
+          service_order_id?: string
+          tipo_rateio?: string
+          updated_at?: string | null
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oas_rateio_order_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: true
+            referencedRelation: "ctm_service_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oas_rateio_socios: {
+        Row: {
+          created_at: string | null
+          horas_uso: number | null
+          id: string
+          percentual: number
+          rateio_id: string
+          socio_nome: string
+          status_pagamento: string | null
+          valor_devido: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          horas_uso?: number | null
+          id?: string
+          percentual?: number
+          rateio_id: string
+          socio_nome: string
+          status_pagamento?: string | null
+          valor_devido?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          horas_uso?: number | null
+          id?: string
+          percentual?: number
+          rateio_id?: string
+          socio_nome?: string
+          status_pagamento?: string | null
+          valor_devido?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oas_rateio_socios_rateio_fkey"
+            columns: ["rateio_id"]
+            isOneToOne: false
+            referencedRelation: "oas_rateio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       oficinas: {
         Row: {
           ativo: boolean | null
           cnpj: string | null
           created_at: string | null
+          dados_pagamento: string | null
           endereco: string | null
           id: string
           mecanico_responsavel: string | null
@@ -8115,6 +8624,7 @@ export type Database = {
           ativo?: boolean | null
           cnpj?: string | null
           created_at?: string | null
+          dados_pagamento?: string | null
           endereco?: string | null
           id?: string
           mecanico_responsavel?: string | null
@@ -8127,6 +8637,7 @@ export type Database = {
           ativo?: boolean | null
           cnpj?: string | null
           created_at?: string | null
+          dados_pagamento?: string | null
           endereco?: string | null
           id?: string
           mecanico_responsavel?: string | null
@@ -8146,6 +8657,7 @@ export type Database = {
           date: string
           fe: number
           id: string
+          service_order_id: string | null
           si: number
           updated_at: string | null
           viscosity: number
@@ -8158,6 +8670,7 @@ export type Database = {
           date: string
           fe: number
           id?: string
+          service_order_id?: string | null
           si: number
           updated_at?: string | null
           viscosity: number
@@ -8170,6 +8683,7 @@ export type Database = {
           date?: string
           fe?: number
           id?: string
+          service_order_id?: string | null
           si?: number
           updated_at?: string | null
           viscosity?: number
@@ -8216,6 +8730,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "oil_analysis_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_service_orders"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -9158,6 +9679,7 @@ export type Database = {
           period: string | null
           planned_days: number | null
           responsible: string | null
+          service_order_id: string | null
           status: string | null
           updated_at: string | null
         }
@@ -9182,6 +9704,7 @@ export type Database = {
           period?: string | null
           planned_days?: number | null
           responsible?: string | null
+          service_order_id?: string | null
           status?: string | null
           updated_at?: string | null
         }
@@ -9206,6 +9729,7 @@ export type Database = {
           period?: string | null
           planned_days?: number | null
           responsible?: string | null
+          service_order_id?: string | null
           status?: string | null
           updated_at?: string | null
         }
@@ -9251,6 +9775,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_extrato_aeronave"
             referencedColumns: ["aeronave_id"]
+          },
+          {
+            foreignKeyName: "ras_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "ctm_service_orders"
+            referencedColumns: ["id"]
           },
         ]
       }

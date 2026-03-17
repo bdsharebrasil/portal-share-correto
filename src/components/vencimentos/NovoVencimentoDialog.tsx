@@ -136,9 +136,7 @@ export function NovoVencimentoDialog({ onSave }: NovoVencimentoDialogProps) {
         mecanico: "Sistema",
         etapa: formData.vencimentoTipo === "horas" ? "em_andamento" : "aguardando",
         oficina: oficinaNome || undefined,
-        observacoes: formData.descricao || undefined,
-        vencimento_tipo: formData.vencimentoTipo,
-        vencimento_horas: formData.vencimentoTipo === "horas" ? parseFloat(formData.vencimentoHoras) : undefined,
+        observacoes: `${formData.descricao || ''} | vencimento_tipo: ${formData.vencimentoTipo}${formData.vencimentoTipo === "horas" ? ` | vencimento_horas: ${formData.vencimentoHoras}` : ''}`,
       });
 
       // 2. Create CTM service order for hour-based maintenance

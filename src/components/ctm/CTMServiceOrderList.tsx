@@ -22,8 +22,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Plus, Trash2, Eye, Edit2 } from 'lucide-react';
 import { useState } from 'react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatDateToBR } from '@/lib/date-utils';
 
 interface CTMServiceOrderListProps {
   orders: CTMServiceOrder[];
@@ -135,7 +134,7 @@ export function CTMServiceOrderList({
                     </TableCell>
                     <TableCell>
                       {order.data_entrada
-                        ? format(new Date(order.data_entrada), 'dd/MM/yyyy', { locale: ptBR })
+                        ? formatDateToBR(order.data_entrada)
                         : '-'}
                     </TableCell>
                     <TableCell className="text-right">

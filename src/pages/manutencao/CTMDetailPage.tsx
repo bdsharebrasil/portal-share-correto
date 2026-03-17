@@ -112,8 +112,13 @@ export default function CTMPage() {
   };
 
   const handleDeleteOrder = async (id: string) => {
-    await deleteServiceOrder(id);
-    loadOrders();
+    const success = await deleteServiceOrder(id);
+    if (success) {
+      setView('list');
+      setSelectedOrder(null);
+      setOrderDetails(null);
+      await loadOrders();
+    }
   };
 
   const handleRefreshDetails = async () => {
@@ -224,6 +229,8 @@ export default function CTMPage() {
         {view === 'detail' && orderDetails && selectedOrder && (
           <CTMServiceOrderDetails
             orderId={selectedOrder.id}
+            onEdit={() => setView('edit')}
+            onDelete={handleDeleteOrder}
             onBack={() => {
               setView('list');
               loadOrders();

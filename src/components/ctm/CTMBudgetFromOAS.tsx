@@ -100,12 +100,11 @@ export function CTMBudgetFromOAS({ oasId, onClose, onSuccess }: CTMBudgetFromOAS
       }
 
       // Update budget with form data
-      const { error: updateError } = await supabase
+      const { error: updateError } = await (supabase as any)
         .from('ctm_budgets')
         .update({
-          titulo: formData.titulo,
-          descricao: formData.descricao,
-          observacoes: formData.observacoes,
+          description: formData.titulo + ' - ' + (formData.descricao || ''),
+          notes: formData.observacoes,
         })
         .eq('id', newBudget.id);
 

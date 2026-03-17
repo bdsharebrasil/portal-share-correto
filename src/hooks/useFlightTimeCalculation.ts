@@ -25,14 +25,12 @@ export interface FlightTimeCalculationResult {
 /**
  * Hook customizado para calcular tempos de voo automaticamente
  *
- * Usa useMemo para evitar recálculos desnecessários
- *
  * REGRAS IMPLEMENTADAS:
- * - blockTime = AC → COR (tempo total)
- * - flightTime = DEP → POU (tempo efetivo de voo)
+ * - blockTime  = AC → COR  (tempo de bloco — salvo em total_time)
+ * - flightTime = DEP → POU (tempo de voo  — salvo em "time")
+ * - célula     = lastCelula + flightTime  ← CORRETO (DEP→POU)
  * - VALIDAÇÃO: blockTime >= flightTime
  * - dayTime = flightTime - nightTime (GARANTIDO)
- * - Se nightTime > flightTime, ajusta dayTime para 0
  */
 export function useFlightTimeCalculation(
   acTime: string,
@@ -44,44 +42,40 @@ export function useFlightTimeCalculation(
   nightTimeInput: number = 0
 ): FlightTimeCalculationResult | null {
   return useMemo(() => {
-    // Se não temos horários mínimos, não calcular
     if (!acTime || !corTime) {
       return null;
     }
 
     try {
-      // Calcular tempo de bloco (AC → COR)
-      // Este é o tempo total de operação da aeronave
+      // Tempo de bloco: AC → COR (salvo em total_time)
       const blockTime = calculateBlockTimeCore(acTime, corTime);
 
-      // Calcular tempo de voo (DEP → POU)
-      // Este é o tempo efetivamente voando
+      // Tempo de voo: DEP → POU (salvo em "time")
       const flightTime = depTime && pouTime
         ? calculateFlightTimeCore(depTime, pouTime)
         : 0;
 
-      // VALIDAÇÃO OBRIGATÓRIA: blockTime >= flightTime
+      // Validação: blockTime deve ser >= flightTime
       const isValid = validateTimes(blockTime, flightTime);
       if (!isValid) {
-        console.warn(`⚠️ Validação falhou: blockTime (${blockTime}) < flightTime (${flightTime})`);
+        console.warn(
+          `⚠️ Validação falhou: blockTime (${blockTime}) < flightTime (${flightTime})`
+        );
       }
 
-      // Calcular tempo noturno (será passado como parâmetro)
-      // O tempo noturno deve ser recebido do cálculo solar ou da entrada do usuário
-      const nightTime = Math.min(nightTimeInput, flightTime); // Nunca pode exceder flight time
+      // Tempo noturno nunca pode exceder o tempo de voo
+      const nightTime = Math.min(nightTimeInput, flightTime);
 
-      // Calcular tempo diurno de forma CONSISTENTE
-      // REGRA: day_time + night_hours = flight_time
+      // Tempo diurno: day_time + night_hours = flight_time
       const dayTime = calculateDayTimeCore(flightTime, nightTime);
 
-      // Calcular consumo de combustível se disponível
+      // Consumo de combustível baseado no tempo de bloco
       const fuelConsumption = fuelConsumptionRate
         ? calculateFuelConsumption(blockTime, fuelConsumptionRate)
         : null;
 
-      // Calcular célula da aeronave
-      // Célula = célula_anterior + blockTime
-      const celula = lastCelula + blockTime;
+      // ✅ CORRETO: célula usa flightTime (DEP→POU), não blockTime
+      const celula = lastCelula + flightTime;
 
       return {
         blockTime,
@@ -115,6 +109,7 @@ export function useBlockTime(acTime: string, corTime: string): number | null {
 
 /**
  * Hook para calcular apenas o tempo de voo (DEP → POU)
+ * Este é o valor usado para célula da aeronave
  */
 export function useFlightTime(depTime: string, pouTime: string): number | null {
   return useMemo(() => {

@@ -436,7 +436,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
 
       console.log("Inserting budget with payload:", budgetPayload);
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("ctm_budgets")
         .insert([budgetPayload])
         .select();

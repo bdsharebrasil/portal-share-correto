@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { fromUntyped } from '@/lib/supabase-helpers';
 import { toast } from 'sonner';
 
 export interface ServiceOrderDocument {
@@ -16,257 +16,110 @@ export interface ServiceOrderDocument {
 }
 
 export function useCTMDocumentGeneration() {
-  /**
-   * Generate complete PDF from OAS data
-   */
-  const generateOASPDF = useCallback(
-    async (
-      oasId: string,
-      oasData: any,
-      userId?: string
-    ): Promise<ServiceOrderDocument | null> => {
-      try {
-        // For now, we'll create a record indicating the PDF should be generated
-        // The actual PDF generation would be handled by a backend function
-        const fileName = `OAS-${oasData.numero}-${Date.now()}.pdf`;
+  const generateOASPDF = useCallback(async (oasId: string, oasData: any, userId?: string): Promise<ServiceOrderDocument | null> => {
+    try {
+      const fileName = `OAS-${oasData.numero}-${Date.now()}.pdf`;
+      const { data: document, error } = await fromUntyped('ctm_oas_documents')
+        .insert([{ service_order_id: oasId, document_type: 'pdf_complete', file_name: fileName, file_path: `/documents/${fileName}`, created_by: userId, description: `PDF OAS ${oasData.numero}` }])
+        .select().single();
+      if (error) throw error;
+      toast.success('PDF gerado com sucesso');
+      return document;
+    } catch (error) {
+      console.error('Error generating OAS PDF:', error);
+      toast.error('Erro ao gerar PDF da OAS');
+      return null;
+    }
+  }, []);
 
-        // Create document record
-        const { data: document, error } = await supabase
-          .from('ctm_service_order_documents')
-          .insert([
-            {
-              service_order_id: oasId,
-              document_type: 'pdf_complete',
-              file_name: fileName,
-              file_url: `/documents/${fileName}`,
-              generated_at: new Date().toISOString(),
-              generated_by: userId,
-              metadata: {
-                numero: oasData.numero,
-                aircraft_id: oasData.aircraft_id,
-                generated_via: 'system',
-              },
-            },
-          ])
-          .select()
-          .single();
+  const generateRASFromOAS = useCallback(async (oasId: string, oasData: any, userId?: string): Promise<ServiceOrderDocument | null> => {
+    try {
+      const fileName = `RAS-${oasData.numero}-${Date.now()}.pdf`;
+      const { data: document, error } = await fromUntyped('ctm_oas_documents')
+        .insert([{ service_order_id: oasId, document_type: 'ras', file_name: fileName, file_path: `/documents/${fileName}`, created_by: userId, description: `RAS ${oasData.numero}` }])
+        .select().single();
+      if (error) throw error;
+      toast.success('RAS gerado com sucesso');
+      return document;
+    } catch (error) {
+      console.error('Error generating RAS:', error);
+      toast.error('Erro ao gerar RAS');
+      return null;
+    }
+  }, []);
 
-        if (error) throw error;
+  const generateInvoice = useCallback(async (budgetId: string, oasId: string, budgetData: any, userId?: string): Promise<ServiceOrderDocument | null> => {
+    try {
+      const fileName = `INVOICE-${Date.now()}.pdf`;
+      const { data: document, error } = await fromUntyped('ctm_oas_documents')
+        .insert([{ service_order_id: oasId, document_type: 'invoice', file_name: fileName, file_path: `/documents/${fileName}`, created_by: userId, description: `Fatura orçamento` }])
+        .select().single();
+      if (error) throw error;
+      toast.success('Fatura gerada com sucesso');
+      return document;
+    } catch (error) {
+      console.error('Error generating invoice:', error);
+      toast.error('Erro ao gerar fatura');
+      return null;
+    }
+  }, []);
 
-        toast.success('PDF gerado com sucesso');
-        return document;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
-        console.error('Error generating OAS PDF:', errorMessage);
-        toast.error('Erro ao gerar PDF da OAS');
-        return null;
-      }
-    },
-    []
-  );
+  const generateCompletionReport = useCallback(async (oasId: string, oasData: any, userId?: string): Promise<ServiceOrderDocument | null> => {
+    try {
+      const fileName = `COMPLETION-${oasData.numero}-${Date.now()}.pdf`;
+      const { data: document, error } = await fromUntyped('ctm_oas_documents')
+        .insert([{ service_order_id: oasId, document_type: 'completion_report', file_name: fileName, file_path: `/documents/${fileName}`, created_by: userId, description: `Relatório de conclusão ${oasData.numero}` }])
+        .select().single();
+      if (error) throw error;
+      toast.success('Relatório de conclusão gerado com sucesso');
+      return document;
+    } catch (error) {
+      console.error('Error generating completion report:', error);
+      toast.error('Erro ao gerar relatório de conclusão');
+      return null;
+    }
+  }, []);
 
-  /**
-   * Generate RAS (Relatório de Acompanhamento de Serviço) from OAS
-   */
-  const generateRASFromOAS = useCallback(
-    async (oasId: string, oasData: any, userId?: string): Promise<ServiceOrderDocument | null> => {
-      try {
-        const fileName = `RAS-${oasData.numero}-${Date.now()}.pdf`;
+  const listGeneratedDocuments = useCallback(async (oasId: string): Promise<ServiceOrderDocument[]> => {
+    try {
+      const { data, error } = await fromUntyped('ctm_oas_documents')
+        .select('*')
+        .eq('service_order_id', oasId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error('Error listing documents:', error);
+      return [];
+    }
+  }, []);
 
-        const { data: document, error } = await supabase
-          .from('ctm_service_order_documents')
-          .insert([
-            {
-              service_order_id: oasId,
-              document_type: 'ras',
-              file_name: fileName,
-              file_url: `/documents/${fileName}`,
-              generated_at: new Date().toISOString(),
-              generated_by: userId,
-              metadata: {
-                numero: oasData.numero,
-                aircraft_id: oasData.aircraft_id,
-                tipo_manutencao: oasData.tipo_manutencao,
-              },
-            },
-          ])
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        toast.success('RAS gerado com sucesso');
-        return document;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
-        console.error('Error generating RAS:', errorMessage);
-        toast.error('Erro ao gerar RAS');
-        return null;
-      }
-    },
-    []
-  );
-
-  /**
-   * Generate Invoice from approved budget
-   */
-  const generateInvoice = useCallback(
-    async (
-      budgetId: string,
-      oasId: string,
-      budgetData: any,
-      userId?: string
-    ): Promise<ServiceOrderDocument | null> => {
-      try {
-        const fileName = `INVOICE-${budgetData.titulo || 'Budget'}-${Date.now()}.pdf`;
-
-        const { data: document, error } = await supabase
-          .from('ctm_service_order_documents')
-          .insert([
-            {
-              service_order_id: oasId,
-              document_type: 'invoice',
-              file_name: fileName,
-              file_url: `/documents/${fileName}`,
-              generated_at: new Date().toISOString(),
-              generated_by: userId,
-              metadata: {
-                budget_id: budgetId,
-                total_estimado: budgetData.total_estimado,
-              },
-            },
-          ])
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        toast.success('Fatura gerada com sucesso');
-        return document;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
-        console.error('Error generating invoice:', errorMessage);
-        toast.error('Erro ao gerar fatura');
-        return null;
-      }
-    },
-    []
-  );
-
-  /**
-   * Generate completion report when OAS is done
-   */
-  const generateCompletionReport = useCallback(
-    async (oasId: string, oasData: any, userId?: string): Promise<ServiceOrderDocument | null> => {
-      try {
-        const fileName = `COMPLETION-${oasData.numero}-${Date.now()}.pdf`;
-
-        const { data: document, error } = await supabase
-          .from('ctm_service_order_documents')
-          .insert([
-            {
-              service_order_id: oasId,
-              document_type: 'completion_report',
-              file_name: fileName,
-              file_url: `/documents/${fileName}`,
-              generated_at: new Date().toISOString(),
-              generated_by: userId,
-              metadata: {
-                numero: oasData.numero,
-                status: oasData.status,
-                completion_date: new Date().toISOString(),
-              },
-            },
-          ])
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        toast.success('Relatório de conclusão gerado com sucesso');
-        return document;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
-        console.error('Error generating completion report:', errorMessage);
-        toast.error('Erro ao gerar relatório de conclusão');
-        return null;
-      }
-    },
-    []
-  );
-
-  /**
-   * List all generated documents for an OAS
-   */
-  const listGeneratedDocuments = useCallback(
-    async (oasId: string): Promise<ServiceOrderDocument[]> => {
-      try {
-        const { data, error } = await supabase
-          .from('ctm_service_order_documents')
-          .select('*')
-          .eq('service_order_id', oasId)
-          .order('generated_at', { ascending: false });
-
-        if (error) throw error;
-        return data || [];
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
-        console.error('Error listing documents:', errorMessage);
-        return [];
-      }
-    },
-    []
-  );
-
-  /**
-   * Delete a generated document
-   */
   const deleteDocument = useCallback(async (documentId: string): Promise<boolean> => {
     try {
-      const { error } = await supabase.from('ctm_service_order_documents').delete().eq('id', documentId);
-
+      const { error } = await fromUntyped('ctm_oas_documents').delete().eq('id', documentId);
       if (error) throw error;
-
       toast.success('Documento deletado com sucesso');
       return true;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
-      console.error('Error deleting document:', errorMessage);
+      console.error('Error deleting document:', error);
       toast.error('Erro ao deletar documento');
       return false;
     }
   }, []);
 
-  /**
-   * Get document download URL
-   */
-  const getDocumentUrl = useCallback(
-    async (documentId: string): Promise<string | null> => {
-      try {
-        const { data, error } = await supabase
-          .from('ctm_service_order_documents')
-          .select('file_url')
-          .eq('id', documentId)
-          .single();
+  const getDocumentUrl = useCallback(async (documentId: string): Promise<string | null> => {
+    try {
+      const { data, error } = await fromUntyped('ctm_oas_documents')
+        .select('file_path')
+        .eq('id', documentId)
+        .single();
+      if (error) throw error;
+      return data?.file_path || null;
+    } catch (error) {
+      console.error('Error getting document URL:', error);
+      return null;
+    }
+  }, []);
 
-        if (error) throw error;
-        return data?.file_url || null;
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
-        console.error('Error getting document URL:', errorMessage);
-        return null;
-      }
-    },
-    []
-  );
-
-  return {
-    generateOASPDF,
-    generateRASFromOAS,
-    generateInvoice,
-    generateCompletionReport,
-    listGeneratedDocuments,
-    deleteDocument,
-    getDocumentUrl,
-  };
+  return { generateOASPDF, generateRASFromOAS, generateInvoice, generateCompletionReport, listGeneratedDocuments, deleteDocument, getDocumentUrl };
 }

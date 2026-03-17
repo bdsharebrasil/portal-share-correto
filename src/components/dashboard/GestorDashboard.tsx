@@ -40,11 +40,12 @@ export function GestorDashboard() {
         .select("*")
         .eq("status", "pendente");
 
-      // Buscar orçamentos aguardando aprovação financeira
-      const { data: budgetsData } = await supabase
-        .from("ctm_budgets")
-        .select("*")
-        .eq("status", "submitted");
+      // Buscar orçamentos OAS aguardando aprovação
+      const { data: budgetsData } = await (supabase as any)
+        .from("oas_budgets")
+        .select("*, service_order:ctm_service_orders(numero, aircraft:aircraft(registration))")
+        .eq("status", "pendente_aprovacao")
+        .order("submitted_at", { ascending: false });
 
       // Buscar ordens de serviço CTM pendentes de aprovação
       const { data: ctmOrdersData } = await supabase
@@ -61,11 +62,12 @@ export function GestorDashboard() {
         date: f.flight_date
       }));
 
-      const budgets = (budgetsData || []).map(b => ({
+      const budgets = (budgetsData || []).map((b: any) => ({
         ...b,
         type: 'budget',
-        title: `Orçamento #${(b as any).numero_orcamento || b.id.slice(0, 8)}`,
-        date: b.created_at
+        title: `Orçamento: ${b.descricao?.substring(0, 40) || ''} - OAS #${b.service_order?.numero || '?'} (${b.service_order?.aircraft?.registration || 'N/A'})`,
+        date: b.submitted_at || b.created_at,
+        total: b.valor_total,
       }));
 
       const ctmOrders = (ctmOrdersData || []).map(o => ({
@@ -77,7 +79,7 @@ export function GestorDashboard() {
         total: o.total_geral
       }));
 
-      return [...flights, ...budgets, ...ctmOrders] || [];
+      return [...flights, ...budgets, ...ctmOrders];
     },
   });
 

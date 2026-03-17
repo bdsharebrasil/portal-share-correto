@@ -116,6 +116,8 @@ type Tab = 'informacoes' | 'servicos' | 'pecas' | 'rateio' | 'financeiro' | 'com
 interface CTMServiceOrderDetailsProps {
   orderId: string;
   onBack?: () => void;
+  onEdit?: () => void;
+  onDelete?: (id: string) => void;
 }
 
 // ─── Status helpers ───────────────────────────────────────────────────────────
@@ -132,7 +134,7 @@ const fmt = (v?: number) =>
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function CTMServiceOrderDetails({ orderId, onBack }: CTMServiceOrderDetailsProps) {
+export function CTMServiceOrderDetails({ orderId, onBack, onEdit, onDelete }: CTMServiceOrderDetailsProps) {
   const [activeTab, setActiveTab] = useState<Tab>('informacoes');
   const [loading, setLoading] = useState(true);
 
@@ -149,6 +151,7 @@ export function CTMServiceOrderDetails({ orderId, onBack }: CTMServiceOrderDetai
   const [editingPeca, setEditingPeca] = useState<Peca | null>(null);
   const [showBudgetForm, setShowBudgetForm] = useState(false);
   const [showDocumentGenerator, setShowDocumentGenerator] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // New data states
   const [linkedBudgets, setLinkedBudgets] = useState<any[]>([]);
@@ -448,9 +451,33 @@ export function CTMServiceOrderDetails({ orderId, onBack }: CTMServiceOrderDetai
             </div>
           </div>
 
-          <div className="text-right">
-            <p className="text-xs text-slate-500">Total Geral</p>
-            <p className="text-xl font-black text-cyan-400">{fmt(order.total_geral)}</p>
+          <div className="flex items-center gap-2">
+            {/* Edit button */}
+            {onEdit && (
+              <button
+                onClick={onEdit}
+                className="p-2 rounded-lg hover:bg-white/5 text-slate-400 hover:text-white transition-colors"
+                title="Editar OAS"
+              >
+                <Edit2 className="h-5 w-5" />
+              </button>
+            )}
+
+            {/* Delete button */}
+            {onDelete && (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="p-2 rounded-lg hover:bg-red-500/10 text-red-400 hover:text-red-300 transition-colors"
+                title="Deletar OAS"
+              >
+                <Trash2 className="h-5 w-5" />
+              </button>
+            )}
+
+            <div className="text-right ml-4 pl-4 border-l border-slate-700">
+              <p className="text-xs text-slate-500">Total Geral</p>
+              <p className="text-xl font-black text-cyan-400">{fmt(order.total_geral)}</p>
+            </div>
           </div>
         </div>
 
@@ -1163,6 +1190,43 @@ export function CTMServiceOrderDetails({ orderId, onBack }: CTMServiceOrderDetai
           isOpen={showDocumentGenerator}
           onClose={() => setShowDocumentGenerator(false)}
         />
+      )}
+
+      {/* ── Dialog: Confirmação de Deleção ────────────────────────────────────── */}
+      {onDelete && order && (
+        <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <DialogContent className="bg-slate-900 border-slate-700">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-400">
+                <AlertCircle className="h-5 w-5" />
+                Deletar Ordem de Serviço?
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-slate-400 text-sm">
+              Tem certeza que deseja deletar a OAS <strong>{order.numero}</strong>? Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex gap-3 justify-end pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteConfirm(false)}
+                className="border-slate-600 hover:bg-slate-800"
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  setShowDeleteConfirm(false);
+                  await onDelete(order.id);
+                }}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Deletar
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
 
     </div>

@@ -598,8 +598,8 @@ export function DynamicLogbookForm({
       }
 
       // Calcular a célula acumulada para esta entrada
-      // celula = celula_anterior + total_time
-      const entrycelula = celulaAnterior + totalBlockTime;
+      // celula = celula_anterior + time (DEP→POU)
+      const entrycelula = celulaAnterior + flightTime;
 
       const { data: insertedEntry, error } = await supabase.from('logbook_entries').insert([
         {

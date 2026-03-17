@@ -199,3 +199,10 @@ export const validateIFRHours = (
 ): number => {
   return Math.min(ifrHours, flightTime);
 };
+
+/**
+ * Calcula tempo diurno = tempo de voo - horas noturnas
+ */
+export const calculateDayTime = (flightTime: number, nightHours: number): number => {
+  return Math.max(0, flightTime - nightHours);
+};
