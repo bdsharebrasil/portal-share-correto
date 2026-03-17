@@ -262,6 +262,132 @@ export function useCTMServiceOrders() {
     }
   }, []);
 
+  const generateBudgetFromOAS = useCallback(
+    async (oasId: string, userId?: string) => {
+      try {
+        // Load OAS details
+        const { data: order, error: orderError } = await supabase
+          .from('ctm_service_orders')
+          .select('*')
+          .eq('id', oasId)
+          .single();
+
+        if (orderError) throw orderError;
+
+        // Create new budget with data from OAS
+        const { data: newBudget, error: budgetError } = await supabase
+          .from('ctm_budgets')
+          .insert([
+            {
+              aircraft_id: order.aircraft_id,
+              titulo: `Orçamento - OAS ${order.numero}`,
+              descricao: order.objetivo || order.observacoes || `Budget for service order ${order.numero}`,
+              status: 'draft',
+              data_criacao: new Date().toISOString(),
+              total_estimado: order.total_geral || 0,
+              created_by: userId,
+            },
+          ])
+          .select()
+          .single();
+
+        if (budgetError) throw budgetError;
+
+        // Create linking record
+        if (newBudget) {
+          const { error: linkError } = await supabase
+            .from('ctm_service_order_budgets')
+            .insert([
+              {
+                service_order_id: oasId,
+                budget_id: newBudget.id,
+                status: 'draft',
+                version: 1,
+                created_by: userId,
+              },
+            ]);
+
+          if (linkError) throw linkError;
+        }
+
+        toast.success('Orçamento gerado a partir da OAS com sucesso');
+        return newBudget;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+        console.error('Error generating budget from OAS:', errorMessage);
+        toast.error('Erro ao gerar orçamento a partir da OAS');
+        return null;
+      }
+    },
+    []
+  );
+
+  const linkBudgetToOAS = useCallback(
+    async (oasId: string, budgetId: string, version: number = 1, userId?: string, notes?: string) => {
+      try {
+        // Check if linking already exists
+        const { data: existing } = await supabase
+          .from('ctm_service_order_budgets')
+          .select('id')
+          .eq('service_order_id', oasId)
+          .eq('budget_id', budgetId)
+          .single();
+
+        if (existing) {
+          toast.error('Este orçamento já está linkado a esta OAS');
+          return null;
+        }
+
+        // Create linking record
+        const { data, error } = await supabase
+          .from('ctm_service_order_budgets')
+          .insert([
+            {
+              service_order_id: oasId,
+              budget_id: budgetId,
+              status: 'draft',
+              version,
+              created_by: userId,
+              approval_notes: notes,
+            },
+          ])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        toast.success('Orçamento linkado a OAS com sucesso');
+        return data;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+        console.error('Error linking budget to OAS:', errorMessage);
+        toast.error('Erro ao linkar orçamento a OAS');
+        return null;
+      }
+    },
+    []
+  );
+
+  const getLinkedBudgets = useCallback(
+    async (oasId: string) => {
+      try {
+        const { data, error } = await supabase
+          .from('ctm_service_order_budgets')
+          .select('*, budget:ctm_budgets(*)')
+          .eq('service_order_id', oasId)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return data || [];
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
+        console.error('Error loading linked budgets:', errorMessage);
+        return [];
+      }
+    },
+    []
+  );
+
   return {
     loadCategories,
     loadServiceOrders,
@@ -269,5 +395,8 @@ export function useCTMServiceOrders() {
     createServiceOrder,
     updateServiceOrder,
     deleteServiceOrder,
+    generateBudgetFromOAS,
+    linkBudgetToOAS,
+    getLinkedBudgets,
   };
 }

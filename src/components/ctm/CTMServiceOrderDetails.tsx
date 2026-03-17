@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,12 +15,19 @@ import {
   Info, Wrench, Package, Users, DollarSign,
   Plus, Trash2, Edit2, ChevronLeft, FileText,
   AlertCircle, CheckCircle2, Clock, TrendingUp,
-  Loader2, X, Upload,
+  Loader2, X, Upload, MapPin, Weight, Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { CTMServiceItemsForm } from './CTMServiceItemsForm';
+import { CTMComponentMap } from './CTMComponentMap';
+import { CTMWeightBalance } from './CTMWeightBalance';
+import { CTMBudgetHistory } from './CTMBudgetHistory';
+import { CTMBudgetFromOAS } from './CTMBudgetFromOAS';
+import { CTMOASDocumentGenerator } from './CTMOASDocumentGenerator';
+import { useCTMBudgetTracking } from '@/hooks/useCTMBudgetTracking';
+import { useCTMDocumentGeneration } from '@/hooks/useCTMDocumentGeneration';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -102,7 +109,7 @@ interface Rateio {
 
 // ─── Tab enum ─────────────────────────────────────────────────────────────────
 
-type Tab = 'informacoes' | 'servicos' | 'pecas' | 'rateio' | 'financeiro';
+type Tab = 'informacoes' | 'servicos' | 'pecas' | 'rateio' | 'financeiro' | 'componentes' | 'peso_balanceamento' | 'orcamentos' | 'documentos';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -140,6 +147,16 @@ export function CTMServiceOrderDetails({ orderId, onBack }: CTMServiceOrderDetai
   const [showPecaForm, setShowPecaForm] = useState(false);
   const [showRateioForm, setShowRateioForm] = useState(false);
   const [editingPeca, setEditingPeca] = useState<Peca | null>(null);
+  const [showBudgetForm, setShowBudgetForm] = useState(false);
+  const [showDocumentGenerator, setShowDocumentGenerator] = useState(false);
+
+  // New data states
+  const [linkedBudgets, setLinkedBudgets] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
+
+  // Hooks
+  const { getOASBudgetLinks } = useCTMBudgetTracking();
+  const { listGeneratedDocuments } = useCTMDocumentGeneration();
 
   // Peca form
   const [pecaForm, setPecaForm] = useState({
@@ -160,6 +177,15 @@ export function CTMServiceOrderDetails({ orderId, onBack }: CTMServiceOrderDetai
   // ── Load ────────────────────────────────────────────────────────────────────
 
   useEffect(() => { loadAll(); }, [orderId]);
+
+  // Load budgets and documents when tab changes
+  useEffect(() => {
+    if (activeTab === 'orcamentos' && order) {
+      getOASBudgetLinks(order.id).then(setLinkedBudgets);
+    } else if (activeTab === 'documentos' && order) {
+      listGeneratedDocuments(order.id).then(setDocuments);
+    }
+  }, [activeTab, order, getOASBudgetLinks, listGeneratedDocuments]);
 
   const loadAll = async () => {
     setLoading(true);
@@ -229,6 +255,10 @@ export function CTMServiceOrderDetails({ orderId, onBack }: CTMServiceOrderDetai
     { id: 'pecas', label: 'Peças', icon: <Package className="h-4 w-4" />, count: pecas.length },
     { id: 'rateio', label: 'Rateio', icon: <Users className="h-4 w-4" />, count: rateio?.socios.length },
     { id: 'financeiro', label: 'Resumo Financeiro', icon: <DollarSign className="h-4 w-4" /> },
+    { id: 'componentes', label: 'Mapa de Componentes', icon: <MapPin className="h-4 w-4" /> },
+    { id: 'peso_balanceamento', label: 'Peso e Balanceamento', icon: <Weight className="h-4 w-4" /> },
+    { id: 'orcamentos', label: 'Orçamentos', icon: <TrendingUp className="h-4 w-4" />, count: linkedBudgets.length },
+    { id: 'documentos', label: 'Documentos', icon: <FileText className="h-4 w-4" />, count: documents.length },
   ];
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
@@ -804,6 +834,107 @@ export function CTMServiceOrderDetails({ orderId, onBack }: CTMServiceOrderDetai
           </div>
         )}
 
+        {/* ══ COMPONENTES ══════════════════════════════════════════════════════════ */}
+        {activeTab === 'componentes' && order && (
+          <CTMComponentMap aircraftId={order.aircraft_id} />
+        )}
+
+        {/* ══ PESO E BALANCEAMENTO ══════════════════════════════════════════════════ */}
+        {activeTab === 'peso_balanceamento' && order && (
+          <CTMWeightBalance aircraftId={order.aircraft_id} aircraftRegistration="" />
+        )}
+
+        {/* ══ ORÇAMENTOS ═══════════════════════════════════════════════════════════ */}
+        {activeTab === 'orcamentos' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-white">Orçamentos Associados</h2>
+              <Button
+                onClick={() => setShowBudgetForm(true)}
+                className="bg-cyan-600 hover:bg-cyan-700 gap-2 h-9 text-sm"
+              >
+                <Plus className="h-4 w-4" />
+                Gerar Orçamento
+              </Button>
+            </div>
+
+            {linkedBudgets.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-slate-800/20 rounded-lg border border-white/5">
+                <TrendingUp className="h-12 w-12 text-slate-600 mb-3" />
+                <p className="text-slate-400 text-sm">Nenhum orçamento vinculado</p>
+                <p className="text-xs text-slate-500 mb-4">Gere um orçamento a partir desta OAS</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {linkedBudgets.map(link => (
+                  <div key={link.id} className="border border-white/5 rounded-lg p-4 bg-slate-800/20">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="font-semibold text-white">{link.budget?.titulo || 'Orçamento'}</h3>
+                        <p className="text-xs text-slate-500">Versão {link.version} · {format(new Date(link.created_at), 'dd/MM/yyyy', { locale: ptBR })}</p>
+                      </div>
+                      <Badge className={`text-xs ${
+                        link.status === 'approved' ? 'bg-green-500/20 text-green-300' :
+                        link.status === 'rejected' ? 'bg-red-500/20 text-red-300' :
+                        link.status === 'submitted' ? 'bg-blue-500/20 text-blue-300' :
+                        'bg-slate-500/20 text-slate-300'
+                      }`}>
+                        {link.status}
+                      </Badge>
+                    </div>
+                    {link.budget?.total_estimado && (
+                      <p className="text-sm text-cyan-400 font-mono mb-3">
+                        R$ {link.budget.total_estimado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══ DOCUMENTOS ═══════════════════════════════════════════════════════════ */}
+        {activeTab === 'documentos' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-white">Documentos Gerados</h2>
+              <Button
+                onClick={() => setShowDocumentGenerator(true)}
+                variant="outline"
+                className="gap-2 h-9 text-sm"
+              >
+                <Download className="h-4 w-4" />
+                Gerar Documentos
+              </Button>
+            </div>
+
+            {documents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center bg-slate-800/20 rounded-lg border border-white/5">
+                <FileText className="h-12 w-12 text-slate-600 mb-3" />
+                <p className="text-slate-400 text-sm">Nenhum documento gerado</p>
+                <p className="text-xs text-slate-500">Gere PDFs e relatórios desta OAS</p>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {documents.map(doc => (
+                  <div key={doc.id} className="border border-white/5 rounded-lg p-3 bg-slate-800/20 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-4 w-4 text-slate-500" />
+                      <div>
+                        <p className="text-sm font-medium text-white">{doc.file_name}</p>
+                        <p className="text-xs text-slate-500">
+                          {format(new Date(doc.generated_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
 
       {/* ── Dialog: Novo Serviço ─────────────────────────────────────────────── */}
@@ -1008,6 +1139,31 @@ export function CTMServiceOrderDetails({ orderId, onBack }: CTMServiceOrderDetai
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ── Dialog: Gerar Orçamento ──────────────────────────────────────────── */}
+      {showBudgetForm && order && (
+        <CTMBudgetFromOAS
+          oasId={order.id}
+          onClose={() => setShowBudgetForm(false)}
+          onSuccess={() => {
+            setShowBudgetForm(false);
+            // Reload budgets
+            if (order.id) {
+              getOASBudgetLinks(order.id).then(setLinkedBudgets);
+            }
+          }}
+        />
+      )}
+
+      {/* ── Dialog: Gerador de Documentos ────────────────────────────────────── */}
+      {showDocumentGenerator && order && (
+        <CTMOASDocumentGenerator
+          oasId={order.id}
+          oasData={order}
+          isOpen={showDocumentGenerator}
+          onClose={() => setShowDocumentGenerator(false)}
+        />
+      )}
 
     </div>
   );

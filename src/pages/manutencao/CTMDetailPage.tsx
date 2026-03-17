@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { CTMServiceOrderList } from '@/components/ctm';
 import { CTMServiceOrderForm } from '@/components/ctm/CTMServiceOrderForm';
-import { CTMServiceOrderDetail as CTMServiceOrderDetails } from '@/components/manutencao/CTMServiceOrderDetail';
+import { CTMServiceOrderDetails } from '@/components/ctm';
 import { useCTMServiceOrders, CTMServiceOrder, CTMMaintenanceCategory } from '@/hooks/useCTMServiceOrders';
 import AircraftSelection from '@/components/manutencao/AircraftSelection';
 
@@ -223,8 +223,7 @@ export default function CTMPage() {
 
         {view === 'detail' && orderDetails && selectedOrder && (
           <CTMServiceOrderDetails
-            serviceOrderId={selectedOrder.id}
-            aircraftRegistration={selectedAircraft?.registration || ''}
+            orderId={selectedOrder.id}
             onBack={() => {
               setView('list');
               loadOrders();

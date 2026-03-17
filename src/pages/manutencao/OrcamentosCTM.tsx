@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
-import { CTMBudgetManagement } from "@/components/manutencao/CTMBudgetManagement";
+import { CTMBudgetManagement } from "@/components/ctm";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
