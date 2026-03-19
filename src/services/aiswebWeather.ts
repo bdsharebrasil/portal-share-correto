@@ -1,59 +1,92 @@
 /**
- * AISWeb Weather Service
- * Utilities para parsing e processamento de dados meteorológicos da AISWEB
+ * services/aiswebWeather.ts
  *
- * NOTA: O fetch é feito via apiClient.getWeather() que já inclui caching
- * Este service fornece apenas utilitários de parsing
+ * Utilities de parsing e transformação de dados meteorológicos da AISWEB.
+ * O fetch em si é feito via apiClient.getWeather() que já cuida de cache e fallback.
+ *
+ * O Worker normaliza a resposta para:
+ *   { loc: string, metar: string, taf: string, _raw: any }
+ *
+ * Este service transforma esse shape em AISWebMETARData para uso nos componentes.
  */
 
 import { apiClient } from '@/lib/api-client';
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 export interface AISWebMETARData {
-  icao: string;
-  rawOb: string;
-  temp: number | null;
-  dewp: number | null;
-  wdir: number | string | null;
-  wspd: number | null;
-  wgst: number | null;
-  visib: string | number | null;
+  icao:           string;
+  rawOb:          string;
+  temp:           number | null;
+  dewp:           number | null;
+  wdir:           number | string | null;
+  wspd:           number | null;
+  wgst:           number | null;
+  visib:          string | number | null;
   flightCategory: 'VFR' | 'MVFR' | 'IFR' | 'LIFR' | 'UNKNOWN';
-  updatedTime?: string;
-  taf?: string;
+  updatedTime?:   string;
+  taf?:           string;
 }
 
+// ─── Parsers ──────────────────────────────────────────────────────────────────
+
 /**
- * Parser de METAR string para extrair dados estruturados
+ * Extrai campos estruturados de uma string METAR bruta.
+ *
+ * Exemplos cobertos:
+ *   "SBSP 191800Z 05008KT 9999 FEW020 25/18 Q1018"
+ *   "SBGR 191900Z VRB03KT CAVOK 24/15 Q1019"
+ *   "SBSP 191800Z 05008KT 1500 +TSRA BKN010CB 22/19 Q1015"
  */
 export const parseMetarString = (raw: string) => {
-  const tempMatch = raw.match(/(M?\d{2})\/(M?\d{2})/);
-  const windMatch = raw.match(/(\d{3}|VRB)(\d{2})(G\d{2})?KT/);
-  const visibMatch = raw.match(/\s(\d{4})\s/);
-  const parseTemp = (t: string) => t.startsWith('M') ? -parseInt(t.substring(1)) : parseInt(t);
+  const parseTemp = (t: string) =>
+    t.startsWith('M') ? -parseInt(t.substring(1)) : parseInt(t);
+
+  // Temperatura e ponto de orvalho: "25/18" ou "M02/M10"
+  const tempMatch  = raw.match(/(M?\d{2})\/(M?\d{2})/);
+
+  // Vento: "05008KT" ou "VRB03KT" ou "05008G15KT"
+  const windMatch  = raw.match(/(\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?KT/);
+
+  // Visibilidade: "9999" ou "1500" (metros); CAVOK = 10 000+
+  // O METAR DECEA usa 4 dígitos sem espaço após o vento
+  const visibMatch = raw.match(/\b(\d{4})\b/);
 
   return {
-    temp: tempMatch ? parseTemp(tempMatch[1]) : null,
-    dewp: tempMatch ? parseTemp(tempMatch[2]) : null,
-    wdir: windMatch ? (windMatch[1] === 'VRB' ? 'VRB' : parseInt(windMatch[1])) : null,
-    wspd: windMatch ? parseInt(windMatch[2]) : null,
-    wgst: windMatch && windMatch[3] ? parseInt(windMatch[3].replace('G', '')) : null,
-    visib: visibMatch ? parseInt(visibMatch[1]) : (raw.includes('CAVOK') ? 9999 : null),
+    temp:  tempMatch ? parseTemp(tempMatch[1])  : null,
+    dewp:  tempMatch ? parseTemp(tempMatch[2])  : null,
+    wdir:  windMatch
+             ? (windMatch[1] === 'VRB' ? 'VRB' : parseInt(windMatch[1]))
+             : null,
+    wspd:  windMatch ? parseInt(windMatch[2])   : null,
+    wgst:  windMatch && windMatch[3] ? parseInt(windMatch[3]) : null,
+    visib: visibMatch
+             ? parseInt(visibMatch[1])
+             : raw.includes('CAVOK') ? 9999 : null,
   };
 };
 
 /**
- * Determinar categoria de voo a partir do METAR
+ * Determina a categoria de voo (VFR/MVFR/IFR/LIFR) a partir da visibilidade
+ * em metros (padrão ICAO/DECEA).
+ *
+ * Se a API retornar o campo cat diretamente, ele tem precedência.
  */
 export const determineFlightCategory = (
-  cat: string | undefined,
+  cat:   string | undefined,
   visib: number | string | null
 ): 'VFR' | 'MVFR' | 'IFR' | 'LIFR' | 'UNKNOWN' => {
   if (cat) {
     const upper = cat.toUpperCase();
-    if (['VFR', 'MVFR', 'IFR', 'LIFR'].includes(upper)) return upper as any;
+    if (['VFR', 'MVFR', 'IFR', 'LIFR'].includes(upper)) {
+      return upper as 'VFR' | 'MVFR' | 'IFR' | 'LIFR';
+    }
   }
+
   if (visib === null) return 'UNKNOWN';
+
   const v = typeof visib === 'string' ? parseInt(visib) : visib;
+  if (isNaN(v))  return 'UNKNOWN';
   if (v >= 5000) return 'VFR';
   if (v >= 3000) return 'MVFR';
   if (v >= 1000) return 'IFR';
@@ -61,47 +94,79 @@ export const determineFlightCategory = (
 };
 
 /**
- * Transform dados brutos da API AISWEB em formato estruturado
+ * Transforma a resposta normalizada do Worker em AISWebMETARData.
+ *
+ * O Worker garante { loc, metar: string, taf: string } mas mantemos
+ * os fallbacks para resiliência caso algum campo seja omitido.
  */
 export const transformAISWebMETAR = (data: any, icao: string): AISWebMETARData => {
-  const metarRaw = typeof data.metar === 'string'
-    ? data.metar
-    : (
-        data.metar?.metar ||
-        data.metar?.raw ||
-        data.met?.metar?.metar ||
-        data.met?.metar?.raw ||
-        ''
-      );
+  // ── Extração do METAR bruto ────────────────────────────────────────────────
+  // Ordem de precedência (do mais confiável ao mais defensivo):
+  //  1. data.metar como string  → Worker já normalizou corretamente
+  //  2. data.metar.metar        → shape antigo sem normalização
+  //  3. data.metar.raw          → campo raw alternativo
+  //  4. data.met?.metar?.metar  → shape sem stripping do nó met
+  //  5. data.met?.metar?.raw    → idem, campo raw
+  const metarRaw: string =
+    (typeof data.metar === 'string'        ? data.metar             : null) ??
+    (typeof data.metar?.metar === 'string' ? data.metar.metar       : null) ??
+    (typeof data.metar?.raw === 'string'   ? data.metar.raw         : null) ??
+    (typeof data.met?.metar?.metar === 'string' ? data.met.metar.metar : null) ??
+    (typeof data.met?.metar?.raw === 'string'   ? data.met.metar.raw   : null) ??
+    '';
 
-  const tafRaw = typeof data.taf === 'string'
-    ? data.taf
-    : (data.met?.taf?.taf || data.met?.taf?.raw || '');
+  // ── Extração do TAF bruto ──────────────────────────────────────────────────
+  const tafRaw: string =
+    (typeof data.taf === 'string'       ? data.taf           : null) ??
+    (typeof data.taf?.taf === 'string'  ? data.taf.taf       : null) ??
+    (typeof data.taf?.raw === 'string'  ? data.taf.raw       : null) ??
+    (typeof data.met?.taf?.taf === 'string' ? data.met.taf.taf : null) ??
+    (typeof data.met?.taf?.raw === 'string' ? data.met.taf.raw : null) ??
+    '';
 
-  const loc = data.loc || data.met?.metar?.loc || icao.toUpperCase();
+  // ── ICAO ───────────────────────────────────────────────────────────────────
+  const loc: string =
+    data.loc           ??
+    data.metar?.loc    ??
+    data.met?.metar?.loc ??
+    icao.toUpperCase();
 
-  const parsed = metarRaw ? parseMetarString(metarRaw) : {
-    temp: null, dewp: null, wdir: null, wspd: null, wgst: null, visib: null
-  };
+  // ── Parse da string METAR ──────────────────────────────────────────────────
+  const parsed = metarRaw
+    ? parseMetarString(metarRaw)
+    : { temp: null, dewp: null, wdir: null, wspd: null, wgst: null, visib: null };
+
+  // ── Categoria de voo ───────────────────────────────────────────────────────
+  // O campo cat pode vir direto da AISWEB em alguns shapes
+  const catRaw: string | undefined =
+    data.cat           ??
+    data.met?.metar?.cat ??
+    undefined;
+
+  if (!metarRaw) {
+    console.warn(`[transformAISWebMETAR] METAR vazio para ${loc}. Data recebida:`, data);
+  }
 
   return {
-    icao: loc,
-    rawOb: metarRaw,
-    temp: parsed.temp,
-    dewp: parsed.dewp,
-    wdir: parsed.wdir,
-    wspd: parsed.wspd,
-    wgst: parsed.wgst,
-    visib: parsed.visib,
-    flightCategory: determineFlightCategory(data.cat || data.met?.metar?.cat, parsed.visib),
-    updatedTime: data.date || new Date().toISOString(),
-    taf: tafRaw || undefined,
+    icao:           loc,
+    rawOb:          metarRaw,
+    temp:           parsed.temp,
+    dewp:           parsed.dewp,
+    wdir:           parsed.wdir,
+    wspd:           parsed.wspd,
+    wgst:           parsed.wgst,
+    visib:          parsed.visib,
+    flightCategory: determineFlightCategory(catRaw, parsed.visib),
+    updatedTime:    data.date ?? new Date().toISOString(),
+    taf:            tafRaw || undefined,
   };
 };
 
+// ─── Fetch principal ──────────────────────────────────────────────────────────
+
 /**
- * @deprecated Use apiClient.getWeather() or useAISWeb().getWeather() instead
- * Wrapper de compatibilidade para código legado
+ * Busca e transforma o METAR de um ICAO.
+ * Usa apiClient.getWeather() que já cuida de cache IDB e fallback para mock data.
  */
 export async function fetchAISWebMETAR(icao: string): Promise<AISWebMETARData | null> {
   try {
@@ -109,8 +174,14 @@ export async function fetchAISWebMETAR(icao: string): Promise<AISWebMETARData | 
     if (!data) return null;
     return transformAISWebMETAR(data, icao);
   } catch (error) {
-    console.error(`[AISWeb] Erro ao buscar ${icao}:`, error);
+    console.error(`[AISWeb] Erro ao buscar METAR para ${icao}:`, error);
     return null;
   }
 }
 
+/**
+ * Verifica se um AISWebMETARData tem dados válidos (não é um placeholder vazio).
+ */
+export function isValidMETAR(metar: AISWebMETARData | null): boolean {
+  return !!metar && metar.rawOb.length > 0;
+}
