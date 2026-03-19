@@ -7,7 +7,11 @@ const AIS_API_BASE_URL =
   (import.meta.env.DEV ? '/api' : 'https://api-workers.sharebrasil.workers.dev');
 
 // Configuração de timeout para fetch
-const FETCH_TIMEOUT_MS = 30000; // 30 segundos (cold start do Worker + AISWEB pode ser lento)
+const FETCH_TIMEOUT_MS = 60000; // 60 segundos (cold start do Worker + AISWEB pode ser lento)
+
+// Configuração de retry com backoff exponencial
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY_MS = 1000; // 1 segundo
 
 // Helper para fetch com timeout
 async function fetchWithTimeout(url: string, options: RequestInit = {}) {
@@ -31,6 +35,27 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}) {
   }
 }
 
+// Helper para retry com backoff exponencial
+async function fetchWithRetry(url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> {
+  try {
+    if (retryCount === 0) {
+      console.debug(`[API] Iniciando requisição para: ${url}`);
+    }
+    return await fetchWithTimeout(url, options);
+  } catch (error: any) {
+    const errorMsg = error?.message || String(error);
+    if (retryCount < MAX_RETRIES) {
+      const delayMs = INITIAL_RETRY_DELAY_MS * Math.pow(2, retryCount); // 1s, 2s, 4s
+      console.warn(`[API Retry] Tentativa ${retryCount + 1}/${MAX_RETRIES} falhada para ${url}: ${errorMsg}`);
+      console.warn(`[API Retry] Aguardando ${delayMs}ms antes de tentar novamente...`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+      return fetchWithRetry(url, options, retryCount + 1);
+    }
+    console.error(`[API] Todas as ${MAX_RETRIES} tentativas falharam para ${url}: ${errorMsg}`);
+    throw error;
+  }
+}
+
 async function fetchJson(endpoint: string, options: RequestInit = {}) {
   // Se o endpoint é uma URL completa (começa com http), usar direto
   let url: string;
@@ -47,7 +72,7 @@ async function fetchJson(endpoint: string, options: RequestInit = {}) {
 
   try {
     console.debug(`[API] Fetching: ${url}`);
-    const res = await fetchWithTimeout(url, {
+    const res = await fetchWithRetry(url, {
       headers: { 'Content-Type': 'application/json' },
       ...options,
     });
