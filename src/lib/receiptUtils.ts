@@ -373,3 +373,57 @@ export function isValidUrl(url: string): boolean {
 export function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
+
+// ============================================================================
+// VALIDAÇÃO DE COMPROVANTE (ARQUIVO)
+// ============================================================================
+
+export interface FileValidationError {
+  type: 'size' | 'mimeType' | 'general';
+  message: string;
+}
+
+/**
+ * Valida um arquivo de comprovante (imagem ou PDF)
+ * @param file - Arquivo a validar
+ * @param maxSizeMB - Tamanho máximo em MB (padrão: 10)
+ * @returns Array de erros ou vazio se válido
+ */
+export function validateReceiptFile(file: File | undefined, maxSizeMB: number = 10): FileValidationError[] {
+  const errors: FileValidationError[] = [];
+
+  if (!file) {
+    errors.push({ type: 'general', message: 'Nenhum arquivo selecionado' });
+    return errors;
+  }
+
+  // Tipos MIME aceitos
+  const validMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
+
+  // Validar MIME type
+  if (!validMimeTypes.includes(file.type)) {
+    errors.push({
+      type: 'mimeType',
+      message: `Tipo de arquivo não suportado. Aceitos: PNG, JPG, GIF, WebP, PDF (recebido: ${file.type || 'desconhecido'})`
+    });
+  }
+
+  // Validar tamanho
+  const fileSizeMB = file.size / (1024 * 1024);
+  if (fileSizeMB > maxSizeMB) {
+    errors.push({
+      type: 'size',
+      message: `Arquivo muito grande. Tamanho máximo: ${maxSizeMB}MB (arquivo: ${fileSizeMB.toFixed(2)}MB)`
+    });
+  }
+
+  // Validar tamanho mínimo (pelo menos 1KB)
+  if (file.size < 1024) {
+    errors.push({
+      type: 'general',
+      message: 'Arquivo muito pequeno ou vazio'
+    });
+  }
+
+  return errors;
+}

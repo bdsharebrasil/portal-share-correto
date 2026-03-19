@@ -24,9 +24,11 @@ import { useClientes } from "@/hooks/useClientes";
 import { useAeronaves } from "@/hooks/useAeronaves";
 import { useTripulantes } from "@/hooks/useTripulantes";
 import { calculateReportTotals, extractPayerTotals, getValidExpenses } from "@/lib/travelReportUtils";
+import { validateReceiptFile } from "@/lib/receiptUtils";
 import { draftStorage } from "@/lib/travelReportDraft";
 import type { TravelReportDraft } from "@/lib/travelReportDraft";
 import { cn } from "@/lib/utils";
+import { ReceiptPreviewModal } from "./ReceiptPreviewModal";
 
 const EXPENSE_CATEGORIES = ['Combustível', 'Hospedagem', 'Alimentação', 'Transporte', 'Outros'];
 
@@ -136,6 +138,13 @@ export function TravelReportForm({
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
   const [expenseDateOpenIndex, setExpenseDateOpenIndex] = useState<number | null>(null);
+
+  // Preview modal states
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewFile, setPreviewFile] = useState<{ index: number; file: File } | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | undefined>();
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | undefined>();
 
   // Load partners when form initializes with an existing client_id or when client_id changes
   useEffect(() => {
@@ -268,6 +277,44 @@ export function TravelReportForm({
   const handleFileUpload = async (index: number, file: File | undefined) => {
     if (!file) return;
 
+    // Validar arquivo
+    const validationErrors = validateReceiptFile(file, 10); // 10MB máximo
+    if (validationErrors.length > 0) {
+      const errorMessage = validationErrors.map(e => e.message).join('\n');
+      toast.error(`❌ Arquivo inválido:\n${errorMessage}`);
+      return;
+    }
+
+    // Mostrar preview
+    setPreviewFile({ index, file });
+    setPreviewOpen(true);
+    setPreviewLoading(true);
+    setPreviewError(undefined);
+
+    try {
+      // Gerar preview da imagem
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setPreviewImage(result);
+        setPreviewLoading(false);
+      };
+      reader.onerror = () => {
+        setPreviewError("Erro ao ler arquivo");
+        setPreviewLoading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (error: any) {
+      setPreviewError(error.message || "Erro ao processar arquivo");
+      setPreviewLoading(false);
+    }
+  };
+
+  const handlePreviewConfirm = async () => {
+    if (!previewFile) return;
+
+    const { index, file } = previewFile;
+    setPreviewOpen(false);
     setUploadingIndex(index);
     const toastId = toast.loading('📤 Enviando comprovante...');
 
@@ -293,6 +340,8 @@ export function TravelReportForm({
       toast.error(`❌ Erro ao fazer upload: ${error?.message || 'Tente novamente'}`, { id: toastId });
     } finally {
       setUploadingIndex(null);
+      setPreviewFile(null);
+      setPreviewImage(undefined);
     }
   };
 
@@ -934,6 +983,21 @@ export function TravelReportForm({
           </Card>
         )}
       </div>
+
+      <ReceiptPreviewModal
+        open={previewOpen}
+        onClose={() => {
+          setPreviewOpen(false);
+          setPreviewFile(null);
+          setPreviewImage(undefined);
+          setPreviewError(undefined);
+        }}
+        onConfirm={handlePreviewConfirm}
+        imageUrl={previewImage}
+        fileName={previewFile?.file.name}
+        isLoading={previewLoading}
+        error={previewError}
+      />
     </div>
   );
 }

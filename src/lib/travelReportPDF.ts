@@ -6,6 +6,16 @@ export const CATEGORIAS_DESPESA = [
   "Outros"
 ];
 
+// Import placeholders de erro
+import { PDF_CONVERSION_ERROR_PLACEHOLDER } from "@/constants/errorPlaceholders";
+
+// Import PDF.js do npm (não CDN)
+import * as pdfjsLib from 'pdfjs-dist';
+import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+
+// Configurar worker local
+pdfjsLib.GlobalWorkerOptions.workerSrc = PdfWorker;
+
 // Pagadores separados: Tripulante 1 e Tripulante 2
 export const PAGADORES = [
   "Tripulante 1",
@@ -20,6 +30,18 @@ const parseLocalDate = (value: string | Date) => {
   return new Date(y, (m || 1) - 1, d || 1);
 };
 
+// Helper para detectar se é PDF de forma robusta
+const isPdfByUrl = (url: string): boolean => {
+  return url.toLowerCase().includes('.pdf') ||
+         url.startsWith('data:application/pdf') ||
+         url.startsWith('data:application/octet-stream');
+};
+
+const isPdfByContent = (base64: string): boolean => {
+  return base64.startsWith('data:application/pdf') ||
+         base64.startsWith('data:application/octet-stream');
+};
+
 export const formatDateBR = (value: string | Date) => {
   if (!value) return '';
   const s = String(value).split('T')[0];
@@ -32,9 +54,14 @@ export const formatDateBR = (value: string | Date) => {
 };
 
 const generatePDFConfig = (reportNumber: string) => {
+  // Formatar número para filename
+  const cleanId = reportNumber.replace(/[^a-zA-Z0-9]/g, '');
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+
   return {
     margin: 10,
-    filename: `${reportNumber}-relatorio-viagem.pdf`,
+    filename: `${cleanId}-${dateStr}.pdf`,
     image: { type: 'jpeg' as const, quality: 0.98 },
     html2canvas: {
       scale: 2,
@@ -54,6 +81,9 @@ export interface TravelExpense {
   pago_por: string;
   data?: string;
   comprovante_url?: string;
+  comprovante_pages?: string[]; // Páginas adicionais de PDF multi-página
+  _conversionError?: string;
+  _conversionPages?: number;
 }
 
 export interface TravelReport {
@@ -438,15 +468,40 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário', 
         .filter(d => d.comprovante_url)
         .map((d, index) => {
           const isBase64 = d.comprovante_url && d.comprovante_url.startsWith('data:');
+          const hasMultiplePages = d.comprovante_pages && d.comprovante_pages.length > 0;
+          const totalPages = hasMultiplePages ? (d._conversionPages || 1) : 1;
+
+          let pagesHtml = '';
+
+          // Página 1 (comprovante_url principal)
+          pagesHtml += `
+            <div class="receipt-image-container">
+              ${hasMultiplePages ? `<p style="font-size: 11px; color: #666; margin-bottom: 8px;"><strong>Página 1 de ${totalPages}</strong></p>` : ''}
+              <img class="receipt-image" src="${d.comprovante_url}" alt="Comprovante Página 1" ${isBase64 ? '' : 'crossorigin="anonymous"'} />
+            </div>
+          `;
+
+          // Páginas adicionais (comprovante_pages)
+          if (hasMultiplePages) {
+            d.comprovante_pages.forEach((pageUrl, pageIndex) => {
+              const pageNum = pageIndex + 2;
+              const isPageBase64 = pageUrl.startsWith('data:');
+              pagesHtml += `
+            <div class="receipt-image-container" style="margin-top: 20px;">
+              <p style="font-size: 11px; color: #666; margin-bottom: 8px;"><strong>Página ${pageNum} de ${totalPages}</strong></p>
+              <img class="receipt-image" src="${pageUrl}" alt="Comprovante Página ${pageNum}" ${isPageBase64 ? '' : 'crossorigin="anonymous"'} />
+            </div>
+              `;
+            });
+          }
+
           return `
                         <div class="receipt-item">
                             <p><strong>Item Nº:</strong> ${index + 1}</p>
                             <p><strong>Descrição:</strong> ${d.descricao || 'N/A'}</p>
                             <p><strong>Categoria:</strong> ${d.categoria || 'Outros'}</p>
                             <p><strong>Valor:</strong> R$ ${(Number(d.valor) || 0).toFixed(2).replace('.', ',')}</p>
-                            <div class="receipt-image-container">
-                                <img class="receipt-image" src="${d.comprovante_url}" alt="Comprovante" ${isBase64 ? '' : 'crossorigin="anonymous"'} />
-                            </div>
+                            ${pagesHtml}
                         </div>
                     `;
         }).join('')}
@@ -486,6 +541,31 @@ const loadHtml2PdfFromCdn = () => {
   });
 };
 
+// Helper para gerar nome profissional do PDF
+const generatePdfFilename = (report: TravelReport): string => {
+  try {
+    // Usar report_number se disponível (formato: REL-ARG-001 ou similar)
+    // Caso contrário, usar numero (formato: R-0001)
+    const reportId = report.report_number || report.numero || 'REL-0001';
+
+    // Extrair apenas números e letras para filename (remover caracteres especiais)
+    const cleanId = reportId.replace(/[^a-zA-Z0-9]/g, '');
+
+    // Adicionar data no formato YYYYMMDD
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const dateStr = `${year}${month}${day}`;
+
+    // Formato final: REL-ARG-001-20260319.pdf
+    return `${cleanId}-${dateStr}.pdf`;
+  } catch (error) {
+    console.warn('Erro ao gerar nome do PDF, usando padrão:', error);
+    return 'relatorio-viagem.pdf';
+  }
+};
+
 const loadLogoAsBase64 = async (): Promise<string> => {
   try {
     const response = await fetch('/logo.share.png');
@@ -511,46 +591,9 @@ const loadLogoAsBase64 = async (): Promise<string> => {
   }
 };
 
-const loadPdfJs = (): Promise<any> => {
-  return new Promise((resolve, reject) => {
-    const w = window as any;
-    if (w.pdfjsLib) {
-      w.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      return resolve(w.pdfjsLib);
-    }
-
-    const existing = document.querySelector('script[data-pdfjs]');
-    if (existing) {
-      const check = setInterval(() => {
-        if (w.pdfjsLib) {
-          clearInterval(check);
-          w.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-          resolve(w.pdfjsLib);
-        }
-      }, 100);
-      setTimeout(() => { clearInterval(check); reject(new Error('Timeout loading PDF.js')); }, 10000);
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.setAttribute('data-pdfjs', '1');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-    script.async = true;
-    script.onload = () => {
-      const lib = (window as any).pdfjsLib;
-      if (!lib) return reject(new Error('pdfjsLib not available'));
-      lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      resolve(lib);
-    };
-    script.onerror = () => reject(new Error('Failed to load PDF.js'));
-    document.head.appendChild(script);
-  });
-};
-
 const convertPdfBase64ToImageBase64 = async (pdfBase64: string): Promise<string> => {
   try {
     console.log('🔄 Convertendo PDF em imagem...');
-    const pdfjsLib = await loadPdfJs();
 
     // Remove o prefixo data:application/...;base64,
     const base64Data = pdfBase64.replace(/^data:[^;]+;base64,/, '');
@@ -561,8 +604,18 @@ const convertPdfBase64ToImageBase64 = async (pdfBase64: string): Promise<string>
     }
 
     const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-    const page = await pdf.getPage(1);
+    const pageCount = pdf.numPages;
 
+    // Se multi-página, usa a nova função
+    if (pageCount > 1) {
+      console.log(`📄 PDF com ${pageCount} páginas detectado. Convertendo todas...`);
+      const images = await convertPdfBase64ToMultipleImages(pdfBase64);
+      // Retorna primeira página para compatibilidade, mas marca que há múltiplas
+      return images[0] || '';
+    }
+
+    // Single page - renderizar normalmente
+    const page = await pdf.getPage(1);
     const viewport = page.getViewport({ scale: 2 });
     const canvas = document.createElement('canvas');
     canvas.width = viewport.width;
@@ -584,10 +637,67 @@ const convertPdfBase64ToImageBase64 = async (pdfBase64: string): Promise<string>
         };
         reader.onerror = () => reject(reader.error);
         reader.readAsDataURL(blob);
-      }, 'image/png');
+      }, 'image/jpeg', 0.85); // Usar JPEG com quality 0.85 para melhor compressão
     });
   } catch (error: any) {
     console.error('❌ Erro ao converter PDF para imagem:', error.message);
+    throw error;
+  }
+};
+
+const convertPdfBase64ToMultipleImages = async (pdfBase64: string): Promise<string[]> => {
+  try {
+    console.log('🔄 Convertendo PDF multi-página em imagens...');
+
+    // Remove o prefixo data:application/...;base64,
+    const base64Data = pdfBase64.replace(/^data:[^;]+;base64,/, '');
+    const binaryString = atob(base64Data);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+    const pageCount = pdf.numPages;
+    const images: string[] = [];
+
+    for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
+      try {
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 2 });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error(`Não foi possível obter contexto do canvas para página ${pageNum}`);
+
+        await page.render({ canvasContext: ctx, viewport }).promise;
+
+        const imageBase64 = await new Promise<string>((resolve, reject) => {
+          canvas.toBlob((blob) => {
+            if (!blob) return reject(new Error(`Falha ao converter página ${pageNum}`));
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              resolve(reader.result as string);
+            };
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(blob);
+          }, 'image/jpeg', 0.85);
+        });
+
+        images.push(imageBase64);
+        console.log(`✅ Página ${pageNum}/${pageCount} convertida com sucesso`);
+      } catch (pageError) {
+        console.warn(`⚠️ Erro ao converter página ${pageNum}:`, pageError);
+        // Continua com próxima página mesmo se falhar
+      }
+    }
+
+    console.log(`✅ PDF com ${pageCount} páginas convertido para ${images.length} imagens`);
+    return images;
+  } catch (error: any) {
+    console.error('❌ Erro ao converter PDF multi-página:', error.message);
     throw error;
   }
 };
@@ -680,7 +790,8 @@ const fetchImageAsBase64 = async (url: string): Promise<string> => {
       return await tryFetch();
     } catch (e: any) {
       console.warn('⚠️ Falha ao baixar PDF:', e.message);
-      return url;
+      // Não retorna URL original para PDF - lança erro
+      throw new Error(`Falha ao baixar PDF: ${e.message}`);
     }
   }
 
@@ -711,24 +822,53 @@ export const generatePDF = async (report: TravelReport, currentFullName?: string
 
   const imagePromises = reportWithBase64.despesas.map(async (d, i) => {
     if (d.comprovante_url) {
-      const isPDF = d.comprovante_url.includes('.pdf') || d.comprovante_url.startsWith('data:application/pdf');
+      const isPDF = isPdfByUrl(d.comprovante_url);
       const fileType = isPDF ? 'PDF' : 'Imagem';
       console.log(`⏳ Convertendo comprovante ${i + 1} (${fileType}):`, d.comprovante_url.substring(0, 50) + '...');
       try {
         let base64 = await fetchImageAsBase64(d.comprovante_url);
 
         // Se é PDF, converte para imagem (verificar tanto pelo URL quanto pelo conteúdo base64)
-        const isPdfContent = base64.startsWith('data:application/pdf') || base64.startsWith('data:application/octet-stream');
+        const isPdfContent = isPdfByContent(base64);
         if ((isPDF || isPdfContent) && !base64.startsWith('data:image/')) {
           console.log(`🔄 PDF detectado, convertendo para imagem...`);
-          base64 = await convertPdfBase64ToImageBase64(base64);
+
+          // Para PDFs potencialmente multi-página, tentar obter todas as páginas
+          let pages: string[] = [];
+          try {
+            pages = await convertPdfBase64ToMultipleImages(base64);
+            if (pages.length > 1) {
+              base64 = pages[0];
+              reportWithBase64.despesas[i] = {
+                ...d,
+                comprovante_url: base64,
+                comprovante_pages: pages.slice(1), // Armazenar páginas 2+
+                _conversionPages: pages.length
+              };
+              console.log(`✅ PDF com ${pages.length} páginas convertido com sucesso`);
+            } else {
+              base64 = pages[0] || base64;
+              reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
+            }
+          } catch (_multiPageError) {
+            // Se multi-página falhar, tentar single-page
+            base64 = await convertPdfBase64ToImageBase64(base64);
+            reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
+          }
+        } else {
+          reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
         }
 
-        reportWithBase64.despesas[i] = { ...d, comprovante_url: base64 };
         console.log(`✅ Comprovante ${i + 1} convertido com sucesso (${fileType})`);
       } catch (error) {
         console.error(`❌ Erro ao converter comprovante ${i + 1}:`, error);
-        // Mantém URL original como fallback
+        // Usar placeholder de erro em caso de falha na conversão
+        reportWithBase64.despesas[i] = {
+          ...d,
+          comprovante_url: PDF_CONVERSION_ERROR_PLACEHOLDER,
+          _conversionError: error instanceof Error ? error.message : String(error)
+        };
+        console.warn(`⚠️ Placeholder usado para comprovante ${i + 1}`);
       }
     }
   });
@@ -772,8 +912,9 @@ export const generatePDF = async (report: TravelReport, currentFullName?: string
     iframeDoc.close();
 
     // Wait for all content to render completely
-    console.log('⏳ Aguardando renderização completa (5 segundos)...');
-    await new Promise(resolve => setTimeout(resolve, 5000));
+    const renderTimeout = Math.max(8000, totalComprovantes * 1000);
+    console.log(`⏳ Aguardando renderização completa (${renderTimeout / 1000} segundos)...`);
+    await new Promise(resolve => setTimeout(resolve, renderTimeout));
     console.log('✅ Renderização concluída');
 
     const html2pdf = (window as any).html2pdf ? (window as any).html2pdf : await loadHtml2PdfFromCdn();
@@ -782,7 +923,7 @@ export const generatePDF = async (report: TravelReport, currentFullName?: string
       html2pdf()
         .set({
           margin: 0,
-          filename: `${report.numero.replace(/\//g, '-')}-relatorio-viagem.pdf`,
+          filename: `${generatePdfFilename(report)}`,
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: {
             scale: 2,
