@@ -10,30 +10,18 @@ import { toast } from 'sonner';
 
 interface AircraftLoan {
   id: string;
-  lender_client_id: string;
-  borrower_client_id: string;
-  lender_aircraft_id: string;
   hours_borrowed: number;
   hours_paid_back: number | null;
   entry_date: string;
   status: string;
   logbook_entry_id: string | null;
+  payback_entry_id: string | null;
   departure_aerodrome?: string | null;
   arrival_aerodrome?: string | null;
   trecho?: string | null;
   fuel_added?: number | null;
   pic_name?: string | null;
-  lender_client?: {
-    id: string;
-    company_name: string;
-  };
-  borrower_client?: {
-    id: string;
-    company_name: string;
-  };
-  borrower_partner?: {
-    name: string;
-  } | null;
+  notes?: string | null;
 }
 
 interface ClientInfo {
@@ -159,18 +147,13 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
           const loan = loansMap[entry.id];
           return {
             id: loan?.id || entry.id,
-            lender_aircraft_id: entry.aircraft_id,
-            lender_client_id: entry.client_id,
-            borrower_client_id: entry.loan_recipient_client_id,
-            lender_client: clientsMap[entry.client_id],
-            borrower_client: clientsMap[entry.loan_recipient_client_id],
-            borrower_partner: entry.loan_recipient_partner_id ? partnersMap[entry.loan_recipient_partner_id] : undefined,
             hours_borrowed: loan?.hours_borrowed || entry.total_time || 0,
             hours_paid_back: loan?.hours_paid_back || 0,
             entry_date: loan?.entry_date || entry.entry_date,
             departure_aerodrome: loan?.departure_aerodrome || entry.departure_aerodrome,
             arrival_aerodrome: loan?.arrival_aerodrome || entry.arrival_aerodrome,
             logbook_entry_id: entry.id,
+            payback_entry_id: loan?.payback_entry_id || null,
             status: loan?.status || 'pending'
           };
         });
@@ -190,59 +173,65 @@ const BancodeHoras: React.FC<BancodeHorasProps> = ({ aircraftId, onBack }) => {
   }, [aircraftId]);
 
   // Dados dos emprestadores (sócios)
-  const lendersData = useMemo(() => {
-    const lenders: Record<string, ClientInfo> = {};
-    loans.forEach(loan => {
-      if (!lenders[loan.lender_client_id]) {
-        lenders[loan.lender_client_id] = {
-          client_id: loan.lender_client_id,
-          client_name: loan.lender_client?.company_name || 'Cliente desconhecido'
-        };
-      }
-    });
-    return Object.values(lenders);
-  }, [loans]);
+  // TODO: Reescrever após adicionar colunas de client/borrower à tabela aircraft_loans
+  // const lendersData = useMemo(() => {
+  //   const lenders: Record<string, ClientInfo> = {};
+  //   loans.forEach(loan => {
+  //     if (!lenders[loan.lender_client_id]) {
+  //       lenders[loan.lender_client_id] = {
+  //         client_id: loan.lender_client_id,
+  //         client_name: loan.lender_client?.company_name || 'Cliente desconhecido'
+  //       };
+  //     }
+  //   });
+  //   return Object.values(lenders);
+  // }, [loans]);
+  const lendersData: ClientInfo[] = [];
 
   // Dados dos tomadores para um sócio selecionado
-  const borrowersForLender = useMemo(() => {
-    if (!selectedLenderId) return [];
+  // TODO: Reescrever após adicionar colunas de client/borrower à tabela aircraft_loans
+  // const borrowersForLender = useMemo(() => {
+  //   if (!selectedLenderId) return [];
 
-    const borrowers: Record<string, ClientBalance> = {};
+  //   const borrowers: Record<string, ClientBalance> = {};
 
-    loans
-      .filter(loan => loan.lender_client_id === selectedLenderId)
-      .forEach(loan => {
-        const borrowerId = loan.borrower_client_id;
-        // Se há um parceiro, usar o nome do parceiro, senão usar o nome da empresa
-        const borrowerName = loan.borrower_partner?.name || loan.borrower_client?.company_name || 'Cliente desconhecido';
-        const hoursBorrowed = loan.hours_borrowed || 0;
-        const hoursPaidBack = loan.hours_paid_back || 0;
+  //   loans
+  //     .filter(loan => loan.lender_client_id === selectedLenderId)
+  //     .forEach(loan => {
+  //       const borrowerId = loan.borrower_client_id;
+  //       // Se há um parceiro, usar o nome do parceiro, senão usar o nome da empresa
+  //       const borrowerName = loan.borrower_partner?.name || loan.borrower_client?.company_name || 'Cliente desconhecido';
+  //       const hoursBorrowed = loan.hours_borrowed || 0;
+  //       const hoursPaidBack = loan.hours_paid_back || 0;
 
-        if (!borrowers[borrowerId]) {
-          borrowers[borrowerId] = {
-            client_id: borrowerId,
-            client_name: borrowerName,
-            total_borrowed: 0,
-            total_paid_back: 0,
-            balance: 0
-          };
-        }
+  //       if (!borrowers[borrowerId]) {
+  //         borrowers[borrowerId] = {
+  //           client_id: borrowerId,
+  //           client_name: borrowerName,
+  //           total_borrowed: 0,
+  //           total_paid_back: 0,
+  //           balance: 0
+  //         };
+  //       }
 
-        borrowers[borrowerId].total_borrowed += hoursBorrowed;
-        borrowers[borrowerId].total_paid_back += hoursPaidBack;
-        borrowers[borrowerId].balance = borrowers[borrowerId].total_borrowed - borrowers[borrowerId].total_paid_back;
-      });
+  //       borrowers[borrowerId].total_borrowed += hoursBorrowed;
+  //       borrowers[borrowerId].total_paid_back += hoursPaidBack;
+  //       borrowers[borrowerId].balance = borrowers[borrowerId].total_borrowed - borrowers[borrowerId].total_paid_back;
+  //     });
 
-    return Object.values(borrowers);
-  }, [loans, selectedLenderId]);
+  //   return Object.values(borrowers);
+  // }, [loans, selectedLenderId]);
+  const borrowersForLender: ClientBalance[] = [];
 
   // Empréstimos filtrados para um tomador específico
-  const loansForBorrower = useMemo(() => {
-    if (!selectedLenderId || !selectedBorrowerId) return [];
-    return loans.filter(
-      loan => loan.lender_client_id === selectedLenderId && loan.borrower_client_id === selectedBorrowerId
-    );
-  }, [loans, selectedLenderId, selectedBorrowerId]);
+  // TODO: Reescrever após adicionar colunas de client/borrower à tabela aircraft_loans
+  // const loansForBorrower = useMemo(() => {
+  //   if (!selectedLenderId || !selectedBorrowerId) return [];
+  //   return loans.filter(
+  //     loan => loan.lender_client_id === selectedLenderId && loan.borrower_client_id === selectedBorrowerId
+  //   );
+  // }, [loans, selectedLenderId, selectedBorrowerId]);
+  const loansForBorrower = loans;
 
   if (loading) return (
     <Layout>

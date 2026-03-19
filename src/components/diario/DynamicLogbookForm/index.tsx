@@ -10,7 +10,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SICComboBoxManual } from './SICComboBoxManual';
+import { SICComboBoxManual } from './components/SICComboBoxManual';
 import { cn, formatBRL, parseBRL } from '@/lib/utils';
 import {
   CalendarIcon,
@@ -597,9 +597,9 @@ export function DynamicLogbookForm({
         celulaAnterior = monthData?.celula_anterior || 0;
       }
 
-      // Calcular a célula acumulada para esta entrada
-      // celula = celula_anterior + time (DEP→POU)
-      const entrycelula = celulaAnterior + flightTime;
+      // Calcular célula progressiva (célula anterior + total_time / bloco AC→COR)
+      // Usar totalBlockTime para consistência com updateCelulaAtual
+      const entrycelula = celulaAnterior + totalBlockTime;
 
       const { data: insertedEntry, error } = await supabase.from('logbook_entries').insert([
         {
@@ -673,9 +673,6 @@ export function DynamicLogbookForm({
 
         // Registrar na tabela aircraft_loans
         const loanData = {
-          lender_aircraft_id: aircraftId,
-          lender_client_id: selectedClient, // Quem emprestou
-          borrower_client_id: selectedBorrowerClient, // Quem pegou emprestado
           hours_borrowed: totalBlockTime,
           entry_date: format(date!, 'yyyy-MM-dd'),
           departure_aerodrome: formData.departure_airport || '',

@@ -194,9 +194,6 @@ export class FlightService {
         .from('aircraft_loans')
         .insert([
           {
-            lender_client_id: entry.client_id,
-            borrower_client_id: entry.loan_recipient_client_id,
-            lender_aircraft_id: config.aircraftId,
             hours_borrowed: entry.total_time,
             entry_date: entry.entry_date,
             logbook_entry_id: entry.id,

@@ -85,41 +85,48 @@ export function validateTimes(totalTime: number, flightTime: number): boolean {
 
 /**
  * Calcula a célula acumulada progressiva para cada linha do diário.
- * 
+ *
+ * Usa `time` (DEP→POU) — tempo de voo real, igual ao campo `celula`
+ * exibido na tabela do diário.
+ *
  * @param entries - Entradas ordenadas por sequential_number
  * @param celulaAnterior - Célula anterior do mês (do logbook_months)
  * @returns Map de entry.id → célula acumulada
  */
 export function calculateRunningCelula(
-  entries: Array<{ id: string; total_time: number; sequential_number?: number }>,
+  entries: Array<{ id: string; time: number; sequential_number?: number }>,
   celulaAnterior: number
 ): Map<string, number> {
   const result = new Map<string, number>();
-  
+
   // Ordenar por sequential_number
-  const sorted = [...entries].sort((a, b) => 
+  const sorted = [...entries].sort((a, b) =>
     (a.sequential_number || 0) - (b.sequential_number || 0)
   );
-  
+
   let acumulado = celulaAnterior;
-  
+
   for (const entry of sorted) {
-    acumulado += (entry.total_time || 0);
-    result.set(entry.id, acumulado);
+    acumulado += (entry.time || 0);
+    result.set(entry.id, parseFloat(acumulado.toFixed(2)));
   }
-  
+
   return result;
 }
 
 /**
  * Calcula celula_atual do mês.
- * celula_atual = celula_anterior + soma(total_time)
+ *
+ * Usa `time` (DEP→POU) — tempo de voo real, consistente com o campo
+ * `celula` de cada entry exibido na tabela do diário.
+ *
+ * celula_atual = celula_anterior + soma(time)
  */
 export function calculateCelulaAtual(
-  entries: Array<{ total_time: number }>,
+  entries: Array<{ time: number }>,
   celulaAnterior: number
 ): number {
-  const totalHours = entries.reduce((sum, e) => sum + (e.total_time || 0), 0);
+  const totalHours = entries.reduce((sum, e) => sum + (e.time || 0), 0);
   return celulaAnterior + totalHours;
 }
 

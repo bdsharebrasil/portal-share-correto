@@ -9,7 +9,7 @@ const AIS_API_BASE_URL =
 // ─── Timeouts ─────────────────────────────────────────────────────────────────
 // A API do DECEA responde entre 4–7s — nunca use menos que 8s
 const FETCH_TIMEOUT_MS   = 8000;
-const WEATHER_TIMEOUT_MS = 8000;
+const WEATHER_TIMEOUT_MS = 20000;
 
 // ─── fetch com timeout ────────────────────────────────────────────────────────
 async function fetchWithTimeout(

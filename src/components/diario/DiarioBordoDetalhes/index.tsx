@@ -1,26 +1,26 @@
 import React, { useState, useMemo, useEffect, useReducer } from 'react';
 import { format, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Layout } from "../layout/Layout";
+import { Layout } from "@/components/layout/Layout";
 import { ArrowLeft, Plus, CheckCircle, Loader2, Save, X, Clock, Navigation, Users, Fuel, Calendar, Search, ChevronLeft, ChevronRight, Plane, Info, AlertCircle, TrendingUp, DollarSign, Edit, Trash2, MapPin, Download, Check, ChevronDown } from 'lucide-react';
-import { supabase } from '../../integrations/supabase/client';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '../ui/command';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { updateCrewFlightHours } from '@/services/crewFlightHours';
 import { fetchManutencaoRevisao, fetchManutencaoRevisaoAtiva, updateManutencaoHoras, ensureRevisionMaintenance } from '@/services/manutencoes';
-import { MaintenanceStatusAlert } from './MaintenanceStatusAlert';
-import { CreateMonthDialog } from './CreateMonthDialog';
-import { CloseMonthDialog } from './CloseMonthDialog';
-import { ExportLogbookDialog } from './ExportLogbookDialog';
-import { PartnerSelectModal } from './PartnerSelectModal';
-import { SICComboBoxManual } from './SICComboBoxManual';
+import { MaintenanceStatusAlert } from './components/MaintenanceStatusAlert';
+import { CreateMonthDialog } from './components/CreateMonthDialog';
+import { CloseMonthDialog } from './components/CloseMonthDialog';
+import { ExportLogbookDialog } from './components/ExportLogbookDialog';
+import { PartnerSelectModal } from '@/components/diario/PartnerSelectModal';
+import { SICComboBoxManual } from '@/components/diario/DynamicLogbookForm/components/SICComboBoxManual';
 import { useUserRole } from '@/hooks/useUserRole';
 
 // ===================== NOVOS IMPORTS - REFATORAÇÃO =====================
@@ -31,13 +31,13 @@ import { logger, logSuccess, logError, logInfo } from '@/utils/logger';
 import { validateFlightEntry, formatValidationErrors } from '@/validators/flightEntryValidator';
 import { FlightService } from '@/services/flightService';
 import { useFlightTimeCalculation } from '@/hooks/useFlightTimeCalculation';
-import { TimeInput, CompactTimeInput, TimeInputGroup } from './shared/TimeInput';
+import { TimeInput, CompactTimeInput, TimeInputGroup } from '../shared/TimeInput';
 // Importar funções centralizadas de cálculo de tempos
 import {
   calculateCelulaAtual,
   calculateCelulaDisponivel,
-  calculateRunningCelula
-} from '@/utils/flightTime';
+  calculateRunningCelula } from
+'@/utils/flightTime';
 
 // ===================== CONSTANTES LOCAIS =====================
 const MONTHS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -45,10 +45,10 @@ const FLIGHT_NATURE = ["AE - Aérea/Regular", "CQ - Cheque", "EX - Executivo", "
 
 // Tipos especiais de voo para rateio (divisão igual de custos)
 const SPLIT_FLIGHT_TYPES = [
-  { code: 'CQ', label: 'CQ - Cheque (Voo de Verificação)', description: 'Rateio igual entre sócios' },
-  { code: 'TR', label: 'TR - Traslado (Ferry/Posicionamento)', description: 'Rateio igual entre sócios' },
-  { code: 'TN', label: 'TN - Teste (Manutenção/Teste)', description: 'Rateio igual entre sócios' }
-];
+{ code: 'CQ', label: 'CQ - Cheque (Voo de Verificação)', description: 'Rateio igual entre sócios' },
+{ code: 'TR', label: 'TR - Traslado (Ferry/Posicionamento)', description: 'Rateio igual entre sócios' },
+{ code: 'TN', label: 'TN - Teste (Manutenção/Teste)', description: 'Rateio igual entre sócios' }];
+
 
 // ===================== FUNÇÕES AUXILIARES ESPECÍFICAS DO COMPONENTE =====================
 // (Funções genéricas foram movidas para utils/)
@@ -96,7 +96,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   const [picNewOpen, setPicNewOpen] = useState(false);
   const [picEditOpen, setPicEditOpen] = useState(false);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [availableMonths, setAvailableMonths] = useState<Array<{ month: number; year: number }>>([]);
+  const [availableMonths, setAvailableMonths] = useState<Array<{month: number;year: number;}>>([]);
 
   const canEditCelulaFields = isAdmin || isGestorMaster || isPilotoChefe;
 
@@ -134,6 +134,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     tvoo: 65,
     dia: 65,
     noite: 65,
+    ttotal: 65,
     ifr: 60,
     pousos: 60,
     fuel_add: 70,
@@ -233,14 +234,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     const baseAerodrome = logbookMonth.base_aerodrome;
     const dailyRate = logbookMonth.daily_rate;
 
-    const periodEntries = entries
-      .filter((e: any) => {
-        const date = new Date(e.entry_date);
-        return date.getUTCMonth() + 1 === selectedMonth && date.getUTCFullYear() === selectedYear;
-      })
-      .sort((a: any, b: any) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime());
+    const periodEntries = entries.
+    filter((e: any) => {
+      const date = new Date(e.entry_date);
+      return date.getUTCMonth() + 1 === selectedMonth && date.getUTCFullYear() === selectedYear;
+    }).
+    sort((a: any, b: any) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime());
 
-    const perDiems: Array<{ date: string; location: string; entryId: string }> = [];
+    const perDiems: Array<{date: string;location: string;entryId: string;}> = [];
     const byEntry: Record<string, number> = {};
 
     let isAwayFromBase = false;
@@ -314,16 +315,16 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       setLoading(true);
       try {
         const [acRes, crewMembersRes, crewTableRes, aeroRes, clientRes, entriesRes, monthsRes, partnersRes, clientPartnersRes] = await Promise.all([
-          supabase.from('aircraft').select('*').eq('id', aircraftId).single(),
-          supabase.from('crew_members').select('*').eq('status', 'ativo').order('full_name', { ascending: true }),
-          supabase.from('crew').select('id, full_name, canac, status').eq('status', 'ativo').order('full_name', { ascending: true }),
-          supabase.from('aerodromes').select('*').order('designativo'),
-          supabase.from('clients').select('id, company_name, cnpj, client_aircraft(aircraft_id, share_percentage)').order('company_name'),
-          supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('sequential_number', { ascending: true }),
-          supabase.from('logbook_months').select('month, year').eq('aircraft_id', aircraftId).eq('is_closed', false).order('year', { ascending: false }).order('month', { ascending: false }),
-          supabase.from('aircraft_partners').select('*, clients(id, company_name)').eq('aircraft_id', aircraftId),
-          supabase.from('client_partners').select('id, name, cpf, client_id').order('name')
-        ]);
+        supabase.from('aircraft').select('*').eq('id', aircraftId).single(),
+        supabase.from('crew_members').select('*').eq('status', 'ativo').order('full_name', { ascending: true }),
+        supabase.from('crew').select('id, full_name, canac, status').eq('status', 'ativo').order('full_name', { ascending: true }),
+        supabase.from('aerodromes').select('*').order('designativo'),
+        supabase.from('clients').select('id, company_name, cnpj, client_aircraft(aircraft_id, share_percentage)').order('company_name'),
+        supabase.from('logbook_entries').select('*').eq('aircraft_id', aircraftId).order('sequential_number', { ascending: true }),
+        supabase.from('logbook_months').select('month, year').eq('aircraft_id', aircraftId).eq('is_closed', false).order('year', { ascending: false }).order('month', { ascending: false }),
+        supabase.from('aircraft_partners').select('*, clients(id, company_name)').eq('aircraft_id', aircraftId),
+        supabase.from('client_partners').select('id, name, cpf, client_id').order('name')]
+        );
 
         if (acRes.data) {
           setAircraft(acRes.data);
@@ -339,9 +340,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         }));
         const existingIds = new Set(crewMembersData.map((c: any) => c.id));
         const mergedCrew = [
-          ...crewMembersData,
-          ...crewTableData.filter((c: any) => !existingIds.has(c.id))
-        ];
+        ...crewMembersData,
+        ...crewTableData.filter((c: any) => !existingIds.has(c.id))];
+
         setCrew(mergedCrew);
         if (aeroRes.data) setAerodromes(aeroRes.data || []);
         if (clientRes.data) {
@@ -376,34 +377,34 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           logSuccess('Client Partners carregados', { count: clientPartnersRes.data.length });
         }
 
-        const loansRes = await (supabase as any)
-          .from('aircraft_loans')
-          .select('*')
-          .eq('lender_aircraft_id', aircraftId)
-          .order('entry_date', { ascending: false });
+        const loansRes = await (supabase as any).
+        from('aircraft_loans').
+        select('*').
+        not('logbook_entry_id', 'is', null).
+        order('entry_date', { ascending: false });
 
         if (loansRes.data) setLoans(loansRes.data || []);
 
-        let { data: monthData } = await supabase
-          .from('logbook_months')
-          .select('*')
-          .eq('aircraft_id', aircraftId)
-          .eq('month', selectedMonth)
-          .eq('year', selectedYear)
-          .maybeSingle();
+        let { data: monthData } = await supabase.
+        from('logbook_months').
+        select('*').
+        eq('aircraft_id', aircraftId).
+        eq('month', selectedMonth).
+        eq('year', selectedYear).
+        maybeSingle();
 
         if (monthData) {
           setLogbookMonth(monthData);
           setLastCelula(monthData.celula_anterior || 0);
         } else {
-          const { data: lastMonthData } = await supabase
-            .from('logbook_months')
-            .select('*')
-            .eq('aircraft_id', aircraftId)
-            .order('year', { ascending: false })
-            .order('month', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+          const { data: lastMonthData } = await supabase.
+          from('logbook_months').
+          select('*').
+          eq('aircraft_id', aircraftId).
+          order('year', { ascending: false }).
+          order('month', { ascending: false }).
+          limit(1).
+          maybeSingle();
 
           let celulaAnterior = acRes.data?.cell_hours_current || 0;
           if (lastMonthData && lastMonthData.celula_atual) {
@@ -426,7 +427,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   useEffect(() => {
     if (availableMonths.length > 0) {
       const currentMonthAvailable = availableMonths.some(
-        m => m.month === selectedMonth && m.year === selectedYear
+        (m) => m.month === selectedMonth && m.year === selectedYear
       );
       if (!currentMonthAvailable) {
         const firstAvailable = availableMonths[0];
@@ -446,7 +447,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       const checkinMin = acMin - 30;
       const finalMin = checkinMin < 0 ? checkinMin + 1440 : checkinMin;
       const checkinTime = minutesToTimeString(finalMin);
-      setNewEntry(prev => ({ ...prev, crew_checkin_time: checkinTime }));
+      setNewEntry((prev) => ({ ...prev, crew_checkin_time: checkinTime }));
     }
   }, [newEntry.ac_time]);
 
@@ -454,7 +455,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     if (showAddForm && entries.length > 0) {
       const lastEntry = entries[entries.length - 1];
       if (lastEntry.arrival_aerodrome && !newEntry.departure_aerodrome) {
-        setNewEntry(prev => ({ ...prev, departure_aerodrome: lastEntry.arrival_aerodrome }));
+        setNewEntry((prev) => ({ ...prev, departure_aerodrome: lastEntry.arrival_aerodrome }));
       }
     }
   }, [showAddForm, entries, newEntry.departure_aerodrome]);
@@ -462,7 +463,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   useEffect(() => {
     const firstDayOfMonth = new Date(selectedYear, selectedMonth - 1, 1);
     const isoDate = format(firstDayOfMonth, 'yyyy-MM-dd');
-    setNewEntry(prev => ({ ...prev, entry_date: isoDate }));
+    setNewEntry((prev) => ({ ...prev, entry_date: isoDate }));
   }, [selectedMonth, selectedYear]);
 
   // Removido: updateCelulaAtual não deve ser chamado aqui, apenas quando um voo é adicionado/editado/deletado
@@ -476,7 +477,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           const [lat1, lon1] = dep.coordenadas.split(',').map(Number);
           const [lat2, lon2] = arr.coordenadas.split(',').map(Number);
           const distance = calculateDistance(lat1, lon1, lat2, lon2);
-          setNewEntry(prev => ({ ...prev, distance_nm: Math.round(distance) }));
+          setNewEntry((prev) => ({ ...prev, distance_nm: Math.round(distance) }));
         } catch (e) {
           logError("Erro ao calcular distância", e);
         }
@@ -505,24 +506,32 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           }
         }
 
-        const newCelula = parseFloat((baseParaCalculo + flightTime).toFixed(1));
+        // Célula deve usar total_time (AC→COR), mesmo padrão do cálculo consolidado
+        const newCelula = parseFloat((baseParaCalculo + totalTime).toFixed(1));
 
-        const calculated = calculateTimes({
-          ...newEntry,
-          total_time: totalTime,
-          time: flightTime,
-          dep_time: newEntry.dep_time,
-          pou_time: newEntry.pou_time
+        logInfo(`🔍 DIAGN ÓSTICO DE CÉLULA:
+  - baseParaCalculo (última célula): ${baseParaCalculo}
+  - totalTime (AC→COR em horas): ${totalTime}
+  - newCelula calculada: ${newCelula}
+  - Será salvo no campo 'celula': ${newCelula}`);
+
+        setNewEntry((prev) => {
+          // Preserva edição manual de night_hours
+          const currentNight = prev.night_hours || 0;
+          // Garante que noite nunca excede o tempo de voo
+          const nightCapped = Math.min(currentNight, flightTime);
+          // T DIA = T VOO - T NOITE (igual ao Excel)
+          const dayTime = Math.max(0, parseFloat((flightTime - nightCapped).toFixed(2)));
+
+          return {
+            ...prev,
+            total_time: totalTime, // AC → COR
+            time: flightTime, // DEP → POU
+            celula: newCelula,
+            day_time: dayTime, // T VOO - T NOITE
+            night_hours: nightCapped
+          };
         });
-
-        setNewEntry(prev => ({
-          ...prev,
-          total_time: totalTime,
-          time: flightTime,
-          celula: newCelula,
-          day_time: calculated.day_time,
-          night_hours: calculated.night_hours
-        }));
       } catch (error) {
         logError("Erro ao calcular tempos:", error);
       }
@@ -535,9 +544,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       const matchesPeriod = date.getUTCMonth() + 1 === selectedMonth && date.getUTCFullYear() === selectedYear;
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch =
-        e.departure_aerodrome?.toLowerCase().includes(searchLower) ||
-        e.arrival_aerodrome?.toLowerCase().includes(searchLower) ||
-        crew.find((c: any) => c.id === e.pic_canac)?.full_name.toLowerCase().includes(searchLower);
+      e.departure_aerodrome?.toLowerCase().includes(searchLower) ||
+      e.arrival_aerodrome?.toLowerCase().includes(searchLower) ||
+      crew.find((c: any) => c.id === e.pic_canac)?.full_name.toLowerCase().includes(searchLower);
       return matchesPeriod && matchesSearch;
     });
 
@@ -559,7 +568,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   }, [clients, aircraftId]);
 
   const isMonthAvailable = (month: number, year: number): boolean => {
-    return availableMonths.some(m => m.month === month && m.year === year);
+    return availableMonths.some((m) => m.month === month && m.year === year);
   };
 
   const updateCelulaAtual = async (flightTimeIncrement: number = 0) => {
@@ -567,21 +576,22 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
     try {
       // Buscar TODOS os voos do mês com sequential_number para cálculo correto
-      const { data: monthEntries } = await supabase
-        .from('logbook_entries')
-        .select('id, total_time, sequential_number')
-        .eq('aircraft_id', aircraftId)
-        .gte('entry_date', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`)
-        .lt('entry_date', selectedMonth === 12
-          ? `${selectedYear + 1}-01-01`
-          : `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`)
-        .order('sequential_number', { ascending: true });
+      const { data: monthEntries } = await supabase.
+      from('logbook_entries').
+      select('id, total_time, sequential_number').
+      eq('aircraft_id', aircraftId).
+      gte('entry_date', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`).
+      lt('entry_date', selectedMonth === 12 ?
+      `${selectedYear + 1}-01-01` :
+      `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`).
+      order('sequential_number', { ascending: true });
 
       const celulaAnterior = logbookMonth.celula_anterior ?? 0;
 
       // Usar funções centralizadas para cálculo correto
+      // Mapear total_time para time (nome esperado pela função)
       const newCelulaAtual = calculateCelulaAtual(
-        monthEntries || [],
+        (monthEntries || []).map((entry) => ({ time: entry.total_time })),
         celulaAnterior
       );
 
@@ -594,13 +604,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       const newCelulaAtualFormatted = parseFloat(newCelulaAtual.toFixed(2));
       const newCelulaDisponvelFormatted = parseFloat(newCelulaDisponivel.toFixed(2));
 
-      const { error } = await supabase
-        .from('logbook_months')
-        .update({
-          celula_atual: newCelulaAtualFormatted,
-          celula_disponivel: newCelulaDisponvelFormatted
-        })
-        .eq('id', logbookMonth.id);
+      const { error } = await supabase.
+      from('logbook_months').
+      update({
+        celula_atual: newCelulaAtualFormatted,
+        celula_disponivel: newCelulaDisponvelFormatted
+      }).
+      eq('id', logbookMonth.id);
 
       if (error) {
         logError('Erro ao atualizar célula_atual:', error);
@@ -671,10 +681,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     if (!logbookMonth) return;
 
     try {
-      const { error } = await supabase
-        .from('logbook_months')
-        .update({ [field]: value })
-        .eq('id', logbookMonth.id);
+      const { error } = await supabase.
+      from('logbook_months').
+      update({ [field]: value }).
+      eq('id', logbookMonth.id);
 
       if (error) throw error;
 
@@ -706,15 +716,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     }
 
     const fieldsToConvertToNumber = ['horimetro_inicio', 'horimetro_final', 'horimetro_ativo', 'daily_rate', 'celula_prox_revisao', 'celula_anterior'];
-    const valueToSave = fieldsToConvertToNumber.includes(editingField)
-      ? parseFloat(editFieldValue)
-      : editFieldValue;
+    const valueToSave = fieldsToConvertToNumber.includes(editingField) ?
+    parseFloat(editFieldValue) :
+    editFieldValue;
 
     await saveLogbookMonthField(editingField, valueToSave);
     setEditFieldValue('');
   };
 
-  const [nextMonthTarget, setNextMonthTarget] = useState<{ month: number; year: number } | null>(null);
+  const [nextMonthTarget, setNextMonthTarget] = useState<{month: number;year: number;} | null>(null);
 
   const handleOpenCreateNextMonthDialog = async () => {
     try {
@@ -725,13 +735,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         nextYear += 1;
       }
 
-      const { data: existingMonth } = await supabase
-        .from('logbook_months')
-        .select('*')
-        .eq('aircraft_id', aircraftId)
-        .eq('month', nextMonth)
-        .eq('year', nextYear)
-        .maybeSingle();
+      const { data: existingMonth } = await supabase.
+      from('logbook_months').
+      select('*').
+      eq('aircraft_id', aircraftId).
+      eq('month', nextMonth).
+      eq('year', nextYear).
+      maybeSingle();
 
       if (existingMonth) {
         toast.error("Este mês já existe");
@@ -748,7 +758,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           base_aerodrome: logbookMonth.base_aerodrome ?? null,
           fuel_consumption: logbookMonth.fuel_consumption ?? null,
           has_daily_rate: logbookMonth.has_daily_rate ?? false,
-          daily_rate: logbookMonth.daily_rate ?? null,
+          daily_rate: logbookMonth.daily_rate ?? null
         });
       } else {
         setPreviousMonthData({
@@ -758,7 +768,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           base_aerodrome: aircraft?.base || null,
           fuel_consumption: aircraft?.fuel_consumption?.toString() || null,
           has_daily_rate: false,
-          daily_rate: null,
+          daily_rate: null
         });
       }
 
@@ -771,12 +781,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   };
 
   const handleFormSuccess = async () => {
-    const { data } = await supabase
-      .from('logbook_entries')
-      .select('*')
-      .eq('aircraft_id', aircraftId)
-      .order('logbook_month_id', { ascending: false })
-      .order('sequential_number', { ascending: true });
+    const { data } = await supabase.
+    from('logbook_entries').
+    select('*').
+    eq('aircraft_id', aircraftId).
+    order('logbook_month_id', { ascending: false }).
+    order('sequential_number', { ascending: true });
     setEntries(data || []);
   };
 
@@ -831,7 +841,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       const periodEntriesForCalc = entries.filter((e: any) => {
         const date = new Date(e.entry_date);
         return date.getUTCMonth() + 1 === selectedMonth &&
-          date.getUTCFullYear() === selectedYear;
+        date.getUTCFullYear() === selectedYear;
       });
 
       // Preparar lista de entradas para cálculo de diárias
@@ -841,7 +851,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       if (isEdit) {
         oldEntry = entries.find((e: any) => e.id === editingEntryIdForm);
         allEntriesForCalc = periodEntriesForCalc.map((e: any) =>
-          e.id === editingEntryIdForm ? newEntry : e
+        e.id === editingEntryIdForm ? newEntry : e
         );
       } else {
         const tempEntry = {
@@ -899,9 +909,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         sic_canac: newEntry.sic_canac || null,
         sic_name: newEntry.sic_name || null,
         client_id: newEntry.is_equal_split ? null : newEntry.client_id,
-        client_partner_id: newEntry.is_equal_split
-          ? null
-          : (newEntry.is_loan ? null : newEntry.client_partner_id || null),
+        client_partner_id: newEntry.is_equal_split ?
+        null :
+        newEntry.is_loan ? null : newEntry.client_partner_id || null,
         loan_recipient_client_id: newEntry.is_loan ? newEntry.loan_recipient_client_id || null : null,
         loan_recipient_partner_id: newEntry.is_loan ? newEntry.loan_recipient_partner_id || null : null,
         is_equal_split: newEntry.is_equal_split,
@@ -926,7 +936,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         occurrences: newEntry.occurrences || null,
         discrepancies: newEntry.discrepancies || null,
         corrective_actions: newEntry.corrective_actions || null,
-        confirmed: isEdit ? (oldEntry?.confirmed || false) : false,
+        confirmed: isEdit ? oldEntry?.confirmed || false : false,
         daily_rate: dailyValue,
         trecho: `${newEntry.departure_aerodrome || ''} → ${newEntry.arrival_aerodrome || ''}`
       };
@@ -937,10 +947,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
       if (isEdit) {
         // UPDATE
-        const { error } = await supabase
-          .from('logbook_entries')
-          .update(entryPayload)
-          .eq('id', editingEntryIdForm);
+        const { error } = await supabase.
+        from('logbook_entries').
+        update(entryPayload).
+        eq('id', editingEntryIdForm);
 
         if (error) throw error;
         insertedEntryId = editingEntryIdForm;
@@ -948,22 +958,22 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         logSuccess('Voo atualizado no banco');
       } else {
         // INSERT
-        const { error } = await supabase
-          .from('logbook_entries')
-          .insert([entryPayload]);
+        const { error } = await supabase.
+        from('logbook_entries').
+        insert([entryPayload]);
 
         if (error) throw error;
 
-        const { data: insertedData } = await supabase
-          .from('logbook_entries')
-          .select('id')
-          .eq('aircraft_id', aircraftId)
-          .eq('entry_date', newEntry.entry_date)
-          .eq('departure_aerodrome', newEntry.departure_aerodrome)
-          .eq('arrival_aerodrome', newEntry.arrival_aerodrome)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        const { data: insertedData } = await supabase.
+        from('logbook_entries').
+        select('id').
+        eq('aircraft_id', aircraftId).
+        eq('entry_date', newEntry.entry_date).
+        eq('departure_aerodrome', newEntry.departure_aerodrome).
+        eq('arrival_aerodrome', newEntry.arrival_aerodrome).
+        order('created_at', { ascending: false }).
+        limit(1).
+        maybeSingle();
 
         if (!insertedData?.id) throw new Error('Falha ao recuperar ID do voo inserido');
         insertedEntryId = insertedData.id;
@@ -984,12 +994,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           logSuccess('Empréstimo deletado');
         } else if (!wasLoan && isLoanNow) {
           // Não era empréstimo, agora é → INSERT
-          const picName = newEntry.pic_canac ? (crew.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null) : null;
+          const picName = newEntry.pic_canac ? crew.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null : null;
 
           const loanData = {
-            lender_aircraft_id: aircraftId,
-            lender_client_id: newEntry.client_id,
-            borrower_client_id: newEntry.loan_recipient_client_id,
             hours_borrowed: newEntry.total_time,
             entry_date: newEntry.entry_date,
             departure_aerodrome: newEntry.departure_aerodrome || '',
@@ -999,7 +1006,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             pic_name: picName,
             logbook_entry_id: insertedEntryId,
             status: 'active',
-            notes: `Empréstimo ${isEdit ? 'editado' : 'criado'} via diário de bordo`,
+            notes: `Empréstimo ${isEdit ? 'editado' : 'criado'} via diário de bordo`
           };
 
           const { error: loanError } = await supabase.from('aircraft_loans').insert([loanData]);
@@ -1012,7 +1019,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             hours: newEntry.total_time,
             type: 'loan',
             description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
-            logbook_entry_id: insertedEntryId,
+            logbook_entry_id: insertedEntryId
           };
 
           const { error: transError } = await supabase.from('hour_transactions').insert([transData]);
@@ -1022,7 +1029,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           logSuccess('Empréstimo registrado');
         } else if (wasLoan && isLoanNow) {
           // Continue sendo empréstimo → UPDATE
-          const picName = newEntry.pic_canac ? (crew.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null) : null;
+          const picName = newEntry.pic_canac ? crew.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null : null;
 
           const loanUpdateData = {
             hours_borrowed: newEntry.total_time,
@@ -1032,13 +1039,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             trecho: `${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
             fuel_added: newEntry.fuel_added || null,
             pic_name: picName,
-            borrower_client_id: newEntry.loan_recipient_client_id,
+            borrower_client_id: newEntry.loan_recipient_client_id
           };
 
-          const { error: updateError } = await supabase
-            .from('aircraft_loans')
-            .update(loanUpdateData)
-            .eq('logbook_entry_id', editingEntryIdForm);
+          const { error: updateError } = await supabase.
+          from('aircraft_loans').
+          update(loanUpdateData).
+          eq('logbook_entry_id', editingEntryIdForm);
 
           if (updateError) throw updateError;
 
@@ -1053,7 +1060,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               hours: newEntry.total_time,
               type: 'loan',
               description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
-              logbook_entry_id: editingEntryIdForm,
+              logbook_entry_id: editingEntryIdForm
             };
 
             const { error: transError } = await supabase.from('hour_transactions').insert([transData]);
@@ -1065,12 +1072,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         }
       } else if (!isEdit && newEntry.is_loan) {
         // Novo voo é empréstimo → INSERT aircraft_loans
-        const picName = newEntry.pic_canac ? (crew.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null) : null;
+        const picName = newEntry.pic_canac ? crew.find((t: any) => t.canac === newEntry.pic_canac)?.full_name || null : null;
 
         const loanData = {
-          lender_aircraft_id: aircraftId,
-          lender_client_id: newEntry.client_id,
-          borrower_client_id: newEntry.loan_recipient_client_id,
           hours_borrowed: newEntry.total_time,
           entry_date: newEntry.entry_date,
           departure_aerodrome: newEntry.departure_aerodrome || '',
@@ -1080,7 +1084,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           pic_name: picName,
           logbook_entry_id: insertedEntryId,
           status: 'active',
-          notes: `Empréstimo criado via diário de bordo`,
+          notes: `Empréstimo criado via diário de bordo`
         };
 
         const { error: loanError } = await supabase.from('aircraft_loans').insert([loanData]);
@@ -1093,7 +1097,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           hours: newEntry.total_time,
           type: 'loan',
           description: `Empréstimo: ${newEntry.departure_aerodrome} → ${newEntry.arrival_aerodrome}`,
-          logbook_entry_id: insertedEntryId,
+          logbook_entry_id: insertedEntryId
         };
 
         const { error: transError } = await supabase.from('hour_transactions').insert([transData]);
@@ -1109,12 +1113,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         const newDate = new Date(newEntry.entry_date);
 
         const crewChanged = oldEntry.pic_canac !== newEntry.pic_canac ||
-          oldEntry.sic_canac !== newEntry.sic_canac;
+        oldEntry.sic_canac !== newEntry.sic_canac;
         const dateChanged = oldDate.getMonth() !== newDate.getMonth() ||
-          oldDate.getFullYear() !== newDate.getFullYear();
+        oldDate.getFullYear() !== newDate.getFullYear();
         const hoursChanged = oldEntry.total_time !== newEntry.total_time ||
-          oldEntry.ifr_time !== newEntry.ifr_time ||
-          oldEntry.night_hours !== newEntry.night_hours;
+        oldEntry.ifr_time !== newEntry.ifr_time ||
+        oldEntry.night_hours !== newEntry.night_hours;
 
         if (crewChanged || dateChanged || hoursChanged) {
           // Remover horas do voo anterior
@@ -1171,18 +1175,18 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
       // ==================== FEEDBACK E RESET ====================
       toast.success(
-        isEdit
-          ? `Voo atualizado!`
-          : `Voo registrado!`
+        isEdit ?
+        `Voo atualizado!` :
+        `Voo registrado!`
       );
 
       // Recarregar entradas
-      const { data: updatedEntries } = await supabase
-        .from('logbook_entries')
-        .select('*')
-        .eq('aircraft_id', aircraftId)
-        .order('logbook_month_id', { ascending: false })
-        .order('sequential_number', { ascending: true });
+      const { data: updatedEntries } = await supabase.
+      from('logbook_entries').
+      select('*').
+      eq('aircraft_id', aircraftId).
+      order('logbook_month_id', { ascending: false }).
+      order('sequential_number', { ascending: true });
 
       if (updatedEntries) {
         setEntries(updatedEntries);
@@ -1264,7 +1268,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       departure_aerodrome: entry.departure_aerodrome || '',
       arrival_aerodrome: entry.arrival_aerodrome || '',
       client_id: entry.client_id || '',
-      loan_recipient_client_id: entry.is_loan ? (entry.loan_recipient_client_id || null) : null,
+      loan_recipient_client_id: entry.is_loan ? entry.loan_recipient_client_id || null : null,
       is_equal_split: entry.is_equal_split || false,
       is_loan: entry.is_loan || false,
       ac_time: entry.ac_time || '',
@@ -1299,7 +1303,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       // Buscar cliente pelo partner_name (company_name)
       const borrower = clients.find((c: any) => c.company_name === entry.partner_name);
       if (borrower) {
-        setNewEntry(prev => ({
+        setNewEntry((prev) => ({
           ...prev,
           borrower_client_id: borrower.id
         }));
@@ -1340,30 +1344,30 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     }
 
     try {
-      const { data: entryToDelete } = await supabase
-        .from('logbook_entries')
-        .select('*')
-        .eq('id', id)
-        .single();
+      const { data: entryToDelete } = await supabase.
+      from('logbook_entries').
+      select('*').
+      eq('id', id).
+      single();
 
       if (!entryToDelete) {
         throw new Error('Entrada não encontrada');
       }
 
       if (entryToDelete.is_loan) {
-        const { error: loansError } = await supabase
-          .from('aircraft_loans')
-          .delete()
-          .eq('logbook_entry_id', id);
+        const { error: loansError } = await supabase.
+        from('aircraft_loans').
+        delete().
+        eq('logbook_entry_id', id);
 
         if (loansError) {
           logError('Erro ao deletar aircraft_loans:', loansError);
         }
 
-        const { error: transError } = await supabase
-          .from('hour_transactions')
-          .delete()
-          .eq('logbook_entry_id', id);
+        const { error: transError } = await supabase.
+        from('hour_transactions').
+        delete().
+        eq('logbook_entry_id', id);
 
         if (transError) {
           logError('Erro ao deletar hour_transactions:', transError);
@@ -1389,12 +1393,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
       toast.success("Lançamento deletado com sucesso!");
 
-      const { data } = await supabase
-        .from('logbook_entries')
-        .select('*')
-        .eq('aircraft_id', aircraftId)
-        .order('logbook_month_id', { ascending: false })
-        .order('sequential_number', { ascending: true });
+      const { data } = await supabase.
+      from('logbook_entries').
+      select('*').
+      eq('aircraft_id', aircraftId).
+      order('logbook_month_id', { ascending: false }).
+      order('sequential_number', { ascending: true });
       if (data) {
         setEntries(data);
         // Subtrair o tempo do voo deletado
@@ -1418,7 +1422,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
     const handleMouseMove = (e: MouseEvent) => {
       const delta = e.clientX - resizeStart;
-      setColumnWidths(prev => ({
+      setColumnWidths((prev) => ({
         ...prev,
         [resizingColumn]: Math.max(40, (prev[resizingColumn] || 50) + delta)
       }));
@@ -1440,14 +1444,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
   const handleOpenCreateMonthDialog = async () => {
     try {
-      const { data: lastMonthData } = await supabase
-        .from('logbook_months')
-        .select('*')
-        .eq('aircraft_id', aircraftId)
-        .order('year', { ascending: false })
-        .order('month', { ascending: false })
-        .limit(1)
-        .single();
+      const { data: lastMonthData } = await supabase.
+      from('logbook_months').
+      select('*').
+      eq('aircraft_id', aircraftId).
+      order('year', { ascending: false }).
+      order('month', { ascending: false }).
+      limit(1).
+      single();
 
       if (lastMonthData) {
         setPreviousMonthData(lastMonthData);
@@ -1459,7 +1463,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           base_aerodrome: aircraft?.base || null,
           fuel_consumption: aircraft?.fuel_consumption?.toString() || null,
           has_daily_rate: false,
-          daily_rate: null,
+          daily_rate: null
         });
       }
 
@@ -1468,7 +1472,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       logError("Erro ao buscar dados do mês anterior:", error);
       setPreviousMonthData({
         celula_atual: aircraft?.cell_hours_current || 0,
-        celula_prox_revisao: 0,
+        celula_prox_revisao: 0
       });
       setShowCreateMonthDialog(true);
     }
@@ -1481,13 +1485,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
       const targetMonth = monthData.month || selectedMonth;
       const targetYear = monthData.year || selectedYear;
 
-      const { data: existingMonth, error: checkError } = await supabase
-        .from('logbook_months')
-        .select('id, month, year')
-        .eq('aircraft_id', aircraftId)
-        .eq('month', targetMonth)
-        .eq('year', targetYear)
-        .maybeSingle();
+      const { data: existingMonth, error: checkError } = await supabase.
+      from('logbook_months').
+      select('id, month, year').
+      eq('aircraft_id', aircraftId).
+      eq('month', targetMonth).
+      eq('year', targetYear).
+      maybeSingle();
 
       if (checkError) {
         logError('Erro ao verificar diários existentes:', checkError);
@@ -1499,11 +1503,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         return;
       }
 
-      const { data: newMonth, error } = await supabase
-        .from('logbook_months')
-        .insert([monthData])
-        .select()
-        .single();
+      const { data: newMonth, error } = await supabase.
+      from('logbook_months').
+      insert([monthData]).
+      select().
+      single();
 
       if (error) throw error;
 
@@ -1529,7 +1533,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
         toast.success(`Diário de ${MONTHS[targetMonth - 1]}/${targetYear} criado com sucesso!`);
 
-        setAvailableMonths(prev => [...prev, { month: targetMonth, year: targetYear }]);
+        setAvailableMonths((prev) => [...prev, { month: targetMonth, year: targetYear }]);
       }
     } catch (error: any) {
       logError("Erro ao criar mês:", error);
@@ -1546,8 +1550,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         <div className="h-screen flex items-center justify-center bg-[#070910]">
           <Loader2 className="animate-spin text-sky-500" size={48} />
         </div>
-      </Layout>
-    );
+      </Layout>);
+
   }
 
   if (!aircraft) return <Layout>
@@ -1596,53 +1600,53 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               {showTechnicalStatus ? "Cancelar" : "Situação Técnica"}
             </button>
 
-            {logbookMonth && (
-              <button
-                onClick={() => setShowExportDialog(true)}
-                className="px-6 h-12 bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/30 rounded-2xl text-sky-400 font-black uppercase text-xs transition-all"
-              >
+            {logbookMonth &&
+            <button
+              onClick={() => setShowExportDialog(true)}
+              className="px-6 h-12 bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/30 rounded-2xl text-sky-400 font-black uppercase text-xs transition-all">
+              
                 <Download className="inline mr-2" size={16} />
                 Exportar PDF
               </button>
-            )}
+            }
 
-            {logbookMonth && (
-              <button
-                onClick={() => setShowCloseMonthDialog(true)}
-                className="px-6 h-12 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-2xl text-red-400 font-black uppercase text-xs transition-all"
-              >
+            {logbookMonth &&
+            <button
+              onClick={() => setShowCloseMonthDialog(true)}
+              className="px-6 h-12 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 rounded-2xl text-red-400 font-black uppercase text-xs transition-all">
+              
                 <X className="inline mr-2" size={16} />
                 Fechar Diário
               </button>
-            )}
+            }
           </div>
         </div>
 
         {/* MENSAGEM QUANDO DIÁRIO NÃO EXISTE */}
-        {!logbookMonth && (
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center shadow-2xl">
+        {!logbookMonth &&
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center shadow-2xl">
             <Calendar size={48} className="mx-auto mb-6 text-slate-500" />
             <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">Diário de {MONTHS[selectedMonth - 1]} não existe</h2>
             <p className="text-slate-400 text-sm mb-8">Configure e crie um novo diário para começar a registrar voos neste período.</p>
             <button
-              onClick={handleOpenCreateMonthDialog}
-              disabled={creatingMonth}
-              className="px-8 py-3 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-700 text-white font-black uppercase text-sm rounded-xl transition-all shadow-lg"
-            >
-              {creatingMonth ? (
-                <>
+            onClick={handleOpenCreateMonthDialog}
+            disabled={creatingMonth}
+            className="px-8 py-3 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-700 text-white font-black uppercase text-sm rounded-xl transition-all shadow-lg">
+            
+              {creatingMonth ?
+            <>
                   <Loader2 className="inline mr-2 animate-spin" size={16} />
                   Criando...
-                </>
-              ) : (
-                <>
+                </> :
+
+            <>
                   <Plus className="inline mr-2" size={16} />
                   Configurar Diário de {MONTHS[selectedMonth - 1]}
                 </>
-              )}
+            }
             </button>
           </div>
-        )}
+        }
 
         {/* Dialog para criar mês */}
         <CreateMonthDialog
@@ -1653,8 +1657,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           month={selectedMonth}
           year={selectedYear}
           previousMonthData={previousMonthData}
-          onCreate={handleCreateMonthWithData}
-        />
+          onCreate={handleCreateMonthWithData} />
+        
 
         {/* Dialog para fechar mês */}
         <CloseMonthDialog
@@ -1666,8 +1670,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           totalHours={entries.reduce((sum, e) => sum + (Number(e.total_time) || 0), 0)}
           totalLandings={entries.reduce((sum, e) => sum + (Number(e.pousos) || 0), 0)}
           totalFuelAdded={entries.reduce((sum, e) => sum + (Number(e.combustivel_adicionado) || 0), 0)}
-          onSuccess={() => { setShowCloseMonthDialog(false); onBack(); }}
-        />
+          onSuccess={() => {setShowCloseMonthDialog(false);onBack();}} />
+        
 
         {/* Dialog para exportar diário em PDF */}
         <ExportLogbookDialog
@@ -1680,21 +1684,21 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           availableMonths={availableMonths}
           entries={entries}
           currentMonth={selectedMonth}
-          currentYear={selectedYear}
-        />
+          currentYear={selectedYear} />
+        
 
         {/* Modal para seleção de parceiro */}
         {(() => {
-          const selectedClient = clients.find(c => c.id === pendingClientId);
+          const selectedClient = clients.find((c) => c.id === pendingClientId);
           const partners = getPartnersFromClient(selectedClient, clientPartnersByClientId);
 
           // Determina qual field está sendo preenchido
           const isLoanFlow = flightType === 'emprestimo';
           // Find the selected partner based on the current partner ID
-          const currentPartnerId = flightType === 'emprestimo' && pendingClientId === newEntry.loan_recipient_client_id
-            ? newEntry.loan_recipient_partner_id
-            : newEntry.client_partner_id;
-          const currentPartnerName = partners.find(p => p.id === currentPartnerId)?.name || '';
+          const currentPartnerId = flightType === 'emprestimo' && pendingClientId === newEntry.loan_recipient_client_id ?
+          newEntry.loan_recipient_partner_id :
+          newEntry.client_partner_id;
+          const currentPartnerName = partners.find((p) => p.id === currentPartnerId)?.name || '';
 
           // Transformar partners para adicionar index
           const partnersWithIndex = partners.map((p, idx) => ({
@@ -1711,7 +1715,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               selectedPartner={currentPartnerName}
               onSelectPartner={(partnerName) => {
                 // Find partner ID from name
-                const partner = partners.find(p => p.name === partnerName);
+                const partner = partners.find((p) => p.name === partnerName);
                 const partnerId = partner?.id || null;
 
                 // Verifica qual fluxo está ativo
@@ -1738,9 +1742,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   });
                 }
                 setShowPartnerModal(false);
-              }}
-            />
-          );
+              }} />);
+
+
         })()}
 
         {/* INFORMAÇÕES TÉCNICAS DO PERÍODO */}
@@ -1749,15 +1753,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 my-0 px-[28px]">
             {/* CÉLULA ANTERIOR */}
             <div className="group relative bg-slate-900 border rounded-2xl p-6 shadow-xl transition-all border-violet-400 overflow-visible">
-              {canEditCelulaFields && (
-                <button
-                  onClick={() => openEditModal('celula_anterior', logbookMonth.celula_anterior?.toString() || '0.00')}
-                  className="absolute top-2 right-2 p-2 rounded-lg bg-violet-500/40 hover:bg-violet-500/60 text-violet-200 hover:text-violet-100 transition-all duration-200 z-10 shadow-lg"
-                  title="Editar Célula Anterior"
-                >
+              {canEditCelulaFields &&
+              <button
+                onClick={() => openEditModal('celula_anterior', logbookMonth.celula_anterior?.toString() || '0.00')}
+                className="absolute top-2 right-2 p-2 rounded-lg bg-violet-500/40 hover:bg-violet-500/60 text-violet-200 hover:text-violet-100 transition-all duration-200 z-10 shadow-lg"
+                title="Editar Célula Anterior">
+                
                   <Edit size={20} />
                 </button>
-              )}
+              }
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <p className="text-[9px] uppercase font-bold tracking-widest mb-1 text-violet-400">Célula Anterior</p>
@@ -1782,15 +1786,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
             {/* PRÓXIMA REVISÃO */}
             <div className="group relative bg-slate-900 border border-orange-500/30 rounded-2xl p-6 shadow-xl hover:border-orange-500/50 transition-all overflow-visible">
-              {canEditCelulaFields && (
-                <button
-                  onClick={() => openEditModal('celula_prox_revisao', logbookMonth.celula_prox_revisao?.toString() || '0.00')}
-                  className="absolute top-2 right-2 p-2 rounded-lg bg-orange-500/40 hover:bg-orange-500/60 text-orange-200 hover:text-orange-100 transition-all duration-200 z-10 shadow-lg"
-                  title="Editar Próxima Revisão"
-                >
+              {canEditCelulaFields &&
+              <button
+                onClick={() => openEditModal('celula_prox_revisao', logbookMonth.celula_prox_revisao?.toString() || '0.00')}
+                className="absolute top-2 right-2 p-2 rounded-lg bg-orange-500/40 hover:bg-orange-500/60 text-orange-200 hover:text-orange-100 transition-all duration-200 z-10 shadow-lg"
+                title="Editar Próxima Revisão">
+                
                   <Edit size={20} />
                 </button>
-              )}
+              }
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <p className="text-[9px] text-orange-500 uppercase font-bold tracking-widest mb-1">Próx. Revisão</p>
@@ -1826,8 +1830,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <button
                   onClick={() => openEditModal('base_aerodrome', logbookMonth.base_aerodrome || '')}
                   className="absolute top-2 right-2 p-2 rounded-lg bg-sky-500/20 hover:bg-sky-500/40 text-sky-400 hover:text-sky-300 transition-all duration-200"
-                  title="Editar Base Aeródromo"
-                >
+                  title="Editar Base Aeródromo">
+                  
                   <Edit size={18} />
                 </button>
                 <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Base Aeródromo</p>
@@ -1839,8 +1843,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <button
                   onClick={() => openEditModal('horimetro_inicio', logbookMonth.horimetro_inicio?.toString() || '0.0')}
                   className="absolute top-2 right-2 p-2 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 hover:text-cyan-300 transition-all duration-200"
-                  title="Editar Horimetro Início"
-                >
+                  title="Editar Horimetro Início">
+                  
                   <Edit size={18} />
                 </button>
                 <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Horimetro Início</p>
@@ -1852,8 +1856,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <button
                   onClick={() => openEditModal('horimetro_final', logbookMonth.horimetro_final?.toString() || '0.0')}
                   className="absolute top-2 right-2 p-2 rounded-lg bg-orange-500/20 hover:bg-orange-500/40 text-orange-400 hover:text-orange-300 transition-all duration-200"
-                  title="Editar Horimetro Final"
-                >
+                  title="Editar Horimetro Final">
+                  
                   <Edit size={18} />
                 </button>
                 <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Horimetro Final</p>
@@ -1865,8 +1869,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <button
                   onClick={() => openEditModal('horimetro_ativo', logbookMonth.horimetro_ativo?.toString() || '0.0')}
                   className="absolute top-2 right-2 p-2 rounded-lg bg-pink-500/20 hover:bg-pink-500/40 text-pink-400 hover:text-pink-300 transition-all duration-200"
-                  title="Editar Horimetro Ativo"
-                >
+                  title="Editar Horimetro Ativo">
+                  
                   <Edit size={18} />
                 </button>
                 <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Horimetro Ativo</p>
@@ -1874,19 +1878,19 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               </div>
 
               {/* Valor Diária - Só mostra quando tem diária marcada */}
-              {logbookMonth?.has_daily_rate && (
-                <div className="group relative bg-slate-950 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-all">
+              {logbookMonth?.has_daily_rate &&
+              <div className="group relative bg-slate-950 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-all">
                   <button
-                    onClick={() => openEditModal('daily_rate', logbookMonth.daily_rate?.toString() || '0.00')}
-                    className="absolute top-2 right-2 p-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-400 hover:text-emerald-300 transition-all duration-200"
-                    title="Editar Valor Diária"
-                  >
+                  onClick={() => openEditModal('daily_rate', logbookMonth.daily_rate?.toString() || '0.00')}
+                  className="absolute top-2 right-2 p-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-400 hover:text-emerald-300 transition-all duration-200"
+                  title="Editar Valor Diária">
+                  
                     <Edit size={18} />
                   </button>
                   <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Valor Diária</p>
                   <p className="text-lg font-black text-green-400">R$ {logbookMonth.daily_rate?.toFixed(2) || '0.00'}</p>
                 </div>
-              )}
+              }
             </div>
           </div>
         </div>}
@@ -1894,7 +1898,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         {/* BUSCA */}
         {!showAddForm && <div className="relative max-w-xl">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
-          <input placeholder="Pesquisar por ICAO de origem, destino ou piloto..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pl-12 h-14 bg-slate-900/50 border border-slate-800 rounded-2xl text-white placeholder:text-slate-600 focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+          <input placeholder="Pesquisar por ICAO de origem, destino ou piloto..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-12 h-14 bg-slate-900/50 border border-slate-800 rounded-2xl text-white placeholder:text-slate-600 focus:ring-2 focus:ring-sky-500 focus:outline-none" />
         </div>}
 
         {/* FORMULÁRIO DE NOVO LANÇAMENTO */}
@@ -1915,12 +1919,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     className={cn(
                       "w-full justify-start text-left font-normal bg-slate-950 border-slate-800 hover:bg-slate-900",
                       !newEntry.entry_date && "text-muted-foreground"
-                    )}
-                  >
+                    )}>
+                    
                     <Calendar className="mr-2 h-4 w-4 text-sky-400" />
-                    {newEntry.entry_date
-                      ? format(parse(newEntry.entry_date, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy')
-                      : "Selecione a data"}
+                    {newEntry.entry_date ?
+                    format(parse(newEntry.entry_date, 'yyyy-MM-dd', new Date()), 'dd/MM/yyyy') :
+                    "Selecione a data"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 bg-slate-900 border-slate-700" align="start">
@@ -1960,9 +1964,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       day_today: "bg-sky-500/20 text-sky-400 font-semibold",
                       day_outside: "text-slate-600 opacity-50",
                       day_disabled: "text-slate-700 opacity-50",
-                      day_hidden: "invisible",
-                    }}
-                  />
+                      day_hidden: "invisible"
+                    }} />
+                  
                 </PopoverContent>
               </Popover>
 
@@ -1973,14 +1977,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     <Button
                       variant="outline"
                       role="combobox"
-                      className="w-full justify-between h-11 font-normal bg-slate-950 border-slate-800 text-white hover:bg-slate-900"
-                    >
-                      {newEntry.pic_canac
-                        ? (() => {
-                          const pic = crew.find(c => c.id === newEntry.pic_canac);
-                          return pic ? `${pic.full_name} (${pic.canac})` : 'Selecione o PIC...';
-                        })()
-                        : 'Selecione o PIC...'
+                      className="w-full justify-between h-11 font-normal bg-slate-950 border-slate-800 text-white hover:bg-slate-900">
+                      
+                      {newEntry.pic_canac ?
+                      (() => {
+                        const pic = crew.find((c) => c.id === newEntry.pic_canac);
+                        return pic ? `${pic.full_name} (${pic.canac})` : 'Selecione o PIC...';
+                      })() :
+                      'Selecione o PIC...'
                       }
                       <ChevronDown className="h-4 w-4 opacity-50" />
                     </Button>
@@ -1989,35 +1993,35 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     <Command className="bg-slate-950">
                       <CommandInput
                         placeholder="Buscar piloto por nome ou CANAC..."
-                        className="bg-slate-900 border-slate-800 text-white placeholder:text-slate-500"
-                      />
+                        className="bg-slate-900 border-slate-800 text-white placeholder:text-slate-500" />
+                      
                       <CommandList>
                         <CommandEmpty>Nenhum piloto encontrado.</CommandEmpty>
                         <CommandGroup>
-                          {crew.map((pilot) => (
-                            <CommandItem
-                              key={pilot.id}
-                              value={`${pilot.full_name} ${pilot.canac}`}
-                              onSelect={() => {
-                                setNewEntry({
-                                  ...newEntry,
-                                  pic_canac: pilot.id
-                                });
-                                setPicNewOpen(false);
-                              }}
-                            >
+                          {crew.map((pilot) =>
+                          <CommandItem
+                            key={pilot.id}
+                            value={`${pilot.full_name} ${pilot.canac}`}
+                            onSelect={() => {
+                              setNewEntry({
+                                ...newEntry,
+                                pic_canac: pilot.id
+                              });
+                              setPicNewOpen(false);
+                            }}>
+                            
                               <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4",
-                                  newEntry.pic_canac === pilot.id ? "opacity-100" : "opacity-0"
-                                )}
-                              />
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                newEntry.pic_canac === pilot.id ? "opacity-100" : "opacity-0"
+                              )} />
+                            
                               <div className="flex flex-col gap-0.5 flex-1">
                                 <span className="font-medium text-white">{pilot.full_name}</span>
                                 <span className="text-xs text-slate-500">CANAC: {pilot.canac}</span>
                               </div>
                             </CommandItem>
-                          ))}
+                          )}
                         </CommandGroup>
                       </CommandList>
                     </Command>
@@ -2031,12 +2035,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 crew={crew}
                 onChange={(sicCanac, sicName) => setNewEntry({
                   ...newEntry,
-                  sic_canac: sicCanac,  // deixar como null/undefined, não converter para string vazia
+                  sic_canac: sicCanac, // deixar como null/undefined, não converter para string vazia
                   sic_name: sicName
                 })}
                 label="Copiloto (SIC)"
-                placeholder="Opcional - Selecione ou digite"
-              />
+                placeholder="Opcional - Selecione ou digite" />
+              
             </div>
 
             {/* SEÇÃO 2: NAVEGAÇÃO & CLIENTE */}
@@ -2049,14 +2053,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Origem *</Label>
-                  <Input placeholder="SBCY" value={newEntry.departure_aerodrome} onChange={e => setNewEntry({
+                  <Input placeholder="SBCY" value={newEntry.departure_aerodrome} onChange={(e) => setNewEntry({
                     ...newEntry,
                     departure_aerodrome: e.target.value.toUpperCase()
                   })} className="bg-slate-950 border-slate-800 text-white uppercase" list="aerodromes-list" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Destino *</Label>
-                  <Input placeholder="SBMT" value={newEntry.arrival_aerodrome} onChange={e => setNewEntry({
+                  <Input placeholder="SBMT" value={newEntry.arrival_aerodrome} onChange={(e) => setNewEntry({
                     ...newEntry,
                     arrival_aerodrome: e.target.value.toUpperCase()
                   })} className="bg-slate-950 border-slate-800 text-white uppercase" list="aerodromes-list" />
@@ -2064,7 +2068,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               </div>
 
               <datalist id="aerodromes-list">
-                {aerodromes.map(a => <option key={a.id} value={a.designativo}>{a.name}</option>)}
+                {aerodromes.map((a) => <option key={a.id} value={a.designativo}>{a.name}</option>)}
               </datalist>
 
               {newEntry.distance_nm > 0 && <div className="bg-slate-950 border border-slate-800 rounded-xl p-3 text-center">
@@ -2083,7 +2087,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       className="flex-1 h-10 text-xs font-semibold"
                       onClick={() => {
                         // Obter o primeiro cliente vinculado à aeronave (proprietário)
-                        const linkedClientId = sortedClients.find(c => c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId))?.id || '';
+                        const linkedClientId = sortedClients.find((c) => c.client_aircraft?.some((ca: any) => ca.aircraft_id === aircraftId))?.id || '';
 
                         setFlightType('cliente');
                         setNewEntry({
@@ -2093,10 +2097,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                           client_id: linkedClientId,
                           client_partner_id: null,
                           loan_recipient_client_id: null,
-                          loan_recipient_partner_id: null,
+                          loan_recipient_partner_id: null
                         });
-                      }}
-                    >
+                      }}>
+                      
                       Cliente
                     </Button>
                     <Button
@@ -2112,10 +2116,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                           client_id: '',
                           client_partner_id: null,
                           loan_recipient_client_id: null,
-                          loan_recipient_partner_id: null,
+                          loan_recipient_partner_id: null
                         });
-                      }}
-                    >
+                      }}>
+                      
                       Rateio
                     </Button>
                     <Button
@@ -2131,126 +2135,126 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                           flight_nature: 'PV - Privado',
                           client_partner_id: null,
                           loan_recipient_client_id: null,
-                          loan_recipient_partner_id: null,
+                          loan_recipient_partner_id: null
                         });
-                      }}
-                    >
+                      }}>
+                      
                       Empréstimo
                     </Button>
                   </div>
                 </div>
 
                 {/* SEÇÃO: Tipo Cliente */}
-                {flightType === 'cliente' && (
-                  <div className="space-y-3 animate-in slide-in-from-top-2 p-3 bg-slate-950/50 border border-slate-800 rounded-lg">
+                {flightType === 'cliente' &&
+                <div className="space-y-3 animate-in slide-in-from-top-2 p-3 bg-slate-950/50 border border-slate-800 rounded-lg">
                     <div className="space-y-1">
                       <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Cliente / Cotista *</Label>
-                      <Select value={newEntry.client_id} onValueChange={v => {
-                        const selectedClient = clients.find(c => c.id === v);
-                        const partners = getPartnersFromClient(selectedClient, clientPartnersByClientId);
+                      <Select value={newEntry.client_id} onValueChange={(v) => {
+                      const selectedClient = clients.find((c) => c.id === v);
+                      const partners = getPartnersFromClient(selectedClient, clientPartnersByClientId);
 
-                        setNewEntry({
-                          ...newEntry,
-                          client_id: v,
-                          client_partner_id: null,
-                          loan_recipient_client_id: null,
-                          loan_recipient_partner_id: null
-                        });
+                      setNewEntry({
+                        ...newEntry,
+                        client_id: v,
+                        client_partner_id: null,
+                        loan_recipient_client_id: null,
+                        loan_recipient_partner_id: null
+                      });
 
-                        // Se o cliente tem parceiros, abre o modal
-                        if (partners.length > 0) {
-                          setPendingClientId(v);
-                          setShowPartnerModal(true);
-                        }
-                      }}>
+                      // Se o cliente tem parceiros, abre o modal
+                      if (partners.length > 0) {
+                        setPendingClientId(v);
+                        setShowPartnerModal(true);
+                      }
+                    }}>
                         <SelectTrigger className="bg-slate-950 border-slate-800 text-white">
                           <SelectValue placeholder="Selecione o Cliente" />
                         </SelectTrigger>
                         <SelectContent>
-                          {sortedClients
-                            .filter(cl => cl.client_aircraft?.some(ca => ca.aircraft_id === aircraftId))
-                            .map(cl => (
-                              <SelectItem key={cl.id} value={cl.id}>
+                          {sortedClients.
+                        filter((cl) => cl.client_aircraft?.some((ca) => ca.aircraft_id === aircraftId)).
+                        map((cl) =>
+                        <SelectItem key={cl.id} value={cl.id}>
                                 {cl.company_name}
                                 <span className="text-emerald-400"> ✓</span>
                               </SelectItem>
-                            ))
-                          }
+                        )
+                        }
                         </SelectContent>
                       </Select>
                     </div>
 
                     {/* Seleção de Sócio/Partner - mostra quando cliente tem parceiros */}
                     {newEntry.client_id && (() => {
-                      const selectedClient = clients.find(c => c.id === newEntry.client_id);
-                      const partners = getPartnersFromClient(selectedClient, clientPartnersByClientId);
+                    const selectedClient = clients.find((c) => c.id === newEntry.client_id);
+                    const partners = getPartnersFromClient(selectedClient, clientPartnersByClientId);
 
-                      if (partners.length > 0) {
-                        return (
-                          <div className="space-y-1 mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                    if (partners.length > 0) {
+                      return (
+                        <div className="space-y-1 mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
                             <Label className="text-[9px] uppercase text-amber-500 ml-1 block">
                               {newEntry.client_partner_id ? 'Sócio Selecionado' : 'Selecionar Sócio'}
                             </Label>
                             <div className="flex items-center justify-between">
                               <p className={`text-sm font-bold ${newEntry.client_partner_id ? 'text-amber-400' : 'text-slate-400'}`}>
-                                {newEntry.client_partner_id
-                                  ? partners.find(p => p.id === newEntry.client_partner_id)?.name || 'Selecionado'
-                                  : 'Nenhum sócio selecionado'}
+                                {newEntry.client_partner_id ?
+                              partners.find((p) => p.id === newEntry.client_partner_id)?.name || 'Selecionado' :
+                              'Nenhum sócio selecionado'}
                               </p>
                               <button
-                                type="button"
-                                onClick={() => {
-                                  setPendingClientId(newEntry.client_id);
-                                  setShowPartnerModal(true);
-                                }}
-                                className="text-xs px-2 py-1 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/50 text-amber-400 rounded transition-all"
-                              >
+                              type="button"
+                              onClick={() => {
+                                setPendingClientId(newEntry.client_id);
+                                setShowPartnerModal(true);
+                              }}
+                              className="text-xs px-2 py-1 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/50 text-amber-400 rounded transition-all">
+                              
                                 {newEntry.client_partner_id ? 'Alterar' : 'Selecionar'}
                               </button>
                             </div>
-                            {selectedClient?.cnpj && (
-                              <p className="text-[8px] text-slate-500 mt-1">
+                            {selectedClient?.cnpj &&
+                          <p className="text-[8px] text-slate-500 mt-1">
                                 CNPJ: {selectedClient.cnpj}
                               </p>
-                            )}
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
+                          }
+                          </div>);
+
+                    }
+                    return null;
+                  })()}
                   </div>
-                )}
+                }
 
                 {/* SEÇÃO: Tipo Rateio */}
-                {flightType === 'rateio' && (
-                  <div className="space-y-3 animate-in slide-in-from-top-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                {flightType === 'rateio' &&
+                <div className="space-y-3 animate-in slide-in-from-top-2 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
                     <p className="text-[9px] text-emerald-400 uppercase font-bold tracking-widest">
                       Tipo de Voo para Rateio
                     </p>
-                    <Select value={newEntry.flight_nature} onValueChange={v => setNewEntry({
-                      ...newEntry,
-                      flight_nature: v
-                    })}>
+                    <Select value={newEntry.flight_nature} onValueChange={(v) => setNewEntry({
+                    ...newEntry,
+                    flight_nature: v
+                  })}>
                       <SelectTrigger className="bg-slate-950 border border-emerald-500/30 text-emerald-400">
                         <SelectValue placeholder="Selecione o tipo" />
                       </SelectTrigger>
                       <SelectContent>
-                        {SPLIT_FLIGHT_TYPES.map(type => (
-                          <SelectItem key={type.code} value={type.code}>
+                        {SPLIT_FLIGHT_TYPES.map((type) =>
+                      <SelectItem key={type.code} value={type.code}>
                             {type.label}
                           </SelectItem>
-                        ))}
+                      )}
                       </SelectContent>
                     </Select>
                     <p className="text-[8px] text-slate-400 mt-2 italic">
                       💡 Custos serão divididos igualmente entre todos os sócios
                     </p>
                   </div>
-                )}
+                }
 
                 {/* SEÇÃO: Tipo Empréstimo */}
-                {flightType === 'emprestimo' && (
-                  <div className="space-y-3 animate-in slide-in-from-top-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                {flightType === 'emprestimo' &&
+                <div className="space-y-3 animate-in slide-in-from-top-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
                     <p className="text-[9px] text-amber-400 uppercase font-bold tracking-widest mb-3">
                       Configurar Empréstimo
                     </p>
@@ -2258,36 +2262,36 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     {/* Cliente que está emprestando */}
                     <div className="space-y-1">
                       <Label className="text-[9px] uppercase text-amber-400 ml-1 block">Cliente que Empresta a Aeronave *</Label>
-                      <Select value={newEntry.client_id} onValueChange={v => {
-                        const selectedClient = clients.find(c => c.id === v);
+                      <Select value={newEntry.client_id} onValueChange={(v) => {
+                      const selectedClient = clients.find((c) => c.id === v);
 
-                        setNewEntry({
-                          ...newEntry,
-                          client_id: v,
-                          client_partner_id: null,
-                          loan_recipient_client_id: null,
-                          loan_recipient_partner_id: null
-                        });
+                      setNewEntry({
+                        ...newEntry,
+                        client_id: v,
+                        client_partner_id: null,
+                        loan_recipient_client_id: null,
+                        loan_recipient_partner_id: null
+                      });
 
-                        // Note: Para empréstimos, não usamos partner_name do lender
-                        // client_partner_id deve ser null para empréstimos
-                      }}>
+                      // Note: Para empréstimos, não usamos partner_name do lender
+                      // client_partner_id deve ser null para empréstimos
+                    }}>
                         <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
                           <SelectValue placeholder="Selecione o Cliente" />
                         </SelectTrigger>
                         <SelectContent>
-                          {sortedClients.map(cl => {
-                            // Verificar se o cliente está vinculado à aeronave
-                            const isLinkedToAircraft = cl.client_aircraft?.some(ca => ca.aircraft_id === aircraftId);
-                            // Mostrar apenas clientes vinculados à aeronave (sócios)
-                            const shouldShow = isLinkedToAircraft;
+                          {sortedClients.map((cl) => {
+                          // Verificar se o cliente está vinculado à aeronave
+                          const isLinkedToAircraft = cl.client_aircraft?.some((ca) => ca.aircraft_id === aircraftId);
+                          // Mostrar apenas clientes vinculados à aeronave (sócios)
+                          const shouldShow = isLinkedToAircraft;
 
-                            return shouldShow ? (
-                              <SelectItem key={cl.id} value={cl.id}>
+                          return shouldShow ?
+                          <SelectItem key={cl.id} value={cl.id}>
                                 {cl.company_name}
-                              </SelectItem>
-                            ) : null;
-                          })}
+                              </SelectItem> :
+                          null;
+                        })}
                         </SelectContent>
                       </Select>
                     </div>
@@ -2299,67 +2303,67 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         Cliente que Pega Emprestado (Usa a Aeronave) *
                       </Label>
                       <Select
-                        value={newEntry.loan_recipient_client_id || ''}
-                        onValueChange={(v) => {
-                          const selectedBorrowerClient = clients.find(c => c.id === v);
-                          const borrowerPartners = getPartnersFromClient(selectedBorrowerClient, clientPartnersByClientId);
+                      value={newEntry.loan_recipient_client_id || ''}
+                      onValueChange={(v) => {
+                        const selectedBorrowerClient = clients.find((c) => c.id === v);
+                        const borrowerPartners = getPartnersFromClient(selectedBorrowerClient, clientPartnersByClientId);
 
-                          setNewEntry({
-                            ...newEntry,
-                            loan_recipient_client_id: v,
-                            loan_recipient_partner_id: null,
-                          });
+                        setNewEntry({
+                          ...newEntry,
+                          loan_recipient_client_id: v,
+                          loan_recipient_partner_id: null
+                        });
 
-                          // Se o cliente tem parceiros, abre o modal para seleção de parceiro do cliente que pega emprestado
-                          if (borrowerPartners.length > 0) {
-                            setPendingClientId(v);
-                            setShowPartnerModal(true);
-                          }
-                        }}
-                      >
+                        // Se o cliente tem parceiros, abre o modal para seleção de parceiro do cliente que pega emprestado
+                        if (borrowerPartners.length > 0) {
+                          setPendingClientId(v);
+                          setShowPartnerModal(true);
+                        }
+                      }}>
+                      
                         <SelectTrigger className="bg-slate-950 border-amber-500/30 text-amber-400">
                           <SelectValue placeholder="Selecione o cliente que está usando" />
                         </SelectTrigger>
                         <SelectContent>
-                          {clients.map((cl) => (
-                            <SelectItem key={cl.id} value={cl.id}>
+                          {clients.map((cl) =>
+                        <SelectItem key={cl.id} value={cl.id}>
                               {cl.company_name}
                             </SelectItem>
-                          ))}
+                        )}
                         </SelectContent>
                       </Select>
                     </div>
 
                     {/* Sócio/Cotista do cliente que pega emprestado (se houver) */}
                     {newEntry.loan_recipient_client_id && (() => {
-                      const selectedBorrowerClient = clients.find(c => c.id === newEntry.loan_recipient_client_id);
-                      const borrowerPartners = getPartnersFromClient(selectedBorrowerClient, clientPartnersByClientId);
+                    const selectedBorrowerClient = clients.find((c) => c.id === newEntry.loan_recipient_client_id);
+                    const borrowerPartners = getPartnersFromClient(selectedBorrowerClient, clientPartnersByClientId);
 
-                      if (newEntry.loan_recipient_partner_id && borrowerPartners.length > 0) {
-                        return (
-                          <div className="space-y-1 mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                    if (newEntry.loan_recipient_partner_id && borrowerPartners.length > 0) {
+                      return (
+                        <div className="space-y-1 mt-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg">
                             <Label className="text-[9px] uppercase text-amber-500 ml-1 block">Cotista que Pega Emprestado</Label>
                             <div className="flex items-center justify-between">
-                              <p className="text-sm font-bold text-amber-400">{borrowerPartners.find(p => p.id === newEntry.loan_recipient_partner_id)?.name || 'Selecionado'}</p>
+                              <p className="text-sm font-bold text-amber-400">{borrowerPartners.find((p) => p.id === newEntry.loan_recipient_partner_id)?.name || 'Selecionado'}</p>
                               <button
-                                type="button"
-                                onClick={() => {
-                                  setPendingClientId(newEntry.loan_recipient_client_id);
-                                  setShowPartnerModal(true);
-                                }}
-                                className="text-xs px-2 py-1 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/50 text-amber-400 rounded transition-all"
-                              >
+                              type="button"
+                              onClick={() => {
+                                setPendingClientId(newEntry.loan_recipient_client_id);
+                                setShowPartnerModal(true);
+                              }}
+                              className="text-xs px-2 py-1 bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/50 text-amber-400 rounded transition-all">
+                              
                                 Alterar
                               </button>
                             </div>
-                          </div>
-                        );
-                      }
-                      return null;
-                    })()}
+                          </div>);
+
+                    }
+                    return null;
+                  })()}
 
                   </div>
-                )}
+                }
               </div>
             </div>
 
@@ -2380,7 +2384,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Acionamento *</Label>
-                  <Input type="time" step="60" value={newEntry.ac_time} onChange={e => setNewEntry({
+                  <Input type="time" step="60" value={newEntry.ac_time} onChange={(e) => setNewEntry({
                     ...newEntry,
                     ac_time: e.target.value
                   })} style={{
@@ -2390,7 +2394,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Decolagem *</Label>
-                  <Input type="time" step="60" value={newEntry.dep_time} onChange={e => setNewEntry({
+                  <Input type="time" step="60" value={newEntry.dep_time} onChange={(e) => setNewEntry({
                     ...newEntry,
                     dep_time: e.target.value
                   })} style={{
@@ -2403,7 +2407,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               <div className="grid grid-cols-2 gap-2 border-t border-slate-800/50 pt-4">
                 <div className="space-y-1">
                   <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Pouso *</Label>
-                  <Input type="time" step="60" value={newEntry.pou_time} onChange={e => setNewEntry({
+                  <Input type="time" step="60" value={newEntry.pou_time} onChange={(e) => setNewEntry({
                     ...newEntry,
                     pou_time: e.target.value
                   })} style={{
@@ -2413,7 +2417,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Corte *</Label>
-                  <Input type="time" step="60" value={newEntry.cor_time} onChange={e => setNewEntry({
+                  <Input type="time" step="60" value={newEntry.cor_time} onChange={(e) => setNewEntry({
                     ...newEntry,
                     cor_time: e.target.value
                   })} style={{
@@ -2442,7 +2446,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   </div>
                   <div className="flex items-center justify-between">
                     <Label className="text-[9px] uppercase text-emerald-500 font-bold">T. DIA</Label>
-                    <Input type="time" step="60" value={decimalToTimeString(newEntry.day_time)} onChange={e => setNewEntry({
+                    <Input type="time" step="60" value={decimalToTimeString(newEntry.day_time)} onChange={(e) => setNewEntry({
                       ...newEntry,
                       day_time: timeStringToDecimal(e.target.value)
                     })} style={{
@@ -2452,7 +2456,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   </div>
                   <div className="flex items-center justify-between">
                     <Label className="text-[9px] uppercase text-sky-500 font-bold">T. NOITE</Label>
-                    <Input type="time" step="60" value={decimalToTimeString(newEntry.night_hours)} onChange={e => setNewEntry({
+                    <Input type="time" step="60" value={decimalToTimeString(newEntry.night_hours)} onChange={(e) => setNewEntry({
                       ...newEntry,
                       night_hours: timeStringToDecimal(e.target.value)
                     })} style={{
@@ -2468,7 +2472,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   </div>
                   <div className="flex items-center justify-between">
                     <Label className="text-[9px] uppercase text-purple-500 font-bold">IFR</Label>
-                    <Input type="time" step="60" value={decimalToTimeString(newEntry.ifr_time)} onChange={e => setNewEntry({
+                    <Input type="time" step="60" value={decimalToTimeString(newEntry.ifr_time)} onChange={(e) => setNewEntry({
                       ...newEntry,
                       ifr_time: timeStringToDecimal(e.target.value)
                     })} style={{
@@ -2492,14 +2496,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Pousos</Label>
-                  <Input type="number" value={newEntry.pousos} onChange={e => setNewEntry({
+                  <Input type="number" value={newEntry.pousos} onChange={(e) => setNewEntry({
                     ...newEntry,
                     pousos: parseInt(e.target.value) || 1
                   })} className="bg-slate-950 border-slate-800 text-white" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Combustível Inicial (L)</Label>
-                  <Input type="number" step="0.1" placeholder="0" value={newEntry.fuel_liters} onChange={e => setNewEntry({
+                  <Input type="number" step="0.1" placeholder="0" value={newEntry.fuel_liters} onChange={(e) => setNewEntry({
                     ...newEntry,
                     fuel_liters: parseFloat(e.target.value) || 0
                   })} className="bg-slate-950 border-slate-800 text-orange-400" />
@@ -2509,14 +2513,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Combustível Abastecido (L)</Label>
-                  <Input type="number" step="0.1" placeholder="0" value={newEntry.fuel_added} onChange={e => setNewEntry({
+                  <Input type="number" step="0.1" placeholder="0" value={newEntry.fuel_added} onChange={(e) => setNewEntry({
                     ...newEntry,
                     fuel_added: parseFloat(e.target.value) || 0
                   })} className="bg-slate-950 border-slate-800 text-orange-300" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[9px] uppercase text-slate-500 ml-1 block">POB (Pessoas)</Label>
-                  <Input type="number" value={newEntry.passengers} onChange={e => setNewEntry({
+                  <Input type="number" value={newEntry.passengers} onChange={(e) => setNewEntry({
                     ...newEntry,
                     passengers: parseInt(e.target.value) || 0
                   })} className="bg-slate-950 border-slate-800 text-sky-400" />
@@ -2525,7 +2529,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
               <div className="space-y-1">
                 <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Carga (kg)</Label>
-                <Input type="number" step="0.1" placeholder="0" value={newEntry.cargo_kg} onChange={e => setNewEntry({
+                <Input type="number" step="0.1" placeholder="0" value={newEntry.cargo_kg} onChange={(e) => setNewEntry({
                   ...newEntry,
                   cargo_kg: parseFloat(e.target.value) || 0
                 })} className="bg-slate-950 border-slate-800 text-emerald-400" />
@@ -2533,7 +2537,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
               <div className="space-y-1">
                 <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Natureza do Voo *</Label>
-                <Select value={newEntry.flight_nature} onValueChange={v => setNewEntry({
+                <Select value={newEntry.flight_nature} onValueChange={(v) => setNewEntry({
                   ...newEntry,
                   flight_nature: v
                 })}>
@@ -2541,28 +2545,28 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {FLIGHT_NATURE.map(fn => <SelectItem key={fn} value={fn}>{fn}</SelectItem>)}
+                    {FLIGHT_NATURE.map((fn) => <SelectItem key={fn} value={fn}>{fn}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
 
-              {logbookMonth?.has_daily_rate && (
-                <div className="space-y-1 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+              {logbookMonth?.has_daily_rate &&
+              <div className="space-y-1 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
                   <Label className="text-[9px] uppercase text-yellow-500 font-bold ml-1 block">
                     Quantidade de Diárias
                   </Label>
                   <div className="flex gap-2 items-end">
                     <Input
-                      type="number"
-                      min="0"
-                      value={newEntry.daily_quantity}
-                      onChange={e => setNewEntry({
-                        ...newEntry,
-                        daily_quantity: parseInt(e.target.value) || 0
-                      })}
-                      className="bg-slate-950 border-yellow-500/30 text-yellow-400 font-bold text-center flex-1"
-                      placeholder="0"
-                    />
+                    type="number"
+                    min="0"
+                    value={newEntry.daily_quantity}
+                    onChange={(e) => setNewEntry({
+                      ...newEntry,
+                      daily_quantity: parseInt(e.target.value) || 0
+                    })}
+                    className="bg-slate-950 border-yellow-500/30 text-yellow-400 font-bold text-center flex-1"
+                    placeholder="0" />
+                  
                     <div className="text-sm font-bold text-yellow-400">
                       × R$ {(logbookMonth?.daily_rate || 0).toFixed(2)}
                     </div>
@@ -2574,55 +2578,55 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     </div>
                   </div>
                 </div>
-              )}
+              }
 
-              {editingEntryIdForm ? (
-                <div className="flex gap-3">
+              {editingEntryIdForm ?
+              <div className="flex gap-3">
                   <Button onClick={() => {
-                    setEditingEntryIdForm(null);
-                    setShowAddForm(false);
-                    setNewEntry({
-                      entry_date: format(new Date(), 'yyyy-MM-dd'),
-                      pic_canac: '',
-                      sic_canac: '',
-                      sic_name: '',
-                      crew_checkin_time: '',
-                      departure_aerodrome: '',
-                      arrival_aerodrome: '',
-                      client_id: '',
-                      client_partner_id: null as string | null,
-                      loan_recipient_client_id: null as string | null,
-                      loan_recipient_partner_id: null as string | null,
-                      is_equal_split: false,
-                      is_loan: false,
-                      ac_time: '',
-                      dep_time: '',
-                      pou_time: '',
-                      cor_time: '',
-                      total_time: 0,
-                      day_time: 0,
-                      night_hours: 0,
-                      time: 0,
-                      ifr_time: 0,
-                      pousos: 1,
-                      fuel_added: 0,
-                      fuel_liters: 0,
-                      fuel_type: '',
-                      fuel_location: '',
-                      fuel_price_per_liter: 0,
-                      refueled: false,
-                      celula: 0,
-                      distance_nm: 0,
-                      passengers: 0,
-                      cargo_kg: 0,
-                      flight_nature: 'PV - Privado',
-                      occurrences: '',
-                      discrepancies: '',
-                      corrective_actions: '',
-                      daily_quantity: 0
-                    });
-                    setFlightType('cliente');
-                  }} className="flex-1 bg-slate-800 hover:bg-slate-700 h-14 font-black uppercase text-sm rounded-2xl flex items-center justify-center">
+                  setEditingEntryIdForm(null);
+                  setShowAddForm(false);
+                  setNewEntry({
+                    entry_date: format(new Date(), 'yyyy-MM-dd'),
+                    pic_canac: '',
+                    sic_canac: '',
+                    sic_name: '',
+                    crew_checkin_time: '',
+                    departure_aerodrome: '',
+                    arrival_aerodrome: '',
+                    client_id: '',
+                    client_partner_id: null as string | null,
+                    loan_recipient_client_id: null as string | null,
+                    loan_recipient_partner_id: null as string | null,
+                    is_equal_split: false,
+                    is_loan: false,
+                    ac_time: '',
+                    dep_time: '',
+                    pou_time: '',
+                    cor_time: '',
+                    total_time: 0,
+                    day_time: 0,
+                    night_hours: 0,
+                    time: 0,
+                    ifr_time: 0,
+                    pousos: 1,
+                    fuel_added: 0,
+                    fuel_liters: 0,
+                    fuel_type: '',
+                    fuel_location: '',
+                    fuel_price_per_liter: 0,
+                    refueled: false,
+                    celula: 0,
+                    distance_nm: 0,
+                    passengers: 0,
+                    cargo_kg: 0,
+                    flight_nature: 'PV - Privado',
+                    occurrences: '',
+                    discrepancies: '',
+                    corrective_actions: '',
+                    daily_quantity: 0
+                  });
+                  setFlightType('cliente');
+                }} className="flex-1 bg-slate-800 hover:bg-slate-700 h-14 font-black uppercase text-sm rounded-2xl flex items-center justify-center">
                     <X size={18} className="mr-2" />
                     Cancelar
                   </Button>
@@ -2630,13 +2634,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     <Save size={18} className="mr-2" />
                     Atualizar Voo
                   </Button>
-                </div>
-              ) : (
-                <Button onClick={handleSaveFlightEntry} className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 h-14 font-black uppercase text-sm rounded-2xl">
+                </div> :
+
+              <Button onClick={handleSaveFlightEntry} className="w-full bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 h-14 font-black uppercase text-sm rounded-2xl">
                   <Save size={18} className="mr-2" />
                   Salvar Voo
                 </Button>
-              )}
+              }
             </div>
 
             {/* SEÇÃO 6: OBSERVAÇÕES & MANUTENÇÃO */}
@@ -2648,22 +2652,22 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
               <div className="space-y-1">
                 <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Ocorrência(s):</Label>
-                <textarea placeholder="Descreva qualquer ocorrência durante o voo..." value={newEntry.occurrences} onChange={e => setNewEntry({
+                <textarea placeholder="Descreva qualquer ocorrência durante o voo..." value={newEntry.occurrences} onChange={(e) => setNewEntry({
                   ...newEntry,
                   occurrences: e.target.value
                 })} className="w-full h-20 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white text-xs resize-none focus:ring-2 focus:ring-sky-500 focus:outline-none" />
               </div>
             </div>
           </div>
-          {logbookMonth?.has_daily_rate && (
-            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
+          {logbookMonth?.has_daily_rate &&
+          <div className="bg-slate-950 border border-slate-800 rounded-xl p-4">
               <p className="text-[9px] text-slate-500 uppercase font-bold tracking-widest mb-2">Diárias do Período</p>
               <p className="text-lg font-black text-yellow-400">{calculatePerDiemInfo.count} diárias</p>
               <p className="text-xs text-emerald-400 mt-1">R$ {(calculatePerDiemInfo.total || 0).toFixed(2).replace('.', ',')}</p>
             </div>
-          )}
-          {logbookMonth?.has_daily_rate && calculatePerDiemInfo.count > 0 && (
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl">
+          }
+          {logbookMonth?.has_daily_rate && calculatePerDiemInfo.count > 0 &&
+          <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl">
               <div className="flex items-center gap-2 mb-4">
                 <MapPin className="text-yellow-500" size={18} />
                 <h2 className="text-sm font-black text-slate-500 uppercase tracking-widest">
@@ -2672,39 +2676,39 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 {calculatePerDiemInfo.details.map((pd, idx) => {
-                  const uniqueKey = pd.entryId ? `${pd.entryId}_${pd.date}` : `${idx}`;
-                  const isMarked = markedDailies[uniqueKey] || false;
-                  return (
-                    <div
-                      key={idx}
-                      className={`border rounded-lg p-3 transition-all cursor-pointer ${isMarked
-                          ? 'bg-sky-500/20 border-sky-500/50'
-                          : 'bg-slate-950 border-yellow-500/30'
-                        }`}
-                      onClick={() => {
-                        const newMarked = { ...markedDailies };
-                        newMarked[uniqueKey] = !isMarked;
-                        setMarkedDailies(newMarked);
-                      }}
-                    >
+                const uniqueKey = pd.entryId ? `${pd.entryId}_${pd.date}` : `${idx}`;
+                const isMarked = markedDailies[uniqueKey] || false;
+                return (
+                  <div
+                    key={idx}
+                    className={`border rounded-lg p-3 transition-all cursor-pointer ${isMarked ?
+                    'bg-sky-500/20 border-sky-500/50' :
+                    'bg-slate-950 border-yellow-500/30'}`
+                    }
+                    onClick={() => {
+                      const newMarked = { ...markedDailies };
+                      newMarked[uniqueKey] = !isMarked;
+                      setMarkedDailies(newMarked);
+                    }}>
+                    
                       <div className="flex items-start gap-2">
                         <input
-                          type="checkbox"
-                          checked={isMarked}
-                          onChange={() => { }}
-                          className="w-4 h-4 mt-0.5 accent-sky-500 cursor-pointer"
-                        />
+                        type="checkbox"
+                        checked={isMarked}
+                        onChange={() => {}}
+                        className="w-4 h-4 mt-0.5 accent-sky-500 cursor-pointer" />
+                      
                         <div className="flex-1 min-w-0">
-                          <p className={`text-[9px] uppercase font-bold mb-1 ${isMarked ? 'text-sky-400' : 'text-yellow-500'
-                            }`}>
+                          <p className={`text-[9px] uppercase font-bold mb-1 ${isMarked ? 'text-sky-400' : 'text-yellow-500'}`
+                        }>
                             {pd.date}
                           </p>
                           <p className="text-xs text-slate-400 truncate">{pd.location}</p>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    </div>);
+
+              })}
               </div>
               <div className="mt-4 pt-4 border-t border-slate-800 text-right">
                 <p className="text-sm text-slate-400">
@@ -2715,7 +2719,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 </p>
               </div>
             </div>
-          )}
+          }
 
           {/* Alertas e Informações */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
@@ -2754,7 +2758,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Tipo da última intervenção de manutenção</Label>
-                <input type="text" value={technicalStatus.last_maintenance_type} onChange={e => setTechnicalStatus({
+                <input type="text" value={technicalStatus.last_maintenance_type} onChange={(e) => setTechnicalStatus({
                   ...technicalStatus,
                   last_maintenance_type: e.target.value
                 })} className="w-full h-10 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="Ex: Revisão completa, Manutenção preventiva..." />
@@ -2762,7 +2766,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
               <div className="space-y-1">
                 <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Horas de célula para próxima intervenção</Label>
-                <input type="number" step="0.01" value={technicalStatus.airframe_hours_next_maintenance} onChange={e => setTechnicalStatus({
+                <input type="number" step="0.01" value={technicalStatus.airframe_hours_next_maintenance} onChange={(e) => setTechnicalStatus({
                   ...technicalStatus,
                   airframe_hours_next_maintenance: e.target.value
                 })} className="w-full h-10 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="Ex: 50.00" />
@@ -2770,7 +2774,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
               <div className="space-y-1">
                 <Label className="text-[9px] uppercase text-slate-500 ml-1 block">Tipo da próxima intervenção de manutenção</Label>
-                <input type="text" value={technicalStatus.next_maintenance_type} onChange={e => setTechnicalStatus({
+                <input type="text" value={technicalStatus.next_maintenance_type} onChange={(e) => setTechnicalStatus({
                   ...technicalStatus,
                   next_maintenance_type: e.target.value
                 })} className="w-full h-10 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="Ex: Manutenção programada..." />
@@ -2778,7 +2782,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
               <div className="space-y-1">
                 <Label className="text-[9px] uppercase text-slate-500 ml-1 block">CANAC e Rubrica PIC</Label>
-                <input type="text" value={technicalStatus.maintenance_approval_responsible} onChange={e => setTechnicalStatus({
+                <input type="text" value={technicalStatus.maintenance_approval_responsible} onChange={(e) => setTechnicalStatus({
                   ...technicalStatus,
                   maintenance_approval_responsible: e.target.value
                 })} className="w-full h-10 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none" placeholder="Ex: 001234 / Rubrica" />
@@ -2820,7 +2824,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <tbody className="divide-y divide-slate-800">
                   {technicalStatus.crew_records.map((record, idx) => <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
                     <td className="p-2 text-center">
-                      <input type="date" value={record.date} onChange={e => {
+                      <input type="date" value={record.date} onChange={(e) => {
                         const newRecords = [...technicalStatus.crew_records];
                         newRecords[idx].date = e.target.value;
                         setTechnicalStatus({
@@ -2830,7 +2834,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       }} className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none" />
                     </td>
                     <td className="p-2 text-center">
-                      <input type="text" value={record.system} onChange={e => {
+                      <input type="text" value={record.system} onChange={(e) => {
                         const newRecords = [...technicalStatus.crew_records];
                         newRecords[idx].system = e.target.value;
                         setTechnicalStatus({
@@ -2840,7 +2844,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       }} className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Sistema" />
                     </td>
                     <td className="p-2 text-center">
-                      <input type="text" value={record.discrepancy} onChange={e => {
+                      <input type="text" value={record.discrepancy} onChange={(e) => {
                         const newRecords = [...technicalStatus.crew_records];
                         newRecords[idx].discrepancy = e.target.value;
                         setTechnicalStatus({
@@ -2850,7 +2854,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       }} className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-white text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Discrepância" />
                     </td>
                     <td className="p-2 text-center">
-                      <input type="text" value={record.canac} onChange={e => {
+                      <input type="text" value={record.canac} onChange={(e) => {
                         const newRecords = [...technicalStatus.crew_records];
                         newRecords[idx].canac = e.target.value;
                         setTechnicalStatus({
@@ -2907,7 +2911,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <tbody className="divide-y divide-slate-800">
                   {technicalStatus.service_return.map((record, idx) => <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
                     <td className="p-2 text-center">
-                      <input type="date" value={record.date} onChange={e => {
+                      <input type="date" value={record.date} onChange={(e) => {
                         const newRecords = [...technicalStatus.service_return];
                         newRecords[idx].date = e.target.value;
                         setTechnicalStatus({
@@ -2917,7 +2921,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       }} className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-white text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none" />
                     </td>
                     <td className="p-2 text-center">
-                      <input type="text" value={record.corrective_action} onChange={e => {
+                      <input type="text" value={record.corrective_action} onChange={(e) => {
                         const newRecords = [...technicalStatus.service_return];
                         newRecords[idx].corrective_action = e.target.value;
                         setTechnicalStatus({
@@ -2927,7 +2931,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       }} className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-white text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none" placeholder="Ação corretiva" />
                     </td>
                     <td className="p-2 text-center">
-                      <input type="text" value={record.responsible_canac} onChange={e => {
+                      <input type="text" value={record.responsible_canac} onChange={(e) => {
                         const newRecords = [...technicalStatus.service_return];
                         newRecords[idx].responsible_canac = e.target.value;
                         setTechnicalStatus({
@@ -2937,7 +2941,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       }} className="w-full bg-slate-950 border border-slate-800 rounded px-2 py-1 text-white text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none" placeholder="CANAC" />
                     </td>
                     <td className="p-2 text-center">
-                      <input type="text" value={record.pic_canac} onChange={e => {
+                      <input type="text" value={record.pic_canac} onChange={(e) => {
                         const newRecords = [...technicalStatus.service_return];
                         newRecords[idx].pic_canac = e.target.value;
                         setTechnicalStatus({
@@ -2989,19 +2993,19 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             <button onClick={async () => {
               try {
                 // Parse celula_prox_revisao from airframe_hours_next_maintenance
-                const celulaProxRevisao = technicalStatus.airframe_hours_next_maintenance
-                  ? parseFloat(technicalStatus.airframe_hours_next_maintenance)
-                  : logbookMonth.celula_prox_revisao;
+                const celulaProxRevisao = technicalStatus.airframe_hours_next_maintenance ?
+                parseFloat(technicalStatus.airframe_hours_next_maintenance) :
+                logbookMonth.celula_prox_revisao;
 
                 // Atualizar logbook_months com celula_prox_revisao e recalcular disponivel
                 const celulaDisponivel = parseFloat(((celulaProxRevisao ?? 0) - (logbookMonth.celula_atual ?? 0)).toFixed(2));
-                const { error: monthError } = await supabase
-                  .from('logbook_months')
-                  .update({
-                    celula_prox_revisao: celulaProxRevisao,
-                    celula_disponivel: celulaDisponivel
-                  })
-                  .eq('id', logbookMonth.id);
+                const { error: monthError } = await supabase.
+                from('logbook_months').
+                update({
+                  celula_prox_revisao: celulaProxRevisao,
+                  celula_disponivel: celulaDisponivel
+                }).
+                eq('id', logbookMonth.id);
 
                 if (monthError) throw monthError;
 
@@ -3063,8 +3067,46 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           </div>
         </div>}
 
-        {/* BOTÃO NOVO LANÇAMENTO */}
-        <div className="mb-6 flex items-start justify-end px-[11px] bg-transparent">
+        {/* BOTÃO NOVO LANÇAMENTO + CORREÇÃO */}
+        <div className="mb-6 flex items-start justify-between px-[11px] bg-transparent">
+          {isAdmin || isGestorMaster
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+          }
           <button onClick={() => setShowAddForm(!showAddForm)} className={`${showAddForm ? 'bg-slate-700 text-slate-400' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700/90'} rounded-2xl px-6 font-black uppercase text-xs h-12 shadow-lg transition-all border border-slate-700/50`}>
             {showAddForm ? <X className="mr-2 inline" size={16} /> : <Plus className="mr-2 inline" size={16} />}
             {showAddForm ? "Cancelar" : "Novo lançamento"}
@@ -3121,6 +3163,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.noite}px` }}>
                     Noite
                     <div onMouseDown={(e) => handleResizeMouseDown('noite', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </th>
+                  <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.ttotal || 65}px` }}>
+                    T.Total
+                    <div onMouseDown={(e) => handleResizeMouseDown('ttotal', e)} className="absolute right-0 top-0 w-1 h-full bg-slate-700 hover:bg-blue-500 cursor-col-resize opacity-0 group-hover:opacity-100 transition-opacity" />
                   </th>
                   <th className="p-2 text-center relative group select-none" style={{ width: `${columnWidths.ifr}px` }}>
                     IFR
@@ -3188,24 +3234,24 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     </div>
                   </td>
                 </tr> : filteredEntries.map((e, idx) => {
-                  const picCrew = crew.find(c => c.id === e.pic_canac);
-                  const sicCrew = crew.find(c => c.id === e.sic_canac);
+                  const picCrew = crew.find((c) => c.id === e.pic_canac);
+                  const sicCrew = crew.find((c) => c.id === e.sic_canac);
                   // Exibir apenas o cliente do voo (client_id) - nunca o partner_name
                   // (partner_name em empréstimo contém quem pegou emprestado, não o dono)
-                  const lenderClient = clients.find(c => c.id === e.client_id);
+                  const lenderClient = clients.find((c) => c.id === e.client_id);
                   const displayClientName = lenderClient?.company_name;
-                  const borrowerClient = e.loan_recipient_client_id ? clients.find(c => c.id === e.loan_recipient_client_id) : null;
+                  const borrowerClient = e.loan_recipient_client_id ? clients.find((c) => c.id === e.loan_recipient_client_id) : null;
                   const displayBorrowerName = borrowerClient?.company_name;
 
                   // Para empréstimos: buscar nome do parceiro do tomador se existir
-                  const borrowerPartnerName = e.is_loan && e.loan_recipient_partner_id
-                    ? getPartnerNameById(e.loan_recipient_partner_id, clientPartners)
-                    : null;
+                  const borrowerPartnerName = e.is_loan && e.loan_recipient_partner_id ?
+                  getPartnerNameById(e.loan_recipient_partner_id, clientPartners) :
+                  null;
 
                   // Para voos normais: buscar nome do parceiro do cliente se existir
-                  const clientPartnerName = !e.is_loan && e.client_partner_id
-                    ? getPartnerNameById(e.client_partner_id, clientPartners)
-                    : null;
+                  const clientPartnerName = !e.is_loan && e.client_partner_id ?
+                  getPartnerNameById(e.client_partner_id, clientPartners) :
+                  null;
                   return <tr key={e.id} className="hover:bg-slate-800/30 transition-colors group border-b border-slate-800/50">
                     <td className="p-2 whitespace-nowrap text-center text-xs" style={{ width: `${columnWidths.date}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <div className="flex items-center justify-center gap-1">
@@ -3240,6 +3286,9 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.noite}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {e.night_hours > 0 ? <span className="text-sky-400 font-bold text-sm">{decimalToHHMM(e.night_hours)}</span> : <span className="text-slate-600">-</span>}
                     </td>
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.ttotal || 65}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {e.total_time > 0 ? <span className="text-pink-400 font-bold text-sm">{decimalToHHMM(e.total_time)}</span> : <span className="text-slate-600">-</span>}
+                    </td>
                     <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.ifr}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {e.ifr_time > 0 ? <span className="text-purple-400 font-bold text-sm">{decimalToHHMM(e.ifr_time)}</span> : <span className="text-slate-600">-</span>}
                     </td>
@@ -3253,7 +3302,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       <span className="text-orange-400 font-bold text-sm">{Math.round(e.fuel_liters || 0)}L</span>
                     </td>
                     <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.celula}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      <span className="text-purple-400 font-bold text-xs">{e.celula?.toFixed(1)}</span>
+                      <span className="text-purple-400 font-bold text-xs">
+                        {e.celula !== undefined && e.celula !== null ?
+                        e.celula.toFixed(1) :
+                        '❌ NULL'
+                        }
+                      </span>
                     </td>
                     <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.pic}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <span className="text-white text-xs">{picCrew?.full_name.split(' ')[0] || '-'}</span>
@@ -3262,53 +3316,53 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       <span className="text-slate-400 text-xs font-bold">{picCrew?.canac || '-'}</span>
                     </td>
                     <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.sic}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {e.sic_name ? (
-                        <span className="text-amber-300 text-xs font-semibold" title={e.sic_name}>{e.sic_name}</span>
-                      ) : (
-                        <span className="text-white text-xs">{sicCrew?.full_name.split(' ')[0] || '-'}</span>
-                      )}
+                      {e.sic_name ?
+                      <span className="text-amber-300 text-xs font-semibold" title={e.sic_name}>{e.sic_name}</span> :
+
+                      <span className="text-white text-xs">{sicCrew?.full_name.split(' ')[0] || '-'}</span>
+                      }
                     </td>
                     <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.canac_sic}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {e.sic_name ? (
-                        <span className="text-slate-600">-</span>
-                      ) : (
-                        <span className="text-slate-400 text-xs font-bold">{sicCrew?.canac || '-'}</span>
-                      )}
+                      {e.sic_name ?
+                      <span className="text-slate-600">-</span> :
+
+                      <span className="text-slate-400 text-xs font-bold">{sicCrew?.canac || '-'}</span>
+                      }
                     </td>
-                    {logbookMonth?.has_daily_rate && (
-                      <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.diarias}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {e.daily_rate > 0 ? (
-                          <span className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-lg font-bold text-sm">
+                    {logbookMonth?.has_daily_rate &&
+                    <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.diarias}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {e.daily_rate > 0 ?
+                      <span className="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-lg font-bold text-sm">
                             R${(e.daily_rate || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </span>
-                        ) : (
-                          <span className="text-slate-600">-</span>
-                        )}
+                          </span> :
+
+                      <span className="text-slate-600">-</span>
+                      }
                       </td>
-                    )}
+                    }
                     <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.voo_para}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {e.is_equal_split ? (
-                        <span className="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded text-xs font-bold uppercase">
+                      {e.is_equal_split ?
+                      <span className="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded text-xs font-bold uppercase">
                           Rateio
-                        </span>
-                      ) : e.is_loan ? (
-                        <div className="flex flex-col gap-0.5">
+                        </span> :
+                      e.is_loan ?
+                      <div className="flex flex-col gap-0.5">
                           <span className="text-amber-400 text-xs font-bold" title={`Proprietário: ${displayClientName || 'Desconhecido'}`}>
                             {shortenClientName(displayClientName || 'Desconhecido')}
                           </span>
-                          {borrowerClient && (
-                            <span className="text-amber-300 text-xs font-semibold" title={`Tomador: ${borrowerPartnerName || displayBorrowerName || 'Desconhecido'}`}>
+                          {borrowerClient &&
+                        <span className="text-amber-300 text-xs font-semibold" title={`Tomador: ${borrowerPartnerName || displayBorrowerName || 'Desconhecido'}`}>
                               → {shortenClientName(borrowerPartnerName || displayBorrowerName || 'Desconhecido')}
                             </span>
-                          )}
-                        </div>
-                      ) : displayClientName ? (
-                        <span className="text-cyan-400 text-xs font-semibold" title={`Cliente: ${displayClientName}${clientPartnerName ? ` - ${clientPartnerName}` : ''}`}>
+                        }
+                        </div> :
+                      displayClientName ?
+                      <span className="text-cyan-400 text-xs font-semibold" title={`Cliente: ${displayClientName}${clientPartnerName ? ` - ${clientPartnerName}` : ''}`}>
                           {shortenClientName(displayClientName)}{clientPartnerName ? ` - ${shortenClientName(clientPartnerName)}` : ''}
-                        </span>
-                      ) : (
-                        <span className="text-slate-500 text-xs">-</span>
-                      )}
+                        </span> :
+
+                      <span className="text-slate-500 text-xs">-</span>
+                      }
                     </td>
                     <td className="p-2 text-center" style={{ width: `${columnWidths.check}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <div className={`inline-flex items-center justify-center w-6 h-6 rounded-full ${e.confirmed ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800/50 text-slate-600'}`}>
@@ -3334,24 +3388,24 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           {/* Totalizador */}
           {filteredEntries.length > 0 && (() => {
             // Calcular totais por cliente
-            const clientTotals: Record<string, { hours: number; dailyRates: number; name: string }> = {};
+            const clientTotals: Record<string, {hours: number;dailyRates: number;name: string;}> = {};
             // Calcular totais por sócio/partner
-            const partnerTotals: Record<string, { hours: number; dailyRates: number; voos: number; partnerName: string }> = {};
+            const partnerTotals: Record<string, {hours: number;dailyRates: number;voos: number;partnerName: string;}> = {};
             let splitHours = 0;
 
-            filteredEntries.forEach(e => {
+            filteredEntries.forEach((e) => {
               if (e.is_equal_split) {
-                splitHours += (e.time || 0);
+                splitHours += e.time || 0;
               } else if (e.client_id) {
-                const clientName = clients.find(c => c.id === e.client_id)?.company_name?.split(' ')[0] || 'Cliente';
+                const clientName = clients.find((c) => c.id === e.client_id)?.company_name?.split(' ')[0] || 'Cliente';
 
                 // Se é empréstimo (is_loan = true), agregar pelo cliente dono
                 if (e.is_loan) {
                   if (!clientTotals[e.client_id]) {
                     clientTotals[e.client_id] = { hours: 0, dailyRates: 0, name: clientName };
                   }
-                  clientTotals[e.client_id].hours += (e.time || 0);
-                  clientTotals[e.client_id].dailyRates += (e.daily_rate || 0);
+                  clientTotals[e.client_id].hours += e.time || 0;
+                  clientTotals[e.client_id].dailyRates += e.daily_rate || 0;
                 } else {
                   // Voo normal: tentar agrupar por parceiro se houver
                   const hasClientPartner = e.client_partner_id;
@@ -3364,24 +3418,24 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     if (!partnerTotals[partnerKey]) {
                       partnerTotals[partnerKey] = { hours: 0, dailyRates: 0, voos: 0, partnerName };
                     }
-                    partnerTotals[partnerKey].hours += (e.time || 0);
-                    partnerTotals[partnerKey].dailyRates += (e.daily_rate || 0);
+                    partnerTotals[partnerKey].hours += e.time || 0;
+                    partnerTotals[partnerKey].dailyRates += e.daily_rate || 0;
                     partnerTotals[partnerKey].voos += 1;
                   } else if (e.partner_name) {
                     // Fallback: usar partner_name se existir (compatibilidade com dados antigos)
                     if (!partnerTotals[e.partner_name]) {
                       partnerTotals[e.partner_name] = { hours: 0, dailyRates: 0, voos: 0, partnerName: e.partner_name };
                     }
-                    partnerTotals[e.partner_name].hours += (e.time || 0);
-                    partnerTotals[e.partner_name].dailyRates += (e.daily_rate || 0);
+                    partnerTotals[e.partner_name].hours += e.time || 0;
+                    partnerTotals[e.partner_name].dailyRates += e.daily_rate || 0;
                     partnerTotals[e.partner_name].voos += 1;
                   } else {
                     // Sem parceiro: agregar pelo cliente
                     if (!clientTotals[e.client_id]) {
                       clientTotals[e.client_id] = { hours: 0, dailyRates: 0, name: clientName };
                     }
-                    clientTotals[e.client_id].hours += (e.time || 0);
-                    clientTotals[e.client_id].dailyRates += (e.daily_rate || 0);
+                    clientTotals[e.client_id].hours += e.time || 0;
+                    clientTotals[e.client_id].dailyRates += e.daily_rate || 0;
                   }
                 }
               }
@@ -3435,59 +3489,59 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       {totalDistance.toFixed(0)}NM
                     </div>
                   </div>
-                  {logbookMonth?.has_daily_rate && (
-                    <div>
+                  {logbookMonth?.has_daily_rate &&
+                  <div>
                       <div className="text-[8px] uppercase text-slate-500 font-black mb-1">Diárias</div>
                       <div className="text-lg font-black text-yellow-400">
-                        R${(filteredEntries.reduce((sum, e) => sum + (e.daily_rate || 0), 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        R${filteredEntries.reduce((sum, e) => sum + (e.daily_rate || 0), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </div>
                     </div>
-                  )}
+                  }
                 </div>
 
                 {/* Horas por sócio (quando houver partners) */}
-                {hasPartners && (
-                  <div className="pt-2 border-t border-slate-800/50">
+                {hasPartners &&
+                <div className="pt-2 border-t border-slate-800/50">
                     <div className="text-[9px] font-bold text-slate-500 uppercase mb-2">Horas por Sócio</div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                      {Object.entries(partnerTotals).map(([key, pt], idx) => (
-                        <div key={idx} className="bg-slate-900/50 rounded-lg p-2.5 border border-slate-800/50">
+                      {Object.entries(partnerTotals).map(([key, pt], idx) =>
+                    <div key={idx} className="bg-slate-900/50 rounded-lg p-2.5 border border-slate-800/50">
                           <div className="text-[9px] font-semibold text-slate-400 uppercase mb-1 truncate">{pt.partnerName}</div>
                           <div className="text-sm font-black text-orange-400 mb-0.5">{decimalToHHMM(pt.hours)}</div>
                           <div className="text-[8px] text-slate-500">{pt.voos} voo{pt.voos > 1 ? 's' : ''}</div>
-                          {logbookMonth?.has_daily_rate && pt.dailyRates > 0 && (
-                            <div className="text-[8px] text-yellow-400 font-semibold mt-1">R${(pt.dailyRates).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-                          )}
+                          {logbookMonth?.has_daily_rate && pt.dailyRates > 0 &&
+                      <div className="text-[8px] text-yellow-400 font-semibold mt-1">R${pt.dailyRates.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                      }
                         </div>
-                      ))}
+                    )}
                     </div>
                   </div>
-                )}
+                }
 
                 {/* Horas por cliente (apenas quando não houver partners) */}
-                {!hasPartners && (
-                  <div className="pt-2 border-t border-slate-800/50">
+                {!hasPartners &&
+                <div className="pt-2 border-t border-slate-800/50">
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-400">
-                      {Object.values(clientTotals).map((ct, idx) => (
-                        <span key={idx}>
+                      {Object.values(clientTotals).map((ct, idx) =>
+                    <span key={idx}>
                           <span className="text-cyan-400 font-semibold">{ct.name.split(' ')[0]}</span>
                           {' '}{decimalToHHMM(ct.hours)}h
-                          {logbookMonth?.has_daily_rate && ct.dailyRates > 0 && (
-                            <span className="text-yellow-400"> • R${(ct.dailyRates).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                          )}
+                          {logbookMonth?.has_daily_rate && ct.dailyRates > 0 &&
+                      <span className="text-yellow-400"> • R${ct.dailyRates.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      }
                         </span>
-                      ))}
-                      {splitHours > 0 && (
-                        <span>
+                    )}
+                      {splitHours > 0 &&
+                    <span>
                           <span className="text-emerald-400 font-semibold">Traslado/Rateio</span>
                           {' '}{decimalToHHMM(splitHours)}h
                         </span>
-                      )}
+                    }
                     </div>
                   </div>
-                )}
-              </div>
-            );
+                }
+              </div>);
+
           })()}
         </div>
 
@@ -3512,7 +3566,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Data *</Label>
-                    <Input type="date" value={editingEntry.entry_date ?? ''} onChange={e => setEditingEntry({
+                    <Input type="date" value={editingEntry.entry_date ?? ''} onChange={(e) => setEditingEntry({
                       ...editingEntry,
                       entry_date: e.target.value
                     })} className="bg-slate-900 border border-slate-700 text-white h-10" />
@@ -3523,55 +3577,55 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       type="checkbox"
                       id="split-toggle-edit"
                       checked={editingEntry.is_equal_split}
-                      onChange={e => setEditingEntry({
+                      onChange={(e) => setEditingEntry({
                         ...editingEntry,
                         is_equal_split: e.target.checked,
                         client_id: e.target.checked ? '' : editingEntry.client_id
                       })}
-                      className="w-5 h-5 rounded cursor-pointer accent-emerald-500"
-                    />
+                      className="w-5 h-5 rounded cursor-pointer accent-emerald-500" />
+                    
                     <Label htmlFor="split-toggle-edit" className="text-sm uppercase text-slate-300 cursor-pointer font-semibold">
                       Rateio Igual (Sócios)
                     </Label>
                   </div>
 
-                  {editingEntry.is_equal_split ? (
-                    <div className="bg-emerald-500/15 border border-emerald-500/40 rounded-xl p-4 space-y-3">
+                  {editingEntry.is_equal_split ?
+                  <div className="bg-emerald-500/15 border border-emerald-500/40 rounded-xl p-4 space-y-3">
                       <p className="text-xs text-emerald-400 uppercase font-bold tracking-widest">
                         Tipo de Voo para Rateio
                       </p>
-                      <Select value={editingEntry.flight_nature} onValueChange={v => setEditingEntry({
-                        ...editingEntry,
-                        flight_nature: v
-                      })}>
+                      <Select value={editingEntry.flight_nature} onValueChange={(v) => setEditingEntry({
+                      ...editingEntry,
+                      flight_nature: v
+                    })}>
                         <SelectTrigger className="bg-slate-900 border border-emerald-500/50 text-emerald-300 h-10">
                           <SelectValue placeholder="Selecione o tipo" />
                         </SelectTrigger>
                         <SelectContent>
-                          {SPLIT_FLIGHT_TYPES.map(type => (
-                            <SelectItem key={type.code} value={type.code}>
+                          {SPLIT_FLIGHT_TYPES.map((type) =>
+                        <SelectItem key={type.code} value={type.code}>
                               {type.label}
                             </SelectItem>
-                          ))}
+                        )}
                         </SelectContent>
                       </Select>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
+                    </div> :
+
+                  <div className="space-y-2">
                       <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Cliente *</Label>
-                      <Select value={editingEntry.client_id} onValueChange={v => setEditingEntry({
-                        ...editingEntry,
-                        client_id: v
-                      })}>
+                      <Select value={editingEntry.client_id} onValueChange={(v) => setEditingEntry({
+                      ...editingEntry,
+                      client_id: v
+                    })}>
                         <SelectTrigger className="bg-slate-900 border border-slate-700 text-white h-10">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.company_name}</SelectItem>)}
+                          {clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.company_name}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
-                  )}
+                  }
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 pt-2">
@@ -3582,14 +3636,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         <Button
                           variant="outline"
                           role="combobox"
-                          className="w-full justify-between h-11 font-normal bg-slate-900 border-slate-700 text-white hover:bg-slate-800"
-                        >
-                          {editingEntry.pic_canac
-                            ? (() => {
-                              const pic = crew.find(c => c.id === editingEntry.pic_canac);
-                              return pic ? `${pic.full_name} (${pic.canac})` : 'Selecione o PIC...';
-                            })()
-                            : 'Selecione o PIC...'
+                          className="w-full justify-between h-11 font-normal bg-slate-900 border-slate-700 text-white hover:bg-slate-800">
+                          
+                          {editingEntry.pic_canac ?
+                          (() => {
+                            const pic = crew.find((c) => c.id === editingEntry.pic_canac);
+                            return pic ? `${pic.full_name} (${pic.canac})` : 'Selecione o PIC...';
+                          })() :
+                          'Selecione o PIC...'
                           }
                           <ChevronDown className="h-4 w-4 opacity-50" />
                         </Button>
@@ -3598,35 +3652,35 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         <Command className="bg-slate-900">
                           <CommandInput
                             placeholder="Buscar piloto por nome ou CANAC..."
-                            className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
-                          />
+                            className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500" />
+                          
                           <CommandList>
                             <CommandEmpty>Nenhum piloto encontrado.</CommandEmpty>
                             <CommandGroup>
-                              {crew.map((pilot) => (
-                                <CommandItem
-                                  key={pilot.id}
-                                  value={`${pilot.full_name} ${pilot.canac}`}
-                                  onSelect={() => {
-                                    setEditingEntry({
-                                      ...editingEntry,
-                                      pic_canac: pilot.id
-                                    });
-                                    setPicEditOpen(false);
-                                  }}
-                                >
+                              {crew.map((pilot) =>
+                              <CommandItem
+                                key={pilot.id}
+                                value={`${pilot.full_name} ${pilot.canac}`}
+                                onSelect={() => {
+                                  setEditingEntry({
+                                    ...editingEntry,
+                                    pic_canac: pilot.id
+                                  });
+                                  setPicEditOpen(false);
+                                }}>
+                                
                                   <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      editingEntry.pic_canac === pilot.id ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    editingEntry.pic_canac === pilot.id ? "opacity-100" : "opacity-0"
+                                  )} />
+                                
                                   <div className="flex flex-col gap-0.5 flex-1">
                                     <span className="font-medium text-white">{pilot.full_name}</span>
                                     <span className="text-xs text-slate-500">CANAC: {pilot.canac}</span>
                                   </div>
                                 </CommandItem>
-                              ))}
+                              )}
                             </CommandGroup>
                           </CommandList>
                         </Command>
@@ -3639,12 +3693,12 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     crew={crew}
                     onChange={(sicCanac, sicName) => setEditingEntry({
                       ...editingEntry,
-                      sic_canac: sicCanac,  // deixar como null/undefined quando é manual
+                      sic_canac: sicCanac, // deixar como null/undefined quando é manual
                       sic_name: sicName
                     })}
                     label="SIC (Opcional)"
-                    placeholder="Selecione ou digite"
-                  />
+                    placeholder="Selecione ou digite" />
+                  
                 </div>
               </div>
 
@@ -3658,7 +3712,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Origem *</Label>
-                    <Select value={editingEntry.departure_aerodrome} onValueChange={v => setEditingEntry({
+                    <Select value={editingEntry.departure_aerodrome} onValueChange={(v) => setEditingEntry({
                       ...editingEntry,
                       departure_aerodrome: v
                     })}>
@@ -3666,13 +3720,13 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {aerodromes.map(a => <SelectItem key={a.id} value={a.designativo}>{a.designativo} - {a.name}</SelectItem>)}
+                        {aerodromes.map((a) => <SelectItem key={a.id} value={a.designativo}>{a.designativo} - {a.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Destino *</Label>
-                    <Select value={editingEntry.arrival_aerodrome} onValueChange={v => setEditingEntry({
+                    <Select value={editingEntry.arrival_aerodrome} onValueChange={(v) => setEditingEntry({
                       ...editingEntry,
                       arrival_aerodrome: v
                     })}>
@@ -3680,7 +3734,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {aerodromes.map(a => <SelectItem key={a.id} value={a.designativo}>{a.designativo} - {a.name}</SelectItem>)}
+                        {aerodromes.map((a) => <SelectItem key={a.id} value={a.designativo}>{a.designativo} - {a.name}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -3697,7 +3751,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Acionamento *</Label>
-                    <Input type="time" step="60" value={editingEntry.ac_time ?? ''} onChange={e => setEditingEntry({
+                    <Input type="time" step="60" value={editingEntry.ac_time ?? ''} onChange={(e) => setEditingEntry({
                       ...editingEntry,
                       ac_time: e.target.value
                     })} style={{
@@ -3707,7 +3761,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Corte *</Label>
-                    <Input type="time" step="60" value={editingEntry.cor_time ?? ''} onChange={e => setEditingEntry({
+                    <Input type="time" step="60" value={editingEntry.cor_time ?? ''} onChange={(e) => setEditingEntry({
                       ...editingEntry,
                       cor_time: e.target.value
                     })} style={{
@@ -3720,7 +3774,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Decolagem</Label>
-                    <Input type="time" step="60" value={editingEntry.dep_time ?? ''} onChange={e => setEditingEntry({
+                    <Input type="time" step="60" value={editingEntry.dep_time ?? ''} onChange={(e) => setEditingEntry({
                       ...editingEntry,
                       dep_time: e.target.value
                     })} style={{
@@ -3730,7 +3784,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Pouso</Label>
-                    <Input type="time" step="60" value={editingEntry.pou_time ?? ''} onChange={e => setEditingEntry({
+                    <Input type="time" step="60" value={editingEntry.pou_time ?? ''} onChange={(e) => setEditingEntry({
                       ...editingEntry,
                       pou_time: e.target.value
                     })} style={{
@@ -3751,14 +3805,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Combustível Inicial (L)</Label>
-                    <Input type="number" step="0.1" value={editingEntry.fuel_liters ?? 0} onChange={e => setEditingEntry({
+                    <Input type="number" step="0.1" value={editingEntry.fuel_liters ?? 0} onChange={(e) => setEditingEntry({
                       ...editingEntry,
                       fuel_liters: parseFloat(e.target.value) || 0
                     })} className="bg-slate-900 border border-slate-700 text-orange-400 h-10" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Combustível Consumido (L)</Label>
-                    <Input type="number" step="0.1" value={editingEntry.fuel_consu ?? 0} onChange={e => setEditingEntry({
+                    <Input type="number" step="0.1" value={editingEntry.fuel_consu ?? 0} onChange={(e) => setEditingEntry({
                       ...editingEntry,
                       fuel_consu: parseFloat(e.target.value) || 0
                     })} className="bg-slate-900 border border-slate-700 text-orange-300 h-10" />
@@ -3768,7 +3822,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Preço/L (R$)</Label>
-                    <Input type="number" step="0.01" value={editingEntry.fuel_price_per_liter ?? 0} onChange={e => setEditingEntry({
+                    <Input type="number" step="0.01" value={editingEntry.fuel_price_per_liter ?? 0} onChange={(e) => setEditingEntry({
                       ...editingEntry,
                       fuel_price_per_liter: parseFloat(e.target.value) || 0
                     })} className="bg-slate-900 border border-slate-700 text-orange-400 h-10" />
@@ -3786,7 +3840,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Tempo Diurno</Label>
-                    <Input type="time" step="60" value={decimalToTimeString(editingEntry.day_time)} onChange={e => setEditingEntry({
+                    <Input type="time" step="60" value={decimalToTimeString(editingEntry.day_time)} onChange={(e) => setEditingEntry({
                       ...editingEntry,
                       day_time: timeStringToDecimal(e.target.value)
                     })} style={{
@@ -3796,7 +3850,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Tempo Noturno</Label>
-                    <Input type="time" step="60" value={decimalToTimeString(editingEntry.night_hours)} onChange={e => setEditingEntry({
+                    <Input type="time" step="60" value={decimalToTimeString(editingEntry.night_hours)} onChange={(e) => setEditingEntry({
                       ...editingEntry,
                       night_hours: timeStringToDecimal(e.target.value)
                     })} style={{
@@ -3809,7 +3863,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">IFR</Label>
-                    <Input type="time" step="60" value={decimalToTimeString(editingEntry.ifr_time)} onChange={e => setEditingEntry({
+                    <Input type="time" step="60" value={decimalToTimeString(editingEntry.ifr_time)} onChange={(e) => setEditingEntry({
                       ...editingEntry,
                       ifr_time: timeStringToDecimal(e.target.value)
                     })} style={{
@@ -3819,7 +3873,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Pousos</Label>
-                    <Input type="number" value={editingEntry.pousos ?? 1} onChange={e => setEditingEntry({
+                    <Input type="number" value={editingEntry.pousos ?? 1} onChange={(e) => setEditingEntry({
                       ...editingEntry,
                       pousos: parseInt(e.target.value) || 1
                     })} className="bg-slate-900 border border-slate-700 text-white h-10" />
@@ -3837,14 +3891,14 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">POB (Pessoas)</Label>
-                    <Input type="number" value={editingEntry.passengers ?? 0} onChange={e => setEditingEntry({
+                    <Input type="number" value={editingEntry.passengers ?? 0} onChange={(e) => setEditingEntry({
                       ...editingEntry,
                       passengers: parseInt(e.target.value) || 0
                     })} className="bg-slate-900 border border-slate-700 text-sky-400 h-10" />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Carga (kg)</Label>
-                    <Input type="number" step="0.1" value={editingEntry.cargo_kg ?? 0} onChange={e => setEditingEntry({
+                    <Input type="number" step="0.1" value={editingEntry.cargo_kg ?? 0} onChange={(e) => setEditingEntry({
                       ...editingEntry,
                       cargo_kg: parseFloat(e.target.value) || 0
                     })} className="bg-slate-900 border border-slate-700 text-emerald-400 h-10" />
@@ -3853,8 +3907,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               </div>
 
               {/* SEÇÃO 7: DIÁRIAS */}
-              {logbookMonth?.has_daily_rate && (
-                <div className="space-y-6 bg-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
+              {logbookMonth?.has_daily_rate &&
+              <div className="space-y-6 bg-slate-950/50 border border-slate-800/50 rounded-2xl p-6">
                   <div className="flex items-center gap-2 text-amber-500 mb-4">
                     <DollarSign size={18} />
                     <span className="text-sm font-black uppercase tracking-widest">7. Diárias</span>
@@ -3863,10 +3917,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Quantidade de Diárias</Label>
-                      <Input type="number" step="0.1" value={editingEntry.daily_quantity ?? 0} onChange={e => setEditingEntry({
-                        ...editingEntry,
-                        daily_quantity: parseFloat(e.target.value) || 0
-                      })} className="bg-slate-900 border border-slate-700 text-amber-400 h-10" />
+                      <Input type="number" step="0.1" value={editingEntry.daily_quantity ?? 0} onChange={(e) => setEditingEntry({
+                      ...editingEntry,
+                      daily_quantity: parseFloat(e.target.value) || 0
+                    })} className="bg-slate-900 border border-slate-700 text-amber-400 h-10" />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs uppercase text-slate-400 ml-1 block font-bold">Valor Unitário (R$)</Label>
@@ -3883,7 +3937,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                     </div>
                   </div>
                 </div>
-              )}
+              }
 
             </div>
 
@@ -3902,8 +3956,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
         </div>}
 
         {/* MODAL DE EDIÇÃO DE INFORMAÇÕES TÉCNICAS */}
-        {editingField && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        {editingField &&
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-slate-900 border border-slate-800 text-white max-w-sm w-full rounded-3xl p-6 shadow-2xl">
               <h2 className="text-xl font-black uppercase tracking-tight mb-6">Editar {editingField === 'base_aerodrome' ? 'Base Aeródromo' : editingField === 'horimetro_inicio' ? 'Horímetro Início' : editingField === 'horimetro_final' ? 'Horímetro Final' : editingField === 'horimetro_ativo' ? 'Horímetro Ativo' : editingField === 'daily_rate' ? 'Valor Diária' : editingField === 'celula_prox_revisao' ? 'Próxima Revisão' : editingField}</h2>
 
@@ -3911,30 +3965,30 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                 <div>
                   <Label className="text-[9px] uppercase text-slate-500 ml-1 block mb-2">Novo Valor *</Label>
                   <Input
-                    type={['horimetro_inicio', 'horimetro_final', 'horimetro_ativo', 'daily_rate', 'celula_prox_revisao'].includes(editingField) ? 'number' : 'text'}
-                    step={['horimetro_inicio', 'horimetro_final', 'horimetro_ativo', 'daily_rate', 'celula_prox_revisao'].includes(editingField) ? '0.1' : undefined}
-                    value={editFieldValue}
-                    onChange={(e) => setEditFieldValue(e.target.value)}
-                    className="bg-slate-950 border-slate-800 text-white"
-                    placeholder="Digite o novo valor"
-                    autoFocus
-                  />
+                  type={['horimetro_inicio', 'horimetro_final', 'horimetro_ativo', 'daily_rate', 'celula_prox_revisao'].includes(editingField) ? 'number' : 'text'}
+                  step={['horimetro_inicio', 'horimetro_final', 'horimetro_ativo', 'daily_rate', 'celula_prox_revisao'].includes(editingField) ? '0.1' : undefined}
+                  value={editFieldValue}
+                  onChange={(e) => setEditFieldValue(e.target.value)}
+                  className="bg-slate-950 border-slate-800 text-white"
+                  placeholder="Digite o novo valor"
+                  autoFocus />
+                
                 </div>
 
                 <div className="flex gap-3 pt-4 border-t border-slate-800">
                   <Button
-                    onClick={() => {
-                      setEditingField(null);
-                      setEditFieldValue('');
-                    }}
-                    className="flex-1 bg-slate-800 hover:bg-slate-700 h-10 font-black uppercase text-xs rounded-lg"
-                  >
+                  onClick={() => {
+                    setEditingField(null);
+                    setEditFieldValue('');
+                  }}
+                  className="flex-1 bg-slate-800 hover:bg-slate-700 h-10 font-black uppercase text-xs rounded-lg">
+                  
                     Cancelar
                   </Button>
                   <Button
-                    onClick={handleSaveField}
-                    className="flex-1 bg-gradient-to-r from-sky-600 to-sky-700 hover:from-sky-700 hover:to-sky-800 h-10 font-black uppercase text-xs rounded-lg shadow-lg"
-                  >
+                  onClick={handleSaveField}
+                  className="flex-1 bg-gradient-to-r from-sky-600 to-sky-700 hover:from-sky-700 hover:to-sky-800 h-10 font-black uppercase text-xs rounded-lg shadow-lg">
+                  
                     <Save size={14} className="mr-2" />
                     Salvar
                   </Button>
@@ -3942,7 +3996,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               </div>
             </div>
           </div>
-        )}
+        }
 
         {/* MODAL SELETOR DE MÊS/ANO */}
         {showMonthPicker && <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -3952,7 +4006,7 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             <div className="grid grid-cols-3 gap-2 py-6">
               {MONTHS.map((m, i) => {
                 const monthNum = i + 1;
-                const isAvailable = availableMonths.some(am => am.month === monthNum && am.year === selectedYear);
+                const isAvailable = availableMonths.some((am) => am.month === monthNum && am.year === selectedYear);
                 if (!isAvailable) return null;
                 return <button key={m} onClick={() => {
                   setSelectedMonth(monthNum);
@@ -3964,11 +4018,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
             </div>
 
             <div className="flex items-center justify-between border-t border-slate-800 pt-6 px-4">
-              <button onClick={() => setSelectedYear(y => y - 1)} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
+              <button onClick={() => setSelectedYear((y) => y - 1)} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
                 <ChevronLeft />
               </button>
               <span className="text-2xl font-black">{selectedYear}</span>
-              <button onClick={() => setSelectedYear(y => y + 1)} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
+              <button onClick={() => setSelectedYear((y) => y + 1)} className="p-2 hover:bg-slate-800 rounded-full transition-colors">
                 <ChevronRight />
               </button>
             </div>
@@ -3977,15 +4031,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
               <button
                 onClick={handleOpenCreateNextMonthDialog}
                 disabled={loading}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 disabled:from-slate-700 disabled:to-slate-600 h-12 rounded-2xl font-bold uppercase text-xs transition-colors text-white shadow-lg"
-              >
+                className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 disabled:from-slate-700 disabled:to-slate-600 h-12 rounded-2xl font-bold uppercase text-xs transition-colors text-white shadow-lg">
+                
                 {loading ? 'Criando...' : 'Criar Próximo Mês'}
               </button>
               <button
                 onClick={() => setShowMonthPicker(false)}
                 disabled={loading}
-                className="flex-1 bg-slate-800 hover:bg-slate-700 disabled:bg-slate-800 h-12 rounded-2xl font-bold uppercase text-xs transition-colors"
-              >
+                className="flex-1 bg-slate-800 hover:bg-slate-700 disabled:bg-slate-800 h-12 rounded-2xl font-bold uppercase text-xs transition-colors">
+                
                 Fechar
               </button>
             </div>

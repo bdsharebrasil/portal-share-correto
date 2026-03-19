@@ -546,7 +546,7 @@ const generatePdfFilename = (report: TravelReport): string => {
   try {
     // Usar report_number se disponível (formato: REL-ARG-001 ou similar)
     // Caso contrário, usar numero (formato: R-0001)
-    const reportId = report.report_number || report.numero || 'REL-0001';
+    const reportId = (report as any).report_number || (report as any).numero || 'REL-0001';
 
     // Extrair apenas números e letras para filename (remover caracteres especiais)
     const cleanId = reportId.replace(/[^a-zA-Z0-9]/g, '');
@@ -624,7 +624,7 @@ const convertPdfBase64ToImageBase64 = async (pdfBase64: string): Promise<string>
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Não foi possível obter contexto do canvas');
 
-    await page.render({ canvasContext: ctx, viewport }).promise;
+    await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
 
     return new Promise((resolve, reject) => {
       canvas.toBlob((blob) => {
@@ -672,7 +672,7 @@ const convertPdfBase64ToMultipleImages = async (pdfBase64: string): Promise<stri
         const ctx = canvas.getContext('2d');
         if (!ctx) throw new Error(`Não foi possível obter contexto do canvas para página ${pageNum}`);
 
-        await page.render({ canvasContext: ctx, viewport }).promise;
+        await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
 
         const imageBase64 = await new Promise<string>((resolve, reject) => {
           canvas.toBlob((blob) => {

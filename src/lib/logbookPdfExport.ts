@@ -117,16 +117,16 @@ const generateCoverPage = (doc: jsPDF, options: ExportOptions, logoDataUrl?: str
 
 const generateLogbookPage = (doc: jsPDF, entries: LogbookEntry[], month: number, year: number) => {
   const pageWidth = doc.internal.pageSize.getWidth();
-  
-  // Adicionar nova página
   doc.addPage();
 
-  // Cabeçalho da página
+  // Cabeçalho estilizado
+  doc.setFillColor(30, 58, 138);
+  doc.rect(10, 10, pageWidth - 20, 10, 'F');
+  doc.setTextColor(255, 255, 255);
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text(`${MONTHS[month - 1]} de ${year}`, pageWidth / 2, 15, { align: 'center' });
+  doc.text(`${MONTHS[month - 1]} de ${year} - Diário de Bordo`, pageWidth / 2, 17, { align: 'center' });
 
-  // Preparar dados da tabela
   const tableData = entries
     .filter(e => {
       const date = new Date(e.entry_date);
@@ -137,90 +137,71 @@ const generateLogbookPage = (doc: jsPDF, entries: LogbookEntry[], month: number,
       formatDateBR(entry.entry_date),
       entry.departure_aerodrome || '-',
       entry.arrival_aerodrome || '-',
-      entry.pic_name || entry.pic_canac || '-',
-      entry.sic_name || entry.sic_canac || '-',
-      entry.client_company_name || entry.partner_name || '-',
+      entry.ac_time || '-', // Acionamento
+      entry.dep_time || '-', // Decolagem
+      entry.pou_time || '-', // Pouso
+      entry.cor_time || '-', // Corte
       decimalToHHMM(entry.total_time),
       decimalToHHMM(entry.day_time),
       decimalToHHMM(entry.night_hours),
       decimalToHHMM(entry.ifr_time),
-      entry.pousos ? entry.pousos.toString() : '-',
+      entry.pousos || '0',
       entry.fuel_added ? `${entry.fuel_added}L` : '-',
-      decimalToHHMM(entry.celula),
-      entry.daily_rate ? `R$ ${entry.daily_rate.toFixed(2)}` : '-'
+      entry.celula ? entry.celula.toFixed(1) : '-',
+      `${entry.pic_name || ''}\n(${entry.pic_canac || '-'})`, // PIC + CANAC em duas linhas
+      entry.client_company_name || entry.partner_name || '-',
     ]);
 
-  // Criar tabela
   autoTable(doc, {
     startY: 25,
-    head: [
-      [
-        'Data',
-        'Origem',
-        'Destino',
-        'PIC',
-        'SIC',
-        'Cliente',
-        'Tempo Voo',
-        'Diurno',
-        'Noturno',
-        'IFR',
-        'Pousos',
-        'Combustível',
-        'Célula',
-        'Diária'
-      ]
-    ],
+    head: [[
+      'DATA', 'DE', 'PARA', 'AC', 'DEP', 'POU', 'COR', 'T.VOO', 'DIA', 'NOITE', 'IFR', 'PSOS', 'FUEL', 'CÉLULA', 'PIC / CANAC', 'VOO PARA'
+    ]],
     body: tableData,
+    theme: 'grid',
     headStyles: {
-      fillColor: [30, 58, 138],
-      textColor: [255, 255, 255],
+      fillColor: [240, 240, 240],
+      textColor: [40, 40, 40],
+      fontSize: 7, // Fonte menor para caber tudo
       fontStyle: 'bold',
-      fontSize: 10,
       halign: 'center',
-      lineColor: [200, 200, 200],
-      lineWidth: 0.5
+      valign: 'middle',
+      lineWidth: 0.1,
     },
     bodyStyles: {
-      fontSize: 9,
+      fontSize: 7,
       halign: 'center',
-      lineColor: [220, 220, 220],
-      lineWidth: 0.3
+      textColor: [50, 50, 50],
+      cellPadding: 1,
     },
     alternateRowStyles: {
-      fillColor: [245, 245, 245]
+      fillColor: [250, 250, 250]
     },
+    // Ajuste fino das larguras para não cortar texto
     columnStyles: {
-      0: { halign: 'center', cellWidth: 18 },
-      1: { halign: 'center', cellWidth: 16 },
-      2: { halign: 'center', cellWidth: 16 },
-      3: { halign: 'left', cellWidth: 22 },
-      4: { halign: 'left', cellWidth: 22 },
-      5: { halign: 'left', cellWidth: 28 },
-      6: { halign: 'center', cellWidth: 18 },
-      7: { halign: 'center', cellWidth: 16 },
-      8: { halign: 'center', cellWidth: 16 },
-      9: { halign: 'center', cellWidth: 14 },
-      10: { halign: 'center', cellWidth: 14 },
-      11: { halign: 'center', cellWidth: 16 },
-      12: { halign: 'center', cellWidth: 16 },
-      13: { halign: 'center', cellWidth: 18 }
+      0: { cellWidth: 12 }, // Data
+      1: { cellWidth: 12 }, // De
+      2: { cellWidth: 12 }, // Para
+      3: { cellWidth: 12 }, // AC
+      4: { cellWidth: 12 }, // DEP
+      5: { cellWidth: 12 }, // POU
+      6: { cellWidth: 12 }, // COR
+      7: { cellWidth: 15 }, // T.VOO
+      8: { cellWidth: 12 }, // DIA
+      9: { cellWidth: 12 }, // NOITE
+      10: { cellWidth: 12 }, // IFR
+      11: { cellWidth: 10 }, // Pousos
+      12: { cellWidth: 15 }, // Fuel
+      13: { cellWidth: 18 }, // Célula
+      14: { cellWidth: 35, halign: 'left' }, // PIC
+      15: { cellWidth: 'auto', halign: 'left' }, // Cliente (estica no que sobrar)
     },
     margin: { left: 10, right: 10 },
     didDrawPage: (data) => {
-      // Rodapé
-      const pageSize = doc.internal.pageSize;
-      const pageHeight = pageSize.getHeight();
-      const pageWidth = pageSize.getWidth();
-      
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.text(
-        `Página ${doc.internal.pages.length - 1}`,
-        pageWidth / 2,
-        pageHeight - 10,
-        { align: 'center' }
-      );
+        const pageCount = doc.internal.pages.length - 1;
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`Página ${pageCount}`, pageWidth - 20, doc.internal.pageSize.getHeight() - 10);
     }
   });
 };
