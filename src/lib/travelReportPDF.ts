@@ -11,10 +11,21 @@ import { PDF_CONVERSION_ERROR_PLACEHOLDER } from "@/constants/errorPlaceholders"
 
 // Import PDF.js do npm (não CDN)
 import * as pdfjsLib from 'pdfjs-dist';
-import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-// Configurar worker local
-pdfjsLib.GlobalWorkerOptions.workerSrc = PdfWorker;
+// Configurar worker com fallback para CDN
+const setupPdfWorker = () => {
+  try {
+    const version = pdfjsLib.version;
+    // Tentar usar CDN (mais confiável que worker local em ambientes Vite)
+    const cdnWorkerUrl = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = cdnWorkerUrl;
+    console.log(`✅ PDF Worker configurado (CDN): v${version}`);
+  } catch (error) {
+    console.error('❌ Erro ao configurar PDF Worker:', error);
+  }
+};
+
+setupPdfWorker();
 
 // Pagadores separados: Tripulante 1 e Tripulante 2
 export const PAGADORES = [

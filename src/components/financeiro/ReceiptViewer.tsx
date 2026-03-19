@@ -2,10 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { X, Download, ExternalLink, ZoomIn, ZoomOut, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import * as pdfjsLib from 'pdfjs-dist';
-import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-// Usa o worker local do bundle — evita dependência do CDN
-pdfjsLib.GlobalWorkerOptions.workerSrc = PdfWorker;
+// Configurar worker com fallback para CDN
+const setupPdfWorker = () => {
+  try {
+    const version = pdfjsLib.version;
+    // Tentar usar CDN (mais confiável que worker local em ambientes Vite)
+    const cdnWorkerUrl = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = cdnWorkerUrl;
+    console.log(`✅ PDF Worker configurado (CDN): v${version}`);
+  } catch (error) {
+    console.error('❌ Erro ao configurar PDF Worker:', error);
+  }
+};
+
+setupPdfWorker();
 
 interface ReceiptViewerProps {
   open: boolean;
