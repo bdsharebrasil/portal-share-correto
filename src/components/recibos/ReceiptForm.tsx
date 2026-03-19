@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MoneyInput } from "@/components/ui/money-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -538,12 +539,9 @@ export function ReceiptForm({
                 </div>
                 <div>
                   <Label>Valor Total do Boleto *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
+                  <MoneyInput
                     value={formData.valorTotalBoleto}
                     onChange={(e) => setFormData(p => ({ ...p, valorTotalBoleto: e.target.value }))}
-                    placeholder="Valor do boleto"
                     required
                   />
                 </div>
@@ -596,12 +594,9 @@ export function ReceiptForm({
                 </div>
                 <div>
                   <Label>Valor Total do Boleto *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
+                  <MoneyInput
                     value={formData.valorTotalBoleto}
                     onChange={(e) => setFormData(p => ({ ...p, valorTotalBoleto: e.target.value }))}
-                    placeholder="Valor do boleto"
                     required
                   />
                 </div>
@@ -660,9 +655,7 @@ export function ReceiptForm({
             <div className="grid md:grid-cols-3 gap-4 p-4 border border-primary/20 rounded-lg bg-primary/5">
               <div>
                 <Label>Valor Total da Despesa *</Label>
-                <Input
-                  type="number"
-                  step="0.01"
+                <MoneyInput
                   value={formData.reembolsoValorTotal}
                   onChange={(e) =>
                     setFormData((prev) => ({
@@ -670,7 +663,6 @@ export function ReceiptForm({
                       reembolsoValorTotal: e.target.value,
                     }))
                   }
-                  placeholder="100% da despesa"
                   required={formData.reembolsoRateado}
                 />
               </div>
@@ -697,13 +689,10 @@ export function ReceiptForm({
               </div>
               <div>
                 <Label>Valor do Recibo (Calculado)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
+                <MoneyInput
                   value={formData.valor}
                   readOnly
                   className="bg-muted cursor-not-allowed font-semibold"
-                  placeholder="Calculado automaticamente"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Valor que este cliente irá pagar
@@ -716,14 +705,11 @@ export function ReceiptForm({
           {isReembolso && !formData.reembolsoRateado && (
             <div>
               <Label>Valor do Recibo (100% para este cliente) *</Label>
-              <Input
-                type="number"
-                step="0.01"
+              <MoneyInput
                 value={formData.valor}
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, valor: e.target.value }))
                 }
-                placeholder="Valor total da despesa"
                 required
               />
             </div>
@@ -733,14 +719,11 @@ export function ReceiptForm({
           {!isReembolso && (
             <div>
               <Label>Valor do Recibo *</Label>
-              <Input
-                type="number"
-                step="0.01"
+              <MoneyInput
                 value={formData.valor}
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, valor: e.target.value }))
                 }
-                placeholder="Valor do recibo"
                 required
               />
             </div>

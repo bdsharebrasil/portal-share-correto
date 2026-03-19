@@ -95,7 +95,7 @@ export default function WeatherWidget() {
 
   const loadWeatherForAirport = useCallback(async (airport: typeof AIRPORTS_BR[0]) => {
     try {
-      // Busca dados via hook com cache
+      // Busca dados via hook com cache (com fallback automático para mock data)
       const wxData = await getWeather(airport.icao);
 
       // Transform dados brutos em formato estruturado
@@ -116,40 +116,25 @@ export default function WeatherWidget() {
       });
     } catch (weatherError: any) {
       const errorMsg = weatherError?.message || String(weatherError);
-      console.warn(`[WeatherWidget] Erro ao carregar dados de ${airport.icao}: ${errorMsg}`);
-      console.warn(`[WeatherWidget] Usando dados offline/mock para ${airport.icao}`);
-
-      // Fallback to mock data if available
-      const mockData = METAR_MOCK_DATA[airport.icao];
-      if (mockData) {
-        console.info(`[WeatherWidget] Dados mock disponíveis para ${airport.icao}`);
-        setWx({
-          status: "ok",
-          icao: airport.icao,
-          name: airport.name,
-          distKm: 0,
-          raw: mockData.rawOb,
-          temp: mockData.temp,
-          wind: `${mockData.wdir}° ${mockData.wspd}${mockData.wgst ? ' G' + mockData.wgst : ''}kt`,
-          cat: mockData.flightCategory,
-          time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-        });
-      } else {
-        console.info(`[WeatherWidget] Sem dados disponíveis para ${airport.icao}, exibindo estado desconhecido`);
-        setWx({
-          status: "ok",
-          icao: airport.icao,
-          name: airport.name,
-          distKm: 0,
-          raw: null,
-          temp: null,
-          wind: null,
-          cat: "UNK",
-          time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-        });
-      }
+      console.error(`[WeatherWidget] Falha ao carregar dados para ${airport.icao}: ${errorMsg}`);
+      setWxToUnknown(airport);
     }
   }, [getWeather]);
+
+  // Helper para exibir estado desconhecido
+  const setWxToUnknown = (airport: typeof AIRPORTS_BR[0]) => {
+    setWx({
+      status: "ok",
+      icao: airport.icao,
+      name: airport.name,
+      distKm: 0,
+      raw: null,
+      temp: null,
+      wind: null,
+      cat: "UNK",
+      time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+    });
+  };
 
   const load = useCallback(async () => {
     setSpin(true);
