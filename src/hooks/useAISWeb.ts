@@ -111,7 +111,7 @@ export function useAISWeb() {
   const getROTAER = useCallback(async (icao: string, forceRefresh = false) => {
     return withCache(
       CACHE_KEYS.ROTAER(icao),
-      () => apiClient.getPreferentialRoutes(icao, icao),
+      () => apiClient.getPreferentialRoutes(icao, ''),
       forceRefresh
     );
   }, [withCache]);

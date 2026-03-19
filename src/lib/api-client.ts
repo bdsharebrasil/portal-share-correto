@@ -8,7 +8,7 @@ const AIS_API_BASE_URL =
 
 // Configuração de timeout para fetch
 const FETCH_TIMEOUT_MS = 8000; // 8 segundos para outros endpoints
-const WEATHER_TIMEOUT_MS = 3000; // 3 segundos para clima (falha rápido, usa mock)
+const WEATHER_TIMEOUT_MS = 8000; // 8 segundos - API do DECEA responde entre 4-7s
 
 // Configuração de retry - apenas para endpoints não-clima
 const MAX_RETRIES = 0; // Sem retry por enquanto, API está instável

@@ -66,7 +66,13 @@ export const determineFlightCategory = (
 export const transformAISWebMETAR = (data: any, icao: string): AISWebMETARData => {
   const metarRaw = typeof data.metar === 'string'
     ? data.metar
-    : (data.met?.metar?.metar || data.met?.metar?.raw || '');
+    : (
+        data.metar?.metar ||
+        data.metar?.raw ||
+        data.met?.metar?.metar ||
+        data.met?.metar?.raw ||
+        ''
+      );
 
   const tafRaw = typeof data.taf === 'string'
     ? data.taf
