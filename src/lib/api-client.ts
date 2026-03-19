@@ -6,12 +6,12 @@ const AIS_API_BASE_URL =
   import.meta.env.VITE_BACKEND_URL ||
   (import.meta.env.DEV ? '/api' : 'https://api-workers.sharebrasil.workers.dev');
 
-// Configuração de timeout para fetch
-const FETCH_TIMEOUT_MS = 60000; // 60 segundos (cold start do Worker + AISWEB pode ser lento)
+// Configuração de timeout para fetch - reduzido porque API não responde bem
+const FETCH_TIMEOUT_MS = 15000; // 15 segundos (suficiente para a maioria dos casos)
 
-// Configuração de retry com backoff exponencial
-const MAX_RETRIES = 3;
-const INITIAL_RETRY_DELAY_MS = 1000; // 1 segundo
+// Configuração de retry - apenas 1 retry rápido
+const MAX_RETRIES = 1;
+const INITIAL_RETRY_DELAY_MS = 500; // 500ms antes do retry
 
 // Helper para fetch com timeout
 async function fetchWithTimeout(url: string, options: RequestInit = {}) {
@@ -87,9 +87,24 @@ async function fetchJson(endpoint: string, options: RequestInit = {}) {
   }
 }
 
+// Função auxiliar para carregar mock data de clima
+async function loadMockWeatherData(icao: string) {
+  try {
+    const { METAR_MOCK_DATA } = await import('@/data/metarMockData');
+    const mockData = METAR_MOCK_DATA[icao];
+    if (mockData) {
+      console.info(`[Mock Data] Usando dados mock para ${icao}`);
+      return mockData;
+    }
+  } catch (err) {
+    console.warn('[Mock Data] Falha ao carregar mock data:', err);
+  }
+  return null;
+}
+
 // Cache persistente offline (IDB) com fallback
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
-async function cachedFetch(key: string, fetcher: () => Promise<any>) {
+async function cachedFetch(key: string, fetcher: () => Promise<any>, allowMockFallback = false) {
   try {
     const cached = (await get(key)) as { timestamp: number; data: any } | undefined;
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -125,6 +140,15 @@ async function cachedFetch(key: string, fetcher: () => Promise<any>) {
       console.warn('[Cache STALE READ ERROR]', key, cacheErr);
     }
 
+    // Se for uma requisição de clima e permitido fallback, tentar mock data
+    if (allowMockFallback && key.startsWith('weather-')) {
+      const icao = key.replace('weather-', '');
+      const mockData = await loadMockWeatherData(icao);
+      if (mockData) {
+        return mockData;
+      }
+    }
+
     // Nenhum fallback disponível, relançar erro
     throw fetchError;
   }
@@ -132,20 +156,20 @@ async function cachedFetch(key: string, fetcher: () => Promise<any>) {
 
 export const apiClient = {
   getWeather: (icao: string) =>
-    cachedFetch(`weather-${icao.toUpperCase()}`, () => fetchJson(API_ENDPOINTS.weather(icao))),
+    cachedFetch(`weather-${icao.toUpperCase()}`, () => fetchJson(API_ENDPOINTS.weather(icao)), true), // allowMockFallback = true
 
   getCharts: (icao: string, especie?: string, tipo?: string) =>
     cachedFetch(`charts-${icao.toUpperCase()}-${especie || ''}-${tipo || ''}`, () =>
       fetchJson(API_ENDPOINTS.charts(icao, especie, tipo))
-    ),
+    , false),
 
   getNotam: (icao: string) =>
-    cachedFetch(`notam-${icao.toUpperCase()}`, () => fetchJson(API_ENDPOINTS.notam(icao))),
+    cachedFetch(`notam-${icao.toUpperCase()}`, () => fetchJson(API_ENDPOINTS.notam(icao)), false),
 
   getPreferentialRoutes: (adep: string, ades: string) =>
     cachedFetch(`routes-${adep.toUpperCase()}-${ades.toUpperCase()}`, () =>
       fetchJson(API_ENDPOINTS.rotaer(adep, ades))
-    ),
+    , false),
 
   getFlightPlan: (adep: string, ades: string, speed = 120, burn = 32, reserve = 45) =>
     fetchJson(API_ENDPOINTS.flightplan(adep, ades, speed, burn, reserve)),
@@ -156,7 +180,7 @@ export const apiClient = {
   getNearbyAlternates: (lat: number, lon: number) =>
     cachedFetch(`geiloc-nearby-${lat}-${lon}`, () =>
       fetchJson(API_ENDPOINTS.geilocNearby(lat, lon))
-    ),
+    , false),
 };
 
 export function handleApiError(error: any): string {

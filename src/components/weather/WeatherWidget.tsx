@@ -95,7 +95,7 @@ export default function WeatherWidget() {
 
   const loadWeatherForAirport = useCallback(async (airport: typeof AIRPORTS_BR[0]) => {
     try {
-      // Busca dados via hook com cache
+      // Busca dados via hook com cache (com fallback automático para mock data)
       const wxData = await getWeather(airport.icao);
 
       // Transform dados brutos em formato estruturado
@@ -116,36 +116,8 @@ export default function WeatherWidget() {
       });
     } catch (weatherError: any) {
       const errorMsg = weatherError?.message || String(weatherError);
-      console.warn(`[WeatherWidget] Erro ao carregar dados de ${airport.icao}: ${errorMsg}`);
-      console.warn(`[WeatherWidget] Tentando usar dados offline/mock para ${airport.icao}...`);
-
-      // Fallback to mock data if available
-      const mockData = METAR_MOCK_DATA[airport.icao];
-      if (mockData) {
-        console.info(`[WeatherWidget] ✅ Usando dados MOCK para ${airport.icao}`);
-        try {
-          const metarData = transformAISWebMETAR(mockData, airport.icao);
-          setWx({
-            status: "ok",
-            icao: airport.icao,
-            name: airport.name,
-            distKm: 0,
-            raw: metarData.rawOb,
-            temp: metarData.temp,
-            wind: metarData.wspd
-              ? `${metarData.wdir}° ${metarData.wspd}${metarData.wgst ? ' G' + metarData.wgst : ''}kt`
-              : null,
-            cat: metarData.flightCategory,
-            time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-          });
-        } catch (transformError) {
-          console.error(`[WeatherWidget] Erro ao processar dados mock: ${transformError}`);
-          setWxToUnknown(airport);
-        }
-      } else {
-        console.info(`[WeatherWidget] Sem dados disponíveis para ${airport.icao}, exibindo estado desconhecido`);
-        setWxToUnknown(airport);
-      }
+      console.error(`[WeatherWidget] Falha ao carregar dados para ${airport.icao}: ${errorMsg}`);
+      setWxToUnknown(airport);
     }
   }, [getWeather]);
 
