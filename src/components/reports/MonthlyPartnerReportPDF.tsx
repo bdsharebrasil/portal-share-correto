@@ -3,7 +3,7 @@
 import React, { useMemo } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import type { MonthlyReportData, PartnerInfo, FlightEntry, FuelEntry, ExpenseEntry, TravelReportEntry } from "@/hooks/useMonthlyPartnerReport";
+import type { MonthlyReportData, PartnerInfo, FlightEntry, FuelEntry, ExpenseEntry, TravelReportEntry, BankControlEntry } from "@/hooks/useMonthlyPartnerReport";
 import { HoursDonutChart, CostsBarChart } from "./ReportCharts";
 import { PartnerReportSection } from "./PartnerReportSection";
 
@@ -52,6 +52,10 @@ function assignTravelReportsToPartner(travelReports: TravelReportEntry[], partne
   return travelReports.filter((r) => r.client_partner === partnerId);
 }
 
+function assignBankControlExpensesToPartner(expenses: BankControlEntry[], partnerId: string): BankControlEntry[] {
+  return expenses.filter((e) => e.client_partner_id === partnerId);
+}
+
 export function MonthlyPartnerReportPDF({ 
   data, 
   month, 
@@ -98,6 +102,7 @@ export function MonthlyPartnerReportPDF({
       const pFlights = assignFlightsToPartner(data.flights, p.id, data.partners);
       const pFuels = assignFuelsToPartner(data.fuels, p.name);
       const pExpenses = assignExpensesToPartner(data.expenses, p.name, p.cpf);
+      const pBankControl = assignBankControlExpensesToPartner(data.bankControlExpenses, p.id);
       const pTravelReports = assignTravelReportsToPartner(data.travelReports || [], p.id);
 
       const hours = pFlights.reduce((s, f) => {
@@ -108,9 +113,10 @@ export function MonthlyPartnerReportPDF({
       const fuelTotal = pFuels.reduce((s, f) => s + (f.valor_total || 0), 0);
       const fuelLiters = pFuels.reduce((s, f) => s + f.litros, 0);
       const expTotal = pExpenses.reduce((s, e) => s + e.total_amount, 0);
+      const bankControlTotal = pBankControl.reduce((s, e) => s + e.valor, 0);
       const travelTotal = pTravelReports.reduce((s, r) => s + (r.total_amount || 0), 0);
 
-      return { partner: p, flights: pFlights, fuels: pFuels, expenses: pExpenses, travelReports: pTravelReports, hours, fuelTotal, fuelLiters, expTotal, travelTotal };
+      return { partner: p, flights: pFlights, fuels: pFuels, expenses: pExpenses, bankControlExpenses: pBankControl, travelReports: pTravelReports, hours, fuelTotal, fuelLiters, expTotal, bankControlTotal, travelTotal };
     });
   }, [activePartners, data]);
 
@@ -119,14 +125,15 @@ export function MonthlyPartnerReportPDF({
   const totalFuelLiters = data.fuels.reduce((s, f) => s + f.litros, 0);
   const totalFuelValue = data.fuels.reduce((s, f) => s + (f.valor_total || 0), 0);
   const totalExpenses = data.expenses.reduce((s, e) => s + e.total_amount, 0);
+  const totalBankControl = data.bankControlExpenses.reduce((s, e) => s + e.valor, 0);
   const totalTravelReports = (data.travelReports || []).reduce((s, r) => s + (r.total_amount || 0), 0);
   const totalSharedExpenses = (data.sharedExpenses || []).reduce((s, e) => s + e.total_amount, 0);
 
   // Averages
   const avgFuelPerLiter = totalFuelLiters > 0 ? totalFuelValue / totalFuelLiters : 0;
   const avgFuelPerHour = totalFlightHours > 0 ? totalFuelValue / totalFlightHours : 0;
-  const avgExpPerHour = totalFlightHours > 0 ? totalExpenses / totalFlightHours : 0;
-  const costPerHour = totalFlightHours > 0 ? (totalFuelValue + totalExpenses + totalTravelReports) / totalFlightHours : 0;
+  const avgExpPerHour = totalFlightHours > 0 ? (totalExpenses + totalBankControl) / totalFlightHours : 0;
+  const costPerHour = totalFlightHours > 0 ? (totalFuelValue + totalExpenses + totalBankControl + totalTravelReports) / totalFlightHours : 0;
   const hourlyRate = data.hourlyRate || 0;
 
   // Chart data
@@ -139,8 +146,8 @@ export function MonthlyPartnerReportPDF({
   const costsChartData = partnerData.map((pd) => ({
     name: pd.partner.name.split(" ")[0],
     combustivel: pd.fuelTotal,
-    despesas: pd.expTotal + pd.travelTotal,
-    total: pd.fuelTotal + pd.expTotal + pd.travelTotal,
+    despesas: pd.expTotal + pd.bankControlTotal + pd.travelTotal,
+    total: pd.fuelTotal + pd.expTotal + pd.bankControlTotal + pd.travelTotal,
   }));
 
   // Shared expenses by category
@@ -349,8 +356,8 @@ export function MonthlyPartnerReportPDF({
             {[
               { label: "Horas Voadas", value: `${pd.hours.toFixed(1)}h` },
               { label: "Combustível", value: `${pd.fuelLiters.toFixed(0)}L`, sub: fmt(pd.fuelTotal) },
-              { label: "Despesas", value: fmt(pd.expTotal + pd.travelTotal) },
-              { label: "Custo Total", value: fmt(pd.fuelTotal + pd.expTotal + pd.travelTotal) },
+              { label: "Despesas", value: fmt(pd.expTotal + pd.bankControlTotal + pd.travelTotal) },
+              { label: "Custo Total", value: fmt(pd.fuelTotal + pd.expTotal + pd.bankControlTotal + pd.travelTotal) },
             ].map(k => (
               <div key={k.label} className="bg-gray-50 rounded-lg p-3 border border-gray-200 text-center">
                 <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{k.label}</p>
@@ -365,8 +372,8 @@ export function MonthlyPartnerReportPDF({
             {[
               { label: "Média Combustível/L", value: pd.fuelLiters > 0 ? fmt(pd.fuelTotal / pd.fuelLiters) : "—" },
               { label: "Combustível/Hora", value: pd.hours > 0 ? fmt(pd.fuelTotal / pd.hours) : "—" },
-              { label: "Despesa/Hora", value: pd.hours > 0 ? fmt((pd.expTotal + pd.travelTotal) / pd.hours) : "—" },
-              { label: "Custo Total/Hora", value: pd.hours > 0 ? fmt((pd.fuelTotal + pd.expTotal + pd.travelTotal) / pd.hours) : "—" },
+              { label: "Despesa/Hora", value: pd.hours > 0 ? fmt((pd.expTotal + pd.bankControlTotal + pd.travelTotal) / pd.hours) : "—" },
+              { label: "Custo Total/Hora", value: pd.hours > 0 ? fmt((pd.fuelTotal + pd.expTotal + pd.bankControlTotal + pd.travelTotal) / pd.hours) : "—" },
             ].map(item => (
               <div key={item.label} className="bg-blue-50 rounded-lg p-2 border border-blue-100 text-center">
                 <p className="text-[9px] font-bold text-blue-400 uppercase tracking-widest mb-1">{item.label}</p>
@@ -381,6 +388,7 @@ export function MonthlyPartnerReportPDF({
             flights={shouldShowFlights && includeFlights ? pd.flights : []}
             fuels={shouldShowFuels && includeFuels ? pd.fuels : []}
             expenses={shouldShowExpenses && includeExpenses ? pd.expenses : []}
+            bankControlExpenses={shouldShowExpenses && includeExpenses ? pd.bankControlExpenses : []}
             travelReports={shouldShowTravel ? pd.travelReports : []}
             allPartners={data.partners}
             month={month}
@@ -492,20 +500,20 @@ export function MonthlyPartnerReportPDF({
           <div className="bg-red-50 rounded-xl p-6 border border-red-200 text-center">
             <p className="text-[10px] font-bold text-red-600 uppercase tracking-widest mb-2">Total de Saídas</p>
             <p className="text-2xl font-black text-red-700">
-              {fmt(totalFuelValue + totalExpenses + totalTravelReports + totalSharedExpenses)}
+              {fmt(totalFuelValue + totalExpenses + totalBankControl + totalTravelReports + totalSharedExpenses)}
             </p>
           </div>
           <div className="bg-blue-50 rounded-xl p-6 border border-blue-200 text-center">
             <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-2">Saldo do Mês</p>
             <p className={`text-2xl font-black ${
               (() => {
-                const totalOut = totalFuelValue + totalExpenses + totalTravelReports + totalSharedExpenses;
-                const totalIn = partnerData.reduce((s, pd) => s + pd.fuelTotal + pd.expTotal + pd.travelTotal, 0);
+                const totalOut = totalFuelValue + totalExpenses + totalBankControl + totalTravelReports + totalSharedExpenses;
+                const totalIn = partnerData.reduce((s, pd) => s + pd.fuelTotal + pd.expTotal + pd.bankControlTotal + pd.travelTotal, 0);
                 return totalIn >= totalOut ? "text-emerald-700" : "text-red-700";
               })()
             }`}>
               {(() => {
-                const totalOut = totalFuelValue + totalExpenses + totalTravelReports + totalSharedExpenses;
+                const totalOut = totalFuelValue + totalExpenses + totalBankControl + totalTravelReports + totalSharedExpenses;
                 return fmt(-totalOut);
               })()}
             </p>

@@ -108,12 +108,33 @@ export interface AircraftInfo {
   manufacturer: string;
 }
 
+export interface BankControlEntry {
+  id: string;
+  data: string;
+  tipo_movimento: string;
+  descricao: string;
+  valor: number;
+  conta_banco: string | null;
+  numero_documento: string | null;
+  status: string | null;
+  client_partner_id: string | null;
+  aeronave_id: string | null;
+  aeronave_registro: string | null;
+  categoria_id: string;
+  grupo_categoria: string | null;
+  comprovante_url: string | null;
+  nf_url: string | null;
+  boleto_url: string | null;
+  recibo_url: string | null;
+}
+
 export interface MonthlyReportData {
   partners: PartnerInfo[];
   flights: FlightEntry[];
   fuels: FuelEntry[];
   expenses: ExpenseEntry[];
   sharedExpenses: ExpenseEntry[];
+  bankControlExpenses: BankControlEntry[];
   travelReports: TravelReportEntry[];
   aircraft: AircraftInfo | null;
   clientName: string;
@@ -134,7 +155,7 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
       const startDate = `${year}-${mon}-01`;
       const endDate = new Date(parseInt(year), parseInt(mon), 0).toISOString().slice(0, 10);
 
-      const [partnersRes, flightsRes, fuelsRes, expensesRes, sharedExpensesRes, clientRes, travelRes] = await Promise.all([
+      const [partnersRes, flightsRes, fuelsRes, expensesRes, sharedExpensesRes, clientRes, travelRes, bankControlRes] = await Promise.all([
         supabase
           .from("client_partners")
           .select("id, name, cpf, share_percentage")
@@ -144,7 +165,7 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
         supabase
           .from("logbook_entries")
           .select(`
-            id, entry_date, departure_aerodrome, arrival_aerodrome, trecho, 
+            id, entry_date, departure_aerodrome, arrival_aerodrome, trecho,
             total_time, day_time, night_hours, ifr_time, pousos,
             fuel_liters, fuel_consu, distance_nm, passengers, cargo_kg,
             flight_nature, pic_canac, client_partner_id,
@@ -197,6 +218,16 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
           .gte("start_date", startDate)
           .lte("start_date", endDate)
           .order("start_date"),
+
+        // Despesas do controle_bancario relacionadas a aeronaves e sócios
+        supabase
+          .from("controle_bancario")
+          .select("id, data, tipo_movimento, descricao, valor, conta_banco, numero_documento, status, client_partner_id, aeronave_id, aeronave_registro, categoria_id, grupo_categoria, comprovante_url, nf_url, boleto_url, recibo_url")
+          .eq("client_id", clientId)
+          .gte("data", startDate)
+          .lte("data", endDate)
+          .not("client_partner_id", "is", null)
+          .order("data"),
       ]);
 
       // Get aircraft for client
@@ -229,6 +260,7 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
         fuels: (fuelsRes.data || []) as FuelEntry[],
         expenses: (expensesRes.data || []) as ExpenseEntry[],
         sharedExpenses: (sharedExpensesRes.data || []) as ExpenseEntry[],
+        bankControlExpenses: (bankControlRes.data || []) as BankControlEntry[],
         travelReports: (travelRes.data || []) as TravelReportEntry[],
         aircraft,
         clientName: clientRes.data?.company_name || clientRes.data?.proprietario || "",
