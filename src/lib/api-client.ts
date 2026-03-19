@@ -6,18 +6,19 @@ const AIS_API_BASE_URL =
   import.meta.env.VITE_BACKEND_URL ||
   (import.meta.env.DEV ? '/api' : 'https://api-workers.sharebrasil.workers.dev');
 
-// Configuração de timeout para fetch - reduzido porque API não responde bem
-const FETCH_TIMEOUT_MS = 15000; // 15 segundos (suficiente para a maioria dos casos)
+// Configuração de timeout para fetch
+const FETCH_TIMEOUT_MS = 8000; // 8 segundos para outros endpoints
+const WEATHER_TIMEOUT_MS = 3000; // 3 segundos para clima (falha rápido, usa mock)
 
-// Configuração de retry - apenas 1 retry rápido
-const MAX_RETRIES = 1;
-const INITIAL_RETRY_DELAY_MS = 500; // 500ms antes do retry
+// Configuração de retry - apenas para endpoints não-clima
+const MAX_RETRIES = 0; // Sem retry por enquanto, API está instável
+const INITIAL_RETRY_DELAY_MS = 500;
 
-// Helper para fetch com timeout
-async function fetchWithTimeout(url: string, options: RequestInit = {}) {
+// Helper para fetch com timeout customizável
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = FETCH_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timeoutError = new Error(`Request timeout after ${FETCH_TIMEOUT_MS}ms`);
-  const timeoutId = setTimeout(() => controller.abort(timeoutError), FETCH_TIMEOUT_MS);
+  const timeoutError = new Error(`Request timeout after ${timeoutMs}ms`);
+  const timeoutId = setTimeout(() => controller.abort(timeoutError), timeoutMs);
 
   try {
     const res = await fetch(url, {
@@ -29,34 +30,14 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}) {
   } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
-      throw error.reason instanceof Error ? error.reason : new Error(`Request timeout after ${FETCH_TIMEOUT_MS}ms`);
+      throw error.reason instanceof Error ? error.reason : new Error(`Request timeout after ${timeoutMs}ms`);
     }
     throw error;
   }
 }
 
-// Helper para retry com backoff exponencial
-async function fetchWithRetry(url: string, options: RequestInit = {}, retryCount = 0): Promise<Response> {
-  try {
-    if (retryCount === 0) {
-      console.debug(`[API] Iniciando requisição para: ${url}`);
-    }
-    return await fetchWithTimeout(url, options);
-  } catch (error: any) {
-    const errorMsg = error?.message || String(error);
-    if (retryCount < MAX_RETRIES) {
-      const delayMs = INITIAL_RETRY_DELAY_MS * Math.pow(2, retryCount); // 1s, 2s, 4s
-      console.warn(`[API Retry] Tentativa ${retryCount + 1}/${MAX_RETRIES} falhada para ${url}: ${errorMsg}`);
-      console.warn(`[API Retry] Aguardando ${delayMs}ms antes de tentar novamente...`);
-      await new Promise(resolve => setTimeout(resolve, delayMs));
-      return fetchWithRetry(url, options, retryCount + 1);
-    }
-    console.error(`[API] Todas as ${MAX_RETRIES} tentativas falharam para ${url}: ${errorMsg}`);
-    throw error;
-  }
-}
 
-async function fetchJson(endpoint: string, options: RequestInit = {}) {
+async function fetchJson(endpoint: string, options: RequestInit = {}, customTimeout?: number) {
   // Se o endpoint é uma URL completa (começa com http), usar direto
   let url: string;
 
@@ -72,10 +53,11 @@ async function fetchJson(endpoint: string, options: RequestInit = {}) {
 
   try {
     console.debug(`[API] Fetching: ${url}`);
-    const res = await fetchWithRetry(url, {
+    const timeoutMs = customTimeout || FETCH_TIMEOUT_MS;
+    const res = await fetchWithTimeout(url, {
       headers: { 'Content-Type': 'application/json' },
       ...options,
-    });
+    }, timeoutMs);
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`AIS API error ${res.status}: ${text}`);
@@ -155,8 +137,47 @@ async function cachedFetch(key: string, fetcher: () => Promise<any>, allowMockFa
 }
 
 export const apiClient = {
-  getWeather: (icao: string) =>
-    cachedFetch(`weather-${icao.toUpperCase()}`, () => fetchJson(API_ENDPOINTS.weather(icao)), true), // allowMockFallback = true
+  // Clima com fallback agressivo para mock data
+  getWeather: async (icao: string) => {
+    const upperIcao = icao.toUpperCase();
+    const cacheKey = `weather-${upperIcao}`;
+
+    try {
+      // Tentar usar cache válido primeiro
+      const cached = (await get(cacheKey)) as { timestamp: number; data: any } | undefined;
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        console.debug(`[Cache HIT] ${cacheKey}`);
+        return cached.data;
+      }
+    } catch (err) {
+      console.warn('[Cache READ ERROR]', cacheKey, err);
+    }
+
+    // Tentar API com timeout CURTO
+    try {
+      console.debug(`[API] Fetching weather for ${upperIcao}`);
+      const data = await fetchJson(API_ENDPOINTS.weather(icao), {}, WEATHER_TIMEOUT_MS);
+
+      // Salvar no cache
+      try {
+        await set(cacheKey, { timestamp: Date.now(), data });
+      } catch (err) {
+        console.warn('[Cache WRITE ERROR]', cacheKey, err);
+      }
+
+      return data;
+    } catch (apiError: any) {
+      // API falhou, tentar mock data
+      console.warn(`[Weather API Failed] ${upperIcao}: ${apiError.message}`);
+      const mockData = await loadMockWeatherData(upperIcao);
+      if (mockData) {
+        return mockData;
+      }
+
+      // Nenhum fallback disponível
+      throw apiError;
+    }
+  },
 
   getCharts: (icao: string, especie?: string, tipo?: string) =>
     cachedFetch(`charts-${icao.toUpperCase()}-${especie || ''}-${tipo || ''}`, () =>
