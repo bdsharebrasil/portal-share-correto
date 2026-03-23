@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -29,12 +29,13 @@ export function OASMaintenanceExpensesTable({ orderId }: OASMaintenanceExpensesT
   });
 
   // Fetch rateios para cada despesa
-  const { data: allRateios = {}, isLoading: loadingRateios } = useQuery({
-    queryKey: ["despesas-rateios", despesasManutencao.map(d => d.id).join(",")],
-    queryFn: async () => {
-      if (despesasManutencao.length === 0) return {};
+  const despesaIds = useMemo(() => despesasManutencao.map((d) => d.id), [despesasManutencao]);
 
-      const despesaIds = despesasManutencao.map((d) => d.id);
+  const { data: allRateios = {}, isLoading: loadingRateios } = useQuery({
+    queryKey: ["despesas-rateios", orderId],
+    queryFn: async () => {
+      if (despesaIds.length === 0) return {};
+
       const { data, error } = await supabase
         .from("despesas_manutencao_rateio")
         .select("*")
@@ -53,17 +54,15 @@ export function OASMaintenanceExpensesTable({ orderId }: OASMaintenanceExpensesT
 
       return organized;
     },
-    enabled: despesasManutencao.length > 0,
+    enabled: despesaIds.length > 0,
   });
 
   // Fetch parceiros (sócios) com nomes
-  const { data: partners = {}, isLoading: loadingPartners } = useQuery({
-    queryKey: ["partners-info", despesasManutencao.map(d => d.client_id).join(",")],
-    queryFn: async () => {
-      if (despesasManutencao.length === 0) return {};
+  const clientId = useMemo(() => despesasManutencao[0]?.client_id, [despesasManutencao]);
 
-      // Pegar um client_id qualquer para buscar os partners
-      const clientId = despesasManutencao[0]?.client_id;
+  const { data: partners = {}, isLoading: loadingPartners } = useQuery({
+    queryKey: ["partners-info", clientId || ""],
+    queryFn: async () => {
       if (!clientId) return {};
 
       const { data, error } = await supabase
@@ -81,7 +80,7 @@ export function OASMaintenanceExpensesTable({ orderId }: OASMaintenanceExpensesT
 
       return organized;
     },
-    enabled: despesasManutencao.length > 0,
+    enabled: !!clientId,
   });
 
   const isLoading = loadingDespesas || loadingRateios || loadingPartners;
