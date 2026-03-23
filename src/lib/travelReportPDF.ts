@@ -11,21 +11,10 @@ import { PDF_CONVERSION_ERROR_PLACEHOLDER } from "@/constants/errorPlaceholders"
 
 // Import PDF.js do npm (não CDN)
 import * as pdfjsLib from 'pdfjs-dist';
+import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-// Configurar worker com fallback para CDN
-const setupPdfWorker = () => {
-  try {
-    const version = pdfjsLib.version;
-    // Tentar usar CDN (mais confiável que worker local em ambientes Vite)
-    const cdnWorkerUrl = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`;
-    pdfjsLib.GlobalWorkerOptions.workerSrc = cdnWorkerUrl;
-    console.log(`✅ PDF Worker configurado (CDN): v${version}`);
-  } catch (error) {
-    console.error('❌ Erro ao configurar PDF Worker:', error);
-  }
-};
-
-setupPdfWorker();
+// Configurar worker local
+pdfjsLib.GlobalWorkerOptions.workerSrc = PdfWorker;
 
 // Pagadores separados: Tripulante 1 e Tripulante 2
 export const PAGADORES = [
@@ -44,13 +33,13 @@ const parseLocalDate = (value: string | Date) => {
 // Helper para detectar se é PDF de forma robusta
 const isPdfByUrl = (url: string): boolean => {
   return url.toLowerCase().includes('.pdf') ||
-         url.startsWith('data:application/pdf') ||
-         url.startsWith('data:application/octet-stream');
+    url.startsWith('data:application/pdf') ||
+    url.startsWith('data:application/octet-stream');
 };
 
 const isPdfByContent = (base64: string): boolean => {
   return base64.startsWith('data:application/pdf') ||
-         base64.startsWith('data:application/octet-stream');
+    base64.startsWith('data:application/octet-stream');
 };
 
 export const formatDateBR = (value: string | Date) => {
@@ -557,7 +546,7 @@ const generatePdfFilename = (report: TravelReport): string => {
   try {
     // Usar report_number se disponível (formato: REL-ARG-001 ou similar)
     // Caso contrário, usar numero (formato: R-0001)
-    const reportId = (report as any).report_number || (report as any).numero || 'REL-0001';
+    const reportId = (report as any).report_number || report.numero || 'REL-0001';
 
     // Extrair apenas números e letras para filename (remover caracteres especiais)
     const cleanId = reportId.replace(/[^a-zA-Z0-9]/g, '');
@@ -726,7 +715,7 @@ const fetchImageAsBase64 = async (url: string): Promise<string> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      
+
       const timeout = setTimeout(() => {
         reject(new Error('Timeout ao carregar imagem'));
       }, 15000);
