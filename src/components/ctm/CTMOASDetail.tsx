@@ -106,9 +106,24 @@ export function CTMOASDetail({ orderId, onClose, onDeleted }: CTMOASDetailProps)
     },
   });
 
+  // Fetch despesas de manutenção vinculadas a esta OAS
+  const { data: despesasManutencao = [] } = useQuery({
+    queryKey: ["oas-despesas-manutencao", orderId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("despesas_manutencao")
+        .select("*")
+        .eq("service_order_id", orderId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   const totalServicos = services.reduce((sum: number, s: any) => sum + (s.valor || 0), 0);
   const totalPecas = parts.reduce((sum: number, p: any) => sum + (p.valor_total || 0), 0);
-  const totalGeral = totalServicos + totalPecas;
+  const totalDespesas = despesasManutencao.reduce((sum: number, d: any) => sum + (d.valor || 0), 0);
+  const totalGeral = totalServicos + totalPecas + totalDespesas;
 
   // Edit handlers
   const startEdit = () => {
@@ -181,7 +196,7 @@ export function CTMOASDetail({ orderId, onClose, onDeleted }: CTMOASDetailProps)
       setShowConcluirDialog(false);
       await refetchOrder();
       queryClient.invalidateQueries({ queryKey: ["all-oas"] });
-      
+
       // Generate PDF
       setTimeout(() => {
         generateOASPDF({
@@ -216,8 +231,8 @@ export function CTMOASDetail({ orderId, onClose, onDeleted }: CTMOASDetailProps)
   const statusColor = order?.status === "concluido"
     ? "bg-green-500/20 text-green-400 border-green-500/30"
     : order?.status === "em_andamento"
-    ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
-    : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+      ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
+      : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
 
   const sections = [
     { key: "info", label: "Informações", icon: Building },
@@ -365,10 +380,11 @@ export function CTMOASDetail({ orderId, onClose, onDeleted }: CTMOASDetailProps)
 
               {activeSection === "resumo" && (
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <SummaryCard label="Total Serviços" value={totalServicos} color="text-blue-400" />
                     <SummaryCard label="Total Peças" value={totalPecas} color="text-orange-400" />
                     <SummaryCard label="Total Orçamentos" value={budgets.reduce((s: number, b: any) => s + (b.valor_total || 0), 0)} color="text-purple-400" />
+                    <SummaryCard label="Despesas Manutenção" value={totalDespesas} color="text-amber-400" />
                     <SummaryCard label="Total Geral" value={totalGeral} color="text-foreground" highlight />
                   </div>
                 </div>
