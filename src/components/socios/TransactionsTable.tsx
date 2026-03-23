@@ -224,13 +224,18 @@ export function TransactionsTable({
                     key={tx.id}
                     className={`flex items-center justify-between p-3 rounded-lg border group transition-colors ${
                       isTravelReport
-                        ? "bg-gradient-to-r from-indigo-50/50 to-blue-50/30 dark:from-indigo-950/20 dark:to-blue-950/20 border-indigo-200/50 dark:border-indigo-800/50"
+                        ? "dark:border-slate-700/50"
                         : "bg-muted/30 border-border/50"
                     }`}
+                    style={isTravelReport ? {
+                      backgroundColor: "rgba(0, 8, 8, 1)",
+                      borderColor: "rgba(75, 77, 81, 0.5)",
+                      boxShadow: "1px 1px 3px 0 rgba(41, 50, 98, 1)"
+                    } : {}}
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       {isTravelReport ? (
-                        <FileText className="h-5 w-5 text-indigo-500 flex-shrink-0" />
+                        <FileText className="h-5 w-5 flex-shrink-0" style={{ color: "rgba(172, 174, 246, 1)" }} />
                       ) : tx.transaction_type === "deposit" ? (
                         <ArrowUpCircle className="h-5 w-5 text-emerald-500 flex-shrink-0" />
                       ) : tx.transaction_type === "expense" ? (
@@ -252,7 +257,7 @@ export function TransactionsTable({
                             </Badge>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs" style={isTravelReport ? { color: "rgba(216, 226, 241, 1)" } : { color: "rgb(148, 163, 184)" }}>
                           {tx.partner_name} • {getTransactionDate(tx)}
                           {!isTravelReport && tx.transaction_type === "expense" && tx.status && ` • ${tx.status}`}
                           {isTravelReport && tx.status && ` • ${tx.status}`}
