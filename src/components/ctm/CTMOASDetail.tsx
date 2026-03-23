@@ -23,6 +23,7 @@ import { OASBudgetsSection } from "./OASBudgetsSection";
 import { OASRASSection } from "./OASRASSection";
 import { OASOilAnalysisSection } from "./OASOilAnalysisSection";
 import { OASFlightHoursRateio } from "./OASFlightHoursRateio";
+import { OASMaintenanceExpensesTable } from "./OASMaintenanceExpensesTable";
 import { generateOASPDF } from "./oasPdfExport";
 
 interface CTMOASDetailProps {
@@ -242,6 +243,7 @@ export function CTMOASDetail({ orderId, onClose, onDeleted }: CTMOASDetailProps)
     { key: "oleo", label: `Óleo (${oilAnalyses.length})`, icon: Droplets },
     { key: "orcamentos", label: `Orçamentos (${budgets.length})`, icon: Receipt },
     { key: "rateio", label: `Rateio (${costSharing.length})`, icon: Users },
+    { key: "despesas", label: `Despesas (${despesasManutencao.length})`, icon: DollarSign },
     { key: "resumo", label: "Resumo", icon: DollarSign },
   ];
 
@@ -378,8 +380,12 @@ export function CTMOASDetail({ orderId, onClose, onDeleted }: CTMOASDetailProps)
                 />
               )}
 
+              {activeSection === "despesas" && (
+                <OASMaintenanceExpensesTable orderId={orderId} />
+              )}
+
               {activeSection === "resumo" && (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <SummaryCard label="Total Serviços" value={totalServicos} color="text-blue-400" />
                     <SummaryCard label="Total Peças" value={totalPecas} color="text-orange-400" />
@@ -387,6 +393,17 @@ export function CTMOASDetail({ orderId, onClose, onDeleted }: CTMOASDetailProps)
                     <SummaryCard label="Despesas Manutenção" value={totalDespesas} color="text-amber-400" />
                     <SummaryCard label="Total Geral" value={totalGeral} color="text-foreground" highlight />
                   </div>
+
+                  {/* Tabela de Despesas no Resumo */}
+                  {despesasManutencao.length > 0 && (
+                    <div className="mt-6 pt-6 border-t border-white/10">
+                      <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                        <DollarSign className="h-4 w-4" />
+                        Detalhes de Despesas de Manutenção
+                      </h3>
+                      <OASMaintenanceExpensesTable orderId={orderId} />
+                    </div>
+                  )}
                 </div>
               )}
             </motion.div>
