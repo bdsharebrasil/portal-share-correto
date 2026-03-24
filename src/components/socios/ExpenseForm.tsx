@@ -1384,7 +1384,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
               {/* ── Conta Bancária + Prazo ── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormSection label="Conta Bancária">
+                <FormSection label="Conta Bancaria">
                   <Select
                     value={form.bankName}
                     onValueChange={set("bankName")}
