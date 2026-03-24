@@ -109,23 +109,37 @@ const getErrorMessage = (error: any): string => {
  * Format date avoiding timezone shifts for Brazil (UTC-3)
  * Handles both ISO timestamps and date-only strings
  */
-const formatDateBrazil = (dateValue: string | Date, formatStr: string = "dd/MM/yyyy"): string => {
+const formatDateBrazil = (dateValue: string | Date | null | undefined, formatStr: string = "dd/MM/yyyy"): string => {
+  if (!dateValue) return "—";
+
   let dateObj: Date;
-  if (typeof dateValue === 'string') {
-    // If it's a date-only string (YYYY-MM-DD), parse it directly without timezone conversion
-    if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      const [year, month, day] = dateValue.split('-').map(Number);
-      dateObj = new Date(year, month - 1, day);
+
+  try {
+    if (typeof dateValue === 'string') {
+      if (!dateValue.trim()) return "—";
+
+      // Date-only string (YYYY-MM-DD)
+      if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = dateValue.split('-').map(Number);
+        dateObj = new Date(year, month - 1, day);
+      } else {
+        // ISO timestamp — extract only the date part
+        const datePart = dateValue.split('T')[0];
+        if (!datePart || !datePart.match(/^\d{4}-\d{2}-\d{2}$/)) return "—";
+        const [year, month, day] = datePart.split('-').map(Number);
+        dateObj = new Date(year, month - 1, day);
+      }
     } else {
-      // If it's an ISO timestamp, extract the date part
-      const datePart = dateValue.split('T')[0];
-      const [year, month, day] = datePart.split('-').map(Number);
-      dateObj = new Date(year, month - 1, day);
+      dateObj = dateValue;
     }
-  } else {
-    dateObj = dateValue;
+
+    // Guard against invalid Date objects
+    if (isNaN(dateObj.getTime())) return "—";
+
+    return format(dateObj, formatStr);
+  } catch {
+    return "—";
   }
-  return format(dateObj, formatStr);
 };
 
 /**
