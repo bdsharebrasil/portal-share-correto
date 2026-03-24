@@ -315,7 +315,7 @@ export function FuelRecordsByAircraft({
     setSelectedFlightId(flightId);
     const flight = logbookFlights.find(f => f.id === flightId);
     if (flight) {
-      const trecho = flight.trecho || `${flight.departure_aerodrome} → ${flight.arrival_aerodrome}`;
+      const trecho = flight.trecho || `${flight.departure_aerodrome} x ${flight.arrival_aerodrome}`;
       setSelectedFlightInfo(flight);
 
       // Armazena informações do voo selecionado
@@ -1383,7 +1383,7 @@ export function FuelRecordsByAircraft({
                         </div>
                         <div>
                           <p className="text-xs font-semibold mb-1" style={{color: 'rgba(162, 188, 244, 1)'}}>✈️ Trecho Selecionado</p>
-                          <p className="text-sm font-medium text-foreground">{selectedFlightInfo.trecho || `${selectedFlightInfo.departure_aerodrome} → ${selectedFlightInfo.arrival_aerodrome}`}</p>
+                          <p className="text-sm font-medium text-foreground">{selectedFlightInfo.trecho || `${selectedFlightInfo.departure_aerodrome} x ${selectedFlightInfo.arrival_aerodrome}`}</p>
                         </div>
                         {previousDayFlightInfo && (
                           <div className="border-t border-blue-200 dark:border-blue-800 pt-2 mt-2">
@@ -1519,10 +1519,42 @@ export function FuelRecordsByAircraft({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <Label className="text-xs text-muted-foreground">Trecho <span className="text-red-500">*</span></Label>
-                  <Input value={formData.trecho} onChange={e => setFormData({
-                    ...formData,
-                    trecho: e.target.value
-                  })} placeholder="SBSP X SBRJ" className="mt-1 h-9 text-sm" required />
+                  {linkToLogbook ? (
+                    <div className="flex gap-2 items-end">
+                      <AerodromeCombobox
+                        aerodromes={aerodromes}
+                        value={formData.trecho?.split(' x ')?.[0] || ''}
+                        onChange={(value) => {
+                          const destino = formData.trecho?.split(' x ')?.[1] || '';
+                          setFormData(prev => ({
+                            ...prev,
+                            trecho: destino ? `${value} x ${destino}` : value,
+                          }));
+                        }}
+                        disabled={isLoadingAerodromes}
+                        placeholder="De"
+                      />
+                      <span className="text-sm text-muted-foreground">x</span>
+                      <AerodromeCombobox
+                        aerodromes={aerodromes}
+                        value={formData.trecho?.split(' x ')?.[1] || ''}
+                        onChange={(value) => {
+                          const origem = formData.trecho?.split(' x ')?.[0] || '';
+                          setFormData(prev => ({
+                            ...prev,
+                            trecho: origem ? `${origem} x ${value}` : value,
+                          }));
+                        }}
+                        disabled={isLoadingAerodromes}
+                        placeholder="Para"
+                      />
+                    </div>
+                  ) : (
+                    <Input value={formData.trecho} onChange={e => setFormData({
+                      ...formData,
+                      trecho: e.target.value
+                    })} placeholder="SBSP X SBRJ" className="mt-1 h-9 text-sm" required />
+                  )}
                 </div>
               </div>
             </div>
@@ -1865,7 +1897,7 @@ export function FuelRecordsByAircraft({
       </Dialog>
 
       <AlertDialog open={showConfirmationSummary} onOpenChange={setShowConfirmationSummary}>
-        <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" style={{zIndex: 1000}}>
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl">Resumo do Abastecimento</AlertDialogTitle>
             <AlertDialogDescription>
