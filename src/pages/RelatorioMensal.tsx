@@ -129,6 +129,7 @@ export default function RelatorioMensal() {
   const [selectedPartnerCard, setSelectedPartnerCard] = useState<string | null>(null)
   const [expandedFuels, setExpandedFuels] = useState<Set<string>>(new Set())
   const [expandedTravelReports, setExpandedTravelReports] = useState<Set<string>>(new Set())
+  const [transactionSearchFilter, setTransactionSearchFilter] = useState<string>("")
 
   // ========================
   // DADOS
@@ -250,6 +251,24 @@ export default function RelatorioMensal() {
         }
       })
     }
+
+    // Filtro de busca por texto
+    if (transactionSearchFilter.trim()) {
+      const searchLower = transactionSearchFilter.toLowerCase()
+      result = result.filter((t) => {
+        const searchFields = [
+          t.partner_name || '',
+          t.description || t.notes || '',
+          t.bank_name || '',
+          String(t.amount || ''),
+          getCategoryFromTx(t),
+          t.transaction_type || '',
+          t.status || ''
+        ]
+        return searchFields.some(field => field.toLowerCase().includes(searchLower))
+      })
+    }
+
     result.sort((a, b) => {
       let compareValue = 0
 
@@ -265,7 +284,7 @@ export default function RelatorioMensal() {
     })
 
     return result
-  }, [transactions, currentMonth, selectedPartners, selectedCategories, selectedDay, sortBy, sortOrder])
+  }, [transactions, currentMonth, selectedPartners, selectedCategories, selectedDay, sortBy, sortOrder, transactionSearchFilter])
 
   // ========================
   // COMPUTAÇÕES
@@ -906,15 +925,40 @@ export default function RelatorioMensal() {
           )}
         </div>
 
-        {/* KPI de Transações */}
-        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-          <KPICard
-            title="Transações"
-            value={filteredTransactions.length}
-            icon={<Calendar className="h-5 w-5" />}
-            color="blue"
-            isCount
-          />
+        {/* KPI de Transações com Filtro */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+          <div className="md:col-span-2">
+            <KPICard
+              title="Transações"
+              value={filteredTransactions.length}
+              icon={<Calendar className="h-5 w-5" />}
+              color="blue"
+              isCount
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="flex-1 relative">
+              <input
+                type="text"
+                placeholder="Pesquisar transações..."
+                value={transactionSearchFilter}
+                onChange={(e) => setTransactionSearchFilter(e.target.value)}
+                className="w-full px-4 py-2 pl-10 pr-4 rounded-lg border border-border bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            {transactionSearchFilter && (
+              <button
+                onClick={() => setTransactionSearchFilter("")}
+                className="p-2 rounded-lg hover:bg-muted transition-colors"
+                title="Limpar filtro"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Resumo de Sócios - Movido para aqui */}
