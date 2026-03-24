@@ -10,12 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Download, Edit, Trash2, ChevronLeft, Plane, TrendingUp, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign, BookOpen } from "lucide-react";
+import { Plus, Download, Edit, Trash2, ChevronLeft, Plane, TrendingUp, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign, BookOpen, Calendar as CalendarIcon } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { Combobox } from "@/components/ui/combobox";
 import { AerodromeCombobox } from "@/components/plano-voo/AerodromeCombobox";
 import { Calendar as UICalendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ModernFileUpload } from "@/components/ui/modern-file-upload";
 import { ExportFuelRecordsModal } from "./ExportFuelRecordsModal";
@@ -156,6 +157,7 @@ export function FuelRecordsByAircraft({
   const [selectedFlightId, setSelectedFlightId] = useState<string>("");
   const [loadingFlights, setLoadingFlights] = useState(false);
   const [currentUserName, setCurrentUserName] = useState<string>("");
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const { aerodromes, isLoadingAerodromes } = useAerodromes();
   const [bankInstitutions, setBankInstitutions] = useState<{id:string;label:string;}[]>([]);
@@ -1189,41 +1191,92 @@ export function FuelRecordsByAircraft({
             <DialogTitle>{editingRecord ? "Editar Registro" : "Novo Registro"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 flex-1 overflow-y-auto pr-2 sm:pr-4 -mx-2 sm:-mx-4 px-2 sm:px-4">
-            <div>
-              <Label className="text-sm font-semibold mb-2 block">Data do Abastecimento</Label>
-              {linkToLogbook ? (
-                <Input
-                  type="date"
-                  value={formData.data}
-                  readOnly
-                  className="mt-1 h-9 text-sm bg-slate-900 text-white"
-                />
-              ) : (
-                <div className="space-y-2">
-                  <UICalendar
-                    mode="single"
-                    selected={formData.data ? new Date(formData.data) : undefined}
-                    onSelect={(date) => {
-                      if (!date) return;
-                      setFormData(prev => ({
-                        ...prev,
-                        data: format(date, "yyyy-MM-dd"),
-                      }));
+            {/* ── Vincular ao Diário de Bordo ── */}
+            <div className="rounded-lg border border-border/50 p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    id="link-logbook"
+                    checked={linkToLogbook}
+                    onCheckedChange={(checked) => {
+                      setLinkToLogbook(!!checked);
+                      if (!checked) {
+                        setSelectedFlightId("");
+                        setLogbookFlights([]);
+                      }
                     }}
                   />
+                  <Label htmlFor="link-logbook" className="text-sm font-semibold cursor-pointer flex items-center gap-2">
+                    <BookOpen className="h-4 w-4 text-primary" />
+                    Vincular a um registro no Diário de Bordo?
+                  </Label>
+                </div>
+
+                {linkToLogbook && (
+                  <div className="pl-7 space-y-2">
+                    {loadingFlights ? (
+                      <p className="text-xs text-muted-foreground">Carregando voos...</p>
+                    ) : logbookFlights.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Nenhum voo com abastecimento não vinculado encontrado</p>
+                    ) : (
+                      <Select value={selectedFlightId} onValueChange={handleFlightSelect}>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Selecione um voo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {logbookFlights.map((flight) => (
+                            <SelectItem key={flight.id} value={flight.id} className="py-2">
+                              <div className="text-sm">
+                                <span className="font-medium">{flight.entry_date}</span>
+                                {' · '}
+                                <span>{flight.trecho || `${flight.departure_aerodrome} → ${flight.arrival_aerodrome}`}</span>
+                                {flight.fuel_added && (
+                                  <span className="text-muted-foreground"> · {flight.fuel_added}L</span>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                )}
+              </div>
+
+            {!linkToLogbook && (
+              <div>
+                <Label className="text-sm font-semibold mb-2 block">Data do Abastecimento</Label>
+                <div className="flex gap-2">
                   <Input
-                    type="date"
-                    value={formData.data}
-                    onChange={e => setFormData({
-                      ...formData,
-                      data: e.target.value
-                    })}
-                    required
+                    type="text"
+                    value={formData.data ? format(new Date(formData.data), "dd/MM/yyyy") : ""}
+                    readOnly
+                    placeholder="dd/mm/aaaa"
                     className="mt-1 h-9 text-sm"
                   />
+                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="icon" className="mt-1">
+                        <CalendarIcon className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <UICalendar
+                        mode="single"
+                        selected={formData.data ? new Date(formData.data) : undefined}
+                        onSelect={(date) => {
+                          if (!date) return;
+                          setFormData(prev => ({
+                            ...prev,
+                            data: format(date, "yyyy-MM-dd"),
+                          }));
+                          setCalendarOpen(false);
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             <div>
               <Label className="text-sm font-semibold mb-2 block">Cliente e Sócios</Label>
@@ -1276,57 +1329,6 @@ export function FuelRecordsByAircraft({
                 </div>}
               </div>
             </div>
-
-            {/* ── Vincular ao Diário de Bordo ── */}
-            <div className="rounded-lg border border-border/50 p-4 space-y-3">
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    id="link-logbook"
-                    checked={linkToLogbook}
-                    onCheckedChange={(checked) => {
-                      setLinkToLogbook(!!checked);
-                      if (!checked) {
-                        setSelectedFlightId("");
-                        setLogbookFlights([]);
-                      }
-                    }}
-                  />
-                  <Label htmlFor="link-logbook" className="text-sm font-semibold cursor-pointer flex items-center gap-2">
-                    <BookOpen className="h-4 w-4 text-primary" />
-                    Vincular a um registro no Diário de Bordo?
-                  </Label>
-                </div>
-
-                {linkToLogbook && (
-                  <div className="pl-7 space-y-2">
-                    {loadingFlights ? (
-                      <p className="text-xs text-muted-foreground">Carregando voos...</p>
-                    ) : logbookFlights.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">Nenhum voo com abastecimento não vinculado encontrado</p>
-                    ) : (
-                      <Select value={selectedFlightId} onValueChange={handleFlightSelect}>
-                        <SelectTrigger className="h-9 text-sm">
-                          <SelectValue placeholder="Selecione um voo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {logbookFlights.map((flight) => (
-                            <SelectItem key={flight.id} value={flight.id} className="py-2">
-                              <div className="text-sm">
-                                <span className="font-medium">{flight.entry_date}</span>
-                                {' · '}
-                                <span>{flight.trecho || `${flight.departure_aerodrome} → ${flight.arrival_aerodrome}`}</span>
-                                {flight.fuel_added && (
-                                  <span className="text-muted-foreground"> · {flight.fuel_added}L</span>
-                                )}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-                )}
-              </div>
 
             <div>
               <Label className="text-sm font-semibold mb-2 block">Rota</Label>
