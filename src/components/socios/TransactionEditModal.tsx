@@ -690,7 +690,7 @@ export function TransactionEditModal({
               </div>
             )}
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Conta Bancária</Label>
+              <Label className="text-sm font-medium">Conta Bancaria</Label>
               <Select
                 value={formData.bankName}
                 onValueChange={(v) => setFormData({ ...formData, bankName: v })}
