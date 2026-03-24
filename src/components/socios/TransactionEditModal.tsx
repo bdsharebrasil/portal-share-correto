@@ -256,6 +256,9 @@ export function TransactionEditModal({
       ? partners.find((p) => p.cpf === formData.assignedPartnerCpf)
       : null
 
+    // For bank expenses without assigned partner, use uppercase bank name
+    const finalAssignedPartnerName = assignedPartner?.name || (bankNameResolved ? bankNameResolved.toUpperCase() : null)
+
     try {
       await updateTransaction.mutateAsync({
         id: transaction.id,
@@ -274,7 +277,7 @@ export function TransactionEditModal({
         paymentMethod: formData.paymentMethod === "nao_informado" ? null : formData.paymentMethod || null,
         status: formData.status || null,
         assignedPartnerCpf: assignedPartner?.cpf || null,
-        assignedPartnerName: assignedPartner?.name || null,
+        assignedPartnerName: finalAssignedPartnerName,
         invoiceNumber: formData.invoiceNumber || null,
         invoiceUrl: formData.invoiceUrl || null,
         referenceType: selectedOasId ? "ctm_service_order" : transaction.reference_type || null,
@@ -690,7 +693,7 @@ export function TransactionEditModal({
               </div>
             )}
             <div className="space-y-2">
-              <Label className="text-sm font-medium">Conta Bancária</Label>
+              <Label className="text-sm font-medium">Conta Bancaria</Label>
               <Select
                 value={formData.bankName}
                 onValueChange={(v) => setFormData({ ...formData, bankName: v })}

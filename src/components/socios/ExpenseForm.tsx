@@ -64,7 +64,6 @@ export const EXPENSE_CATEGORIES = [
   { id: "OUTROS", label: "OUTROS", icon: "📎" },
   { id: "TARIFAS POUSO/DECOLAGEM", label: "TARIFAS POUSO/DECOLAGEM", icon: "✈️" },
   { id: "REEMBOLSOS", label: "REEMBOLSOS", icon: "💸" },
-  { id: "TARIFAS BANCARIAS", label: "TARIFAS BANCARIAS", icon: "🏦" },
 ] as const;
 
 export const IMPOSTOS_SUBTYPES = [
@@ -115,10 +114,10 @@ const EMPTY_FORM = {
 const BANK_EXPENSE_CATEGORIES = [
   { id: "CARTÃO DE CRÉDITO", label: "CARTÃO DE CRÉDITO", icon: "💳" },
   { id: "ANUIDADE DE CARTÃO", label: "ANUIDADE DE CARTÃO", icon: "📅" },
-  { id: "TAXAS BANCÁRIAS", label: "TAXAS BANCÁRIAS", icon: "🏦" },
+  { id: "TARIFAS BANCARIAS", label: "TARIFAS BANCARIAS", icon: "🏦" },
   { id: "TARIFA DE MANUTENÇÃO DE CONTA", label: "TARIFA DE MANUTENÇÃO DE CONTA", icon: "📋" },
   { id: "IOF", label: "IOF", icon: "📊" },
-  { id: "TARIFA TED/DOC", label: "TARIFA TED/DOC", icon: "🔁" },
+  { id: "TARIFA PIX TED/DOC", label: "TARIFA PIX TED/DOC", icon: "🔁" },
   { id: "JUROS BANCÁRIOS", label: "JUROS BANCÁRIOS", icon: "📈" },
   { id: "SEGUROS BANCÁRIOS", label: "SEGUROS BANCÁRIOS", icon: "🛡️" },
   { id: "OUTRAS TAXAS BANCÁRIAS", label: "OUTRAS TAXAS BANCÁRIAS", icon: "📎" },
@@ -133,9 +132,10 @@ const EMPTY_BANK_FORM = {
   date: format(new Date(), "yyyy-MM-dd"),
   bankName: "",
   notes: "",
-  prazo: "mensal" as "mensal" | "extra",
+  prazo: "MENSAL" as "MENSAL" | "EXTRA",
   assignMode: "geral" as "geral" | "rateio" | "socio",
   assignedPartnerCpf: "none",
+  paymentMethod: "OUTROS",
 };
 
 interface ExpenseFormProps {
@@ -514,6 +514,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     // Resolve bank name from ID
     const selectedConta = contasBancarias.find((c) => c.id === bankForm.bankName);
     const bankNameResolved = selectedConta ? selectedConta.banco : bankForm.bankName || null;
+    // Convert bank name to uppercase
+    const bankNameUppercase = bankNameResolved ? bankNameResolved.toUpperCase() : null;
 
     const basePayload = {
       clientId: clienteId,
@@ -528,6 +530,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       prazo: bankForm.prazo,
       aircraftId,
       status: "pago",
+      paymentMethod: "OUTROS",
     };
 
     if (bankForm.assignMode === "rateio" && partners.length > 1) {
@@ -558,7 +561,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       await addExpense.mutateAsync({
         ...basePayload,
         assignedPartnerCpf: null,
-        assignedPartnerName: null,
+        assignedPartnerName: bankNameUppercase || "CONTA BANCÁRIA",
       });
     }
 
@@ -660,7 +663,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                       placeholder={
                         loadingPartners
                           ? "Carregando sócios..."
-                          : "Atribuir a um sócio (opcional)"
+                          : "Atribuir a um sócio"
                       }
                     />
                   </SelectTrigger>
@@ -1385,7 +1388,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
               {/* ── Conta Bancária + Prazo ── */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormSection label="Conta Bancária">
+                <FormSection label="Conta Bancaria">
                   <Select
                     value={form.bankName}
                     onValueChange={set("bankName")}
@@ -1512,9 +1515,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   <FormSection label="Atribuição da Despesa" required>
                     <div className="grid grid-cols-3 gap-2">
                       {[
-                        { value: "geral", label: "Geral", desc: "Sem vínculo com sócio" },
-                        { value: "rateio", label: "Ratear Igual", desc: "Dividir entre todos" },
-                        { value: "socio", label: "Sócio Específico", desc: "Atribuir a um sócio" },
+                        { value: "geral", label: "Geral", desc: "Valor a parte do saldo individual dos sócios" },
+                        { value: "rateio", label: "Ratear Igual", desc: "Dividir entre todos, entra no saldo de cada sócio por igual" },
+                        { value: "socio", label: "Sócio Específico", desc: "Atribuir no saldo de um sócio" },
                       ].map((opt) => (
                         <button
                           key={opt.value}
@@ -1608,7 +1611,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     />
                   </FormSection>
 
-                  {/* Conta Bancária + Prazo */}
+                  {/* Conta Bancaria + Prazo */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormSection label="Instituição Bancária" required>
                       <Select
@@ -1647,7 +1650,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     <FormSection label="Prazo" required>
                       <Select
                         value={bankForm.prazo}
-                        onValueChange={(v) => setBankForm((p) => ({ ...p, prazo: v as "mensal" | "extra" }))}
+                        onValueChange={(v) => setBankForm((p) => ({ ...p, prazo: v as "MENSAL" | "EXTRA" }))}
                       >
                         <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
                           <SelectValue placeholder="Selecione o tipo" />
@@ -1657,16 +1660,16 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             <div className="flex items-center gap-2.5">
                               <span className="h-2.5 w-2.5 rounded-full bg-blue-500 flex-shrink-0" />
                               <div>
-                                <div className="font-medium text-sm">Mensal</div>
+                                <div className="font-medium text-sm">MENSAL</div>
                                 <div className="text-xs text-muted-foreground">Ciclo mensal regular</div>
                               </div>
                             </div>
                           </SelectItem>
-                          <SelectItem value="extra" className="py-3">
+                          <SelectItem value="EXTRA" className="py-3">
                             <div className="flex items-center gap-2.5">
                               <span className="h-2.5 w-2.5 rounded-full bg-orange-500 flex-shrink-0" />
                               <div>
-                                <div className="font-medium text-sm">Extra</div>
+                                <div className="font-medium text-sm">EXTRA</div>
                                 <div className="text-xs text-muted-foreground">Evento ou gasto avulso</div>
                               </div>
                             </div>
