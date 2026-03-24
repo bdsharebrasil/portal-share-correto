@@ -100,6 +100,13 @@ const EMPTY_FORM = {
   novoAbastData: format(new Date(), "yyyy-MM-dd"),
   novoAbastLocal: "",
   novoAbastLitros: "",
+  novoAbastTrecho: "",
+  novoAbastComandaNumero: "",
+  novoAbastNF: "",
+  novoAbastGaloes: "",
+  novoAbastCombustivel: "" as "avgas" | "jet" | "",
+  novoAbastTipoFaturamento: "",
+  novoAbastObservacoes: "",
   // Não incluir valor unitário - será calculado a partir do totalAmount
   bankName: "",
   prazo: "extra" as "mensal" | "extra",
@@ -109,6 +116,7 @@ const EMPTY_FORM = {
   // Campos abastecimento extras
   comandaUrl: "",
   comprovantePagamento: "",
+  notaFiscalUrl: "",
 };
 
 const BANK_EXPENSE_CATEGORIES = [
@@ -350,18 +358,27 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             client_id: clienteId,
             aeronave_id: aircraftId || null,
             data: form.novoAbastData,
-            trecho: form.description || "N/A",
+            trecho: form.novoAbastTrecho || form.description || "N/A",
             local: form.novoAbastLocal,
             litros: litros,
             valor_unitario: valorUnitario,
+            valor_total: valorTotal,
             abastecedor: form.supplierName || null,
+            abastecimento_galoes: form.novoAbastGaloes ? parseFloat(form.novoAbastGaloes) : null,
             partner_name: assignedPartner?.name || null,
-            status_pagamento: form.status === "pago" ? "pago" : "pendente",
+            status_pagamento: form.status === "pago" ? "pago" : "em aberto",
+            tipo_faturamento: form.novoAbastTipoFaturamento || null,
+            banco: form.bankName || null,
             data_pagamento: form.status === "pago" ? form.paidDate : null,
+            data_vencimento_boleto: form.status === "em aberto" ? null : null,
+            comanda: form.novoAbastComandaNumero || null,
             comanda_url: form.comandaUrl || null,
             comprovante_pagamento: form.comprovantePagamento || null,
-            nota_url: form.invoiceUrl || null,
-            nf: form.invoiceNumber || null,
+            nota_url: form.notaFiscalUrl || form.invoiceUrl || null,
+            nf: form.novoAbastNF || form.invoiceNumber || null,
+            tipo_combustivel: form.novoAbastCombustivel || null,
+            descricao: form.novoAbastCombustivel ? `Combustível: ${form.novoAbastCombustivel.toUpperCase()}` : null,
+            observacao: form.novoAbastObservacoes || form.notes || null,
           })
           .select()
           .single();
@@ -871,23 +888,128 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                         </FormSection>
                       </div>
                       <div className="grid grid-cols-1 gap-3">
-                        <FormSection label="Litros">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="0,00"
-                            value={form.novoAbastLitros}
-                            onChange={(e) => set("novoAbastLitros")(e.target.value)}
-                            className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
-                            disabled={addExpense.isPending}
-                          />
-                        </FormSection>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <FormSection label="Litros">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="0,00"
+                              value={form.novoAbastLitros}
+                              onChange={(e) => set("novoAbastLitros")(e.target.value)}
+                              className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                              disabled={addExpense.isPending}
+                            />
+                          </FormSection>
+                          <FormSection label="Galões">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="0,00"
+                              value={form.novoAbastGaloes}
+                              onChange={(e) => set("novoAbastGaloes")(e.target.value)}
+                              className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                              disabled={addExpense.isPending}
+                            />
+                          </FormSection>
+                        </div>
                         <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3">
                           <p className="text-xs text-amber-600 dark:text-amber-400">
                             💡 <strong>Valor Unitário:</strong> Será calculado automaticamente a partir do valor total da despesa e dos litros informados.
                           </p>
                         </div>
                       </div>
+
+                      {/* Trecho e Combustível */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <FormSection label="Trecho (origem x destino)">
+                          <Input
+                            placeholder="Ex: SBSP x SBRJ"
+                            value={form.novoAbastTrecho}
+                            onChange={(e) => set("novoAbastTrecho")(e.target.value)}
+                            className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                            disabled={addExpense.isPending}
+                          />
+                        </FormSection>
+                        <FormSection label="Combustível">
+                          <Select
+                            value={form.novoAbastCombustivel}
+                            onValueChange={(v) => set("novoAbastCombustivel")(v as "avgas" | "jet" | "")}
+                          >
+                            <SelectTrigger className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm">
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                              <SelectItem value="avgas">AVGAS</SelectItem>
+                              <SelectItem value="jet">JET</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormSection>
+                      </div>
+
+                      {/* Tipo de Faturamento e Comanda */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <FormSection label="Tipo de Faturamento">
+                          <Select
+                            value={form.novoAbastTipoFaturamento}
+                            onValueChange={(v) => set("novoAbastTipoFaturamento")(v)}
+                          >
+                            <SelectTrigger className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm">
+                              <SelectValue placeholder="Selecione" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                              <SelectItem value="pagamento a vista">Pagamento à Vista</SelectItem>
+                              <SelectItem value="a vista cartao de credito">À Vista Cartão de Crédito</SelectItem>
+                              <SelectItem value="a vista transferencia pix">À Vista Transferência (PIX)</SelectItem>
+                              <SelectItem value="faturado boleto">Faturado Boleto</SelectItem>
+                              <SelectItem value="faturado nota fiscal">Faturado Nota Fiscal</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormSection>
+                        <FormSection label="Nº Comanda">
+                          <Input
+                            placeholder="Comanda"
+                            value={form.novoAbastComandaNumero}
+                            onChange={(e) => set("novoAbastComandaNumero")(e.target.value)}
+                            className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                            disabled={addExpense.isPending}
+                          />
+                        </FormSection>
+                      </div>
+
+                      {/* Nota Fiscal */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <FormSection label="Nº Nota Fiscal">
+                          <Input
+                            placeholder="NF"
+                            value={form.novoAbastNF}
+                            onChange={(e) => set("novoAbastNF")(e.target.value)}
+                            className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                            disabled={addExpense.isPending}
+                          />
+                        </FormSection>
+                        <FormSection label="Anexo NF">
+                          <FileUploadField
+                            value={form.notaFiscalUrl}
+                            onChange={(url) => set("notaFiscalUrl")(url)}
+                            label="Anexar Nota Fiscal"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            bucket="nfs-share-recebidas"
+                            prefix="nota-fiscal"
+                            disabled={addExpense.isPending}
+                          />
+                        </FormSection>
+                      </div>
+
+                      {/* Observações */}
+                      <FormSection label="Observações">
+                        <Textarea
+                          placeholder="Adicione observações sobre este abastecimento..."
+                          value={form.novoAbastObservacoes}
+                          onChange={(e) => set("novoAbastObservacoes")(e.target.value)}
+                          className="rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                          disabled={addExpense.isPending}
+                        />
+                      </FormSection>
                       {/* Comanda + Comprovante */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <FormSection label="Comanda">
