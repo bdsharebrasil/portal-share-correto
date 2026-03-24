@@ -1050,7 +1050,13 @@ export default function RelatorioMensal() {
                 <p className="text-muted-foreground text-sm">Nenhuma transação neste período</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div
+                className="overflow-x-auto pb-2"
+                style={{
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: 'hsl(187 100% 55% / 0.5) transparent'
+                }}
+              >
                 <table className="w-full text-sm border-collapse">
                   <thead className="border-b-2 border-border bg-slate-900/50">
                     <tr>

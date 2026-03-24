@@ -198,6 +198,25 @@
     background: hsl(187 100% 55% / 0.8);
   }
 
+  /* Scrollbar visível para tabelas de transações */
+  div[style*="scrollbarColor"] ::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  div[style*="scrollbarColor"] ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  div[style*="scrollbarColor"] ::-webkit-scrollbar-thumb {
+    background: hsl(187 100% 55% / 0.5);
+    border-radius: 4px;
+    transition: background 0.3s ease;
+  }
+
+  div[style*="scrollbarColor"] ::-webkit-scrollbar-thumb:hover {
+    background: hsl(187 100% 55% / 0.8);
+  }
+
   /* Firefox scrollbar styling */
   * {
     scrollbar-width: thin;
