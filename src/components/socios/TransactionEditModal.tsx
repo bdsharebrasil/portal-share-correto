@@ -25,7 +25,7 @@ import { useClientPartners } from "@/hooks/useClientPartners"
 import { useContasBancarias } from "@/hooks/useContasBancarias"
 import { useFuelSuppliers } from "@/hooks/useFuelSuppliers"
 import { useAircraftMaintenances } from "@/hooks/useMaintenanceExpenses"
-import { EXPENSE_CATEGORIES, IMPOSTOS_SUBTYPES } from "@/components/socios/ExpenseForm"
+import { EXPENSE_CATEGORIES, IMPOSTOS_SUBTYPES, BANK_EXPENSE_CATEGORIES } from "@/components/socios/ExpenseForm"
 import { formatCPF } from "@/lib/formatters"
 import { format, parseISO } from "date-fns"
 import { supabase } from "@/integrations/supabase/client"
@@ -75,6 +75,7 @@ export function TransactionEditModal({
   const { data: fuelSuppliers = [] } = useFuelSuppliers()
 
   const isAbastecimento = transaction?.reference_type === "abastecimento" || transaction?.expense_type === "abastecimento"
+  const isExpense = transaction?.reference_type === "partner_expense" || transaction?.transaction_type === "expense"
 
   const [aircraftId, setAircraftId] = useState<string | null>(null)
   const [selectedMaintenanceId, setSelectedMaintenanceId] = useState<string>("")
@@ -85,6 +86,33 @@ export function TransactionEditModal({
   const [selectedOasId, setSelectedOasId] = useState<string>("")
 
   const { data: manutencoes = [] } = useAircraftMaintenances(aircraftId)
+
+  const normalizeCategoryValue = (value?: string | null) => {
+    if (!value) return ""
+
+    const normalized = value.toUpperCase()
+    const knownCategories = [...EXPENSE_CATEGORIES, ...BANK_EXPENSE_CATEGORIES]
+    const directMatch = knownCategories.find((item) => item.id === normalized || item.label === normalized)
+    if (directMatch) return directMatch.id
+
+    if (normalized.includes("ABASTEC")) return "ABASTECIMENTO"
+    if (normalized.includes("MANUTEN")) return "MANUTENÇÃO"
+    if (normalized.includes("VIAGEM")) return "DESPESAS DE VIAGEM"
+
+    return value
+  }
+
+  const resolvePartnerCpf = (partnerName?: string | null, partnerCpf?: string | null) => {
+    if (partnerCpf) return partnerCpf
+    if (!partnerName) return "none"
+
+    const normalizedTarget = partnerName.trim().toLowerCase()
+    const matchedPartner = partners.find(
+      (partner) => partner.name.trim().toLowerCase() === normalizedTarget
+    )
+
+    return matchedPartner?.cpf || "none"
+  }
 
   const [formData, setFormData] = useState({
     description: "",
@@ -112,52 +140,96 @@ export function TransactionEditModal({
       return
     }
 
-    const paymentDate = transaction.paid_date || transaction.payment_date || transaction.created_at
-    const dateObj = new Date(paymentDate.includes("T") ? paymentDate : paymentDate + "T12:00:00")
-    const formattedDate = dateObj.toISOString().split("T")[0]
-
-    let dueDateFormatted = ""
-    if (transaction.due_date) {
-      const dd = new Date(transaction.due_date.includes("T") ? transaction.due_date : transaction.due_date + "T12:00:00")
-      dueDateFormatted = dd.toISOString().split("T")[0]
-    }
-
-    // Try to match bank name to conta ID
-    let bankId = ""
-    if (transaction.bank_name) {
-      const matchedConta = contasBancarias.find((c) => c.banco === transaction.bank_name)
-      bankId = matchedConta ? matchedConta.id : transaction.bank_name
-    }
-
-    setFormData({
-      description: transaction.description || "",
-      amount: transaction.amount || 0,
-      paymentDate: formattedDate,
-      dueDate: dueDateFormatted,
-      notes: transaction.notes || "",
-      bankName: bankId,
-      prazo: transaction.prazo || "",
-      category: transaction.category || transaction.expense_type || "",
-      expenseType: transaction.expense_type || "",
-      supplierName: transaction.supplier_name || "",
-      paymentMethod: transaction.payment_method || "nao_informado",
-      status: transaction.status || "pago",
-      assignedPartnerCpf: transaction.assigned_partner_cpf || "none",
-      invoiceNumber: transaction.invoice_number || "",
-      invoiceUrl: transaction.invoice_url || "",
-    })
-
     const loadRelatedData = async () => {
+      let sourceTransaction: any = { ...transaction }
+
+      if (isAbastecimento) {
+        const fuelId = transaction.reference_id || transaction.id
+        const { data: fuel } = await supabase
+          .from("abastecimentos")
+          .select("id, data, data_pagamento, data_vencimento_boleto, descricao, local, observacao, abastecedor, status_pagamento, partner_name, nf, nota_url, banco")
+          .eq("id", fuelId)
+          .maybeSingle()
+
+        if (fuel) {
+          sourceTransaction = {
+            ...sourceTransaction,
+            description: fuel.descricao || sourceTransaction.description || `Abastecimento - ${fuel.local || ""}`.trim(),
+            payment_date: fuel.data_pagamento || fuel.data || sourceTransaction.payment_date,
+            due_date: fuel.data_vencimento_boleto || null,
+            notes: fuel.observacao || "",
+            bank_name: fuel.banco || "",
+            category: "ABASTECIMENTO",
+            expense_type: "ABASTECIMENTO",
+            supplier_name: fuel.abastecedor || "",
+            status: fuel.status_pagamento || sourceTransaction.status,
+            assigned_partner_name: fuel.partner_name || null,
+            assigned_partner_cpf: resolvePartnerCpf(fuel.partner_name, sourceTransaction.assigned_partner_cpf),
+            invoice_number: fuel.nf || "",
+            invoice_url: fuel.nota_url || "",
+          }
+        }
+      } else if (isExpense) {
+        const { data: expense } = await supabase
+          .from("partner_expenses")
+          .select("description, total_amount, due_date, paid_date, notes, bank_name, prazo, category, expense_type, supplier_name, payment_method, status, assigned_partner_cpf, assigned_partner_name, invoice_number, invoice_url, reference_id, reference_type, aircraft_id")
+          .eq("id", transaction.id)
+          .maybeSingle()
+
+        if (expense) {
+          sourceTransaction = {
+            ...sourceTransaction,
+            ...expense,
+            amount: expense.total_amount,
+            payment_date: expense.paid_date || transaction.payment_date || expense.due_date,
+          }
+        }
+      }
+
+      const rawPaymentDate = sourceTransaction.paid_date || sourceTransaction.payment_date || sourceTransaction.created_at
+      const dateObj = new Date(rawPaymentDate.includes("T") ? rawPaymentDate : rawPaymentDate + "T12:00:00")
+      const formattedDate = dateObj.toISOString().split("T")[0]
+
+      let dueDateFormatted = ""
+      if (sourceTransaction.due_date) {
+        const dueDateObj = new Date(sourceTransaction.due_date.includes("T") ? sourceTransaction.due_date : sourceTransaction.due_date + "T12:00:00")
+        dueDateFormatted = dueDateObj.toISOString().split("T")[0]
+      }
+
+      let bankId = ""
+      if (sourceTransaction.bank_name) {
+        const matchedConta = contasBancarias.find((c) => c.banco === sourceTransaction.bank_name)
+        bankId = matchedConta ? matchedConta.id : sourceTransaction.bank_name
+      }
+
+      setFormData({
+        description: sourceTransaction.description || "",
+        amount: Number(sourceTransaction.amount || sourceTransaction.total_amount || 0),
+        paymentDate: formattedDate,
+        dueDate: dueDateFormatted,
+        notes: sourceTransaction.notes || "",
+        bankName: bankId,
+        prazo: sourceTransaction.prazo || "",
+        category: normalizeCategoryValue(sourceTransaction.category || sourceTransaction.expense_type || (isAbastecimento ? "ABASTECIMENTO" : "")),
+        expenseType: normalizeCategoryValue(sourceTransaction.expense_type || sourceTransaction.category || (isAbastecimento ? "ABASTECIMENTO" : "")),
+        supplierName: sourceTransaction.supplier_name || "",
+        paymentMethod: sourceTransaction.payment_method || "nao_informado",
+        status: sourceTransaction.status || "pago",
+        assignedPartnerCpf: resolvePartnerCpf(sourceTransaction.assigned_partner_name, sourceTransaction.assigned_partner_cpf),
+        invoiceNumber: sourceTransaction.invoice_number || "",
+        invoiceUrl: sourceTransaction.invoice_url || "",
+      })
+
       // Determine aircraft_id for loading manutenções/OAS
-      let currentAircraftId = transaction.aircraft_id || null
+      let currentAircraftId = sourceTransaction.aircraft_id || null
 
       // If this expense is linked to a travel report, try to get the aircraft from the report
-      if (!currentAircraftId && transaction.reference_type === "travel_expense_report" && transaction.reference_id) {
+      if (!currentAircraftId && sourceTransaction.reference_type === "travel_expense_report" && sourceTransaction.reference_id) {
         try {
           const { data: report } = await supabase
             .from("travel_expense_reports")
             .select("aircraft_id")
-            .eq("id", transaction.reference_id)
+            .eq("id", sourceTransaction.reference_id)
             .single()
           currentAircraftId = report?.aircraft_id || null
         } catch {
@@ -182,8 +254,8 @@ export function TransactionEditModal({
       setAircraftId(currentAircraftId)
 
       // If the transaction was already linked to an active OAS, keep it selected
-      if (transaction.reference_type === "ctm_service_order" && transaction.reference_id) {
-        setSelectedOasId(transaction.reference_id)
+      if (sourceTransaction.reference_type === "ctm_service_order" && sourceTransaction.reference_id) {
+        setSelectedOasId(sourceTransaction.reference_id)
       }
 
       // Load linked manutenções (OAs) for this expense
@@ -209,7 +281,7 @@ export function TransactionEditModal({
     }
 
     loadRelatedData()
-  }, [transaction, isOpen, contasBancarias, clientId])
+  }, [transaction, isOpen, contasBancarias, clientId, partners, isAbastecimento, isExpense])
 
   useEffect(() => {
     if (!aircraftId) return;
@@ -257,7 +329,9 @@ export function TransactionEditModal({
       : null
 
     // For bank expenses without assigned partner, use uppercase bank name
-    const finalAssignedPartnerName = assignedPartner?.name || (bankNameResolved ? bankNameResolved.toUpperCase() : null)
+    const finalAssignedPartnerName = isAbastecimento
+      ? assignedPartner?.name || null
+      : assignedPartner?.name || (bankNameResolved ? bankNameResolved.toUpperCase() : null)
 
     try {
       await updateTransaction.mutateAsync({
@@ -386,8 +460,6 @@ export function TransactionEditModal({
 
   if (!transaction) return null
 
-  const isExpense = transaction.reference_type === "partner_expense" || transaction.transaction_type === "expense"
-
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -443,6 +515,14 @@ export function TransactionEditModal({
                 </SelectTrigger>
                 <SelectContent>
                   {EXPENSE_CATEGORIES.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      <div className="flex items-center gap-2">
+                        <span>{cat.icon}</span>
+                        <span className="text-sm">{cat.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                  {BANK_EXPENSE_CATEGORIES.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
                       <div className="flex items-center gap-2">
                         <span>{cat.icon}</span>
