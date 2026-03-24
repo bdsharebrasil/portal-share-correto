@@ -422,6 +422,31 @@ export function FuelRecordsByAircraft({
       return partnersData;
     }
   };
+  const getClientPartnersFromDB = async (clientId: string): Promise<Partner[]> => {
+    try {
+      const { data, error } = await supabase
+        .from("client_partners")
+        .select("id, name, cpf, share_percentage")
+        .eq("client_id", clientId)
+        .order("name");
+
+      if (error) {
+        console.error("Error loading client partners:", error);
+        return [];
+      }
+
+      return (data || []).map(partner => ({
+        id: partner.id,
+        name: partner.name,
+        cpf: partner.cpf,
+        isMainClient: false,
+        share_percentage: partner.share_percentage || 0
+      }));
+    } catch (err) {
+      console.error("Exception loading client partners:", err);
+      return [];
+    }
+  };
   const loadClients = async () => {
     try {
       const {
@@ -459,24 +484,37 @@ export function FuelRecordsByAircraft({
       return;
     }
     setDisplayClient(clientData);
-    let partners = getClientPartners(clientData.id, clientData.company_name);
+
+    // Get main client
+    const mainClient = getClientPartners(clientData.id, clientData.company_name);
+
+    // Get partners from client_partners table
+    const dbPartners = await getClientPartnersFromDB(clientData.id);
+
+    // Combine main client with partners
+    let allPartners = [...mainClient, ...dbPartners];
+
+    // Load aircraft share percentages
     const { data: aircraftData, error: aircraftError } = await supabase
       .from('client_aircraft')
-      .select('share_percentage, aircraft_id')
-      .eq('client_id', clientData.id);
+      .select('client_id, share_percentage')
+      .eq('aircraft_id', aircraft.id);
+
     if (aircraftError) {
       console.error('Error loading aircraft shares:', aircraftError);
     } else {
-      partners = partners.map(partner => {
-        const share = aircraftData.find(a => a.aircraft_id === aircraft.id);
-        return { ...partner, share_percentage: share?.share_percentage || partner.share_percentage };
+      const percentageMap: { [key: string]: number } = {};
+      (aircraftData || []).forEach(item => {
+        percentageMap[item.client_id] = item.share_percentage;
       });
+
+      allPartners = allPartners.map(partner => ({
+        ...partner,
+        share_percentage: percentageMap[partner.id] !== undefined ? percentageMap[partner.id] : partner.share_percentage
+      }));
     }
-    const partnersWithPercentages = partners.map(partner => ({
-      ...partner,
-      share_percentage: aircraftData.find(a => a.aircraft_id === aircraft.id)?.share_percentage || partner.share_percentage
-    }));
-    setClientPartners(partnersWithPercentages);
+
+    setClientPartners(allPartners);
   };
   const loadRecords = async () => {
     let query = supabase.from("abastecimentos").select("*").eq("aeronave_id", aircraft.id);
@@ -791,9 +829,34 @@ export function FuelRecordsByAircraft({
 
     const selectedClient = allClients.find(c => c.id === clientId);
     if (selectedClient) {
-      const partners = getClientPartners(selectedClient.id, selectedClient.company_name);
-      const partnersWithPercentages = await loadPartnerPercentages(partners);
-      setClientPartners(partnersWithPercentages);
+      // Get main client
+      const mainClient = getClientPartners(selectedClient.id, selectedClient.company_name);
+
+      // Get partners from client_partners table
+      const dbPartners = await getClientPartnersFromDB(selectedClient.id);
+
+      // Combine main client with partners
+      let allPartners = [...mainClient, ...dbPartners];
+
+      // Load aircraft share percentages
+      const { data: aircraftData, error: aircraftError } = await supabase
+        .from('client_aircraft')
+        .select('client_id, share_percentage')
+        .eq('aircraft_id', aircraft.id);
+
+      if (!aircraftError) {
+        const percentageMap: { [key: string]: number } = {};
+        (aircraftData || []).forEach(item => {
+          percentageMap[item.client_id] = item.share_percentage;
+        });
+
+        allPartners = allPartners.map(partner => ({
+          ...partner,
+          share_percentage: percentageMap[partner.id] !== undefined ? percentageMap[partner.id] : partner.share_percentage
+        }));
+      }
+
+      setClientPartners(allPartners);
     }
   };
   const handleEdit = (record: FuelRecord) => {
