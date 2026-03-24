@@ -166,7 +166,7 @@ export function useSocioTransactions(
         // Resolver nome do parceiro: primeiro tenta pelo CPF na tabela client_partners
         const cpfClean = (exp.assigned_partner_cpf || "").replace(/\D/g, "");
         const partnerFromTable = partnersByCpf.get(cpfClean);
-          const resolvedPartnerName =
+        const resolvedPartnerName =
           partnerFromTable?.name ?? exp.assigned_partner_name ?? "CONTA BANCARIA";
 
         // Resolver número do relatório de viagem (para o campo de obs)
@@ -508,7 +508,7 @@ export function useAddDeposit(showToast = true) {
           .from("partner_accounts")
           .select("id, current_balance, total_deposited, client_partner_id")
           .eq("client_id", data.clientId);
-        
+
         // If we have a client_partner_id, prefer it
         if ((data as any).clientPartnerId) {
           accountQuery = accountQuery.eq("client_partner_id", (data as any).clientPartnerId);
@@ -643,7 +643,7 @@ export function usePayExpense() {
           .select("*")
           .eq("id", data.expenseId)
           .single();
-        
+
         if (expense && (expense.expense_type === "abastecimento" || expense.category === "abastecimento")) {
           // Busca abastecimento vinculado
           const { data: abastecimentos } = await supabase
@@ -653,7 +653,7 @@ export function usePayExpense() {
             .eq("status_pagamento", "pendente")
             .order("created_at", { ascending: false })
             .limit(1);
-          
+
           if (abastecimentos && abastecimentos.length > 0) {
             await supabase
               .from("abastecimentos")
@@ -748,10 +748,10 @@ export function useCreateExpense(showToast = true) {
       const installmentAmount = data.totalAmount / installmentCount;
       const startDate = isInstallment
         ? new Date(
-            data.installmentStartDate ||
-              data.dueDate ||
-              new Date().toISOString().split("T")[0]
-          )
+          data.installmentStartDate ||
+          data.dueDate ||
+          new Date().toISOString().split("T")[0]
+        )
         : null;
 
       const expenses = [];
@@ -1079,13 +1079,31 @@ export function useUpdateTransaction() {
           .eq("id", data.id);
         if (error) throw error;
       } else if (data.transactionType === "abastecimento") {
+        const { data: fuelRecord, error: fuelFetchError } = await supabase
+          .from("abastecimentos")
+          .select("litros")
+          .eq("id", data.id)
+          .single();
+
+        if (fuelFetchError) throw fuelFetchError;
+
+        const litros = Number(fuelRecord?.litros || 0);
         const updatePayload: any = {
           descricao: data.description,
           observacao: data.notes || null,
           abastecedor: data.supplierName || null,
+          banco: data.bankName || null,
+          partner_name: data.assignedPartnerName || null,
+          nf: data.invoiceNumber || null,
+          nota_url: data.invoiceUrl || null,
+          data_vencimento_boleto: data.dueDate || null,
           updated_at: new Date().toISOString(),
         };
-        
+
+        if (litros > 0 && Number.isFinite(data.amount)) {
+          updatePayload.valor_unitario = Number((data.amount / litros).toFixed(10));
+        }
+
         // Update status and payment date
         if (data.status === "paid" || data.status === "pago") {
           updatePayload.status_pagamento = "pago";
@@ -1104,7 +1122,7 @@ export function useUpdateTransaction() {
         if (data.paymentMethod) {
           // Store in observacao since abastecimentos doesn't have payment_method column
         }
-        
+
         const { error } = await supabase
           .from("abastecimentos")
           .update(updatePayload)
