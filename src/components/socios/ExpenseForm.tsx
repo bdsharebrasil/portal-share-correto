@@ -64,7 +64,6 @@ export const EXPENSE_CATEGORIES = [
   { id: "OUTROS", label: "OUTROS", icon: "📎" },
   { id: "TARIFAS POUSO/DECOLAGEM", label: "TARIFAS POUSO/DECOLAGEM", icon: "✈️" },
   { id: "REEMBOLSOS", label: "REEMBOLSOS", icon: "💸" },
-  { id: "TARIFAS BANCARIAS", label: "TARIFAS BANCARIAS", icon: "🏦" },
 ] as const;
 
 export const IMPOSTOS_SUBTYPES = [
@@ -115,10 +114,10 @@ const EMPTY_FORM = {
 const BANK_EXPENSE_CATEGORIES = [
   { id: "CARTÃO DE CRÉDITO", label: "CARTÃO DE CRÉDITO", icon: "💳" },
   { id: "ANUIDADE DE CARTÃO", label: "ANUIDADE DE CARTÃO", icon: "📅" },
-  { id: "TAXAS BANCÁRIAS", label: "TAXAS BANCÁRIAS", icon: "🏦" },
+  { id: "TARIFAS BANCARIAS", label: "TARIFAS BANCARIAS", icon: "🏦" },
   { id: "TARIFA DE MANUTENÇÃO DE CONTA", label: "TARIFA DE MANUTENÇÃO DE CONTA", icon: "📋" },
   { id: "IOF", label: "IOF", icon: "📊" },
-  { id: "TARIFA TED/DOC", label: "TARIFA TED/DOC", icon: "🔁" },
+  { id: "TARIFA PIX TED/DOC", label: "TARIFA PIX TED/DOC", icon: "🔁" },
   { id: "JUROS BANCÁRIOS", label: "JUROS BANCÁRIOS", icon: "📈" },
   { id: "SEGUROS BANCÁRIOS", label: "SEGUROS BANCÁRIOS", icon: "🛡️" },
   { id: "OUTRAS TAXAS BANCÁRIAS", label: "OUTRAS TAXAS BANCÁRIAS", icon: "📎" },
@@ -133,7 +132,7 @@ const EMPTY_BANK_FORM = {
   date: format(new Date(), "yyyy-MM-dd"),
   bankName: "",
   notes: "",
-  prazo: "mensal" as "mensal" | "extra",
+  prazo: "MENSAL" as "MENSAL" | "EXTRA",
   assignMode: "geral" as "geral" | "rateio" | "socio",
   assignedPartnerCpf: "none",
 };
@@ -660,7 +659,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                       placeholder={
                         loadingPartners
                           ? "Carregando sócios..."
-                          : "Atribuir a um sócio (opcional)"
+                          : "Atribuir a um sócio"
                       }
                     />
                   </SelectTrigger>
@@ -1512,9 +1511,9 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   <FormSection label="Atribuição da Despesa" required>
                     <div className="grid grid-cols-3 gap-2">
                       {[
-                        { value: "geral", label: "Geral", desc: "Sem vínculo com sócio" },
-                        { value: "rateio", label: "Ratear Igual", desc: "Dividir entre todos" },
-                        { value: "socio", label: "Sócio Específico", desc: "Atribuir a um sócio" },
+                        { value: "geral", label: "Geral", desc: "Valor a parte do saldo individual dos sócios" },
+                        { value: "rateio", label: "Ratear Igual", desc: "Dividir entre todos, entra no saldo de cada sócio por igual" },
+                        { value: "socio", label: "Sócio Específico", desc: "Atribuir no saldo de um sócio" },
                       ].map((opt) => (
                         <button
                           key={opt.value}
