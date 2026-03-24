@@ -1364,7 +1364,7 @@ export function FuelRecordsByAircraft({
                               <div className="text-sm">
                                 <span className="font-medium">{formatDateBrazil(flight.entry_date, "dd/MM/yy")}</span>
                                 {' · '}
-                                <span>{flight.trecho || `${flight.departure_aerodrome} x ${flight.arrival_aerodrome}`}</span>
+                                <span>{`${flight.departure_aerodrome} x ${flight.arrival_aerodrome}`}</span>
                                 {flight.fuel_added && (
                                   <span className="text-muted-foreground"> · {flight.fuel_added}L</span>
                                 )}
