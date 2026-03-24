@@ -31,8 +31,10 @@ import {
   Landmark,
 } from "lucide-react";
 import { SearchableCombobox } from "@/components/ui/SearchableCombobox";
+import { AerodromeCombobox } from "@/components/plano-voo/AerodromeCombobox";
 import { useCreateExpense } from "@/hooks/useFinanceiroSocios";
 import { useClientPartners } from "@/hooks/useClientPartners";
+import { useAerodromes } from "@/hooks/useAerodromes";
 import { useClientAbastecimentos } from "@/hooks/useAbastecimentos";
 import { useAircraftMaintenances, useCreateMaintenanceExpense } from "@/hooks/useMaintenanceExpenses";
 import { useFornecedoresFavoritos } from "@/hooks/useFornecedoresFavoritos";
@@ -97,16 +99,25 @@ const EMPTY_FORM = {
   abastecimentoId: "",
   criarNovoAbastecimento: false,
   // Campos para novo abastecimento
+  novoAbastVincularDiario: false,
   novoAbastData: format(new Date(), "yyyy-MM-dd"),
   novoAbastLocal: "",
   novoAbastLitros: "",
   novoAbastTrecho: "",
+  novoAbastTrechoOrigem: "",
+  novoAbastTrechoDestino: "",
   novoAbastComandaNumero: "",
   novoAbastNF: "",
   novoAbastGaloes: "",
   novoAbastCombustivel: "" as "avgas" | "jet" | "",
   novoAbastTipoFaturamento: "",
+  novoAbastStatusPagamento: "em aberto" as "pago" | "em aberto",
+  novoAbastDataPagamento: "",
+  novoAbastDataVencimento: "",
+  novoAbastBanco: "",
   novoAbastObservacoes: "",
+  novoAbastValorUnitario: "",
+  novoAbastBoleto: "",
   // Não incluir valor unitário - será calculado a partir do totalAmount
   bankName: "",
   prazo: "extra" as "mensal" | "extra",
@@ -185,6 +196,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const { data: fornecedoresFavoritos = [] } = useFornecedoresFavoritos();
   const { data: fuelSuppliers = [] } = useFuelSuppliers();
   const { data: contasBancarias = [], isLoading: loadingContas } = useContasBancarias();
+  const { data: aerodromes = [] } = useAerodromes();
 
   // Fetch aircraft ID for this client
   const [clientAircraftId, setClientAircraftId] = useState<string | null>(null);
@@ -245,6 +257,28 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       setManualRateios({});
     }
   }, [form.category]);
+
+  // Auto-fill valor unitário when supplier and combustível are selected
+  useEffect(() => {
+    if (form.category === "ABASTECIMENTO" && form.criarNovoAbastecimento) {
+      // Find supplier in fuelSuppliers
+      const selectedSupplier = fuelSuppliers.find(s => s.supplier_name === form.supplierName);
+      if (selectedSupplier && form.novoAbastCombustivel) {
+        let valorUnitario = "";
+        if (form.novoAbastCombustivel === "avgas" && selectedSupplier.fuel_price_avgas) {
+          valorUnitario = selectedSupplier.fuel_price_avgas.toString();
+        } else if (form.novoAbastCombustivel === "jet" && selectedSupplier.fuel_price_jet) {
+          valorUnitario = selectedSupplier.fuel_price_jet.toString();
+        }
+        if (valorUnitario) {
+          setForm(prev => ({
+            ...prev,
+            novoAbastValorUnitario: valorUnitario
+          }));
+        }
+      }
+    }
+  }, [form.supplierName, form.novoAbastCombustivel, form.category, form.criarNovoAbastecimento, fuelSuppliers]);
 
   // when the user chooses to link existing and we have a partner, fetch reports
   useEffect(() => {
@@ -361,19 +395,21 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             trecho: form.novoAbastTrecho || form.description || "N/A",
             local: form.novoAbastLocal,
             litros: litros,
-            valor_unitario: valorUnitario,
+            valor_unitario: form.novoAbastValorUnitario ? parseFloat(form.novoAbastValorUnitario) : valorUnitario,
             valor_total: valorTotal,
             abastecedor: form.supplierName || null,
+            abastecedor_id: fuelSuppliers.find(s => s.supplier_name === form.supplierName)?.id || null,
             abastecimento_galoes: form.novoAbastGaloes ? parseFloat(form.novoAbastGaloes) : null,
             partner_name: assignedPartner?.name || null,
-            status_pagamento: form.status === "pago" ? "pago" : "em aberto",
+            status_pagamento: form.novoAbastStatusPagamento,
             tipo_faturamento: form.novoAbastTipoFaturamento || null,
-            banco: form.bankName || null,
-            data_pagamento: form.status === "pago" ? form.paidDate : null,
-            data_vencimento_boleto: form.status === "em aberto" ? null : null,
+            banco: form.novoAbastBanco || null,
+            data_pagamento: form.novoAbastStatusPagamento === "pago" ? form.novoAbastDataPagamento : null,
+            data_vencimento_boleto: form.novoAbastStatusPagamento === "em aberto" ? form.novoAbastDataVencimento : null,
             comanda: form.novoAbastComandaNumero || null,
             comanda_url: form.comandaUrl || null,
             comprovante_pagamento: form.comprovantePagamento || null,
+            boleto_url: form.novoAbastBoleto || null,
             nota_url: form.notaFiscalUrl || form.invoiceUrl || null,
             nf: form.novoAbastNF || form.invoiceNumber || null,
             tipo_combustivel: form.novoAbastCombustivel || null,
@@ -866,9 +902,32 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                       </Button>
                     </>
                   ) : (
-                    <>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <FormSection label="Data do Abastecimento">
+                    <div className="space-y-4">
+                      {/* STEP 1: Vincular ao Diário de Bordo */}
+                      <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="vincular-diario"
+                            checked={form.novoAbastVincularDiario}
+                            onChange={(e) => set("novoAbastVincularDiario")(e.target.checked)}
+                            className="h-4 w-4 rounded border-border"
+                            disabled={addExpense.isPending}
+                          />
+                          <label htmlFor="vincular-diario" className="text-sm font-semibold text-foreground cursor-pointer">
+                            ✈️ Vincular a um trecho do Diário de Bordo?
+                          </label>
+                        </div>
+                        {form.novoAbastVincularDiario && (
+                          <p className="text-xs text-muted-foreground">
+                            ℹ️ Quando vinculado, a data e trecho serão preenchidos automaticamente do diário.
+                          </p>
+                        )}
+                      </div>
+
+                      {/* STEP 2: Data (only if NOT linked to logbook) */}
+                      {!form.novoAbastVincularDiario && (
+                        <FormSection label="📅 Data do Abastecimento">
                           <Input
                             type="date"
                             value={form.novoAbastData}
@@ -877,66 +936,95 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             disabled={addExpense.isPending}
                           />
                         </FormSection>
-                        <FormSection label="Local">
-                          <Input
-                            placeholder="Ex: Portimão, Portugal"
-                            value={form.novoAbastLocal}
-                            onChange={(e) => set("novoAbastLocal")(e.target.value)}
-                            className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
-                            disabled={addExpense.isPending}
-                          />
-                        </FormSection>
-                      </div>
-                      <div className="grid grid-cols-1 gap-3">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <FormSection label="Litros">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="0,00"
-                              value={form.novoAbastLitros}
-                              onChange={(e) => set("novoAbastLitros")(e.target.value)}
-                              className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
-                              disabled={addExpense.isPending}
-                            />
-                          </FormSection>
-                          <FormSection label="Galões">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              placeholder="0,00"
-                              value={form.novoAbastGaloes}
-                              onChange={(e) => set("novoAbastGaloes")(e.target.value)}
-                              className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
-                              disabled={addExpense.isPending}
-                            />
-                          </FormSection>
-                        </div>
-                        <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3">
-                          <p className="text-xs text-amber-600 dark:text-amber-400">
-                            💡 <strong>Valor Unitário:</strong> Será calculado automaticamente a partir do valor total da despesa e dos litros informados.
-                          </p>
-                        </div>
-                      </div>
+                      )}
 
-                      {/* Trecho e Combustível */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <FormSection label="Trecho (origem x destino)">
-                          <Input
-                            placeholder="Ex: SBSP x SBRJ"
-                            value={form.novoAbastTrecho}
-                            onChange={(e) => set("novoAbastTrecho")(e.target.value)}
-                            className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
-                            disabled={addExpense.isPending}
-                          />
+                      {/* STEP 3: Trecho (only if NOT linked) */}
+                      {!form.novoAbastVincularDiario && (
+                        <div>
+                          <Label className="text-sm font-semibold mb-2 block">✈️ Trecho (Origem x Destino)</Label>
+                          <div className="flex gap-2 items-end">
+                            <div className="flex-1">
+                              <Label className="text-xs text-muted-foreground mb-1 block">Origem</Label>
+                              <AerodromeCombobox
+                                aerodromes={aerodromes}
+                                value={form.novoAbastTrechoOrigem}
+                                onChange={(value) => {
+                                  set("novoAbastTrechoOrigem")(value);
+                                  const destino = form.novoAbastTrechoDestino;
+                                  if (value && destino) {
+                                    set("novoAbastTrecho")(`${value} X ${destino}`);
+                                  }
+                                }}
+                                disabled={addExpense.isPending}
+                                placeholder="Origem"
+                              />
+                            </div>
+                            <span className="text-sm text-muted-foreground mb-2">X</span>
+                            <div className="flex-1">
+                              <Label className="text-xs text-muted-foreground mb-1 block">Destino</Label>
+                              <AerodromeCombobox
+                                aerodromes={aerodromes}
+                                value={form.novoAbastTrechoDestino}
+                                onChange={(value) => {
+                                  set("novoAbastTrechoDestino")(value);
+                                  const origem = form.novoAbastTrechoOrigem;
+                                  if (origem && value) {
+                                    set("novoAbastTrecho")(`${origem} X ${value}`);
+                                  }
+                                }}
+                                disabled={addExpense.isPending}
+                                placeholder="Destino"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* STEP 4: Fornecedor + Combustível */}
+                      <div className="space-y-3 pt-2 border-t">
+                        <FormSection label="🛢️ Fornecedor <span className='text-red-500'>*</span>">
+                          <div className="flex gap-2">
+                            <SearchableCombobox
+                              options={fuelSuppliers.map(s => ({
+                                value: s.supplier_name,
+                                label: `${s.supplier_name} (${s.city_name})`
+                              }))}
+                              value={form.supplierName}
+                              onValueChange={(v) => {
+                                set("supplierName")(v);
+                                // Auto-fill local
+                                const supplier = fuelSuppliers.find(s => s.supplier_name === v);
+                                if (supplier) {
+                                  set("novoAbastLocal")(supplier.city_name);
+                                }
+                              }}
+                              placeholder="Selecione fornecedor"
+                              searchPlaceholder="Buscar fornecedor..."
+                              emptyText="Nenhum fornecedor encontrado"
+                              className="flex-1"
+                              disabled={addExpense.isPending}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-12"
+                              onClick={() => setShowAddFuelSupplier(true)}
+                              disabled={addExpense.isPending}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </FormSection>
-                        <FormSection label="Combustível">
+
+                        <FormSection label="⛽ Tipo de Combustível <span className='text-red-500'>*</span>">
                           <Select
                             value={form.novoAbastCombustivel}
                             onValueChange={(v) => set("novoAbastCombustivel")(v as "avgas" | "jet" | "")}
+                            disabled={addExpense.isPending}
                           >
                             <SelectTrigger className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm">
-                              <SelectValue placeholder="Selecione" />
+                              <SelectValue placeholder="Selecione combustível" />
                             </SelectTrigger>
                             <SelectContent className="rounded-xl">
                               <SelectItem value="avgas">AVGAS</SelectItem>
@@ -946,15 +1034,70 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                         </FormSection>
                       </div>
 
-                      {/* Tipo de Faturamento e Comanda */}
+                      {/* STEP 5: Valor Unitário (auto-filled) */}
+                      <FormSection label="💰 Valor Unitário (R$)">
+                        <Input
+                          type="number"
+                          step="0.0001"
+                          value={form.novoAbastValorUnitario}
+                          onChange={(e) => set("novoAbastValorUnitario")(e.target.value)}
+                          placeholder="Auto-preenchido"
+                          className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                          disabled={addExpense.isPending}
+                        />
+                        {form.novoAbastValorUnitario && (
+                          <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                            ✓ Preço preenchido automaticamente da tabela de fornecedores
+                          </p>
+                        )}
+                      </FormSection>
+
+                      {/* STEP 6: Litros e Cálculo */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <FormSection label="Tipo de Faturamento">
+                        <FormSection label="📊 Total em Litros <span className='text-red-500'>*</span>">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0,00"
+                            value={form.novoAbastLitros}
+                            onChange={(e) => set("novoAbastLitros")(e.target.value)}
+                            className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                            disabled={addExpense.isPending}
+                          />
+                        </FormSection>
+                        <FormSection label="📏 Galões (opcional)">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0,00"
+                            value={form.novoAbastGaloes}
+                            onChange={(e) => set("novoAbastGaloes")(e.target.value)}
+                            className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                            disabled={addExpense.isPending}
+                          />
+                        </FormSection>
+                      </div>
+
+                      {/* Calculated values */}
+                      {form.novoAbastLitros && form.novoAbastValorUnitario && (
+                        <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 p-3 rounded-lg">
+                          <p className="text-xs text-muted-foreground mb-1">Cálculo Automático</p>
+                          <p className="text-sm font-semibold text-green-600 dark:text-green-400">
+                            {form.novoAbastLitros} L × R$ {parseFloat(form.novoAbastValorUnitario || "0").toFixed(4)} = R$ {(parseFloat(form.novoAbastLitros || "0") * parseFloat(form.novoAbastValorUnitario || "0")).toFixed(2)}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* STEP 7: Tipo de Faturamento e Status Pagamento */}
+                      <div className="space-y-3 pt-2 border-t">
+                        <FormSection label="📋 Tipo de Faturamento <span className='text-red-500'>*</span>">
                           <Select
                             value={form.novoAbastTipoFaturamento}
                             onValueChange={(v) => set("novoAbastTipoFaturamento")(v)}
+                            disabled={addExpense.isPending}
                           >
                             <SelectTrigger className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm">
-                              <SelectValue placeholder="Selecione" />
+                              <SelectValue placeholder="Selecione tipo" />
                             </SelectTrigger>
                             <SelectContent className="rounded-xl">
                               <SelectItem value="pagamento a vista">Pagamento à Vista</SelectItem>
@@ -965,76 +1108,153 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             </SelectContent>
                           </Select>
                         </FormSection>
-                        <FormSection label="Nº Comanda">
-                          <Input
-                            placeholder="Comanda"
-                            value={form.novoAbastComandaNumero}
-                            onChange={(e) => set("novoAbastComandaNumero")(e.target.value)}
-                            className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+
+                        <FormSection label="💳 Status de Pagamento <span className='text-red-500'>*</span>">
+                          <Select
+                            value={form.novoAbastStatusPagamento}
+                            onValueChange={(v) => set("novoAbastStatusPagamento")(v as "pago" | "em aberto")}
+                            disabled={addExpense.isPending}
+                          >
+                            <SelectTrigger className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm">
+                              <SelectValue placeholder="Selecione status" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                              <SelectItem value="em aberto">⏱️ Em Aberto</SelectItem>
+                              <SelectItem value="pago">✓ Pago</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormSection>
+                      </div>
+
+                      {/* STEP 8: Payment Details */}
+                      {form.novoAbastStatusPagamento === "pago" && (
+                        <div className="space-y-3 pt-2 border-t bg-green-500/5 border-l-4 border-l-green-500 pl-3">
+                          <FormSection label="📅 Data de Pagamento">
+                            <Input
+                              type="date"
+                              value={form.novoAbastDataPagamento}
+                              onChange={(e) => set("novoAbastDataPagamento")(e.target.value)}
+                              className="h-12 rounded-xl border-green-700/30 bg-background text-foreground text-sm"
+                              disabled={addExpense.isPending}
+                            />
+                          </FormSection>
+
+                          <FormSection label="🏦 Banco">
+                            <Select
+                              value={form.novoAbastBanco}
+                              onValueChange={(v) => set("novoAbastBanco")(v)}
+                              disabled={addExpense.isPending}
+                            >
+                              <SelectTrigger className="h-12 rounded-xl border-green-700/30 bg-background text-foreground text-sm">
+                                <SelectValue placeholder="Selecione banco" />
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl">
+                                {contasBancarias.map(banco => (
+                                  <SelectItem key={banco.id} value={banco.banco}>{banco.banco}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </FormSection>
+
+                          <FormSection label="📄 Comprovante de Pagamento">
+                            <FileUploadField
+                              value={form.comprovantePagamento}
+                              onChange={(url) => set("comprovantePagamento")(url)}
+                              label="Anexar Comprovante"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              bucket="nfs-share-recebidas"
+                              prefix="comprovante"
+                              disabled={addExpense.isPending}
+                            />
+                          </FormSection>
+                        </div>
+                      )}
+
+                      {form.novoAbastStatusPagamento === "em aberto" && (
+                        <div className="space-y-3 pt-2 border-t bg-orange-500/5 border-l-4 border-l-orange-500 pl-3">
+                          <FormSection label="📅 Data de Vencimento">
+                            <Input
+                              type="date"
+                              value={form.novoAbastDataVencimento}
+                              onChange={(e) => set("novoAbastDataVencimento")(e.target.value)}
+                              className="h-12 rounded-xl border-orange-700/30 bg-background text-foreground text-sm"
+                              disabled={addExpense.isPending}
+                            />
+                          </FormSection>
+                        </div>
+                      )}
+
+                      {/* STEP 9: Attachments */}
+                      <div className="space-y-4 pt-2 border-t">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <FormSection label="🧾 Nº Comanda">
+                            <Input
+                              placeholder="Comanda"
+                              value={form.novoAbastComandaNumero}
+                              onChange={(e) => set("novoAbastComandaNumero")(e.target.value)}
+                              className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                              disabled={addExpense.isPending}
+                            />
+                          </FormSection>
+                          <FormSection label="📸 Anexo Comanda">
+                            <FileUploadField
+                              value={form.comandaUrl}
+                              onChange={(url) => set("comandaUrl")(url)}
+                              label="Anexar Comanda"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              bucket="nfs-share-recebidas"
+                              prefix="comanda"
+                              disabled={addExpense.isPending}
+                            />
+                          </FormSection>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <FormSection label="📄 Nº Nota Fiscal">
+                            <Input
+                              placeholder="NF"
+                              value={form.novoAbastNF}
+                              onChange={(e) => set("novoAbastNF")(e.target.value)}
+                              className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                              disabled={addExpense.isPending}
+                            />
+                          </FormSection>
+                          <FormSection label="📸 Anexo NF">
+                            <FileUploadField
+                              value={form.notaFiscalUrl}
+                              onChange={(url) => set("notaFiscalUrl")(url)}
+                              label="Anexar Nota Fiscal"
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              bucket="nfs-share-recebidas"
+                              prefix="nota-fiscal"
+                              disabled={addExpense.isPending}
+                            />
+                          </FormSection>
+                        </div>
+
+                        <FormSection label="💰 Boleto (Opcional)">
+                          <FileUploadField
+                            value={form.novoAbastBoleto}
+                            onChange={(url) => set("novoAbastBoleto")(url)}
+                            label="Anexar Boleto"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            bucket="nfs-share-recebidas"
+                            prefix="boleto"
+                            disabled={addExpense.isPending}
+                          />
+                        </FormSection>
+
+                        <FormSection label="📝 Observações">
+                          <Textarea
+                            placeholder="Adicione observações sobre este abastecimento..."
+                            value={form.novoAbastObservacoes}
+                            onChange={(e) => set("novoAbastObservacoes")(e.target.value)}
+                            className="rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
                             disabled={addExpense.isPending}
                           />
                         </FormSection>
                       </div>
 
-                      {/* Nota Fiscal */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <FormSection label="Nº Nota Fiscal">
-                          <Input
-                            placeholder="NF"
-                            value={form.novoAbastNF}
-                            onChange={(e) => set("novoAbastNF")(e.target.value)}
-                            className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
-                            disabled={addExpense.isPending}
-                          />
-                        </FormSection>
-                        <FormSection label="Anexo NF">
-                          <FileUploadField
-                            value={form.notaFiscalUrl}
-                            onChange={(url) => set("notaFiscalUrl")(url)}
-                            label="Anexar Nota Fiscal"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            bucket="nfs-share-recebidas"
-                            prefix="nota-fiscal"
-                            disabled={addExpense.isPending}
-                          />
-                        </FormSection>
-                      </div>
-
-                      {/* Observações */}
-                      <FormSection label="Observações">
-                        <Textarea
-                          placeholder="Adicione observações sobre este abastecimento..."
-                          value={form.novoAbastObservacoes}
-                          onChange={(e) => set("novoAbastObservacoes")(e.target.value)}
-                          className="rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
-                          disabled={addExpense.isPending}
-                        />
-                      </FormSection>
-                      {/* Comanda + Comprovante */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <FormSection label="Comanda">
-                          <FileUploadField
-                            value={form.comandaUrl}
-                            onChange={(url) => set("comandaUrl")(url)}
-                            label="Anexar Comanda"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            bucket="nfs-share-recebidas"
-                            prefix="comanda"
-                            disabled={addExpense.isPending}
-                          />
-                        </FormSection>
-                        <FormSection label="Comprovante de Pagamento">
-                          <FileUploadField
-                            value={form.comprovantePagamento}
-                            onChange={(url) => set("comprovantePagamento")(url)}
-                            label="Anexar Comprovante"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            bucket="nfs-share-recebidas"
-                            prefix="comprovante"
-                            disabled={addExpense.isPending}
-                          />
-                        </FormSection>
-                      </div>
                       <Button
                         type="button"
                         variant="ghost"
@@ -1045,7 +1265,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                         <ArrowLeft className="h-4 w-4" />
                         Usar abastecimento existente
                       </Button>
-                    </>
+                    </div>
                   )}
                 </div>
               )}
