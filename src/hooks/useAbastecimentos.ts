@@ -134,8 +134,6 @@ export function useAbastecimentosByPeriod(
         .from("abastecimentos")
         .select("*")
         .eq("client_id", clientId)
-        .gte("data", startDate)
-        .lte("data", endDate)
         .order("data", { ascending: false });
 
       if (error) {
@@ -143,7 +141,16 @@ export function useAbastecimentosByPeriod(
         return [];
       }
 
-      return (data || []) as Abastecimento[];
+      return ((data || []) as Abastecimento[])
+        .filter((item) => {
+          const effectiveDate = (item.data_pagamento || item.data || "").slice(0, 10);
+          return effectiveDate >= startDate && effectiveDate <= endDate;
+        })
+        .sort((a, b) => {
+          const dateA = (a.data_pagamento || a.data || "").slice(0, 10);
+          const dateB = (b.data_pagamento || b.data || "").slice(0, 10);
+          return dateB.localeCompare(dateA);
+        });
     },
   });
 }
