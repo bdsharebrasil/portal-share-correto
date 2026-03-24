@@ -1376,13 +1376,13 @@ export function FuelRecordsByAircraft({
                     )}
 
                     {selectedFlightInfo && (
-                      <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg space-y-2">
+                      <div className="mt-3 p-3 rounded-lg space-y-2" style={{backgroundColor: 'rgba(16, 33, 56, 1)', borderColor: 'rgba(33, 87, 156, 1)', borderWidth: '1px'}}>
                         <div>
-                          <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-1">📅 Data Selecionada</p>
-                          <p className="text-sm font-medium text-foreground">{formatDateBrazil(selectedFlightInfo.entry_date)}</p>
+                          <p className="text-xs font-semibold mb-1" style={{color: 'rgba(155, 182, 239, 1)'}}>📅 Data Selecionada</p>
+                          <p className="text-sm font-medium text-foreground">{formatDateBrazil(selectedFlightInfo.entry_date, "dd/MM/yy")}</p>
                         </div>
                         <div>
-                          <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-1">✈️ Trecho Selecionado</p>
+                          <p className="text-xs font-semibold mb-1" style={{color: 'rgba(162, 188, 244, 1)'}}>✈️ Trecho Selecionado</p>
                           <p className="text-sm font-medium text-foreground">{selectedFlightInfo.trecho || `${selectedFlightInfo.departure_aerodrome} → ${selectedFlightInfo.arrival_aerodrome}`}</p>
                         </div>
                         {previousDayFlightInfo && (
