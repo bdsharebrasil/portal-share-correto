@@ -450,6 +450,14 @@ const generateHTMLReport = (report: TravelReport, currentFullName = 'Usuário', 
                 </div>
             </div>
 
+            ${report.observacoes ? `
+            <hr />
+            <div style="margin-top: 20px; padding: 12px; background: #f5f5f5; border-left: 4px solid #22c55e;">
+                <h3 style="color: #1e3a8a; margin: 0 0 8px 0; font-size: 13px; font-weight: bold;">Observações</h3>
+                <p style="margin: 0; font-size: 12px; line-height: 1.5; color: #333; white-space: pre-wrap; word-wrap: break-word;">${(report.observacoes || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+            </div>
+            ` : ''}
+
             <div class="footer">
                 Gerado por: ${currentFullName || 'Usuário'}
             </div>
