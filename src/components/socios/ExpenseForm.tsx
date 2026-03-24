@@ -1607,7 +1607,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     />
                   </FormSection>
 
-                  {/* Conta Bancária + Prazo */}
+                  {/* Conta Bancaria + Prazo */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <FormSection label="Instituição Bancária" required>
                       <Select
@@ -1646,7 +1646,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     <FormSection label="Prazo" required>
                       <Select
                         value={bankForm.prazo}
-                        onValueChange={(v) => setBankForm((p) => ({ ...p, prazo: v as "mensal" | "extra" }))}
+                        onValueChange={(v) => setBankForm((p) => ({ ...p, prazo: v as "MENSAL" | "EXTRA" }))}
                       >
                         <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
                           <SelectValue placeholder="Selecione o tipo" />
@@ -1656,16 +1656,16 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             <div className="flex items-center gap-2.5">
                               <span className="h-2.5 w-2.5 rounded-full bg-blue-500 flex-shrink-0" />
                               <div>
-                                <div className="font-medium text-sm">Mensal</div>
+                                <div className="font-medium text-sm">MENSAL</div>
                                 <div className="text-xs text-muted-foreground">Ciclo mensal regular</div>
                               </div>
                             </div>
                           </SelectItem>
-                          <SelectItem value="extra" className="py-3">
+                          <SelectItem value="EXTRA" className="py-3">
                             <div className="flex items-center gap-2.5">
                               <span className="h-2.5 w-2.5 rounded-full bg-orange-500 flex-shrink-0" />
                               <div>
-                                <div className="font-medium text-sm">Extra</div>
+                                <div className="font-medium text-sm">EXTRA</div>
                                 <div className="text-xs text-muted-foreground">Evento ou gasto avulso</div>
                               </div>
                             </div>
