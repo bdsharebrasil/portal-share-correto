@@ -1362,9 +1362,9 @@ export function FuelRecordsByAircraft({
                           {logbookFlights.map((flight) => (
                             <SelectItem key={flight.id} value={flight.id} className="py-2">
                               <div className="text-sm">
-                                <span className="font-medium">{flight.entry_date}</span>
+                                <span className="font-medium">{formatDateBrazil(flight.entry_date, "dd/MM/yy")}</span>
                                 {' · '}
-                                <span>{flight.trecho || `${flight.departure_aerodrome} → ${flight.arrival_aerodrome}`}</span>
+                                <span>{flight.trecho || `${flight.departure_aerodrome} x ${flight.arrival_aerodrome}`}</span>
                                 {flight.fuel_added && (
                                   <span className="text-muted-foreground"> · {flight.fuel_added}L</span>
                                 )}
