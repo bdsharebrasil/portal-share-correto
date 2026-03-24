@@ -109,23 +109,52 @@ const getErrorMessage = (error: any): string => {
  * Format date avoiding timezone shifts for Brazil (UTC-3)
  * Handles both ISO timestamps and date-only strings
  */
-const formatDateBrazil = (dateValue: string | Date, formatStr: string = "dd/MM/yyyy"): string => {
+const formatDateBrazil = (dateValue: string | Date | null | undefined, formatStr: string = "dd/MM/yyyy"): string => {
+  if (!dateValue) return "—";
+
   let dateObj: Date;
-  if (typeof dateValue === 'string') {
-    // If it's a date-only string (YYYY-MM-DD), parse it directly without timezone conversion
-    if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      const [year, month, day] = dateValue.split('-').map(Number);
-      dateObj = new Date(year, month - 1, day);
+
+  try {
+    if (typeof dateValue === 'string') {
+      if (!dateValue.trim()) return "—";
+
+      // Date-only string (YYYY-MM-DD)
+      if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = dateValue.split('-').map(Number);
+        dateObj = new Date(year, month - 1, day);
+      } else {
+        // ISO timestamp — extract only the date part
+        const datePart = dateValue.split('T')[0];
+        if (!datePart || !datePart.match(/^\d{4}-\d{2}-\d{2}$/)) return "—";
+        const [year, month, day] = datePart.split('-').map(Number);
+        dateObj = new Date(year, month - 1, day);
+      }
     } else {
-      // If it's an ISO timestamp, extract the date part
-      const datePart = dateValue.split('T')[0];
-      const [year, month, day] = datePart.split('-').map(Number);
-      dateObj = new Date(year, month - 1, day);
+      dateObj = dateValue;
     }
-  } else {
-    dateObj = dateValue;
+
+    // Guard against invalid Date objects
+    if (isNaN(dateObj.getTime())) return "—";
+
+    return format(dateObj, formatStr);
+  } catch {
+    return "—";
   }
-  return format(dateObj, formatStr);
+};
+
+/**
+ * Calculate previous day date safely from a YYYY-MM-DD string
+ */
+const getPreviousDay = (dateStr: string): string => {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() - 1);
+
+  const prevYear = date.getFullYear();
+  const prevMonth = String(date.getMonth() + 1).padStart(2, '0');
+  const prevDay = String(date.getDate()).padStart(2, '0');
+
+  return `${prevYear}-${prevMonth}-${prevDay}`;
 };
 export function FuelRecordsByAircraft({
   client,
@@ -163,6 +192,11 @@ export function FuelRecordsByAircraft({
 
   const { aerodromes, isLoadingAerodromes } = useAerodromes();
   const [bankInstitutions, setBankInstitutions] = useState<{id:string;label:string;}[]>([]);
+
+  // State para rastrear informações do voo selecionado e do dia anterior
+  const [selectedFlightInfo, setSelectedFlightInfo] = useState<any>(null);
+  const [previousDayFlightInfo, setPreviousDayFlightInfo] = useState<any>(null);
+  const [showConfirmationSummary, setShowConfirmationSummary] = useState(false);
 
   const [formData, setFormData] = useState({
     data: "",
@@ -277,11 +311,14 @@ export function FuelRecordsByAircraft({
     }
   };
 
-  const handleFlightSelect = (flightId: string) => {
+  const handleFlightSelect = async (flightId: string) => {
     setSelectedFlightId(flightId);
     const flight = logbookFlights.find(f => f.id === flightId);
     if (flight) {
       const trecho = flight.trecho || `${flight.departure_aerodrome} → ${flight.arrival_aerodrome}`;
+      setSelectedFlightInfo(flight);
+
+      // Armazena informações do voo selecionado
       setFormData(prev => ({
         ...prev,
         trecho,
@@ -290,6 +327,36 @@ export function FuelRecordsByAircraft({
         origem_aerodromo: flight.departure_aerodrome || "",
         destino_aerodromo: flight.arrival_aerodrome || "",
       }));
+
+      // Busca o voo do dia anterior para preencher a rota
+      try {
+        const previousDateStr = getPreviousDay(flight.entry_date);
+
+        const { data: previousFlights, error } = await supabase
+          .from('logbook_entries')
+          .select('id, entry_date, departure_aerodrome, arrival_aerodrome, trecho')
+          .eq('aircraft_id', aircraft.id)
+          .eq('entry_date', previousDateStr)
+          .order('entry_date', { ascending: false })
+          .limit(1);
+
+        if (!error && previousFlights && previousFlights.length > 0) {
+          const previousFlight = previousFlights[0];
+          setPreviousDayFlightInfo(previousFlight);
+
+          // Preenche a rota com os dados do dia anterior
+          setFormData(prev => ({
+            ...prev,
+            origem_aerodromo: previousFlight.departure_aerodrome || "",
+            destino_aerodromo: previousFlight.arrival_aerodrome || "",
+          }));
+        } else {
+          setPreviousDayFlightInfo(null);
+        }
+      } catch (err) {
+        console.error('Error loading previous day flight:', err);
+        setPreviousDayFlightInfo(null);
+      }
     }
   };
 
@@ -654,7 +721,9 @@ export function FuelRecordsByAircraft({
       setShowConfirmation(true);
       return;
     }
-    await saveRecord();
+
+    // Mostrar resumo antes de salvar
+    setShowConfirmationSummary(true);
   };
   const saveRecord = async () => {
     setIsUploading(true);
@@ -970,6 +1039,8 @@ export function FuelRecordsByAircraft({
     setLinkToLogbook(false);
     setSelectedFlightId("");
     setLogbookFlights([]);
+    setSelectedFlightInfo(null);
+    setPreviousDayFlightInfo(null);
   };
 
   const handleExportPDF = (month: number | null, year: string) => {
@@ -1277,7 +1348,7 @@ export function FuelRecordsByAircraft({
                 </div>
 
                 {linkToLogbook && (
-                  <div className="pl-7 space-y-2">
+                  <div className="pl-7 space-y-3">
                     {loadingFlights ? (
                       <p className="text-xs text-muted-foreground">Carregando voos...</p>
                     ) : logbookFlights.length === 0 ? (
@@ -1303,6 +1374,25 @@ export function FuelRecordsByAircraft({
                         </SelectContent>
                       </Select>
                     )}
+
+                    {selectedFlightInfo && (
+                      <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg space-y-2">
+                        <div>
+                          <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-1">📅 Data Selecionada</p>
+                          <p className="text-sm font-medium text-foreground">{formatDateBrazil(selectedFlightInfo.entry_date)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-1">✈️ Trecho Selecionado</p>
+                          <p className="text-sm font-medium text-foreground">{selectedFlightInfo.trecho || `${selectedFlightInfo.departure_aerodrome} → ${selectedFlightInfo.arrival_aerodrome}`}</p>
+                        </div>
+                        {previousDayFlightInfo && (
+                          <div className="border-t border-blue-200 dark:border-blue-800 pt-2 mt-2">
+                            <p className="text-xs font-semibold text-green-600 dark:text-green-400 mb-1">📍 Rota (Dia Anterior)</p>
+                            <p className="text-sm font-medium text-foreground">{previousDayFlightInfo.departure_aerodrome} X {previousDayFlightInfo.arrival_aerodrome}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1313,8 +1403,7 @@ export function FuelRecordsByAircraft({
                 <div className="flex gap-2">
                   <Input
                     type="text"
-                    value={formData.data ? format(new Date(formData.data), "dd/MM/yyyy") : ""}
-                    readOnly
+                    value={formData.data ? formatDateBrazil(formData.data, "dd/MM/yyyy") : ""}                    readOnly
                     placeholder="dd/mm/aaaa"
                     className="mt-1 h-9 text-sm"
                   />
@@ -1395,6 +1484,7 @@ export function FuelRecordsByAircraft({
               </div>
             </div>
 
+            {/* Rota - Origem e Destino (Reorganizado) */}
             <div>
               <Label className="text-sm font-semibold mb-2 block">Rota</Label>
               {!linkToLogbook && (
@@ -1434,18 +1524,11 @@ export function FuelRecordsByAircraft({
                     trecho: e.target.value
                   })} placeholder="SBSP X SBRJ" className="mt-1 h-9 text-sm" required />
                 </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Local</Label>
-                  <Input value={formData.local} onChange={e => setFormData({
-                    ...formData,
-                    local: e.target.value
-                  })} placeholder="CUIABA" className="mt-1 h-9 text-sm" />
-                </div>
               </div>
             </div>
 
-            {/* Fornecedor e Combustível */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {/* Fornecedor e Local (lado a lado) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <Label className="text-xs text-muted-foreground">Fornecedor <span className="text-red-500">*</span></Label>
                 <Combobox options={suppliers.map(s => ({
@@ -1462,43 +1545,53 @@ export function FuelRecordsByAircraft({
               </div>
 
               <div>
-                <Label className="text-xs text-muted-foreground">Tipo de Combustível <span className="text-red-500">*</span></Label>
-                <Select value={formData.combustivel_tipo} onValueChange={value => {
-                  const selectedSupplier = suppliers.find(s => s.id === formData.abastecedor_id);
-                  let novoValorUnitario = formData.valor_unitario;
-
-                  if (selectedSupplier) {
-                    if (value === "avgas") {
-                      novoValorUnitario = selectedSupplier.fuel_price_avgas?.toString() || "";
-                    } else if (value === "jet") {
-                      novoValorUnitario = selectedSupplier.fuel_price_jet?.toString() || "";
-                    }
-                  }
-
-                  setFormData({
-                    ...formData,
-                    combustivel_tipo: value,
-                    valor_unitario: novoValorUnitario
-                  });
-                }}>
-                  <SelectTrigger className="mt-1 h-9 text-sm">
-                    <SelectValue placeholder="Selecione" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="avgas">AVGAS</SelectItem>
-                    <SelectItem value="jet">JET</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="text-xs text-muted-foreground">Valor Unit. (R$) <span className="text-red-500">*</span></Label>
-                <Input type="number" step="0.0001" value={formData.valor_unitario} onChange={e => setFormData({
+                <Label className="text-xs text-muted-foreground">Local</Label>
+                <Input value={formData.local} onChange={e => setFormData({
                   ...formData,
-                  valor_unitario: e.target.value,
-                  valor_total_manual: false,
-                })} placeholder="Preço do combustível" className="mt-1 h-9 text-sm" required />
+                  local: e.target.value
+                })} placeholder="CUIABA" className="mt-1 h-9 text-sm" />
               </div>
+            </div>
+
+            {/* Tipo de Combustível */}
+            <div>
+              <Label className="text-xs text-muted-foreground">Tipo de Combustível <span className="text-red-500">*</span></Label>
+              <Select value={formData.combustivel_tipo} onValueChange={value => {
+                const selectedSupplier = suppliers.find(s => s.id === formData.abastecedor_id);
+                let novoValorUnitario = formData.valor_unitario;
+
+                if (selectedSupplier) {
+                  if (value === "avgas") {
+                    novoValorUnitario = selectedSupplier.fuel_price_avgas?.toString() || "";
+                  } else if (value === "jet") {
+                    novoValorUnitario = selectedSupplier.fuel_price_jet?.toString() || "";
+                  }
+                }
+
+                setFormData({
+                  ...formData,
+                  combustivel_tipo: value,
+                  valor_unitario: novoValorUnitario
+                });
+              }}>
+                <SelectTrigger className="mt-1 h-9 text-sm">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="avgas">AVGAS</SelectItem>
+                  <SelectItem value="jet">JET</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Valor Unit. */}
+            <div>
+              <Label className="text-xs text-muted-foreground">Valor Unit. (R$) <span className="text-red-500">*</span></Label>
+              <Input type="number" step="0.0001" value={formData.valor_unitario} onChange={e => setFormData({
+                ...formData,
+                valor_unitario: e.target.value,
+                valor_total_manual: false,
+              })} placeholder="Preço do combustível" className="mt-1 h-9 text-sm" required />
             </div>
 
             {/* Tipo de Faturamento e Status de Pagamento */}
@@ -1652,16 +1745,16 @@ export function FuelRecordsByAircraft({
               })} placeholder="0.00 (opcional)" className="mt-1 h-9 text-sm" />
             </div>
 
-            {/* Comanda */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div>
+            {/* Comanda - Compacto */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+              <div className="sm:col-span-1">
                 <Label className="text-xs text-muted-foreground">Nº Comanda</Label>
                 <Input value={formData.comanda} onChange={e => setFormData({
                   ...formData,
                   comanda: e.target.value
-                })} placeholder="Número da comanda" className="mt-1 h-9 text-sm" />
+                })} placeholder="Comanda" className="mt-1 h-8 text-xs" />
               </div>
-              <div>
+              <div className="sm:col-span-2">
                 <Label className="text-xs text-muted-foreground">Anexo da Comanda</Label>
                 <ModernFileUpload
                   label=""
@@ -1686,16 +1779,16 @@ export function FuelRecordsByAircraft({
               </div>
             </div>
 
-            {/* Nota Fiscal */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div>
-                <Label className="text-xs text-muted-foreground">Nº Nota Fiscal</Label>
+            {/* Nota Fiscal - Compacto */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
+              <div className="sm:col-span-1">
+                <Label className="text-xs text-muted-foreground">Nº NF</Label>
                 <Input type="text" value={formData.nf} onChange={e => setFormData({
                   ...formData,
                   nf: e.target.value
-                })} placeholder="Número da nota fiscal (opcional)" className="mt-1 h-9 text-sm" />
+                })} placeholder="NF" className="mt-1 h-8 text-xs" />
               </div>
-              <div>
+              <div className="sm:col-span-2">
                 <Label className="text-xs text-muted-foreground">Anexo da NF</Label>
                 <ModernFileUpload
                   label=""
@@ -1771,6 +1864,123 @@ export function FuelRecordsByAircraft({
         </DialogContent>
       </Dialog>
 
+      <AlertDialog open={showConfirmationSummary} onOpenChange={setShowConfirmationSummary}>
+        <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl">Resumo do Abastecimento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Revise as informações e confirme para salvar
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Data e Cliente */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Data</p>
+                <p className="text-sm font-medium text-foreground">{formatDateBrazil(formData.data)}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Cliente</p>
+                <p className="text-sm font-medium text-foreground">{displayClient.company_name}</p>
+              </div>
+            </div>
+
+            {/* Rota */}
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Rota</p>
+              <p className="text-sm font-medium text-foreground">{formData.trecho}</p>
+            </div>
+
+            {/* Fornecedor e Local */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Fornecedor</p>
+                <p className="text-sm font-medium text-foreground">{suppliers.find(s => s.id === formData.abastecedor_id)?.supplier_name || "Não selecionado"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Local</p>
+                <p className="text-sm font-medium text-foreground">{formData.local || "—"}</p>
+              </div>
+            </div>
+
+            {/* Combustível e Valor Unitário */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Tipo de Combustível</p>
+                <p className="text-sm font-medium text-foreground uppercase">{formData.combustivel_tipo || "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Valor Unit. (R$)</p>
+                <p className="text-sm font-medium text-foreground">R$ {parseFloat(formData.valor_unitario || "0").toFixed(4)}</p>
+              </div>
+            </div>
+
+            {/* Litros e Valor Total */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Litros</p>
+                <p className="text-sm font-medium text-foreground">{formData.litros} L</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Valor Total (R$)</p>
+                <p className="text-sm font-semibold text-success">R$ {parseFloat(formData.valor_total || "0").toFixed(2)}</p>
+              </div>
+            </div>
+
+            {/* Faturamento e Pagamento */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Tipo de Faturamento</p>
+                <p className="text-sm font-medium text-foreground">{formData.tipo_faturamento || "—"}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Status de Pagamento</p>
+                <p className={`text-sm font-medium ${formData.status_pagamento === "pago" ? "text-green-600" : "text-amber-600"}`}>
+                  {formData.status_pagamento === "pago" ? "✓ Pago" : "⏱ Em Aberto"}
+                </p>
+              </div>
+            </div>
+
+            {/* Comanda e NF */}
+            {(formData.comanda || formData.nf) && (
+              <div className="grid grid-cols-2 gap-4">
+                {formData.comanda && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Comanda</p>
+                    <p className="text-sm font-medium text-foreground">{formData.comanda}</p>
+                  </div>
+                )}
+                {formData.nf && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Nota Fiscal</p>
+                    <p className="text-sm font-medium text-foreground">{formData.nf}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Observações */}
+            {formData.observacao && (
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Observações</p>
+                <p className="text-sm font-medium text-foreground">{formData.observacao}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <AlertDialogCancel>Voltar e Editar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setShowConfirmationSummary(false);
+              saveRecord();
+            }} className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700">
+              Confirmar e Salvar
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -1781,7 +1991,10 @@ export function FuelRecordsByAircraft({
           </AlertDialogHeader>
           <div className="flex gap-3 justify-end">
             <AlertDialogCancel>Voltar e Preencher</AlertDialogCancel>
-            <AlertDialogAction onClick={saveRecord}>
+            <AlertDialogAction onClick={() => {
+              setShowConfirmation(false);
+              setShowConfirmationSummary(true);
+            }}>
               Continuar sem Comanda
             </AlertDialogAction>
           </div>
