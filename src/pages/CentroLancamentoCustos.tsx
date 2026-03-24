@@ -47,8 +47,23 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 const MONTHS_SHORT = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const MONTHS_FULL = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
+const COST_CENTER_EXCLUDED_CATEGORIES = [
+  "TARIFAS BANCARIAS",
+  "TARIFA DE MANUTENÇÃO DE CONTA",
+  "TARIFA PIX TED/DOC",
+  "IOF",
+  "JUROS BANCÁRIOS",
+  "SEGUROS BANCÁRIOS",
+  "OUTRAS TAXAS BANCÁRIAS",
+];
+
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function shouldIncludeInCostCenter(category: string) {
+  const normalized = (category || "").toUpperCase();
+  return !COST_CENTER_EXCLUDED_CATEGORIES.some((item) => item === normalized);
 }
 
 function fmtTime(decimal: number): string {
@@ -115,6 +130,7 @@ export default function CentroLancamentoCustos() {
     // Partner expenses
     reportData.expenses.forEach((e) => {
       const cat = (e.expense_type || e.category || "Outros").toUpperCase();
+      if (!shouldIncludeInCostCenter(cat)) return;
       if (!categoryMap[cat]) categoryMap[cat] = {};
       const pName = e.assigned_partner_name || "DGA ADM";
       categoryMap[cat][pName] = (categoryMap[cat][pName] || 0) + e.total_amount;
@@ -123,6 +139,7 @@ export default function CentroLancamentoCustos() {
     // Shared expenses (no partner)
     reportData.sharedExpenses.forEach((e) => {
       const cat = (e.expense_type || e.category || "Outros").toUpperCase();
+      if (!shouldIncludeInCostCenter(cat)) return;
       if (!categoryMap[cat]) categoryMap[cat] = {};
       categoryMap[cat]["DGA ADM"] = (categoryMap[cat]["DGA ADM"] || 0) + e.total_amount;
     });
@@ -132,7 +149,7 @@ export default function CentroLancamentoCustos() {
       const cat = "COMBUSTÍVEIS";
       if (!categoryMap[cat]) categoryMap[cat] = {};
       reportData.fuels.forEach((fuel) => {
-        const pName = fuel.partner_name || "DGA ADM";
+        const pName = fuel.partner_name || fuel.observacao?.match(/\[Partner:([^\]]+)\]/i)?.[1] || "DGA ADM";
         const total = fuel.valor_total || fuel.litros * fuel.valor_unitario;
         categoryMap[cat][pName] = (categoryMap[cat][pName] || 0) + total;
       });
