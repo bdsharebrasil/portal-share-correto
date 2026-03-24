@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAerodromes } from "@/hooks/useAerodromes";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,8 @@ import { Plus, Download, Edit, Trash2, ChevronLeft, Plane, TrendingUp, FileUp, X
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { Combobox } from "@/components/ui/combobox";
+import { AerodromeCombobox } from "@/components/plano-voo/AerodromeCombobox";
+import { Calendar as UICalendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ModernFileUpload } from "@/components/ui/modern-file-upload";
 import { ExportFuelRecordsModal } from "./ExportFuelRecordsModal";
@@ -154,19 +157,30 @@ export function FuelRecordsByAircraft({
   const [loadingFlights, setLoadingFlights] = useState(false);
   const [currentUserName, setCurrentUserName] = useState<string>("");
 
+  const { aerodromes, isLoadingAerodromes } = useAerodromes();
+  const [bankInstitutions, setBankInstitutions] = useState<{id:string;label:string;}[]>([]);
+
   const [formData, setFormData] = useState({
     data: "",
     trecho: "",
     local: "",
+    origem_aerodromo: "",
+    destino_aerodromo: "",
     comanda: "",
     litros: "",
     valor_unitario: "",
+    valor_total: "",
+    valor_total_manual: false,
     abastecimento_galoes: "",
     abastecedor_id: "",
+    combustivel_tipo: "",
     client_id: "",
     partner_selected: "",
     status_pagamento: "em aberto",
     tipo_faturamento: "",
+    forma_pagamento: "",
+    banco: "",
+    data_vencimento_boleto: "",
     observacao: "",
     nf: "",
     comanda_file: null as File | null,
@@ -269,7 +283,61 @@ export function FuelRecordsByAircraft({
         trecho,
         data: flight.entry_date,
         litros: flight.fuel_added?.toString() || prev.litros,
+        origem_aerodromo: flight.departure_aerodrome || "",
+        destino_aerodromo: flight.arrival_aerodrome || "",
       }));
+    }
+  };
+
+  useEffect(() => {
+    // Se NÃO está vinculado ao diário, derive trecho de origem/destino
+    if (!linkToLogbook && formData.origem_aerodromo && formData.destino_aerodromo) {
+      setFormData(prev => ({
+        ...prev,
+        trecho: `${formData.origem_aerodromo} X ${formData.destino_aerodromo}`,
+      }));
+    }
+  }, [linkToLogbook, formData.origem_aerodromo, formData.destino_aerodromo]);
+
+  useEffect(() => {
+    const itens = formData.litros && formData.valor_unitario ? parseFloat(formData.litros) * parseFloat(formData.valor_unitario) : 0;
+
+    if (!formData.valor_total_manual) {
+      setFormData(prev => ({
+        ...prev,
+        valor_total: itens > 0 ? itens.toFixed(2) : "",
+      }));
+    }
+  }, [formData.litros, formData.valor_unitario, formData.valor_total_manual]);
+
+  useEffect(() => {
+    if (!formData.abastecedor_id || !formData.combustivel_tipo) return;
+    const fornecedor = suppliers.find(s => s.id === formData.abastecedor_id);
+    if (!fornecedor) return;
+
+    const preco = formData.combustivel_tipo === "avgas" ? fornecedor.fuel_price_avgas : fornecedor.fuel_price_jet;
+    if (preco !== null && preco !== undefined && !formData.valor_unitario) {
+      setFormData(prev => ({
+        ...prev,
+        valor_unitario: preco.toString(),
+      }));
+    }
+  }, [formData.abastecedor_id, formData.combustivel_tipo, suppliers]);
+
+  const loadBankInstitutions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("bank_institutions")
+        .select("id, label")
+        .order("sort_order", { ascending: true });
+
+      if (error) {
+        console.error("Erro ao carregar instituições bancárias:", error);
+        return;
+      }
+      setBankInstitutions((data || []) as { id: string; label: string }[]);
+    } catch (err) {
+      console.error("Erro ao carregar instituições bancárias:", err);
     }
   };
 
@@ -278,6 +346,7 @@ export function FuelRecordsByAircraft({
     loadSuppliers();
     loadClients();
     loadClientPartners();
+    loadBankInstitutions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aircraft.id, currentClientId]);
 
@@ -570,7 +639,16 @@ export function FuelRecordsByAircraft({
         return;
       }
       const litros = parseFloat(formData.litros);
-      const valorUnitario = parseFloat(formData.valor_unitario);
+      let valorUnitario = parseFloat(formData.valor_unitario);
+      const valorTotalFromField = formData.valor_total ? parseFloat(formData.valor_total) : NaN;
+
+      if (!isNaN(valorTotalFromField) && !isNaN(litros) && litros > 0) {
+        const calculated = valorTotalFromField / litros;
+        if (!isNaN(calculated) && isFinite(calculated)) {
+          valorUnitario = calculated;
+        }
+      }
+
       if (isNaN(litros) || litros <= 0) {
         toast.error("Valor inválido: Litros deve ser um número maior que zero");
         setIsUploading(false);
@@ -651,6 +729,9 @@ export function FuelRecordsByAircraft({
         abastecedor: supplierName,
         status_pagamento: statusFinal,
         tipo_faturamento: formData.tipo_faturamento || null,
+        forma_pagamento: formData.forma_pagamento || null,
+        banco: formData.banco || null,
+        data_vencimento_boleto: statusFinal === "em aberto" ? formData.data_vencimento_boleto || null : null,
         observacao: observacaoFinal,
         partner_name: partnerNameValue ? partnerNameValue.replace(/^\[|\]$/g, "") : null,
         partner_index: partnerIndex,
@@ -662,6 +743,7 @@ export function FuelRecordsByAircraft({
         criado_por: currentUserName || null,
         logbook_entry_id: (linkToLogbook && selectedFlightId) ? selectedFlightId : null,
         nf: formData.nf || null,
+        descricao: formData.combustivel_tipo ? `Combustível: ${formData.combustivel_tipo.toUpperCase()}` : null,
       };
 
       if (editingRecord) {
@@ -726,15 +808,23 @@ export function FuelRecordsByAircraft({
       data: record.data,
       trecho: record.trecho || "",
       local: record.local || "",
+      origem_aerodromo: "",
+      destino_aerodromo: "",
       comanda: record.comanda,
       litros: record.litros.toString(),
       valor_unitario: record.valor_unitario.toString(),
+      valor_total: (record.valor_total || (record.litros * record.valor_unitario)).toString(),
+      valor_total_manual: true,
       abastecimento_galoes: record.abastecimento_galoes?.toString() || "",
       abastecedor_id: supplierRecord?.id || "",
+      combustivel_tipo: record.descricao?.toLowerCase().includes("avgas") ? "avgas" : record.descricao?.toLowerCase().includes("jet") ? "jet" : "",
       client_id: record.client_id || client.id,
       partner_selected: record.observacao?.includes("[Partner:") ? record.observacao.match(/\[Partner:([^\]]+)\]/)?.[1] || "" : "",
       status_pagamento: record.status_pagamento || "em aberto",
       tipo_faturamento: record.tipo_faturamento || "",
+      forma_pagamento: record.forma_pagamento || "",
+      banco: record.banco || "",
+      data_vencimento_boleto: (record as any).data_vencimento_boleto || "",
       observacao: record.observacao?.replace(/\[Partner:[^\]]+\]\s*/, "") || "",
       nf: record.nf || "",
       comanda_file: null,
@@ -774,15 +864,23 @@ export function FuelRecordsByAircraft({
       data: "",
       trecho: "",
       local: "",
+      origem_aerodromo: "",
+      destino_aerodromo: "",
       comanda: "",
       litros: "",
       valor_unitario: "",
+      valor_total: "",
+      valor_total_manual: false,
       abastecimento_galoes: "",
       abastecedor_id: "",
+      combustivel_tipo: "",
       client_id: client.id,
       partner_selected: "",
       status_pagamento: "em aberto",
       tipo_faturamento: "",
+      forma_pagamento: "",
+      banco: "",
+      data_vencimento_boleto: "",
       observacao: "",
       nf: "",
       comanda_file: null,
@@ -1092,11 +1190,39 @@ export function FuelRecordsByAircraft({
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 flex-1 overflow-y-auto pr-2 sm:pr-4 -mx-2 sm:-mx-4 px-2 sm:px-4">
             <div>
-              <Label className="text-sm font-semibold mb-2 block">Data</Label>
-              <Input type="date" value={formData.data} onChange={e => setFormData({
-                ...formData,
-                data: e.target.value
-              })} required className="mt-1 h-9 text-sm" />
+              <Label className="text-sm font-semibold mb-2 block">Data do Abastecimento</Label>
+              {linkToLogbook ? (
+                <Input
+                  type="date"
+                  value={formData.data}
+                  readOnly
+                  className="mt-1 h-9 text-sm bg-slate-900 text-white"
+                />
+              ) : (
+                <div className="space-y-2">
+                  <UICalendar
+                    mode="single"
+                    selected={formData.data ? new Date(formData.data) : undefined}
+                    onSelect={(date) => {
+                      if (!date) return;
+                      setFormData(prev => ({
+                        ...prev,
+                        data: format(date, "yyyy-MM-dd"),
+                      }));
+                    }}
+                  />
+                  <Input
+                    type="date"
+                    value={formData.data}
+                    onChange={e => setFormData({
+                      ...formData,
+                      data: e.target.value
+                    })}
+                    required
+                    className="mt-1 h-9 text-sm"
+                  />
+                </div>
+              )}
             </div>
 
             <div>
@@ -1204,6 +1330,35 @@ export function FuelRecordsByAircraft({
 
             <div>
               <Label className="text-sm font-semibold mb-2 block">Rota</Label>
+              {!linkToLogbook && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Origem</Label>
+                    <AerodromeCombobox
+                      aerodromes={aerodromes}
+                      value={formData.origem_aerodromo}
+                      onChange={(value) => setFormData(prev => ({
+                        ...prev,
+                        origem_aerodromo: value,
+                      }))}
+                      disabled={isLoadingAerodromes}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Destino</Label>
+                    <AerodromeCombobox
+                      aerodromes={aerodromes}
+                      value={formData.destino_aerodromo}
+                      onChange={(value) => setFormData(prev => ({
+                        ...prev,
+                        destino_aerodromo: value,
+                      }))}
+                      disabled={isLoadingAerodromes}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <Label className="text-xs text-muted-foreground">Trecho <span className="text-red-500">*</span></Label>
@@ -1230,7 +1385,7 @@ export function FuelRecordsByAircraft({
               })} placeholder="Número da comanda" className="mt-1 h-9 text-sm" />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div>
                 <Label className="text-xs text-muted-foreground">Fornecedor</Label>
                 <Combobox options={suppliers.map(s => ({
@@ -1240,6 +1395,22 @@ export function FuelRecordsByAircraft({
                   ...formData,
                   abastecedor_id: value
                 })} placeholder="Selecione um fornecedor" searchPlaceholder="Buscar fornecedor..." emptyText="Nenhum fornecedor encontrado" className="mt-1 h-9 text-sm" />
+              </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground">Tipo de Combustível</Label>
+                <Select value={formData.combustivel_tipo} onValueChange={value => setFormData({
+                  ...formData,
+                  combustivel_tipo: value
+                })}>
+                  <SelectTrigger className="mt-1 h-9 text-sm">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="avgas">AVGAS</SelectItem>
+                    <SelectItem value="jet">JET</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
@@ -1259,12 +1430,41 @@ export function FuelRecordsByAircraft({
               </div>
 
               {formData.status_pagamento === "pago" && (
+                <>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Data do Pagamento *</Label>
+                    <Input type="date" value={formData.data_pagamento} onChange={e => setFormData({
+                      ...formData,
+                      data_pagamento: e.target.value
+                    })} className="mt-1 h-9 text-sm" required />
+                  </div>
+
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Banco</Label>
+                    <Select value={formData.banco} onValueChange={value => setFormData({
+                      ...formData,
+                      banco: value
+                    })}>
+                      <SelectTrigger className="mt-1 h-9 text-sm">
+                        <SelectValue placeholder="Selecione banco" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {bankInstitutions.map(bank => (
+                          <SelectItem key={bank.id} value={bank.label}>{bank.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+
+              {formData.status_pagamento === "em aberto" && (
                 <div>
-                  <Label className="text-xs text-muted-foreground">Data do Pagamento *</Label>
-                  <Input type="date" value={formData.data_pagamento} onChange={e => setFormData({
+                  <Label className="text-xs text-muted-foreground">Data de Vencimento</Label>
+                  <Input type="date" value={formData.data_vencimento_boleto} onChange={e => setFormData({
                     ...formData,
-                    data_pagamento: e.target.value
-                  })} className="mt-1 h-9 text-sm" required />
+                    data_vencimento_boleto: e.target.value
+                  })} className="mt-1 h-9 text-sm" />
                 </div>
               )}
             </div>
@@ -1297,28 +1497,35 @@ export function FuelRecordsByAircraft({
               </div>
             )}
 
-            <div>
-              <Label className="text-xs text-muted-foreground">Tipo de Faturamento</Label>
-              <Select value={formData.tipo_faturamento} onValueChange={value => setFormData({
-                ...formData,
-                tipo_faturamento: value
-              })}>
-                <SelectTrigger className="mt-1 h-9 text-sm">
-                  <SelectValue placeholder="Selecione o tipo de faturamento" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pagamento a vista">Pagamento à Vista</SelectItem>
-                  <SelectItem value="a vista cartao de credito">À Vista Cartão de Crédito</SelectItem>
-                  <SelectItem value="a vista transferencia pix">À Vista Transferência (PIX)</SelectItem>
-                  <SelectItem value="faturado boleto">Faturado Boleto</SelectItem>
-                  <SelectItem value="faturado nota fiscal">Faturado Nota Fiscal</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs text-muted-foreground">Tipo de Faturamento</Label>
+                <Select value={formData.tipo_faturamento} onValueChange={value => setFormData({
+                  ...formData,
+                  tipo_faturamento: value
+                })}>
+                  <SelectTrigger className="mt-1 h-9 text-sm">
+                    <SelectValue placeholder="Selecione o tipo de faturamento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pagamento a vista">Pagamento à Vista</SelectItem>
+                    <SelectItem value="a vista cartao de credito">À Vista Cartão de Crédito</SelectItem>
+                    <SelectItem value="a vista transferencia pix">À Vista Transferência (PIX)</SelectItem>
+                    <SelectItem value="faturado boleto">Faturado Boleto</SelectItem>
+                    <SelectItem value="faturado nota fiscal">Faturado Nota Fiscal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground">Forma de Pagamento</Label>
+                <Input value={formData.forma_pagamento} onChange={e => setFormData({ ...formData, forma_pagamento: e.target.value })} placeholder="PIX, Cartão, Transferência..." className="mt-1 h-9 text-sm" />
+              </div>
             </div>
 
             <div>
               <Label className="text-sm font-semibold mb-2 block">Combustível</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div>
                   <Label className="text-xs text-muted-foreground">Litros</Label>
                   <Input type="number" step="0.01" value={formData.litros} onChange={e => setFormData({
@@ -1330,8 +1537,27 @@ export function FuelRecordsByAircraft({
                   <Label className="text-xs text-muted-foreground">Valor Unit. (R$)</Label>
                   <Input type="number" step="0.0001" value={formData.valor_unitario} onChange={e => setFormData({
                     ...formData,
-                    valor_unitario: e.target.value
+                    valor_unitario: e.target.value,
+                    valor_total_manual: false,
                   })} required className="mt-1 h-9 text-sm" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Valor Total (R$)</Label>
+                  <Input type="number" step="0.01" value={formData.valor_total} onChange={e => {
+                    const total = e.target.value;
+                    const litrosNum = parseFloat(formData.litros);
+                    const totalNum = parseFloat(total);
+                    let valorUnitarioUpdate = formData.valor_unitario;
+                    if (!Number.isNaN(litrosNum) && litrosNum > 0 && !Number.isNaN(totalNum)) {
+                      valorUnitarioUpdate = (totalNum / litrosNum).toFixed(4);
+                    }
+                    setFormData({
+                      ...formData,
+                      valor_total: total,
+                      valor_total_manual: true,
+                      valor_unitario: valorUnitarioUpdate,
+                    });
+                  }} className="mt-1 h-9 text-sm" />
                 </div>
               </div>
             </div>
@@ -1360,10 +1586,10 @@ export function FuelRecordsByAircraft({
               })} placeholder="Número da nota fiscal (opcional)" className="mt-1 w-full px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background" />
             </div>
 
-            {formData.litros && formData.valor_unitario && <div className="bg-gradient-to-r from-success/10 to-success/5 border border-success/20 p-2 rounded-lg">
-              <p className="text-xs text-muted-foreground">Valor Total</p>
+            {(formData.litros && formData.valor_unitario) && <div className="bg-gradient-to-r from-success/10 to-success/5 border border-success/20 p-2 rounded-lg">
+              <p className="text-xs text-muted-foreground">Valor Total (calculado)</p>
               <p className="text-lg font-bold text-success">
-                R$ {(parseFloat(formData.litros) * parseFloat(formData.valor_unitario)).toFixed(2)}
+                R$ {formData.valor_total ? parseFloat(formData.valor_total).toFixed(2) : (parseFloat(formData.litros) * parseFloat(formData.valor_unitario)).toFixed(2)}
               </p>
             </div>}
 
