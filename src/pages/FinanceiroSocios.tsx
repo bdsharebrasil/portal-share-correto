@@ -31,8 +31,9 @@ export default function FinanceiroSocios() {
     const state = location.state as any
     if (state?.selectedClientId) {
       setClienteSelecionado(state.selectedClientId)
+      navigate(location.pathname, { replace: true, state: null })
     }
-  }, [location])
+  }, [location, navigate])
 
   // ========================
   // CARREGAMENTO DE DADOS

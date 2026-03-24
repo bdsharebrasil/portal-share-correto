@@ -206,7 +206,7 @@ export default function RelatorioTransacoesSocios() {
     return [
       ...new Set(
         allTransactions
-          .map((t: any) => t.expense_type || t.category || t.transaction_subtype)
+          .map((t: any) => t.expense_type)
           .filter(Boolean)
       ),
     ];
@@ -268,10 +268,7 @@ export default function RelatorioTransacoesSocios() {
 
     // Filter by category
     if (filterCategory !== "all") {
-      result = result.filter(
-        (t: any) =>
-          (t.expense_type || t.category || t.transaction_subtype) === filterCategory
-      );
+      result = result.filter((t: any) => t.expense_type === filterCategory);
     }
 
     // Filter by payment method
@@ -470,13 +467,11 @@ export default function RelatorioTransacoesSocios() {
     }
   };
 
-  const formatLabel = (raw: string) =>
-    raw.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
-
   const getCategoryLabel = (tx: any) => {
     const catId = tx.expense_type || tx.category || tx.transaction_subtype;
+    if (!catId) return "—";
     const found = expenseCategories.find((c: any) => c.id === catId);
-    return found ? `${found.icon || ""} ${found.label}`.trim() : catId ? formatLabel(catId) : "—";
+    return found ? `${found.icon || ""} ${found.label}`.trim() : catId;
   };
 
   // PDF export handler
@@ -649,7 +644,7 @@ export default function RelatorioTransacoesSocios() {
                           <td className="px-3 py-3 text-sm text-foreground">{tx.description}</td>
                           <td className="px-3 py-3 text-center">
                             <Badge variant="secondary" className="text-xs">
-                              {tx.transaction_type === "deposit" ? "Recebido" : tx.status === "paid" || tx.status === "pago" ? "Pago" : tx.status ? formatLabel(tx.status) : "—"}
+                              {tx.transaction_type === "deposit" ? "Recebido" : tx.status === "paid" || tx.status === "pago" ? "Pago" : tx.status ? tx.status.charAt(0).toUpperCase() + tx.status.slice(1).replace(/_/g, ' ') : "—"}
                             </Badge>
                           </td>
                           <td className={`px-3 py-3 text-sm text-right font-mono font-medium ${tx.transaction_type === "deposit" ? "text-emerald-500" : "text-destructive"}`}>

@@ -34,6 +34,7 @@ interface LogbookEntry {
   sic_canac?: string;
   sic_name?: string;
   total_time: number;
+  time?: number;
   day_time?: number;
   night_hours?: number;
   ifr_time?: number;
@@ -52,6 +53,7 @@ interface LogbookEntry {
   client_id?: string;
   client_company_name?: string;
   partner_name?: string;
+  client_partner_id?: string;
   is_equal_split?: boolean;
   is_loan?: boolean;
   daily_rate?: number;
@@ -81,21 +83,17 @@ interface ExportOptions {
 
 const generateCoverPage = (doc: jsPDF, options: ExportOptions, logoDataUrl?: string) => {
   const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  
-  // Logo
+
   if (logoDataUrl) {
     const logoSize = 50;
     const x = (pageWidth - logoSize) / 2;
     doc.addImage(logoDataUrl, 'PNG', x, 30, logoSize, logoSize);
   }
 
-  // Título
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(24);
   doc.text('DIÁRIO DE BORDO', pageWidth / 2, 100, { align: 'center' });
 
-  // Informações principais
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.text(`Aeronave: ${options.aircraftRegistration}`, pageWidth / 2, 130, { align: 'center' });
@@ -106,7 +104,6 @@ const generateCoverPage = (doc: jsPDF, options: ExportOptions, logoDataUrl?: str
     doc.text(options.aircraftModel, pageWidth / 2, 140, { align: 'center' });
   }
 
-  // Período
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   const monthsText = options.months
@@ -115,11 +112,10 @@ const generateCoverPage = (doc: jsPDF, options: ExportOptions, logoDataUrl?: str
   doc.text(`Período: ${monthsText}`, pageWidth / 2, 160, { align: 'center' });
 };
 
-const generateLogbookPage = (doc: jsPDF, entries: LogbookEntry[], month: number, year: number) => {
+const generateLogbookPage = (doc: jsPDF, entries: LogbookEntry[], month: number, year: number): number => {
   const pageWidth = doc.internal.pageSize.getWidth();
   doc.addPage();
 
-  // Cabeçalho estilizado
   doc.setFillColor(30, 58, 138);
   doc.rect(10, 10, pageWidth - 20, 10, 'F');
   doc.setTextColor(255, 255, 255);
@@ -127,193 +123,179 @@ const generateLogbookPage = (doc: jsPDF, entries: LogbookEntry[], month: number,
   doc.setFont('helvetica', 'bold');
   doc.text(`${MONTHS[month - 1]} de ${year} - Diário de Bordo`, pageWidth / 2, 17, { align: 'center' });
 
-  const tableData = entries
+  const filteredEntries = entries
     .filter(e => {
       const date = new Date(e.entry_date);
       return date.getUTCMonth() + 1 === month && date.getUTCFullYear() === year;
     })
-    .sort((a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime())
-    .map(entry => [
-      formatDateBR(entry.entry_date),
-      entry.departure_aerodrome || '-',
-      entry.arrival_aerodrome || '-',
-      entry.ac_time || '-', // Acionamento
-      entry.dep_time || '-', // Decolagem
-      entry.pou_time || '-', // Pouso
-      entry.cor_time || '-', // Corte
-      decimalToHHMM(entry.total_time),
-      decimalToHHMM(entry.day_time),
-      decimalToHHMM(entry.night_hours),
-      decimalToHHMM(entry.ifr_time),
-      entry.pousos || '0',
-      entry.fuel_added ? `${entry.fuel_added}L` : '-',
-      entry.celula ? entry.celula.toFixed(1) : '-',
-      `${entry.pic_name || ''}\n(${entry.pic_canac || '-'})`, // PIC + CANAC em duas linhas
-      entry.client_company_name || entry.partner_name || '-',
-    ]);
+    .sort((a, b) => new Date(a.entry_date).getTime() - new Date(b.entry_date).getTime());
+
+  const tableData = filteredEntries.map(entry => [
+    formatDateBR(entry.entry_date),
+    entry.departure_aerodrome || '-',
+    entry.arrival_aerodrome || '-',
+    entry.ac_time ? entry.ac_time.substring(0, 5) : '-',
+    entry.dep_time ? entry.dep_time.substring(0, 5) : '-',
+    entry.pou_time ? entry.pou_time.substring(0, 5) : '-',
+    entry.cor_time ? entry.cor_time.substring(0, 5) : '-',
+    decimalToHHMM(entry.time || entry.total_time),
+    decimalToHHMM(entry.day_time),
+    decimalToHHMM(entry.night_hours),
+    decimalToHHMM(entry.ifr_time),
+    entry.pousos || '0',
+    entry.fuel_added ? `${entry.fuel_added}L` : '-',
+    entry.celula ? entry.celula.toFixed(1) : '-',
+    entry.pic_name || '-',
+    entry.client_company_name || entry.partner_name || '-',
+  ]);
+
+  let finalY = 25;
 
   autoTable(doc, {
     startY: 25,
     head: [[
-      'DATA', 'DE', 'PARA', 'AC', 'DEP', 'POU', 'COR', 'T.VOO', 'DIA', 'NOITE', 'IFR', 'PSOS', 'FUEL', 'CÉLULA', 'PIC / CANAC', 'VOO PARA'
+      'DATA', 'DE', 'PARA', 'AC', 'DEP', 'POU', 'COR', 'T.VOO', 'DIA', 'NOITE', 'IFR', 'PSOS', 'FUEL', 'CÉLULA', 'PIC', 'VOO PARA'
     ]],
     body: tableData,
     theme: 'grid',
     headStyles: {
-      fillColor: [240, 240, 240],
-      textColor: [40, 40, 40],
-      fontSize: 7, // Fonte menor para caber tudo
+      fillColor: [30, 58, 138],
+      textColor: [255, 255, 255],
+      fontSize: 6.5,
       fontStyle: 'bold',
       halign: 'center',
       valign: 'middle',
       lineWidth: 0.1,
+      cellPadding: 1.5,
     },
     bodyStyles: {
-      fontSize: 7,
+      fontSize: 6.5,
       halign: 'center',
       textColor: [50, 50, 50],
-      cellPadding: 1,
+      cellPadding: 1.2,
     },
     alternateRowStyles: {
-      fillColor: [250, 250, 250]
+      fillColor: [245, 247, 250]
     },
-    // Ajuste fino das larguras para não cortar texto
     columnStyles: {
-      0: { cellWidth: 12 }, // Data
-      1: { cellWidth: 12 }, // De
-      2: { cellWidth: 12 }, // Para
-      3: { cellWidth: 12 }, // AC
-      4: { cellWidth: 12 }, // DEP
-      5: { cellWidth: 12 }, // POU
-      6: { cellWidth: 12 }, // COR
-      7: { cellWidth: 15 }, // T.VOO
-      8: { cellWidth: 12 }, // DIA
-      9: { cellWidth: 12 }, // NOITE
-      10: { cellWidth: 12 }, // IFR
-      11: { cellWidth: 10 }, // Pousos
-      12: { cellWidth: 15 }, // Fuel
-      13: { cellWidth: 18 }, // Célula
-      14: { cellWidth: 35, halign: 'left' }, // PIC
-      15: { cellWidth: 'auto', halign: 'left' }, // Cliente (estica no que sobrar)
+      0: { cellWidth: 11 },
+      1: { cellWidth: 11 },
+      2: { cellWidth: 11 },
+      3: { cellWidth: 11 },
+      4: { cellWidth: 11 },
+      5: { cellWidth: 11 },
+      6: { cellWidth: 11 },
+      7: { cellWidth: 12 },
+      8: { cellWidth: 11 },
+      9: { cellWidth: 11 },
+      10: { cellWidth: 11 },
+      11: { cellWidth: 9 },
+      12: { cellWidth: 12 },
+      13: { cellWidth: 14 },
+      14: { cellWidth: 28, halign: 'left', fontSize: 6 },
+      15: { cellWidth: 'auto', halign: 'left', fontSize: 6 },
     },
     margin: { left: 10, right: 10 },
     didDrawPage: (data) => {
-        const pageCount = doc.internal.pages.length - 1;
-        doc.setFontSize(8);
-        doc.setTextColor(150);
-        doc.text(`Página ${pageCount}`, pageWidth - 20, doc.internal.pageSize.getHeight() - 10);
+      const pageCount = doc.internal.pages.length - 1;
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text(`Página ${pageCount}`, pageWidth - 20, doc.internal.pageSize.getHeight() - 10);
+    },
+    didParseCell: () => {
+      // Reset text color after header
+      doc.setTextColor(0, 0, 0);
     }
   });
-};
 
-const generateClientSummaryPage = (doc: jsPDF, entries: LogbookEntry[], months: Array<{ month: number; year: number }>) => {
-  const pageWidth = doc.internal.pageSize.getWidth();
+  // Get finalY from autoTable
+  finalY = (doc as any).lastAutoTable?.finalY || 25;
 
-  // Adicionar nova página
-  doc.addPage();
+  // --- Draw partner/client summary below the table if space available ---
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const spaceNeeded = 35; // approximate space for summary section
 
-  // Cabeçalho da página
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text('RESUMO DE HORAS POR CLIENTE', pageWidth / 2, 15, { align: 'center' });
-
-  // Filtrar entradas do período selecionado
-  const filteredEntries = entries.filter(e => {
-    const date = new Date(e.entry_date);
-    const month = date.getUTCMonth() + 1;
-    const year = date.getUTCFullYear();
-    return months.some(m => m.month === month && m.year === year);
-  });
-
-  // Agrupar por cliente e calcular horas totais
-  const clientSummary: { [key: string]: { clientName: string; totalHours: number; flights: number } } = {};
+  // Calculate partner totals for this month
+  const partnerTotals: Record<string, { name: string; hours: number; voos: number }> = {};
+  const clientTotals: Record<string, { name: string; hours: number; voos: number }> = {};
+  let hasPartners = false;
 
   filteredEntries.forEach(entry => {
-    const clientName = entry.client_company_name || entry.partner_name || 'Sem Cliente';
-    const key = clientName;
-
-    if (!clientSummary[key]) {
-      clientSummary[key] = {
-        clientName,
-        totalHours: 0,
-        flights: 0
-      };
+    const partnerName = entry.partner_name;
+    if (partnerName) {
+      hasPartners = true;
+      const key = partnerName;
+      if (!partnerTotals[key]) {
+        partnerTotals[key] = { name: partnerName, hours: 0, voos: 0 };
+      }
+      partnerTotals[key].hours += entry.total_time || 0;
+      partnerTotals[key].voos += 1;
+    } else {
+      const clientName = entry.client_company_name || 'Sem Cliente';
+      if (!clientTotals[clientName]) {
+        clientTotals[clientName] = { name: clientName, hours: 0, voos: 0 };
+      }
+      clientTotals[clientName].hours += entry.total_time || 0;
+      clientTotals[clientName].voos += 1;
     }
-
-    clientSummary[key].totalHours += entry.total_time || 0;
-    clientSummary[key].flights += 1;
   });
 
-  // Preparar dados da tabela
-  const tableData = Object.values(clientSummary)
-    .sort((a, b) => b.totalHours - a.totalHours)
-    .map(client => [
-      client.clientName,
-      client.flights.toString(),
-      decimalToHHMM(client.totalHours)
+  // Merge: if has partners, use partnerTotals; otherwise clientTotals
+  const summaryData = hasPartners ? partnerTotals : clientTotals;
+  const summaryEntries = Object.values(summaryData).sort((a, b) => b.hours - a.hours);
+
+  if (summaryEntries.length > 0 && (finalY + spaceNeeded) < pageHeight - 15) {
+    const summaryStartY = finalY + 8;
+
+    // Reset text color
+    doc.setTextColor(0, 0, 0);
+
+    // Section header
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 58, 138);
+    doc.text(hasPartners ? 'HORAS POR SÓCIO' : 'HORAS POR CLIENTE', 10, summaryStartY);
+
+    // Draw summary as small table
+    const summaryTableData = summaryEntries.map(s => [
+      s.name,
+      s.voos.toString(),
+      decimalToHHMM(s.hours)
     ]);
 
-  // Calcular total geral
-  const totalFlights = tableData.reduce((sum, row) => sum + parseInt(row[1]), 0);
-  const totalHours = Object.values(clientSummary).reduce((sum, client) => sum + client.totalHours, 0);
+    // Total row
+    const totalHours = summaryEntries.reduce((sum, s) => sum + s.hours, 0);
+    const totalFlights = summaryEntries.reduce((sum, s) => sum + s.voos, 0);
+    summaryTableData.push(['TOTAL', totalFlights.toString(), decimalToHHMM(totalHours)]);
 
-  // Adicionar linha de total
-  tableData.push([
-    'TOTAL',
-    totalFlights.toString(),
-    decimalToHHMM(totalHours)
-  ]);
+    autoTable(doc, {
+      startY: summaryStartY + 3,
+      head: [[hasPartners ? 'Sócio' : 'Cliente', 'Voos', 'Horas']],
+      body: summaryTableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [30, 58, 138],
+        textColor: [255, 255, 255],
+        fontSize: 8,
+        fontStyle: 'bold',
+        halign: 'center',
+      },
+      bodyStyles: {
+        fontSize: 8,
+        halign: 'center',
+        textColor: [50, 50, 50],
+      },
+      columnStyles: {
+        0: { halign: 'left', cellWidth: 80 },
+        1: { halign: 'center', cellWidth: 25 },
+        2: { halign: 'center', cellWidth: 25 },
+      },
+      tableWidth: 130,
+      margin: { left: 10 },
+    });
+  }
 
-  // Criar tabela
-  autoTable(doc, {
-    startY: 30,
-    head: [
-      [
-        'Cliente',
-        'Voos',
-        'Horas'
-      ]
-    ],
-    body: tableData,
-    headStyles: {
-      fillColor: [30, 58, 138],
-      textColor: [255, 255, 255],
-      fontStyle: 'bold',
-      fontSize: 11,
-      halign: 'center'
-    },
-    bodyStyles: {
-      fontSize: 10,
-      halign: 'center'
-    },
-    footStyles: {
-      fillColor: [220, 220, 220],
-      fontStyle: 'bold',
-      fontSize: 11,
-      halign: 'center'
-    },
-    columnStyles: {
-      0: { halign: 'left', cellWidth: 100 },
-      1: { halign: 'center', cellWidth: 40 },
-      2: { halign: 'center', cellWidth: 40 }
-    },
-    margin: { left: 20, right: 20 },
-    didDrawPage: (data) => {
-      // Rodapé
-      const pageSize = doc.internal.pageSize;
-      const pageHeight = pageSize.getHeight();
-      const pageWidth = pageSize.getWidth();
-      
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.text(
-        `Página ${doc.internal.pages.length - 1}`,
-        pageWidth / 2,
-        pageHeight - 10,
-        { align: 'center' }
-      );
-    }
-  });
+  return finalY;
 };
 
 export const generateLogbookPDF = async (options: ExportOptions): Promise<Blob> => {
@@ -325,22 +307,15 @@ export const generateLogbookPDF = async (options: ExportOptions): Promise<Blob> 
         format: 'a4'
       });
 
-      // Tentar carregar logo se fornecido
       let logoDataUrl: string | undefined;
-      
+
       const generateDocument = () => {
-        // Gerar capa
         generateCoverPage(doc, options, logoDataUrl);
 
-        // Gerar páginas do diário para cada mês
         options.months.forEach(({ month, year }) => {
           generateLogbookPage(doc, options.entries, month, year);
         });
 
-        // Gerar página de resumo por cliente
-        generateClientSummaryPage(doc, options.entries, options.months);
-
-        // Converter para blob
         const blob = doc.output('blob');
         resolve(blob);
       };
@@ -359,7 +334,7 @@ export const generateLogbookPDF = async (options: ExportOptions): Promise<Blob> 
           generateDocument();
         };
         img.onerror = () => {
-          generateDocument(); // Continuar sem logo
+          generateDocument();
         };
         img.crossOrigin = 'anonymous';
         img.src = options.logoUrl;
@@ -377,7 +352,7 @@ export const downloadLogbookPDF = async (options: ExportOptions) => {
     const blob = await generateLogbookPDF(options);
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
-    
+
     const monthsStr = options.months
       .map(m => `${m.month}-${m.year}`)
       .join('_');

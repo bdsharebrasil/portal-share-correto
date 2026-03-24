@@ -107,7 +107,8 @@ export function CTMOASInlineForm({
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("ctm_service_orders").insert([
+      // 1. Create in ctm_service_orders
+      const { data: newOrder, error: orderError } = await supabase.from("ctm_service_orders").insert([
         {
           aircraft_id: aircraftId,
           numero: formData.numero,
@@ -124,11 +125,81 @@ export function CTMOASInlineForm({
           observacoes: formData.observacoes || null,
           status: formData.status,
         },
-      ]);
-      if (error) throw error;
+      ]).select().single();
+
+      if (orderError) throw orderError;
+
+      // 2. Create synchronization record in manutencoes
+      if (newOrder && aircraftId) {
+        const dataEntrada = formData.data_entrada || getTodayString();
+
+        const { error: manutencaoError } = await supabase
+          .from('manutencoes')
+          .insert([
+            {
+              aeronave_id: aircraftId,
+              tipo: categoryName,
+              data_programada: dataEntrada,
+              mecanico: 'A designar',
+              etapa: 'em_andamento',
+              oficina: formData.oficina_nome || null,
+              observacoes: formData.observacoes || null,
+              vencimento_tipo: 'horas',
+              vencimento_horas: formData.horas_celula ? parseFloat(formData.horas_celula) : null,
+            }
+          ]);
+
+        if (manutencaoError) {
+          console.error('Erro ao criar registro em manutencoes:', manutencaoError);
+        }
+      }
+
+      // 3. Create synchronization record in aircraft_maintenance_records
+      if (newOrder && aircraftId) {
+        const mapMaintenanceType = (tipo?: string, horas?: number): string => {
+          if (!tipo && !horas) return '100h';
+          if (tipo?.includes('50')) return '50h';
+          if (tipo?.includes('100')) return '100h';
+          if (tipo?.includes('150')) return '150h';
+          if (tipo?.includes('200')) return '200h';
+          if (horas) {
+            if (horas <= 50) return '50h';
+            if (horas <= 100) return '100h';
+            if (horas <= 150) return '150h';
+            return '200h';
+          }
+          return '100h';
+        };
+
+        const performedHours = formData.horas_celula ? parseFloat(formData.horas_celula) : 0;
+        const maintenanceType = mapMaintenanceType(categoryName, performedHours);
+
+        const { error: recordError } = await supabase
+          .from('aircraft_maintenance_records')
+          .insert([
+            {
+              aircraft_id: aircraftId,
+              maintenance_type: maintenanceType,
+              performed_at_hours: performedHours,
+              performed_date: formData.data_entrada || getTodayString(),
+              next_due_hours: performedHours + 50,
+              mechanic_name: 'A designar',
+              maintenance_center: formData.oficina_nome || null,
+              service_order_number: formData.numero || null,
+              description: formData.observacoes || null,
+              cost: 0,
+            }
+          ]);
+
+        if (recordError) {
+          console.error('Erro ao criar registro em aircraft_maintenance_records:', recordError);
+        }
+      }
+
       toast.success(`OAS nº ${formData.numero} criada com sucesso!`);
       onCreated();
     } catch (error: any) {
+      console.error('Erro ao criar OAS:', error);
       toast.error(error.message || "Erro ao criar OAS");
     } finally {
       setLoading(false);

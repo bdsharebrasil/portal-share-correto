@@ -47,35 +47,36 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { generateReportNumber } from "@/lib/travelReportUtils";
 import toast from "../ui/modern-toast";
+import { FileUploadField } from "./FileUploadField";
 
 // ─── Categorias ───────────────────────────────────────────────────────────────
 export const EXPENSE_CATEGORIES = [
   { id: "ABASTECIMENTO", label: "ABASTECIMENTO", icon: "⛽" },
-  { id: "ASSINATURAS", label: "Assinaturas", icon: "📋" },
-  { id: "ATENDIMENTO_PISTA", label: "Atendimento de Pista", icon: "🛬" },
-  { id: "COMPRAS", label: "Compras / Aquisições", icon: "🛒" },
-  { id: "CONTABILIDADE", label: "Honorários Contabilidade", icon: "📊" },
+  { id: "ASSINATURAS", label: "ASSINATURAS", icon: "📋" },
+  { id: "ATENDIMENTO DE PISTA", label: "ATENDIMENTO DE PISTA", icon: "🛬" },
+  { id: "COMPRAS / AQUISIÇÕES", label: "COMPRAS / AQUISIÇÕES", icon: "🛒" },
+  { id: "CONTABILIDADE", label: "CONTABILIDADE", icon: "📊" },
   { id: "DECEA", label: "DECEA", icon: "🛬" },
-  { id: "DESPESA_VIAGEM", label: "Despesas de Viagem", icon: "🧳" },
-  { id: "HANGAR", label: "Hangaragem", icon: "🏠" },
+  { id: "DESPESAS DE VIAGEM", label: "DESPESAS DE VIAGEM", icon: "🧳" },
+  { id: "HANGARAGEM", label: "HANGARAGEM", icon: "🏠" },
   { id: "INFRAERO", label: "INFRAERO", icon: "🛬" },
-  { id: "MANUTENCAO", label: "Manutenção", icon: "🔧" },
-  { id: "OUTROS", label: "Outros", icon: "📎" },
-  { id: "POUSO_DECOLAGEM", label: "Tarifa de Pouso/Decolagem", icon: "✈️" },
-  { id: "REEMBOLSO", label: "Ressarcimento/Reembolso", icon: "💸" },
-  { id: "TAXAS_BANCO", label: "TARIFAS BANCARIAS", icon: "🏦" },
+  { id: "MANUTENÇÃO", label: "MANUTENÇÃO", icon: "🔧" },
+  { id: "OUTROS", label: "OUTROS", icon: "📎" },
+  { id: "TARIFAS POUSO/DECOLAGEM", label: "TARIFAS POUSO/DECOLAGEM", icon: "✈️" },
+  { id: "REEMBOLSOS", label: "REEMBOLSOS", icon: "💸" },
+  { id: "TARIFAS BANCARIAS", label: "TARIFAS BANCARIAS", icon: "🏦" },
 ] as const;
 
 export const IMPOSTOS_SUBTYPES = [
-  { value: "fgts", label: "FGTS" },
-  { value: "inss", label: "INSS" },
-  { value: "pis", label: "PIS" },
-  { value: "cofins", label: "COFINS" },
-  { value: "das", label: "DAS" },
-  { value: "irpj", label: "IRPJ" },
-  { value: "csll", label: "CSLL" },
-  { value: "iss", label: "ISS" },
-  { value: "outros_impostos", label: "Outros Impostos" },
+  { value: "FGTS", label: "FGTS" },
+  { value: "INSS", label: "INSS" },
+  { value: "PIS", label: "PIS" },
+  { value: "COFINS", label: "COFINS" },
+  { value: "DAS", label: "DAS" },
+  { value: "IRPJ", label: "IRPJ" },
+  { value: "CSLL", label: "CSLL" },
+  { value: "ISS", label: "ISS" },
+  { value: "OUTROS IMPOSTOS", label: "OUTROS IMPOSTOS" },
 ] as const;
 
 export type ExpenseCategoryId = (typeof EXPENSE_CATEGORIES)[number]["id"];
@@ -87,7 +88,7 @@ const EMPTY_FORM = {
   expenseType: "",
   assignedPartnerCpf: "none",
   paidDate: format(new Date(), "yyyy-MM-dd"),
-  dueDate: format(new Date(), "yyyy-MM-dd"),
+  dueDate: "",
   supplierName: "",
   invoiceNumber: "",
   invoiceUrl: "",
@@ -106,18 +107,21 @@ const EMPTY_FORM = {
   isInstallment: false,
   installmentCount: "1",
   installmentStartDate: format(new Date(), "yyyy-MM-dd"),
+  // Campos abastecimento extras
+  comandaUrl: "",
+  comprovantePagamento: "",
 };
 
 const BANK_EXPENSE_CATEGORIES = [
-  { id: "cartao_credito", label: "Cartão de Crédito", icon: "💳" },
-  { id: "anuidade_cartao", label: "Anuidade de Cartão", icon: "📅" },
-  { id: "taxas_bancarias", label: "Taxas Bancárias", icon: "🏦" },
-  { id: "tarifa_manutencao", label: "Tarifa de Manutenção de Conta", icon: "📋" },
-  { id: "iof", label: "IOF", icon: "📊" },
-  { id: "ted_doc", label: "Tarifa TED/DOC", icon: "🔁" },
-  { id: "juros_bancarios", label: "Juros Bancários", icon: "📈" },
-  { id: "seguros_banco", label: "Seguros Bancários", icon: "🛡️" },
-  { id: "outras_taxas_banco", label: "Outras Taxas Bancárias", icon: "📎" },
+  { id: "CARTÃO DE CRÉDITO", label: "CARTÃO DE CRÉDITO", icon: "💳" },
+  { id: "ANUIDADE DE CARTÃO", label: "ANUIDADE DE CARTÃO", icon: "📅" },
+  { id: "TAXAS BANCÁRIAS", label: "TAXAS BANCÁRIAS", icon: "🏦" },
+  { id: "TARIFA DE MANUTENÇÃO DE CONTA", label: "TARIFA DE MANUTENÇÃO DE CONTA", icon: "📋" },
+  { id: "IOF", label: "IOF", icon: "📊" },
+  { id: "TARIFA TED/DOC", label: "TARIFA TED/DOC", icon: "🔁" },
+  { id: "JUROS BANCÁRIOS", label: "JUROS BANCÁRIOS", icon: "📈" },
+  { id: "SEGUROS BANCÁRIOS", label: "SEGUROS BANCÁRIOS", icon: "🛡️" },
+  { id: "OUTRAS TAXAS BANCÁRIAS", label: "OUTRAS TAXAS BANCÁRIAS", icon: "📎" },
 ] as const;
 
 type BankExpenseCategoryId = (typeof BANK_EXPENSE_CATEGORIES)[number]["id"];
@@ -222,12 +226,12 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
   // when category changes, reset link states
   useEffect(() => {
-    if (form.category !== "DESPESA_VIAGEM") {
+    if (form.category !== "DESPESAS DE VIAGEM") {
       setLinkOption(null);
       setExistingReports([]);
       setSelectedReport(null);
     }
-    if (form.category !== "MANUTENCAO") {
+    if (form.category !== "MANUTENÇÃO") {
       setSelectedManutencaoId("");
       setManutencaoTipoRateio("igual");
       setManualRateios({});
@@ -262,7 +266,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     e.preventDefault();
     if (!form.description || !form.totalAmount || !form.category) return;
 
-    if (form.category === "DESPESA_VIAGEM" && linkOption === "existing" && !selectedReport) {
+    if (form.category === "DESPESAS DE VIAGEM" && linkOption === "existing" && !selectedReport) {
       toast.error("Selecione um relatório de viagem para vincular");
       return;
     }
@@ -281,7 +285,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     let referenceType: string | null = null;
     let referenceId: string | null = null;
 
-    if (form.category === "DESPESA_VIAGEM") {
+    if (form.category === "DESPESAS DE VIAGEM") {
       if (linkOption === "existing" && selectedReport) {
         referenceType = "travel_report";
         referenceId = selectedReport.id;
@@ -354,6 +358,10 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
             partner_name: assignedPartner?.name || null,
             status_pagamento: form.status === "pago" ? "pago" : "pendente",
             data_pagamento: form.status === "pago" ? form.paidDate : null,
+            comanda_url: form.comandaUrl || null,
+            comprovante_pagamento: form.comprovantePagamento || null,
+            nota_url: form.invoiceUrl || null,
+            nf: form.invoiceNumber || null,
           })
           .select()
           .single();
@@ -404,9 +412,15 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       const splitAmountRounded = Math.round(splitAmount * 100) / 100;
 
       for (const partner of partners) {
+        const isLast = partners.indexOf(partner) === partners.length - 1;
+        const alreadyAssigned = splitAmountRounded * (partners.indexOf(partner));
+        const amount = isLast
+          ? parseFloat(form.totalAmount) - alreadyAssigned
+          : splitAmountRounded;
+
         await addExpense.mutateAsync({
           ...basePayload,
-          totalAmount: splitAmountRounded,
+          totalAmount: amount,
           assignedPartnerCpf: partner.cpf,
           assignedPartnerName: partner.name,
         });
@@ -420,7 +434,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     }
 
     // If MANUTENCAO category with a selected maintenance, create despesa_manutencao record
-    if (form.category === "MANUTENCAO" && selectedManutencaoId) {
+    if (form.category === "MANUTENÇÃO" && selectedManutencaoId) {
       try {
         const valor = parseFloat(form.totalAmount);
         let rateios: Array<{ clientPartnerId: string; percentual: number; valor: number }> = [];
@@ -505,7 +519,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       clientId: clienteId,
       description: bankForm.description,
       totalAmount: parseFloat(bankForm.amount),
-      category: "despesa_bancaria",
+      category: "TARIFAS BANCARIAS",
       expenseType: bankForm.category,
       dueDate: bankForm.date,
       supplierName: bankNameResolved,
@@ -520,9 +534,15 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       const splitAmount = parseFloat(bankForm.amount) / partners.length;
       const splitAmountRounded = Math.round(splitAmount * 100) / 100;
       for (const partner of partners) {
+        const isLast = partners.indexOf(partner) === partners.length - 1;
+        const alreadyAssigned = splitAmountRounded * (partners.indexOf(partner));
+        const amount = isLast
+          ? parseFloat(bankForm.amount) - alreadyAssigned
+          : splitAmountRounded;
+
         await addExpense.mutateAsync({
           ...basePayload,
-          totalAmount: splitAmountRounded,
+          totalAmount: amount,
           assignedPartnerCpf: partner.cpf,
           assignedPartnerName: partner.name,
         });
@@ -696,7 +716,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
               </FormSection>
 
               {/* ── Vincular Relatório de Viagem ── */}
-              {form.category === "DESPESA_VIAGEM" && (
+              {form.category === "DESPESAS DE VIAGEM" && (
                 <FormSection label="Deseja vincular a um relatório de viagem?">
                   <div className="flex flex-col sm:flex-row gap-4">
                     <Button
@@ -865,6 +885,31 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                           </p>
                         </div>
                       </div>
+                      {/* Comanda + Comprovante */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <FormSection label="Comanda">
+                          <FileUploadField
+                            value={form.comandaUrl}
+                            onChange={(url) => set("comandaUrl")(url)}
+                            label="Anexar Comanda"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            bucket="nfs-share-recebidas"
+                            prefix="comanda"
+                            disabled={addExpense.isPending}
+                          />
+                        </FormSection>
+                        <FormSection label="Comprovante de Pagamento">
+                          <FileUploadField
+                            value={form.comprovantePagamento}
+                            onChange={(url) => set("comprovantePagamento")(url)}
+                            label="Anexar Comprovante"
+                            accept=".pdf,.jpg,.jpeg,.png"
+                            bucket="nfs-share-recebidas"
+                            prefix="comprovante"
+                            disabled={addExpense.isPending}
+                          />
+                        </FormSection>
+                      </div>
                       <Button
                         type="button"
                         variant="ghost"
@@ -881,7 +926,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
               )}
 
               {/* ── Manutenção ── */}
-              {form.category === "MANUTENCAO" && (
+              {form.category === "MANUTENÇÃO" && (
                 <div className="rounded-2xl bg-muted/50 border border-border/60 p-5 space-y-4">
                   <div className="flex items-center gap-2.5">
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
@@ -1179,14 +1224,15 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                       className="h-12 rounded-xl border-border/70 text-sm"
                     />
                   </FormSection>
-                  <FormSection label="URL Nota Fiscal">
-                    <Input
-                      type="url"
+                  <FormSection label="Nota Fiscal">
+                    <FileUploadField
                       value={form.invoiceUrl}
-                      onChange={(e) => set("invoiceUrl")(e.target.value)}
-                      placeholder="https://..."
+                      onChange={(url) => set("invoiceUrl")(url)}
+                      label="Anexar NF"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      bucket="nfs-share-recebidas"
+                      prefix="nf_socio"
                       disabled={addExpense.isPending}
-                      className="h-12 rounded-xl border-border/70 text-sm"
                     />
                   </FormSection>
                 </div>

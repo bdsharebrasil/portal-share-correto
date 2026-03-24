@@ -208,6 +208,7 @@ export function useCTMServiceOrders() {
 
   const createServiceOrder = useCallback(async (data: Partial<CTMServiceOrder>) => {
     try {
+      // 1. Create in ctm_service_orders
       const { data: newOrder, error } = await supabase
         .from('ctm_service_orders')
         .insert([data as any])
@@ -215,6 +216,82 @@ export function useCTMServiceOrders() {
         .single();
 
       if (error) throw error;
+
+      // 2. Create synchronization record in manutencoes
+      if (newOrder && data.aircraft_id) {
+        const maintenanceType = data.tipo_manutencao || data.objetivo || 'MANUTENÇÃO';
+        const dataEntrada = data.data_entrada || new Date().toISOString().split('T')[0];
+
+        const { error: manutencaoError } = await supabase
+          .from('manutencoes')
+          .insert([
+            {
+              aeronave_id: data.aircraft_id,
+              tipo: maintenanceType,
+              data_programada: dataEntrada,
+              mecanico: data.assigned_to || 'A designar',
+              etapa: 'em_andamento',
+              oficina: data.oficina_nome || null,
+              observacoes: data.observacoes || null,
+              custo_estimado: data.total_geral || null,
+              vencimento_tipo: 'horas',
+              vencimento_horas: data.horas_celula || data.estimated_hours || null,
+            }
+          ]);
+
+        if (manutencaoError) {
+          console.error('Erro ao criar registro em manutencoes:', manutencaoError);
+        }
+      }
+
+      // 3. Create synchronization record in aircraft_maintenance_records
+      if (newOrder && data.aircraft_id) {
+        // Map OAS maintenance type to valid aircraft_maintenance_records types (50h, 100h, 150h, 200h)
+        const mapMaintenanceType = (tipo?: string, horas?: number): string => {
+          if (!tipo && !horas) return '100h'; // default
+
+          // If tipo contains hour info, extract it
+          if (tipo?.includes('50')) return '50h';
+          if (tipo?.includes('100')) return '100h';
+          if (tipo?.includes('150')) return '150h';
+          if (tipo?.includes('200')) return '200h';
+
+          // If horas is provided, map accordingly
+          if (horas) {
+            if (horas <= 50) return '50h';
+            if (horas <= 100) return '100h';
+            if (horas <= 150) return '150h';
+            return '200h';
+          }
+
+          return '100h'; // default fallback
+        };
+
+        const performedHours = data.horas_celula || data.estimated_hours || 0;
+        const maintenanceType = mapMaintenanceType(data.tipo_manutencao, performedHours);
+
+        const { error: recordError } = await supabase
+          .from('aircraft_maintenance_records')
+          .insert([
+            {
+              aircraft_id: data.aircraft_id,
+              maintenance_type: maintenanceType,
+              performed_at_hours: performedHours,
+              performed_date: data.data_entrada || new Date().toISOString().split('T')[0],
+              next_due_hours: performedHours + 50, // próxima manutenção será em 50h a mais
+              mechanic_name: data.assigned_to || 'A designar',
+              maintenance_center: data.oficina_nome || null,
+              service_order_number: data.numero || null,
+              description: data.observacoes || null,
+              cost: data.total_geral || null,
+            }
+          ]);
+
+        if (recordError) {
+          console.error('Erro ao criar registro em aircraft_maintenance_records:', recordError);
+        }
+      }
+
       toast.success('Ordem de serviço criada com sucesso');
       return newOrder;
     } catch (error) {

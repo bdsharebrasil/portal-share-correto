@@ -70,6 +70,8 @@ export interface ExpenseEntry {
   prazo: string | null;
   invoice_number: string | null;
   bank_name: string | null;
+  reference_id?: string | null;
+  reference_type?: string | null;
 }
 
 export interface TravelReportEntry {
@@ -148,7 +150,7 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
     queryKey: ["monthly-partner-report", clientId, month],
     queryFn: async (): Promise<MonthlyReportData> => {
       if (!clientId || !month) {
-        return { partners: [], flights: [], fuels: [], expenses: [], sharedExpenses: [], travelReports: [], aircraft: null, clientName: "", clientCnpj: "", dateRange: { startDate: "", endDate: "", firstEntryDate: null, lastEntryDate: null }, hourlyRate: null };
+        return { partners: [], flights: [], fuels: [], expenses: [], sharedExpenses: [], bankControlExpenses: [], travelReports: [], aircraft: null, clientName: "", clientCnpj: "", dateRange: { startDate: "", endDate: "", firstEntryDate: null, lastEntryDate: null }, hourlyRate: null };
       }
 
       const [year, mon] = month.split("-");
@@ -185,24 +187,25 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
           .lte("data", endDate)
           .order("data"),
 
-        // Despesas atribuídas a sócios
+        // Despesas atribuídas a sócios (incluindo despesas de viagem)
         supabase
           .from("partner_expenses")
-          .select("id, expense_type, description, total_amount, assigned_partner_name, assigned_partner_cpf, status, due_date, paid_date, category, payment_method, prazo, invoice_number, bank_name")
+          .select("id, expense_type, description, total_amount, assigned_partner_name, assigned_partner_cpf, status, due_date, paid_date, category, payment_method, prazo, invoice_number, bank_name, reference_id, reference_type")
           .eq("client_id", clientId)
           .gte("due_date", startDate)
           .lte("due_date", endDate)
           .not("assigned_partner_name", "is", null)
           .order("due_date"),
 
-        // Despesas compartilhadas (sem sócio atribuído) - banco, impostos, taxas
+        // Despesas compartilhadas (sem sócio atribuído) - banco, impostos, taxas (excluindo despesas de viagem)
         supabase
           .from("partner_expenses")
-          .select("id, expense_type, description, total_amount, assigned_partner_name, assigned_partner_cpf, status, due_date, paid_date, category, payment_method, prazo, invoice_number, bank_name")
+          .select("id, expense_type, description, total_amount, assigned_partner_name, assigned_partner_cpf, status, due_date, paid_date, category, payment_method, prazo, invoice_number, bank_name, reference_id, reference_type")
           .eq("client_id", clientId)
           .gte("due_date", startDate)
           .lte("due_date", endDate)
           .is("assigned_partner_name", null)
+          .neq("expense_type", "DESPESAS DE VIAGEM")
           .order("due_date"),
 
         supabase

@@ -106,7 +106,7 @@ export function NovaFormularioDespesaDialog({
       loadCategories();
       loadFornecedoresFavoritos();
       const today = new Date().toISOString().split('T')[0];
-      setDataVencimento(today);
+      setDataVencimento(""); // Deixar vazio para despesas opcionais
       setDataAbastecimento(today);
     }
   }, [open]);
@@ -203,11 +203,6 @@ export function NovaFormularioDespesaDialog({
 
     if (!descricao.trim()) {
       toast.error('Informe uma descrição');
-      return;
-    }
-
-    if (!dataVencimento) {
-      toast.error('Informe a data de vencimento');
       return;
     }
 
@@ -333,7 +328,7 @@ export function NovaFormularioDespesaDialog({
     setCategoriaId("");
     setDescricao("");
     setValor("");
-    setDataVencimento(new Date().toISOString().split('T')[0]);
+    setDataVencimento(""); // Deixar vazio para despesas opcionais
     setFornecedorId("");
     setFornecedorNome("");
     setFornecedorCnpj("");
@@ -432,7 +427,7 @@ export function NovaFormularioDespesaDialog({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="dataVencimento">Data Vencimento *</Label>
+                  <Label htmlFor="dataVencimento">Data Vencimento (opcional)</Label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input

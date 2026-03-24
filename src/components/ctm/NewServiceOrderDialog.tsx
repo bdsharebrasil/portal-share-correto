@@ -73,6 +73,7 @@ export function NewServiceOrderDialog({
     }
     setLoading(true);
     try {
+      // 1. Create in ctm_service_orders
       const serviceOrderData = {
         aircraft_id: aircraftId,
         numero: formData.numero,
@@ -97,6 +98,73 @@ export function NewServiceOrderDialog({
         error
       } = await supabase.from("ctm_service_orders").insert([serviceOrderData]).select().single();
       if (error) throw error;
+
+      // 2. Create synchronization record in manutencoes
+      if (data && aircraftId) {
+        const { error: manutencaoError } = await supabase
+          .from('manutencoes')
+          .insert([
+            {
+              aeronave_id: aircraftId,
+              tipo: formData.tipo_manutencao,
+              data_programada: formData.data_entrada,
+              mecanico: 'A designar',
+              etapa: 'em_andamento',
+              oficina: formData.oficina_nome || null,
+              observacoes: formData.observacoes || null,
+              vencimento_tipo: 'horas',
+              vencimento_horas: formData.horas_celula ? parseFloat(formData.horas_celula) : null,
+              custo_estimado: serviceOrderData.total_geral || null,
+            }
+          ]);
+
+        if (manutencaoError) {
+          console.error('Erro ao criar registro em manutencoes:', manutencaoError);
+        }
+      }
+
+      // 3. Create synchronization record in aircraft_maintenance_records
+      if (data && aircraftId) {
+        const mapMaintenanceType = (tipo?: string, horas?: number): string => {
+          if (!tipo && !horas) return '100h';
+          if (tipo?.includes('50')) return '50h';
+          if (tipo?.includes('100')) return '100h';
+          if (tipo?.includes('150')) return '150h';
+          if (tipo?.includes('200')) return '200h';
+          if (horas) {
+            if (horas <= 50) return '50h';
+            if (horas <= 100) return '100h';
+            if (horas <= 150) return '150h';
+            return '200h';
+          }
+          return '100h';
+        };
+
+        const performedHours = formData.horas_celula ? parseFloat(formData.horas_celula) : 0;
+        const maintenanceType = mapMaintenanceType(formData.tipo_manutencao, performedHours);
+
+        const { error: recordError } = await supabase
+          .from('aircraft_maintenance_records')
+          .insert([
+            {
+              aircraft_id: aircraftId,
+              maintenance_type: maintenanceType,
+              performed_at_hours: performedHours,
+              performed_date: formData.data_entrada,
+              next_due_hours: performedHours + 50,
+              mechanic_name: 'A designar',
+              maintenance_center: formData.oficina_nome || null,
+              service_order_number: formData.numero || null,
+              description: formData.observacoes || null,
+              cost: serviceOrderData.total_geral || null,
+            }
+          ]);
+
+        if (recordError) {
+          console.error('Erro ao criar registro em aircraft_maintenance_records:', recordError);
+        }
+      }
+
       toast.success(`Ordem de Serviço nº ${formData.numero} registrada com sucesso!`);
       onServiceOrderCreated?.(data as unknown as CTMServiceOrder);
       setFormData({

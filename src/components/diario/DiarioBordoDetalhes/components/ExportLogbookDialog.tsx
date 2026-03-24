@@ -23,6 +23,9 @@ interface ExportLogbookDialogProps {
   entries: any[];
   currentMonth: number;
   currentYear: number;
+  crewMembers?: any[];
+  clients?: any[];
+  clientPartners?: Record<string, any>;
 }
 
 export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
@@ -35,12 +38,14 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
   availableMonths,
   entries,
   currentMonth,
-  currentYear
+  currentYear,
+  crewMembers = [],
+  clients = [],
+  clientPartners = {}
 }) => {
   const [selectedMonths, setSelectedMonths] = useState<Array<{ month: number; year: number }>>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Ao abrir o dialog, selecionar apenas o mês atual por padrão
   useEffect(() => {
     if (open) {
       const currentMonthData = availableMonths.find(
@@ -73,6 +78,44 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
     setSelectedMonths([]);
   };
 
+  // Enrich entries with crew member names, client names, and partner names
+  const enrichEntries = (rawEntries: any[]) => {
+    const crewMap = new Map<string, string>();
+    crewMembers.forEach((c: any) => {
+      crewMap.set(c.id, c.full_name || c.name || '');
+    });
+
+    const clientMap = new Map<string, string>();
+    clients.forEach((c: any) => {
+      clientMap.set(c.id, c.company_name || c.name || '');
+    });
+
+    return rawEntries.map(entry => {
+      // Resolve partner name from client_partner_id
+      let resolvedPartnerName = entry.partner_name || '';
+      if (entry.client_partner_id && clientPartners[entry.client_partner_id]) {
+        resolvedPartnerName = clientPartners[entry.client_partner_id].partner_name || resolvedPartnerName;
+      }
+
+      // Build the "VOO PARA" display: client abbreviation + partner name
+      const clientName = clientMap.get(entry.client_id) || entry.client_company_name || '';
+      let displayVooPara = clientName;
+      if (resolvedPartnerName && clientName) {
+        // Abbreviate client name (first word) + partner first name
+        const clientAbbr = clientName.split(' ')[0];
+        const partnerFirst = resolvedPartnerName.split(' ')[0];
+        displayVooPara = `${clientAbbr} - ${partnerFirst}`;
+      }
+
+      return {
+        ...entry,
+        pic_name: crewMap.get(entry.pic_canac) || entry.pic_name || '',
+        client_company_name: displayVooPara || clientName,
+        partner_name: resolvedPartnerName,
+      };
+    });
+  };
+
   const handleExport = async () => {
     if (selectedMonths.length === 0) {
       toast.error('Selecione pelo menos um mês para exportar');
@@ -86,12 +129,14 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
         return a.month - b.month;
       });
 
+      const enrichedEntries = enrichEntries(entries);
+
       await downloadLogbookPDF({
         months: sortedMonths,
         aircraftRegistration,
         aircraftModel,
         clientName: clientName || 'Não especificado',
-        entries,
+        entries: enrichedEntries,
         logoUrl: '/logo.share.png'
       });
 
@@ -116,7 +161,7 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
 
   const yearsInOrder = Object.keys(monthsByYear)
     .map(Number)
-    .sort((a, b) => b - a); // Ano mais recente primeiro
+    .sort((a, b) => b - a);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -129,25 +174,20 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Informações da aeronave */}
           <div className="p-3 bg-slate-100 rounded-lg">
             <p className="text-sm font-semibold text-slate-900">{aircraftRegistration}</p>
             {aircraftModel && (
               <p className="text-xs text-slate-600">{aircraftModel}</p>
             )}
-            {clientName && (
-              <p className="text-xs text-slate-600">Cliente: {clientName}</p>
-            )}
           </div>
 
-          {/* Seleção de meses */}
           <div className="border rounded-lg p-3 max-h-[300px] overflow-y-auto">
             {yearsInOrder.map(year => (
               <div key={year} className="mb-4">
                 <h4 className="font-semibold text-sm text-slate-700 mb-2">{year}</h4>
                 <div className="space-y-2 pl-2">
                   {monthsByYear[year]
-                    .sort((a, b) => b - a) // Mês mais recente primeiro
+                    .sort((a, b) => b - a)
                     .map(month => {
                       const isSelected = selectedMonths.some(
                         m => m.month === month && m.year === year
@@ -176,7 +216,6 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
             ))}
           </div>
 
-          {/* Botões de ação rápida */}
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -196,7 +235,6 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
             </Button>
           </div>
 
-          {/* Resumo da seleção */}
           <div className="p-2 bg-blue-50 rounded text-xs text-blue-900">
             {selectedMonths.length === 0 ? (
               <p>Nenhum mês selecionado</p>
@@ -216,7 +254,6 @@ export const ExportLogbookDialog: React.FC<ExportLogbookDialogProps> = ({
           </div>
         </div>
 
-        {/* Botões de ação */}
         <div className="flex justify-end gap-2">
           <Button
             variant="outline"

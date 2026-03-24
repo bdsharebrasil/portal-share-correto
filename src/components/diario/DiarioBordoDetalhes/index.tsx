@@ -1684,7 +1684,10 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
           availableMonths={availableMonths}
           entries={entries}
           currentMonth={selectedMonth}
-          currentYear={selectedYear} />
+          currentYear={selectedYear}
+          crewMembers={crew}
+          clients={clients}
+          clientPartners={clientPartners} />
         
 
         {/* Modal para seleção de parceiro */}
