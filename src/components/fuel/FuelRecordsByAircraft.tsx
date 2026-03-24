@@ -1403,8 +1403,7 @@ export function FuelRecordsByAircraft({
                 <div className="flex gap-2">
                   <Input
                     type="text"
-                    value={formData.data ? format(new Date(formData.data), "dd/MM/yyyy") : ""}
-                    readOnly
+                    value={formData.data ? formatDateBrazil(formData.data, "dd/MM/yyyy") : ""}                    readOnly
                     placeholder="dd/mm/aaaa"
                     className="mt-1 h-9 text-sm"
                   />
