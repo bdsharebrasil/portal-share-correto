@@ -10,12 +10,13 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Download, Edit, Trash2, ChevronLeft, Plane, TrendingUp, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign, BookOpen } from "lucide-react";
+import { Plus, Download, Edit, Trash2, ChevronLeft, Plane, TrendingUp, FileUp, X, Eye, FileText, Image as ImageIcon, FileCheck, DollarSign, BookOpen, Calendar as CalendarIcon } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
 import { Combobox } from "@/components/ui/combobox";
 import { AerodromeCombobox } from "@/components/plano-voo/AerodromeCombobox";
 import { Calendar as UICalendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ModernFileUpload } from "@/components/ui/modern-file-upload";
 import { ExportFuelRecordsModal } from "./ExportFuelRecordsModal";
@@ -63,6 +64,8 @@ interface FuelSupplier {
   supplier_name: string;
   city_name: string;
   icao_code: string;
+  fuel_price_avgas?: number | null;
+  fuel_price_jet?: number | null;
 }
 interface Props {
   client: Client;
@@ -156,6 +159,7 @@ export function FuelRecordsByAircraft({
   const [selectedFlightId, setSelectedFlightId] = useState<string>("");
   const [loadingFlights, setLoadingFlights] = useState(false);
   const [currentUserName, setCurrentUserName] = useState<string>("");
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const { aerodromes, isLoadingAerodromes } = useAerodromes();
   const [bankInstitutions, setBankInstitutions] = useState<{id:string;label:string;}[]>([]);
@@ -366,7 +370,7 @@ export function FuelRecordsByAircraft({
       const {
         data,
         error
-      } = await supabase.from("fuel_suppliers").select("id, supplier_name, city_name, icao_code").order("supplier_name", {
+      } = await supabase.from("fuel_suppliers").select("id, supplier_name, city_name, icao_code, fuel_price_avgas, fuel_price_jet").order("supplier_name", {
         ascending: true
       });
       if (error) {
@@ -420,6 +424,31 @@ export function FuelRecordsByAircraft({
       return partnersData;
     }
   };
+  const getClientPartnersFromDB = async (clientId: string): Promise<Partner[]> => {
+    try {
+      const { data, error } = await supabase
+        .from("client_partners")
+        .select("id, name, cpf, share_percentage")
+        .eq("client_id", clientId)
+        .order("name");
+
+      if (error) {
+        console.error("Error loading client partners:", error);
+        return [];
+      }
+
+      return (data || []).map(partner => ({
+        id: partner.id,
+        name: partner.name,
+        cpf: partner.cpf,
+        isMainClient: false,
+        share_percentage: partner.share_percentage || 0
+      }));
+    } catch (err) {
+      console.error("Exception loading client partners:", err);
+      return [];
+    }
+  };
   const loadClients = async () => {
     try {
       const {
@@ -457,24 +486,37 @@ export function FuelRecordsByAircraft({
       return;
     }
     setDisplayClient(clientData);
-    let partners = getClientPartners(clientData.id, clientData.company_name);
+
+    // Get main client
+    const mainClient = getClientPartners(clientData.id, clientData.company_name);
+
+    // Get partners from client_partners table
+    const dbPartners = await getClientPartnersFromDB(clientData.id);
+
+    // Combine main client with partners
+    let allPartners = [...mainClient, ...dbPartners];
+
+    // Load aircraft share percentages
     const { data: aircraftData, error: aircraftError } = await supabase
       .from('client_aircraft')
-      .select('share_percentage, aircraft_id')
-      .eq('client_id', clientData.id);
+      .select('client_id, share_percentage')
+      .eq('aircraft_id', aircraft.id);
+
     if (aircraftError) {
       console.error('Error loading aircraft shares:', aircraftError);
     } else {
-      partners = partners.map(partner => {
-        const share = aircraftData.find(a => a.aircraft_id === aircraft.id);
-        return { ...partner, share_percentage: share?.share_percentage || partner.share_percentage };
+      const percentageMap: { [key: string]: number } = {};
+      (aircraftData || []).forEach(item => {
+        percentageMap[item.client_id] = item.share_percentage;
       });
+
+      allPartners = allPartners.map(partner => ({
+        ...partner,
+        share_percentage: percentageMap[partner.id] !== undefined ? percentageMap[partner.id] : partner.share_percentage
+      }));
     }
-    const partnersWithPercentages = partners.map(partner => ({
-      ...partner,
-      share_percentage: aircraftData.find(a => a.aircraft_id === aircraft.id)?.share_percentage || partner.share_percentage
-    }));
-    setClientPartners(partnersWithPercentages);
+
+    setClientPartners(allPartners);
   };
   const loadRecords = async () => {
     let query = supabase.from("abastecimentos").select("*").eq("aeronave_id", aircraft.id);
@@ -789,9 +831,34 @@ export function FuelRecordsByAircraft({
 
     const selectedClient = allClients.find(c => c.id === clientId);
     if (selectedClient) {
-      const partners = getClientPartners(selectedClient.id, selectedClient.company_name);
-      const partnersWithPercentages = await loadPartnerPercentages(partners);
-      setClientPartners(partnersWithPercentages);
+      // Get main client
+      const mainClient = getClientPartners(selectedClient.id, selectedClient.company_name);
+
+      // Get partners from client_partners table
+      const dbPartners = await getClientPartnersFromDB(selectedClient.id);
+
+      // Combine main client with partners
+      let allPartners = [...mainClient, ...dbPartners];
+
+      // Load aircraft share percentages
+      const { data: aircraftData, error: aircraftError } = await supabase
+        .from('client_aircraft')
+        .select('client_id, share_percentage')
+        .eq('aircraft_id', aircraft.id);
+
+      if (!aircraftError) {
+        const percentageMap: { [key: string]: number } = {};
+        (aircraftData || []).forEach(item => {
+          percentageMap[item.client_id] = item.share_percentage;
+        });
+
+        allPartners = allPartners.map(partner => ({
+          ...partner,
+          share_percentage: percentageMap[partner.id] !== undefined ? percentageMap[partner.id] : partner.share_percentage
+        }));
+      }
+
+      setClientPartners(allPartners);
     }
   };
   const handleEdit = (record: FuelRecord) => {
@@ -1189,41 +1256,92 @@ export function FuelRecordsByAircraft({
             <DialogTitle>{editingRecord ? "Editar Registro" : "Novo Registro"}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 flex-1 overflow-y-auto pr-2 sm:pr-4 -mx-2 sm:-mx-4 px-2 sm:px-4">
-            <div>
-              <Label className="text-sm font-semibold mb-2 block">Data do Abastecimento</Label>
-              {linkToLogbook ? (
-                <Input
-                  type="date"
-                  value={formData.data}
-                  readOnly
-                  className="mt-1 h-9 text-sm bg-slate-900 text-white"
-                />
-              ) : (
-                <div className="space-y-2">
-                  <UICalendar
-                    mode="single"
-                    selected={formData.data ? new Date(formData.data) : undefined}
-                    onSelect={(date) => {
-                      if (!date) return;
-                      setFormData(prev => ({
-                        ...prev,
-                        data: format(date, "yyyy-MM-dd"),
-                      }));
+            {/* ── Vincular ao Diário de Bordo ── */}
+            <div className="rounded-lg border border-border/50 p-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <Checkbox
+                    id="link-logbook"
+                    checked={linkToLogbook}
+                    onCheckedChange={(checked) => {
+                      setLinkToLogbook(!!checked);
+                      if (!checked) {
+                        setSelectedFlightId("");
+                        setLogbookFlights([]);
+                      }
                     }}
                   />
+                  <Label htmlFor="link-logbook" className="text-sm font-semibold cursor-pointer flex items-center gap-2">
+                    <BookOpen className="h-4 w-4 text-primary" />
+                    Vincular a um registro no Diário de Bordo?
+                  </Label>
+                </div>
+
+                {linkToLogbook && (
+                  <div className="pl-7 space-y-2">
+                    {loadingFlights ? (
+                      <p className="text-xs text-muted-foreground">Carregando voos...</p>
+                    ) : logbookFlights.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Nenhum voo com abastecimento não vinculado encontrado</p>
+                    ) : (
+                      <Select value={selectedFlightId} onValueChange={handleFlightSelect}>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Selecione um voo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {logbookFlights.map((flight) => (
+                            <SelectItem key={flight.id} value={flight.id} className="py-2">
+                              <div className="text-sm">
+                                <span className="font-medium">{flight.entry_date}</span>
+                                {' · '}
+                                <span>{flight.trecho || `${flight.departure_aerodrome} → ${flight.arrival_aerodrome}`}</span>
+                                {flight.fuel_added && (
+                                  <span className="text-muted-foreground"> · {flight.fuel_added}L</span>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                )}
+              </div>
+
+            {!linkToLogbook && (
+              <div>
+                <Label className="text-sm font-semibold mb-2 block">Data do Abastecimento</Label>
+                <div className="flex gap-2">
                   <Input
-                    type="date"
-                    value={formData.data}
-                    onChange={e => setFormData({
-                      ...formData,
-                      data: e.target.value
-                    })}
-                    required
+                    type="text"
+                    value={formData.data ? format(new Date(formData.data), "dd/MM/yyyy") : ""}
+                    readOnly
+                    placeholder="dd/mm/aaaa"
                     className="mt-1 h-9 text-sm"
                   />
+                  <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="icon" className="mt-1">
+                        <CalendarIcon className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="end">
+                      <UICalendar
+                        mode="single"
+                        selected={formData.data ? new Date(formData.data) : undefined}
+                        onSelect={(date) => {
+                          if (!date) return;
+                          setFormData(prev => ({
+                            ...prev,
+                            data: format(date, "yyyy-MM-dd"),
+                          }));
+                          setCalendarOpen(false);
+                        }}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             <div>
               <Label className="text-sm font-semibold mb-2 block">Cliente e Sócios</Label>
@@ -1277,57 +1395,6 @@ export function FuelRecordsByAircraft({
               </div>
             </div>
 
-            {/* ── Vincular ao Diário de Bordo ── */}
-            <div className="rounded-lg border border-border/50 p-4 space-y-3">
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    id="link-logbook"
-                    checked={linkToLogbook}
-                    onCheckedChange={(checked) => {
-                      setLinkToLogbook(!!checked);
-                      if (!checked) {
-                        setSelectedFlightId("");
-                        setLogbookFlights([]);
-                      }
-                    }}
-                  />
-                  <Label htmlFor="link-logbook" className="text-sm font-semibold cursor-pointer flex items-center gap-2">
-                    <BookOpen className="h-4 w-4 text-primary" />
-                    Vincular a um registro no Diário de Bordo?
-                  </Label>
-                </div>
-
-                {linkToLogbook && (
-                  <div className="pl-7 space-y-2">
-                    {loadingFlights ? (
-                      <p className="text-xs text-muted-foreground">Carregando voos...</p>
-                    ) : logbookFlights.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">Nenhum voo com abastecimento não vinculado encontrado</p>
-                    ) : (
-                      <Select value={selectedFlightId} onValueChange={handleFlightSelect}>
-                        <SelectTrigger className="h-9 text-sm">
-                          <SelectValue placeholder="Selecione um voo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {logbookFlights.map((flight) => (
-                            <SelectItem key={flight.id} value={flight.id} className="py-2">
-                              <div className="text-sm">
-                                <span className="font-medium">{flight.entry_date}</span>
-                                {' · '}
-                                <span>{flight.trecho || `${flight.departure_aerodrome} → ${flight.arrival_aerodrome}`}</span>
-                                {flight.fuel_added && (
-                                  <span className="text-muted-foreground"> · {flight.fuel_added}L</span>
-                                )}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-                )}
-              </div>
-
             <div>
               <Label className="text-sm font-semibold mb-2 block">Rota</Label>
               {!linkToLogbook && (
@@ -1377,32 +1444,43 @@ export function FuelRecordsByAircraft({
               </div>
             </div>
 
-            <div>
-              <Label className="text-xs text-muted-foreground">Nº Comanda</Label>
-              <Input value={formData.comanda} onChange={e => setFormData({
-                ...formData,
-                comanda: e.target.value
-              })} placeholder="Número da comanda" className="mt-1 h-9 text-sm" />
-            </div>
-
+            {/* Fornecedor e Combustível */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div>
-                <Label className="text-xs text-muted-foreground">Fornecedor</Label>
+                <Label className="text-xs text-muted-foreground">Fornecedor <span className="text-red-500">*</span></Label>
                 <Combobox options={suppliers.map(s => ({
                   value: s.id,
                   label: `${s.supplier_name} (${s.city_name})`
-                }))} value={formData.abastecedor_id} onValueChange={value => setFormData({
-                  ...formData,
-                  abastecedor_id: value
-                })} placeholder="Selecione um fornecedor" searchPlaceholder="Buscar fornecedor..." emptyText="Nenhum fornecedor encontrado" className="mt-1 h-9 text-sm" />
+                }))} value={formData.abastecedor_id} onValueChange={value => {
+                  const selectedSupplier = suppliers.find(s => s.id === value);
+                  setFormData({
+                    ...formData,
+                    abastecedor_id: value,
+                    local: selectedSupplier?.city_name || formData.local
+                  });
+                }} placeholder="Selecione um fornecedor" searchPlaceholder="Buscar fornecedor..." emptyText="Nenhum fornecedor encontrado" className="mt-1 h-9 text-sm" required />
               </div>
 
               <div>
-                <Label className="text-xs text-muted-foreground">Tipo de Combustível</Label>
-                <Select value={formData.combustivel_tipo} onValueChange={value => setFormData({
-                  ...formData,
-                  combustivel_tipo: value
-                })}>
+                <Label className="text-xs text-muted-foreground">Tipo de Combustível <span className="text-red-500">*</span></Label>
+                <Select value={formData.combustivel_tipo} onValueChange={value => {
+                  const selectedSupplier = suppliers.find(s => s.id === formData.abastecedor_id);
+                  let novoValorUnitario = formData.valor_unitario;
+
+                  if (selectedSupplier) {
+                    if (value === "avgas") {
+                      novoValorUnitario = selectedSupplier.fuel_price_avgas?.toString() || "";
+                    } else if (value === "jet") {
+                      novoValorUnitario = selectedSupplier.fuel_price_jet?.toString() || "";
+                    }
+                  }
+
+                  setFormData({
+                    ...formData,
+                    combustivel_tipo: value,
+                    valor_unitario: novoValorUnitario
+                  });
+                }}>
                   <SelectTrigger className="mt-1 h-9 text-sm">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
@@ -1414,7 +1492,38 @@ export function FuelRecordsByAircraft({
               </div>
 
               <div>
-                <Label className="text-xs text-muted-foreground">Status de Pagamento</Label>
+                <Label className="text-xs text-muted-foreground">Valor Unit. (R$) <span className="text-red-500">*</span></Label>
+                <Input type="number" step="0.0001" value={formData.valor_unitario} onChange={e => setFormData({
+                  ...formData,
+                  valor_unitario: e.target.value,
+                  valor_total_manual: false,
+                })} placeholder="Preço do combustível" className="mt-1 h-9 text-sm" required />
+              </div>
+            </div>
+
+            {/* Tipo de Faturamento e Status de Pagamento */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs text-muted-foreground">Tipo de Faturamento <span className="text-red-500">*</span></Label>
+                <Select value={formData.tipo_faturamento} onValueChange={value => setFormData({
+                  ...formData,
+                  tipo_faturamento: value
+                })}>
+                  <SelectTrigger className="mt-1 h-9 text-sm">
+                    <SelectValue placeholder="Selecione o tipo de faturamento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pagamento a vista">Pagamento à Vista</SelectItem>
+                    <SelectItem value="a vista cartao de credito">À Vista Cartão de Crédito</SelectItem>
+                    <SelectItem value="a vista transferencia pix">À Vista Transferência (PIX)</SelectItem>
+                    <SelectItem value="faturado boleto">Faturado Boleto</SelectItem>
+                    <SelectItem value="faturado nota fiscal">Faturado Nota Fiscal</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-xs text-muted-foreground">Status de Pagamento <span className="text-red-500">*</span></Label>
                 <Select value={formData.status_pagamento} onValueChange={value => setFormData({
                   ...formData,
                   status_pagamento: value
@@ -1428,46 +1537,47 @@ export function FuelRecordsByAircraft({
                   </SelectContent>
                 </Select>
               </div>
-
-              {formData.status_pagamento === "pago" && (
-                <>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Data do Pagamento *</Label>
-                    <Input type="date" value={formData.data_pagamento} onChange={e => setFormData({
-                      ...formData,
-                      data_pagamento: e.target.value
-                    })} className="mt-1 h-9 text-sm" required />
-                  </div>
-
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Banco</Label>
-                    <Select value={formData.banco} onValueChange={value => setFormData({
-                      ...formData,
-                      banco: value
-                    })}>
-                      <SelectTrigger className="mt-1 h-9 text-sm">
-                        <SelectValue placeholder="Selecione banco" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {bankInstitutions.map(bank => (
-                          <SelectItem key={bank.id} value={bank.label}>{bank.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
-              )}
-
-              {formData.status_pagamento === "em aberto" && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Data de Vencimento</Label>
-                  <Input type="date" value={formData.data_vencimento_boleto} onChange={e => setFormData({
-                    ...formData,
-                    data_vencimento_boleto: e.target.value
-                  })} className="mt-1 h-9 text-sm" />
-                </div>
-              )}
             </div>
+
+            {/* Campos condicionais de Pagamento */}
+            {formData.status_pagamento === "pago" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Data do Pagamento <span className="text-red-500">*</span></Label>
+                  <Input type="date" value={formData.data_pagamento} onChange={e => setFormData({
+                    ...formData,
+                    data_pagamento: e.target.value
+                  })} className="mt-1 h-9 text-sm" required />
+                </div>
+
+                <div>
+                  <Label className="text-xs text-muted-foreground">Banco</Label>
+                  <Select value={formData.banco} onValueChange={value => setFormData({
+                    ...formData,
+                    banco: value
+                  })}>
+                    <SelectTrigger className="mt-1 h-9 text-sm">
+                      <SelectValue placeholder="Selecione banco" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {bankInstitutions.map(bank => (
+                        <SelectItem key={bank.id} value={bank.label}>{bank.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            {formData.status_pagamento === "em aberto" && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Data de Vencimento</Label>
+                <Input type="date" value={formData.data_vencimento_boleto} onChange={e => setFormData({
+                  ...formData,
+                  data_vencimento_boleto: e.target.value
+                })} className="mt-1 h-9 text-sm" />
+              </div>
+            )}
 
             {formData.status_pagamento === "pago" && (
               <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
@@ -1497,132 +1607,126 @@ export function FuelRecordsByAircraft({
               </div>
             )}
 
+            {/* Litros e Valor Total */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
-                <Label className="text-xs text-muted-foreground">Tipo de Faturamento</Label>
-                <Select value={formData.tipo_faturamento} onValueChange={value => setFormData({
+                <Label className="text-xs text-muted-foreground">Total em Litros <span className="text-red-500">*</span></Label>
+                <Input type="number" step="0.01" value={formData.litros} onChange={e => setFormData({
                   ...formData,
-                  tipo_faturamento: value
-                })}>
-                  <SelectTrigger className="mt-1 h-9 text-sm">
-                    <SelectValue placeholder="Selecione o tipo de faturamento" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pagamento a vista">Pagamento à Vista</SelectItem>
-                    <SelectItem value="a vista cartao de credito">À Vista Cartão de Crédito</SelectItem>
-                    <SelectItem value="a vista transferencia pix">À Vista Transferência (PIX)</SelectItem>
-                    <SelectItem value="faturado boleto">Faturado Boleto</SelectItem>
-                    <SelectItem value="faturado nota fiscal">Faturado Nota Fiscal</SelectItem>
-                  </SelectContent>
-                </Select>
+                  litros: e.target.value
+                })} placeholder="0.00" required className="mt-1 h-9 text-sm" />
               </div>
 
               <div>
-                <Label className="text-xs text-muted-foreground">Forma de Pagamento</Label>
-                <Input value={formData.forma_pagamento} onChange={e => setFormData({ ...formData, forma_pagamento: e.target.value })} placeholder="PIX, Cartão, Transferência..." className="mt-1 h-9 text-sm" />
+                <Label className="text-xs text-muted-foreground">Valor Total (R$) <span className="text-red-500">*</span></Label>
+                <Input type="number" step="0.01" value={formData.valor_total} onChange={e => {
+                  const total = e.target.value;
+                  const litrosNum = parseFloat(formData.litros);
+                  const totalNum = parseFloat(total);
+                  let valorUnitarioUpdate = formData.valor_unitario;
+                  if (!Number.isNaN(litrosNum) && litrosNum > 0 && !Number.isNaN(totalNum)) {
+                    valorUnitarioUpdate = (totalNum / litrosNum).toFixed(4);
+                  }
+                  setFormData({
+                    ...formData,
+                    valor_total: total,
+                    valor_total_manual: true,
+                    valor_unitario: valorUnitarioUpdate,
+                  });
+                }} placeholder="0.00" required className="mt-1 h-9 text-sm" />
               </div>
             </div>
 
-            <div>
-              <Label className="text-sm font-semibold mb-2 block">Combustível</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Litros</Label>
-                  <Input type="number" step="0.01" value={formData.litros} onChange={e => setFormData({
-                    ...formData,
-                    litros: e.target.value
-                  })} required className="mt-1 h-9 text-sm" />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Valor Unit. (R$)</Label>
-                  <Input type="number" step="0.0001" value={formData.valor_unitario} onChange={e => setFormData({
-                    ...formData,
-                    valor_unitario: e.target.value,
-                    valor_total_manual: false,
-                  })} required className="mt-1 h-9 text-sm" />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Valor Total (R$)</Label>
-                  <Input type="number" step="0.01" value={formData.valor_total} onChange={e => {
-                    const total = e.target.value;
-                    const litrosNum = parseFloat(formData.litros);
-                    const totalNum = parseFloat(total);
-                    let valorUnitarioUpdate = formData.valor_unitario;
-                    if (!Number.isNaN(litrosNum) && litrosNum > 0 && !Number.isNaN(totalNum)) {
-                      valorUnitarioUpdate = (totalNum / litrosNum).toFixed(4);
-                    }
-                    setFormData({
-                      ...formData,
-                      valor_total: total,
-                      valor_total_manual: true,
-                      valor_unitario: valorUnitarioUpdate,
-                    });
-                  }} className="mt-1 h-9 text-sm" />
-                </div>
-              </div>
-            </div>
+            {(formData.litros && formData.valor_unitario) && <div className="bg-gradient-to-r from-success/10 to-success/5 border border-success/20 p-3 rounded-lg">
+              <p className="text-xs text-muted-foreground mb-1">Cálculo Automático</p>
+              <p className="text-sm font-semibold text-success">
+                {formData.litros} L × R$ {parseFloat(formData.valor_unitario).toFixed(4)} = R$ {formData.valor_total ? parseFloat(formData.valor_total).toFixed(2) : (parseFloat(formData.litros) * parseFloat(formData.valor_unitario)).toFixed(2)}
+              </p>
+            </div>}
 
             <div>
               <Label className="text-xs text-muted-foreground">Galões</Label>
               <Input type="number" step="0.01" value={formData.abastecimento_galoes} onChange={e => setFormData({
                 ...formData,
                 abastecimento_galoes: e.target.value
-              })} className="mt-1 h-9 text-sm" />
+              })} placeholder="0.00 (opcional)" className="mt-1 h-9 text-sm" />
             </div>
 
-            <div>
-              <Label className="text-xs text-muted-foreground">Observações</Label>
-              <textarea value={formData.observacao} onChange={e => setFormData({
-                ...formData,
-                observacao: e.target.value
-              })} placeholder="Adicione observações sobre este abastecimento..." className="mt-1 w-full min-h-24 p-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background" />
-            </div>
-
-            <div>
-              <Label className="text-xs text-muted-foreground">Número da NF</Label>
-              <input type="text" value={formData.nf} onChange={e => setFormData({
-                ...formData,
-                nf: e.target.value
-              })} placeholder="Número da nota fiscal (opcional)" className="mt-1 w-full px-3 py-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background" />
-            </div>
-
-            {(formData.litros && formData.valor_unitario) && <div className="bg-gradient-to-r from-success/10 to-success/5 border border-success/20 p-2 rounded-lg">
-              <p className="text-xs text-muted-foreground">Valor Total (calculado)</p>
-              <p className="text-lg font-bold text-success">
-                R$ {formData.valor_total ? parseFloat(formData.valor_total).toFixed(2) : (parseFloat(formData.litros) * parseFloat(formData.valor_unitario)).toFixed(2)}
-              </p>
-            </div>}
-
-            <div>
-              <Label className="text-sm font-semibold mb-4 block">Anexos</Label>
-              <div className="space-y-3">
-                <ModernFileUpload label="Comanda" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp" onChange={file => {
-                  setFormData({
-                    ...formData,
-                    comanda_file: file
-                  });
-                  if (!file) {
-                    setUploadedFiles({
-                      ...uploadedFiles,
-                      comanda_url: ""
+            {/* Comanda */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs text-muted-foreground">Nº Comanda</Label>
+                <Input value={formData.comanda} onChange={e => setFormData({
+                  ...formData,
+                  comanda: e.target.value
+                })} placeholder="Número da comanda" className="mt-1 h-9 text-sm" />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Anexo da Comanda</Label>
+                <ModernFileUpload
+                  label=""
+                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
+                  onChange={file => {
+                    setFormData({
+                      ...formData,
+                      comanda_file: file
                     });
-                  }
-                }} currentFile={formData.comanda_file} uploadedUrl={formData.comanda_url} disabled={isUploading} allowedFormats={["PDF", "PNG", "JPG", "JPEG", "GIF", "WEBP"]} />
+                    if (!file) {
+                      setUploadedFiles({
+                        ...uploadedFiles,
+                        comanda_url: ""
+                      });
+                    }
+                  }}
+                  currentFile={formData.comanda_file}
+                  uploadedUrl={formData.comanda_url}
+                  disabled={isUploading}
+                  allowedFormats={["PDF", "PNG", "JPG", "JPEG", "GIF", "WEBP"]}
+                />
+              </div>
+            </div>
 
-                <ModernFileUpload label="Nota Fiscal" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp" onChange={file => {
-                  setFormData({
-                    ...formData,
-                    nota_file: file
-                  });
-                  if (!file) {
-                    setUploadedFiles({
-                      ...uploadedFiles,
-                      nota_url: ""
+            {/* Nota Fiscal */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs text-muted-foreground">Nº Nota Fiscal</Label>
+                <Input type="text" value={formData.nf} onChange={e => setFormData({
+                  ...formData,
+                  nf: e.target.value
+                })} placeholder="Número da nota fiscal (opcional)" className="mt-1 h-9 text-sm" />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Anexo da NF</Label>
+                <ModernFileUpload
+                  label=""
+                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
+                  onChange={file => {
+                    setFormData({
+                      ...formData,
+                      nota_file: file
                     });
-                  }
-                }} currentFile={formData.nota_file} uploadedUrl={formData.nota_url} disabled={isUploading} allowedFormats={["PDF", "PNG", "JPG", "JPEG", "GIF", "WEBP"]} />
+                    if (!file) {
+                      setUploadedFiles({
+                        ...uploadedFiles,
+                        nota_url: ""
+                      });
+                    }
+                  }}
+                  currentFile={formData.nota_file}
+                  uploadedUrl={formData.nota_url}
+                  disabled={isUploading}
+                  allowedFormats={["PDF", "PNG", "JPG", "JPEG", "GIF", "WEBP"]}
+                />
+              </div>
+            </div>
 
-                <ModernFileUpload label="Boleto" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp" onChange={file => {
+            {/* Boleto */}
+            <div>
+              <Label className="text-xs text-muted-foreground">Boleto (Opcional)</Label>
+              <ModernFileUpload
+                label=""
+                accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
+                onChange={file => {
                   setFormData({
                     ...formData,
                     boleto_file: file
@@ -1633,8 +1737,26 @@ export function FuelRecordsByAircraft({
                       boleto_url: ""
                     });
                   }
-                }} currentFile={formData.boleto_file} uploadedUrl={formData.boleto_url} disabled={isUploading} allowedFormats={["PDF", "PNG", "JPG", "JPEG", "GIF", "WEBP"]} />
-              </div>
+                }}
+                currentFile={formData.boleto_file}
+                uploadedUrl={formData.boleto_url}
+                disabled={isUploading}
+                allowedFormats={["PDF", "PNG", "JPG", "JPEG", "GIF", "WEBP"]}
+              />
+            </div>
+
+            {/* Observações */}
+            <div>
+              <Label className="text-xs text-muted-foreground">Observações</Label>
+              <textarea
+                value={formData.observacao}
+                onChange={e => setFormData({
+                  ...formData,
+                  observacao: e.target.value
+                })}
+                placeholder="Adicione observações sobre este abastecimento..."
+                className="mt-1 w-full min-h-20 p-2 text-sm border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+              />
             </div>
 
             <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t sticky bottom-0 bg-background -mx-4 sm:-mx-0 px-4 sm:px-0 py-4 sm:py-0">
