@@ -1051,13 +1051,13 @@ export default function RelatorioMensal() {
               </div>
             ) : (
               <div
-                className="overflow-x-auto pb-2"
+                className="overflow-x-auto pb-4 table-scroll-visible"
                 style={{
                   scrollbarWidth: 'thin',
-                  scrollbarColor: 'hsl(187 100% 55% / 0.5) transparent'
+                  scrollbarColor: 'hsl(187 100% 55% / 0.8) rgba(100, 100, 100, 0.2)'
                 }}
               >
-                <table className="w-full text-sm border-collapse">
+                <table className="w-full text-sm border-collapse min-w-max">
                   <thead className="border-b-2 border-border bg-slate-900/50">
                     <tr>
                       <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground w-10">
