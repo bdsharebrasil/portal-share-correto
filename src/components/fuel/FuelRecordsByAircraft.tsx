@@ -1322,7 +1322,7 @@ export function FuelRecordsByAircraft({
             Novo Registro
           </Button>
         </DialogTrigger>
-        <DialogContent className="flex flex-col">
+        <DialogContent className="flex flex-col" style={{zIndex: 1001}}>
           <DialogHeader>
             <DialogTitle>{editingRecord ? "Editar Registro" : "Novo Registro"}</DialogTitle>
           </DialogHeader>
@@ -1897,7 +1897,7 @@ export function FuelRecordsByAircraft({
       </Dialog>
 
       <AlertDialog open={showConfirmationSummary} onOpenChange={setShowConfirmationSummary}>
-        <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" style={{zIndex: 1000}}>
+        <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" style={{zIndex: 9999}}>
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl">Resumo do Abastecimento</AlertDialogTitle>
             <AlertDialogDescription>
@@ -2014,7 +2014,7 @@ export function FuelRecordsByAircraft({
       </AlertDialog>
 
       <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <AlertDialogContent>
+        <AlertDialogContent style={{zIndex: 9999}}>
           <AlertDialogHeader>
             <AlertDialogTitle>Comanda não preenchida</AlertDialogTitle>
             <AlertDialogDescription>
@@ -2207,7 +2207,7 @@ export function FuelRecordsByAircraft({
     </Card>
 
     {viewingAttachment && <Dialog open={!!viewingAttachment} onOpenChange={open => !open && setViewingAttachment(null)}>
-      <DialogContent className="max-w-7xl w-[98vw] h-[95vh] flex flex-col">
+      <DialogContent className="max-w-7xl w-[98vw] h-[95vh] flex flex-col" style={{zIndex: 1001}}>
         <DialogHeader className="border-b pb-4 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             {viewingAttachment.name === 'Comanda' && <FileText className="h-5 w-5 text-blue-600" />}
