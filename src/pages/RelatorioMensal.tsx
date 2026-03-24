@@ -25,6 +25,7 @@ import {
   FileDown,
   Loader2,
   Landmark,
+  Search,
 } from "lucide-react"
 import { TransactionEditModal } from "@/components/socios/TransactionEditModal"
 import {
@@ -111,13 +112,13 @@ export default function RelatorioMensal() {
   const { clienteId } = useParams<{ clienteId: string }>()
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date()
-    // Use ISO string to ensure consistent parsing: YYYY-MM-15
     const isoMonth = String(now.getMonth() + 1).padStart(2, "0")
     return new Date(`${now.getFullYear()}-${isoMonth}-15T12:00:00`)
   })
   const [selectedPartners, setSelectedPartners] = useState<string[]>([])
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedDay, setSelectedDay] = useState<string>("")
+  const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState<'date' | 'partner'>('date')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [editingTransaction, setEditingTransaction] = useState<any>(null)
@@ -138,11 +139,9 @@ export default function RelatorioMensal() {
   const { data: transactions = [] } = useSocioTransactions(clienteId)
   const deleteTransaction = useDeleteTransaction()
 
-  // Monthly partner report for PDF export
   const reportMonth = format(currentMonth, "yyyy-MM")
   const { data: monthlyReportData } = useMonthlyPartnerReport(clienteId || null, reportMonth)
 
-  // Fetch expense_categories from DB for label enrichment
   const { data: dbCategories = [] } = useQuery({
     queryKey: ["expense_categories"],
     queryFn: async () => {
@@ -170,11 +169,9 @@ export default function RelatorioMensal() {
     [transactions]
   )
 
-  // Normalizar categorias usando o mapa + db labels
   const getCategoryFromTx = (t: any): string => {
     const raw = t.transaction_subtype || t.category || t.expense_type
-    // Try DB label first
-    const dbCat = dbCategories.find(c => c.id === raw)
+    const dbCat = dbCategories.find((c: any) => c.id === raw)
     if (dbCat) return dbCat.label
     return normalizeCategory(raw)
   }
@@ -184,7 +181,6 @@ export default function RelatorioMensal() {
     [transactions, dbCategories]
   )
 
-  // Helper functions for display
   const getStatusLabel = (status: string) => {
     const map: Record<string, string> = {
       pending: "Pendente",
@@ -196,16 +192,16 @@ export default function RelatorioMensal() {
       overdue: "Vencido",
       recebido: "Recebido",
       received: "Recebido",
-    };
-    return map[status?.toLowerCase()] || status || "-";
-  };
+    }
+    return map[status?.toLowerCase()] || status || "-"
+  }
 
   const getExpenseTypeLabel = (type: string) => {
-    return (type || "").toUpperCase();
-  };
+    return (type || "").toUpperCase()
+  }
 
   const getPaymentMethodLabel = (method: string | null | undefined) => {
-    if (!method) return "-";
+    if (!method) return "-"
     const map: Record<string, string> = {
       pix: "PIX",
       ted: "TED",
@@ -214,9 +210,9 @@ export default function RelatorioMensal() {
       dinheiro: "Dinheiro",
       nao_informado: "-",
       outros: "Outros",
-    };
-    return map[method?.toLowerCase()] || method;
-  };
+    }
+    return map[method?.toLowerCase()] || method
+  }
 
   const filteredTransactions = useMemo(() => {
     let result = transactions.filter((t) => {
@@ -250,9 +246,19 @@ export default function RelatorioMensal() {
         }
       })
     }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter((t: any) =>
+        (t.description || "").toLowerCase().includes(q) ||
+        (t.partner_name || "").toLowerCase().includes(q) ||
+        (t.notes || "").toLowerCase().includes(q) ||
+        (t.doc || "").toLowerCase().includes(q)
+      )
+    }
+
     result.sort((a, b) => {
       let compareValue = 0
-      
       if (sortBy === 'date') {
         const dateA = new Date((a as any).payment_date || a.created_at)
         const dateB = new Date((b as any).payment_date || b.created_at)
@@ -260,12 +266,11 @@ export default function RelatorioMensal() {
       } else if (sortBy === 'partner') {
         compareValue = (a.partner_name || '').localeCompare(b.partner_name || '')
       }
-
       return sortOrder === 'asc' ? compareValue : -compareValue
     })
 
     return result
-  }, [transactions, currentMonth, selectedPartners, selectedCategories, selectedDay, sortBy, sortOrder])
+  }, [transactions, currentMonth, selectedPartners, selectedCategories, selectedDay, searchQuery, sortBy, sortOrder])
 
   // ========================
   // COMPUTAÇÕES
@@ -275,23 +280,16 @@ export default function RelatorioMensal() {
     const deposits = filteredTransactions
       .filter((t) => t.transaction_type === "deposit")
       .reduce((sum, t) => sum + Number(t.amount), 0)
-
     const expenses = filteredTransactions
       .filter((t) => t.transaction_type !== "deposit")
       .reduce((sum, t) => sum + Number(t.amount), 0)
-
-    return {
-      totalDeposits: deposits,
-      totalExpenses: expenses,
-      balance: deposits - expenses,
-    }
+    return { totalDeposits: deposits, totalExpenses: expenses, balance: deposits - expenses }
   }, [filteredTransactions])
 
   const dailyData = useMemo(() => {
     const start = startOfMonth(currentMonth)
     const end = endOfMonth(currentMonth)
     const days = eachDayOfInterval({ start, end })
-
     return days.map((day) => {
       const dayTransactions = filteredTransactions.filter((t) => {
         const date = (t as any).payment_date || t.created_at
@@ -302,98 +300,51 @@ export default function RelatorioMensal() {
             txDate.getMonth() === day.getMonth() &&
             txDate.getFullYear() === day.getFullYear()
           )
-        } catch {
-          return false
-        }
+        } catch { return false }
       })
-
-      const deposits = dayTransactions
-        .filter((t) => t.transaction_type === "deposit")
-        .reduce((sum, t) => sum + Number(t.amount), 0)
-
-      const expenses = dayTransactions
-        .filter((t) => t.transaction_type !== "deposit")
-        .reduce((sum, t) => sum + Number(t.amount), 0)
-
-      return {
-        date: format(day, "dd MMM", { locale: ptBR }),
-        day: day.getDate(),
-        deposits,
-        expenses,
-        balance: deposits - expenses,
-      }
+      const deposits = dayTransactions.filter((t) => t.transaction_type === "deposit").reduce((sum, t) => sum + Number(t.amount), 0)
+      const expenses = dayTransactions.filter((t) => t.transaction_type !== "deposit").reduce((sum, t) => sum + Number(t.amount), 0)
+      return { date: format(day, "dd MMM", { locale: ptBR }), day: day.getDate(), deposits, expenses, balance: deposits - expenses }
     })
   }, [filteredTransactions, currentMonth])
 
-  // Helper para verificar se é transação de conta bancária (sem sócio específico)
   const isBankAccountTransaction = (t: any) => {
     const name = (t.partner_name || "").trim().toLowerCase()
     const cpf = (t.partner_cpf || "").trim()
-
-    // Considerar como "Conta Bancária" se:
-    // 1) Nome normalizado for "conta bancária"
-    // 2) Nome vazio/null
-    // 3) CPF for vazio/N/A/null/00000000000 ou sem dígitos
     return (
-      name === "conta bancária" ||
-      !name ||
-      !cpf ||
-      cpf === "N/A" ||
-      cpf === "00000000000" ||
-      cpf.replace(/\D/g, "") === ""
+      name === "conta bancária" || !name || !cpf ||
+      cpf === "N/A" || cpf === "00000000000" || cpf.replace(/\D/g, "") === ""
     )
   }
 
   const partnerData = useMemo(() => {
     const map: Record<string, { deposits: number; expenses: number }> = {}
-
     filteredTransactions.forEach((t) => {
-      // Excluir transações de "Conta Bancária" do resumo por sócio
       if (isBankAccountTransaction(t)) return
-
       const name = t.partner_name
       if (!map[name]) map[name] = { deposits: 0, expenses: 0 }
-
-      if (t.transaction_type === "deposit") {
-        map[name].deposits += Number(t.amount)
-      } else {
-        map[name].expenses += Number(t.amount)
-      }
+      if (t.transaction_type === "deposit") map[name].deposits += Number(t.amount)
+      else map[name].expenses += Number(t.amount)
     })
-
     return Object.entries(map).map(([name, data]) => ({
-      name,
-      deposits: data.deposits,
-      expenses: data.expenses,
-      balance: data.deposits - data.expenses,
+      name, deposits: data.deposits, expenses: data.expenses, balance: data.deposits - data.expenses,
     }))
   }, [filteredTransactions])
 
-  // Agregar dados de "Conta Bancária" separadamente (sem sócio específico)
   const bankAccountData = useMemo(() => {
-    let deposits = 0
-    let expenses = 0
-
+    let deposits = 0, expenses = 0
     filteredTransactions.forEach((t) => {
       if (isBankAccountTransaction(t)) {
-        if (t.transaction_type === "deposit") {
-          deposits += Number(t.amount)
-        } else {
-          expenses += Number(t.amount)
-        }
+        if (t.transaction_type === "deposit") deposits += Number(t.amount)
+        else expenses += Number(t.amount)
       }
     })
-
-    return {
-      deposits,
-      expenses,
-      balance: deposits - expenses,
-    }
+    return { deposits, expenses, balance: deposits - expenses }
   }, [filteredTransactions])
 
-  // Transações filtradas pelo sócio selecionado no card
   const partnerCardTransactions = useMemo(() => {
     if (!selectedPartnerCard) return []
+    if (selectedPartnerCard === "Conta Bancária") return filteredTransactions.filter((t) => isBankAccountTransaction(t))
     return filteredTransactions.filter((t) => t.partner_name === selectedPartnerCard)
   }, [filteredTransactions, selectedPartnerCard])
 
@@ -401,49 +352,38 @@ export default function RelatorioMensal() {
   // HELPERS
   // ========================
 
- const previousMonth = () => {
+  const previousMonth = () => {
     setCurrentMonth((m) => {
-      const newDate = new Date(m);
-      newDate.setMonth(newDate.getMonth() - 1);
-      // Garantimos que o dia seja 15 para evitar viradas de fuso horário mudarem o mês
-      newDate.setDate(15); 
-      return newDate;
-    });
-  };
+      const newDate = new Date(m)
+      newDate.setMonth(newDate.getMonth() - 1)
+      newDate.setDate(15)
+      return newDate
+    })
+  }
 
   const nextMonth = () => {
     setCurrentMonth((m) => {
-      const newDate = new Date(m);
-      newDate.setMonth(newDate.getMonth() + 1);
-      newDate.setDate(15);
-      return newDate;
-    });
-  };
+      const newDate = new Date(m)
+      newDate.setMonth(newDate.getMonth() + 1)
+      newDate.setDate(15)
+      return newDate
+    })
+  }
 
   const monthLabel = format(currentMonth, "MMMM yyyy", { locale: ptBR })
   const monthLabelCapitalized = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
 
-  // ========================
-  // FUNCIONALIDADES
-  // ========================
-
   const toggleFuelExpanded = (fuelId: string) => {
     const newSet = new Set(expandedFuels)
-    if (newSet.has(fuelId)) {
-      newSet.delete(fuelId)
-    } else {
-      newSet.add(fuelId)
-    }
+    if (newSet.has(fuelId)) newSet.delete(fuelId)
+    else newSet.add(fuelId)
     setExpandedFuels(newSet)
   }
 
   const toggleTravelReportExpanded = (reportId: string) => {
     const newSet = new Set(expandedTravelReports)
-    if (newSet.has(reportId)) {
-      newSet.delete(reportId)
-    } else {
-      newSet.add(reportId)
-    }
+    if (newSet.has(reportId)) newSet.delete(reportId)
+    else newSet.add(reportId)
     setExpandedTravelReports(newSet)
   }
 
@@ -453,146 +393,54 @@ export default function RelatorioMensal() {
 
   const handleExpenseTypeClick = async (tx: any, e: React.MouseEvent) => {
     e.stopPropagation()
-
     if (tx.reference_type === "abastecimento") {
-      // Verificar se o abastecimento existe
       try {
         const { data: abastecimento, error } = await supabase
-          .from("abastecimentos")
-          .select("id, data, local, litros")
-          .eq("id", tx.reference_id)
-          .single()
-
-        if (error || !abastecimento) {
-          toast.error("Esse abastecimento não está vinculado a nenhum registro")
-          return
-        }
-
-        // Navegar para a página de abastecimento com o ID do abastecimento selecionado
-        navigate("/abastecimento", {
-          state: {
-            selectedAbastecimentoId: tx.reference_id,
-            fromRelatorioMensal: true,
-            clienteId: clienteId,
-            abastecimentoFound: true
-          }
-        })
-      } catch (err) {
-        console.error("Erro ao buscar abastecimento:", err)
-        toast.error("Esse abastecimento não está vinculado a nenhum registro")
-      }
+          .from("abastecimentos").select("id, data, local, litros").eq("id", tx.reference_id).single()
+        if (error || !abastecimento) { toast.error("Esse abastecimento não está vinculado a nenhum registro"); return }
+        navigate("/abastecimento", { state: { selectedAbastecimentoId: tx.reference_id, fromRelatorioMensal: true, clienteId, abastecimentoFound: true } })
+      } catch (err) { toast.error("Esse abastecimento não está vinculado a nenhum registro") }
     } else if (
       tx.reference_type === "travel_expense_report" ||
-      (tx.reference_type === "partner_expense" &&
-       tx.expense_type &&
-       (tx.expense_type.toLowerCase() === "viagem" || tx.expense_type.toLowerCase() === "despesas de viagem"))
+      (tx.reference_type === "partner_expense" && tx.expense_type &&
+        (tx.expense_type.toLowerCase() === "viagem" || tx.expense_type.toLowerCase() === "despesas de viagem"))
     ) {
-      // Para despesas/relatórios de viagem
       try {
         let travelReportId: string | null = null
         let travelReport: any = null
-
-        // Se já tem reference_id como viagem (travel_expense_report), usar diretamente
         if (tx.reference_type === "travel_expense_report" && tx.reference_id) {
           const { data: report, error: reportError } = await supabase
-            .from("travel_expense_reports")
-            .select("id, report_number, start_date, client")
-            .eq("id", tx.reference_id)
-            .single()
-
-          if (!reportError && report) {
-            travelReportId = tx.reference_id
-            travelReport = report
-          }
+            .from("travel_expense_reports").select("id, report_number, start_date, client").eq("id", tx.reference_id).single()
+          if (!reportError && report) { travelReportId = tx.reference_id; travelReport = report }
         }
-        
-        // Se é uma despesa de partner_expense, buscar a referência ao relatório
         if (!travelReport && tx.reference_type === "partner_expense") {
-          // Primeiro buscar a despesa para obter o reference_id do travel report
           const { data: expense, error: expError } = await supabase
-            .from("partner_expenses")
-            .select("id, reference_id, reference_type, description, notes")
-            .eq("id", tx.reference_id)
-            .single()
-
-          if (expError || !expense) {
-            toast.error("Essa despesa não foi vinculada a um relatório de viagem")
-            return
-          }
-
-          // Verificar se tem um relatório de viagem vinculado via reference_id
-          if (expense.reference_id &&
-              (expense.reference_type === "travel_expense_report" ||
-               expense.reference_type === "travel_report" ||
-               expense.reference_type === "viagem")) {
-            // Buscar o relatório de viagem para verificar se existe
+            .from("partner_expenses").select("id, reference_id, reference_type, description, notes").eq("id", tx.reference_id).single()
+          if (expError || !expense) { toast.error("Essa despesa não foi vinculada a um relatório de viagem"); return }
+          if (expense.reference_id && (expense.reference_type === "travel_expense_report" || expense.reference_type === "travel_report" || expense.reference_type === "viagem")) {
             const { data: report, error: reportError } = await supabase
-              .from("travel_expense_reports")
-              .select("id, report_number, start_date, client")
-              .eq("id", expense.reference_id)
-              .single()
-
-            if (!reportError && report) {
-              travelReportId = expense.reference_id
-              travelReport = report
-            }
+              .from("travel_expense_reports").select("id, report_number, start_date, client").eq("id", expense.reference_id).single()
+            if (!reportError && report) { travelReportId = expense.reference_id; travelReport = report }
           }
-
-          // Se não encontrou via reference_id, tentar extrair o número do relatório das observações
           if (!travelReport && expense.notes) {
-            // Procurar por padrão REL-XXX-###/## nas observações
             const reportPattern = /REL-[A-Z]{3}-\d{3}\/\d{2}/g
             const matches = expense.notes.match(reportPattern)
-
             if (matches && matches.length > 0) {
-              const reportNumber = matches[0] // Pegar o primeiro match
+              const reportNumber = matches[0]
               const { data: reportByNumber, error: searchError } = await supabase
-                .from("travel_expense_reports")
-                .select("id, report_number, start_date, client_id")
-                .eq("report_number", reportNumber)
-                .eq("client_id", clienteId)
-                .single()
-
+                .from("travel_expense_reports").select("id, report_number, start_date, client_id").eq("report_number", reportNumber).eq("client_id", clienteId).single()
               if (!searchError && reportByNumber) {
-                travelReportId = reportByNumber.id
-                travelReport = reportByNumber
-
-                // Atualizar a despesa com reference_id e reference_type para evitar inconsistência futura
+                travelReportId = reportByNumber.id; travelReport = reportByNumber
                 try {
-                  await supabase
-                    .from("partner_expenses")
-                    .update({
-                      reference_id: travelReportId,
-                      reference_type: "travel_report"
-                    })
-                    .eq("id", expense.id)
-                } catch (updateErr) {
-                  console.warn("Não foi possível atualizar despesa com reference_id:", updateErr)
-                }
+                  await supabase.from("partner_expenses").update({ reference_id: travelReportId, reference_type: "travel_report" }).eq("id", expense.id)
+                } catch (updateErr) { console.warn("Não foi possível atualizar despesa:", updateErr) }
               }
             }
           }
         }
-
-        if (!travelReport) {
-          toast.error("Essa despesa não foi vinculada a um relatório de viagem")
-          return
-        }
-
-        // Navegar para a página de viagem com o ID do relatório selecionado
-        navigate("/financeiro/viagem", {
-          state: {
-            selectedReportId: travelReportId,
-            fromRelatorioMensal: true,
-            clienteId: clienteId,
-            reportFound: true,
-            reportNumber: travelReport.report_number
-          }
-        })
-      } catch (err) {
-        console.error("Erro ao navegar para viagem:", err)
-        toast.error("Essa despesa não foi vinculada a um relatório de viagem")
-      }
+        if (!travelReport) { toast.error("Essa despesa não foi vinculada a um relatório de viagem"); return }
+        navigate("/financeiro/viagem", { state: { selectedReportId: travelReportId, fromRelatorioMensal: true, clienteId, reportFound: true, reportNumber: travelReport.report_number } })
+      } catch (err) { toast.error("Essa despesa não foi vinculada a um relatório de viagem") }
     }
   }
 
@@ -612,18 +460,17 @@ export default function RelatorioMensal() {
 
   return (
     <Layout>
-      <div className="space-y-8">
-        {/* Header */}
+      <div className="space-y-6">
+
+        {/* ── Header ── */}
         <div className="border-b border-border pb-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-3">
                 <Button
-                  variant="outline"
-                  size="sm"
+                  variant="outline" size="sm"
                   onClick={() => navigate(`/financeiro/financeiro-socios`, { state: { selectedClientId: clienteId } })}
                   className="h-8 w-8 p-0"
-                  title="Voltar para o cliente"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -635,68 +482,39 @@ export default function RelatorioMensal() {
               </p>
             </div>
 
-            {/* Navegação de Meses */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <Button variant="outline" size="icon" onClick={previousMonth} className="h-9 w-9">
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-
               <div className="min-w-[180px] text-center">
                 <p className="text-sm font-semibold text-foreground capitalize">{monthLabelCapitalized}</p>
               </div>
-
               <Button variant="outline" size="icon" onClick={nextMonth} className="h-9 w-9">
                 <ChevronRight className="h-4 w-4" />
               </Button>
-
-              <Button 
-                className="gap-2 bg-primary hover:bg-primary/90" 
-                size="sm"
-                onClick={() => setShowExportModal(true)}
-              >
-                <FileDown className="h-4 w-4" />
-                Exportar PDF
+              <Button className="gap-2 bg-primary hover:bg-primary/90" size="sm" onClick={() => setShowExportModal(true)}>
+                <FileDown className="h-4 w-4" /> Exportar PDF
               </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate(`/financeiro/centro-custos/${clienteId}`)}
-                className="gap-2"
-              >
-                <DollarSign className="h-4 w-4" />
-                Centro de Custos
+              <Button variant="outline" size="sm" onClick={() => navigate(`/financeiro/centro-custos/${clienteId}`)} className="gap-2">
+                <DollarSign className="h-4 w-4" /> Centro de Custos
               </Button>
-
-              <Button
-                variant={showInlineReport ? "secondary" : "outline"}
-                size="sm"
-                onClick={() => setShowInlineReport(!showInlineReport)}
-                className="gap-2"
-              >
-                <Eye className="h-4 w-4" />
-                {showInlineReport ? "Ocultar Relatório" : "Relatório Completo"}
+              <Button variant={showInlineReport ? "secondary" : "outline"} size="sm" onClick={() => setShowInlineReport(!showInlineReport)} className="gap-2">
+                <Eye className="h-4 w-4" /> {showInlineReport ? "Ocultar Relatório" : "Relatório Completo"}
               </Button>
             </div>
           </div>
         </div>
 
-        {/* Filtros */}
-        <div className="flex flex-wrap gap-3">
-          {/* Filtro de Sócios */}
+        {/* ── Filtros ── */}
+        <div className="flex flex-wrap gap-3 items-center">
           {allPartners.length > 0 && (
             <Popover open={partnerFilterOpen} onOpenChange={setPartnerFilterOpen}>
               <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="h-10 rounded-xl border-border/70 gap-2 min-w-[180px] justify-between"
-                >
+                <Button variant="outline" className="h-9 rounded-xl border-border/70 gap-2 min-w-[160px] justify-between">
                   <div className="flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-muted-foreground" />
+                    <Filter className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="text-sm">
-                      {selectedPartners.length === 0
-                        ? "Todos os Sócios"
-                        : `${selectedPartners.length} sócio${selectedPartners.length > 1 ? "s" : ""}`}
+                      {selectedPartners.length === 0 ? "Todos os Sócios" : `${selectedPartners.length} sócio${selectedPartners.length > 1 ? "s" : ""}`}
                     </span>
                   </div>
                   {selectedPartners.length > 0 && (
@@ -708,28 +526,13 @@ export default function RelatorioMensal() {
               </PopoverTrigger>
               <PopoverContent className="w-[260px] p-0 rounded-xl" align="start">
                 <Command className="rounded-xl">
-                  <CommandInput placeholder="Buscar sócio..." className="h-10" />
+                  <CommandInput placeholder="Buscar sócio..." className="h-9" />
                   <CommandList>
                     <CommandEmpty>Nenhum sócio encontrado.</CommandEmpty>
                     <CommandGroup>
                       {allPartners.map((partner) => (
-                        <CommandItem
-                          key={partner}
-                          onSelect={() =>
-                            setSelectedPartners((prev) =>
-                              prev.includes(partner)
-                                ? prev.filter((p) => p !== partner)
-                                : [...prev, partner]
-                            )
-                          }
-                          className="cursor-pointer"
-                        >
-                          <div className={cn(
-                            "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                            selectedPartners.includes(partner)
-                              ? "bg-primary text-primary-foreground"
-                              : "opacity-50"
-                          )}>
+                        <CommandItem key={partner} onSelect={() => setSelectedPartners((prev) => prev.includes(partner) ? prev.filter((p) => p !== partner) : [...prev, partner])} className="cursor-pointer">
+                          <div className={cn("mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", selectedPartners.includes(partner) ? "bg-primary text-primary-foreground" : "opacity-50")}>
                             {selectedPartners.includes(partner) && <Check className="h-3 w-3" />}
                           </div>
                           <span className="text-sm">{partner}</span>
@@ -740,12 +543,7 @@ export default function RelatorioMensal() {
                 </Command>
                 {selectedPartners.length > 0 && (
                   <div className="border-t border-border p-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full text-xs h-8"
-                      onClick={() => setSelectedPartners([])}
-                    >
+                    <Button variant="ghost" size="sm" className="w-full text-xs h-8" onClick={() => setSelectedPartners([])}>
                       <X className="h-3 w-3 mr-1" /> Limpar filtro
                     </Button>
                   </div>
@@ -754,20 +552,14 @@ export default function RelatorioMensal() {
             </Popover>
           )}
 
-          {/* Filtro de Categorias */}
           {allCategories.length > 0 && (
             <Popover open={categoryFilterOpen} onOpenChange={setCategoryFilterOpen}>
               <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="h-10 rounded-xl border-border/70 gap-2 min-w-[200px] justify-between"
-                >
+                <Button variant="outline" className="h-9 rounded-xl border-border/70 gap-2 min-w-[180px] justify-between">
                   <div className="flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-muted-foreground" />
+                    <Filter className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="text-sm">
-                      {selectedCategories.length === 0
-                        ? "Todas as Categorias"
-                        : `${selectedCategories.length} categoria${selectedCategories.length > 1 ? "s" : ""}`}
+                      {selectedCategories.length === 0 ? "Todas as Categorias" : `${selectedCategories.length} categoria${selectedCategories.length > 1 ? "s" : ""}`}
                     </span>
                   </div>
                   {selectedCategories.length > 0 && (
@@ -779,28 +571,13 @@ export default function RelatorioMensal() {
               </PopoverTrigger>
               <PopoverContent className="w-[280px] p-0 rounded-xl" align="start">
                 <Command className="rounded-xl">
-                  <CommandInput placeholder="Buscar categoria..." className="h-10" />
+                  <CommandInput placeholder="Buscar categoria..." className="h-9" />
                   <CommandList>
                     <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
                     <CommandGroup>
                       {allCategories.map((category) => (
-                        <CommandItem
-                          key={category}
-                          onSelect={() =>
-                            setSelectedCategories((prev) =>
-                              prev.includes(category)
-                                ? prev.filter((c) => c !== category)
-                                : [...prev, category]
-                            )
-                          }
-                          className="cursor-pointer"
-                        >
-                          <div className={cn(
-                            "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                            selectedCategories.includes(category)
-                              ? "bg-primary text-primary-foreground"
-                              : "opacity-50"
-                          )}>
+                        <CommandItem key={category} onSelect={() => setSelectedCategories((prev) => prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category])} className="cursor-pointer">
+                          <div className={cn("mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary", selectedCategories.includes(category) ? "bg-primary text-primary-foreground" : "opacity-50")}>
                             {selectedCategories.includes(category) && <Check className="h-3 w-3" />}
                           </div>
                           <span className="text-sm">{category}</span>
@@ -811,12 +588,7 @@ export default function RelatorioMensal() {
                 </Command>
                 {selectedCategories.length > 0 && (
                   <div className="border-t border-border p-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="w-full text-xs h-8"
-                      onClick={() => setSelectedCategories([])}
-                    >
+                    <Button variant="ghost" size="sm" className="w-full text-xs h-8" onClick={() => setSelectedCategories([])}>
                       <X className="h-3 w-3 mr-1" /> Limpar filtro
                     </Button>
                   </div>
@@ -825,164 +597,164 @@ export default function RelatorioMensal() {
             </Popover>
           )}
 
-          {/* Filtro de Data */}
           <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
             <select
               value={selectedDay}
               onChange={(e) => setSelectedDay(e.target.value)}
-              className="h-10 px-3 rounded-xl border border-border/70 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              className="h-9 px-3 rounded-xl border border-border/70 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
             >
               <option value="">Todos os dias</option>
               {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
-                <option key={day} value={String(day)}>
-                  Dia {String(day).padStart(2, "0")}
-                </option>
+                <option key={day} value={String(day)}>Dia {String(day).padStart(2, "0")}</option>
               ))}
             </select>
             {selectedDay && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 px-2"
-                onClick={() => setSelectedDay("")}
-              >
+              <Button variant="ghost" size="sm" className="h-8 px-2" onClick={() => setSelectedDay("")}>
                 <X className="h-3 w-3" />
               </Button>
             )}
           </div>
 
-          {/* Chips de filtros ativos */}
+          {/* Active filter chips */}
           {(selectedPartners.length > 0 || selectedCategories.length > 0 || selectedDay) && (
             <div className="flex flex-wrap gap-2 items-center">
               {selectedPartners.map((p) => (
-                <Badge
-                  key={`p-${p}`}
-                  variant="secondary"
-                  className="rounded-full gap-1 pr-1 cursor-pointer hover:bg-destructive/20"
-                  onClick={() => setSelectedPartners((prev) => prev.filter((x) => x !== p))}
-                >
-                  {p}
-                  <X className="h-3 w-3" />
+                <Badge key={`p-${p}`} variant="secondary" className="rounded-full gap-1 pr-1 cursor-pointer hover:bg-destructive/20" onClick={() => setSelectedPartners((prev) => prev.filter((x) => x !== p))}>
+                  {p} <X className="h-3 w-3" />
                 </Badge>
               ))}
               {selectedCategories.map((c) => (
-                <Badge
-                  key={`c-${c}`}
-                  variant="outline"
-                  className="rounded-full gap-1 pr-1 cursor-pointer hover:bg-destructive/20"
-                  onClick={() => setSelectedCategories((prev) => prev.filter((x) => x !== c))}
-                >
-                  {c}
-                  <X className="h-3 w-3" />
+                <Badge key={`c-${c}`} variant="outline" className="rounded-full gap-1 pr-1 cursor-pointer hover:bg-destructive/20" onClick={() => setSelectedCategories((prev) => prev.filter((x) => x !== c))}>
+                  {c} <X className="h-3 w-3" />
                 </Badge>
               ))}
               {selectedDay && (
-                <Badge
-                  variant="outline"
-                  className="rounded-full gap-1 pr-1 cursor-pointer hover:bg-destructive/20"
-                  onClick={() => setSelectedDay("")}
-                >
-                  Dia {String(selectedDay).padStart(2, "0")}
-                  <X className="h-3 w-3" />
+                <Badge variant="outline" className="rounded-full gap-1 pr-1 cursor-pointer hover:bg-destructive/20" onClick={() => setSelectedDay("")}>
+                  Dia {String(selectedDay).padStart(2, "0")} <X className="h-3 w-3" />
                 </Badge>
               )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs text-muted-foreground"
-                onClick={() => {
-                  setSelectedPartners([])
-                  setSelectedCategories([])
-                  setSelectedDay("")
-                }}
-              >
+              <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground"
+                onClick={() => { setSelectedPartners([]); setSelectedCategories([]); setSelectedDay("") }}>
                 Limpar tudo
               </Button>
             </div>
           )}
         </div>
 
-        {/* KPI de Transações */}
-        <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-          <KPICard
-            title="Transações"
-            value={filteredTransactions.length}
-            icon={<Calendar className="h-5 w-5" />}
-            color="blue"
-            isCount
-          />
+        {/* ── KPI bar com search integrado ── */}
+        <div className="flex items-center gap-4 px-5 py-4 rounded-xl border border-border bg-card">
+          {/* Ícone + contagem */}
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="p-2 rounded-lg bg-blue-500/10">
+              <Calendar className="h-5 w-5 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground leading-none mb-1">
+                Transações
+              </p>
+              <p className="text-2xl font-bold text-foreground leading-none">
+                {filteredTransactions.length}
+              </p>
+            </div>
+          </div>
+
+          {/* Divisor */}
+          <div className="h-10 w-px bg-border mx-2 shrink-0" />
+
+          {/* Mini resumo rápido */}
+          <div className="hidden md:flex items-center gap-6 text-sm">
+            <div>
+              <span className="text-muted-foreground text-xs">Entradas </span>
+              <span className="font-semibold text-emerald-500">{fmt(monthlySummary.totalDeposits)}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-xs">Saídas </span>
+              <span className="font-semibold text-red-500">{fmt(monthlySummary.totalExpenses)}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground text-xs">Saldo </span>
+              <span className={cn("font-semibold", monthlySummary.balance >= 0 ? "text-emerald-500" : "text-red-500")}>
+                {fmt(monthlySummary.balance)}
+              </span>
+            </div>
+          </div>
+
+          {/* Search — empurrado para a direita */}
+          <div className="ml-auto flex items-center gap-2 bg-muted/40 border border-border/60 rounded-xl px-3 py-2 min-w-[240px] max-w-[320px] w-full transition-all focus-within:border-primary/50 focus-within:bg-muted/60">
+            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            <input
+              type="text"
+              placeholder="Pesquisar transações..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none w-full"
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery("")} className="shrink-0">
+                <X className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground transition-colors" />
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Resumo de Sócios - Movido para aqui */}
+        {/* ── Resumo por Sócio ── */}
         {partnerData.length > 0 && (
-          <Card className="border border-border bg-background">
-            <CardHeader>
-              <CardTitle className="text-base">Resumo por Sócio</CardTitle>
+          <Card className="border border-border bg-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-foreground">Resumo por Sócio</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Cards dos Sócios */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {/* Card de Conta Bancária (se houver movimentação) */}
-                {bankAccountData.deposits > 0 || bankAccountData.expenses > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {/* Conta Bancária */}
+                {(bankAccountData.deposits > 0 || bankAccountData.expenses > 0) && (
                   <div
-                    key="conta-bancaria"
-                    className={`p-4 rounded-lg border space-y-2 cursor-pointer transition-all duration-200 border-amber-200/50 dark:border-amber-800/50 bg-amber-50/20 dark:bg-amber-950/20 hover:border-amber-300 dark:hover:border-amber-700 hover:bg-amber-100/20`}
+                    className="p-4 rounded-lg border border-amber-200/40 dark:border-amber-800/40 bg-amber-50/10 dark:bg-amber-950/15 hover:border-amber-300 dark:hover:border-amber-700 hover:bg-amber-100/15 cursor-pointer transition-all duration-200 space-y-2"
                     onClick={() => setSelectedPartnerCard("Conta Bancária")}
                   >
-                    <h4 className="font-semibold text-foreground flex items-center gap-2">
-                      <Landmark className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    <h4 className="font-semibold text-foreground flex items-center gap-2 text-sm">
+                      <Landmark className="h-4 w-4 text-amber-500 dark:text-amber-400" />
                       Conta Bancária
                     </h4>
-                    <div className="space-y-1 text-sm">
+                    <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Entradas:</span>
-                        <span className="font-medium text-emerald-500">{fmt(bankAccountData.deposits)}</span>
+                        <span className="text-muted-foreground">Entradas</span>
+                        <span className="font-semibold text-emerald-500">{fmt(bankAccountData.deposits)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Saídas:</span>
-                        <span className="font-medium text-red-500">{fmt(bankAccountData.expenses)}</span>
+                        <span className="text-muted-foreground">Saídas</span>
+                        <span className="font-semibold text-red-500">{fmt(bankAccountData.expenses)}</span>
                       </div>
-                      <div className="flex justify-between border-t border-border pt-1">
-                        <span className="font-semibold text-foreground">Saldo:</span>
-                        <span
-                          className={`font-semibold ${
-                            bankAccountData.balance >= 0 ? "text-emerald-500" : "text-red-500"
-                          }`}
-                        >
+                      <div className="flex justify-between border-t border-border/50 pt-1.5">
+                        <span className="font-semibold text-foreground">Saldo</span>
+                        <span className={cn("font-bold", bankAccountData.balance >= 0 ? "text-emerald-500" : "text-red-500")}>
                           {fmt(bankAccountData.balance)}
                         </span>
                       </div>
                     </div>
                   </div>
-                ) : null}
+                )}
 
-                {/* Cards dos Sócios */}
+                {/* Sócios */}
                 {partnerData.map((partner) => (
                   <div
                     key={partner.name}
-                    className={`p-4 rounded-lg border space-y-2 cursor-pointer transition-all duration-200 border-border bg-muted/20 hover:border-primary/50 hover:bg-muted/40`}
+                    className="p-4 rounded-lg border border-border/60 bg-muted/10 hover:border-primary/40 hover:bg-muted/25 cursor-pointer transition-all duration-200 space-y-2"
                     onClick={() => setSelectedPartnerCard(partner.name)}
                   >
-                    <h4 className="font-semibold text-foreground">
-                      {partner.name}
-                    </h4>
-                    <div className="space-y-1 text-sm">
+                    <h4 className="font-semibold text-foreground text-sm truncate">{partner.name}</h4>
+                    <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Entradas:</span>
-                        <span className="font-medium text-emerald-500">{fmt(partner.deposits)}</span>
+                        <span className="text-muted-foreground">Entradas</span>
+                        <span className="font-semibold text-emerald-500">{fmt(partner.deposits)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Saídas:</span>
-                        <span className="font-medium text-red-500">{fmt(partner.expenses)}</span>
+                        <span className="text-muted-foreground">Saídas</span>
+                        <span className="font-semibold text-red-500">{fmt(partner.expenses)}</span>
                       </div>
-                      <div className="flex justify-between border-t border-border pt-1">
-                        <span className="font-semibold text-foreground">Saldo:</span>
-                        <span
-                          className={`font-semibold ${
-                            partner.balance >= 0 ? "text-emerald-500" : "text-red-500"
-                          }`}
-                        >
+                      <div className="flex justify-between border-t border-border/50 pt-1.5">
+                        <span className="font-semibold text-foreground">Saldo</span>
+                        <span className={cn("font-bold", partner.balance >= 0 ? "text-emerald-500" : "text-red-500")}>
                           {fmt(partner.balance)}
                         </span>
                       </div>
@@ -994,77 +766,66 @@ export default function RelatorioMensal() {
           </Card>
         )}
 
-        {/* Tabela de Transações */}
-        <Card className="border border-border bg-background">
-          <CardHeader>
-            <CardTitle className="text-base">Detalhamento de Transações</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {filteredTransactions.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground text-sm">Nenhuma transação neste período</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm border-collapse">
-                  <thead className="border-b-2 border-border bg-slate-900/50">
-                    <tr>
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground w-10">
+        {/* ── Tabela de Transações ── */}
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          {/* Cabeçalho do card */}
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between shrink-0">
+            <h2 className="text-sm font-semibold text-foreground">Detalhamento de Transações</h2>
+            <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">
+              {filteredTransactions.length} registros
+            </span>
+          </div>
+
+          {filteredTransactions.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-muted-foreground text-sm">Nenhuma transação neste período</p>
+            </div>
+          ) : (
+            /*
+             * Scroll horizontal com a barra no TOPO:
+             * Usamos "transform: rotateX(180deg)" no container e no conteúdo interno
+             * para que o scrollbar nativo apareça no topo sem nenhuma biblioteca extra.
+             */
+            <div
+              className="overflow-x-auto"
+              style={{ transform: "rotateX(180deg)", WebkitTransform: "rotateX(180deg)" }}
+            >
+              <div style={{ transform: "rotateX(180deg)", WebkitTransform: "rotateX(180deg)" }}>
+                <table className="w-full text-sm border-collapse" style={{ minWidth: 1100 }}>
+                  <thead>
+                    <tr className="border-b border-border bg-muted/20">
+                      <th className="text-left py-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground w-[72px] whitespace-nowrap">
                         Ação
                       </th>
-                      <th 
-                        className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+                      <th
+                        className="text-left py-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground cursor-pointer hover:text-foreground transition-colors whitespace-nowrap select-none"
                         onClick={() => {
-                          if (sortBy === 'date') {
-                            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-                          } else {
-                            setSortBy('date')
-                            setSortOrder('desc')
-                          }
+                          if (sortBy === 'date') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                          else { setSortBy('date'); setSortOrder('desc') }
                         }}
                       >
-                        Data {sortBy === 'date' && (sortOrder === 'asc' ? '↑' : '↓')}
+                        Data {sortBy === 'date' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
                       </th>
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
+                      <th className="text-left py-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                         Descrição
                       </th>
-                      <th 
-                        className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
+                      <th
+                        className="text-left py-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground cursor-pointer hover:text-foreground transition-colors whitespace-nowrap select-none"
                         onClick={() => {
-                          if (sortBy === 'partner') {
-                            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-                          } else {
-                            setSortBy('partner')
-                            setSortOrder('asc')
-                          }
+                          if (sortBy === 'partner') setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+                          else { setSortBy('partner'); setSortOrder('asc') }
                         }}
                       >
-                        Sócio {sortBy === 'partner' && (sortOrder === 'asc' ? '↑' : '↓')}
+                        Sócio {sortBy === 'partner' ? (sortOrder === 'asc' ? '↑' : '↓') : ''}
                       </th>
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
-                        Tipo
-                      </th>
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
-                        Status
-                      </th>
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
-                        Método Pg.
-                      </th>
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
-                        Prazo
-                      </th>
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
-                        Banco
-                      </th>
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
-                        Doc
-                      </th>
-                      <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
-                        Obs
-                      </th>
-                      <th className="text-right py-3 px-3 text-xs font-semibold text-muted-foreground">
-                        Valor
-                      </th>
+                      <th className="text-left py-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Tipo</th>
+                      <th className="text-left py-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Status</th>
+                      <th className="text-left py-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground whitespace-nowrap">Método Pg.</th>
+                      <th className="text-left py-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Prazo</th>
+                      <th className="text-left py-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Banco</th>
+                      <th className="text-left py-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Doc</th>
+                      <th className="text-left py-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Obs</th>
+                      <th className="text-right py-3 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Valor</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1079,449 +840,318 @@ export default function RelatorioMensal() {
 
                       return (
                         <React.Fragment key={tx.id || idx}>
-                        <tr
-                          className={`border-b border-border/30 transition-colors ${
-                            isEven
-                              ? "bg-slate-950/30 hover:bg-slate-900/40"
-                              : "bg-slate-900/30 hover:bg-slate-800/40"
-                          } cursor-pointer`}
-                          onClick={() => {
-                            setEditingTransaction(tx)
-                            setIsEditModalOpen(true)
-                          }}
-                        >
-                          <td className="py-3 px-3 text-center">
-                            <div className="flex items-center gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 w-7 p-0"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setEditingTransaction(tx)
-                                  setIsEditModalOpen(true)
-                                }}
-                                title="Editar lançamento"
-                              >
-                                <Edit2 className="h-4 w-4 text-blue-500" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 w-7 p-0"
-                                disabled={deleteTransaction.isPending}
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  if (window.confirm("Tem certeza que deseja excluir este lançamento?")) {
-                                    deleteTransaction.mutate({
-                                      id: tx.id,
-                                      clientId: clienteId!,
-                                      transactionType: tx.transaction_type,
-                                      partnerCpf: tx.partner_cpf || "",
-                                      amount: Number(tx.amount),
-                                      referenceType: tx.reference_type || undefined,
-                                    })
-                                  }
-                                }}
-                                title="Excluir lançamento"
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </td>
-                          <td className="py-3 px-3 text-foreground">{formattedDate}</td>
-                          <td className="py-3 px-3 text-foreground">{tx.description || "-"}</td>
-                          <td className="py-3 px-3 text-muted-foreground">{tx.partner_name}</td>
-                          <td className="py-3 px-3">
-                            <div className="flex items-center gap-2">
-                              {(tx.reference_type === "abastecimento" || tx.reference_type === "travel_expense_report") && (
+                          <tr
+                            className={cn(
+                              "border-b border-border/20 transition-colors cursor-pointer group",
+                              isEven ? "bg-muted/5 hover:bg-muted/20" : "hover:bg-muted/15"
+                            )}
+                            onClick={() => {
+                              setEditingTransaction(tx)
+                              setIsEditModalOpen(true)
+                            }}
+                          >
+                            {/* Ação */}
+                            <td className="py-2.5 px-3">
+                              <div className="flex items-center gap-0.5">
                                 <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-6 w-6 p-0"
+                                  size="sm" variant="ghost" className="h-7 w-7 p-0 rounded-md opacity-60 group-hover:opacity-100 transition-opacity"
+                                  onClick={(e) => { e.stopPropagation(); setEditingTransaction(tx); setIsEditModalOpen(true) }}
+                                  title="Editar"
+                                >
+                                  <Edit2 className="h-3.5 w-3.5 text-blue-400" />
+                                </Button>
+                                <Button
+                                  size="sm" variant="ghost" className="h-7 w-7 p-0 rounded-md opacity-60 group-hover:opacity-100 transition-opacity"
+                                  disabled={deleteTransaction.isPending}
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    if (tx.reference_type === "abastecimento") {
-                                      toggleFuelExpanded(tx.reference_id)
-                                    } else if (tx.reference_type === "travel_expense_report") {
-                                      toggleTravelReportExpanded(tx.reference_id)
+                                    if (window.confirm("Tem certeza que deseja excluir este lançamento?")) {
+                                      deleteTransaction.mutate({
+                                        id: tx.id, clientId: clienteId!,
+                                        transactionType: tx.transaction_type,
+                                        partnerCpf: tx.partner_cpf || "",
+                                        amount: Number(tx.amount),
+                                        referenceType: tx.reference_type || undefined,
+                                      })
                                     }
                                   }}
-                                  title={
-                                    tx.reference_type === "abastecimento"
-                                      ? (expandedFuels.has(tx.reference_id) ? "Ocultar detalhes" : "Mostrar detalhes")
-                                      : (expandedTravelReports.has(tx.reference_id) ? "Ocultar detalhes" : "Mostrar detalhes")
-                                  }
+                                  title="Excluir"
                                 >
-                                  {(tx.reference_type === "abastecimento" && expandedFuels.has(tx.reference_id)) ||
-                                   (tx.reference_type === "travel_expense_report" && expandedTravelReports.has(tx.reference_id)) ? (
-                                    <ChevronDown className="h-4 w-4 text-blue-500" />
-                                  ) : (
-                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                  )}
+                                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
                                 </Button>
-                              )}
+                              </div>
+                            </td>
+
+                            {/* Data */}
+                            <td className="py-2.5 px-3 text-foreground text-xs font-medium whitespace-nowrap">
+                              {formattedDate}
+                            </td>
+
+                            {/* Descrição */}
+                            <td className="py-2.5 px-3 text-foreground text-xs max-w-[200px]">
+                              <span className="truncate block" title={tx.description || ""}>{tx.description || "-"}</span>
+                            </td>
+
+                            {/* Sócio */}
+                            <td className="py-2.5 px-3 text-muted-foreground text-xs whitespace-nowrap">
+                              {tx.partner_name || "-"}
+                            </td>
+
+                            {/* Tipo */}
+                            <td className="py-2.5 px-3">
+                              <div className="flex items-center gap-1.5">
+                                {(tx.reference_type === "abastecimento" || tx.reference_type === "travel_expense_report") && (
+                                  <Button
+                                    size="sm" variant="ghost" className="h-5 w-5 p-0 rounded"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      if (tx.reference_type === "abastecimento") toggleFuelExpanded(tx.reference_id)
+                                      else if (tx.reference_type === "travel_expense_report") toggleTravelReportExpanded(tx.reference_id)
+                                    }}
+                                  >
+                                    {(tx.reference_type === "abastecimento" && expandedFuels.has(tx.reference_id)) ||
+                                      (tx.reference_type === "travel_expense_report" && expandedTravelReports.has(tx.reference_id)) ? (
+                                      <ChevronDown className="h-3.5 w-3.5 text-primary" />
+                                    ) : (
+                                      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                                    )}
+                                  </Button>
+                                )}
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    "text-[10px] px-1.5 py-0 cursor-pointer hover:opacity-80 transition-opacity whitespace-nowrap",
+                                    tx.transaction_type === "deposit"
+                                      ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/5"
+                                      : tx.transaction_type === "expense"
+                                        ? "border-orange-500/30 text-orange-500 bg-orange-500/5"
+                                        : "border-red-500/30 text-red-500 bg-red-500/5"
+                                  )}
+                                  onClick={(e) => void handleExpenseTypeClick(tx, e)}
+                                >
+                                  {tx.expense_type
+                                    ? getExpenseTypeLabel(tx.expense_type)
+                                    : tx.transaction_type === "deposit" ? "ENTRADA"
+                                      : tx.transaction_type === "expense" ? "DESPESA" : "SAÍDA"}
+                                </Badge>
+                              </div>
+                            </td>
+
+                            {/* Status */}
+                            <td className="py-2.5 px-3">
                               <Badge
                                 variant="outline"
-                                className={`text-xs cursor-pointer hover:opacity-80 transition-opacity ${
-                                  tx.transaction_type === "deposit"
-                                    ? "border-emerald-500/30 text-emerald-500"
-                                    : tx.transaction_type === "expense"
-                                    ? "border-orange-500/30 text-orange-500"
-                                    : "border-red-500/30 text-red-500"
-                                }`}
-                                onClick={(e) => void handleExpenseTypeClick(tx, e)}
+                                className={cn(
+                                  "text-[10px] px-1.5 py-0 whitespace-nowrap",
+                                  (tx.status === "pago" || tx.status === "paid") ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/5"
+                                    : (tx.status === "recebido" || tx.status === "received") ? "border-blue-500/30 text-blue-500 bg-blue-500/5"
+                                      : tx.status === "cancelado" ? "border-red-500/30 text-red-500 bg-red-500/5"
+                                        : "border-amber-500/30 text-amber-500 bg-amber-500/5"
+                                )}
                               >
-                                {tx.expense_type
-                                  ? getExpenseTypeLabel(tx.expense_type)
-                                  : tx.transaction_type === "deposit"
-                                  ? "ENTRADA"
-                                  : tx.transaction_type === "expense"
-                                  ? "DESPESA"
-                                  : "SAÍDA"}
+                                {getStatusLabel(tx.status)}
                               </Badge>
-                            </div>
-                          </td>
-                          <td className="py-3 px-3">
-                            <Badge
-                              variant="outline"
-                              className={`text-xs ${
-                                (tx.status === "pago" || tx.status === "paid")
-                                  ? "border-emerald-500/30 text-emerald-500"
-                                  : (tx.status === "recebido" || tx.status === "received")
-                                  ? "border-blue-500/30 text-blue-500"
-                                  : tx.status === "cancelado"
-                                  ? "border-red-500/30 text-red-500"
-                                  : "border-amber-500/30 text-amber-500"
-                              }`}
-                            >
-                              {getStatusLabel(tx.status)}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-3 text-foreground text-xs">{getPaymentMethodLabel(tx.payment_method)}</td>
-                          <td className="py-3 px-3 text-foreground text-xs">{tx.prazo || "-"}</td>
-                          <td className="py-3 px-3 text-foreground text-xs">{tx.bank_name || "-"}</td>
-                          <td className="py-3 px-3 text-foreground text-xs">{tx.doc || "-"}</td>
-                          <td className="py-3 px-3 text-foreground text-xs max-w-[150px] truncate" title={tx.notes || ""}>{tx.notes || "-"}</td>
-                          <td
-                            className={`text-right py-3 px-3 font-semibold ${
+                            </td>
+
+                            {/* Método */}
+                            <td className="py-2.5 px-3 text-foreground text-xs whitespace-nowrap">
+                              {getPaymentMethodLabel(tx.payment_method)}
+                            </td>
+
+                            {/* Prazo */}
+                            <td className="py-2.5 px-3 text-muted-foreground text-xs whitespace-nowrap">
+                              {tx.prazo || "-"}
+                            </td>
+
+                            {/* Banco */}
+                            <td className="py-2.5 px-3 text-muted-foreground text-xs whitespace-nowrap">
+                              {tx.bank_name || "-"}
+                            </td>
+
+                            {/* Doc */}
+                            <td className="py-2.5 px-3 text-muted-foreground text-xs whitespace-nowrap">
+                              {tx.doc || "-"}
+                            </td>
+
+                            {/* Obs */}
+                            <td className="py-2.5 px-3 text-muted-foreground text-xs max-w-[140px]">
+                              <span className="truncate block" title={tx.notes || ""}>{tx.notes || "-"}</span>
+                            </td>
+
+                            {/* Valor */}
+                            <td className={cn(
+                              "text-right py-2.5 px-3 font-bold text-sm whitespace-nowrap",
                               tx.transaction_type === "deposit" ? "text-emerald-500" : "text-red-500"
-                            }`}
-                          >
-                            {tx.transaction_type === "deposit" ? "+" : "-"}
-                            {fmt(Number(tx.amount))}
-                          </td>
-                        </tr>
-                        {tx.reference_type === "abastecimento" && expandedFuels.has(tx.reference_id) && (
-                          <tr className={`border-b border-border/30 ${isEven ? "bg-blue-950/20" : "bg-blue-900/20"}`}>
-                            <td colSpan={12} className="py-4 px-4">
-                              <div className="bg-blue-950/30 rounded-lg p-4 border border-blue-500/20">
-                                <h5 className="text-sm font-semibold text-blue-400 mb-3 flex items-center gap-2">
-                                  <ChevronDown className="h-4 w-4" />
-                                  Detalhes do Abastecimento
-                                </h5>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Comanda</p>
-                                    <p className="text-foreground">{tx.comanda || "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">NF</p>
-                                    <p className="text-foreground">{tx.nf || "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Trecho</p>
-                                    <p className="text-foreground">{tx.trecho || "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Litros</p>
-                                    <p className="text-foreground">{typeof tx.litros === 'number' ? tx.litros.toFixed(2) : "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Local</p>
-                                    <p className="text-foreground">{tx.local || "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Abastecedor</p>
-                                    <p className="text-foreground">{tx.abastecedor || "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Galões</p>
-                                    <p className="text-foreground">{typeof tx.abastecimento_galoes === 'number' ? tx.abastecimento_galoes.toFixed(2) : "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Observação</p>
-                                    <p className="text-foreground text-xs">{tx.observacao || "-"}</p>
-                                  </div>
-                                </div>
-
-                                {(tx.comanda_url || tx.nota_url || tx.boleto_url || tx.comprovante_pagamento) && (
-                                  <div className="mt-4 pt-4 border-t border-blue-500/20">
-                                    <p className="text-muted-foreground font-semibold mb-2">Anexos</p>
-                                    <div className="flex flex-wrap gap-2">
-                                      {tx.comanda_url && (
-                                        <a
-                                          href={tx.comanda_url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-md transition-colors text-xs"
-                                        >
-                                          <FileDown className="h-3 w-3" />
-                                          Comanda
-                                        </a>
-                                      )}
-                                      {tx.nota_url && (
-                                        <a
-                                          href={tx.nota_url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-md transition-colors text-xs"
-                                        >
-                                          <FileDown className="h-3 w-3" />
-                                          NF
-                                        </a>
-                                      )}
-                                      {tx.boleto_url && (
-                                        <a
-                                          href={tx.boleto_url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-md transition-colors text-xs"
-                                        >
-                                          <FileDown className="h-3 w-3" />
-                                          Boleto
-                                        </a>
-                                      )}
-                                      {tx.comprovante_pagamento && (
-                                        <a
-                                          href={tx.comprovante_pagamento}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-md transition-colors text-xs"
-                                        >
-                                          <FileDown className="h-3 w-3" />
-                                          Comprovante
-                                        </a>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
+                            )}>
+                              {tx.transaction_type === "deposit" ? "+" : "-"}{fmt(Number(tx.amount))}
                             </td>
                           </tr>
-                        )}
-                        {tx.reference_type === "travel_expense_report" && expandedTravelReports.has(tx.reference_id) && (
-                          <tr className={`border-b border-border/30 ${isEven ? "bg-purple-950/20" : "bg-purple-900/20"}`}>
-                            <td colSpan={12} className="py-4 px-4">
-                              <div className="bg-purple-950/30 rounded-lg p-4 border border-purple-500/20">
-                                <h5 className="text-sm font-semibold text-purple-400 mb-4 flex items-center gap-2">
-                                  <ChevronDown className="h-4 w-4" />
-                                  Detalhes do Relatório de Viagem
-                                </h5>
 
-                                {/* Informações Básicas */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 text-xs">
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Relatório</p>
-                                    <p className="text-foreground font-mono">{tx.report_number || "-"}</p>
+                          {/* Expansão: Abastecimento */}
+                          {tx.reference_type === "abastecimento" && expandedFuels.has(tx.reference_id) && (
+                            <tr className={isEven ? "bg-blue-950/20" : "bg-blue-900/20"}>
+                              <td colSpan={12} className="py-4 px-5">
+                                <div className="bg-blue-950/30 rounded-lg p-4 border border-blue-500/20">
+                                  <h5 className="text-xs font-semibold text-blue-400 mb-3 flex items-center gap-2">
+                                    <ChevronDown className="h-3.5 w-3.5" /> Detalhes do Abastecimento
+                                  </h5>
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                                    {[
+                                      { label: "Comanda", value: tx.comanda },
+                                      { label: "NF", value: tx.nf },
+                                      { label: "Trecho", value: tx.trecho },
+                                      { label: "Litros", value: typeof tx.litros === 'number' ? tx.litros.toFixed(2) : null },
+                                      { label: "Local", value: tx.local },
+                                      { label: "Abastecedor", value: tx.abastecedor },
+                                      { label: "Galões", value: typeof tx.abastecimento_galoes === 'number' ? tx.abastecimento_galoes.toFixed(2) : null },
+                                      { label: "Observação", value: tx.observacao },
+                                    ].map(({ label, value }) => (
+                                      <div key={label} className="space-y-0.5">
+                                        <p className="text-muted-foreground font-medium">{label}</p>
+                                        <p className="text-foreground">{value || "-"}</p>
+                                      </div>
+                                    ))}
                                   </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Rota</p>
-                                    <p className="text-foreground">{tx.route || "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Período</p>
-                                    <p className="text-foreground text-xs">{tx.start_date ? format(new Date(tx.start_date), "dd/MM/yyyy", { locale: ptBR }) : "-"} a {tx.end_date ? format(new Date(tx.end_date), "dd/MM/yyyy", { locale: ptBR }) : "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Dias</p>
-                                    <p className="text-foreground">{tx.days_count || 0}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Tripulação 1</p>
-                                    <p className="text-foreground text-xs">{tx.crew_member_name || "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Tripulação 2</p>
-                                    <p className="text-foreground text-xs">{tx.crew_member_name2 || "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Status</p>
-                                    <p className="text-foreground">{getStatusLabel(tx.status)}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Observação</p>
-                                    <p className="text-foreground text-xs truncate" title={tx.observations}>{tx.observations || "-"}</p>
-                                  </div>
+                                  {(tx.comanda_url || tx.nota_url || tx.boleto_url || tx.comprovante_pagamento) && (
+                                    <div className="mt-3 pt-3 border-t border-blue-500/20 flex flex-wrap gap-2">
+                                      {[
+                                        { url: tx.comanda_url, label: "Comanda" },
+                                        { url: tx.nota_url, label: "NF" },
+                                        { url: tx.boleto_url, label: "Boleto" },
+                                        { url: tx.comprovante_pagamento, label: "Comprovante" },
+                                      ].filter(a => a.url).map(({ url, label }) => (
+                                        <a key={label} href={url} target="_blank" rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-md transition-colors text-xs font-medium">
+                                          <FileDown className="h-3 w-3" /> {label}
+                                        </a>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
+                              </td>
+                            </tr>
+                          )}
 
-                                {/* Valores */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-3 bg-purple-500/10 rounded-lg">
-                                  <div className="space-y-2">
-                                    <p className="text-muted-foreground font-semibold text-xs uppercase">Crew</p>
-                                    <div className="space-y-1">
-                                      <div className="flex justify-between text-xs">
-                                        <span className="text-muted-foreground">Total:</span>
-                                        <span className="font-semibold text-purple-400">{fmt(tx.total_crew || 0)}</span>
+                          {/* Expansão: Viagem */}
+                          {tx.reference_type === "travel_expense_report" && expandedTravelReports.has(tx.reference_id) && (
+                            <tr className={isEven ? "bg-purple-950/20" : "bg-purple-900/20"}>
+                              <td colSpan={12} className="py-4 px-5">
+                                <div className="bg-purple-950/30 rounded-lg p-4 border border-purple-500/20">
+                                  <h5 className="text-xs font-semibold text-purple-400 mb-4 flex items-center gap-2">
+                                    <ChevronDown className="h-3.5 w-3.5" /> Detalhes do Relatório de Viagem
+                                  </h5>
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 text-xs">
+                                    {[
+                                      { label: "Relatório", value: tx.report_number },
+                                      { label: "Rota", value: tx.route },
+                                      { label: "Período", value: tx.start_date && tx.end_date ? `${format(new Date(tx.start_date), "dd/MM/yyyy", { locale: ptBR })} a ${format(new Date(tx.end_date), "dd/MM/yyyy", { locale: ptBR })}` : null },
+                                      { label: "Dias", value: tx.days_count },
+                                      { label: "Tripulação 1", value: tx.crew_member_name },
+                                      { label: "Tripulação 2", value: tx.crew_member_name2 },
+                                      { label: "Status", value: getStatusLabel(tx.status) },
+                                      { label: "Observação", value: tx.observations },
+                                    ].map(({ label, value }) => (
+                                      <div key={label} className="space-y-0.5">
+                                        <p className="text-muted-foreground font-medium">{label}</p>
+                                        <p className="text-foreground truncate" title={String(value || "")}>{value || "-"}</p>
                                       </div>
-                                      <div className="flex justify-between text-xs">
-                                        <span className="text-muted-foreground">Despendido:</span>
-                                        <span className="font-semibold text-red-400">{fmt(tx.spent_crew || 0)}</span>
+                                    ))}
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-3 bg-purple-500/10 rounded-lg">
+                                    {[
+                                      { title: "Crew", total: tx.total_crew, spent: tx.spent_crew, remaining: tx.remaining_crew },
+                                      { title: "Share Brasil", total: tx.total_sharebrasil, spent: tx.spent_sharebrasil, remaining: tx.remaining_sharebrasil },
+                                    ].map(({ title, total, spent, remaining }) => (
+                                      <div key={title} className="space-y-1.5 text-xs">
+                                        <p className="text-muted-foreground font-semibold uppercase tracking-wide text-[10px]">{title}</p>
+                                        <div className="space-y-1">
+                                          <div className="flex justify-between"><span className="text-muted-foreground">Total</span><span className="font-semibold text-purple-400">{fmt(total || 0)}</span></div>
+                                          <div className="flex justify-between"><span className="text-muted-foreground">Despendido</span><span className="font-semibold text-red-400">{fmt(spent || 0)}</span></div>
+                                          <div className="flex justify-between border-t border-purple-500/20 pt-1"><span className="text-muted-foreground">Pendente</span><span className={cn("font-semibold", (remaining || 0) > 0 ? "text-amber-400" : "text-emerald-400")}>{fmt(remaining || 0)}</span></div>
+                                        </div>
                                       </div>
-                                      <div className="border-t border-purple-500/20 pt-1 flex justify-between text-xs">
-                                        <span className="text-muted-foreground">Pendente:</span>
-                                        <span className={`font-semibold ${(tx.remaining_crew || 0) > 0 ? "text-amber-400" : "text-emerald-400"}`}>
-                                          {fmt(tx.remaining_crew || 0)}
-                                        </span>
-                                      </div>
+                                    ))}
+                                    <div className="space-y-1.5 text-xs">
+                                      <p className="text-muted-foreground font-semibold uppercase tracking-wide text-[10px]">Cliente</p>
+                                      <div className="flex justify-between"><span className="text-muted-foreground">Total</span><span className="font-semibold text-blue-400">{fmt(tx.total_client || 0)}</span></div>
+                                      <p className="text-muted-foreground text-[10px] pt-1">Não contabilizado</p>
                                     </div>
                                   </div>
-
-                                  <div className="space-y-2">
-                                    <p className="text-muted-foreground font-semibold text-xs uppercase">Share Brasil</p>
-                                    <div className="space-y-1">
-                                      <div className="flex justify-between text-xs">
-                                        <span className="text-muted-foreground">Total:</span>
-                                        <span className="font-semibold text-purple-400">{fmt(tx.total_sharebrasil || 0)}</span>
-                                      </div>
-                                      <div className="flex justify-between text-xs">
-                                        <span className="text-muted-foreground">Despendido:</span>
-                                        <span className="font-semibold text-red-400">{fmt(tx.spent_sharebrasil || 0)}</span>
-                                      </div>
-                                      <div className="border-t border-purple-500/20 pt-1 flex justify-between text-xs">
-                                        <span className="text-muted-foreground">Pendente:</span>
-                                        <span className={`font-semibold ${(tx.remaining_sharebrasil || 0) > 0 ? "text-amber-400" : "text-emerald-400"}`}>
-                                          {fmt(tx.remaining_sharebrasil || 0)}
-                                        </span>
-                                      </div>
+                                  {tx.pdf_url && (
+                                    <div className="pt-3 border-t border-purple-500/20">
+                                      <a href={tx.pdf_url} target="_blank" rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-md transition-colors text-xs font-medium">
+                                        <FileDown className="h-3.5 w-3.5" /> Baixar PDF do Relatório
+                                      </a>
                                     </div>
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    <p className="text-muted-foreground font-semibold text-xs uppercase">Cliente</p>
-                                    <div className="space-y-1">
-                                      <div className="flex justify-between text-xs">
-                                        <span className="text-muted-foreground">Total:</span>
-                                        <span className="font-semibold text-blue-400">{fmt(tx.total_client || 0)}</span>
-                                      </div>
-                                      <div className="text-xs text-muted-foreground pt-1">
-                                        <span>Não contabilizado</span>
-                                      </div>
-                                    </div>
-                                  </div>
+                                  )}
                                 </div>
-
-                                {/* PDF e Ações */}
-                                {tx.pdf_url && (
-                                  <div className="mt-4 pt-4 border-t border-purple-500/20">
-                                    <p className="text-muted-foreground font-semibold mb-2">Documento</p>
-                                    <a
-                                      href={tx.pdf_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 px-4 py-2 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-md transition-colors text-sm font-medium"
-                                    >
-                                      <FileDown className="h-4 w-4" />
-                                      Baixar PDF do Relatório
-                                    </a>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
+                              </td>
+                            </tr>
+                          )}
                         </React.Fragment>
                       )
                     })}
                   </tbody>
                 </table>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+          )}
+        </div>
 
-        {/* Gráficos */}
+        {/* ── Gráficos ── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Daily Chart */}
-          <Card className="border border-border bg-background">
-            <CardHeader>
-              <CardTitle className="text-base">Movimentação Diária</CardTitle>
+          <Card className="border border-border bg-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">Movimentação Diária</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={320}>
+              <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={dailyData}>
                   <defs>
                     <linearGradient id="colorDeposits" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(142, 71%, 45%)" stopOpacity={0.8} />
+                      <stop offset="5%" stopColor="hsl(142, 71%, 45%)" stopOpacity={0.7} />
                       <stop offset="95%" stopColor="hsl(142, 71%, 45%)" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(0, 84%, 60%)" stopOpacity={0.8} />
+                      <stop offset="5%" stopColor="hsl(0, 84%, 60%)" stopOpacity={0.7} />
                       <stop offset="95%" stopColor="hsl(0, 84%, 60%)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                  <XAxis dataKey="date" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
                   <Tooltip
                     formatter={(v: number) => fmt(v)}
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      color: "hsl(var(--foreground))",
-                    }}
+                    contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", color: "hsl(var(--foreground))", fontSize: 12 }}
                   />
-                  <Legend />
-                  <Area
-                    type="monotone"
-                    dataKey="deposits"
-                    stroke="hsl(142, 71%, 45%)"
-                    fillOpacity={1}
-                    fill="url(#colorDeposits)"
-                    name="Entradas"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="expenses"
-                    stroke="hsl(0, 84%, 60%)"
-                    fillOpacity={1}
-                    fill="url(#colorExpenses)"
-                    name="Saídas"
-                  />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Area type="monotone" dataKey="deposits" stroke="hsl(142, 71%, 45%)" fillOpacity={1} fill="url(#colorDeposits)" name="Entradas" />
+                  <Area type="monotone" dataKey="expenses" stroke="hsl(0, 84%, 60%)" fillOpacity={1} fill="url(#colorExpenses)" name="Saídas" />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          {/* Partner Comparison */}
-          <Card className="border border-border bg-background">
-            <CardHeader>
-              <CardTitle className="text-base">Saldo por Sócio</CardTitle>
+          <Card className="border border-border bg-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">Saldo por Sócio</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={320}>
+              <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={
                   (bankAccountData.deposits > 0 || bankAccountData.expenses > 0)
-                    ? [
-                        { name: "Conta Bancária", deposits: bankAccountData.deposits, expenses: bankAccountData.expenses },
-                        ...partnerData
-                      ]
+                    ? [{ name: "Conta Bancária", deposits: bankAccountData.deposits, expenses: bankAccountData.expenses }, ...partnerData]
                     : partnerData
                 }>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
-                  <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
                   <Tooltip
                     formatter={(v: number) => fmt(v)}
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      color: "hsl(var(--foreground))",
-                    }}
+                    contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", color: "hsl(var(--foreground))", fontSize: 12 }}
                   />
-                  <Legend />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Bar dataKey="deposits" name="Entradas" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="expenses" name="Saídas" fill="hsl(0, 84%, 60%)" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -1531,11 +1161,11 @@ export default function RelatorioMensal() {
         </div>
       </div>
 
-      {/* Relatório Completo Inline */}
+      {/* ── Relatório Completo Inline ── */}
       {showInlineReport && monthlyReportData && (
         <Card className="border border-border bg-card mt-6">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Eye className="h-4 w-4 text-primary" />
               Relatório Completo por Sócio — {monthLabelCapitalized}
             </CardTitle>
@@ -1557,7 +1187,7 @@ export default function RelatorioMensal() {
         </Card>
       )}
 
-      {/* Export Modal */}
+      {/* ── Export Modal ── */}
       {clienteId && (
         <ExportReportModal
           open={showExportModal}
@@ -1568,151 +1198,104 @@ export default function RelatorioMensal() {
         />
       )}
 
-      {/* Modal de Edição */}
+      {/* ── Modal de Edição ── */}
       <TransactionEditModal
         transaction={editingTransaction}
         isOpen={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false)
-          setEditingTransaction(null)
-        }}
+        onClose={() => { setIsEditModalOpen(false); setEditingTransaction(null) }}
         clientId={clienteId || ""}
       />
 
-      {/* Dialog de transações do sócio selecionado */}
+      {/* ── Dialog: transações do sócio selecionado ── */}
       <Dialog open={!!selectedPartnerCard} onOpenChange={(open) => !open && setSelectedPartnerCard(null)}>
         <DialogContent className="max-w-[95vw] min-w-[95vw] max-h-[95vh] overflow-hidden flex flex-col p-0">
-          <DialogHeader className="px-6 py-4 border-b border-border bg-muted/30 shrink-0">
-            <div className="flex items-center justify-between">
-              <DialogTitle className="flex items-center gap-2 text-lg">
-                <DollarSign className="h-5 w-5 text-primary" />
-                Transações — {selectedPartnerCard}
-              </DialogTitle>
-            </div>
+          <DialogHeader className="px-6 py-4 border-b border-border bg-muted/20 shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <DollarSign className="h-4 w-4 text-primary" />
+              Transações — {selectedPartnerCard}
+            </DialogTitle>
           </DialogHeader>
 
-          {/* Stats Summary */}
           {partnerCardTransactions.length > 0 && (
-            <div className="px-6 py-3 border-b border-border bg-background grid grid-cols-4 gap-4 shrink-0">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground font-semibold uppercase">Total Entradas</p>
-                <p className="text-lg font-bold text-emerald-500">
-                  {fmt(partnerCardTransactions
-                    .filter((t: any) => t.transaction_type === "deposit")
-                    .reduce((s: number, t: any) => s + Number(t.amount), 0)
-                  )}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground font-semibold uppercase">Total Saídas</p>
-                <p className="text-lg font-bold text-red-500">
-                  {fmt(partnerCardTransactions
-                    .filter((t: any) => t.transaction_type !== "deposit")
-                    .reduce((s: number, t: any) => s + Number(t.amount), 0)
-                  )}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground font-semibold uppercase">Saldo</p>
-                <p className={`text-lg font-bold ${
-                  (() => {
-                    const deposits = partnerCardTransactions.filter((t: any) => t.transaction_type === "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
-                    const expenses = partnerCardTransactions.filter((t: any) => t.transaction_type !== "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
-                    return deposits - expenses >= 0 ? "text-emerald-500" : "text-red-500"
-                  })()
-                }`}>
-                  {fmt(
-                    (() => {
-                      const deposits = partnerCardTransactions.filter((t: any) => t.transaction_type === "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
-                      const expenses = partnerCardTransactions.filter((t: any) => t.transaction_type !== "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
-                      return deposits - expenses
-                    })()
-                  )}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground font-semibold uppercase">Transações</p>
-                <p className="text-lg font-bold text-primary">{partnerCardTransactions.length}</p>
-              </div>
+            <div className="px-6 py-3 border-b border-border bg-background grid grid-cols-2 md:grid-cols-4 gap-4 shrink-0">
+              {[
+                { label: "Total Entradas", value: fmt(partnerCardTransactions.filter((t: any) => t.transaction_type === "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)), color: "text-emerald-500" },
+                { label: "Total Saídas", value: fmt(partnerCardTransactions.filter((t: any) => t.transaction_type !== "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)), color: "text-red-500" },
+                {
+                  label: "Saldo", color: (() => {
+                    const d = partnerCardTransactions.filter((t: any) => t.transaction_type === "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
+                    const e = partnerCardTransactions.filter((t: any) => t.transaction_type !== "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
+                    return d - e >= 0 ? "text-emerald-500" : "text-red-500"
+                  })(),
+                  value: fmt((() => {
+                    const d = partnerCardTransactions.filter((t: any) => t.transaction_type === "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
+                    const e = partnerCardTransactions.filter((t: any) => t.transaction_type !== "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
+                    return d - e
+                  })())
+                },
+                { label: "Transações", value: String(partnerCardTransactions.length), color: "text-primary" },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="space-y-1">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</p>
+                  <p className={cn("text-lg font-bold leading-none", color)}>{value}</p>
+                </div>
+              ))}
             </div>
           )}
 
-          {/* Transactions Table */}
           <div className="flex-1 overflow-auto">
             {partnerCardTransactions.length === 0 ? (
-              <p className="text-center text-muted-foreground py-16">Nenhuma transação encontrada.</p>
+              <p className="text-center text-muted-foreground py-16 text-sm">Nenhuma transação encontrada.</p>
             ) : (
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-slate-900/50 z-10 border-b border-border">
+                <thead className="sticky top-0 bg-card z-10 border-b border-border">
                   <tr>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Data</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Descrição</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Tipo</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Status</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Método</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Obs</th>
-                    <th className="text-right py-3 px-4 text-xs font-semibold text-muted-foreground">Valor</th>
+                    {["Data", "Descrição", "Tipo", "Status", "Método", "Obs", "Valor"].map((h) => (
+                      <th key={h} className={cn("py-3 px-4 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground", h === "Valor" ? "text-right" : "text-left")}>
+                        {h}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {partnerCardTransactions.map((tx: any, idx) => {
                     const txDate = tx.payment_date || tx.created_at
-                    const formattedDate = format(
-                      new Date(txDate.includes("T") ? txDate : txDate + "T12:00:00"),
-                      "dd/MM/yyyy",
-                      { locale: ptBR }
-                    )
+                    const formattedDate = format(new Date(txDate.includes("T") ? txDate : txDate + "T12:00:00"), "dd/MM/yyyy", { locale: ptBR })
                     return (
                       <tr
                         key={tx.id || idx}
-                        className={`border-b border-border/30 transition-colors ${
-                          idx % 2 === 0 ? "bg-slate-950/30 hover:bg-slate-900/40" : "bg-slate-900/30 hover:bg-slate-800/40"
-                        } cursor-pointer`}
-                        onClick={() => {
-                          setSelectedPartnerCard(null)
-                          setEditingTransaction(tx)
-                          setIsEditModalOpen(true)
-                        }}
+                        className={cn(
+                          "border-b border-border/20 transition-colors cursor-pointer",
+                          idx % 2 === 0 ? "bg-muted/5 hover:bg-muted/20" : "hover:bg-muted/15"
+                        )}
+                        onClick={() => { setSelectedPartnerCard(null); setEditingTransaction(tx); setIsEditModalOpen(true) }}
                       >
-                        <td className="py-3 px-4 text-foreground font-medium">{formattedDate}</td>
-                        <td className="py-3 px-4 text-foreground max-w-[250px] truncate" title={tx.description}>{tx.description || "-"}</td>
-                        <td className="py-3 px-4">
-                          <Badge
-                            variant="outline"
-                            className={`text-xs ${
-                              tx.transaction_type === "deposit"
-                                ? "border-emerald-500/30 text-emerald-500"
-                                : "border-red-500/30 text-red-500"
-                            }`}
-                          >
+                        <td className="py-2.5 px-4 text-xs font-medium text-foreground whitespace-nowrap">{formattedDate}</td>
+                        <td className="py-2.5 px-4 text-xs text-foreground max-w-[220px]">
+                          <span className="truncate block" title={tx.description}>{tx.description || "-"}</span>
+                        </td>
+                        <td className="py-2.5 px-4">
+                          <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 whitespace-nowrap",
+                            tx.transaction_type === "deposit" ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/5" : "border-red-500/30 text-red-500 bg-red-500/5")}>
                             {tx.transaction_type === "deposit" ? "ENTRADA" : "SAÍDA"}
                           </Badge>
                         </td>
-                        <td className="py-3 px-4">
-                          <Badge
-                            variant="outline"
-                            className={`text-xs ${
-                              (tx.status === "pago" || tx.status === "paid")
-                                ? "border-emerald-500/30 text-emerald-500"
-                                : (tx.status === "recebido" || tx.status === "received")
-                                ? "border-blue-500/30 text-blue-500"
-                                : tx.status === "cancelado"
-                                ? "border-red-500/30 text-red-500"
-                                : "border-amber-500/30 text-amber-500"
-                            }`}
-                          >
+                        <td className="py-2.5 px-4">
+                          <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 whitespace-nowrap",
+                            (tx.status === "pago" || tx.status === "paid") ? "border-emerald-500/30 text-emerald-500 bg-emerald-500/5"
+                              : (tx.status === "recebido" || tx.status === "received") ? "border-blue-500/30 text-blue-500 bg-blue-500/5"
+                                : tx.status === "cancelado" ? "border-red-500/30 text-red-500 bg-red-500/5"
+                                  : "border-amber-500/30 text-amber-500 bg-amber-500/5")}>
                             {getStatusLabel(tx.status)}
                           </Badge>
                         </td>
-                        <td className="py-3 px-4 text-foreground text-xs">{getPaymentMethodLabel(tx.payment_method)}</td>
-                        <td className="py-3 px-4 text-muted-foreground text-xs max-w-[200px] truncate" title={tx.notes}>{tx.notes || "-"}</td>
-                        <td
-                          className={`text-right py-3 px-4 font-bold text-base ${
-                            tx.transaction_type === "deposit" ? "text-emerald-500" : "text-red-500"
-                          }`}
-                        >
-                          {tx.transaction_type === "deposit" ? "+" : "-"}
-                          {fmt(Number(tx.amount))}
+                        <td className="py-2.5 px-4 text-xs text-foreground whitespace-nowrap">{getPaymentMethodLabel(tx.payment_method)}</td>
+                        <td className="py-2.5 px-4 text-xs text-muted-foreground max-w-[180px]">
+                          <span className="truncate block" title={tx.notes}>{tx.notes || "-"}</span>
+                        </td>
+                        <td className={cn("text-right py-2.5 px-4 font-bold text-sm whitespace-nowrap",
+                          tx.transaction_type === "deposit" ? "text-emerald-500" : "text-red-500")}>
+                          {tx.transaction_type === "deposit" ? "+" : "-"}{fmt(Number(tx.amount))}
                         </td>
                       </tr>
                     )
@@ -1724,43 +1307,5 @@ export default function RelatorioMensal() {
         </DialogContent>
       </Dialog>
     </Layout>
-  )
-}
-
-// ========================
-// COMPONENTES AUXILIARES
-// ========================
-
-function KPICard({
-  title,
-  value,
-  icon,
-  color = "blue",
-  isCount = false,
-}: {
-  title: string
-  value: number
-  icon: React.ReactNode
-  color?: "emerald" | "red" | "blue"
-  isCount?: boolean
-}) {
-  const colorClasses = {
-    emerald: "bg-emerald-500/10 text-emerald-500",
-    red: "bg-red-500/10 text-red-500",
-    blue: "bg-blue-500/10 text-blue-500",
-  }
-
-  return (
-    <Card className="border border-border bg-background">
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-semibold text-muted-foreground uppercase">{title}</p>
-          <div className={`p-2 rounded-lg ${colorClasses[color]}`}>{icon}</div>
-        </div>
-        <p className="text-2xl font-bold text-foreground">
-          {isCount ? value : fmt(value)}
-        </p>
-      </CardContent>
-    </Card>
   )
 }

@@ -130,7 +130,7 @@ const EMPTY_FORM = {
   notaFiscalUrl: "",
 };
 
-const BANK_EXPENSE_CATEGORIES = [
+export const BANK_EXPENSE_CATEGORIES = [
   { id: "CARTÃO DE CRÉDITO", label: "CARTÃO DE CRÉDITO", icon: "💳" },
   { id: "ANUIDADE DE CARTÃO", label: "ANUIDADE DE CARTÃO", icon: "📅" },
   { id: "TARIFAS BANCARIAS", label: "TARIFAS BANCARIAS", icon: "🏦" },
@@ -702,133 +702,751 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
 
               {/* ── TAB: DESPESA NORMAL ── */}
               <TabsContent value="expense">
-            <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-6">
 
-              {/* ── Sócio Responsável (único, no topo) ── */}
-              <FormSection label="Sócio Responsável">
-                <Select
-                  value={form.assignedPartnerCpf}
-                  onValueChange={set("assignedPartnerCpf")}
-                  disabled={loadingPartners}
-                >
-                  <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
-                    <SelectValue
-                      placeholder={
-                        loadingPartners
-                          ? "Carregando sócios..."
-                          : "Atribuir a um sócio"
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    <SelectItem value="none" className="py-3">
-                      <span className="text-muted-foreground text-sm">— Sem atribuição —</span>
-                    </SelectItem>
-                    {partners.map((partner) => (
-                      <SelectItem key={partner.id} value={partner.cpf} className="py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-bold flex-shrink-0">
-                            {partner.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="font-medium text-sm">{partner.name}</div>
-                            <div className="text-xs text-muted-foreground font-mono">
-                              {formatCPF(partner.cpf)}
-                              {partner.share_percentage && ` · ${partner.share_percentage}%`}
+                  {/* ── Sócio Responsável (único, no topo) ── */}
+                  <FormSection label="Sócio Responsável">
+                    <Select
+                      value={form.assignedPartnerCpf}
+                      onValueChange={set("assignedPartnerCpf")}
+                      disabled={loadingPartners}
+                    >
+                      <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                        <SelectValue
+                          placeholder={
+                            loadingPartners
+                              ? "Carregando sócios..."
+                              : "Atribuir a um sócio"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl">
+                        <SelectItem value="none" className="py-3">
+                          <span className="text-muted-foreground text-sm">— Sem atribuição —</span>
+                        </SelectItem>
+                        {partners.map((partner) => (
+                          <SelectItem key={partner.id} value={partner.cpf} className="py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-bold flex-shrink-0">
+                                {partner.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="font-medium text-sm">{partner.name}</div>
+                                <div className="text-xs text-muted-foreground font-mono">
+                                  {formatCPF(partner.cpf)}
+                                  {partner.share_percentage && ` · ${partner.share_percentage}%`}
+                                </div>
+                              </div>
                             </div>
-                          </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormSection>
+
+                  {/* ── Categoria ── */}
+                  <FormSection label="Categoria" required>
+                    <Select value={form.category} onValueChange={set("category")}>
+                      <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                        <SelectValue placeholder="Selecione a categoria da despesa" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl">
+                        {EXPENSE_CATEGORIES.map((cat) => (
+                          <SelectItem key={cat.id} value={cat.id} className="py-3">
+                            <div className="flex items-center gap-3">
+                              <span className="text-lg leading-none">{cat.icon}</span>
+                              <span className="font-medium text-sm">{cat.label}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {selectedCategory && (
+                      <div className="flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm mt-2 bg-red-50 border border-red-200 text-red-800 dark:bg-red-950/40 dark:border-red-800/50 dark:text-red-300">
+                        <span className="text-base">{selectedCategory.icon}</span>
+                        <span className="font-medium">{selectedCategory.label} selecionada</span>
+                        <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-50" />
+                      </div>
+                    )}
+                  </FormSection>
+
+                  {/* ── Vincular Relatório de Viagem ── */}
+                  {form.category === "DESPESAS DE VIAGEM" && (
+                    <FormSection label="Deseja vincular a um relatório de viagem?">
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        <Button
+                          type="button"
+                          variant={linkOption === "existing" ? "secondary" : "outline"}
+                          size="sm"
+                          onClick={() => setLinkOption("existing")}
+                          disabled={!assignedPartner?.id}
+                        >
+                          Vincular a relatório existente
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={linkOption === "new" ? "secondary" : "outline"}
+                          size="sm"
+                          onClick={() => setLinkOption("new")}
+                        >
+                          Iniciar novo relatório
+                        </Button>
+                      </div>
+
+                      {!assignedPartner?.id && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Selecione um sócio para vincular a um relatório existente.
+                        </p>
+                      )}
+
+                      {linkOption === "existing" && (
+                        <div className="mt-3">
+                          <Select
+                            value={selectedReport?.id || ""}
+                            onValueChange={(v) => {
+                              const found = existingReports.find((r) => r.id === v);
+                              setSelectedReport(found || null);
+                            }}
+                          >
+                            <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                              <SelectValue
+                                placeholder={
+                                  loadingReports
+                                    ? "Carregando relatórios..."
+                                    : existingReports.length === 0
+                                      ? "Nenhum relatório encontrado para este sócio"
+                                      : "Selecione um relatório existente"
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                              {existingReports.map((r) => (
+                                <SelectItem key={r.id} value={r.id} className="py-3">
+                                  {r.report_number}
+                                  {r.status && (
+                                    <span className="ml-2 text-xs text-muted-foreground">
+                                      ({r.status})
+                                    </span>
+                                  )}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormSection>
+                      )}
 
-              {/* ── Categoria ── */}
-              <FormSection label="Categoria" required>
-                <Select value={form.category} onValueChange={set("category")}>
-                  <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
-                    <SelectValue placeholder="Selecione a categoria da despesa" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    {EXPENSE_CATEGORIES.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id} className="py-3">
-                        <div className="flex items-center gap-3">
-                          <span className="text-lg leading-none">{cat.icon}</span>
-                          <span className="font-medium text-sm">{cat.label}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {selectedCategory && (
-                  <div className="flex items-center gap-2.5 rounded-xl px-4 py-3 text-sm mt-2 bg-red-50 border border-red-200 text-red-800 dark:bg-red-950/40 dark:border-red-800/50 dark:text-red-300">
-                    <span className="text-base">{selectedCategory.icon}</span>
-                    <span className="font-medium">{selectedCategory.label} selecionada</span>
-                    <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-50" />
-                  </div>
-                )}
-              </FormSection>
-
-              {/* ── Vincular Relatório de Viagem ── */}
-              {form.category === "DESPESAS DE VIAGEM" && (
-                <FormSection label="Deseja vincular a um relatório de viagem?">
-                  <div className="flex flex-col sm:flex-row gap-4">
-                    <Button
-                      type="button"
-                      variant={linkOption === "existing" ? "secondary" : "outline"}
-                      size="sm"
-                      onClick={() => setLinkOption("existing")}
-                      disabled={!assignedPartner?.id}
-                    >
-                      Vincular a relatório existente
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={linkOption === "new" ? "secondary" : "outline"}
-                      size="sm"
-                      onClick={() => setLinkOption("new")}
-                    >
-                      Iniciar novo relatório
-                    </Button>
-                  </div>
-
-                  {!assignedPartner?.id && (
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Selecione um sócio para vincular a um relatório existente.
-                    </p>
+                      {linkOption === "new" && (
+                        <p className="text-xs text-muted-foreground mt-2 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
+                          Um novo relatório de viagem será criado em Rascunho com esta despesa vinculada.
+                        </p>
+                      )}
+                    </FormSection>
                   )}
 
-                  {linkOption === "existing" && (
-                    <div className="mt-3">
-                      <Select
-                        value={selectedReport?.id || ""}
-                        onValueChange={(v) => {
-                          const found = existingReports.find((r) => r.id === v);
-                          setSelectedReport(found || null);
-                        }}
-                      >
-                        <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
-                          <SelectValue
-                            placeholder={
-                              loadingReports
-                                ? "Carregando relatórios..."
-                                : existingReports.length === 0
-                                ? "Nenhum relatório encontrado para este sócio"
-                                : "Selecione um relatório existente"
-                            }
-                          />
+                  {/* ── Abastecimento ── */}
+                  {isAbastecimento && (
+                    <div className="rounded-2xl bg-amber-950/40 border border-amber-700/50 p-5 space-y-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-900/60">
+                          <Fuel className="h-4 w-4 text-amber-400" />
+                        </div>
+                        <p className="font-semibold text-sm text-amber-200">
+                          Vincular com Abastecimento
+                        </p>
+                      </div>
+
+                      {!form.criarNovoAbastecimento ? (
+                        <>
+                          <Select
+                            value={form.abastecimentoId}
+                            onValueChange={(v) => set("abastecimentoId")(v)}
+                          >
+                            <SelectTrigger className="h-12 rounded-xl border-amber-700/50 bg-background text-foreground text-sm">
+                              <SelectValue placeholder="Selecione um abastecimento registrado" />
+                            </SelectTrigger>
+                            <SelectContent className="rounded-xl">
+                              {abastecimentos.length === 0 ? (
+                                <div className="p-4 text-sm text-muted-foreground text-center">
+                                  Nenhum abastecimento não pago
+                                </div>
+                              ) : (
+                                abastecimentos.map((abast) => (
+                                  <SelectItem key={abast.id} value={abast.id} className="py-3">
+                                    <div className="text-sm space-y-0.5">
+                                      <div>
+                                        {format(new Date(abast.data), "dd/MM/yyyy")} · {abast.local}{" "}
+                                        · R$ {Number(abast.valor_total).toFixed(2)}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground flex gap-2">
+                                        {abast.comanda && <span>Comanda: {abast.comanda}</span>}
+                                        {abast.partner_name && (
+                                          <span>Sócio: {abast.partner_name}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="w-full gap-2 text-amber-400 hover:bg-amber-900/30 rounded-xl h-10"
+                            onClick={() => set("criarNovoAbastecimento")(true)}
+                          >
+                            <Plus className="h-4 w-4" />
+                            Criar novo abastecimento
+                          </Button>
+                        </>
+                      ) : (
+                        <div className="space-y-4">
+                          {/* STEP 1: Vincular ao Diário de Bordo */}
+                          <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-4 space-y-3">
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                id="vincular-diario"
+                                checked={form.novoAbastVincularDiario}
+                                onChange={(e) => set("novoAbastVincularDiario")(e.target.checked)}
+                                className="h-4 w-4 rounded border-border"
+                                disabled={addExpense.isPending}
+                              />
+                              <label htmlFor="vincular-diario" className="text-sm font-semibold text-foreground cursor-pointer">
+                                ✈️ Vincular a um trecho do Diário de Bordo?
+                              </label>
+                            </div>
+                            {form.novoAbastVincularDiario && (
+                              <p className="text-xs text-muted-foreground">
+                                ℹ️ Quando vinculado, a data e trecho serão preenchidos automaticamente do diário.
+                              </p>
+                            )}
+                          </div>
+
+                          {/* STEP 2: Data (only if NOT linked to logbook) */}
+                          {!form.novoAbastVincularDiario && (
+                            <FormSection label="📅 Data do Abastecimento">
+                              <Input
+                                type="date"
+                                value={form.novoAbastData}
+                                onChange={(e) => set("novoAbastData")(e.target.value)}
+                                className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                                disabled={addExpense.isPending}
+                              />
+                            </FormSection>
+                          )}
+
+                          {/* STEP 3: Trecho (only if NOT linked) */}
+                          {!form.novoAbastVincularDiario && (
+                            <div>
+                              <Label className="text-sm font-semibold mb-2 block">✈️ Trecho (Origem x Destino)</Label>
+                              <div className="flex gap-2 items-end">
+                                <div className="flex-1">
+                                  <Label className="text-xs text-muted-foreground mb-1 block">Origem</Label>
+                                  <AerodromeCombobox
+                                    aerodromes={aerodromes}
+                                    value={form.novoAbastTrechoOrigem}
+                                    onChange={(value) => {
+                                      set("novoAbastTrechoOrigem")(value);
+                                      const destino = form.novoAbastTrechoDestino;
+                                      if (value && destino) {
+                                        set("novoAbastTrecho")(`${value} X ${destino}`);
+                                      }
+                                    }}
+                                    disabled={addExpense.isPending}
+                                    placeholder="Origem"
+                                  />
+                                </div>
+                                <span className="text-sm text-muted-foreground mb-2">X</span>
+                                <div className="flex-1">
+                                  <Label className="text-xs text-muted-foreground mb-1 block">Destino</Label>
+                                  <AerodromeCombobox
+                                    aerodromes={aerodromes}
+                                    value={form.novoAbastTrechoDestino}
+                                    onChange={(value) => {
+                                      set("novoAbastTrechoDestino")(value);
+                                      const origem = form.novoAbastTrechoOrigem;
+                                      if (origem && value) {
+                                        set("novoAbastTrecho")(`${origem} X ${value}`);
+                                      }
+                                    }}
+                                    disabled={addExpense.isPending}
+                                    placeholder="Destino"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* STEP 4: Fornecedor + Combustível */}
+                          <div className="space-y-3 pt-2 border-t">
+                            <FormSection label="🛢️ Fornecedor <span className='text-red-500'>*</span>">
+                              <div className="flex gap-2">
+                                <SearchableCombobox
+                                  options={fuelSuppliers.map(s => ({
+                                    value: s.supplier_name,
+                                    label: `${s.supplier_name} (${s.city_name})`
+                                  }))}
+                                  value={form.supplierName}
+                                  onValueChange={(v) => {
+                                    set("supplierName")(v);
+                                    // Auto-fill local
+                                    const supplier = fuelSuppliers.find(s => s.supplier_name === v);
+                                    if (supplier) {
+                                      set("novoAbastLocal")(supplier.city_name);
+                                    }
+                                  }}
+                                  placeholder="Selecione fornecedor"
+                                  searchPlaceholder="Buscar fornecedor..."
+                                  emptyText="Nenhum fornecedor encontrado"
+                                  className="flex-1"
+                                  disabled={addExpense.isPending}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-12"
+                                  onClick={() => setShowAddFuelSupplier(true)}
+                                  disabled={addExpense.isPending}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </FormSection>
+
+                            <FormSection label="⛽ Tipo de Combustível <span className='text-red-500'>*</span>">
+                              <Select
+                                value={form.novoAbastCombustivel}
+                                onValueChange={(v) => set("novoAbastCombustivel")(v as "avgas" | "jet" | "")}
+                                disabled={addExpense.isPending}
+                              >
+                                <SelectTrigger className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm">
+                                  <SelectValue placeholder="Selecione combustível" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl">
+                                  <SelectItem value="avgas">AVGAS</SelectItem>
+                                  <SelectItem value="jet">JET</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormSection>
+                          </div>
+
+                          {/* STEP 5: Valor Unitário (auto-filled) */}
+                          <FormSection label="💰 Valor Unitário (R$)">
+                            <Input
+                              type="number"
+                              step="0.0001"
+                              value={form.novoAbastValorUnitario}
+                              onChange={(e) => set("novoAbastValorUnitario")(e.target.value)}
+                              placeholder="Auto-preenchido"
+                              className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                              disabled={addExpense.isPending}
+                            />
+                            {form.novoAbastValorUnitario && (
+                              <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                ✓ Preço preenchido automaticamente da tabela de fornecedores
+                              </p>
+                            )}
+                          </FormSection>
+
+                          {/* STEP 6: Litros e Cálculo */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <FormSection label="📊 Total em Litros <span className='text-red-500'>*</span>">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0,00"
+                                value={form.novoAbastLitros}
+                                onChange={(e) => set("novoAbastLitros")(e.target.value)}
+                                className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                                disabled={addExpense.isPending}
+                              />
+                            </FormSection>
+                            <FormSection label="📏 Galões (opcional)">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                placeholder="0,00"
+                                value={form.novoAbastGaloes}
+                                onChange={(e) => set("novoAbastGaloes")(e.target.value)}
+                                className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                                disabled={addExpense.isPending}
+                              />
+                            </FormSection>
+                          </div>
+
+                          {/* Calculated values */}
+                          {form.novoAbastLitros && form.novoAbastValorUnitario && (
+                            <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 p-3 rounded-lg">
+                              <p className="text-xs text-muted-foreground mb-1">Cálculo Automático</p>
+                              <p className="text-sm font-semibold text-green-600 dark:text-green-400">
+                                {form.novoAbastLitros} L × R$ {parseFloat(form.novoAbastValorUnitario || "0").toFixed(4)} = R$ {(parseFloat(form.novoAbastLitros || "0") * parseFloat(form.novoAbastValorUnitario || "0")).toFixed(2)}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* STEP 7: Tipo de Faturamento e Status Pagamento */}
+                          <div className="space-y-3 pt-2 border-t">
+                            <FormSection label="📋 Tipo de Faturamento <span className='text-red-500'>*</span>">
+                              <Select
+                                value={form.novoAbastTipoFaturamento}
+                                onValueChange={(v) => set("novoAbastTipoFaturamento")(v)}
+                                disabled={addExpense.isPending}
+                              >
+                                <SelectTrigger className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm">
+                                  <SelectValue placeholder="Selecione tipo" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl">
+                                  <SelectItem value="pagamento a vista">Pagamento à Vista</SelectItem>
+                                  <SelectItem value="a vista cartao de credito">À Vista Cartão de Crédito</SelectItem>
+                                  <SelectItem value="a vista transferencia pix">À Vista Transferência (PIX)</SelectItem>
+                                  <SelectItem value="faturado boleto">Faturado Boleto</SelectItem>
+                                  <SelectItem value="faturado nota fiscal">Faturado Nota Fiscal</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormSection>
+
+                            <FormSection label="💳 Status de Pagamento <span className='text-red-500'>*</span>">
+                              <Select
+                                value={form.novoAbastStatusPagamento}
+                                onValueChange={(v) => set("novoAbastStatusPagamento")(v as "pago" | "em aberto")}
+                                disabled={addExpense.isPending}
+                              >
+                                <SelectTrigger className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm">
+                                  <SelectValue placeholder="Selecione status" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-xl">
+                                  <SelectItem value="em aberto">⏱️ Em Aberto</SelectItem>
+                                  <SelectItem value="pago">✓ Pago</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormSection>
+                          </div>
+
+                          {/* STEP 8: Payment Details */}
+                          {form.novoAbastStatusPagamento === "pago" && (
+                            <div className="space-y-3 pt-2 border-t bg-green-500/5 border-l-4 border-l-green-500 pl-3">
+                              <FormSection label="📅 Data de Pagamento">
+                                <Input
+                                  type="date"
+                                  value={form.novoAbastDataPagamento}
+                                  onChange={(e) => set("novoAbastDataPagamento")(e.target.value)}
+                                  className="h-12 rounded-xl border-green-700/30 bg-background text-foreground text-sm"
+                                  disabled={addExpense.isPending}
+                                />
+                              </FormSection>
+
+                              <FormSection label="🏦 Banco">
+                                <Select
+                                  value={form.novoAbastBanco}
+                                  onValueChange={(v) => set("novoAbastBanco")(v)}
+                                  disabled={addExpense.isPending}
+                                >
+                                  <SelectTrigger className="h-12 rounded-xl border-green-700/30 bg-background text-foreground text-sm">
+                                    <SelectValue placeholder="Selecione banco" />
+                                  </SelectTrigger>
+                                  <SelectContent className="rounded-xl">
+                                    {contasBancarias.map(banco => (
+                                      <SelectItem key={banco.id} value={banco.banco}>{banco.banco}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </FormSection>
+
+                              <FormSection label="📄 Comprovante de Pagamento">
+                                <FileUploadField
+                                  value={form.comprovantePagamento}
+                                  onChange={(url) => set("comprovantePagamento")(url)}
+                                  label="Anexar Comprovante"
+                                  accept=".pdf,.jpg,.jpeg,.png"
+                                  bucket="nfs-share-recebidas"
+                                  prefix="comprovante"
+                                  disabled={addExpense.isPending}
+                                />
+                              </FormSection>
+                            </div>
+                          )}
+
+                          {form.novoAbastStatusPagamento === "em aberto" && (
+                            <div className="space-y-3 pt-2 border-t bg-orange-500/5 border-l-4 border-l-orange-500 pl-3">
+                              <FormSection label="📅 Data de Vencimento">
+                                <Input
+                                  type="date"
+                                  value={form.novoAbastDataVencimento}
+                                  onChange={(e) => set("novoAbastDataVencimento")(e.target.value)}
+                                  className="h-12 rounded-xl border-orange-700/30 bg-background text-foreground text-sm"
+                                  disabled={addExpense.isPending}
+                                />
+                              </FormSection>
+                            </div>
+                          )}
+
+                          {/* STEP 9: Attachments */}
+                          <div className="space-y-4 pt-2 border-t">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <FormSection label="🧾 Nº Comanda">
+                                <Input
+                                  placeholder="Comanda"
+                                  value={form.novoAbastComandaNumero}
+                                  onChange={(e) => set("novoAbastComandaNumero")(e.target.value)}
+                                  className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                                  disabled={addExpense.isPending}
+                                />
+                              </FormSection>
+                              <FormSection label="📸 Anexo Comanda">
+                                <FileUploadField
+                                  value={form.comandaUrl}
+                                  onChange={(url) => set("comandaUrl")(url)}
+                                  label="Anexar Comanda"
+                                  accept=".pdf,.jpg,.jpeg,.png"
+                                  bucket="nfs-share-recebidas"
+                                  prefix="comanda"
+                                  disabled={addExpense.isPending}
+                                />
+                              </FormSection>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <FormSection label="📄 Nº Nota Fiscal">
+                                <Input
+                                  placeholder="NF"
+                                  value={form.novoAbastNF}
+                                  onChange={(e) => set("novoAbastNF")(e.target.value)}
+                                  className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                                  disabled={addExpense.isPending}
+                                />
+                              </FormSection>
+                              <FormSection label="📸 Anexo NF">
+                                <FileUploadField
+                                  value={form.notaFiscalUrl}
+                                  onChange={(url) => set("notaFiscalUrl")(url)}
+                                  label="Anexar Nota Fiscal"
+                                  accept=".pdf,.jpg,.jpeg,.png"
+                                  bucket="nfs-share-recebidas"
+                                  prefix="nota-fiscal"
+                                  disabled={addExpense.isPending}
+                                />
+                              </FormSection>
+                            </div>
+
+                            <FormSection label="💰 Boleto (Opcional)">
+                              <FileUploadField
+                                value={form.novoAbastBoleto}
+                                onChange={(url) => set("novoAbastBoleto")(url)}
+                                label="Anexar Boleto"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                bucket="nfs-share-recebidas"
+                                prefix="boleto"
+                                disabled={addExpense.isPending}
+                              />
+                            </FormSection>
+
+                            <FormSection label="📝 Observações">
+                              <Textarea
+                                placeholder="Adicione observações sobre este abastecimento..."
+                                value={form.novoAbastObservacoes}
+                                onChange={(e) => set("novoAbastObservacoes")(e.target.value)}
+                                className="rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
+                                disabled={addExpense.isPending}
+                              />
+                            </FormSection>
+                          </div>
+
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="w-full gap-2 text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded-xl h-10"
+                            onClick={() => set("criarNovoAbastecimento")(false)}
+                          >
+                            <ArrowLeft className="h-4 w-4" />
+                            Usar abastecimento existente
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Manutenção ── */}
+                  {form.category === "MANUTENÇÃO" && (
+                    <div className="rounded-2xl bg-muted/50 border border-border/60 p-5 space-y-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                          <span className="text-base">🔧</span>
+                        </div>
+                        <p className="font-semibold text-sm text-foreground">
+                          Vincular com Manutenção
+                        </p>
+                      </div>
+
+                      <Select value={selectedManutencaoId} onValueChange={setSelectedManutencaoId}>
+                        <SelectTrigger className="h-12 rounded-xl border-border/60 text-sm">
+                          <SelectValue placeholder="Selecione a manutenção da aeronave" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl">
-                          {existingReports.map((r) => (
-                            <SelectItem key={r.id} value={r.id} className="py-3">
-                              {r.report_number}
-                              {r.status && (
-                                <span className="ml-2 text-xs text-muted-foreground">
-                                  ({r.status})
-                                </span>
-                              )}
+                          {manutencoes.length === 0 ? (
+                            <div className="p-4 text-sm text-muted-foreground text-center">
+                              Nenhuma manutenção encontrada
+                            </div>
+                          ) : (
+                            manutencoes.map((m) => {
+                              const formatDate = (dateStr: string) => {
+                                try {
+                                  const parsed = parse(dateStr, "yyyy-MM-dd", new Date());
+                                  return format(parsed, "dd/MM/yyyy", { locale: ptBR });
+                                } catch {
+                                  return dateStr;
+                                }
+                              };
+
+                              const formatStatus = (status: string) => {
+                                return status
+                                  .toLowerCase()
+                                  .replace(/_/g, " ")
+                                  .replace(/\b\w/g, (char) => char.toUpperCase());
+                              };
+
+                              return (
+                                <SelectItem key={m.id} value={m.id} className="py-3">
+                                  <div className="text-sm space-y-0.5">
+                                    <div className="font-medium">
+                                      {m.tipo} {m.numero_os ? `(${m.numero_os})` : ""}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground flex gap-2">
+                                      <span>{formatDate(m.data_programada)}</span>
+                                      <span>{formatStatus(m.etapa)}</span>
+                                      {m.oficina && <span>• {m.oficina}</span>}
+                                    </div>
+                                  </div>
+                                </SelectItem>
+                              );
+                            })
+                          )}
+                        </SelectContent>
+                      </Select>
+
+                      {selectedManutencaoId && (
+                        <div className="space-y-3 pt-2">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                            Tipo de Rateio
+                          </p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {[
+                              { value: "igual" as const, label: "Igual", desc: "Dividido igualmente" },
+                              { value: "por_uso" as const, label: "Por Uso", desc: "Proporcional ao uso" },
+                              { value: "manual" as const, label: "Manual", desc: "Definir percentuais" },
+                            ].map((opt) => (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => setManutencaoTipoRateio(opt.value)}
+                                className={cn(
+                                  "p-3 rounded-xl border text-left transition-all text-sm",
+                                  manutencaoTipoRateio === opt.value
+                                    ? "border-primary bg-primary/10 text-foreground"
+                                    : "border-border/50 hover:border-border text-muted-foreground"
+                                )}
+                              >
+                                <div className="font-medium">{opt.label}</div>
+                                <div className="text-xs mt-0.5 opacity-70">{opt.desc}</div>
+                              </button>
+                            ))}
+                          </div>
+
+                          {manutencaoTipoRateio === "manual" && partners.length > 0 && (
+                            <div className="space-y-2 rounded-xl border border-border/40 p-3">
+                              <p className="text-xs font-medium text-muted-foreground">Percentual por sócio</p>
+                              {partners.map((p) => (
+                                <div key={p.id} className="flex items-center gap-3">
+                                  <span className="text-sm flex-1 truncate">{p.name}</span>
+                                  <div className="flex items-center gap-1.5">
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      step="0.01"
+                                      value={manualRateios[p.id] || ""}
+                                      onChange={(e) =>
+                                        setManualRateios((prev) => ({
+                                          ...prev,
+                                          [p.id]: parseFloat(e.target.value) || 0,
+                                        }))
+                                      }
+                                      className="w-20 h-8 text-sm rounded-lg"
+                                    />
+                                    <span className="text-xs text-muted-foreground">%</span>
+                                  </div>
+                                </div>
+                              ))}
+                              {(() => {
+                                const total = Object.values(manualRateios).reduce((s, v) => s + v, 0);
+                                return (
+                                  <p className={cn(
+                                    "text-xs font-medium text-right",
+                                    Math.abs(total - 100) < 0.01 ? "text-emerald-500" : "text-destructive"
+                                  )}>
+                                    Total: {total.toFixed(2)}%
+                                  </p>
+                                );
+                              })()}
+                            </div>
+                          )}
+
+                          {manutencaoTipoRateio === "por_uso" && partners.length > 0 && (
+                            <div className="rounded-xl border border-border/40 p-3 space-y-1.5">
+                              <p className="text-xs font-medium text-muted-foreground">Rateio estimado por uso</p>
+                              {partners.map((p) => {
+                                const totalPct = partners.reduce((s, pp) => s + (pp.share_percentage || 0), 0);
+                                const pct = totalPct > 0 ? ((p.share_percentage || 0) / totalPct * 100) : (100 / partners.length);
+                                return (
+                                  <div key={p.id} className="flex items-center justify-between text-sm">
+                                    <span className="truncate">{p.name}</span>
+                                    <span className="text-muted-foreground font-mono">{pct.toFixed(1)}%</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <FormSection label="Descrição" required>
+                    <Input
+                      value={form.description}
+                      onChange={(e) => set("description")(e.target.value)}
+                      placeholder={
+                        selectedCategory
+                          ? `Ex: ${selectedCategory.label} - detalhe da despesa`
+                          : "Descreva a despesa"
+                      }
+                      required
+                      disabled={addExpense.isPending}
+                      className="h-12 rounded-xl border-border/70 text-sm"
+                    />
+                  </FormSection>
+
+                  {/* ── Impostos subtype ── */}
+                  {(form.category as string) === "IMPOSTOS" && (
+                    <div className="rounded-2xl bg-blue-950/40 border border-blue-700/50 p-5 space-y-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-900/60">
+                          <span className="text-base">🏦</span>
+                        </div>
+                        <p className="font-semibold text-sm text-blue-200">Tipo de Imposto</p>
+                      </div>
+                      <Select value={form.expenseType} onValueChange={set("expenseType")}>
+                        <SelectTrigger className="h-12 rounded-xl border-blue-700/50 bg-zinc-900 text-sm">
+                          <SelectValue placeholder="Selecione o tipo de imposto" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          {IMPOSTOS_SUBTYPES.map((imp) => (
+                            <SelectItem key={imp.value} value={imp.value} className="py-3">
+                              <span className="font-medium text-sm">{imp.label}</span>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -836,982 +1454,364 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                     </div>
                   )}
 
-                  {linkOption === "new" && (
-                    <p className="text-xs text-muted-foreground mt-2 bg-blue-500/10 border border-blue-500/20 rounded-lg px-3 py-2">
-                      Um novo relatório de viagem será criado em Rascunho com esta despesa vinculada.
-                    </p>
-                  )}
-                </FormSection>
-              )}
-
-              {/* ── Abastecimento ── */}
-              {isAbastecimento && (
-                <div className="rounded-2xl bg-amber-950/40 border border-amber-700/50 p-5 space-y-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-900/60">
-                      <Fuel className="h-4 w-4 text-amber-400" />
-                    </div>
-                    <p className="font-semibold text-sm text-amber-200">
-                      Vincular com Abastecimento
-                    </p>
+                  {/* ── Valor + Datas ── */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <FormSection label="Valor (R$)" required>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground select-none">
+                          R$
+                        </span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0.01"
+                          value={form.totalAmount}
+                          onChange={(e) => set("totalAmount")(e.target.value)}
+                          placeholder="0,00"
+                          required
+                          disabled={addExpense.isPending}
+                          className="h-12 rounded-xl border-border/70 text-sm pl-10 font-mono"
+                        />
+                      </div>
+                    </FormSection>
+                    <FormSection label="Data de Pagamento" required>
+                      <DateFieldWithInput value={form.paidDate} onChange={(v) => set("paidDate")(v)} />
+                    </FormSection>
+                    <FormSection label="Data de Vencimento">
+                      <DateFieldWithInput value={form.dueDate} onChange={(v) => set("dueDate")(v)} />
+                    </FormSection>
                   </div>
 
-                  {!form.criarNovoAbastecimento ? (
-                    <>
-                      <Select
-                        value={form.abastecimentoId}
-                        onValueChange={(v) => set("abastecimentoId")(v)}
-                      >
-                        <SelectTrigger className="h-12 rounded-xl border-amber-700/50 bg-background text-foreground text-sm">
-                          <SelectValue placeholder="Selecione um abastecimento registrado" />
+                  {/* ── Fornecedor + NF ── */}
+                  <div className="space-y-4">
+                    <FormSection label="Fornecedor">
+                      {isAbastecimento ? (
+                        <div className="space-y-2">
+                          <SearchableCombobox
+                            items={fuelSuppliers.map((f) => ({
+                              id: f.id,
+                              label: `${f.supplier_name} - ${f.city_name} (${f.icao_code})`,
+                            }))}
+                            value={
+                              fuelSuppliers.find((f) => f.supplier_name === form.supplierName)?.id || ""
+                            }
+                            onChange={(id) => {
+                              const supplier = fuelSuppliers.find((f) => f.id === id);
+                              set("supplierName")(supplier?.supplier_name || "");
+                            }}
+                            placeholder="Selecione um fornecedor de combustível..."
+                            searchPlaceholder="Buscar fornecedor..."
+                            emptyMessage="Nenhum fornecedor cadastrado"
+                            disabled={addExpense.isPending}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setNewFuelSupplier({ supplier_name: '', city_name: '', icao_code: '' });
+                              setShowAddFuelSupplier(true);
+                            }}
+                            className="w-full gap-2 h-9 text-xs rounded-lg border-dashed border-border/60 text-muted-foreground hover:text-foreground"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Cadastrar novo fornecedor de combustível
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <SearchableCombobox
+                            items={fornecedoresShare.map((f) => ({
+                              id: f.id,
+                              label: `${f.nome_completo}${f.documento ? ` (${f.documento})` : ""}`,
+                            }))}
+                            value={
+                              fornecedoresShare.find((f) => f.nome_completo === form.supplierName)
+                                ?.id || form.supplierName
+                            }
+                            onChange={(id) => {
+                              const fornecedor = fornecedoresShare.find((f) => f.id === id);
+                              set("supplierName")(fornecedor ? fornecedor.nome_completo : id);
+                            }}
+                            placeholder="Selecione ou digite o fornecedor..."
+                            searchPlaceholder="Buscar fornecedor..."
+                            emptyMessage="Nenhum fornecedor encontrado"
+                            disabled={addExpense.isPending}
+                            allowFreeText={true}
+                          />
+                          {form.supplierName &&
+                            !fornecedoresShare.some((f) => f.nome_completo === form.supplierName) && (
+                              <div className="flex items-center gap-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg mt-2">
+                                <p className="text-xs text-amber-600 dark:text-amber-400 flex-1">
+                                  Fornecedor não encontrado nos favoritos.
+                                </p>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setShowAddFornecedor(true)}
+                                  className="h-7 text-xs"
+                                >
+                                  <UserPlus className="h-3 w-3 mr-1" /> Adicionar
+                                </Button>
+                              </div>
+                            )}
+                        </>
+                      )}
+                    </FormSection>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FormSection label="Nº Nota / NF">
+                        <Input
+                          value={form.invoiceNumber}
+                          onChange={(e) => set("invoiceNumber")(e.target.value)}
+                          placeholder="Ex: 2025180"
+                          disabled={addExpense.isPending}
+                          className="h-12 rounded-xl border-border/70 text-sm"
+                        />
+                      </FormSection>
+                      <FormSection label="Nota Fiscal">
+                        <FileUploadField
+                          value={form.invoiceUrl}
+                          onChange={(url) => set("invoiceUrl")(url)}
+                          label="Anexar NF"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          bucket="nfs-share-recebidas"
+                          prefix="nf_socio"
+                          disabled={addExpense.isPending}
+                        />
+                      </FormSection>
+                    </div>
+                  </div>
+
+                  {/* ── Status + Forma de Pagamento ── */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormSection label="Status da Despesa">
+                      <Select value={form.status} onValueChange={set("status")}>
+                        <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                          <SelectValue placeholder="Selecione o status" />
                         </SelectTrigger>
                         <SelectContent className="rounded-xl">
-                          {abastecimentos.length === 0 ? (
+                          <SelectItem value="pago" className="py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                              <span className="text-sm font-medium">Pago</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="pendente" className="py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full bg-amber-500 flex-shrink-0" />
+                              <span className="text-sm font-medium">Pendente</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="cancelado" className="py-3">
+                            <div className="flex items-center gap-2">
+                              <span className="h-2 w-2 rounded-full bg-zinc-400 flex-shrink-0" />
+                              <span className="text-sm font-medium">Cancelado</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormSection>
+                    <FormSection label="Forma de Pagamento">
+                      <Select value={form.paymentMethod} onValueChange={set("paymentMethod")}>
+                        <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                          <SelectValue placeholder="Selecione (opcional)" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          <SelectItem value="nao_informado" className="py-2">
+                            — Não informado —
+                          </SelectItem>
+                          <SelectItem value="pix" className="py-2">PIX</SelectItem>
+                          <SelectItem value="ted" className="py-2">TED</SelectItem>
+                          <SelectItem value="boleto" className="py-2">Boleto</SelectItem>
+                          <SelectItem value="cartao" className="py-2">Cartão</SelectItem>
+                          <SelectItem value="dinheiro" className="py-2">Dinheiro</SelectItem>
+                          <SelectItem value="outros" className="py-2">Outros</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormSection>
+                  </div>
+
+                  {/* ── Parcelamento em Cartão ── */}
+                  {form.paymentMethod === "cartao" && (
+                    <div className="rounded-2xl bg-slate-500 border border-slate-900 dark:bg-slate-600 dark:border-slate-900 p-5 space-y-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
+                          <span className="text-base">💳</span>
+                        </div>
+                        <p className="font-semibold text-sm text-white">Pagamento em Cartão</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={form.isInstallment}
+                            onChange={(e) => set("isInstallment")(e.target.checked)}
+                            disabled={addExpense.isPending}
+                            className="w-4 h-4 rounded border-white/50 cursor-pointer accent-white"
+                          />
+                          <span className="text-sm font-medium text-white">Parcelar despesa</span>
+                        </label>
+                      </div>
+
+                      {form.isInstallment && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/20 [&_label]:text-white">
+                          <FormSection label="Nº de Parcelas" required>
+                            <Select
+                              value={form.installmentCount}
+                              onValueChange={set("installmentCount")}
+                            >
+                              <SelectTrigger className="h-12 rounded-xl border-white/30 bg-white/10 dark:bg-white/5 text-sm text-white">
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                              <SelectContent className="rounded-xl">
+                                {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => (
+                                  <SelectItem key={num} value={String(num)} className="py-3">
+                                    <span className="text-sm font-medium">{num}x</span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {form.installmentCount !== "1" && (
+                              <div className="mt-3 p-3 rounded-lg bg-white/15 text-sm text-white/90">
+                                <p className="font-medium">Resumo do parcelamento:</p>
+                                <p className="mt-1">
+                                  <strong>{form.description || "Despesa"}</strong>{" "}
+                                  {parseInt(form.installmentCount)}X{" "}
+                                  <strong>
+                                    R${" "}
+                                    {(
+                                      parseFloat(form.totalAmount || "0") /
+                                      parseInt(form.installmentCount)
+                                    ).toFixed(2)}
+                                  </strong>
+                                </p>
+                                <div className="mt-2 space-y-1 text-xs">
+                                  {Array.from({
+                                    length: Math.min(parseInt(form.installmentCount), 3),
+                                  }).map((_, i) => {
+                                    const date = new Date(form.installmentStartDate);
+                                    date.setMonth(date.getMonth() + i);
+                                    return (
+                                      <p key={i}>
+                                        Mês {i + 1}/{form.installmentCount}: R${" "}
+                                        {(
+                                          parseFloat(form.totalAmount || "0") /
+                                          parseInt(form.installmentCount)
+                                        ).toFixed(2)}{" "}
+                                        - {format(date, "MMM/yyyy", { locale: ptBR })}
+                                      </p>
+                                    );
+                                  })}
+                                  {parseInt(form.installmentCount) > 3 && (
+                                    <p className="italic opacity-75">
+                                      ... +{parseInt(form.installmentCount) - 3} parcelas
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </FormSection>
+
+                          <FormSection label="Data 1ª Parcela" required>
+                            <Input
+                              type="date"
+                              value={form.installmentStartDate}
+                              onChange={(e) => set("installmentStartDate")(e.target.value)}
+                              disabled={addExpense.isPending}
+                              className="h-12 rounded-xl border-white/30 bg-white/10 dark:bg-white/5 text-sm text-white"
+                            />
+                          </FormSection>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Conta Bancária + Prazo ── */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormSection label="Conta Bancaria">
+                      <Select
+                        value={form.bankName}
+                        onValueChange={set("bankName")}
+                        disabled={loadingContas}
+                      >
+                        <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                          <SelectValue
+                            placeholder={loadingContas ? "Carregando contas..." : "Selecione a conta"}
+                          />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          {contasBancarias.length === 0 && !loadingContas ? (
                             <div className="p-4 text-sm text-muted-foreground text-center">
-                              Nenhum abastecimento não pago
+                              Nenhuma conta bancária cadastrada
                             </div>
                           ) : (
-                            abastecimentos.map((abast) => (
-                              <SelectItem key={abast.id} value={abast.id} className="py-3">
-                                <div className="text-sm space-y-0.5">
-                                  <div>
-                                    {format(new Date(abast.data), "dd/MM/yyyy")} · {abast.local}{" "}
-                                    · R$ {Number(abast.valor_total).toFixed(2)}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground flex gap-2">
-                                    {abast.comanda && <span>Comanda: {abast.comanda}</span>}
-                                    {abast.partner_name && (
-                                      <span>Sócio: {abast.partner_name}</span>
-                                    )}
-                                  </div>
+                            contasBancarias.map((conta) => (
+                              <SelectItem key={conta.id} value={conta.id} className="py-3">
+                                <div>
+                                  <div className="font-medium text-sm">{conta.banco}</div>
+                                  {conta.numero_conta && (
+                                    <div className="text-xs text-muted-foreground font-mono">
+                                      Cta: {conta.numero_conta}
+                                      {conta.tipo_conta ? ` · ${conta.tipo_conta}` : ""}
+                                    </div>
+                                  )}
                                 </div>
                               </SelectItem>
                             ))
                           )}
                         </SelectContent>
                       </Select>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="w-full gap-2 text-amber-400 hover:bg-amber-900/30 rounded-xl h-10"
-                        onClick={() => set("criarNovoAbastecimento")(true)}
+                    </FormSection>
+                    <FormSection label="Prazo" required>
+                      <Select
+                        value={form.prazo}
+                        onValueChange={(v) => set("prazo")(v as "mensal" | "extra")}
                       >
-                        <Plus className="h-4 w-4" />
-                        Criar novo abastecimento
-                      </Button>
-                    </>
-                  ) : (
-                    <div className="space-y-4">
-                      {/* STEP 1: Vincular ao Diário de Bordo */}
-                      <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 p-4 space-y-3">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            id="vincular-diario"
-                            checked={form.novoAbastVincularDiario}
-                            onChange={(e) => set("novoAbastVincularDiario")(e.target.checked)}
-                            className="h-4 w-4 rounded border-border"
-                            disabled={addExpense.isPending}
-                          />
-                          <label htmlFor="vincular-diario" className="text-sm font-semibold text-foreground cursor-pointer">
-                            ✈️ Vincular a um trecho do Diário de Bordo?
-                          </label>
-                        </div>
-                        {form.novoAbastVincularDiario && (
-                          <p className="text-xs text-muted-foreground">
-                            ℹ️ Quando vinculado, a data e trecho serão preenchidos automaticamente do diário.
-                          </p>
-                        )}
-                      </div>
-
-                      {/* STEP 2: Data (only if NOT linked to logbook) */}
-                      {!form.novoAbastVincularDiario && (
-                        <FormSection label="📅 Data do Abastecimento">
-                          <Input
-                            type="date"
-                            value={form.novoAbastData}
-                            onChange={(e) => set("novoAbastData")(e.target.value)}
-                            className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
-                            disabled={addExpense.isPending}
-                          />
-                        </FormSection>
-                      )}
-
-                      {/* STEP 3: Trecho (only if NOT linked) */}
-                      {!form.novoAbastVincularDiario && (
-                        <div>
-                          <Label className="text-sm font-semibold mb-2 block">✈️ Trecho (Origem x Destino)</Label>
-                          <div className="flex gap-2 items-end">
-                            <div className="flex-1">
-                              <Label className="text-xs text-muted-foreground mb-1 block">Origem</Label>
-                              <AerodromeCombobox
-                                aerodromes={aerodromes}
-                                value={form.novoAbastTrechoOrigem}
-                                onChange={(value) => {
-                                  set("novoAbastTrechoOrigem")(value);
-                                  const destino = form.novoAbastTrechoDestino;
-                                  if (value && destino) {
-                                    set("novoAbastTrecho")(`${value} X ${destino}`);
-                                  }
-                                }}
-                                disabled={addExpense.isPending}
-                                placeholder="Origem"
-                              />
-                            </div>
-                            <span className="text-sm text-muted-foreground mb-2">X</span>
-                            <div className="flex-1">
-                              <Label className="text-xs text-muted-foreground mb-1 block">Destino</Label>
-                              <AerodromeCombobox
-                                aerodromes={aerodromes}
-                                value={form.novoAbastTrechoDestino}
-                                onChange={(value) => {
-                                  set("novoAbastTrechoDestino")(value);
-                                  const origem = form.novoAbastTrechoOrigem;
-                                  if (origem && value) {
-                                    set("novoAbastTrecho")(`${origem} X ${value}`);
-                                  }
-                                }}
-                                disabled={addExpense.isPending}
-                                placeholder="Destino"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* STEP 4: Fornecedor + Combustível */}
-                      <div className="space-y-3 pt-2 border-t">
-                        <FormSection label="🛢️ Fornecedor <span className='text-red-500'>*</span>">
-                          <div className="flex gap-2">
-                            <SearchableCombobox
-                              options={fuelSuppliers.map(s => ({
-                                value: s.supplier_name,
-                                label: `${s.supplier_name} (${s.city_name})`
-                              }))}
-                              value={form.supplierName}
-                              onValueChange={(v) => {
-                                set("supplierName")(v);
-                                // Auto-fill local
-                                const supplier = fuelSuppliers.find(s => s.supplier_name === v);
-                                if (supplier) {
-                                  set("novoAbastLocal")(supplier.city_name);
-                                }
-                              }}
-                              placeholder="Selecione fornecedor"
-                              searchPlaceholder="Buscar fornecedor..."
-                              emptyText="Nenhum fornecedor encontrado"
-                              className="flex-1"
-                              disabled={addExpense.isPending}
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-12"
-                              onClick={() => setShowAddFuelSupplier(true)}
-                              disabled={addExpense.isPending}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </FormSection>
-
-                        <FormSection label="⛽ Tipo de Combustível <span className='text-red-500'>*</span>">
-                          <Select
-                            value={form.novoAbastCombustivel}
-                            onValueChange={(v) => set("novoAbastCombustivel")(v as "avgas" | "jet" | "")}
-                            disabled={addExpense.isPending}
-                          >
-                            <SelectTrigger className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm">
-                              <SelectValue placeholder="Selecione combustível" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl">
-                              <SelectItem value="avgas">AVGAS</SelectItem>
-                              <SelectItem value="jet">JET</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormSection>
-                      </div>
-
-                      {/* STEP 5: Valor Unitário (auto-filled) */}
-                      <FormSection label="💰 Valor Unitário (R$)">
-                        <Input
-                          type="number"
-                          step="0.0001"
-                          value={form.novoAbastValorUnitario}
-                          onChange={(e) => set("novoAbastValorUnitario")(e.target.value)}
-                          placeholder="Auto-preenchido"
-                          className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
-                          disabled={addExpense.isPending}
-                        />
-                        {form.novoAbastValorUnitario && (
-                          <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                            ✓ Preço preenchido automaticamente da tabela de fornecedores
-                          </p>
-                        )}
-                      </FormSection>
-
-                      {/* STEP 6: Litros e Cálculo */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <FormSection label="📊 Total em Litros <span className='text-red-500'>*</span>">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="0,00"
-                            value={form.novoAbastLitros}
-                            onChange={(e) => set("novoAbastLitros")(e.target.value)}
-                            className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
-                            disabled={addExpense.isPending}
-                          />
-                        </FormSection>
-                        <FormSection label="📏 Galões (opcional)">
-                          <Input
-                            type="number"
-                            step="0.01"
-                            placeholder="0,00"
-                            value={form.novoAbastGaloes}
-                            onChange={(e) => set("novoAbastGaloes")(e.target.value)}
-                            className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
-                            disabled={addExpense.isPending}
-                          />
-                        </FormSection>
-                      </div>
-
-                      {/* Calculated values */}
-                      {form.novoAbastLitros && form.novoAbastValorUnitario && (
-                        <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 p-3 rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1">Cálculo Automático</p>
-                          <p className="text-sm font-semibold text-green-600 dark:text-green-400">
-                            {form.novoAbastLitros} L × R$ {parseFloat(form.novoAbastValorUnitario || "0").toFixed(4)} = R$ {(parseFloat(form.novoAbastLitros || "0") * parseFloat(form.novoAbastValorUnitario || "0")).toFixed(2)}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* STEP 7: Tipo de Faturamento e Status Pagamento */}
-                      <div className="space-y-3 pt-2 border-t">
-                        <FormSection label="📋 Tipo de Faturamento <span className='text-red-500'>*</span>">
-                          <Select
-                            value={form.novoAbastTipoFaturamento}
-                            onValueChange={(v) => set("novoAbastTipoFaturamento")(v)}
-                            disabled={addExpense.isPending}
-                          >
-                            <SelectTrigger className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm">
-                              <SelectValue placeholder="Selecione tipo" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl">
-                              <SelectItem value="pagamento a vista">Pagamento à Vista</SelectItem>
-                              <SelectItem value="a vista cartao de credito">À Vista Cartão de Crédito</SelectItem>
-                              <SelectItem value="a vista transferencia pix">À Vista Transferência (PIX)</SelectItem>
-                              <SelectItem value="faturado boleto">Faturado Boleto</SelectItem>
-                              <SelectItem value="faturado nota fiscal">Faturado Nota Fiscal</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormSection>
-
-                        <FormSection label="💳 Status de Pagamento <span className='text-red-500'>*</span>">
-                          <Select
-                            value={form.novoAbastStatusPagamento}
-                            onValueChange={(v) => set("novoAbastStatusPagamento")(v as "pago" | "em aberto")}
-                            disabled={addExpense.isPending}
-                          >
-                            <SelectTrigger className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm">
-                              <SelectValue placeholder="Selecione status" />
-                            </SelectTrigger>
-                            <SelectContent className="rounded-xl">
-                              <SelectItem value="em aberto">⏱️ Em Aberto</SelectItem>
-                              <SelectItem value="pago">✓ Pago</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormSection>
-                      </div>
-
-                      {/* STEP 8: Payment Details */}
-                      {form.novoAbastStatusPagamento === "pago" && (
-                        <div className="space-y-3 pt-2 border-t bg-green-500/5 border-l-4 border-l-green-500 pl-3">
-                          <FormSection label="📅 Data de Pagamento">
-                            <Input
-                              type="date"
-                              value={form.novoAbastDataPagamento}
-                              onChange={(e) => set("novoAbastDataPagamento")(e.target.value)}
-                              className="h-12 rounded-xl border-green-700/30 bg-background text-foreground text-sm"
-                              disabled={addExpense.isPending}
-                            />
-                          </FormSection>
-
-                          <FormSection label="🏦 Banco">
-                            <Select
-                              value={form.novoAbastBanco}
-                              onValueChange={(v) => set("novoAbastBanco")(v)}
-                              disabled={addExpense.isPending}
-                            >
-                              <SelectTrigger className="h-12 rounded-xl border-green-700/30 bg-background text-foreground text-sm">
-                                <SelectValue placeholder="Selecione banco" />
-                              </SelectTrigger>
-                              <SelectContent className="rounded-xl">
-                                {contasBancarias.map(banco => (
-                                  <SelectItem key={banco.id} value={banco.banco}>{banco.banco}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </FormSection>
-
-                          <FormSection label="📄 Comprovante de Pagamento">
-                            <FileUploadField
-                              value={form.comprovantePagamento}
-                              onChange={(url) => set("comprovantePagamento")(url)}
-                              label="Anexar Comprovante"
-                              accept=".pdf,.jpg,.jpeg,.png"
-                              bucket="nfs-share-recebidas"
-                              prefix="comprovante"
-                              disabled={addExpense.isPending}
-                            />
-                          </FormSection>
-                        </div>
-                      )}
-
-                      {form.novoAbastStatusPagamento === "em aberto" && (
-                        <div className="space-y-3 pt-2 border-t bg-orange-500/5 border-l-4 border-l-orange-500 pl-3">
-                          <FormSection label="📅 Data de Vencimento">
-                            <Input
-                              type="date"
-                              value={form.novoAbastDataVencimento}
-                              onChange={(e) => set("novoAbastDataVencimento")(e.target.value)}
-                              className="h-12 rounded-xl border-orange-700/30 bg-background text-foreground text-sm"
-                              disabled={addExpense.isPending}
-                            />
-                          </FormSection>
-                        </div>
-                      )}
-
-                      {/* STEP 9: Attachments */}
-                      <div className="space-y-4 pt-2 border-t">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <FormSection label="🧾 Nº Comanda">
-                            <Input
-                              placeholder="Comanda"
-                              value={form.novoAbastComandaNumero}
-                              onChange={(e) => set("novoAbastComandaNumero")(e.target.value)}
-                              className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
-                              disabled={addExpense.isPending}
-                            />
-                          </FormSection>
-                          <FormSection label="📸 Anexo Comanda">
-                            <FileUploadField
-                              value={form.comandaUrl}
-                              onChange={(url) => set("comandaUrl")(url)}
-                              label="Anexar Comanda"
-                              accept=".pdf,.jpg,.jpeg,.png"
-                              bucket="nfs-share-recebidas"
-                              prefix="comanda"
-                              disabled={addExpense.isPending}
-                            />
-                          </FormSection>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <FormSection label="📄 Nº Nota Fiscal">
-                            <Input
-                              placeholder="NF"
-                              value={form.novoAbastNF}
-                              onChange={(e) => set("novoAbastNF")(e.target.value)}
-                              className="h-12 rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
-                              disabled={addExpense.isPending}
-                            />
-                          </FormSection>
-                          <FormSection label="📸 Anexo NF">
-                            <FileUploadField
-                              value={form.notaFiscalUrl}
-                              onChange={(url) => set("notaFiscalUrl")(url)}
-                              label="Anexar Nota Fiscal"
-                              accept=".pdf,.jpg,.jpeg,.png"
-                              bucket="nfs-share-recebidas"
-                              prefix="nota-fiscal"
-                              disabled={addExpense.isPending}
-                            />
-                          </FormSection>
-                        </div>
-
-                        <FormSection label="💰 Boleto (Opcional)">
-                          <FileUploadField
-                            value={form.novoAbastBoleto}
-                            onChange={(url) => set("novoAbastBoleto")(url)}
-                            label="Anexar Boleto"
-                            accept=".pdf,.jpg,.jpeg,.png"
-                            bucket="nfs-share-recebidas"
-                            prefix="boleto"
-                            disabled={addExpense.isPending}
-                          />
-                        </FormSection>
-
-                        <FormSection label="📝 Observações">
-                          <Textarea
-                            placeholder="Adicione observações sobre este abastecimento..."
-                            value={form.novoAbastObservacoes}
-                            onChange={(e) => set("novoAbastObservacoes")(e.target.value)}
-                            className="rounded-xl border-amber-700/30 bg-background text-foreground text-sm"
-                            disabled={addExpense.isPending}
-                          />
-                        </FormSection>
-                      </div>
-
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="w-full gap-2 text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/30 rounded-xl h-10"
-                        onClick={() => set("criarNovoAbastecimento")(false)}
-                      >
-                        <ArrowLeft className="h-4 w-4" />
-                        Usar abastecimento existente
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ── Manutenção ── */}
-              {form.category === "MANUTENÇÃO" && (
-                <div className="rounded-2xl bg-muted/50 border border-border/60 p-5 space-y-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                      <span className="text-base">🔧</span>
-                    </div>
-                    <p className="font-semibold text-sm text-foreground">
-                      Vincular com Manutenção
-                    </p>
-                  </div>
-
-                  <Select value={selectedManutencaoId} onValueChange={setSelectedManutencaoId}>
-                    <SelectTrigger className="h-12 rounded-xl border-border/60 text-sm">
-                      <SelectValue placeholder="Selecione a manutenção da aeronave" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      {manutencoes.length === 0 ? (
-                        <div className="p-4 text-sm text-muted-foreground text-center">
-                          Nenhuma manutenção encontrada
-                        </div>
-                      ) : (
-                        manutencoes.map((m) => {
-                          const formatDate = (dateStr: string) => {
-                            try {
-                              const parsed = parse(dateStr, "yyyy-MM-dd", new Date());
-                              return format(parsed, "dd/MM/yyyy", { locale: ptBR });
-                            } catch {
-                              return dateStr;
-                            }
-                          };
-
-                          const formatStatus = (status: string) => {
-                            return status
-                              .toLowerCase()
-                              .replace(/_/g, " ")
-                              .replace(/\b\w/g, (char) => char.toUpperCase());
-                          };
-
-                          return (
-                            <SelectItem key={m.id} value={m.id} className="py-3">
-                              <div className="text-sm space-y-0.5">
-                                <div className="font-medium">
-                                  {m.tipo} {m.numero_os ? `(${m.numero_os})` : ""}
-                                </div>
-                                <div className="text-xs text-muted-foreground flex gap-2">
-                                  <span>{formatDate(m.data_programada)}</span>
-                                  <span>{formatStatus(m.etapa)}</span>
-                                  {m.oficina && <span>• {m.oficina}</span>}
-                                </div>
+                        <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
+                          <SelectValue placeholder="Selecione o tipo" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-xl">
+                          <SelectItem value="mensal" className="py-3">
+                            <div className="flex items-center gap-2.5">
+                              <span className="h-2.5 w-2.5 rounded-full bg-blue-500 flex-shrink-0" />
+                              <div>
+                                <div className="font-medium text-sm">Mensal</div>
+                                <div className="text-xs text-muted-foreground">Ciclo mensal regular</div>
                               </div>
-                            </SelectItem>
-                          );
-                        })
-                      )}
-                    </SelectContent>
-                  </Select>
-
-                  {selectedManutencaoId && (
-                    <div className="space-y-3 pt-2">
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Tipo de Rateio
-                      </p>
-                      <div className="grid grid-cols-3 gap-2">
-                        {[
-                          { value: "igual" as const, label: "Igual", desc: "Dividido igualmente" },
-                          { value: "por_uso" as const, label: "Por Uso", desc: "Proporcional ao uso" },
-                          { value: "manual" as const, label: "Manual", desc: "Definir percentuais" },
-                        ].map((opt) => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => setManutencaoTipoRateio(opt.value)}
-                            className={cn(
-                              "p-3 rounded-xl border text-left transition-all text-sm",
-                              manutencaoTipoRateio === opt.value
-                                ? "border-primary bg-primary/10 text-foreground"
-                                : "border-border/50 hover:border-border text-muted-foreground"
-                            )}
-                          >
-                            <div className="font-medium">{opt.label}</div>
-                            <div className="text-xs mt-0.5 opacity-70">{opt.desc}</div>
-                          </button>
-                        ))}
-                      </div>
-
-                      {manutencaoTipoRateio === "manual" && partners.length > 0 && (
-                        <div className="space-y-2 rounded-xl border border-border/40 p-3">
-                          <p className="text-xs font-medium text-muted-foreground">Percentual por sócio</p>
-                          {partners.map((p) => (
-                            <div key={p.id} className="flex items-center gap-3">
-                              <span className="text-sm flex-1 truncate">{p.name}</span>
-                              <div className="flex items-center gap-1.5">
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  step="0.01"
-                                  value={manualRateios[p.id] || ""}
-                                  onChange={(e) =>
-                                    setManualRateios((prev) => ({
-                                      ...prev,
-                                      [p.id]: parseFloat(e.target.value) || 0,
-                                    }))
-                                  }
-                                  className="w-20 h-8 text-sm rounded-lg"
-                                />
-                                <span className="text-xs text-muted-foreground">%</span>
-                              </div>
-                            </div>
-                          ))}
-                          {(() => {
-                            const total = Object.values(manualRateios).reduce((s, v) => s + v, 0);
-                            return (
-                              <p className={cn(
-                                "text-xs font-medium text-right",
-                                Math.abs(total - 100) < 0.01 ? "text-emerald-500" : "text-destructive"
-                              )}>
-                                Total: {total.toFixed(2)}%
-                              </p>
-                            );
-                          })()}
-                        </div>
-                      )}
-
-                      {manutencaoTipoRateio === "por_uso" && partners.length > 0 && (
-                        <div className="rounded-xl border border-border/40 p-3 space-y-1.5">
-                          <p className="text-xs font-medium text-muted-foreground">Rateio estimado por uso</p>
-                          {partners.map((p) => {
-                            const totalPct = partners.reduce((s, pp) => s + (pp.share_percentage || 0), 0);
-                            const pct = totalPct > 0 ? ((p.share_percentage || 0) / totalPct * 100) : (100 / partners.length);
-                            return (
-                              <div key={p.id} className="flex items-center justify-between text-sm">
-                                <span className="truncate">{p.name}</span>
-                                <span className="text-muted-foreground font-mono">{pct.toFixed(1)}%</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <FormSection label="Descrição" required>
-                <Input
-                  value={form.description}
-                  onChange={(e) => set("description")(e.target.value)}
-                  placeholder={
-                    selectedCategory
-                      ? `Ex: ${selectedCategory.label} - detalhe da despesa`
-                      : "Descreva a despesa"
-                  }
-                  required
-                  disabled={addExpense.isPending}
-                  className="h-12 rounded-xl border-border/70 text-sm"
-                />
-              </FormSection>
-
-              {/* ── Impostos subtype ── */}
-              {(form.category as string) === "IMPOSTOS" && (
-                <div className="rounded-2xl bg-blue-950/40 border border-blue-700/50 p-5 space-y-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-900/60">
-                      <span className="text-base">🏦</span>
-                    </div>
-                    <p className="font-semibold text-sm text-blue-200">Tipo de Imposto</p>
-                  </div>
-                  <Select value={form.expenseType} onValueChange={set("expenseType")}>
-                    <SelectTrigger className="h-12 rounded-xl border-blue-700/50 bg-zinc-900 text-sm">
-                      <SelectValue placeholder="Selecione o tipo de imposto" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      {IMPOSTOS_SUBTYPES.map((imp) => (
-                        <SelectItem key={imp.value} value={imp.value} className="py-3">
-                          <span className="font-medium text-sm">{imp.label}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {/* ── Valor + Datas ── */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <FormSection label="Valor (R$)" required>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground select-none">
-                      R$
-                    </span>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      value={form.totalAmount}
-                      onChange={(e) => set("totalAmount")(e.target.value)}
-                      placeholder="0,00"
-                      required
-                      disabled={addExpense.isPending}
-                      className="h-12 rounded-xl border-border/70 text-sm pl-10 font-mono"
-                    />
-                  </div>
-                </FormSection>
-                <FormSection label="Data de Pagamento" required>
-                  <DateFieldWithInput value={form.paidDate} onChange={(v) => set("paidDate")(v)} />
-                </FormSection>
-                <FormSection label="Data de Vencimento">
-                  <DateFieldWithInput value={form.dueDate} onChange={(v) => set("dueDate")(v)} />
-                </FormSection>
-              </div>
-
-              {/* ── Fornecedor + NF ── */}
-              <div className="space-y-4">
-                <FormSection label="Fornecedor">
-                  {isAbastecimento ? (
-                    <div className="space-y-2">
-                      <SearchableCombobox
-                        items={fuelSuppliers.map((f) => ({
-                          id: f.id,
-                          label: `${f.supplier_name} - ${f.city_name} (${f.icao_code})`,
-                        }))}
-                        value={
-                          fuelSuppliers.find((f) => f.supplier_name === form.supplierName)?.id || ""
-                        }
-                        onChange={(id) => {
-                          const supplier = fuelSuppliers.find((f) => f.id === id);
-                          set("supplierName")(supplier?.supplier_name || "");
-                        }}
-                        placeholder="Selecione um fornecedor de combustível..."
-                        searchPlaceholder="Buscar fornecedor..."
-                        emptyMessage="Nenhum fornecedor cadastrado"
-                        disabled={addExpense.isPending}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setNewFuelSupplier({ supplier_name: '', city_name: '', icao_code: '' });
-                          setShowAddFuelSupplier(true);
-                        }}
-                        className="w-full gap-2 h-9 text-xs rounded-lg border-dashed border-border/60 text-muted-foreground hover:text-foreground"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        Cadastrar novo fornecedor de combustível
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <SearchableCombobox
-                        items={fornecedoresShare.map((f) => ({
-                          id: f.id,
-                          label: `${f.nome_completo}${f.documento ? ` (${f.documento})` : ""}`,
-                        }))}
-                        value={
-                          fornecedoresShare.find((f) => f.nome_completo === form.supplierName)
-                            ?.id || form.supplierName
-                        }
-                        onChange={(id) => {
-                          const fornecedor = fornecedoresShare.find((f) => f.id === id);
-                          set("supplierName")(fornecedor ? fornecedor.nome_completo : id);
-                        }}
-                        placeholder="Selecione ou digite o fornecedor..."
-                        searchPlaceholder="Buscar fornecedor..."
-                        emptyMessage="Nenhum fornecedor encontrado"
-                        disabled={addExpense.isPending}
-                        allowFreeText={true}
-                      />
-                      {form.supplierName &&
-                        !fornecedoresShare.some((f) => f.nome_completo === form.supplierName) && (
-                          <div className="flex items-center gap-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg mt-2">
-                            <p className="text-xs text-amber-600 dark:text-amber-400 flex-1">
-                              Fornecedor não encontrado nos favoritos.
-                            </p>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setShowAddFornecedor(true)}
-                              className="h-7 text-xs"
-                            >
-                              <UserPlus className="h-3 w-3 mr-1" /> Adicionar
-                            </Button>
-                          </div>
-                        )}
-                    </>
-                  )}
-                </FormSection>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <FormSection label="Nº Nota / NF">
-                    <Input
-                      value={form.invoiceNumber}
-                      onChange={(e) => set("invoiceNumber")(e.target.value)}
-                      placeholder="Ex: 2025180"
-                      disabled={addExpense.isPending}
-                      className="h-12 rounded-xl border-border/70 text-sm"
-                    />
-                  </FormSection>
-                  <FormSection label="Nota Fiscal">
-                    <FileUploadField
-                      value={form.invoiceUrl}
-                      onChange={(url) => set("invoiceUrl")(url)}
-                      label="Anexar NF"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      bucket="nfs-share-recebidas"
-                      prefix="nf_socio"
-                      disabled={addExpense.isPending}
-                    />
-                  </FormSection>
-                </div>
-              </div>
-
-              {/* ── Status + Forma de Pagamento ── */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormSection label="Status da Despesa">
-                  <Select value={form.status} onValueChange={set("status")}>
-                    <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
-                      <SelectValue placeholder="Selecione o status" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      <SelectItem value="pago" className="py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-emerald-500 flex-shrink-0" />
-                          <span className="text-sm font-medium">Pago</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="pendente" className="py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-amber-500 flex-shrink-0" />
-                          <span className="text-sm font-medium">Pendente</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="cancelado" className="py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-zinc-400 flex-shrink-0" />
-                          <span className="text-sm font-medium">Cancelado</span>
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormSection>
-                <FormSection label="Forma de Pagamento">
-                  <Select value={form.paymentMethod} onValueChange={set("paymentMethod")}>
-                    <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
-                      <SelectValue placeholder="Selecione (opcional)" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      <SelectItem value="nao_informado" className="py-2">
-                        — Não informado —
-                      </SelectItem>
-                      <SelectItem value="pix" className="py-2">PIX</SelectItem>
-                      <SelectItem value="ted" className="py-2">TED</SelectItem>
-                      <SelectItem value="boleto" className="py-2">Boleto</SelectItem>
-                      <SelectItem value="cartao" className="py-2">Cartão</SelectItem>
-                      <SelectItem value="dinheiro" className="py-2">Dinheiro</SelectItem>
-                      <SelectItem value="outros" className="py-2">Outros</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormSection>
-              </div>
-
-              {/* ── Parcelamento em Cartão ── */}
-              {form.paymentMethod === "cartao" && (
-                <div className="rounded-2xl bg-slate-500 border border-slate-900 dark:bg-slate-600 dark:border-slate-900 p-5 space-y-4">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20">
-                      <span className="text-base">💳</span>
-                    </div>
-                    <p className="font-semibold text-sm text-white">Pagamento em Cartão</p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={form.isInstallment}
-                        onChange={(e) => set("isInstallment")(e.target.checked)}
-                        disabled={addExpense.isPending}
-                        className="w-4 h-4 rounded border-white/50 cursor-pointer accent-white"
-                      />
-                      <span className="text-sm font-medium text-white">Parcelar despesa</span>
-                    </label>
-                  </div>
-
-                  {form.isInstallment && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-white/20 [&_label]:text-white">
-                      <FormSection label="Nº de Parcelas" required>
-                        <Select
-                          value={form.installmentCount}
-                          onValueChange={set("installmentCount")}
-                        >
-                          <SelectTrigger className="h-12 rounded-xl border-white/30 bg-white/10 dark:bg-white/5 text-sm text-white">
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent className="rounded-xl">
-                            {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((num) => (
-                              <SelectItem key={num} value={String(num)} className="py-3">
-                                <span className="text-sm font-medium">{num}x</span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {form.installmentCount !== "1" && (
-                          <div className="mt-3 p-3 rounded-lg bg-white/15 text-sm text-white/90">
-                            <p className="font-medium">Resumo do parcelamento:</p>
-                            <p className="mt-1">
-                              <strong>{form.description || "Despesa"}</strong>{" "}
-                              {parseInt(form.installmentCount)}X{" "}
-                              <strong>
-                                R${" "}
-                                {(
-                                  parseFloat(form.totalAmount || "0") /
-                                  parseInt(form.installmentCount)
-                                ).toFixed(2)}
-                              </strong>
-                            </p>
-                            <div className="mt-2 space-y-1 text-xs">
-                              {Array.from({
-                                length: Math.min(parseInt(form.installmentCount), 3),
-                              }).map((_, i) => {
-                                const date = new Date(form.installmentStartDate);
-                                date.setMonth(date.getMonth() + i);
-                                return (
-                                  <p key={i}>
-                                    Mês {i + 1}/{form.installmentCount}: R${" "}
-                                    {(
-                                      parseFloat(form.totalAmount || "0") /
-                                      parseInt(form.installmentCount)
-                                    ).toFixed(2)}{" "}
-                                    - {format(date, "MMM/yyyy", { locale: ptBR })}
-                                  </p>
-                                );
-                              })}
-                              {parseInt(form.installmentCount) > 3 && (
-                                <p className="italic opacity-75">
-                                  ... +{parseInt(form.installmentCount) - 3} parcelas
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </FormSection>
-
-                      <FormSection label="Data 1ª Parcela" required>
-                        <Input
-                          type="date"
-                          value={form.installmentStartDate}
-                          onChange={(e) => set("installmentStartDate")(e.target.value)}
-                          disabled={addExpense.isPending}
-                          className="h-12 rounded-xl border-white/30 bg-white/10 dark:bg-white/5 text-sm text-white"
-                        />
-                      </FormSection>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ── Conta Bancária + Prazo ── */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormSection label="Conta Bancaria">
-                  <Select
-                    value={form.bankName}
-                    onValueChange={set("bankName")}
-                    disabled={loadingContas}
-                  >
-                    <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
-                      <SelectValue
-                        placeholder={loadingContas ? "Carregando contas..." : "Selecione a conta"}
-                      />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      {contasBancarias.length === 0 && !loadingContas ? (
-                        <div className="p-4 text-sm text-muted-foreground text-center">
-                          Nenhuma conta bancária cadastrada
-                        </div>
-                      ) : (
-                        contasBancarias.map((conta) => (
-                          <SelectItem key={conta.id} value={conta.id} className="py-3">
-                            <div>
-                              <div className="font-medium text-sm">{conta.banco}</div>
-                              {conta.numero_conta && (
-                                <div className="text-xs text-muted-foreground font-mono">
-                                  Cta: {conta.numero_conta}
-                                  {conta.tipo_conta ? ` · ${conta.tipo_conta}` : ""}
-                                </div>
-                              )}
                             </div>
                           </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </FormSection>
-                <FormSection label="Prazo" required>
-                  <Select
-                    value={form.prazo}
-                    onValueChange={(v) => set("prazo")(v as "mensal" | "extra")}
-                  >
-                    <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
-                      <SelectValue placeholder="Selecione o tipo" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      <SelectItem value="mensal" className="py-3">
-                        <div className="flex items-center gap-2.5">
-                          <span className="h-2.5 w-2.5 rounded-full bg-blue-500 flex-shrink-0" />
-                          <div>
-                            <div className="font-medium text-sm">Mensal</div>
-                            <div className="text-xs text-muted-foreground">Ciclo mensal regular</div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="extra" className="py-3">
-                        <div className="flex items-center gap-2.5">
-                          <span className="h-2.5 w-2.5 rounded-full bg-orange-500 flex-shrink-0" />
-                          <div>
-                            <div className="font-medium text-sm">Extra</div>
-                            <div className="text-xs text-muted-foreground">Evento ou gasto avulso</div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormSection>
-              </div>
+                          <SelectItem value="extra" className="py-3">
+                            <div className="flex items-center gap-2.5">
+                              <span className="h-2.5 w-2.5 rounded-full bg-orange-500 flex-shrink-0" />
+                              <div>
+                                <div className="font-medium text-sm">Extra</div>
+                                <div className="text-xs text-muted-foreground">Evento ou gasto avulso</div>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormSection>
+                  </div>
 
-              {/* ── Observações ── */}
-              <FormSection label="Observações">
-                <Textarea
-                  value={form.notes}
-                  onChange={(e) => set("notes")(e.target.value)}
-                  placeholder="Informações adicionais sobre a despesa..."
-                  rows={3}
-                  disabled={addExpense.isPending}
-                  className="rounded-xl border-border/70 text-sm resize-none"
-                />
-              </FormSection>
+                  {/* ── Observações ── */}
+                  <FormSection label="Observações">
+                    <Textarea
+                      value={form.notes}
+                      onChange={(e) => set("notes")(e.target.value)}
+                      placeholder="Informações adicionais sobre a despesa..."
+                      rows={3}
+                      disabled={addExpense.isPending}
+                      className="rounded-xl border-border/70 text-sm resize-none"
+                    />
+                  </FormSection>
 
-              {/* ── Submit ── */}
-              <Button
-                type="submit"
-                className="
+                  {/* ── Submit ── */}
+                  <Button
+                    type="submit"
+                    className="
                   w-full h-12 rounded-xl font-semibold text-sm
                   bg-gradient-to-r from-red-600 to-rose-600
                   hover:from-red-500 hover:to-rose-500
@@ -1819,22 +1819,22 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                   transition-all duration-200 hover:-translate-y-px hover:shadow-md
                   disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none
                 "
-                disabled={addExpense.isPending || !isValid}
-              >
-                {addExpense.isPending ? (
-                  <span className="flex items-center gap-2">
-                    <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-                    Registrando Despesa...
-                  </span>
-                ) : (
-                  <span className="flex items-center gap-2">
-                    {selectedCategory
-                      ? `${selectedCategory.icon} Registrar ${selectedCategory.label}`
-                      : "Registrar Despesa"}
-                  </span>
-                )}
-              </Button>
-            </form>
+                    disabled={addExpense.isPending || !isValid}
+                  >
+                    {addExpense.isPending ? (
+                      <span className="flex items-center gap-2">
+                        <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                        Registrando Despesa...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        {selectedCategory
+                          ? `${selectedCategory.icon} Registrar ${selectedCategory.label}`
+                          : "Registrar Despesa"}
+                      </span>
+                    )}
+                  </Button>
+                </form>
               </TabsContent>
 
               {/* ── TAB: DESPESAS BANCO ── */}

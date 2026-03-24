@@ -36,12 +36,14 @@ export interface FlightEntry {
 export interface FuelEntry {
   id: string;
   data: string;
+  data_pagamento?: string | null;
   trecho: string;
   local: string;
   litros: number;
   valor_unitario: number;
   valor_total: number | null;
   partner_name: string | null;
+  partner_index?: number | null;
   tipo_faturamento: string | null;
   status_pagamento: string | null;
   observacao: string | null;
@@ -53,6 +55,7 @@ export interface FuelEntry {
   comprovante_pagamento: string | null;
   abastecedor: string | null;
   abastecimento_galoes: number | null;
+  effective_date?: string;
 }
 
 export interface ExpenseEntry {
@@ -145,6 +148,14 @@ export interface MonthlyReportData {
   hourlyRate: number | null;
 }
 
+function normalizePartnerName(value: string | null | undefined) {
+  return (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
 export function useMonthlyPartnerReport(clientId: string | null, month: string | null) {
   return useQuery({
     queryKey: ["monthly-partner-report", clientId, month],
@@ -181,10 +192,8 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
 
         supabase
           .from("abastecimentos")
-          .select("id, data, trecho, local, litros, valor_unitario, valor_total, partner_name, tipo_faturamento, status_pagamento, observacao, comanda, nf, comanda_url, nota_url, boleto_url, comprovante_pagamento, abastecedor, abastecimento_galoes")
+          .select("id, data, data_pagamento, trecho, local, litros, valor_unitario, valor_total, partner_name, partner_index, tipo_faturamento, status_pagamento, observacao, comanda, nf, comanda_url, nota_url, boleto_url, comprovante_pagamento, abastecedor, abastecimento_galoes")
           .eq("client_id", clientId)
-          .gte("data", startDate)
-          .lte("data", endDate)
           .order("data"),
 
         // Despesas atribuídas a sócios (incluindo despesas de viagem)
@@ -249,18 +258,54 @@ export function useMonthlyPartnerReport(clientId: string | null, month: string |
         pic_name: f.crew_members?.full_name || null,
       }));
 
+      const partners = (partnersRes.data || []) as PartnerInfo[];
+      const partnerNameMap = new Map(
+        partners.map((partner) => [normalizePartnerName(partner.name), partner.name])
+      );
+
+      const fuels: FuelEntry[] = ((fuelsRes.data || []) as any[])
+        .map((fuel) => {
+          let resolvedPartnerName = fuel.partner_name?.trim() || null;
+
+          if (!resolvedPartnerName && fuel.partner_index && partners[fuel.partner_index - 1]) {
+            resolvedPartnerName = partners[fuel.partner_index - 1].name;
+          }
+
+          if (!resolvedPartnerName && fuel.observacao) {
+            const partnerMatch = fuel.observacao.match(/\[Partner:([^\]]+)\]/i);
+            resolvedPartnerName = partnerMatch?.[1]?.trim() || null;
+          }
+
+          if (resolvedPartnerName) {
+            resolvedPartnerName =
+              partnerNameMap.get(normalizePartnerName(resolvedPartnerName)) || resolvedPartnerName;
+          }
+
+          const effectiveDate = (fuel.data_pagamento || fuel.data || "").slice(0, 10);
+
+          return {
+            ...fuel,
+            partner_name: resolvedPartnerName,
+            effective_date: effectiveDate,
+          } as FuelEntry;
+        })
+        .filter((fuel) => {
+          const effectiveDate = fuel.effective_date || "";
+          return effectiveDate >= startDate && effectiveDate <= endDate;
+        });
+
       // Determine actual date range from entries
       const allDates = [
         ...flights.map(f => f.entry_date),
-        ...(fuelsRes.data || []).map((f: any) => f.data),
+        ...fuels.map((f) => f.effective_date || f.data),
         ...(expensesRes.data || []).map((e: any) => e.due_date).filter(Boolean),
         ...(sharedExpensesRes.data || []).map((e: any) => e.due_date).filter(Boolean),
       ].filter(Boolean).sort();
 
       return {
-        partners: (partnersRes.data || []) as PartnerInfo[],
+        partners,
         flights,
-        fuels: (fuelsRes.data || []) as FuelEntry[],
+        fuels,
         expenses: (expensesRes.data || []) as ExpenseEntry[],
         sharedExpenses: (sharedExpensesRes.data || []) as ExpenseEntry[],
         bankControlExpenses: (bankControlRes.data || []) as BankControlEntry[],
