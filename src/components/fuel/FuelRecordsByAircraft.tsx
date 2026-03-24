@@ -775,16 +775,16 @@ export function FuelRecordsByAircraft({
       let notaUrl = uploadedFiles.nota_url;
       let boletoUrl = uploadedFiles.boleto_url;
       let comprovanteUrl = uploadedFiles.comprovante_url;
-      if (formData.comanda_file && !comandaUrl) {
+      if (formData.comanda_file) {
         comandaUrl = (await uploadFile(formData.comanda_file, "comanda")) || "";
       }
-      if (formData.nota_file && !notaUrl) {
+      if (formData.nota_file) {
         notaUrl = (await uploadFile(formData.nota_file, "nota-fiscal")) || "";
       }
-      if (formData.boleto_file && !boletoUrl) {
+      if (formData.boleto_file) {
         boletoUrl = (await uploadFile(formData.boleto_file, "boleto")) || "";
       }
-      if (formData.comprovante_file && !comprovanteUrl) {
+      if (formData.comprovante_file) {
         comprovanteUrl = (await uploadFile(formData.comprovante_file, "comprovante-pagamento")) || "";
       }
 
@@ -836,7 +836,6 @@ export function FuelRecordsByAircraft({
         comanda: formData.comanda || null,
         litros: litros,
         valor_unitario: valorUnitario,
-        valor_total: isNaN(valorTotalFromField) ? litros * valorUnitario : valorTotalFromField,
         abastecimento_galoes: formData.abastecimento_galoes ? parseFloat(formData.abastecimento_galoes) : null,
         abastecedor: supplierName,
         status_pagamento: statusFinal,
