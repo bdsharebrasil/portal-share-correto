@@ -58,6 +58,7 @@ interface FuelRecord {
   partner_name?: string | null;
   comprovante_pagamento?: string | null;
   data_pagamento?: string | null;
+  tipo_combustivel?: string | null;
 }
 interface FuelSupplier {
   id: string;
@@ -854,6 +855,7 @@ export function FuelRecordsByAircraft({
         criado_por: currentUserName || null,
         logbook_entry_id: (linkToLogbook && selectedFlightId) ? selectedFlightId : null,
         nf: formData.nf || null,
+        tipo_combustivel: formData.combustivel_tipo || null,
         descricao: formData.combustivel_tipo ? `Combustível: ${formData.combustivel_tipo.toUpperCase()}` : null,
       };
 
@@ -953,7 +955,7 @@ export function FuelRecordsByAircraft({
       valor_total_manual: true,
       abastecimento_galoes: record.abastecimento_galoes?.toString() || "",
       abastecedor_id: supplierRecord?.id || "",
-      combustivel_tipo: record.descricao?.toLowerCase().includes("avgas") ? "avgas" : record.descricao?.toLowerCase().includes("jet") ? "jet" : "",
+      combustivel_tipo: record.tipo_combustivel || (record.descricao?.toLowerCase().includes("avgas") ? "avgas" : record.descricao?.toLowerCase().includes("jet") ? "jet" : ""),
       client_id: record.client_id || client.id,
       partner_selected: record.observacao?.includes("[Partner:") ? record.observacao.match(/\[Partner:([^\]]+)\]/)?.[1] || "" : "",
       status_pagamento: record.status_pagamento || "em aberto",
@@ -1917,6 +1919,21 @@ export function FuelRecordsByAircraft({
                 <p className="text-sm font-medium text-foreground">{displayClient.company_name}</p>
               </div>
             </div>
+
+            {/* Partner (Sócio) */}
+            {(() => {
+              const selectedPartner = clientPartners.find(p => p.id === formData.client_id);
+              const partnerNameValue = (selectedPartner && !selectedPartner.isMainClient) ? selectedPartner.name : null;
+              if (partnerNameValue) {
+                return (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Sócio</p>
+                    <p className="text-sm font-medium text-foreground">{partnerNameValue.replace(/^\[|\]$/g, "")}</p>
+                  </div>
+                );
+              }
+              return null;
+            })()}
 
             {/* Rota */}
             <div>
