@@ -252,7 +252,7 @@ export default function RelatorioMensal() {
     }
     result.sort((a, b) => {
       let compareValue = 0
-      
+
       if (sortBy === 'date') {
         const dateA = new Date((a as any).payment_date || a.created_at)
         const dateB = new Date((b as any).payment_date || b.created_at)
@@ -394,6 +394,9 @@ export default function RelatorioMensal() {
   // Transações filtradas pelo sócio selecionado no card
   const partnerCardTransactions = useMemo(() => {
     if (!selectedPartnerCard) return []
+    if (selectedPartnerCard === "Conta Bancária") {
+      return filteredTransactions.filter((t) => isBankAccountTransaction(t))
+    }
     return filteredTransactions.filter((t) => t.partner_name === selectedPartnerCard)
   }, [filteredTransactions, selectedPartnerCard])
 
@@ -401,12 +404,12 @@ export default function RelatorioMensal() {
   // HELPERS
   // ========================
 
- const previousMonth = () => {
+  const previousMonth = () => {
     setCurrentMonth((m) => {
       const newDate = new Date(m);
       newDate.setMonth(newDate.getMonth() - 1);
       // Garantimos que o dia seja 15 para evitar viradas de fuso horário mudarem o mês
-      newDate.setDate(15); 
+      newDate.setDate(15);
       return newDate;
     });
   };
@@ -484,8 +487,8 @@ export default function RelatorioMensal() {
     } else if (
       tx.reference_type === "travel_expense_report" ||
       (tx.reference_type === "partner_expense" &&
-       tx.expense_type &&
-       (tx.expense_type.toLowerCase() === "viagem" || tx.expense_type.toLowerCase() === "despesas de viagem"))
+        tx.expense_type &&
+        (tx.expense_type.toLowerCase() === "viagem" || tx.expense_type.toLowerCase() === "despesas de viagem"))
     ) {
       // Para despesas/relatórios de viagem
       try {
@@ -505,7 +508,7 @@ export default function RelatorioMensal() {
             travelReport = report
           }
         }
-        
+
         // Se é uma despesa de partner_expense, buscar a referência ao relatório
         if (!travelReport && tx.reference_type === "partner_expense") {
           // Primeiro buscar a despesa para obter o reference_id do travel report
@@ -522,9 +525,9 @@ export default function RelatorioMensal() {
 
           // Verificar se tem um relatório de viagem vinculado via reference_id
           if (expense.reference_id &&
-              (expense.reference_type === "travel_expense_report" ||
-               expense.reference_type === "travel_report" ||
-               expense.reference_type === "viagem")) {
+            (expense.reference_type === "travel_expense_report" ||
+              expense.reference_type === "travel_report" ||
+              expense.reference_type === "viagem")) {
             // Buscar o relatório de viagem para verificar se existe
             const { data: report, error: reportError } = await supabase
               .from("travel_expense_reports")
@@ -649,8 +652,8 @@ export default function RelatorioMensal() {
                 <ChevronRight className="h-4 w-4" />
               </Button>
 
-              <Button 
-                className="gap-2 bg-primary hover:bg-primary/90" 
+              <Button
+                className="gap-2 bg-primary hover:bg-primary/90"
                 size="sm"
                 onClick={() => setShowExportModal(true)}
               >
@@ -946,9 +949,8 @@ export default function RelatorioMensal() {
                       <div className="flex justify-between border-t border-border pt-1">
                         <span className="font-semibold text-foreground">Saldo:</span>
                         <span
-                          className={`font-semibold ${
-                            bankAccountData.balance >= 0 ? "text-emerald-500" : "text-red-500"
-                          }`}
+                          className={`font-semibold ${bankAccountData.balance >= 0 ? "text-emerald-500" : "text-red-500"
+                            }`}
                         >
                           {fmt(bankAccountData.balance)}
                         </span>
@@ -979,9 +981,8 @@ export default function RelatorioMensal() {
                       <div className="flex justify-between border-t border-border pt-1">
                         <span className="font-semibold text-foreground">Saldo:</span>
                         <span
-                          className={`font-semibold ${
-                            partner.balance >= 0 ? "text-emerald-500" : "text-red-500"
-                          }`}
+                          className={`font-semibold ${partner.balance >= 0 ? "text-emerald-500" : "text-red-500"
+                            }`}
                         >
                           {fmt(partner.balance)}
                         </span>
@@ -1012,7 +1013,7 @@ export default function RelatorioMensal() {
                       <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground w-10">
                         Ação
                       </th>
-                      <th 
+                      <th
                         className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
                         onClick={() => {
                           if (sortBy === 'date') {
@@ -1028,7 +1029,7 @@ export default function RelatorioMensal() {
                       <th className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground">
                         Descrição
                       </th>
-                      <th 
+                      <th
                         className="text-left py-3 px-3 text-xs font-semibold text-muted-foreground cursor-pointer hover:text-foreground transition-colors"
                         onClick={() => {
                           if (sortBy === 'partner') {
@@ -1079,357 +1080,353 @@ export default function RelatorioMensal() {
 
                       return (
                         <React.Fragment key={tx.id || idx}>
-                        <tr
-                          className={`border-b border-border/30 transition-colors ${
-                            isEven
-                              ? "bg-slate-950/30 hover:bg-slate-900/40"
-                              : "bg-slate-900/30 hover:bg-slate-800/40"
-                          } cursor-pointer`}
-                          onClick={() => {
-                            setEditingTransaction(tx)
-                            setIsEditModalOpen(true)
-                          }}
-                        >
-                          <td className="py-3 px-3 text-center">
-                            <div className="flex items-center gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 w-7 p-0"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setEditingTransaction(tx)
-                                  setIsEditModalOpen(true)
-                                }}
-                                title="Editar lançamento"
-                              >
-                                <Edit2 className="h-4 w-4 text-blue-500" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 w-7 p-0"
-                                disabled={deleteTransaction.isPending}
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  if (window.confirm("Tem certeza que deseja excluir este lançamento?")) {
-                                    deleteTransaction.mutate({
-                                      id: tx.id,
-                                      clientId: clienteId!,
-                                      transactionType: tx.transaction_type,
-                                      partnerCpf: tx.partner_cpf || "",
-                                      amount: Number(tx.amount),
-                                      referenceType: tx.reference_type || undefined,
-                                    })
-                                  }
-                                }}
-                                title="Excluir lançamento"
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </div>
-                          </td>
-                          <td className="py-3 px-3 text-foreground">{formattedDate}</td>
-                          <td className="py-3 px-3 text-foreground">{tx.description || "-"}</td>
-                          <td className="py-3 px-3 text-muted-foreground">{tx.partner_name}</td>
-                          <td className="py-3 px-3">
-                            <div className="flex items-center gap-2">
-                              {(tx.reference_type === "abastecimento" || tx.reference_type === "travel_expense_report") && (
+                          <tr
+                            className={`border-b border-border/30 transition-colors ${isEven
+                                ? "bg-slate-950/30 hover:bg-slate-900/40"
+                                : "bg-slate-900/30 hover:bg-slate-800/40"
+                              } cursor-pointer`}
+                            onClick={() => {
+                              setEditingTransaction(tx)
+                              setIsEditModalOpen(true)
+                            }}
+                          >
+                            <td className="py-3 px-3 text-center">
+                              <div className="flex items-center gap-1">
                                 <Button
                                   size="sm"
                                   variant="ghost"
-                                  className="h-6 w-6 p-0"
+                                  className="h-7 w-7 p-0"
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    if (tx.reference_type === "abastecimento") {
-                                      toggleFuelExpanded(tx.reference_id)
-                                    } else if (tx.reference_type === "travel_expense_report") {
-                                      toggleTravelReportExpanded(tx.reference_id)
+                                    setEditingTransaction(tx)
+                                    setIsEditModalOpen(true)
+                                  }}
+                                  title="Editar lançamento"
+                                >
+                                  <Edit2 className="h-4 w-4 text-blue-500" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 w-7 p-0"
+                                  disabled={deleteTransaction.isPending}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    if (window.confirm("Tem certeza que deseja excluir este lançamento?")) {
+                                      deleteTransaction.mutate({
+                                        id: tx.id,
+                                        clientId: clienteId!,
+                                        transactionType: tx.transaction_type,
+                                        partnerCpf: tx.partner_cpf || "",
+                                        amount: Number(tx.amount),
+                                        referenceType: tx.reference_type || undefined,
+                                      })
                                     }
                                   }}
-                                  title={
-                                    tx.reference_type === "abastecimento"
-                                      ? (expandedFuels.has(tx.reference_id) ? "Ocultar detalhes" : "Mostrar detalhes")
-                                      : (expandedTravelReports.has(tx.reference_id) ? "Ocultar detalhes" : "Mostrar detalhes")
-                                  }
+                                  title="Excluir lançamento"
                                 >
-                                  {(tx.reference_type === "abastecimento" && expandedFuels.has(tx.reference_id)) ||
-                                   (tx.reference_type === "travel_expense_report" && expandedTravelReports.has(tx.reference_id)) ? (
-                                    <ChevronDown className="h-4 w-4 text-blue-500" />
-                                  ) : (
-                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                  )}
+                                  <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
-                              )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-3 text-foreground">{formattedDate}</td>
+                            <td className="py-3 px-3 text-foreground">{tx.description || "-"}</td>
+                            <td className="py-3 px-3 text-muted-foreground">{tx.partner_name}</td>
+                            <td className="py-3 px-3">
+                              <div className="flex items-center gap-2">
+                                {(tx.reference_type === "abastecimento" || tx.reference_type === "travel_expense_report") && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-6 w-6 p-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      if (tx.reference_type === "abastecimento") {
+                                        toggleFuelExpanded(tx.reference_id)
+                                      } else if (tx.reference_type === "travel_expense_report") {
+                                        toggleTravelReportExpanded(tx.reference_id)
+                                      }
+                                    }}
+                                    title={
+                                      tx.reference_type === "abastecimento"
+                                        ? (expandedFuels.has(tx.reference_id) ? "Ocultar detalhes" : "Mostrar detalhes")
+                                        : (expandedTravelReports.has(tx.reference_id) ? "Ocultar detalhes" : "Mostrar detalhes")
+                                    }
+                                  >
+                                    {(tx.reference_type === "abastecimento" && expandedFuels.has(tx.reference_id)) ||
+                                      (tx.reference_type === "travel_expense_report" && expandedTravelReports.has(tx.reference_id)) ? (
+                                      <ChevronDown className="h-4 w-4 text-blue-500" />
+                                    ) : (
+                                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                    )}
+                                  </Button>
+                                )}
+                                <Badge
+                                  variant="outline"
+                                  className={`text-xs cursor-pointer hover:opacity-80 transition-opacity ${tx.transaction_type === "deposit"
+                                      ? "border-emerald-500/30 text-emerald-500"
+                                      : tx.transaction_type === "expense"
+                                        ? "border-orange-500/30 text-orange-500"
+                                        : "border-red-500/30 text-red-500"
+                                    }`}
+                                  onClick={(e) => void handleExpenseTypeClick(tx, e)}
+                                >
+                                  {tx.expense_type
+                                    ? getExpenseTypeLabel(tx.expense_type)
+                                    : tx.transaction_type === "deposit"
+                                      ? "ENTRADA"
+                                      : tx.transaction_type === "expense"
+                                        ? "DESPESA"
+                                        : "SAÍDA"}
+                                </Badge>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
                               <Badge
                                 variant="outline"
-                                className={`text-xs cursor-pointer hover:opacity-80 transition-opacity ${
-                                  tx.transaction_type === "deposit"
+                                className={`text-xs ${(tx.status === "pago" || tx.status === "paid")
                                     ? "border-emerald-500/30 text-emerald-500"
-                                    : tx.transaction_type === "expense"
-                                    ? "border-orange-500/30 text-orange-500"
-                                    : "border-red-500/30 text-red-500"
-                                }`}
-                                onClick={(e) => void handleExpenseTypeClick(tx, e)}
+                                    : (tx.status === "recebido" || tx.status === "received")
+                                      ? "border-blue-500/30 text-blue-500"
+                                      : tx.status === "cancelado"
+                                        ? "border-red-500/30 text-red-500"
+                                        : "border-amber-500/30 text-amber-500"
+                                  }`}
                               >
-                                {tx.expense_type
-                                  ? getExpenseTypeLabel(tx.expense_type)
-                                  : tx.transaction_type === "deposit"
-                                  ? "ENTRADA"
-                                  : tx.transaction_type === "expense"
-                                  ? "DESPESA"
-                                  : "SAÍDA"}
+                                {getStatusLabel(tx.status)}
                               </Badge>
-                            </div>
-                          </td>
-                          <td className="py-3 px-3">
-                            <Badge
-                              variant="outline"
-                              className={`text-xs ${
-                                (tx.status === "pago" || tx.status === "paid")
-                                  ? "border-emerald-500/30 text-emerald-500"
-                                  : (tx.status === "recebido" || tx.status === "received")
-                                  ? "border-blue-500/30 text-blue-500"
-                                  : tx.status === "cancelado"
-                                  ? "border-red-500/30 text-red-500"
-                                  : "border-amber-500/30 text-amber-500"
-                              }`}
+                            </td>
+                            <td className="py-3 px-3 text-foreground text-xs">{getPaymentMethodLabel(tx.payment_method)}</td>
+                            <td className="py-3 px-3 text-foreground text-xs">{tx.prazo || "-"}</td>
+                            <td className="py-3 px-3 text-foreground text-xs">{tx.bank_name || "-"}</td>
+                            <td className="py-3 px-3 text-foreground text-xs">{tx.doc || "-"}</td>
+                            <td className="py-3 px-3 text-foreground text-xs max-w-[150px] truncate" title={tx.notes || ""}>{tx.notes || "-"}</td>
+                            <td
+                              className={`text-right py-3 px-3 font-semibold ${tx.transaction_type === "deposit" ? "text-emerald-500" : "text-red-500"
+                                }`}
                             >
-                              {getStatusLabel(tx.status)}
-                            </Badge>
-                          </td>
-                          <td className="py-3 px-3 text-foreground text-xs">{getPaymentMethodLabel(tx.payment_method)}</td>
-                          <td className="py-3 px-3 text-foreground text-xs">{tx.prazo || "-"}</td>
-                          <td className="py-3 px-3 text-foreground text-xs">{tx.bank_name || "-"}</td>
-                          <td className="py-3 px-3 text-foreground text-xs">{tx.doc || "-"}</td>
-                          <td className="py-3 px-3 text-foreground text-xs max-w-[150px] truncate" title={tx.notes || ""}>{tx.notes || "-"}</td>
-                          <td
-                            className={`text-right py-3 px-3 font-semibold ${
-                              tx.transaction_type === "deposit" ? "text-emerald-500" : "text-red-500"
-                            }`}
-                          >
-                            {tx.transaction_type === "deposit" ? "+" : "-"}
-                            {fmt(Number(tx.amount))}
-                          </td>
-                        </tr>
-                        {tx.reference_type === "abastecimento" && expandedFuels.has(tx.reference_id) && (
-                          <tr className={`border-b border-border/30 ${isEven ? "bg-blue-950/20" : "bg-blue-900/20"}`}>
-                            <td colSpan={12} className="py-4 px-4">
-                              <div className="bg-blue-950/30 rounded-lg p-4 border border-blue-500/20">
-                                <h5 className="text-sm font-semibold text-blue-400 mb-3 flex items-center gap-2">
-                                  <ChevronDown className="h-4 w-4" />
-                                  Detalhes do Abastecimento
-                                </h5>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Comanda</p>
-                                    <p className="text-foreground">{tx.comanda || "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">NF</p>
-                                    <p className="text-foreground">{tx.nf || "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Trecho</p>
-                                    <p className="text-foreground">{tx.trecho || "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Litros</p>
-                                    <p className="text-foreground">{typeof tx.litros === 'number' ? tx.litros.toFixed(2) : "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Local</p>
-                                    <p className="text-foreground">{tx.local || "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Abastecedor</p>
-                                    <p className="text-foreground">{tx.abastecedor || "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Galões</p>
-                                    <p className="text-foreground">{typeof tx.abastecimento_galoes === 'number' ? tx.abastecimento_galoes.toFixed(2) : "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Observação</p>
-                                    <p className="text-foreground text-xs">{tx.observacao || "-"}</p>
-                                  </div>
-                                </div>
-
-                                {(tx.comanda_url || tx.nota_url || tx.boleto_url || tx.comprovante_pagamento) && (
-                                  <div className="mt-4 pt-4 border-t border-blue-500/20">
-                                    <p className="text-muted-foreground font-semibold mb-2">Anexos</p>
-                                    <div className="flex flex-wrap gap-2">
-                                      {tx.comanda_url && (
-                                        <a
-                                          href={tx.comanda_url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-md transition-colors text-xs"
-                                        >
-                                          <FileDown className="h-3 w-3" />
-                                          Comanda
-                                        </a>
-                                      )}
-                                      {tx.nota_url && (
-                                        <a
-                                          href={tx.nota_url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-md transition-colors text-xs"
-                                        >
-                                          <FileDown className="h-3 w-3" />
-                                          NF
-                                        </a>
-                                      )}
-                                      {tx.boleto_url && (
-                                        <a
-                                          href={tx.boleto_url}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-md transition-colors text-xs"
-                                        >
-                                          <FileDown className="h-3 w-3" />
-                                          Boleto
-                                        </a>
-                                      )}
-                                      {tx.comprovante_pagamento && (
-                                        <a
-                                          href={tx.comprovante_pagamento}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-md transition-colors text-xs"
-                                        >
-                                          <FileDown className="h-3 w-3" />
-                                          Comprovante
-                                        </a>
-                                      )}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
+                              {tx.transaction_type === "deposit" ? "+" : "-"}
+                              {fmt(Number(tx.amount))}
                             </td>
                           </tr>
-                        )}
-                        {tx.reference_type === "travel_expense_report" && expandedTravelReports.has(tx.reference_id) && (
-                          <tr className={`border-b border-border/30 ${isEven ? "bg-purple-950/20" : "bg-purple-900/20"}`}>
-                            <td colSpan={12} className="py-4 px-4">
-                              <div className="bg-purple-950/30 rounded-lg p-4 border border-purple-500/20">
-                                <h5 className="text-sm font-semibold text-purple-400 mb-4 flex items-center gap-2">
-                                  <ChevronDown className="h-4 w-4" />
-                                  Detalhes do Relatório de Viagem
-                                </h5>
+                          {tx.reference_type === "abastecimento" && expandedFuels.has(tx.reference_id) && (
+                            <tr className={`border-b border-border/30 ${isEven ? "bg-blue-950/20" : "bg-blue-900/20"}`}>
+                              <td colSpan={12} className="py-4 px-4">
+                                <div className="bg-blue-950/30 rounded-lg p-4 border border-blue-500/20">
+                                  <h5 className="text-sm font-semibold text-blue-400 mb-3 flex items-center gap-2">
+                                    <ChevronDown className="h-4 w-4" />
+                                    Detalhes do Abastecimento
+                                  </h5>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+                                    <div className="space-y-1">
+                                      <p className="text-muted-foreground font-semibold">Comanda</p>
+                                      <p className="text-foreground">{tx.comanda || "-"}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-muted-foreground font-semibold">NF</p>
+                                      <p className="text-foreground">{tx.nf || "-"}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-muted-foreground font-semibold">Trecho</p>
+                                      <p className="text-foreground">{tx.trecho || "-"}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-muted-foreground font-semibold">Litros</p>
+                                      <p className="text-foreground">{typeof tx.litros === 'number' ? tx.litros.toFixed(2) : "-"}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-muted-foreground font-semibold">Local</p>
+                                      <p className="text-foreground">{tx.local || "-"}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-muted-foreground font-semibold">Abastecedor</p>
+                                      <p className="text-foreground">{tx.abastecedor || "-"}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-muted-foreground font-semibold">Galões</p>
+                                      <p className="text-foreground">{typeof tx.abastecimento_galoes === 'number' ? tx.abastecimento_galoes.toFixed(2) : "-"}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-muted-foreground font-semibold">Observação</p>
+                                      <p className="text-foreground text-xs">{tx.observacao || "-"}</p>
+                                    </div>
+                                  </div>
 
-                                {/* Informações Básicas */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 text-xs">
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Relatório</p>
-                                    <p className="text-foreground font-mono">{tx.report_number || "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Rota</p>
-                                    <p className="text-foreground">{tx.route || "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Período</p>
-                                    <p className="text-foreground text-xs">{tx.start_date ? format(new Date(tx.start_date), "dd/MM/yyyy", { locale: ptBR }) : "-"} a {tx.end_date ? format(new Date(tx.end_date), "dd/MM/yyyy", { locale: ptBR }) : "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Dias</p>
-                                    <p className="text-foreground">{tx.days_count || 0}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Tripulação 1</p>
-                                    <p className="text-foreground text-xs">{tx.crew_member_name || "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Tripulação 2</p>
-                                    <p className="text-foreground text-xs">{tx.crew_member_name2 || "-"}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Status</p>
-                                    <p className="text-foreground">{getStatusLabel(tx.status)}</p>
-                                  </div>
-                                  <div className="space-y-1">
-                                    <p className="text-muted-foreground font-semibold">Observação</p>
-                                    <p className="text-foreground text-xs truncate" title={tx.observations}>{tx.observations || "-"}</p>
-                                  </div>
+                                  {(tx.comanda_url || tx.nota_url || tx.boleto_url || tx.comprovante_pagamento) && (
+                                    <div className="mt-4 pt-4 border-t border-blue-500/20">
+                                      <p className="text-muted-foreground font-semibold mb-2">Anexos</p>
+                                      <div className="flex flex-wrap gap-2">
+                                        {tx.comanda_url && (
+                                          <a
+                                            href={tx.comanda_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-md transition-colors text-xs"
+                                          >
+                                            <FileDown className="h-3 w-3" />
+                                            Comanda
+                                          </a>
+                                        )}
+                                        {tx.nota_url && (
+                                          <a
+                                            href={tx.nota_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-md transition-colors text-xs"
+                                          >
+                                            <FileDown className="h-3 w-3" />
+                                            NF
+                                          </a>
+                                        )}
+                                        {tx.boleto_url && (
+                                          <a
+                                            href={tx.boleto_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-md transition-colors text-xs"
+                                          >
+                                            <FileDown className="h-3 w-3" />
+                                            Boleto
+                                          </a>
+                                        )}
+                                        {tx.comprovante_pagamento && (
+                                          <a
+                                            href={tx.comprovante_pagamento}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-md transition-colors text-xs"
+                                          >
+                                            <FileDown className="h-3 w-3" />
+                                            Comprovante
+                                          </a>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
+                              </td>
+                            </tr>
+                          )}
+                          {tx.reference_type === "travel_expense_report" && expandedTravelReports.has(tx.reference_id) && (
+                            <tr className={`border-b border-border/30 ${isEven ? "bg-purple-950/20" : "bg-purple-900/20"}`}>
+                              <td colSpan={12} className="py-4 px-4">
+                                <div className="bg-purple-950/30 rounded-lg p-4 border border-purple-500/20">
+                                  <h5 className="text-sm font-semibold text-purple-400 mb-4 flex items-center gap-2">
+                                    <ChevronDown className="h-4 w-4" />
+                                    Detalhes do Relatório de Viagem
+                                  </h5>
 
-                                {/* Valores */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-3 bg-purple-500/10 rounded-lg">
-                                  <div className="space-y-2">
-                                    <p className="text-muted-foreground font-semibold text-xs uppercase">Crew</p>
+                                  {/* Informações Básicas */}
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 text-xs">
                                     <div className="space-y-1">
-                                      <div className="flex justify-between text-xs">
-                                        <span className="text-muted-foreground">Total:</span>
-                                        <span className="font-semibold text-purple-400">{fmt(tx.total_crew || 0)}</span>
+                                      <p className="text-muted-foreground font-semibold">Relatório</p>
+                                      <p className="text-foreground font-mono">{tx.report_number || "-"}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-muted-foreground font-semibold">Rota</p>
+                                      <p className="text-foreground">{tx.route || "-"}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-muted-foreground font-semibold">Período</p>
+                                      <p className="text-foreground text-xs">{tx.start_date ? format(new Date(tx.start_date), "dd/MM/yyyy", { locale: ptBR }) : "-"} a {tx.end_date ? format(new Date(tx.end_date), "dd/MM/yyyy", { locale: ptBR }) : "-"}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-muted-foreground font-semibold">Dias</p>
+                                      <p className="text-foreground">{tx.days_count || 0}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-muted-foreground font-semibold">Tripulação 1</p>
+                                      <p className="text-foreground text-xs">{tx.crew_member_name || "-"}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-muted-foreground font-semibold">Tripulação 2</p>
+                                      <p className="text-foreground text-xs">{tx.crew_member_name2 || "-"}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-muted-foreground font-semibold">Status</p>
+                                      <p className="text-foreground">{getStatusLabel(tx.status)}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-muted-foreground font-semibold">Observação</p>
+                                      <p className="text-foreground text-xs truncate" title={tx.observations}>{tx.observations || "-"}</p>
+                                    </div>
+                                  </div>
+
+                                  {/* Valores */}
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 p-3 bg-purple-500/10 rounded-lg">
+                                    <div className="space-y-2">
+                                      <p className="text-muted-foreground font-semibold text-xs uppercase">Crew</p>
+                                      <div className="space-y-1">
+                                        <div className="flex justify-between text-xs">
+                                          <span className="text-muted-foreground">Total:</span>
+                                          <span className="font-semibold text-purple-400">{fmt(tx.total_crew || 0)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-xs">
+                                          <span className="text-muted-foreground">Despendido:</span>
+                                          <span className="font-semibold text-red-400">{fmt(tx.spent_crew || 0)}</span>
+                                        </div>
+                                        <div className="border-t border-purple-500/20 pt-1 flex justify-between text-xs">
+                                          <span className="text-muted-foreground">Pendente:</span>
+                                          <span className={`font-semibold ${(tx.remaining_crew || 0) > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+                                            {fmt(tx.remaining_crew || 0)}
+                                          </span>
+                                        </div>
                                       </div>
-                                      <div className="flex justify-between text-xs">
-                                        <span className="text-muted-foreground">Despendido:</span>
-                                        <span className="font-semibold text-red-400">{fmt(tx.spent_crew || 0)}</span>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <p className="text-muted-foreground font-semibold text-xs uppercase">Share Brasil</p>
+                                      <div className="space-y-1">
+                                        <div className="flex justify-between text-xs">
+                                          <span className="text-muted-foreground">Total:</span>
+                                          <span className="font-semibold text-purple-400">{fmt(tx.total_sharebrasil || 0)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-xs">
+                                          <span className="text-muted-foreground">Despendido:</span>
+                                          <span className="font-semibold text-red-400">{fmt(tx.spent_sharebrasil || 0)}</span>
+                                        </div>
+                                        <div className="border-t border-purple-500/20 pt-1 flex justify-between text-xs">
+                                          <span className="text-muted-foreground">Pendente:</span>
+                                          <span className={`font-semibold ${(tx.remaining_sharebrasil || 0) > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+                                            {fmt(tx.remaining_sharebrasil || 0)}
+                                          </span>
+                                        </div>
                                       </div>
-                                      <div className="border-t border-purple-500/20 pt-1 flex justify-between text-xs">
-                                        <span className="text-muted-foreground">Pendente:</span>
-                                        <span className={`font-semibold ${(tx.remaining_crew || 0) > 0 ? "text-amber-400" : "text-emerald-400"}`}>
-                                          {fmt(tx.remaining_crew || 0)}
-                                        </span>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                      <p className="text-muted-foreground font-semibold text-xs uppercase">Cliente</p>
+                                      <div className="space-y-1">
+                                        <div className="flex justify-between text-xs">
+                                          <span className="text-muted-foreground">Total:</span>
+                                          <span className="font-semibold text-blue-400">{fmt(tx.total_client || 0)}</span>
+                                        </div>
+                                        <div className="text-xs text-muted-foreground pt-1">
+                                          <span>Não contabilizado</span>
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
 
-                                  <div className="space-y-2">
-                                    <p className="text-muted-foreground font-semibold text-xs uppercase">Share Brasil</p>
-                                    <div className="space-y-1">
-                                      <div className="flex justify-between text-xs">
-                                        <span className="text-muted-foreground">Total:</span>
-                                        <span className="font-semibold text-purple-400">{fmt(tx.total_sharebrasil || 0)}</span>
-                                      </div>
-                                      <div className="flex justify-between text-xs">
-                                        <span className="text-muted-foreground">Despendido:</span>
-                                        <span className="font-semibold text-red-400">{fmt(tx.spent_sharebrasil || 0)}</span>
-                                      </div>
-                                      <div className="border-t border-purple-500/20 pt-1 flex justify-between text-xs">
-                                        <span className="text-muted-foreground">Pendente:</span>
-                                        <span className={`font-semibold ${(tx.remaining_sharebrasil || 0) > 0 ? "text-amber-400" : "text-emerald-400"}`}>
-                                          {fmt(tx.remaining_sharebrasil || 0)}
-                                        </span>
-                                      </div>
+                                  {/* PDF e Ações */}
+                                  {tx.pdf_url && (
+                                    <div className="mt-4 pt-4 border-t border-purple-500/20">
+                                      <p className="text-muted-foreground font-semibold mb-2">Documento</p>
+                                      <a
+                                        href={tx.pdf_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1 px-4 py-2 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-md transition-colors text-sm font-medium"
+                                      >
+                                        <FileDown className="h-4 w-4" />
+                                        Baixar PDF do Relatório
+                                      </a>
                                     </div>
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    <p className="text-muted-foreground font-semibold text-xs uppercase">Cliente</p>
-                                    <div className="space-y-1">
-                                      <div className="flex justify-between text-xs">
-                                        <span className="text-muted-foreground">Total:</span>
-                                        <span className="font-semibold text-blue-400">{fmt(tx.total_client || 0)}</span>
-                                      </div>
-                                      <div className="text-xs text-muted-foreground pt-1">
-                                        <span>Não contabilizado</span>
-                                      </div>
-                                    </div>
-                                  </div>
+                                  )}
                                 </div>
-
-                                {/* PDF e Ações */}
-                                {tx.pdf_url && (
-                                  <div className="mt-4 pt-4 border-t border-purple-500/20">
-                                    <p className="text-muted-foreground font-semibold mb-2">Documento</p>
-                                    <a
-                                      href={tx.pdf_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 px-4 py-2 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-md transition-colors text-sm font-medium"
-                                    >
-                                      <FileDown className="h-4 w-4" />
-                                      Baixar PDF do Relatório
-                                    </a>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        )}
+                              </td>
+                            </tr>
+                          )}
                         </React.Fragment>
                       )
                     })}
@@ -1504,9 +1501,9 @@ export default function RelatorioMensal() {
                 <BarChart data={
                   (bankAccountData.deposits > 0 || bankAccountData.expenses > 0)
                     ? [
-                        { name: "Conta Bancária", deposits: bankAccountData.deposits, expenses: bankAccountData.expenses },
-                        ...partnerData
-                      ]
+                      { name: "Conta Bancária", deposits: bankAccountData.deposits, expenses: bankAccountData.expenses },
+                      ...partnerData
+                    ]
                     : partnerData
                 }>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -1614,13 +1611,12 @@ export default function RelatorioMensal() {
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground font-semibold uppercase">Saldo</p>
-                <p className={`text-lg font-bold ${
-                  (() => {
+                <p className={`text-lg font-bold ${(() => {
                     const deposits = partnerCardTransactions.filter((t: any) => t.transaction_type === "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
                     const expenses = partnerCardTransactions.filter((t: any) => t.transaction_type !== "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
                     return deposits - expenses >= 0 ? "text-emerald-500" : "text-red-500"
                   })()
-                }`}>
+                  }`}>
                   {fmt(
                     (() => {
                       const deposits = partnerCardTransactions.filter((t: any) => t.transaction_type === "deposit").reduce((s: number, t: any) => s + Number(t.amount), 0)
@@ -1665,9 +1661,8 @@ export default function RelatorioMensal() {
                     return (
                       <tr
                         key={tx.id || idx}
-                        className={`border-b border-border/30 transition-colors ${
-                          idx % 2 === 0 ? "bg-slate-950/30 hover:bg-slate-900/40" : "bg-slate-900/30 hover:bg-slate-800/40"
-                        } cursor-pointer`}
+                        className={`border-b border-border/30 transition-colors ${idx % 2 === 0 ? "bg-slate-950/30 hover:bg-slate-900/40" : "bg-slate-900/30 hover:bg-slate-800/40"
+                          } cursor-pointer`}
                         onClick={() => {
                           setSelectedPartnerCard(null)
                           setEditingTransaction(tx)
@@ -1679,11 +1674,10 @@ export default function RelatorioMensal() {
                         <td className="py-3 px-4">
                           <Badge
                             variant="outline"
-                            className={`text-xs ${
-                              tx.transaction_type === "deposit"
+                            className={`text-xs ${tx.transaction_type === "deposit"
                                 ? "border-emerald-500/30 text-emerald-500"
                                 : "border-red-500/30 text-red-500"
-                            }`}
+                              }`}
                           >
                             {tx.transaction_type === "deposit" ? "ENTRADA" : "SAÍDA"}
                           </Badge>
@@ -1691,15 +1685,14 @@ export default function RelatorioMensal() {
                         <td className="py-3 px-4">
                           <Badge
                             variant="outline"
-                            className={`text-xs ${
-                              (tx.status === "pago" || tx.status === "paid")
+                            className={`text-xs ${(tx.status === "pago" || tx.status === "paid")
                                 ? "border-emerald-500/30 text-emerald-500"
                                 : (tx.status === "recebido" || tx.status === "received")
-                                ? "border-blue-500/30 text-blue-500"
-                                : tx.status === "cancelado"
-                                ? "border-red-500/30 text-red-500"
-                                : "border-amber-500/30 text-amber-500"
-                            }`}
+                                  ? "border-blue-500/30 text-blue-500"
+                                  : tx.status === "cancelado"
+                                    ? "border-red-500/30 text-red-500"
+                                    : "border-amber-500/30 text-amber-500"
+                              }`}
                           >
                             {getStatusLabel(tx.status)}
                           </Badge>
@@ -1707,9 +1700,8 @@ export default function RelatorioMensal() {
                         <td className="py-3 px-4 text-foreground text-xs">{getPaymentMethodLabel(tx.payment_method)}</td>
                         <td className="py-3 px-4 text-muted-foreground text-xs max-w-[200px] truncate" title={tx.notes}>{tx.notes || "-"}</td>
                         <td
-                          className={`text-right py-3 px-4 font-bold text-base ${
-                            tx.transaction_type === "deposit" ? "text-emerald-500" : "text-red-500"
-                          }`}
+                          className={`text-right py-3 px-4 font-bold text-base ${tx.transaction_type === "deposit" ? "text-emerald-500" : "text-red-500"
+                            }`}
                         >
                           {tx.transaction_type === "deposit" ? "+" : "-"}
                           {fmt(Number(tx.amount))}
