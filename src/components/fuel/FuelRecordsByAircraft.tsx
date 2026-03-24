@@ -58,6 +58,7 @@ interface FuelRecord {
   partner_name?: string | null;
   comprovante_pagamento?: string | null;
   data_pagamento?: string | null;
+  tipo_combustivel?: string | null;
 }
 interface FuelSupplier {
   id: string;
@@ -315,7 +316,7 @@ export function FuelRecordsByAircraft({
     setSelectedFlightId(flightId);
     const flight = logbookFlights.find(f => f.id === flightId);
     if (flight) {
-      const trecho = flight.trecho || `${flight.departure_aerodrome} → ${flight.arrival_aerodrome}`;
+      const trecho = flight.trecho || `${flight.departure_aerodrome} x ${flight.arrival_aerodrome}`;
       setSelectedFlightInfo(flight);
 
       // Armazena informações do voo selecionado
@@ -854,6 +855,7 @@ export function FuelRecordsByAircraft({
         criado_por: currentUserName || null,
         logbook_entry_id: (linkToLogbook && selectedFlightId) ? selectedFlightId : null,
         nf: formData.nf || null,
+        tipo_combustivel: formData.combustivel_tipo || null,
         descricao: formData.combustivel_tipo ? `Combustível: ${formData.combustivel_tipo.toUpperCase()}` : null,
       };
 
@@ -953,7 +955,7 @@ export function FuelRecordsByAircraft({
       valor_total_manual: true,
       abastecimento_galoes: record.abastecimento_galoes?.toString() || "",
       abastecedor_id: supplierRecord?.id || "",
-      combustivel_tipo: record.descricao?.toLowerCase().includes("avgas") ? "avgas" : record.descricao?.toLowerCase().includes("jet") ? "jet" : "",
+      combustivel_tipo: record.tipo_combustivel || (record.descricao?.toLowerCase().includes("avgas") ? "avgas" : record.descricao?.toLowerCase().includes("jet") ? "jet" : ""),
       client_id: record.client_id || client.id,
       partner_selected: record.observacao?.includes("[Partner:") ? record.observacao.match(/\[Partner:([^\]]+)\]/)?.[1] || "" : "",
       status_pagamento: record.status_pagamento || "em aberto",
@@ -1322,7 +1324,7 @@ export function FuelRecordsByAircraft({
             Novo Registro
           </Button>
         </DialogTrigger>
-        <DialogContent className="flex flex-col">
+        <DialogContent className="flex flex-col" style={{zIndex: 1001}}>
           <DialogHeader>
             <DialogTitle>{editingRecord ? "Editar Registro" : "Novo Registro"}</DialogTitle>
           </DialogHeader>
@@ -1362,9 +1364,9 @@ export function FuelRecordsByAircraft({
                           {logbookFlights.map((flight) => (
                             <SelectItem key={flight.id} value={flight.id} className="py-2">
                               <div className="text-sm">
-                                <span className="font-medium">{flight.entry_date}</span>
+                                <span className="font-medium">{formatDateBrazil(flight.entry_date, "dd/MM/yy")}</span>
                                 {' · '}
-                                <span>{flight.trecho || `${flight.departure_aerodrome} → ${flight.arrival_aerodrome}`}</span>
+                                <span>{`${flight.departure_aerodrome} x ${flight.arrival_aerodrome}`}</span>
                                 {flight.fuel_added && (
                                   <span className="text-muted-foreground"> · {flight.fuel_added}L</span>
                                 )}
@@ -1376,14 +1378,14 @@ export function FuelRecordsByAircraft({
                     )}
 
                     {selectedFlightInfo && (
-                      <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg space-y-2">
+                      <div className="mt-3 p-3 rounded-lg space-y-2" style={{backgroundColor: 'rgba(16, 33, 56, 1)', borderColor: 'rgba(33, 87, 156, 1)', borderWidth: '1px'}}>
                         <div>
-                          <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-1">📅 Data Selecionada</p>
-                          <p className="text-sm font-medium text-foreground">{formatDateBrazil(selectedFlightInfo.entry_date)}</p>
+                          <p className="text-xs font-semibold mb-1" style={{color: 'rgba(155, 182, 239, 1)'}}>📅 Data Selecionada</p>
+                          <p className="text-sm font-medium text-foreground">{formatDateBrazil(selectedFlightInfo.entry_date, "dd/MM/yy")}</p>
                         </div>
                         <div>
-                          <p className="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-1">✈️ Trecho Selecionado</p>
-                          <p className="text-sm font-medium text-foreground">{selectedFlightInfo.trecho || `${selectedFlightInfo.departure_aerodrome} → ${selectedFlightInfo.arrival_aerodrome}`}</p>
+                          <p className="text-xs font-semibold mb-1" style={{color: 'rgba(162, 188, 244, 1)'}}>✈️ Trecho Selecionado</p>
+                          <p className="text-sm font-medium text-foreground">{selectedFlightInfo.trecho || `${selectedFlightInfo.departure_aerodrome} x ${selectedFlightInfo.arrival_aerodrome}`}</p>
                         </div>
                         {previousDayFlightInfo && (
                           <div className="border-t border-blue-200 dark:border-blue-800 pt-2 mt-2">
@@ -1519,10 +1521,42 @@ export function FuelRecordsByAircraft({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <Label className="text-xs text-muted-foreground">Trecho <span className="text-red-500">*</span></Label>
-                  <Input value={formData.trecho} onChange={e => setFormData({
-                    ...formData,
-                    trecho: e.target.value
-                  })} placeholder="SBSP X SBRJ" className="mt-1 h-9 text-sm" required />
+                  {linkToLogbook ? (
+                    <div className="flex gap-2 items-end">
+                      <AerodromeCombobox
+                        aerodromes={aerodromes}
+                        value={formData.trecho?.split(' x ')?.[0] || ''}
+                        onChange={(value) => {
+                          const destino = formData.trecho?.split(' x ')?.[1] || '';
+                          setFormData(prev => ({
+                            ...prev,
+                            trecho: destino ? `${value} x ${destino}` : value,
+                          }));
+                        }}
+                        disabled={isLoadingAerodromes}
+                        placeholder="De"
+                      />
+                      <span className="text-sm text-muted-foreground">x</span>
+                      <AerodromeCombobox
+                        aerodromes={aerodromes}
+                        value={formData.trecho?.split(' x ')?.[1] || ''}
+                        onChange={(value) => {
+                          const origem = formData.trecho?.split(' x ')?.[0] || '';
+                          setFormData(prev => ({
+                            ...prev,
+                            trecho: origem ? `${origem} x ${value}` : value,
+                          }));
+                        }}
+                        disabled={isLoadingAerodromes}
+                        placeholder="Para"
+                      />
+                    </div>
+                  ) : (
+                    <Input value={formData.trecho} onChange={e => setFormData({
+                      ...formData,
+                      trecho: e.target.value
+                    })} placeholder="SBSP X SBRJ" className="mt-1 h-9 text-sm" required />
+                  )}
                 </div>
               </div>
             </div>
@@ -1865,7 +1899,7 @@ export function FuelRecordsByAircraft({
       </Dialog>
 
       <AlertDialog open={showConfirmationSummary} onOpenChange={setShowConfirmationSummary}>
-        <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <AlertDialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" style={{zIndex: 9999}}>
           <AlertDialogHeader>
             <AlertDialogTitle className="text-xl">Resumo do Abastecimento</AlertDialogTitle>
             <AlertDialogDescription>
@@ -1885,6 +1919,21 @@ export function FuelRecordsByAircraft({
                 <p className="text-sm font-medium text-foreground">{displayClient.company_name}</p>
               </div>
             </div>
+
+            {/* Partner (Sócio) */}
+            {(() => {
+              const selectedPartner = clientPartners.find(p => p.id === formData.client_id);
+              const partnerNameValue = (selectedPartner && !selectedPartner.isMainClient) ? selectedPartner.name : null;
+              if (partnerNameValue) {
+                return (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Sócio</p>
+                    <p className="text-sm font-medium text-foreground">{partnerNameValue.replace(/^\[|\]$/g, "")}</p>
+                  </div>
+                );
+              }
+              return null;
+            })()}
 
             {/* Rota */}
             <div>
@@ -1982,7 +2031,7 @@ export function FuelRecordsByAircraft({
       </AlertDialog>
 
       <AlertDialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <AlertDialogContent>
+        <AlertDialogContent style={{zIndex: 9999}}>
           <AlertDialogHeader>
             <AlertDialogTitle>Comanda não preenchida</AlertDialogTitle>
             <AlertDialogDescription>
@@ -2175,7 +2224,7 @@ export function FuelRecordsByAircraft({
     </Card>
 
     {viewingAttachment && <Dialog open={!!viewingAttachment} onOpenChange={open => !open && setViewingAttachment(null)}>
-      <DialogContent className="max-w-7xl w-[98vw] h-[95vh] flex flex-col">
+      <DialogContent className="max-w-7xl w-[98vw] h-[95vh] flex flex-col" style={{zIndex: 1001}}>
         <DialogHeader className="border-b pb-4 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             {viewingAttachment.name === 'Comanda' && <FileText className="h-5 w-5 text-blue-600" />}
