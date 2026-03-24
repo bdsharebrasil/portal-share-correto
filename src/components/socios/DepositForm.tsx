@@ -221,10 +221,15 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
 
       // If no specific partners, add to shared account
       if (partnersInvolved.size === 0) {
+        // For bank entries, use uppercase bank account name
+        const bankAccountName = entry.bankName
+          ? entry.bankName.toUpperCase()
+          : "CONTA BANCÁRIA";
+
         await addDepositWithToast.mutateAsync({
           clientId: clienteId,
           partnerCpf: null,
-          partnerName: "Conta Bancária",
+          partnerName: bankAccountName,
           amount: reversalAmount,
           description: entry.description,
           paymentDate: entry.date,
@@ -232,6 +237,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
           transactionSubtype: selectedEntryType?.subtype ?? "deposit",
           prazo: entry.prazo,
           referenceId: selectedExpenseId,
+          paymentMethod: "OUTROS",
         });
       } else {
         // Create reversals for each partner involved (without toast)
@@ -247,6 +253,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
             transactionSubtype: selectedEntryType?.subtype ?? "deposit",
             prazo: entry.prazo,
             referenceId: selectedExpenseId,
+            paymentMethod: "OUTROS",
           });
         }
         // Show single success toast after all reversals
@@ -255,19 +262,22 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
     } else {
       // Standard entry (non-reversal or single reversal)
       let partnerCpf: string | null = null;
-      let partnerName = "Conta Bancária";
+      let partnerName = "CONTA BANCÁRIA";
 
       if (isReversal && selectedExpense) {
         // Single reversal: credit goes back to whoever the original expense was for
         if (selectedExpense.assigned_partner_cpf) {
           partnerCpf = selectedExpense.assigned_partner_cpf;
-          partnerName = selectedExpense.assigned_partner_name || "Conta Bancária";
+          partnerName = selectedExpense.assigned_partner_name || "CONTA BANCÁRIA";
         }
       } else if (requiresPartner) {
         const partner = getPartner(entry.cpf);
         const account = getAccount(entry.cpf);
         partnerCpf = entry.cpf;
         partnerName = partner?.name || account?.partner_name || "";
+      } else if (!requiresPartner && entry.bankName) {
+        // For bank transfers/entries without specific partner, use uppercase bank name
+        partnerName = entry.bankName.toUpperCase();
       }
 
       await addDepositWithToast.mutateAsync({
@@ -281,6 +291,7 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
         transactionSubtype: selectedEntryType?.subtype ?? "deposit",
         prazo: entry.prazo,
         referenceId: isReversal ? selectedExpenseId : undefined,
+        paymentMethod: "OUTROS",
       });
     }
 
@@ -294,13 +305,14 @@ export function DepositForm({ accounts, clienteId }: DepositFormProps) {
     await addDepositWithToast.mutateAsync({
       clientId: clienteId,
       partnerCpf: null,
-      partnerName: "Conta Bancária",
+      partnerName: interest.bankName.toUpperCase(),
       amount: parseFloat(interest.amount),
       description: `Rendimento bancário - ${interest.bankName}${interest.notes ? ` (${interest.notes})` : ""}`,
       paymentDate: interest.date,
       bankName: interest.bankName,
       transactionSubtype: "bank_interest",
       prazo: interest.prazo,
+      paymentMethod: "OUTROS",
     });
 
     resetAndClose();

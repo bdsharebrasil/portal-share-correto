@@ -135,6 +135,7 @@ const EMPTY_BANK_FORM = {
   prazo: "MENSAL" as "MENSAL" | "EXTRA",
   assignMode: "geral" as "geral" | "rateio" | "socio",
   assignedPartnerCpf: "none",
+  paymentMethod: "OUTROS",
 };
 
 interface ExpenseFormProps {
@@ -513,6 +514,8 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     // Resolve bank name from ID
     const selectedConta = contasBancarias.find((c) => c.id === bankForm.bankName);
     const bankNameResolved = selectedConta ? selectedConta.banco : bankForm.bankName || null;
+    // Convert bank name to uppercase
+    const bankNameUppercase = bankNameResolved ? bankNameResolved.toUpperCase() : null;
 
     const basePayload = {
       clientId: clienteId,
@@ -527,6 +530,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       prazo: bankForm.prazo,
       aircraftId,
       status: "pago",
+      paymentMethod: "OUTROS",
     };
 
     if (bankForm.assignMode === "rateio" && partners.length > 1) {
@@ -557,7 +561,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       await addExpense.mutateAsync({
         ...basePayload,
         assignedPartnerCpf: null,
-        assignedPartnerName: null,
+        assignedPartnerName: bankNameUppercase || "CONTA BANCÁRIA",
       });
     }
 

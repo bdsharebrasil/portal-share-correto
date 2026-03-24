@@ -167,7 +167,7 @@ export function useSocioTransactions(
         const cpfClean = (exp.assigned_partner_cpf || "").replace(/\D/g, "");
         const partnerFromTable = partnersByCpf.get(cpfClean);
           const resolvedPartnerName =
-          partnerFromTable?.name ?? exp.assigned_partner_name ?? "Conta Bancária";
+          partnerFromTable?.name ?? exp.assigned_partner_name ?? "CONTA BANCARIA";
 
         // Resolver número do relatório de viagem (para o campo de obs)
         let notesWithReport = exp.notes || null;
@@ -304,7 +304,7 @@ export function useSocioTransactions(
           id: f.id,
           client_id: f.client_id,
           partner_cpf: partnerByName?.cpf ?? "N/A",
-          partner_name: partnerByName?.name ?? f.partner_name ?? "Conta Bancária",
+          partner_name: partnerByName?.name ?? f.partner_name ?? "CONTA BANCARIA",
           transaction_type: "expense",
           amount: f.valor_total || 0,
           balance_before: 0,
@@ -348,7 +348,7 @@ export function useSocioTransactions(
       const normalizePartnerName = (name: string) => {
         const lower = (name || "").toLowerCase();
         if (!name || lower === "conta compartilhada" || lower === "geral" || lower === "outros" || lower === "n/a") {
-          return "Conta Bancária";
+          return "CONTA BANCARIA";
         }
         return name;
       };
@@ -497,6 +497,7 @@ export function useAddDeposit(showToast = true) {
       transactionSubtype?: string;
       prazo?: string;
       referenceId?: string;
+      paymentMethod?: string | null;
     }) => {
       let balanceBefore = 0;
       let balanceAfter = 0;
@@ -551,6 +552,7 @@ export function useAddDeposit(showToast = true) {
           reference_type: data.referenceId ? "partner_expense" : null,
           reference_id: data.referenceId || null,
           status: "recebido",
+          payment_method: data.paymentMethod || null,
         });
       if (txErr) throw txErr;
 
@@ -890,7 +892,7 @@ export function useAddBankInterest() {
       const { error } = await supabase.from("partner_transactions").insert({
         client_id: data.clientId,
         partner_cpf: "00000000000",
-        partner_name: "Conta Bancária",
+        partner_name: data.bankName ? data.bankName.toUpperCase() : "CONTA BANCARIA",
         transaction_type: "deposit",
         amount: data.amount,
         balance_before: 0,
@@ -899,6 +901,7 @@ export function useAddBankInterest() {
         payment_date: data.paymentDate,
         bank_name: data.bankName || null,
         transaction_subtype: "interest",
+        payment_method: "OUTROS",
       });
 
       if (error) throw error;
