@@ -97,6 +97,7 @@ export function GestorDashboard() {
         title: `Orçamento CTM: ${b.description?.substring(0, 40) || b.supplier_name || ''} (${b.aircraft?.registration || 'N/A'})`,
         date: b.submitted_at || b.created_at,
         total: b.total_value,
+        status: b.approval_status || b.status || 'submitted',
       }));
 
       return [...flights, ...budgets, ...ctmOrders, ...ctmBudgets];

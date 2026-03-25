@@ -14,6 +14,25 @@ import { Plus, Download, Eye, Edit, Trash2, DollarSign, FileUp, Building2, X } f
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+// Helper function to parse Brazilian currency input (e.g., "1.234,56" -> 1234.56)
+const parseBrazilianCurrency = (value: string): number => {
+  if (!value) return 0;
+  // Remove all non-digit characters except comma and dot
+  const cleaned = value.replace(/[^0-9.,]/g, '');
+  // If there's a comma, treat it as decimal separator and remove all dots
+  if (cleaned.includes(',')) {
+    return parseFloat(cleaned.replace(/\./g, '').replace(',', '.')) || 0;
+  }
+  // Otherwise treat as regular number with optional dot
+  return parseFloat(cleaned.replace(/\./g, '')) || 0;
+};
+
+// Helper function to format number to Brazilian currency display
+const formatBrazilianCurrencyDisplay = (value: number): string => {
+  if (!value && value !== 0) return '';
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 interface BudgetItem {
   code: string;
   description: string;
@@ -939,10 +958,10 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
                         type="text"
                         inputMode="decimal"
                         placeholder="0,00"
-                        value={item.unit_value > 0 ? item.unit_value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : ""}
+                        value={formatBrazilianCurrencyDisplay(item.unit_value)}
                         onChange={(e) => {
-                          const val = e.target.value.replace(/[^0-9.,]/g, '');
-                          handleItemChange(index, "unit_value", val ? parseFloat(val.replace(',', '.')) || 0 : 0);
+                          const numValue = parseBrazilianCurrency(e.target.value);
+                          handleItemChange(index, "unit_value", numValue);
                         }}
                         className="text-center text-xs"
                       />

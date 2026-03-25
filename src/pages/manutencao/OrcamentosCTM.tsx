@@ -19,18 +19,60 @@ export default function OrcamentosCTM() {
   const navigate = useNavigate();
   const [aircraft, setAircraft] = useState<Aircraft | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const aircraftId = searchParams.get("aircraftId");
+  const budgetId = searchParams.get("budgetId");
 
   useEffect(() => {
-    if (!aircraftId) {
+    if (budgetId) {
+      loadBudgetPdf(budgetId);
+    } else if (!aircraftId) {
       toast.error("ID da aeronave não encontrado");
       navigate("/manutencao/ctm");
       return;
+    } else {
+      loadAircraft();
     }
+  }, [aircraftId, budgetId]);
 
-    loadAircraft();
-  }, [aircraftId]);
+  const loadBudgetPdf = async (budgetId: string) => {
+    try {
+      setPdfLoading(true);
+      const { data: budgetData, error } = await (supabase as any)
+        .from("ctm_budgets")
+        .select("*, aircraft:aircraft_id(registration)")
+        .eq("id", budgetId)
+        .single();
+
+      if (error) throw error;
+
+      if (budgetData) {
+        setAircraft({
+          id: budgetData.aircraft_id,
+          registration: budgetData.aircraft?.registration || "N/A",
+          model: ""
+        });
+
+        if (budgetData.budget_details?.pdf_file_path) {
+          const { data: signedUrl, error: urlError } = await supabase.storage
+            .from("documents")
+            .createSignedUrl(budgetData.budget_details.pdf_file_path, 3600);
+
+          if (!urlError && signedUrl) {
+            setPdfUrl(signedUrl.signedUrl);
+          }
+        }
+      }
+    } catch (error: any) {
+      console.error("Error loading budget PDF:", error);
+      toast.error("Erro ao carregar orçamento");
+      navigate("/manutencao/ctm");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
   const loadAircraft = async () => {
     try {
@@ -52,7 +94,7 @@ export default function OrcamentosCTM() {
     }
   };
 
-  if (loading) {
+  if (loading || pdfLoading) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-[600px]">
@@ -62,11 +104,11 @@ export default function OrcamentosCTM() {
     );
   }
 
-  if (!aircraft || !aircraftId) {
+  if (!aircraft) {
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center min-h-[600px]">
-          <p className="text-muted-foreground mb-4">Aeronave não encontrada</p>
+          <p className="text-muted-foreground mb-4">Dados não encontrados</p>
           <Button onClick={() => navigate("/manutencao/ctm")}>Voltar</Button>
         </div>
       </Layout>
@@ -97,13 +139,44 @@ export default function OrcamentosCTM() {
           </div>
         </div>
 
+        {/* PDF Viewer for Budget Review */}
+        {budgetId && pdfUrl && (
+          <Card className="bg-gradient-card border-border p-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Visualizar PDF do Orçamento</h2>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(pdfUrl, "_blank")}
+                >
+                  Abrir em Nova Aba
+                </Button>
+              </div>
+              {pdfLoading ? (
+                <div className="flex items-center justify-center h-[70vh] bg-muted rounded-lg">
+                  <p className="text-muted-foreground">Carregando PDF...</p>
+                </div>
+              ) : (
+                <iframe
+                  src={pdfUrl}
+                  className="w-full h-[70vh] border rounded-lg"
+                  title="PDF Orçamento"
+                />
+              )}
+            </div>
+          </Card>
+        )}
+
         {/* Budget Management Component */}
-        <Card className="bg-gradient-card border-border p-6">
-          <CTMBudgetManagement
-            aircraftId={aircraftId}
-            aircraftRegistration={aircraft.registration}
-          />
-        </Card>
+        {!budgetId && aircraftId && (
+          <Card className="bg-gradient-card border-border p-6">
+            <CTMBudgetManagement
+              aircraftId={aircraftId}
+              aircraftRegistration={aircraft.registration}
+            />
+          </Card>
+        )}
       </div>
     </Layout>
   );

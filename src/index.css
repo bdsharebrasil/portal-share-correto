@@ -80,6 +80,11 @@
     --folder-back: 35 80% 45%;
     --folder-tab: 35 90% 55%;
     --folder-front: 25 85% 50%;
+
+    /* Aviation / Financeiro Theme Colors */
+    --aviation-blue: 217 91% 42%;
+    --aviation-blue-light: 217 91% 60%;
+    --share-yellow: 45 100% 55%;
   }
 }
 
@@ -93,13 +98,87 @@
   }
 }
 
+@layer components {
+
+  /* Aviation themed components */
+  .aviation-gradient {
+    background: linear-gradient(135deg,
+        hsl(var(--aviation-blue)) 0%,
+        hsl(var(--aviation-blue-light)) 50%,
+        hsl(var(--share-yellow)) 100%);
+  }
+
+  .aviation-gradient-dark {
+    background: linear-gradient(135deg,
+        hsl(217 91% 42%) 0%,
+        hsl(217 91% 32%) 100%);
+  }
+
+  /* Status indicators */
+  .status-pending {
+    @apply bg-amber-500/20 text-amber-400 border-amber-500/30;
+  }
+
+  .status-confirmed {
+    @apply bg-emerald-500/20 text-emerald-400 border-emerald-500/30;
+  }
+
+  .status-rejected {
+    @apply bg-rose-500/20 text-rose-400 border-rose-500/30;
+  }
+
+  .status-completed {
+    @apply bg-blue-500/20 text-blue-400 border-blue-500/30;
+  }
+
+  /* Glow effects */
+  .glow-blue {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  }
+
+  .glow-purple {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+  }
+
+  .glow-amber {
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
+  }
+
+  /* Interactive elements */
+  .interactive-card {
+    @apply transition-all duration-300 cursor-pointer;
+  }
+
+  .interactive-card:hover {
+    @apply transform -translate-y-1 shadow-lg;
+  }
+
+  /* Premium button */
+  .btn-premium {
+    @apply bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium rounded-xl px-6 py-3 shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition-all duration-300;
+  }
+
+  /* Badge styles */
+  .badge-premium {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-all duration-200;
+  }
+
+  /* Notification badge */
+  .notification-dot {
+    @apply w-2 h-2 bg-blue-500 rounded-full;
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
 @layer utilities {
+
   /* Modern Toast Animations */
   @keyframes slideInFromTop {
     from {
       transform: translateY(-100%);
       opacity: 0;
     }
+
     to {
       transform: translateY(0);
       opacity: 1;
@@ -111,6 +190,7 @@
       transform: translateY(0);
       opacity: 1;
     }
+
     to {
       transform: translateY(-100%);
       opacity: 0;
@@ -122,6 +202,7 @@
       transform: scale(0.95);
       opacity: 0;
     }
+
     to {
       transform: scale(1);
       opacity: 1;
@@ -132,6 +213,7 @@
     0% {
       background-position: -200% 0;
     }
+
     100% {
       background-position: 200% 0;
     }
@@ -427,4 +509,50 @@
   .font-body {
     font-family: 'Noto Sans', sans-serif;
   }
+}
+
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
 }
