@@ -6,7 +6,7 @@ import { ptBR } from 'date-fns/locale';
 import { History, Wrench, Calendar, Clock, User, Building, DollarSign, FileText } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { LottieAirplaneSpinner } from '@/components/ui/lottie-airplane-spinner';
+import { AirplaneSpinner } from '@/components/ui/airplane-spinner';
 
 interface ManutencaoHistoricoDialogProps {
   open: boolean;
@@ -36,7 +36,7 @@ export function ManutencaoHistoricoDialog({
         <ScrollArea className="max-h-[60vh] pr-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <LottieAirplaneSpinner size="md" />
+              <AirplaneSpinner size="md" />
             </div>
           ) : records && records.length > 0 ? (
             <div className="space-y-4">

@@ -10,7 +10,7 @@ import { ManutencaoHistoricoDialog } from './ManutencaoHistoricoDialog';
 import { ManutencaoConfigDialog } from './ManutencaoConfigDialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LottieAirplaneSpinner } from '@/components/ui/lottie-airplane-spinner';
+import { AirplaneSpinner } from '@/components/ui/airplane-spinner';
 
 interface AircraftMaintenanceCardProps {
   aircraft: {
@@ -30,7 +30,7 @@ function AircraftMaintenanceCard({ aircraft }: AircraftMaintenanceCardProps) {
   if (isLoading) {
     return (
       <div className="bg-slate-800/30 border border-white/5 rounded-2xl p-6 flex items-center justify-center min-h-[200px]">
-        <LottieAirplaneSpinner size="md" />
+        <AirplaneSpinner size="md" />
       </div>
     );
   }
@@ -206,7 +206,7 @@ export function DashboardManutenção({ aircraftWithHours }: DashboardManutencao
   if (isLoadingAeronaves) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <LottieAirplaneSpinner size="lg" />
+        <AirplaneSpinner size="lg" />
       </div>
     );
   }

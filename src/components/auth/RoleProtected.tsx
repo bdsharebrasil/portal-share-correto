@@ -1,6 +1,6 @@
 import React from "react";
 import { useUserRole } from "@/hooks/useUserRole";
-import { LottieAirplaneSpinner } from "@/components/ui/lottie-airplane-spinner";
+import { AirplaneSpinner } from "@/components/ui/airplane-spinner";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -15,7 +15,7 @@ export function RoleProtected({ children, allowedRoles }: RoleProtectedProps) {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <LottieAirplaneSpinner size="md" />
+        <AirplaneSpinner size="md" />
       </div>
     );
   }

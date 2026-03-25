@@ -121,22 +121,26 @@ export function calculateRunningCelula(
  * `celula` de cada entry exibido na tabela do diário.
  *
  * celula_atual = celula_anterior + soma(time)
+ * Retorna com precisão de 2 casas decimais (padrão do banco).
  */
 export function calculateCelulaAtual(
   entries: Array<{ time: number }>,
   celulaAnterior: number
 ): number {
   const totalHours = entries.reduce((sum, e) => sum + (e.time || 0), 0);
-  return celulaAnterior + totalHours;
+  const result = celulaAnterior + totalHours;
+  return parseFloat(result.toFixed(2));
 }
 
 /**
  * Calcula celula_disponivel.
  * celula_disponivel = celula_prox_revisao - celula_atual
+ * Retorna com precisão de 2 casas decimais (padrão do banco).
  */
 export function calculateCelulaDisponivel(
   celulaProxRevisao: number,
   celulaAtual: number
 ): number {
-  return celulaProxRevisao - celulaAtual;
+  const result = celulaProxRevisao - celulaAtual;
+  return parseFloat(result.toFixed(2));
 }

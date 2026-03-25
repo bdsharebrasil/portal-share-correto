@@ -1,5 +1,6 @@
 import { useLoading } from "@/contexts/LoadingContext";
-import { AirplaneSpinner } from "./airplane-spinner";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+import flightAnimation from "@/assets/Flight.lottie";
 
 export function GlobalLoader() {
   const { isLoading } = useLoading();
@@ -8,7 +9,15 @@ export function GlobalLoader() {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/80 backdrop-blur-sm">
-      <AirplaneSpinner size="lg" text="Carregando..." />
+      <div className="flex flex-col items-center gap-2">
+        <DotLottieReact
+          src={flightAnimation}
+          loop
+          autoplay
+          style={{ width: 180, height: 180 }}
+        />
+        <span className="text-sm text-muted-foreground">Carregando...</span>
+      </div>
     </div>
   );
 }

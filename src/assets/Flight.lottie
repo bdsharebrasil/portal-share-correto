@@ -1,0 +1,13 @@
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import flightAnimation from './assets/Flight.lottie';
+
+export default function App() {
+  return (
+    <DotLottieReact
+      src={flightAnimation}
+      loop
+      autoplay
+      style={{ width: 300, height: 300 }}
+    />
+  );
+}

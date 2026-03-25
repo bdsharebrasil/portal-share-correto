@@ -28,7 +28,6 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       mode === 'development' && componentTagger(),
-      
       {
         name: 'add-permissions-policy',
         configureServer(server: any) {
@@ -42,6 +41,7 @@ export default defineConfig(({ mode }) => {
         },
       },
     ].filter(Boolean),
+    assetsInclude: ['**/*.lottie'],
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),

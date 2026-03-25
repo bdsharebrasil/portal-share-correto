@@ -328,33 +328,26 @@ export function FuelRecordsByAircraft({
         destino_aerodromo: flight.arrival_aerodrome || "",
       }));
 
-      // Busca o voo do dia anterior para preencher a rota
+      // Busca o lançamento anterior do logbook (não apenas o dia anterior)
       try {
-        const previousDateStr = getPreviousDay(flight.entry_date);
-
         const { data: previousFlights, error } = await supabase
           .from('logbook_entries')
           .select('id, entry_date, departure_aerodrome, arrival_aerodrome, trecho')
           .eq('aircraft_id', aircraft.id)
-          .eq('entry_date', previousDateStr)
+          .lt('entry_date', flight.entry_date)
           .order('entry_date', { ascending: false })
           .limit(1);
 
         if (!error && previousFlights && previousFlights.length > 0) {
           const previousFlight = previousFlights[0];
+          console.log('🛫 Lançamento anterior encontrado:', previousFlight);
           setPreviousDayFlightInfo(previousFlight);
-
-          // Preenche a rota com os dados do dia anterior
-          setFormData(prev => ({
-            ...prev,
-            origem_aerodromo: previousFlight.departure_aerodrome || "",
-            destino_aerodromo: previousFlight.arrival_aerodrome || "",
-          }));
         } else {
+          console.log('❌ Nenhum lançamento anterior encontrado');
           setPreviousDayFlightInfo(null);
         }
       } catch (err) {
-        console.error('Error loading previous day flight:', err);
+        console.error('Error loading previous flight:', err);
         setPreviousDayFlightInfo(null);
       }
     }
@@ -395,38 +388,38 @@ export function FuelRecordsByAircraft({
     }
   }, [formData.abastecedor_id, formData.combustivel_tipo, suppliers]);
 
-  // Busca a rota anterior quando a data é alterada (sem estar vinculado ao diário)
+  // Busca o lançamento anterior quando a data é alterada (sem estar vinculado ao diário)
   useEffect(() => {
     if (linkToLogbook || !formData.data) {
       setPreviousDayFlightInfo(null);
       return;
     }
 
-    const loadPreviousDayRoute = async () => {
+    const loadPreviousFlight = async () => {
       try {
-        const previousDateStr = getPreviousDay(formData.data);
-
         const { data: previousFlights, error } = await supabase
           .from('logbook_entries')
           .select('id, entry_date, departure_aerodrome, arrival_aerodrome, trecho')
           .eq('aircraft_id', aircraft.id)
-          .eq('entry_date', previousDateStr)
+          .lt('entry_date', formData.data)
           .order('entry_date', { ascending: false })
           .limit(1);
 
         if (!error && previousFlights && previousFlights.length > 0) {
           const previousFlight = previousFlights[0];
+          console.log('🛫 Lançamento anterior encontrado:', previousFlight);
           setPreviousDayFlightInfo(previousFlight);
         } else {
+          console.log('❌ Nenhum lançamento anterior encontrado');
           setPreviousDayFlightInfo(null);
         }
       } catch (err) {
-        console.error('Error loading previous day flight:', err);
+        console.error('Error loading previous flight:', err);
         setPreviousDayFlightInfo(null);
       }
     };
 
-    loadPreviousDayRoute();
+    loadPreviousFlight();
   }, [formData.data, linkToLogbook, aircraft.id]);
 
   const loadBankInstitutions = async () => {
@@ -1354,7 +1347,7 @@ export function FuelRecordsByAircraft({
             Novo Registro
           </Button>
         </DialogTrigger>
-        <DialogContent className="flex flex-col" style={{zIndex: 1001}}>
+        <DialogContent className="flex flex-col max-w-2xl" style={{zIndex: 1001}}>
           <DialogHeader>
             <DialogTitle>{editingRecord ? "Editar Registro" : "Novo Registro"}</DialogTitle>
           </DialogHeader>
@@ -1418,9 +1411,9 @@ export function FuelRecordsByAircraft({
                           <p className="text-sm font-medium text-foreground">{selectedFlightInfo.trecho || `${selectedFlightInfo.departure_aerodrome} x ${selectedFlightInfo.arrival_aerodrome}`}</p>
                         </div>
                         {previousDayFlightInfo && (
-                          <div className="border-t border-blue-200 dark:border-blue-800 pt-2 mt-2">
-                            <p className="text-xs font-semibold text-green-600 dark:text-green-400 mb-1">📍 Rota (Dia Anterior)</p>
-                            <p className="text-sm font-medium text-foreground">{previousDayFlightInfo.departure_aerodrome} X {previousDayFlightInfo.arrival_aerodrome}</p>
+                          <div className="border-t border-blue-200 dark:border-blue-800 pt-2 mt-2 bg-green-500/10 border-l-4 border-l-green-500 p-3 rounded">
+                            <p className="text-xs font-semibold text-green-600 dark:text-green-400 mb-1">✓ Rota anterior</p>
+                            <p className="text-sm font-medium text-foreground">{previousDayFlightInfo.departure_aerodrome} x {previousDayFlightInfo.arrival_aerodrome}</p>
                           </div>
                         )}
                       </div>
@@ -1549,8 +1542,8 @@ export function FuelRecordsByAircraft({
                   </div>
                   {previousDayFlightInfo && (
                     <div className="border-t border-blue-200 dark:border-blue-800 pt-2 mt-2">
-                      <p className="text-xs font-semibold text-green-600 dark:text-green-400 mb-1">📍 Rota (Dia Anterior)</p>
-                      <p className="text-sm font-medium text-foreground">{previousDayFlightInfo.departure_aerodrome} X {previousDayFlightInfo.arrival_aerodrome}</p>
+                      <p className="text-xs font-semibold text-green-600 dark:text-green-400 mb-1">Rota anterior</p>
+                      <p className="text-sm font-medium text-foreground">{previousDayFlightInfo.departure_aerodrome} x {previousDayFlightInfo.arrival_aerodrome}</p>
                     </div>
                   )}
                 </div>
@@ -1818,17 +1811,17 @@ export function FuelRecordsByAircraft({
               })} placeholder="0.00 (opcional)" className="mt-1 h-9 text-sm" />
             </div>
 
-            {/* Comanda - Compacto */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
-              <div className="sm:col-span-1">
-                <Label className="text-xs text-muted-foreground">Nº Comanda</Label>
+            {/* Comanda */}
+            <div className="space-y-3">
+              <div>
+                <Label className="text-sm font-semibold mb-2 block">Nº Comanda</Label>
                 <Input value={formData.comanda} onChange={e => setFormData({
                   ...formData,
                   comanda: e.target.value
-                })} placeholder="Comanda" className="mt-1 h-8 text-xs" />
+                })} placeholder="Comanda" className="mt-1 h-9 text-sm" />
               </div>
-              <div className="sm:col-span-2">
-                <Label className="text-xs text-muted-foreground">Anexo da Comanda</Label>
+              <div>
+                <Label className="text-sm font-semibold mb-2 block">Anexo da Comanda</Label>
                 <ModernFileUpload
                   label=""
                   accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
@@ -1853,17 +1846,17 @@ export function FuelRecordsByAircraft({
               </div>
             </div>
 
-            {/* Nota Fiscal - Compacto */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 items-end">
-              <div className="sm:col-span-1">
-                <Label className="text-xs text-muted-foreground">Nº NF</Label>
+            {/* Nota Fiscal */}
+            <div className="space-y-3">
+              <div>
+                <Label className="text-sm font-semibold mb-2 block">Nº NF</Label>
                 <Input type="text" value={formData.nf} onChange={e => setFormData({
                   ...formData,
                   nf: e.target.value
-                })} placeholder="NF" className="mt-1 h-8 text-xs" />
+                })} placeholder="NF" className="mt-1 h-9 text-sm" />
               </div>
-              <div className="sm:col-span-2">
-                <Label className="text-xs text-muted-foreground">Anexo da NF</Label>
+              <div>
+                <Label className="text-sm font-semibold mb-2 block">Anexo da NF</Label>
                 <ModernFileUpload
                   label=""
                   accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
