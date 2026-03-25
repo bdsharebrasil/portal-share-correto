@@ -18,6 +18,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { formatDateToBR } from "@/lib/date-utils";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CTMServiceItemsForm } from "./CTMServiceItemsForm";
 import { OASBudgetsSection } from "./OASBudgetsSection";
 import { OASRASSection } from "./OASRASSection";
@@ -509,11 +510,52 @@ function SummaryCard({ label, value, color, highlight }: { label: string; value:
 // ===== Services Section =====
 function ServicesSection({ orderId, services, onRefetch }: { orderId: string; services: any[]; onRefetch: () => void }) {
   const [showMultipleItems, setShowMultipleItems] = useState(false);
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ descricao: "", fornecedor: "", quantidade: "1", valor_unitario: "" });
+  const [saving, setSaving] = useState(false);
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("ctm_services").delete().eq("id", id);
     if (error) toast.error(error.message);
     else { toast.success("Serviço removido"); onRefetch(); }
+  };
+
+  const handleEdit = (service: any) => {
+    setEditingServiceId(service.id);
+    setEditForm({
+      descricao: service.descricao,
+      fornecedor: service.fornecedor || "",
+      quantidade: String(service.quantidade || 1),
+      valor_unitario: String(service.valor_unitario || (service.valor / (service.quantidade || 1))),
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editForm.descricao) return toast.error("Descrição é obrigatória");
+    if (!editForm.valor_unitario) return toast.error("Valor unitário é obrigatório");
+
+    setSaving(true);
+    const qty = parseInt(editForm.quantidade) || 1;
+    const unitVal = parseFloat(editForm.valor_unitario) || 0;
+
+    try {
+      const { error } = await supabase.from("ctm_services").update({
+        descricao: editForm.descricao,
+        fornecedor: editForm.fornecedor || null,
+        quantidade: qty,
+        valor_unitario: unitVal,
+        valor: qty * unitVal,
+      }).eq("id", editingServiceId);
+
+      if (error) throw error;
+      toast.success("Serviço atualizado com sucesso!");
+      setEditingServiceId(null);
+      onRefetch();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -537,9 +579,14 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
                 <TableCell>{s.quantidade || 1}</TableCell>
                 <TableCell className="text-right">R$ {(s.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(s.id)}>
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" title="Editar" onClick={() => handleEdit(s)} className="text-blue-400 hover:text-blue-300">
+                      <span className="text-lg">✎</span>
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(s.id)}>
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -556,6 +603,65 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
           <Plus className="h-3.5 w-3.5" /> Criar Serviços
         </Button>
       )}
+
+      {/* Dialog para editar serviço */}
+      <Dialog open={!!editingServiceId} onOpenChange={(open) => !open && setEditingServiceId(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Serviço</DialogTitle>
+            <DialogDescription>
+              Atualize os dados do serviço
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs">Descrição *</Label>
+              <Input value={editForm.descricao} onChange={e => setEditForm(f => ({ ...f, descricao: e.target.value }))} />
+            </div>
+
+            <div>
+              <Label className="text-xs">Fornecedor</Label>
+              <Input value={editForm.fornecedor} onChange={e => setEditForm(f => ({ ...f, fornecedor: e.target.value }))} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs">Quantidade</Label>
+                <Input type="number" min="1" value={editForm.quantidade} onChange={e => setEditForm(f => ({ ...f, quantidade: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs">Valor Unitário *</Label>
+                <Input type="number" step="0.01" value={editForm.valor_unitario} onChange={e => setEditForm(f => ({ ...f, valor_unitario: e.target.value }))} />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditingServiceId(null)}
+              disabled={saving}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={saving || !editForm.descricao.trim()}
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                "Salvar Alterações"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -564,6 +670,8 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
 function PartsSection({ orderId, parts, onRefetch }: { orderId: string; parts: any[]; onRefetch: () => void }) {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ descricao: "", part_number: "", fornecedor: "", quantidade: "1", valor_unitario: "" });
+  const [editingPartId, setEditingPartId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ descricao: "", part_number: "", fornecedor: "", quantidade: "1", valor_unitario: "" });
   const [saving, setSaving] = useState(false);
 
   const handleAdd = async () => {
@@ -590,6 +698,46 @@ function PartsSection({ orderId, parts, onRefetch }: { orderId: string; parts: a
     else { toast.success("Peça removida"); onRefetch(); }
   };
 
+  const handleEdit = (part: any) => {
+    setEditingPartId(part.id);
+    setEditForm({
+      descricao: part.descricao,
+      part_number: part.part_number || "",
+      fornecedor: part.fornecedor || "",
+      quantidade: String(part.quantidade),
+      valor_unitario: String(part.valor_unitario),
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editForm.descricao) return toast.error("Descrição é obrigatória");
+    if (!editForm.valor_unitario) return toast.error("Valor unitário é obrigatório");
+
+    setSaving(true);
+    const qty = parseInt(editForm.quantidade) || 1;
+    const unitVal = parseFloat(editForm.valor_unitario) || 0;
+
+    try {
+      const { error } = await supabase.from("ctm_parts").update({
+        descricao: editForm.descricao,
+        part_number: editForm.part_number || null,
+        fornecedor: editForm.fornecedor || null,
+        quantidade: qty,
+        valor_unitario: unitVal,
+        valor_total: qty * unitVal,
+      }).eq("id", editingPartId);
+
+      if (error) throw error;
+      toast.success("Peça atualizada com sucesso!");
+      setEditingPartId(null);
+      onRefetch();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {parts.length > 0 && (
@@ -613,9 +761,14 @@ function PartsSection({ orderId, parts, onRefetch }: { orderId: string; parts: a
                 <TableCell>{p.quantidade}</TableCell>
                 <TableCell className="text-right">R$ {(p.valor_total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id)}>
-                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="icon" title="Editar" onClick={() => handleEdit(p)} className="text-blue-400 hover:text-blue-300">
+                      <span className="text-lg">✎</span>
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(p.id)}>
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -639,6 +792,71 @@ function PartsSection({ orderId, parts, onRefetch }: { orderId: string; parts: a
       ) : (
         <Button variant="outline" size="sm" onClick={() => setAdding(true)} className="gap-1.5"><Plus className="h-3.5 w-3.5" /> Adicionar Peça</Button>
       )}
+
+      {/* Dialog para editar peça */}
+      <Dialog open={!!editingPartId} onOpenChange={(open) => !open && setEditingPartId(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Peça</DialogTitle>
+            <DialogDescription>
+              Atualize os dados da peça
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs">Descrição *</Label>
+              <Input value={editForm.descricao} onChange={e => setEditForm(f => ({ ...f, descricao: e.target.value }))} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs">P/N</Label>
+                <Input value={editForm.part_number} onChange={e => setEditForm(f => ({ ...f, part_number: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs">Fornecedor</Label>
+                <Input value={editForm.fornecedor} onChange={e => setEditForm(f => ({ ...f, fornecedor: e.target.value }))} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs">Quantidade</Label>
+                <Input type="number" min="1" value={editForm.quantidade} onChange={e => setEditForm(f => ({ ...f, quantidade: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs">Valor Unitário *</Label>
+                <Input type="number" step="0.01" value={editForm.valor_unitario} onChange={e => setEditForm(f => ({ ...f, valor_unitario: e.target.value }))} />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditingPartId(null)}
+              disabled={saving}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={saving || !editForm.descricao.trim()}
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                "Salvar Alterações"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
