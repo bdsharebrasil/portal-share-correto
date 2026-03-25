@@ -507,11 +507,126 @@ function SummaryCard({ label, value, color, highlight }: { label: string; value:
   );
 }
 
+// ===== Expanded Service Item Row =====
+function ExpandedServiceItemRow({ item, onUpdate, onDelete, saving }: any) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    descricao: item.descricao,
+    quantidade: String(item.quantidade),
+    valor_unitario: String(item.valor_unitario),
+  });
+
+  const handleSave = async () => {
+    if (!editForm.descricao.trim()) {
+      toast.error("Descrição é obrigatória");
+      return;
+    }
+    const qty = parseFloat(editForm.quantidade) || 1;
+    const unitVal = parseFloat(editForm.valor_unitario) || 0;
+
+    await onUpdate(item.id, {
+      descricao: editForm.descricao,
+      quantidade: qty,
+      valor_unitario: unitVal,
+    });
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <TableRow>
+        <TableCell>{item.ordenacao}</TableCell>
+        <TableCell>
+          <Input
+            size={1}
+            className="text-xs"
+            value={editForm.descricao}
+            onChange={e => setEditForm(f => ({ ...f, descricao: e.target.value }))}
+          />
+        </TableCell>
+        <TableCell>
+          <Input
+            type="number"
+            min="1"
+            step="0.1"
+            size={1}
+            className="text-xs text-center"
+            value={editForm.quantidade}
+            onChange={e => setEditForm(f => ({ ...f, quantidade: e.target.value }))}
+          />
+        </TableCell>
+        <TableCell>
+          <Input
+            type="number"
+            step="0.01"
+            size={1}
+            className="text-xs text-right"
+            value={editForm.valor_unitario}
+            onChange={e => setEditForm(f => ({ ...f, valor_unitario: e.target.value }))}
+          />
+        </TableCell>
+        <TableCell className="text-xs text-right font-semibold">
+          R$ {((parseFloat(editForm.quantidade) || 0) * (parseFloat(editForm.valor_unitario) || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+        </TableCell>
+        <TableCell>
+          <div className="flex gap-1">
+            <Button size="sm" variant="ghost" onClick={handleSave} disabled={saving} className="h-7 px-2">
+              <Save className="h-3 w-3" />
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)} disabled={saving} className="h-7 px-2">
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  }
+
+  return (
+    <TableRow>
+      <TableCell className="text-xs">{item.ordenacao}</TableCell>
+      <TableCell className="text-xs">{item.descricao}</TableCell>
+      <TableCell className="text-xs text-center">{item.quantidade}</TableCell>
+      <TableCell className="text-xs text-right">
+        R$ {(item.valor_unitario || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+      </TableCell>
+      <TableCell className="text-xs text-right font-semibold">
+        R$ {(item.subtotal || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+      </TableCell>
+      <TableCell>
+        <div className="flex gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setIsEditing(true)}
+            disabled={saving}
+            className="h-7 px-2 text-blue-400 hover:text-blue-300"
+            title="Editar"
+          >
+            <span className="text-sm">✎</span>
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onDelete(item.id)}
+            disabled={saving}
+            className="h-7 px-2"
+          >
+            <Trash2 className="h-3 w-3 text-destructive" />
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 // ===== Services Section =====
 function ServicesSection({ orderId, services, onRefetch }: { orderId: string; services: any[]; onRefetch: () => void }) {
   const [showMultipleItems, setShowMultipleItems] = useState(false);
-  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ descricao: "", fornecedor: "", quantidade: "1", valor_unitario: "" });
+  const [expandingServiceId, setExpandingServiceId] = useState<string | null>(null);
+  const [expandedService, setExpandedService] = useState<any>(null);
+  const [serviceItems, setServiceItems] = useState<any[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const handleDelete = async (id: string) => {
@@ -520,36 +635,62 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
     else { toast.success("Serviço removido"); onRefetch(); }
   };
 
-  const handleEdit = (service: any) => {
-    setEditingServiceId(service.id);
-    setEditForm({
-      descricao: service.descricao,
-      fornecedor: service.fornecedor || "",
-      quantidade: String(service.quantidade || 1),
-      valor_unitario: String(service.valor_unitario || (service.valor / (service.quantidade || 1))),
-    });
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editForm.descricao) return toast.error("Descrição é obrigatória");
-    if (!editForm.valor_unitario) return toast.error("Valor unitário é obrigatório");
-
-    setSaving(true);
-    const qty = parseInt(editForm.quantidade) || 1;
-    const unitVal = parseFloat(editForm.valor_unitario) || 0;
-
+  const handleExpandService = async (service: any) => {
+    setExpandingServiceId(service.id);
+    setExpandedService(service);
+    setLoadingItems(true);
     try {
-      const { error } = await supabase.from("ctm_services").update({
-        descricao: editForm.descricao,
-        fornecedor: editForm.fornecedor || null,
-        quantidade: qty,
-        valor_unitario: unitVal,
-        valor: qty * unitVal,
-      }).eq("id", editingServiceId);
+      const { data, error } = await supabase
+        .from("ctm_service_items")
+        .select("*")
+        .eq("service_id", service.id)
+        .order("ordenacao");
 
       if (error) throw error;
-      toast.success("Serviço atualizado com sucesso!");
-      setEditingServiceId(null);
+      setServiceItems(data || []);
+    } catch (err: any) {
+      toast.error("Erro ao carregar itens do serviço: " + err.message);
+    } finally {
+      setLoadingItems(false);
+    }
+  };
+
+  const handleUpdateServiceItem = async (itemId: string, updates: any) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("ctm_service_items")
+        .update(updates)
+        .eq("id", itemId);
+
+      if (error) throw error;
+
+      // Atualizar lista local
+      setServiceItems(items =>
+        items.map(item => item.id === itemId ? { ...item, ...updates } : item)
+      );
+
+      toast.success("Item atualizado com sucesso!");
+      onRefetch();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteServiceItem = async (itemId: string) => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from("ctm_service_items")
+        .delete()
+        .eq("id", itemId);
+
+      if (error) throw error;
+
+      setServiceItems(items => items.filter(item => item.id !== itemId));
+      toast.success("Item removido com sucesso!");
       onRefetch();
     } catch (err: any) {
       toast.error(err.message);
@@ -580,8 +721,8 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
                 <TableCell className="text-right">R$ {(s.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" title="Editar" onClick={() => handleEdit(s)} className="text-blue-400 hover:text-blue-300">
-                      <span className="text-lg">✎</span>
+                    <Button variant="ghost" size="icon" title="Expandir" onClick={() => handleExpandService(s)} className="text-blue-400 hover:text-blue-300">
+                      <span className="text-lg">📄</span>
                     </Button>
                     <Button variant="ghost" size="icon" onClick={() => handleDelete(s.id)}>
                       <Trash2 className="h-3.5 w-3.5 text-destructive" />
@@ -604,60 +745,90 @@ function ServicesSection({ orderId, services, onRefetch }: { orderId: string; se
         </Button>
       )}
 
-      {/* Dialog para editar serviço */}
-      <Dialog open={!!editingServiceId} onOpenChange={(open) => !open && setEditingServiceId(null)}>
-        <DialogContent className="sm:max-w-md">
+      {/* Dialog para visualizar serviço expandido */}
+      <Dialog open={!!expandingServiceId} onOpenChange={(open) => !open && setExpandingServiceId(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Editar Serviço</DialogTitle>
+            <DialogTitle className="text-xl">
+              {expandedService?.descricao}
+            </DialogTitle>
             <DialogDescription>
-              Atualize os dados do serviço
+              Fornecedor: {expandedService?.fornecedor || "-"}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div>
-              <Label className="text-xs">Descrição *</Label>
-              <Input value={editForm.descricao} onChange={e => setEditForm(f => ({ ...f, descricao: e.target.value }))} />
+          {loadingItems ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
-
-            <div>
-              <Label className="text-xs">Fornecedor</Label>
-              <Input value={editForm.fornecedor} onChange={e => setEditForm(f => ({ ...f, fornecedor: e.target.value }))} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-xs">Quantidade</Label>
-                <Input type="number" min="1" value={editForm.quantidade} onChange={e => setEditForm(f => ({ ...f, quantidade: e.target.value }))} />
+          ) : (
+            <div className="space-y-6">
+              {/* Info do serviço */}
+              <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+                <h3 className="font-semibold text-sm">Informações do Serviço</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground text-xs">Descrição</p>
+                    <p className="font-medium">{expandedService?.descricao}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Fornecedor</p>
+                    <p className="font-medium">{expandedService?.fornecedor || "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Quantidade Total</p>
+                    <p className="font-medium">{expandedService?.quantidade || 1}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground text-xs">Valor Total</p>
+                    <p className="font-bold text-green-400">
+                      R$ {(expandedService?.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <Label className="text-xs">Valor Unitário *</Label>
-                <Input type="number" step="0.01" value={editForm.valor_unitario} onChange={e => setEditForm(f => ({ ...f, valor_unitario: e.target.value }))} />
+
+              {/* Itens do serviço */}
+              <div className="space-y-3">
+                <h3 className="font-semibold text-sm">Itens do Serviço</h3>
+                {serviceItems.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4">Nenhum item registrado</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Ord.</TableHead>
+                        <TableHead className="text-xs">Descrição</TableHead>
+                        <TableHead className="text-xs text-center">Qtd</TableHead>
+                        <TableHead className="text-xs text-right">Valor Unit.</TableHead>
+                        <TableHead className="text-xs text-right">Subtotal</TableHead>
+                        <TableHead className="text-xs">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {serviceItems.map((item: any) => (
+                        <ExpandedServiceItemRow
+                          key={item.id}
+                          item={item}
+                          onUpdate={handleUpdateServiceItem}
+                          onDelete={handleDeleteServiceItem}
+                          saving={saving}
+                        />
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </div>
             </div>
-          </div>
+          )}
 
-          <DialogFooter>
+          <DialogFooter className="mt-6">
             <Button
               type="button"
               variant="outline"
-              onClick={() => setEditingServiceId(null)}
-              disabled={saving}
+              onClick={() => setExpandingServiceId(null)}
             >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSaveEdit}
-              disabled={saving || !editForm.descricao.trim()}
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                "Salvar Alterações"
-              )}
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>
