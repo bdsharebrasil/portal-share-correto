@@ -57,11 +57,11 @@ export async function generatePartnerMonthlyPDF(options: GenerateOptions): Promi
 
   const marginH = 5;   // horizontal margin (mm)
   const marginTop = 5; // top margin (mm)
-  const footerH = 8;   // height reserved for footer at bottom (mm)
+  const marginBottom = 5; // bottom margin (mm) - aumentado para evitar cortes
   const usableWidth = pageWidth - marginH * 2;
 
-  // Usable content height per page (leaving room for footer)
-  const sliceHeight = pageHeight - marginTop - footerH;
+  // Usable content height per page (com margens mais generosas para evitar cortes)
+  const sliceHeight = pageHeight - marginTop - marginBottom;
 
   const imgRatio = canvas.height / canvas.width;
   const totalImgHeight = usableWidth * imgRatio;
@@ -94,16 +94,7 @@ export async function generatePartnerMonthlyPDF(options: GenerateOptions): Promi
 
     pdf.addImage(sliceData, "PNG", marginH, marginTop, usableWidth, sliceImgH);
 
-    // Footer — drawn AFTER the image, safely below content area
-    const footerY = pageHeight - 3;
-    pdf.setFontSize(8);
-    pdf.setTextColor(150);
-    pdf.text(
-      `Página ${pageNum} • Gerado em ${generatedAt}`,
-      pageWidth / 2,
-      footerY,
-      { align: "center" }
-    );
+    // Rodapé removido conforme solicitação do cliente
 
     yOffset += sliceHeight;
     pageNum++;
