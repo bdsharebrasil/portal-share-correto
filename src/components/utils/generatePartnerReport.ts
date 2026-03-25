@@ -30,11 +30,12 @@ export async function generatePartnerMonthlyPDF(options: GenerateOptions): Promi
     background: white;
     color: black;
     padding: 0;
+    margin: 0;
   `;
   element.style.display = "block";
 
-  // Wait for render
-  await new Promise((r) => setTimeout(r, 500));
+  // Wait for render (increased timeout for multi-month reports)
+  await new Promise((r) => setTimeout(r, 2000));
 
   const canvas = await html2canvas(element, {
     scale: 2,

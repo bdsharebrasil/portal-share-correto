@@ -11,8 +11,9 @@ import { FileDown, Loader2, Eye, Maximize2, Filter, ChevronLeft, ChevronRight, C
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useMonthlyPartnerReport } from "@/hooks/useMonthlyPartnerReport";
+import { useMultiMonthPartnerReport } from "@/hooks/useMultiMonthPartnerReport";
 import { MonthlyPartnerReportPDF, type ReportFilter } from "./MonthlyPartnerReportPDF";
+import { MultiMonthPartnerReportPDF } from "./MultiMonthPartnerReportPDF";
 import { generatePartnerMonthlyPDF } from "@/components/utils/generatePartnerReport";
 import { ReportFullPagePreview } from "./ReportFullPagePreview";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -46,8 +47,8 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
   // Parse month into year/monthIndex for the picker
   const [pickerYear, setPickerYear] = useState(() => parseInt(defaultMonth.split("-")[0]));
 
-  // Load data for the first selected month (for preview)
-  const { data: reportData, isLoading } = useMonthlyPartnerReport(clientId, selectedMonths[0]);
+  // Load data for all selected months
+  const { dataByMonth, isLoading } = useMultiMonthPartnerReport(clientId, selectedMonths);
 
   const togglePartner = (id: string) => {
     setSelectedPartners((prev) =>
@@ -71,7 +72,10 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
       toast.error("Selecione pelo menos um mês");
       return;
     }
-    if (!reportData) return;
+    if (dataByMonth.size === 0) {
+      toast.error("Carregando dados...");
+      return;
+    }
     try {
       setIsExporting(true);
       setShowPreview(true);
@@ -98,10 +102,13 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
     return label.charAt(0).toUpperCase() + label.slice(1);
   };
 
-  if (showFullPage && reportData) {
+  if (showFullPage && dataByMonth.size > 0) {
+    const firstMonthData = dataByMonth.get(selectedMonths[0]);
+    if (!firstMonthData) return null;
+
     return (
       <ReportFullPagePreview
-        data={reportData}
+        data={firstMonthData}
         month={selectedMonths[0]}
         clientName={clientName}
         includeCharts={includeCharts}
@@ -224,11 +231,11 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
             {/* Partners */}
             <div className="space-y-3">
               <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sócios (vazio = todos)</Label>
-              {isLoading ? (
+              {isLoading || dataByMonth.size === 0 ? (
                 <p className="text-sm text-muted-foreground">Carregando...</p>
               ) : (
                 <div className="space-y-2 max-h-[160px] overflow-y-auto">
-                  {reportData?.partners.map((p) => (
+                  {dataByMonth.get(selectedMonths[0])?.partners.map((p) => (
                     <div key={p.id} className="flex items-center gap-2">
                       <Checkbox
                         checked={selectedPartners.includes(p.id)}
@@ -274,6 +281,7 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
               size="sm"
               onClick={() => setShowPreview(!showPreview)}
               className="gap-2"
+              disabled={dataByMonth.size === 0}
             >
               <Eye className="h-4 w-4" />
               {showPreview ? "Ocultar Preview" : "Preview Rápido"}
@@ -283,7 +291,7 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
               size="sm"
               onClick={() => setShowFullPage(true)}
               className="gap-2"
-              disabled={!reportData}
+              disabled={dataByMonth.size === 0}
             >
               <Maximize2 className="h-4 w-4" />
               Visualizar Completo
@@ -291,19 +299,32 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
           </div>
 
           {/* Inline Preview */}
-          {showPreview && reportData && (
+          {showPreview && dataByMonth.size > 0 && (
             <div className="border border-border rounded-lg overflow-auto max-h-[500px] bg-white">
               <div id="partner-report-pdf-content">
-                <MonthlyPartnerReportPDF
-                  data={reportData}
-                  month={selectedMonths[0]}
-                  includeCharts={includeCharts}
-                  includeFlights={includeFlights}
-                  includeFuels={includeFuels}
-                  includeExpenses={includeExpenses}
-                  selectedPartnerIds={selectedPartners}
-                  activeFilter={activeFilter}
-                />
+                {selectedMonths.length === 1 ? (
+                  <MonthlyPartnerReportPDF
+                    data={dataByMonth.get(selectedMonths[0])!}
+                    month={selectedMonths[0]}
+                    includeCharts={includeCharts}
+                    includeFlights={includeFlights}
+                    includeFuels={includeFuels}
+                    includeExpenses={includeExpenses}
+                    selectedPartnerIds={selectedPartners}
+                    activeFilter={activeFilter}
+                  />
+                ) : (
+                  <MultiMonthPartnerReportPDF
+                    dataByMonth={dataByMonth}
+                    months={selectedMonths}
+                    includeCharts={includeCharts}
+                    includeFlights={includeFlights}
+                    includeFuels={includeFuels}
+                    includeExpenses={includeExpenses}
+                    selectedPartnerIds={selectedPartners}
+                    activeFilter={activeFilter}
+                  />
+                )}
               </div>
             </div>
           )}
@@ -313,7 +334,7 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Fechar
           </Button>
-          <Button onClick={handleExport} disabled={isExporting || isLoading || !reportData || selectedMonths.length === 0} className="gap-2">
+          <Button onClick={handleExport} disabled={isExporting || isLoading || dataByMonth.size === 0 || selectedMonths.length === 0} className="gap-2">
             {isExporting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
