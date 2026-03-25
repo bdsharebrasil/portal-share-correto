@@ -281,7 +281,7 @@ export function GestorDashboard() {
             <Clock className="h-5 w-5 text-warning" />
             Aprovações Pendentes
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/agendamento")}>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/gestor/aprovacoes-orcamentos")}>
             Ver todas <ArrowRight className="ml-1 h-4 w-4" />
           </Button>
         </CardHeader>
