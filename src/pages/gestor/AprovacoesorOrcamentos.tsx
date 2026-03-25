@@ -55,7 +55,7 @@ export default function AprovacoesorOrcamentos() {
             aircraft: b.aircraft?.registration,
             total: b.total_value,
             date: b.submitted_at || b.created_at,
-            status: "pendente_aprovacao",
+            status: b.approval_status || b.status || "pendente_aprovacao",
             description: b.notes,
           }))
         );
@@ -78,7 +78,7 @@ export default function AprovacoesorOrcamentos() {
             aircraft: b.service_order?.aircraft?.registration,
             total: b.valor_total,
             date: b.submitted_at || b.created_at,
-            status: "pendente_aprovacao",
+            status: b.approval_status || b.status || "pendente_aprovacao",
           }))
         );
       }

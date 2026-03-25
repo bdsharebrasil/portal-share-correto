@@ -28,6 +28,25 @@ interface CTMServiceItemsFormProps {
   onCancel?: () => void;
 }
 
+// Helper function to parse Brazilian currency input (e.g., "1.234,56" -> 1234.56)
+const parseBrazilianCurrency = (value: string): number => {
+  if (!value) return 0;
+  // Remove all non-digit characters except comma and dot
+  const cleaned = value.replace(/[^0-9.,]/g, '');
+  // If there's a comma, treat it as decimal separator and remove all dots
+  if (cleaned.includes(',')) {
+    return parseFloat(cleaned.replace(/\./g, '').replace(',', '.')) || 0;
+  }
+  // Otherwise treat as regular number with optional dot
+  return parseFloat(cleaned.replace(/\./g, '')) || 0;
+};
+
+// Helper function to format number to Brazilian currency display
+const formatBrazilianCurrencyDisplay = (value: number): string => {
+  if (!value && value !== 0) return '';
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 export function CTMServiceItemsForm({
   orderId,
   serviceNumber = "SRV-001",
@@ -787,10 +806,10 @@ export function CTMServiceItemsForm({
                           type="text"
                           inputMode="decimal"
                           placeholder="0,00"
-                          value={item.valor_unitario || ""}
+                          value={formatBrazilianCurrencyDisplay(item.valor_unitario)}
                           onChange={(e) => {
-                            const val = e.target.value.replace(/[^0-9.,]/g, '');
-                            handleUpdateItem(idx, "valor_unitario", parseFloat(val.replace(',', '.')) || 0);
+                            const numValue = parseBrazilianCurrency(e.target.value);
+                            handleUpdateItem(idx, "valor_unitario", numValue);
                           }}
                           className="text-right text-xs h-8"
                         />
@@ -854,10 +873,10 @@ export function CTMServiceItemsForm({
                   type="text"
                   inputMode="decimal"
                   placeholder="0,00"
-                  value={newItem.valor_unitario || ""}
+                  value={formatBrazilianCurrencyDisplay(newItem.valor_unitario as unknown as number)}
                   onChange={(e) => {
-                    const val = e.target.value.replace(/[^0-9.,]/g, '');
-                    setNewItem({ ...newItem, valor_unitario: parseFloat(val.replace(',', '.')) || 0 });
+                    const numValue = parseBrazilianCurrency(e.target.value);
+                    setNewItem({ ...newItem, valor_unitario: numValue });
                   }}
                   className="text-right text-xs h-8"
                 />
