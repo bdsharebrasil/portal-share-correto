@@ -3,13 +3,17 @@ import App from './App.tsx'
 import './index.css'
 import './lib/fetch-retry' // Initialize fetch retry interceptor
 
-// PWA registration - only if available
+// Remove Service Workers corrompidos (sw.js não existe neste projeto)
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      // Service worker registration failed, but app continues to work
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(r => {
+      r.unregister();
+      console.log('[SW] Removido:', r.scope);
     });
   });
+  caches.keys().then(keys =>
+    keys.forEach(k => caches.delete(k))
+  );
 }
 
 createRoot(document.getElementById("root")!).render(<App />);
