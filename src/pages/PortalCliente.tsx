@@ -531,46 +531,6 @@ export default function PortalCliente() {
                   )}
                 </div>
 
-                {/* CTM Info */}
-                {logbookMonthData && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="flex items-center gap-2 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                      <div className="flex-1">
-                        <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-1">Célula Atual</p>
-                        <p className="text-2xl font-bold text-emerald-400">
-                          {decimalToHM(logbookMonthData.celula_atual)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 p-4 bg-orange-500/10 border border-orange-500/20 rounded-lg">
-                      <div className="flex-1">
-                        <p className="text-xs font-semibold text-orange-600 uppercase tracking-wider mb-1">Próx. Revisão</p>
-                        <p className="text-2xl font-bold text-orange-400">
-                          {decimalToHM(logbookMonthData.celula_prox_revisao)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className={`flex items-center gap-2 p-4 rounded-lg border ${(logbookMonthData.celula_disponivel || 0) < 0
-                        ? 'bg-red-500/10 border-red-500/20'
-                        : 'bg-blue-500/10 border-blue-500/20'
-                      }`}>
-                      <div className="flex-1">
-                        <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${(logbookMonthData.celula_disponivel || 0) < 0
-                            ? 'text-red-600'
-                            : 'text-blue-600'
-                          }`}>Disponível</p>
-                        <p className={`text-2xl font-bold ${(logbookMonthData.celula_disponivel || 0) < 0
-                            ? 'text-red-400'
-                            : 'text-blue-400'
-                          }`}>
-                          {decimalToHM(logbookMonthData.celula_disponivel)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 {/* Saldos Devedores */}
                 <div className="mb-8">
