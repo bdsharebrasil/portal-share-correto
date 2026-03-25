@@ -41,7 +41,19 @@ export function useSaldosDevedoresCliente(clienteId?: string) {
           throw new Error(`Erro ao buscar reembolsos: ${reembolsoError.message}`);
         }
 
-        const reembolsos = reembolsosData || [];
+        // 1b. Buscar recibos de reembolso pendentes da tabela receipts
+        const { data: receiptsReembolsoData, error: receiptsReembolsoError } = await supabase
+          .from('receipts')
+          .select('id, amount, status')
+          .eq('client_id', clienteId)
+          .eq('receipt_type', 'reembolso')
+          .in('status', ['pendente', 'enviado', 'aberto']);
+
+        if (receiptsReembolsoError) {
+          throw new Error(`Erro ao buscar recibos de reembolso: ${receiptsReembolsoError.message}`);
+        }
+
+        const reembolsos = [...(reembolsosData || []), ...(receiptsReembolsoData || [])];
 
         // 2. Buscar despesas para pagamento direto da tabela despesas_cliente_direto
         // Status pendentes: enviado, visualizado_cliente, aguardando_pagamento, atrasado

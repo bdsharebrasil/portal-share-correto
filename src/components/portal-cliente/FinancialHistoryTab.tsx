@@ -97,12 +97,18 @@ export function FinancialHistoryTab({ clientId, aircraftId }: FinancialHistoryTa
       );
 
       // 2. Carregar recibos de reembolso da tabela receipts (exceto os que já estão em bank_reconciliations)
-      const { data: receiptsData } = await supabase
+      let receiptsQuery = supabase
         .from("receipts")
         .select("*")
         .eq("client_id", clientId)
-        .eq("receipt_type", "reembolso")
-        .order("issue_date", { ascending: false });
+        .eq("receipt_type", "reembolso");
+
+      // Só adiciona filtro de aircraft_id se foi passado
+      if (aircraftId) {
+        receiptsQuery = receiptsQuery.eq("aircraft_id", aircraftId);
+      }
+
+      const { data: receiptsData } = await receiptsQuery.order("issue_date", { ascending: false });
 
       if (receiptsData) {
         receiptsData.forEach((record: any) => {
