@@ -200,21 +200,22 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         if (aerodromeCodes.size > 0) {
           try {
             const codesArray = Array.from(aerodromeCodes);
-            // @ts-ignore
+            // ✅ FIX: coluna correta é 'designativo', não 'code'
             const result = await supabase
               .from('aerodromes')
-              .select('code, name')
-              .in('code', codesArray);
+              .select('designativo, name')
+              .in('designativo', codesArray);
             const aerodromes = result.data as any[];
             if (aerodromes && aerodromes.length > 0) {
               aerodromes.forEach((aero: any) => {
-                aerodromeMap[aero.code] = { code: aero.code, name: aero.name };
+                aerodromeMap[aero.designativo] = { code: aero.designativo, name: aero.name };
               });
             }
           } catch (err) {
             console.error('Erro crítico ao buscar aerodromes:', err);
           }
 
+          // Fallback: aeródromos não encontrados usam o próprio código como nome
           Array.from(aerodromeCodes).forEach((code: string) => {
             if (!aerodromeMap[code]) {
               aerodromeMap[code] = { code, name: code };
@@ -748,12 +749,12 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                                   record.status_pagamento === 'pago'
                                     ? 'bg-green-500/20 text-green-300'
                                     : record.status_pagamento === 'pendente'
-                                      ? 'bg-yellow-500/20 text-yellow-300'
-                                      : 'bg-gray-500/20 text-gray-300'
+                                    ? 'bg-yellow-500/20 text-yellow-300'
+                                    : 'bg-gray-500/20 text-gray-300'
                                 }>
                                   {record.status_pagamento === 'pago' ? 'Pago'
                                     : record.status_pagamento === 'pendente' ? 'Pendente'
-                                      : record.status_pagamento || 'N/A'}
+                                    : record.status_pagamento || 'N/A'}
                                 </Badge>
                               </div>
                             </div>
@@ -889,13 +890,13 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                               Emitido em:{' '}
                               {report.date
                                 ? (() => {
-                                  try {
-                                    const [y, m, d] = report.date.split('T')[0].split('-');
-                                    return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString('pt-BR');
-                                  } catch {
-                                    return report.date;
-                                  }
-                                })()
+                                    try {
+                                      const [y, m, d] = report.date.split('T')[0].split('-');
+                                      return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString('pt-BR');
+                                    } catch {
+                                      return report.date;
+                                    }
+                                  })()
                                 : '—'}
                             </p>
 
@@ -932,13 +933,13 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                             <p className="text-sm text-foreground">
                               {report.prazo_pagamento
                                 ? (() => {
-                                  try {
-                                    const [y, m, d] = report.prazo_pagamento.split('T')[0].split('-');
-                                    return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString('pt-BR');
-                                  } catch {
-                                    return report.prazo_pagamento;
-                                  }
-                                })()
+                                    try {
+                                      const [y, m, d] = report.prazo_pagamento.split('T')[0].split('-');
+                                      return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString('pt-BR');
+                                    } catch {
+                                      return report.prazo_pagamento;
+                                    }
+                                  })()
                                 : 'Não definido'}
                             </p>
                           </div>
@@ -950,8 +951,8 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                                 isPago
                                   ? 'bg-green-500/20 text-green-300'
                                   : isEnviado
-                                    ? 'bg-blue-500/20 text-blue-300'
-                                    : 'bg-yellow-500/20 text-yellow-300'
+                                  ? 'bg-blue-500/20 text-blue-300'
+                                  : 'bg-yellow-500/20 text-yellow-300'
                               }
                             >
                               {isPago ? 'Conferido' : isEnviado ? 'Enviado' : 'Pendente'}
