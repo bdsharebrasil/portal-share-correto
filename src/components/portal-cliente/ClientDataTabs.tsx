@@ -21,7 +21,6 @@ export interface ClientDataTabsProps {
   selectedPartner?: any;
 }
 
-// ─── Novo tipo: espelha bank_reconciliations para relatórios de viagem ────────
 interface TravelReportReconciliation {
   id: string;
   description: string;
@@ -29,10 +28,9 @@ interface TravelReportReconciliation {
   status: string;
   date: string;
   prazo_pagamento?: string;
-  reference_id?: string;       // FK → travel_expense_reports.id
-  doc?: string;                // número do relatório (ex: REL-GIE-001/26)
+  reference_id?: string;
+  doc?: string;
   partner_name?: string;
-  // pdf_url vem de travel_expense_reports (carregado após join)
   pdf_url?: string | null;
 }
 
@@ -46,7 +44,6 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
   const [logbookEntries, setLogbookEntries] = useState<any[]>([]);
   const [fuelRecords, setFuelRecords] = useState<any[]>([]);
   const [ctmTracking, setCtmTracking] = useState<any[]>([]);
-  // ↓ Agora guarda os registros de bank_reconciliations (categoria RELATORIO DE DESPESA DE VIAGENS)
   const [travelReports, setTravelReports] = useState<TravelReportReconciliation[]>([]);
   const [bankReconciliations, setBankReconciliations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,16 +59,18 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
     const loadPartners = async () => {
       if (!aircraftId) return;
       try {
+        // ✅ FIX 1: order por quota_hours (campo correto da tabela aircraft_shareholders)
         const { data } = await supabase
           .from('aircraft_shareholders')
           .select('*, client:client_id(id, company_name)')
           .eq('aircraft_id', aircraftId)
-          .order('share_percentage', { ascending: false });
+          .order('quota_hours', { ascending: false });
 
+        // ✅ FIX 2: mapear quota_hours no lugar de share_percentage (que não existe na tabela)
         const partnerList = (data || []).map((p: any) => ({
           client_id: p.client_id,
           company_name: p.client?.company_name || p.client_name || p.partner_name || p.client_id,
-          share_percentage: p.share_percentage || 0,
+          share_percentage: p.quota_hours || 0,
         }));
 
         if (!partnerList.find((p: any) => p.client_id === clientId)) {
@@ -154,6 +153,9 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       }
 
       // Load logbook entries
+      // ✅ FIX 3: removido o join aircraft:aircraft_id(registration) que causava 400
+      // se a tabela aircraft tiver RLS bloqueando o join indireto.
+      // O aircraftRegistration já vem como prop, então o join não é necessário aqui.
       let logbookData = null;
       try {
         const { data: allLogbookData, error } = await supabase
@@ -167,8 +169,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
             partner_name,
             departure_aerodrome,
             arrival_aerodrome,
-            trecho,
-            aircraft:aircraft_id(registration)
+            trecho
           `)
           .eq('aircraft_id', aircraftId)
           .eq('client_id', forClientId)
@@ -282,8 +283,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         console.error('Erro crítico ao carregar CTM:', err);
       }
 
-      // ─── Carregar Relatórios de Viagem via bank_reconciliations ──────────────
-      // Busca registros com category = 'RELATORIO DE DESPESA DE VIAGENS'
+      // Carregar Relatórios de Viagem via bank_reconciliations
       let reportsData: TravelReportReconciliation[] = [];
       try {
         const { data: reconData, error } = await supabase
@@ -298,7 +298,6 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         if (error) console.warn('Erro ao carregar relatórios de viagem:', error);
 
         if (reconData && reconData.length > 0) {
-          // Para cada registro, busca o pdf_url em travel_expense_reports via reference_id
           const referenceIds = reconData
             .map((r: any) => r.reference_id)
             .filter(Boolean) as string[];
@@ -327,7 +326,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         console.error('Erro crítico ao carregar relatórios de viagem:', err);
       }
 
-      // Load bank reconciliations (financeiro geral)
+      // Load bank reconciliations
       let bankReconData = null;
       try {
         const result = await supabase
@@ -846,10 +845,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
           </Card>
         </TabsContent>
 
-        {/* ── Relatórios de Viagem ─────────────────────────────────────────────
-            Espelha bank_reconciliations onde category = 'RELATORIO DE DESPESA DE VIAGENS'
-            O botão "Ver PDF" abre o pdf_url já gerado em travel_expense_reports
-        ─────────────────────────────────────────────────────────────────────── */}
+        {/* ── Relatórios de Viagem ─────────────────────────────────────────────── */}
         <TabsContent value="travel-reports" className="space-y-4">
           <Card className="bg-gradient-card border-border">
             <CardHeader>
@@ -874,14 +870,10 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                   const isEnviado = report.status?.toLowerCase() === 'enviado';
 
                   return (
-                    <div
-                      key={report.id}
-                      className="p-4 bg-muted/50 rounded-lg border border-border"
-                    >
+                    <div key={report.id} className="p-4 bg-muted/50 rounded-lg border border-border">
                       <div className="space-y-3">
                         <div className="flex justify-between items-start gap-3">
                           <div className="flex-1">
-                            {/* Número do relatório vem de bank_reconciliations.doc */}
                             <div className="flex items-center gap-2 mb-2">
                               <p className="font-medium text-foreground">
                                 {report.doc || report.description}
@@ -912,7 +904,6 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                                 : '—'}
                             </p>
 
-                            {/* Descrição completa (banco) */}
                             <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                               {report.description}
                             </p>
@@ -922,26 +913,18 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                             </p>
                           </div>
 
-                          {/* Abre o PDF já gerado; desabilita se não houver URL */}
                           {report.pdf_url ? (
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => window.open(report.pdf_url!, '_blank')}
                               className="gap-2 shrink-0"
-                              title="Visualizar PDF"
                             >
                               <Eye className="h-4 w-4" />
                               Ver PDF
                             </Button>
                           ) : (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled
-                              className="gap-2 shrink-0 opacity-50"
-                              title="PDF não disponível"
-                            >
+                            <Button size="sm" variant="outline" disabled className="gap-2 shrink-0 opacity-50">
                               <Eye className="h-4 w-4" />
                               PDF indisponível
                             </Button>
