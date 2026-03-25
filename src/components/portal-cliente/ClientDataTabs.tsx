@@ -153,12 +153,11 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
       }
 
       // Load logbook entries
-      // ✅ FIX 3: removido o join aircraft:aircraft_id(registration) que causava 400
-      // se a tabela aircraft tiver RLS bloqueando o join indireto.
-      // O aircraftRegistration já vem como prop, então o join não é necessário aqui.
+      // ✅ FIX: partner_name não existe na tabela — removido do select.
+      // O filtro por sócio usa client_partner_id (FK existente no schema).
       let logbookData = null;
       try {
-        const { data: allLogbookData, error } = await supabase
+        let query = supabase
           .from('logbook_entries')
           .select(`
             id,
@@ -166,30 +165,25 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
             total_time,
             distance_nm,
             fuel_added,
-            partner_name,
             departure_aerodrome,
             arrival_aerodrome,
-            trecho
+            trecho,
+            client_partner_id
           `)
           .eq('aircraft_id', aircraftId)
           .eq('client_id', forClientId)
           .order('entry_date', { ascending: false })
           .limit(100);
 
-        if (error) console.warn('Erro ao carregar logbook:', error);
-
-        if (selectedPartner && normalizedPartnerName && allLogbookData) {
-          logbookData = allLogbookData.filter((entry: any) => {
-            if (!entry.partner_name) return false;
-            const entryPartnerName = entry.partner_name
-              .replace(/^\[|\]$/g, '')
-              .trim()
-              .toUpperCase();
-            return entryPartnerName === normalizedPartnerName.toUpperCase();
-          });
-        } else {
-          logbookData = allLogbookData;
+        // Se sócio selecionado tiver id, filtra por client_partner_id
+        if (selectedPartner?.id) {
+          query = query.eq('client_partner_id', selectedPartner.id);
         }
+
+        const { data: allLogbookData, error } = await query;
+
+        if (error) console.warn('Erro ao carregar logbook:', error);
+        logbookData = allLogbookData || [];
       } catch (err) {
         console.error('Erro crítico ao carregar logbook:', err);
       }
@@ -650,9 +644,10 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                           </td>
                           {partners.length > 1 && (
                             <td className="py-4 px-4 text-foreground">
-                              {entry.partner_name ? (
+                              {/* partner_name não existe na tabela — exibe indicador se voo tem sócio vinculado */}
+                              {entry.client_partner_id ? (
                                 <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">
-                                  {entry.partner_name}
+                                  Sócio
                                 </span>
                               ) : '—'}
                             </td>
@@ -753,12 +748,12 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                                   record.status_pagamento === 'pago'
                                     ? 'bg-green-500/20 text-green-300'
                                     : record.status_pagamento === 'pendente'
-                                    ? 'bg-yellow-500/20 text-yellow-300'
-                                    : 'bg-gray-500/20 text-gray-300'
+                                      ? 'bg-yellow-500/20 text-yellow-300'
+                                      : 'bg-gray-500/20 text-gray-300'
                                 }>
                                   {record.status_pagamento === 'pago' ? 'Pago'
                                     : record.status_pagamento === 'pendente' ? 'Pendente'
-                                    : record.status_pagamento || 'N/A'}
+                                      : record.status_pagamento || 'N/A'}
                                 </Badge>
                               </div>
                             </div>
@@ -894,13 +889,13 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                               Emitido em:{' '}
                               {report.date
                                 ? (() => {
-                                    try {
-                                      const [y, m, d] = report.date.split('T')[0].split('-');
-                                      return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString('pt-BR');
-                                    } catch {
-                                      return report.date;
-                                    }
-                                  })()
+                                  try {
+                                    const [y, m, d] = report.date.split('T')[0].split('-');
+                                    return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString('pt-BR');
+                                  } catch {
+                                    return report.date;
+                                  }
+                                })()
                                 : '—'}
                             </p>
 
@@ -937,13 +932,13 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                             <p className="text-sm text-foreground">
                               {report.prazo_pagamento
                                 ? (() => {
-                                    try {
-                                      const [y, m, d] = report.prazo_pagamento.split('T')[0].split('-');
-                                      return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString('pt-BR');
-                                    } catch {
-                                      return report.prazo_pagamento;
-                                    }
-                                  })()
+                                  try {
+                                    const [y, m, d] = report.prazo_pagamento.split('T')[0].split('-');
+                                    return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString('pt-BR');
+                                  } catch {
+                                    return report.prazo_pagamento;
+                                  }
+                                })()
                                 : 'Não definido'}
                             </p>
                           </div>
@@ -955,8 +950,8 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                                 isPago
                                   ? 'bg-green-500/20 text-green-300'
                                   : isEnviado
-                                  ? 'bg-blue-500/20 text-blue-300'
-                                  : 'bg-yellow-500/20 text-yellow-300'
+                                    ? 'bg-blue-500/20 text-blue-300'
+                                    : 'bg-yellow-500/20 text-yellow-300'
                               }
                             >
                               {isPago ? 'Conferido' : isEnviado ? 'Enviado' : 'Pendente'}
