@@ -395,6 +395,40 @@ export function FuelRecordsByAircraft({
     }
   }, [formData.abastecedor_id, formData.combustivel_tipo, suppliers]);
 
+  // Busca a rota anterior quando a data é alterada (sem estar vinculado ao diário)
+  useEffect(() => {
+    if (linkToLogbook || !formData.data) {
+      setPreviousDayFlightInfo(null);
+      return;
+    }
+
+    const loadPreviousDayRoute = async () => {
+      try {
+        const previousDateStr = getPreviousDay(formData.data);
+
+        const { data: previousFlights, error } = await supabase
+          .from('logbook_entries')
+          .select('id, entry_date, departure_aerodrome, arrival_aerodrome, trecho')
+          .eq('aircraft_id', aircraft.id)
+          .eq('entry_date', previousDateStr)
+          .order('entry_date', { ascending: false })
+          .limit(1);
+
+        if (!error && previousFlights && previousFlights.length > 0) {
+          const previousFlight = previousFlights[0];
+          setPreviousDayFlightInfo(previousFlight);
+        } else {
+          setPreviousDayFlightInfo(null);
+        }
+      } catch (err) {
+        console.error('Error loading previous day flight:', err);
+        setPreviousDayFlightInfo(null);
+      }
+    };
+
+    loadPreviousDayRoute();
+  }, [formData.data, linkToLogbook, aircraft.id]);
+
   const loadBankInstitutions = async () => {
     try {
       const { data, error } = await supabase
@@ -1486,31 +1520,39 @@ export function FuelRecordsByAircraft({
             <div>
               <Label className="text-sm font-semibold mb-2 block">Rota</Label>
               {!linkToLogbook && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Origem</Label>
-                    <AerodromeCombobox
-                      aerodromes={aerodromes}
-                      value={formData.origem_aerodromo}
-                      onChange={(value) => setFormData(prev => ({
-                        ...prev,
-                        origem_aerodromo: value,
-                      }))}
-                      disabled={isLoadingAerodromes}
-                    />
+                <div className="space-y-2 mb-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Origem</Label>
+                      <AerodromeCombobox
+                        aerodromes={aerodromes}
+                        value={formData.origem_aerodromo}
+                        onChange={(value) => setFormData(prev => ({
+                          ...prev,
+                          origem_aerodromo: value,
+                        }))}
+                        disabled={isLoadingAerodromes}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Destino</Label>
+                      <AerodromeCombobox
+                        aerodromes={aerodromes}
+                        value={formData.destino_aerodromo}
+                        onChange={(value) => setFormData(prev => ({
+                          ...prev,
+                          destino_aerodromo: value,
+                        }))}
+                        disabled={isLoadingAerodromes}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Destino</Label>
-                    <AerodromeCombobox
-                      aerodromes={aerodromes}
-                      value={formData.destino_aerodromo}
-                      onChange={(value) => setFormData(prev => ({
-                        ...prev,
-                        destino_aerodromo: value,
-                      }))}
-                      disabled={isLoadingAerodromes}
-                    />
-                  </div>
+                  {previousDayFlightInfo && (
+                    <div className="border-t border-blue-200 dark:border-blue-800 pt-2 mt-2">
+                      <p className="text-xs font-semibold text-green-600 dark:text-green-400 mb-1">📍 Rota (Dia Anterior)</p>
+                      <p className="text-sm font-medium text-foreground">{previousDayFlightInfo.departure_aerodrome} X {previousDayFlightInfo.arrival_aerodrome}</p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1707,13 +1749,14 @@ export function FuelRecordsByAircraft({
                 <Label className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-2 block">
                   ⚠️ Para marcar como pago, é obrigatório anexar o comprovante de pagamento e informar a data.
                 </Label>
-                <ModernFileUpload 
-                  label="Comprovante de Pagamento" 
-                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp" 
+                <ModernFileUpload
+                  label="Comprovante de Pagamento"
+                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp"
                   onChange={file => {
                     setFormData({
                       ...formData,
-                      comprovante_file: file
+                      comprovante_file: file,
+                      comprovante_url: file ? formData.comprovante_url : ""
                     });
                     if (!file) {
                       setUploadedFiles({
@@ -1721,11 +1764,11 @@ export function FuelRecordsByAircraft({
                         comprovante_url: ""
                       });
                     }
-                  }} 
-                  currentFile={formData.comprovante_file} 
-                  uploadedUrl={formData.comprovante_url} 
-                  disabled={isUploading} 
-                  allowedFormats={["PDF", "PNG", "JPG", "JPEG", "GIF", "WEBP"]} 
+                  }}
+                  currentFile={formData.comprovante_file}
+                  uploadedUrl={formData.comprovante_url}
+                  disabled={isUploading}
+                  allowedFormats={["PDF", "PNG", "JPG", "JPEG", "GIF", "WEBP"]}
                 />
               </div>
             )}
@@ -1792,7 +1835,8 @@ export function FuelRecordsByAircraft({
                   onChange={file => {
                     setFormData({
                       ...formData,
-                      comanda_file: file
+                      comanda_file: file,
+                      comanda_url: file ? formData.comanda_url : ""
                     });
                     if (!file) {
                       setUploadedFiles({
@@ -1826,7 +1870,8 @@ export function FuelRecordsByAircraft({
                   onChange={file => {
                     setFormData({
                       ...formData,
-                      nota_file: file
+                      nota_file: file,
+                      nota_url: file ? formData.nota_url : ""
                     });
                     if (!file) {
                       setUploadedFiles({
@@ -1852,7 +1897,8 @@ export function FuelRecordsByAircraft({
                 onChange={file => {
                   setFormData({
                     ...formData,
-                    boleto_file: file
+                    boleto_file: file,
+                    boleto_url: file ? formData.boleto_url : ""
                   });
                   if (!file) {
                     setUploadedFiles({

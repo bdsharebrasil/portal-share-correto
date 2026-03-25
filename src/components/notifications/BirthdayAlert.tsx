@@ -54,16 +54,24 @@ export const BirthdayAlert = () => {
             </span>
           )}
           {isVisible && (
-            <button
+            <div
               onClick={(e) => {
                 e.stopPropagation();
                 setIsVisible(false);
               }}
-              className="absolute -top-2 -right-2 bg-destructive rounded-full p-0.5 hover:bg-destructive/90 transition-colors"
+              className="absolute -top-2 -right-2 bg-destructive rounded-full p-0.5 hover:bg-destructive/90 transition-colors cursor-pointer"
               title="Fechar"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.stopPropagation();
+                  setIsVisible(false);
+                }
+              }}
             >
               <X className="h-3 w-3 text-white" />
-            </button>
+            </div>
           )}
         </Button>
       </PopoverTrigger>

@@ -13,6 +13,7 @@ import { GlobalLoader } from "@/components/ui/global-loader";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Layout as Layout } from "@/components/layout/Layout";
+import { RouteChangeListener } from "@/components/RouteChangeListener";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Route, Routes, useParams, useNavigate } from "react-router-dom";
 
@@ -160,6 +161,7 @@ const App = () => {
                       <GlobalLoader />
                       <InstallPrompt />
                       <HashRouter>
+                        <RouteChangeListener />
                         <Routes>
                           <Route path="/login" element={<Login />} />
                           <Route path="/" element={renderProtected(<HomeRedirect />)} />
