@@ -380,7 +380,11 @@ export default function PortalCliente() {
                     <img
                       src={selectedClient.logo_url}
                       alt={selectedClient.company_name}
-                      className="h-16 w-16 object-contain rounded-lg bg-white p-2"
+                      className="h-16 w-16 object-contain rounded-lg p-2 border"
+                      style={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                        borderColor: 'rgba(5, 17, 42, 1)'
+                      }}
                     />
                   )}
 
