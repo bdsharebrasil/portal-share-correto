@@ -425,7 +425,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         {/* ── Financeiro ──────────────────────────────────────────────────────── */}
         <TabsContent value="financeiro" className="space-y-4">
           {/* Card com informações do avião selecionado */}
-          {aircraft && (
+          {aircraftRegistration && (
             <Card className="border border-blue-500/20 bg-blue-500/5 backdrop-blur-sm">
               <CardContent className="pt-6">
                 <div className="flex items-center gap-3">
@@ -435,7 +435,7 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
                   <div className="flex-1">
                     <p className="text-sm text-muted-foreground mb-0.5">Dados financeiros da aeronave:</p>
                     <p className="text-lg font-semibold text-blue-400">
-                      {aircraftRegistration || 'Aeronave'}
+                      {aircraftRegistration}
                     </p>
                   </div>
                 </div>
