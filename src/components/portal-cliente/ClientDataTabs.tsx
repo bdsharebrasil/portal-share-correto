@@ -321,13 +321,14 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
         console.error('Erro crítico ao carregar relatórios de viagem:', err);
       }
 
-      // Load bank reconciliations
+      // Load bank reconciliations (filtrando por aircraft_id para mostrar apenas dados do avião selecionado)
       let bankReconData = null;
       try {
         const result = await supabase
           .from('bank_reconciliations')
           .select('*')
           .eq('client_id', forClientId)
+          .eq('aircraft_id', aircraftId)
           .order('date', { ascending: false })
           .limit(100);
         bankReconData = result.data;
@@ -423,19 +424,39 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
 
         {/* ── Financeiro ──────────────────────────────────────────────────────── */}
         <TabsContent value="financeiro" className="space-y-4">
+          {/* Card com informações do avião selecionado */}
+          {aircraft && (
+            <Card className="border border-blue-500/20 bg-blue-500/5 backdrop-blur-sm">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-lg bg-blue-500/20">
+                    <Plane className="h-5 w-5 text-blue-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm text-muted-foreground mb-0.5">Dados financeiros da aeronave:</p>
+                    <p className="text-lg font-semibold text-blue-400">
+                      {aircraftRegistration || 'Aeronave'}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Seção de Movimentações */}
           <Card className="bg-gradient-card border-border">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-foreground">
                 <DollarSign className="h-5 w-5 text-primary" />
-                Dados Financeiros
+                Movimentações Financeiras
               </CardTitle>
               <CardDescription className="text-muted-foreground">
-                Histórico de movimentações financeiras
+                Transações e despesas lançadas
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {bankReconciliations.length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">Nenhum registro financeiro encontrado</p>
+                <p className="text-muted-foreground text-center py-8">Nenhuma movimentação encontrada para esta aeronave</p>
               ) : (
                 <div className="space-y-3">
                   {bankReconciliations.map((record: any) => {
@@ -536,6 +557,12 @@ export function ClientDataTabs({ clientId, clientName, aircraftId, aircraftRegis
               )}
             </CardContent>
           </Card>
+
+          {/* Seção de Recibos de Reembolso */}
+          <FinancialHistoryTab
+            clientId={clientId}
+            aircraftId={aircraftId}
+          />
         </TabsContent>
 
         {/* ── Contratos ───────────────────────────────────────────────────────── */}
