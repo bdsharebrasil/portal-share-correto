@@ -76,7 +76,7 @@ export function useSaldosDevedoresCliente(clienteId?: string, aircraftId?: strin
           .in('status', ['enviado', 'visualizado_cliente', 'aguardando_pagamento', 'atrasado', 'comprovante_recebido']);
 
         if (aircraftId) {
-          pagamentoDiretoQuery = pagamentoDiretoQuery.eq('aircraft_id', aircraftId);
+          pagamentoDiretoQuery = pagamentoDiretoQuery.eq('aeronave_id', aircraftId);
         }
 
         const { data: pagamentoDiretoData, error: pagamentoError } = await pagamentoDiretoQuery;
@@ -109,7 +109,7 @@ export function useSaldosDevedoresCliente(clienteId?: string, aircraftId?: strin
           .ilike('descricao', '%combustivel%');
 
         if (aircraftId) {
-          combustivelDiretoQuery = combustivelDiretoQuery.eq('aircraft_id', aircraftId);
+          combustivelDiretoQuery = combustivelDiretoQuery.eq('aeronave_id', aircraftId);
         }
 
         const { data: combustivelDiretoData, error: combustivelDiretoError } = await combustivelDiretoQuery;
@@ -212,7 +212,7 @@ export function useSaldosDevedoresDetalhes(
             .in('status', ['enviado', 'visualizado_cliente', 'aguardando_pagamento', 'atrasado', 'comprovante_recebido']);
 
           if (aircraftId) {
-            query = query.eq('aircraft_id', aircraftId);
+            query = query.eq('aeronave_id', aircraftId);
           }
 
           const { data, error } = await query.order('data_vencimento', { ascending: false });
@@ -240,7 +240,7 @@ export function useSaldosDevedoresDetalhes(
             .ilike('descricao', '%combustivel%');
 
           if (aircraftId) {
-            diretoQuery = diretoQuery.eq('aircraft_id', aircraftId);
+            diretoQuery = diretoQuery.eq('aeronave_id', aircraftId);
           }
 
           const { data: diretoData, error: diretoError } = await diretoQuery.order('data_vencimento', { ascending: false });
