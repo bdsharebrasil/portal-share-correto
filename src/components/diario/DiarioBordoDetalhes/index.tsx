@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect, useReducer } from 'react';
+import React, { useState, useMemo, useEffect, useReducer, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format, parse } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Layout } from "@/components/layout/Layout";
@@ -34,7 +35,6 @@ import { useFlightTimeCalculation } from '@/hooks/useFlightTimeCalculation';
 import { TimeInput, CompactTimeInput, TimeInputGroup } from '../shared/TimeInput';
 // Importar funções centralizadas de cálculo de tempos
 import {
-  calculateCelulaAtual,
   calculateCelulaDisponivel,
   calculateRunningCelula } from
 '@/utils/flightTime';
@@ -111,6 +111,8 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
   const [aircraft, setAircraft] = useState<any>(null);
   const [lastCelula, setLastCelula] = useState(0);
   const [logbookMonth, setLogbookMonth] = useState<any>(null);
+  const [linkedAbastecimentos, setLinkedAbastecimentos] = useState<Record<string, any>>({});
+  const navigate = useNavigate();
 
   const [markedDailies, setMarkedDailies] = useState<Record<string, boolean>>(() => {
     try {
@@ -424,6 +426,31 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     if (aircraftId) loadData();
   }, [aircraftId, selectedMonth, selectedYear]);
 
+  // Buscar abastecimentos vinculados aos lançamentos do diário
+  useEffect(() => {
+    const fetchLinkedAbastecimentos = async () => {
+      if (!entries.length) return;
+      const entryIds = entries.map((e: any) => e.id).filter(Boolean);
+      if (!entryIds.length) return;
+      
+      const { data } = await supabase
+        .from('abastecimentos')
+        .select('id, logbook_entry_id, litros, trecho, local, data, abastecedor, client_id')
+        .in('logbook_entry_id', entryIds);
+      
+      if (data) {
+        const map: Record<string, any> = {};
+        data.forEach((a: any) => {
+          if (a.logbook_entry_id) {
+            map[a.logbook_entry_id] = a;
+          }
+        });
+        setLinkedAbastecimentos(map);
+      }
+    };
+    fetchLinkedAbastecimentos();
+  }, [entries]);
+
   useEffect(() => {
     if (availableMonths.length > 0) {
       const currentMonthAvailable = availableMonths.some(
@@ -575,10 +602,11 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
     if (!logbookMonth) return;
 
     try {
-      // Buscar TODOS os voos do mês com sequential_number para cálculo correto
+      // Buscar TODOS os voos do mês para recalcular a célula corretamente
+      // Célula é contada por ciclo (AC → Corte), não por tempo de voo
       const { data: monthEntries } = await supabase.
       from('logbook_entries').
-      select('id, total_time, sequential_number').
+      select('id, celula, sequential_number').
       eq('aircraft_id', aircraftId).
       gte('entry_date', `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`).
       lt('entry_date', selectedMonth === 12 ?
@@ -588,12 +616,15 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
 
       const celulaAnterior = logbookMonth.celula_anterior ?? 0;
 
-      // Usar funções centralizadas para cálculo correto
-      // Mapear total_time para time (nome esperado pela função)
-      const newCelulaAtual = calculateCelulaAtual(
-        (monthEntries || []).map((entry) => ({ time: entry.total_time })),
-        celulaAnterior
-      );
+      // Recalcular célula_atual baseado no último registro do mês
+      // A célula final é o valor acumulado do último voo (cada voo soma 1 ciclo)
+      let newCelulaAtual = celulaAnterior;
+
+      if (monthEntries && monthEntries.length > 0) {
+        // Pegar o último valor de célula (que é o acumulado)
+        const lastEntry = monthEntries[monthEntries.length - 1];
+        newCelulaAtual = lastEntry.celula || celulaAnterior;
+      }
 
       const newCelulaDisponivel = calculateCelulaDisponivel(
         logbookMonth.celula_prox_revisao ?? 0,
@@ -3299,7 +3330,22 @@ const DiarioBordoDetalhes = ({ aircraftId, onBack }: any) => {
                       <span className="text-slate-300 text-xs">{e.pousos || '-'}</span>
                     </td>
                     <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.fuel_add}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      <span className="text-slate-300 text-xs">{e.fuel_added > 0 ? e.fuel_added?.toFixed(1) : '-'}</span>
+                      {(() => {
+                        const linked = linkedAbastecimentos[e.id];
+                        const fuelValue = e.fuel_added > 0 ? e.fuel_added?.toFixed(1) : '-';
+                        if (linked) {
+                          return (
+                            <span
+                              className="text-blue-400 font-bold text-xs cursor-pointer hover:text-blue-300 hover:underline transition-colors"
+                              title={`Abastecimento: ${linked.litros}L | ${linked.trecho || ''} | ${linked.local || ''} | ${linked.data || ''}\nClique para ver detalhes`}
+                              onClick={() => navigate('/abastecimento', { state: { highlightAbastecimentoId: linked.id, clientId: linked.client_id } })}
+                            >
+                              {fuelValue}
+                            </span>
+                          );
+                        }
+                        return <span className="text-slate-300 text-xs">{fuelValue}</span>;
+                      })()}
                     </td>
                     <td className="p-2 whitespace-nowrap text-center" style={{ width: `${columnWidths.celula}px`, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       <span className="text-orange-400 font-bold text-sm">{Math.round(e.fuel_liters || 0)}L</span>

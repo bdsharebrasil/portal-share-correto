@@ -1,9 +1,9 @@
-import { AirplaneSpinner } from "./airplane-spinner";
+import { LottieAirplaneSpinner } from "./lottie-airplane-spinner";
 
 interface LoadingPlaneProps {
   size?: "sm" | "md" | "lg";
 }
 
 export const LoadingPlane = ({ size = "md" }: LoadingPlaneProps) => {
-  return <AirplaneSpinner size={size} text="" />;
+  return <LottieAirplaneSpinner size={size} text="" />;
 };

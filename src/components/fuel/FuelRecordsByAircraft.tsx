@@ -59,6 +59,8 @@ interface FuelRecord {
   comprovante_pagamento?: string | null;
   data_pagamento?: string | null;
   tipo_combustivel?: string | null;
+  descricao?: string | null;
+  banco?: string | null;
 }
 interface FuelSupplier {
   id: string;
@@ -1606,7 +1608,7 @@ export function FuelRecordsByAircraft({
                     abastecedor_id: value,
                     local: selectedSupplier?.city_name || formData.local
                   });
-                }} placeholder="Selecione um fornecedor" searchPlaceholder="Buscar fornecedor..." emptyText="Nenhum fornecedor encontrado" className="mt-1 h-9 text-sm" required />
+                }} placeholder="Selecione um fornecedor" searchPlaceholder="Buscar fornecedor..." emptyText="Nenhum fornecedor encontrado" className="mt-1 h-9 text-sm" />
               </div>
 
               <div>
@@ -2114,6 +2116,7 @@ export function FuelRecordsByAircraft({
                 <TableHead className="font-semibold text-foreground">Trecho</TableHead>
                 <TableHead className="font-semibold text-foreground">Local</TableHead>
                 <TableHead className="font-semibold text-foreground">Comanda</TableHead>
+                <TableHead className="font-semibold text-foreground">N.F</TableHead>
                 <TableHead className="font-semibold text-foreground">Fornecedor</TableHead>
                 <TableHead className="font-semibold text-foreground">Sócio</TableHead>
                 <TableHead className="font-semibold text-foreground">Status</TableHead>
@@ -2122,7 +2125,7 @@ export function FuelRecordsByAircraft({
                 <TableHead className="text-right font-semibold text-foreground">Valor Total</TableHead>
                 <TableHead className="text-right font-semibold text-foreground">Galões</TableHead>
                 <TableHead className="font-semibold text-foreground">Observações</TableHead>
-                <TableHead className="font-semibold text-foreground">NF</TableHead>
+                
                 <TableHead className="text-right font-semibold text-foreground">Anexos</TableHead>
                 <TableHead className="text-right font-semibold text-foreground">Ações</TableHead>
               </TableRow>
@@ -2143,7 +2146,48 @@ export function FuelRecordsByAircraft({
                   </TableCell>
                   <TableCell className="text-muted-foreground">{record.trecho || "-"}</TableCell>
                   <TableCell className="text-muted-foreground">{record.local || "-"}</TableCell>
-                  <TableCell className="font-mono text-foreground">{record.comanda}</TableCell>
+                  <TableCell className="font-mono text-foreground">
+                    <div className="flex items-center gap-1.5">
+                      <span>{record.comanda || "-"}</span>
+                      {record.comanda_url && (
+                        <button
+                          onClick={() => {
+                            const parsed = parseFileUrl(record.comanda_url, 'comanda');
+                            setViewingAttachment({
+                              url: parsed.url,
+                              type: getFileType(parsed.extension),
+                              name: 'Comanda'
+                            });
+                          }}
+                          className="text-blue-500 hover:text-blue-400 transition-colors"
+                          title="Ver comanda"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="font-mono text-foreground">
+                    <div className="flex items-center gap-1.5">
+                      <span>{record.nf || "-"}</span>
+                      {record.nota_url && (
+                        <button
+                          onClick={() => {
+                            const parsed = parseFileUrl(record.nota_url, 'nota');
+                            setViewingAttachment({
+                              url: parsed.url,
+                              type: getFileType(parsed.extension),
+                              name: 'Nota Fiscal'
+                            });
+                          }}
+                          className="text-green-500 hover:text-green-400 transition-colors"
+                          title="Ver nota fiscal"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{record.abastecedor || "-"}</TableCell>
                   <TableCell className="text-muted-foreground font-medium">{record.partner_name || "-"}</TableCell>
                   <TableCell>
@@ -2172,33 +2216,8 @@ export function FuelRecordsByAircraft({
                       {(record.observacao && record.observacao.replace(/\[Partner:[^\]]*\]\s*/g, '').trim()) || "-"}
                     </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {record.nf || "-"}
-                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      {record.comanda_url && <Button variant="ghost" size="sm" onClick={() => {
-                        const parsed = parseFileUrl(record.comanda_url, 'comanda');
-                        setViewingAttachment({
-                          url: parsed.url,
-                          type: getFileType(parsed.extension),
-                          name: 'Comanda'
-                        });
-                      }} className="h-7 px-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30 font-semibold text-xs gap-1" title="Visualizar Comanda">
-                        <FileText className="h-4 w-4" />
-                        Comanda
-                      </Button>}
-                      {record.nota_url && <Button variant="ghost" size="sm" onClick={() => {
-                        const parsed = parseFileUrl(record.nota_url, 'nota');
-                        setViewingAttachment({
-                          url: parsed.url,
-                          type: getFileType(parsed.extension),
-                          name: 'Nota Fiscal'
-                        });
-                      }} className="h-7 px-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 font-semibold text-xs gap-1" title="Visualizar Nota Fiscal">
-                        <FileCheck className="h-4 w-4" />
-                        NF
-                      </Button>}
                       {record.boleto_url && <Button variant="ghost" size="sm" onClick={() => {
                         const parsed = parseFileUrl(record.boleto_url, 'boleto');
                         setViewingAttachment({
@@ -2210,7 +2229,18 @@ export function FuelRecordsByAircraft({
                         <DollarSign className="h-4 w-4" />
                         Boleto
                       </Button>}
-                      {!record.comanda_url && !record.nota_url && !record.boleto_url && <span className="text-xs text-muted-foreground">—</span>}
+                      {(record as any).comprovante_pagamento && <Button variant="ghost" size="sm" onClick={() => {
+                        const parsed = parseFileUrl((record as any).comprovante_pagamento, 'comprovante');
+                        setViewingAttachment({
+                          url: parsed.url,
+                          type: getFileType(parsed.extension),
+                          name: 'Comprovante'
+                        });
+                      }} className="h-7 px-2 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 font-semibold text-xs gap-1" title="Visualizar Comprovante">
+                        <FileCheck className="h-4 w-4" />
+                        Comprovante
+                      </Button>}
+                      {!record.boleto_url && !(record as any).comprovante_pagamento && <span className="text-xs text-muted-foreground">—</span>}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">

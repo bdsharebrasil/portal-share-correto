@@ -196,7 +196,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
   const { data: fornecedoresFavoritos = [] } = useFornecedoresFavoritos();
   const { data: fuelSuppliers = [] } = useFuelSuppliers();
   const { data: contasBancarias = [], isLoading: loadingContas } = useContasBancarias();
-  const { data: aerodromes = [] } = useAerodromes();
+  const { aerodromes } = useAerodromes();
 
   // Fetch aircraft ID for this client
   const [clientAircraftId, setClientAircraftId] = useState<string | null>(null);
@@ -985,14 +985,13 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                             <FormSection label="🛢️ Fornecedor <span className='text-red-500'>*</span>">
                               <div className="flex gap-2">
                                 <SearchableCombobox
-                                  options={fuelSuppliers.map(s => ({
-                                    value: s.supplier_name,
+                                  items={fuelSuppliers.map(s => ({
+                                    id: s.supplier_name,
                                     label: `${s.supplier_name} (${s.city_name})`
                                   }))}
                                   value={form.supplierName}
-                                  onValueChange={(v) => {
+                                  onChange={(v) => {
                                     set("supplierName")(v);
-                                    // Auto-fill local
                                     const supplier = fuelSuppliers.find(s => s.supplier_name === v);
                                     if (supplier) {
                                       set("novoAbastLocal")(supplier.city_name);
@@ -1000,8 +999,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                                   }}
                                   placeholder="Selecione fornecedor"
                                   searchPlaceholder="Buscar fornecedor..."
-                                  emptyText="Nenhum fornecedor encontrado"
-                                  className="flex-1"
+                                  emptyMessage="Nenhum fornecedor encontrado"
                                   disabled={addExpense.isPending}
                                 />
                                 <Button

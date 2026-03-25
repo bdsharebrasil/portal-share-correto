@@ -1,6 +1,7 @@
 // hooks/useLogbookMonthData.ts
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { calculateCelulaDisponivel } from '@/utils/flightTime';
 import type { Aircraft } from '@/types';
 import type { LogbookMonthData } from '../types';
 
@@ -36,33 +37,44 @@ export function useLogbookMonthData(aircraft: Aircraft[]) {
 
           const monthData = monthsData[0];
 
-          // Buscar o último lançamento desse mês para validar celula_atual
-          const { data: lastEntry } = await supabase
+          // Buscar TODOS os voos do mês para recalcular a célula corretamente
+          // Célula é contada por ciclo (AC → Corte), não por tempo de voo
+          const { data: monthEntries } = await supabase
             .from('logbook_entries')
-            .select('celula')
+            .select('id, celula')
             .eq('logbook_month_id', monthData.id)
-            .order('sequential_number', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+            .order('sequential_number', { ascending: true });
 
-          if (lastEntry?.celula && Math.abs((monthData.celula_atual ?? 0) - lastEntry.celula) > 0.01) {
-            // Corrigir celula_atual com o valor real do último lançamento
-            const correctedCelulaAtual = lastEntry.celula;
-            const correctedDisponivel = (monthData.celula_prox_revisao ?? 0) - correctedCelulaAtual;
+          // Recalcular célula_atual baseado no último registro do mês
+          // A célula final é o valor acumulado do último voo (cada voo soma 1 ciclo)
+          const celulaAnterior = monthData.celula_anterior ?? 0;
+          let calculatedCelulaAtual = celulaAnterior;
 
-            // Atualizar no banco
+          if (monthEntries && monthEntries.length > 0) {
+            // Pegar o último valor de célula (que é o acumulado)
+            const lastEntry = monthEntries[monthEntries.length - 1];
+            calculatedCelulaAtual = lastEntry.celula || celulaAnterior;
+          }
+
+          const calculatedCelulaDisponivel = calculateCelulaDisponivel(
+            monthData.celula_prox_revisao ?? 0,
+            calculatedCelulaAtual
+          );
+
+          // Se houve diferença, atualizar no banco
+          if (Math.abs((monthData.celula_atual ?? 0) - calculatedCelulaAtual) > 0.01) {
             await supabase
               .from('logbook_months')
               .update({
-                celula_atual: correctedCelulaAtual,
-                celula_disponivel: parseFloat(correctedDisponivel.toFixed(2))
+                celula_atual: calculatedCelulaAtual,
+                celula_disponivel: calculatedCelulaDisponivel
               })
               .eq('id', monthData.id);
 
             monthDataMap[ac.id] = {
               ...monthData,
-              celula_atual: correctedCelulaAtual,
-              celula_disponivel: parseFloat(correctedDisponivel.toFixed(2))
+              celula_atual: calculatedCelulaAtual,
+              celula_disponivel: calculatedCelulaDisponivel
             };
           } else {
             monthDataMap[ac.id] = monthData;
