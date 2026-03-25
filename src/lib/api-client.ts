@@ -8,8 +8,27 @@ const AIS_API_BASE_URL =
 
 // ─── Timeouts ─────────────────────────────────────────────────────────────────
 // A API do DECEA responde entre 4–7s — nunca use menos que 8s
-const FETCH_TIMEOUT_MS   = 8000;
+const FETCH_TIMEOUT_MS = 8000;
 const WEATHER_TIMEOUT_MS = 20000;
+
+// ─── IDB com timeout (evita travar se IndexedDB estiver corrompido) ───────────
+// O IDB pode ficar corrompido/travado e fazer a promise nunca resolver.
+// O race com 800ms garante que o fetch continua mesmo se o IDB travar.
+const IDB_TIMEOUT_MS = 800;
+
+async function idbGet(key: string): Promise<any> {
+  return Promise.race([
+    get(key),
+    new Promise<undefined>(resolve => setTimeout(() => resolve(undefined), IDB_TIMEOUT_MS)),
+  ]);
+}
+
+async function idbSet(key: string, value: any): Promise<void> {
+  return Promise.race([
+    set(key, value),
+    new Promise<void>(resolve => setTimeout(resolve, IDB_TIMEOUT_MS)),
+  ]).catch(() => { });
+}
 
 // ─── fetch com timeout ────────────────────────────────────────────────────────
 async function fetchWithTimeout(
@@ -17,9 +36,9 @@ async function fetchWithTimeout(
   options: RequestInit = {},
   timeoutMs = FETCH_TIMEOUT_MS
 ) {
-  const controller  = new AbortController();
-  const timeoutErr  = new Error(`Request timeout after ${timeoutMs}ms`);
-  const timeoutId   = setTimeout(() => controller.abort(timeoutErr), timeoutMs);
+  const controller = new AbortController();
+  const timeoutErr = new Error(`Request timeout after ${timeoutMs}ms`);
+  const timeoutId = setTimeout(() => controller.abort(timeoutErr), timeoutMs);
 
   try {
     const res = await fetch(url, { ...options, signal: controller.signal });
@@ -74,8 +93,8 @@ async function fetchJson(
 // ─── fetchJson para POST com body JSON ───────────────────────────────────────
 async function fetchJsonPost(endpoint: string, body: Record<string, any>) {
   return fetchJson(endpoint, {
-    method:  'POST',
-    body:    JSON.stringify(body),
+    method: 'POST',
+    body: JSON.stringify(body),
   });
 }
 
@@ -102,9 +121,9 @@ async function cachedFetch(
   fetcher: () => Promise<any>,
   allowMockFallback = false
 ) {
-  // Cache hit
+  // Cache hit — usa idbGet com timeout para não travar
   try {
-    const cached = (await get(key)) as { timestamp: number; data: any } | undefined;
+    const cached = (await idbGet(key)) as { timestamp: number; data: any } | undefined;
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       console.debug(`[Cache HIT] ${key}`);
       return cached.data;
@@ -118,27 +137,24 @@ async function cachedFetch(
     console.debug(`[Cache MISS] Fetching ${key}`);
     const data = await fetcher();
 
-    try {
-      await set(key, { timestamp: Date.now(), data });
-    } catch (err) {
-      console.warn('[Cache WRITE ERROR]', key, err);
-    }
+    // fire-and-forget — não bloqueia o retorno se o IDB travar
+    idbSet(key, { timestamp: Date.now(), data });
 
     return data;
   } catch (fetchError: any) {
     // Stale cache como fallback
     console.warn(`[Cache STALE FALLBACK] Fetcher failed for ${key}`);
     try {
-      const stale = (await get(key)) as { timestamp: number; data: any } | undefined;
+      const stale = (await idbGet(key)) as { timestamp: number; data: any } | undefined;
       if (stale?.data) {
         console.info(`[Cache STALE HIT] ${key}`);
         return stale.data;
       }
-    } catch {}
+    } catch { }
 
     // Mock data como último recurso (apenas para weather)
     if (allowMockFallback && key.startsWith('weather-')) {
-      const icao     = key.replace('weather-', '');
+      const icao = key.replace('weather-', '');
       const mockData = await loadMockWeatherData(icao);
       if (mockData) return mockData;
     }
@@ -154,11 +170,11 @@ export const apiClient = {
   // O Worker já normaliza para { loc, metar: string, taf: string }
   getWeather: async (icao: string) => {
     const upperIcao = icao.toUpperCase();
-    const cacheKey  = `weather-${upperIcao}`;
+    const cacheKey = `weather-${upperIcao}`;
 
-    // Cache hit
+    // Cache hit — usa idbGet com timeout para não travar
     try {
-      const cached = (await get(cacheKey)) as { timestamp: number; data: any } | undefined;
+      const cached = (await idbGet(cacheKey)) as { timestamp: number; data: any } | undefined;
       if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
         console.debug(`[Cache HIT] ${cacheKey}`);
         return cached.data;
@@ -172,11 +188,8 @@ export const apiClient = {
       console.debug(`[API] Fetching weather for ${upperIcao}`);
       const data = await fetchJson(API_ENDPOINTS.weather(icao), {}, WEATHER_TIMEOUT_MS);
 
-      try {
-        await set(cacheKey, { timestamp: Date.now(), data });
-      } catch (err) {
-        console.warn('[Cache WRITE ERROR]', cacheKey, err);
-      }
+      // fire-and-forget — não bloqueia o retorno se o IDB travar
+      idbSet(cacheKey, { timestamp: Date.now(), data });
 
       return data;
     } catch (apiError: any) {
@@ -230,12 +243,12 @@ export const apiClient = {
 
   // ── Cálculos de voo (/api/flight-calculations POST) ───────────────────────
   flightCalculations: (params: {
-    distance_nm:  number;
-    speed_kts?:   number;
-    fuel_burn?:   number;
+    distance_nm: number;
+    speed_kts?: number;
+    fuel_burn?: number;
     reserve_min?: number;
-    wind_kts?:    number;
-    taxi_min?:    number;
+    wind_kts?: number;
+    taxi_min?: number;
   }) => fetchJsonPost(API_ENDPOINTS.flightCalculations, params),
 
   // ── Plano de voo completo (/api/flightplan) ────────────────────────────────
@@ -257,6 +270,6 @@ export const apiClient = {
 // ─── Error helper ─────────────────────────────────────────────────────────────
 export function handleApiError(error: any): string {
   if (error.response?.data?.error) return error.response.data.error;
-  if (error.message)               return error.message;
+  if (error.message) return error.message;
   return 'Erro desconhecido na API';
 }
