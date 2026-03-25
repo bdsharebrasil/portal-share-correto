@@ -73,6 +73,7 @@ import DashboardOperacoes from "./pages/DashboardOperacoes";
 import DashboardFinanceiro from "./pages/DashboardFinanceiro";
 import DashboardGestorPage from "./pages/DashboardGestorPage";
 import AprovacaoAgendamentos from "./pages/AprovacaoAgendamentos";
+import AprovacoesorOrcamentos from "./pages/gestor/AprovacoesorOrcamentos";
 import PainelAgendamentos from "./pages/PainelAgendamentos";
 import CartoesCorporativos from "./pages/CartoesCorporativos";
 import BalancoCliente from "./pages/BalancoCliente";
@@ -172,6 +173,13 @@ const App = () => {
                             renderProtected(
                               <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
                                 <DashboardGestorPage />
+                              </RoleProtected>
+                            )
+                          } />
+                          <Route path="/gestor/aprovacoes-orcamentos" element={
+                            renderProtected(
+                              <RoleProtected allowedRoles={["admin", "gestor_master", "financeiro_master"]}>
+                                <AprovacoesorOrcamentos />
                               </RoleProtected>
                             )
                           } />
