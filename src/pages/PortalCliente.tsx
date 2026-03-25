@@ -534,7 +534,7 @@ export default function PortalCliente() {
 
                 {/* Saldos Devedores */}
                 <div className="mb-8">
-                  <SaldosDevedoresResume clienteId={selectedClient.id} />
+                  <SaldosDevedoresResume clienteId={selectedClient.id} aircraftId={selectedAircraft?.aircraft_id || ""} />
                 </div>
 
                 {/* Tabs */}
