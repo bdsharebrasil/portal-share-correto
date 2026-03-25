@@ -196,7 +196,7 @@ export default function PortalCliente() {
 
   const loadClientData = async () => {
     if (!selectedAircraft?.aircraft_id) return;
-    
+
     try {
       setLoading(true);
 
@@ -205,30 +205,28 @@ export default function PortalCliente() {
         .select('*')
         .eq('id', selectedAircraft.aircraft_id)
         .single();
-      
+
       if (aircraftData) setAircraft(aircraftData);
 
       const currentDate = new Date();
       const currentMonth = currentDate.getMonth() + 1;
       const currentYear = currentDate.getFullYear();
 
-      let monthData: any = null;
-      
-      try {
-        const { data } = await supabase
-          .from('logbook_months')
-          .select('id, celula_anterior, celula_atual, celula_prox_revisao, celula_disponivel, month, year')
-          .eq('aircraft_id', selectedAircraft.aircraft_id)
-          .eq('month', currentMonth)
-          .eq('year', currentYear)
-          .single();
-        monthData = data;
-      } catch (err) {
-        console.log('Mês atual não encontrado, buscando último mês...');
-      }
+      // ✅ FIX: .maybeSingle() em vez de .single() — não lança erro se o mês não existir ainda
+      const { data: currentMonthData } = await supabase
+        .from('logbook_months')
+        .select('id, celula_anterior, celula_atual, celula_prox_revisao, celula_disponivel, month, year')
+        .eq('aircraft_id', selectedAircraft.aircraft_id)
+        .eq('month', currentMonth)
+        .eq('year', currentYear)
+        .maybeSingle();
 
+      let monthData: any = currentMonthData;
+
+      // Se não encontrou o mês atual, busca o mais recente
       if (!monthData) {
-        const { data: latestMonth } = await supabase
+        console.log('Mês atual não encontrado, buscando último mês disponível...');
+        const { data: latestMonths } = await supabase
           .from('logbook_months')
           .select('id, celula_anterior, celula_atual, celula_prox_revisao, celula_disponivel, month, year')
           .eq('aircraft_id', selectedAircraft.aircraft_id)
@@ -236,57 +234,18 @@ export default function PortalCliente() {
           .order('month', { ascending: false })
           .limit(1);
 
-        monthData = latestMonth && latestMonth.length > 0 ? latestMonth[0] : null;
+        monthData = latestMonths && latestMonths.length > 0 ? latestMonths[0] : null;
       }
 
-      if (monthData && monthData.id) {
-        const { data: allEntries } = await supabase
-          .from('logbook_entries')
-          .select('total_time, entry_date')
-          .eq('aircraft_id', selectedAircraft.aircraft_id)
-          .order('entry_date', { ascending: true });
-
-        if (allEntries && allEntries.length > 0) {
-          const currentMonthEntries = allEntries.filter(e => {
-            const entryDate = new Date(e.entry_date);
-            const entryMonth = entryDate.getUTCMonth() + 1;
-            const entryYear = entryDate.getUTCFullYear();
-            return entryYear === monthData.year && entryMonth === monthData.month;
-          });
-
-          const totalFlightTimeThisMonth = currentMonthEntries.reduce((sum: number, entry: any) =>
-            sum + (Number(entry.total_time) || 0), 0);
-
-          const recalculatedCelulaAtual = parseFloat(
-            ((monthData.celula_anterior ?? 0) + totalFlightTimeThisMonth).toFixed(2)
-          );
-          const recalculatedCelulaDisponivel = parseFloat(
-            ((monthData.celula_prox_revisao ?? 0) - recalculatedCelulaAtual).toFixed(2)
-          );
-
-          if (Math.abs((monthData.celula_atual ?? 0) - recalculatedCelulaAtual) > 0.01 ||
-              Math.abs((monthData.celula_disponivel ?? 0) - recalculatedCelulaDisponivel) > 0.01) {
-            try {
-              await supabase
-                .from('logbook_months')
-                .update({
-                  celula_atual: recalculatedCelulaAtual,
-                  celula_disponivel: recalculatedCelulaDisponivel
-                })
-                .eq('id', monthData.id);
-            } catch (err) {
-              console.error('Erro ao sincronizar célula:', err);
-            }
-          }
-
-          setLogbookMonthData({
-            celula_atual: recalculatedCelulaAtual,
-            celula_prox_revisao: monthData.celula_prox_revisao,
-            celula_disponivel: recalculatedCelulaDisponivel
-          });
-        } else {
-          setLogbookMonthData(monthData as LogbookMonthData);
-        }
+      // ✅ FIX: removido o recálculo e update de célula no frontend.
+      // Os triggers do banco (trigger_consolidar_horas_logbook) já fazem isso automaticamente.
+      // Fazer update aqui causava race conditions e duplicação de lógica.
+      if (monthData) {
+        setLogbookMonthData({
+          celula_atual: monthData.celula_atual,
+          celula_prox_revisao: monthData.celula_prox_revisao,
+          celula_disponivel: monthData.celula_disponivel,
+        });
       }
 
       const { data: logbookData } = await supabase
@@ -297,12 +256,12 @@ export default function PortalCliente() {
         .limit(10);
 
       if (logbookData) {
-        const totalHours = logbookData.reduce((sum: number, entry: any) => 
+        const totalHours = logbookData.reduce((sum: number, entry: any) =>
           sum + Number(entry.total_time || 0), 0);
-        const totalLandings = logbookData.reduce((sum: number, entry: any) => 
+        const totalLandings = logbookData.reduce((sum: number, entry: any) =>
           sum + Number(entry.pousos || 0), 0);
         const destinations = [...new Set(logbookData.map(e => e.arrival_aerodrome).filter(Boolean))].slice(0, 5);
-        
+
         setFlightActivity({
           total_flights: logbookData.length,
           total_hours: totalHours,
@@ -384,21 +343,19 @@ export default function PortalCliente() {
       <div className="portal-cliente-outer">
         <div className="container mx-auto px-4 md:px-6 py-8 md:py-10 portal-cliente-container">
           {!selectedClient ? (
-            // Seleção de cliente
             <>
               <div className="mb-10">
                 <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">Portal do Cliente</h1>
                 <p className="text-muted-foreground text-base">Selecione uma empresa para visualizar detalhes, aeronaves e histórico</p>
               </div>
 
-              <ClientSelectionCards 
-                clients={clients} 
-                onSelectClient={handleClientSelect} 
-                loading={loading} 
+              <ClientSelectionCards
+                clients={clients}
+                onSelectClient={handleClientSelect}
+                loading={loading}
               />
             </>
           ) : selectedPartner === undefined ? (
-            // Seleção de sócio (se o cliente tiver sócios)
             <PartnerSelector
               clientId={selectedClient.id}
               clientName={selectedClient.company_name}
@@ -418,15 +375,15 @@ export default function PortalCliente() {
                   >
                     <ArrowLeft className="h-5 w-5" />
                   </Button>
-                  
+
                   {selectedClient.logo_url && (
-                    <img 
-                      src={selectedClient.logo_url} 
+                    <img
+                      src={selectedClient.logo_url}
                       alt={selectedClient.company_name}
                       className="h-16 w-16 object-contain rounded-lg bg-white p-2"
                     />
                   )}
-                  
+
                   <div>
                     <h1 className="text-2xl md:text-3xl font-bold text-foreground">
                       {selectedClient.company_name}
@@ -465,7 +422,6 @@ export default function PortalCliente() {
                   <CardContent className="pt-6">
                     <div className="overflow-x-auto">
                       {selectedPartner ? (
-                        // Dados do Sócio Selecionado
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b border-white/10">
@@ -481,7 +437,6 @@ export default function PortalCliente() {
                           </tbody>
                         </table>
                       ) : (
-                        // Dados Consolidados da Empresa
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b border-white/10">
@@ -576,7 +531,7 @@ export default function PortalCliente() {
                   )}
                 </div>
 
-                {/* CTM Info - Célula Atual, Próx. Revisão, Disponível */}
+                {/* CTM Info */}
                 {logbookMonthData && (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     <div className="flex items-center gap-2 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
@@ -597,22 +552,19 @@ export default function PortalCliente() {
                       </div>
                     </div>
 
-                    <div className={`flex items-center gap-2 p-4 rounded-lg border ${
-                      (logbookMonthData.celula_disponivel || 0) < 0
+                    <div className={`flex items-center gap-2 p-4 rounded-lg border ${(logbookMonthData.celula_disponivel || 0) < 0
                         ? 'bg-red-500/10 border-red-500/20'
                         : 'bg-blue-500/10 border-blue-500/20'
-                    }`}>
+                      }`}>
                       <div className="flex-1">
-                        <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${
-                          (logbookMonthData.celula_disponivel || 0) < 0
+                        <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${(logbookMonthData.celula_disponivel || 0) < 0
                             ? 'text-red-600'
                             : 'text-blue-600'
-                        }`}>Disponível</p>
-                        <p className={`text-2xl font-bold ${
-                          (logbookMonthData.celula_disponivel || 0) < 0
+                          }`}>Disponível</p>
+                        <p className={`text-2xl font-bold ${(logbookMonthData.celula_disponivel || 0) < 0
                             ? 'text-red-400'
                             : 'text-blue-400'
-                        }`}>
+                          }`}>
                           {decimalToHM(logbookMonthData.celula_disponivel)}
                         </p>
                       </div>
@@ -625,7 +577,7 @@ export default function PortalCliente() {
                   <SaldosDevedoresResume clienteId={selectedClient.id} />
                 </div>
 
-                {/* Tabs com Histórico Financeiro, Voos e Documentos */}
+                {/* Tabs */}
                 <div className="mb-6">
                   <ClientDataTabs
                     clientId={selectedClient.id}

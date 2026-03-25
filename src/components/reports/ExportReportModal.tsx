@@ -11,8 +11,9 @@ import { FileDown, Loader2, Eye, Maximize2, Filter, ChevronLeft, ChevronRight, C
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useMonthlyPartnerReport } from "@/hooks/useMonthlyPartnerReport";
+import { useMultiMonthPartnerReport } from "@/hooks/useMultiMonthPartnerReport";
 import { MonthlyPartnerReportPDF, type ReportFilter } from "./MonthlyPartnerReportPDF";
+import { MultiMonthPartnerReportPDF } from "./MultiMonthPartnerReportPDF";
 import { generatePartnerMonthlyPDF } from "@/components/utils/generatePartnerReport";
 import { ReportFullPagePreview } from "./ReportFullPagePreview";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -31,7 +32,7 @@ const MONTHS = [
 ];
 
 export function ExportReportModal({ open, onOpenChange, clientId, clientName, defaultMonth }: Props) {
-  const [month, setMonth] = useState(defaultMonth);
+  const [selectedMonths, setSelectedMonths] = useState<string[]>([defaultMonth]);
   const [includeCharts, setIncludeCharts] = useState(true);
   const [includeFlights, setIncludeFlights] = useState(true);
   const [includeFuels, setIncludeFuels] = useState(true);
@@ -44,10 +45,10 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
 
   // Parse month into year/monthIndex for the picker
-  const [pickerYear, setPickerYear] = useState(() => parseInt(month.split("-")[0]));
-  const selectedMonthIndex = parseInt(month.split("-")[1]) - 1;
+  const [pickerYear, setPickerYear] = useState(() => parseInt(defaultMonth.split("-")[0]));
 
-  const { data: reportData, isLoading } = useMonthlyPartnerReport(clientId, month);
+  // Load data for all selected months
+  const { dataByMonth, isLoading } = useMultiMonthPartnerReport(clientId, selectedMonths);
 
   const togglePartner = (id: string) => {
     setSelectedPartners((prev) =>
@@ -55,14 +56,26 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
     );
   };
 
-  const handleSelectMonth = (monthIdx: number) => {
+  const toggleMonth = (monthIdx: number) => {
     const m = `${pickerYear}-${String(monthIdx + 1).padStart(2, "0")}`;
-    setMonth(m);
-    setMonthPickerOpen(false);
+    setSelectedMonths((prev) =>
+      prev.includes(m) ? prev.filter((month) => month !== m) : [...prev, m]
+    );
+  };
+
+  const removeMonth = (month: string) => {
+    setSelectedMonths((prev) => prev.filter((m) => m !== month));
   };
 
   const handleExport = async () => {
-    if (!reportData) return;
+    if (selectedMonths.length === 0) {
+      toast.error("Selecione pelo menos um mês");
+      return;
+    }
+    if (dataByMonth.size === 0) {
+      toast.error("Carregando dados...");
+      return;
+    }
     try {
       setIsExporting(true);
       setShowPreview(true);
@@ -70,7 +83,7 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
       await generatePartnerMonthlyPDF({
         elementId: "partner-report-pdf-content",
         clientName,
-        month,
+        months: selectedMonths,
       });
       toast.success("PDF exportado com sucesso!");
     } catch (err) {
@@ -81,16 +94,22 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
     }
   };
 
-  // Month label
-  const monthDate = new Date(parseInt(month.split("-")[0]), parseInt(month.split("-")[1]) - 1, 15);
-  const monthLabel = format(monthDate, "MMMM yyyy", { locale: ptBR });
-  const monthLabelCap = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+  // Month labels for display
+  const getMonthLabel = (month: string) => {
+    const [year, mon] = month.split("-");
+    const date = new Date(parseInt(year), parseInt(mon) - 1, 15);
+    const label = format(date, "MMM/yy", { locale: ptBR });
+    return label.charAt(0).toUpperCase() + label.slice(1);
+  };
 
-  if (showFullPage && reportData) {
+  if (showFullPage && dataByMonth.size > 0) {
+    const firstMonthData = dataByMonth.get(selectedMonths[0]);
+    if (!firstMonthData) return null;
+
     return (
       <ReportFullPagePreview
-        data={reportData}
-        month={month}
+        data={firstMonthData}
+        month={selectedMonths[0]}
         clientName={clientName}
         includeCharts={includeCharts}
         includeFlights={includeFlights}
@@ -115,16 +134,38 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
         <div className="space-y-5 mt-2">
           {/* Month Picker */}
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Mês do Relatório</Label>
+            <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Meses do Relatório (selecione múltiplos)</Label>
+
+            {/* Display selected months */}
+            <div className="flex flex-wrap gap-2 min-h-[32px] p-2 border border-border rounded-md bg-muted/30">
+              {selectedMonths.length === 0 ? (
+                <span className="text-sm text-muted-foreground">Selecione pelo menos um mês</span>
+              ) : (
+                selectedMonths.map((month) => (
+                  <Badge key={month} variant="secondary" className="gap-1.5">
+                    <CalendarDays className="h-3 w-3" />
+                    {getMonthLabel(month)}
+                    <button
+                      onClick={() => removeMonth(month)}
+                      className="ml-0.5 text-muted-foreground hover:text-foreground"
+                    >
+                      ✕
+                    </button>
+                  </Badge>
+                ))
+              )}
+            </div>
+
+            {/* Month picker popover */}
             <Popover open={monthPickerOpen} onOpenChange={setMonthPickerOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
-                  className="w-full justify-between text-left font-medium h-11"
+                  className="w-full justify-between text-left font-medium h-10"
                 >
                   <span className="flex items-center gap-2">
                     <CalendarDays className="h-4 w-4 text-primary" />
-                    {monthLabelCap}
+                    Adicionar mês
                   </span>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </Button>
@@ -142,14 +183,15 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
                   </div>
                   <div className="grid grid-cols-3 gap-1.5">
                     {MONTHS.map((name, idx) => {
-                      const isSelected = pickerYear === parseInt(month.split("-")[0]) && idx === selectedMonthIndex;
+                      const monthStr = `${pickerYear}-${String(idx + 1).padStart(2, "0")}`;
+                      const isSelected = selectedMonths.includes(monthStr);
                       return (
                         <Button
                           key={idx}
                           variant={isSelected ? "default" : "ghost"}
                           size="sm"
                           className={`text-xs h-9 ${isSelected ? "" : "hover:bg-accent"}`}
-                          onClick={() => handleSelectMonth(idx)}
+                          onClick={() => toggleMonth(idx)}
                         >
                           {name.slice(0, 3)}
                         </Button>
@@ -189,11 +231,11 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
             {/* Partners */}
             <div className="space-y-3">
               <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sócios (vazio = todos)</Label>
-              {isLoading ? (
+              {isLoading || dataByMonth.size === 0 ? (
                 <p className="text-sm text-muted-foreground">Carregando...</p>
               ) : (
                 <div className="space-y-2 max-h-[160px] overflow-y-auto">
-                  {reportData?.partners.map((p) => (
+                  {dataByMonth.get(selectedMonths[0])?.partners.map((p) => (
                     <div key={p.id} className="flex items-center gap-2">
                       <Checkbox
                         checked={selectedPartners.includes(p.id)}
@@ -239,6 +281,7 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
               size="sm"
               onClick={() => setShowPreview(!showPreview)}
               className="gap-2"
+              disabled={dataByMonth.size === 0}
             >
               <Eye className="h-4 w-4" />
               {showPreview ? "Ocultar Preview" : "Preview Rápido"}
@@ -248,7 +291,7 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
               size="sm"
               onClick={() => setShowFullPage(true)}
               className="gap-2"
-              disabled={!reportData}
+              disabled={dataByMonth.size === 0}
             >
               <Maximize2 className="h-4 w-4" />
               Visualizar Completo
@@ -256,19 +299,32 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
           </div>
 
           {/* Inline Preview */}
-          {showPreview && reportData && (
+          {showPreview && dataByMonth.size > 0 && (
             <div className="border border-border rounded-lg overflow-auto max-h-[500px] bg-white">
               <div id="partner-report-pdf-content">
-                <MonthlyPartnerReportPDF
-                  data={reportData}
-                  month={month}
-                  includeCharts={includeCharts}
-                  includeFlights={includeFlights}
-                  includeFuels={includeFuels}
-                  includeExpenses={includeExpenses}
-                  selectedPartnerIds={selectedPartners}
-                  activeFilter={activeFilter}
-                />
+                {selectedMonths.length === 1 ? (
+                  <MonthlyPartnerReportPDF
+                    data={dataByMonth.get(selectedMonths[0])!}
+                    month={selectedMonths[0]}
+                    includeCharts={includeCharts}
+                    includeFlights={includeFlights}
+                    includeFuels={includeFuels}
+                    includeExpenses={includeExpenses}
+                    selectedPartnerIds={selectedPartners}
+                    activeFilter={activeFilter}
+                  />
+                ) : (
+                  <MultiMonthPartnerReportPDF
+                    dataByMonth={dataByMonth}
+                    months={selectedMonths}
+                    includeCharts={includeCharts}
+                    includeFlights={includeFlights}
+                    includeFuels={includeFuels}
+                    includeExpenses={includeExpenses}
+                    selectedPartnerIds={selectedPartners}
+                    activeFilter={activeFilter}
+                  />
+                )}
               </div>
             </div>
           )}
@@ -278,7 +334,7 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Fechar
           </Button>
-          <Button onClick={handleExport} disabled={isExporting || isLoading || !reportData} className="gap-2">
+          <Button onClick={handleExport} disabled={isExporting || isLoading || dataByMonth.size === 0 || selectedMonths.length === 0} className="gap-2">
             {isExporting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />

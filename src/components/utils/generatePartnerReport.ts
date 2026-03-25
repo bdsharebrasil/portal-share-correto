@@ -6,11 +6,16 @@ import { ptBR } from "date-fns/locale";
 interface GenerateOptions {
   elementId: string;
   clientName: string;
-  month: string; // "yyyy-MM"
+  month?: string; // "yyyy-MM" (deprecated, use months)
+  months?: string[]; // "yyyy-MM" array
 }
 
 export async function generatePartnerMonthlyPDF(options: GenerateOptions): Promise<void> {
-  const { elementId, clientName, month } = options;
+  const { elementId, clientName, month, months: monthArray } = options;
+
+  // Support both single month and multiple months
+  const months = monthArray || (month ? [month] : []);
+  if (months.length === 0) throw new Error("Nenhum mês fornecido para geração de PDF");
 
   const element = document.getElementById(elementId);
   if (!element) throw new Error("Elemento do relatório não encontrado");
@@ -25,11 +30,12 @@ export async function generatePartnerMonthlyPDF(options: GenerateOptions): Promi
     background: white;
     color: black;
     padding: 0;
+    margin: 0;
   `;
   element.style.display = "block";
 
-  // Wait for render
-  await new Promise((r) => setTimeout(r, 500));
+  // Wait for render (increased timeout for multi-month reports)
+  await new Promise((r) => setTimeout(r, 2000));
 
   const canvas = await html2canvas(element, {
     scale: 2,
@@ -63,9 +69,6 @@ export async function generatePartnerMonthlyPDF(options: GenerateOptions): Promi
   let yOffset = 0;
   let pageNum = 1;
 
-  // Fix: parse month safely without UTC shift
-  const [year, mon] = month.split("-");
-  const monthDate = new Date(parseInt(year), parseInt(mon) - 1, 15);
   const generatedAt = format(new Date(), "dd/MM/yyyy HH:mm", { locale: ptBR });
 
   while (yOffset < totalImgHeight) {
@@ -106,8 +109,22 @@ export async function generatePartnerMonthlyPDF(options: GenerateOptions): Promi
     pageNum++;
   }
 
-  // Fix: use locally-parsed date for filename (no UTC shift)
-  const monthLabel = format(monthDate, "MMMM_yyyy", { locale: ptBR });
-  const safeName = clientName.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_]/g, "");
-  pdf.save(`relatorio_socios_${safeName}_${monthLabel}.pdf`);
+  // Generate filename
+  let filename: string;
+  if (months.length === 1) {
+    const [year, mon] = months[0].split("-");
+    const monthDate = new Date(parseInt(year), parseInt(mon) - 1, 15);
+    const monthLabel = format(monthDate, "MMMM_yyyy", { locale: ptBR });
+    const safeName = clientName.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_]/g, "");
+    filename = `relatorio_socios_${safeName}_${monthLabel}.pdf`;
+  } else {
+    const firstMonth = new Date(parseInt(months[0].split("-")[0]), parseInt(months[0].split("-")[1]) - 1, 15);
+    const lastMonth = new Date(parseInt(months[months.length - 1].split("-")[0]), parseInt(months[months.length - 1].split("-")[1]) - 1, 15);
+    const startLabel = format(firstMonth, "MMM_yyyy", { locale: ptBR });
+    const endLabel = format(lastMonth, "MMM_yyyy", { locale: ptBR });
+    const safeName = clientName.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_]/g, "");
+    filename = `relatorio_socios_${safeName}_${startLabel}_ate_${endLabel}.pdf`;
+  }
+
+  pdf.save(filename);
 }
