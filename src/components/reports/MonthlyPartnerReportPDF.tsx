@@ -168,7 +168,7 @@ export function MonthlyPartnerReportPDF({
     <div className="bg-white text-gray-900 print:p-0" style={{ fontFamily: "Inter, Helvetica, sans-serif", fontSize: "11px" }}>
       
       {/* ===== CAPA E RESUMO GERAL ===== */}
-      <div className="p-8" style={{ pageBreakAfter: "always" }}>
+      <div className="p-8" style={{ pageBreakAfter: "always", pageBreakInside: "avoid" }}>
         
         {/* HEADER */}
         <div className="bg-[#1a1a2e] text-white rounded-xl p-8 mb-8 shadow-sm">
@@ -232,7 +232,7 @@ export function MonthlyPartnerReportPDF({
         </div>
 
         {/* TABELA RESUMO POR SÓCIO */}
-        <div className="mb-6" style={{ breakInside: "avoid" }}>
+        <div className="mb-8" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
           <div className="flex items-center gap-2 mb-4">
             <div className="w-1 h-4 bg-blue-600 rounded-full"></div>
             <h3 className="text-sm font-black text-[#1a1a2e] uppercase">Divisão de Custos por Sócio</h3>
@@ -283,7 +283,7 @@ export function MonthlyPartnerReportPDF({
 
         {/* COMPARATIVO DE MÉDIAS POR SÓCIO */}
         {partnerData.length > 1 && (
-          <div style={{ breakInside: "avoid" }}>
+          <div style={{ breakInside: "avoid", pageBreakInside: "avoid", marginBottom: "2rem" }}>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-1 h-4 bg-purple-600 rounded-full"></div>
               <h3 className="text-sm font-black text-[#1a1a2e] uppercase">Comparativo de Médias</h3>
@@ -324,21 +324,21 @@ export function MonthlyPartnerReportPDF({
 
       {/* ===== GRÁFICOS ===== */}
       {includeCharts && data.flights.length > 0 && (
-        <div className="p-8" style={{ pageBreakBefore: "always", pageBreakAfter: "always" }}>
+        <div className="p-8" style={{ pageBreakBefore: "always", pageBreakAfter: "always", pageBreakInside: "avoid" }}>
           <div className="bg-[#1a1a2e] text-white rounded-t-xl px-6 py-4 mb-6 flex items-center justify-between">
             <span className="text-sm font-black uppercase tracking-widest italic">Análise de Performance Operacional</span>
             <span className="text-[10px] text-blue-300 font-bold">{data.clientName} • {monthLabelUpper}/{yearShort}</span>
           </div>
           <div className="grid grid-cols-2 gap-8">
-            <div style={{ breakInside: "avoid" }}><HoursDonutChart data={hoursChartData} /></div>
-            <div style={{ breakInside: "avoid" }}><CostsBarChart data={costsChartData} /></div>
+            <div style={{ breakInside: "avoid", pageBreakInside: "avoid" }}><HoursDonutChart data={hoursChartData} /></div>
+            <div style={{ breakInside: "avoid", pageBreakInside: "avoid" }}><CostsBarChart data={costsChartData} /></div>
           </div>
         </div>
       )}
 
       {/* ===== DETALHAMENTO POR SÓCIO ===== */}
       {partnerData.map((pd, i) => (
-        <div key={pd.partner.id} className="p-8" style={{ pageBreakBefore: "always" }}>
+        <div key={pd.partner.id} className="p-8" style={{ pageBreakBefore: "always", pageBreakInside: "avoid" }}>
           <div className="flex items-center justify-between border-b-2 border-[#1a1a2e] pb-2 mb-6">
             <div>
               <h2 className="text-2xl font-black text-[#1a1a2e] uppercase">{pd.partner.name}</h2>
@@ -352,7 +352,7 @@ export function MonthlyPartnerReportPDF({
           </div>
 
           {/* KPIs rápidos do sócio */}
-          <div className="grid grid-cols-4 gap-3 mb-4" style={{ breakInside: "avoid" }}>
+          <div className="grid grid-cols-4 gap-3 mb-4" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
             {[
               { label: "Horas Voadas", value: `${pd.hours.toFixed(1)}h` },
               { label: "Combustível", value: `${pd.fuelLiters.toFixed(0)}L`, sub: fmt(pd.fuelTotal) },
@@ -368,7 +368,7 @@ export function MonthlyPartnerReportPDF({
           </div>
 
           {/* Médias individuais do sócio */}
-          <div className="grid grid-cols-4 gap-3 mb-6" style={{ breakInside: "avoid" }}>
+          <div className="grid grid-cols-4 gap-3 mb-6" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
             {[
               { label: "Média Combustível/L", value: pd.fuelLiters > 0 ? fmt(pd.fuelTotal / pd.fuelLiters) : "—" },
               { label: "Combustível/Hora", value: pd.hours > 0 ? fmt(pd.fuelTotal / pd.hours) : "—" },
@@ -405,7 +405,7 @@ export function MonthlyPartnerReportPDF({
 
       {/* ===== DESPESAS COMPARTILHADAS / CONTA COMPARTILHADA ===== */}
       {(data.sharedExpenses || []).length > 0 && (
-        <div className="p-8" style={{ pageBreakBefore: "always" }}>
+        <div className="p-8" style={{ pageBreakBefore: "always", pageBreakInside: "avoid" }}>
           <div className="flex items-center justify-between border-b-2 border-[#1a1a2e] pb-2 mb-6">
             <div>
               <h2 className="text-2xl font-black text-[#1a1a2e] uppercase">Conta Compartilhada</h2>
@@ -419,7 +419,7 @@ export function MonthlyPartnerReportPDF({
           </div>
 
           {/* Resumo por categoria */}
-          <div className="grid grid-cols-3 gap-4 mb-6" style={{ breakInside: "avoid" }}>
+          <div className="grid grid-cols-3 gap-4 mb-6" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
             {Object.entries(sharedByCategory).map(([cat, info]) => (
               <div key={cat} className="bg-amber-50 rounded-xl p-4 border border-amber-200">
                 <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">{cat}</p>
@@ -430,7 +430,7 @@ export function MonthlyPartnerReportPDF({
           </div>
 
           {/* Tabela detalhada */}
-          <div style={{ breakInside: "avoid" }}>
+          <div style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
             <table className="w-full text-[10px] border-collapse">
               <thead>
                 <tr className="bg-[#f8fafc]">
@@ -477,7 +477,7 @@ export function MonthlyPartnerReportPDF({
       )}
 
       {/* ===== RESUMO MENSAL CONSOLIDADO ===== */}
-      <div className="p-8" style={{ pageBreakBefore: "always" }}>
+      <div className="p-8" style={{ pageBreakBefore: "always", pageBreakInside: "avoid" }}>
         <div className="flex items-center justify-between border-b-2 border-[#1a1a2e] pb-2 mb-6">
           <div>
             <h2 className="text-2xl font-black text-[#1a1a2e] uppercase">Resumo Mensal Consolidado</h2>
@@ -485,7 +485,7 @@ export function MonthlyPartnerReportPDF({
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-6" style={{ breakInside: "avoid" }}>
+        <div className="grid grid-cols-3 gap-6" style={{ breakInside: "avoid", pageBreakInside: "avoid" }}>
           <div className="bg-emerald-50 rounded-xl p-6 border border-emerald-200 text-center">
             <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-2">Total de Entradas</p>
             <p className="text-2xl font-black text-emerald-700">
