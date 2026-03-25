@@ -25,6 +25,7 @@ export function OASBudgetsSection({ orderId, budgets, onRefetch }: OASBudgetsSec
   const [loadingOficinas, setLoadingOficinas] = useState(false);
   const [showNewCompanyDialog, setShowNewCompanyDialog] = useState(false);
   const [newCompanyType, setNewCompanyType] = useState<"oficina" | "fornecedor">("oficina");
+  const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
   const [newCompanyData, setNewCompanyData] = useState({
     razao_social: "",
     cnpj: "",
@@ -34,6 +35,16 @@ export function OASBudgetsSection({ orderId, budgets, onRefetch }: OASBudgetsSec
   });
   const [oficinas, setOficinas] = useState<any[]>([]);
   const [form, setForm] = useState({
+    tipo: "servico",
+    descricao: "",
+    empresa_id: "",
+    empresa_nome: "",
+    quantidade: "1",
+    valor_unitario: "",
+    part_number: "",
+    observacoes: "",
+  });
+  const [editForm, setEditForm] = useState({
     tipo: "servico",
     descricao: "",
     empresa_id: "",
@@ -191,6 +202,52 @@ export function OASBudgetsSection({ orderId, budgets, onRefetch }: OASBudgetsSec
     else { toast.success("Orçamento removido"); onRefetch(); }
   };
 
+  const handleEdit = (budget: any) => {
+    setEditingBudgetId(budget.id);
+    setEditForm({
+      tipo: budget.tipo,
+      descricao: budget.descricao,
+      empresa_id: budget.empresa_id || "",
+      empresa_nome: budget.empresa_nome || "",
+      quantidade: String(budget.quantidade),
+      valor_unitario: String(budget.valor_unitario),
+      part_number: budget.part_number || "",
+      observacoes: budget.observacoes || "",
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editForm.descricao) return toast.error("Descrição é obrigatória");
+    if (!editForm.valor_unitario) return toast.error("Valor unitário é obrigatório");
+
+    setSaving(true);
+    const qty = parseInt(editForm.quantidade) || 1;
+    const unitVal = parseFloat(editForm.valor_unitario) || 0;
+
+    try {
+      const { error } = await (supabase as any).from("oas_budgets").update({
+        tipo: editForm.tipo,
+        descricao: editForm.descricao,
+        empresa_id: editForm.empresa_id || null,
+        empresa_nome: editForm.empresa_nome || null,
+        quantidade: qty,
+        valor_unitario: unitVal,
+        valor_total: qty * unitVal,
+        part_number: editForm.part_number || null,
+        observacoes: editForm.observacoes || null,
+      }).eq("id", editingBudgetId);
+
+      if (error) throw error;
+      toast.success("Orçamento atualizado com sucesso!");
+      setEditingBudgetId(null);
+      onRefetch();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const statusBadge = (status: string) => {
     const map: Record<string, { label: string; cls: string }> = {
       rascunho: { label: "Rascunho", cls: "bg-muted text-muted-foreground" },
@@ -251,6 +308,11 @@ export function OASBudgetsSection({ orderId, budgets, onRefetch }: OASBudgetsSec
                 <TableCell>{statusBadge(b.status)}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
+                    {(b.status === "rascunho" || b.status === "rejeitado") && (
+                      <Button variant="ghost" size="icon" title="Editar" onClick={() => handleEdit(b)} className="text-blue-400 hover:text-blue-300">
+                        <span className="text-lg">✎</span>
+                      </Button>
+                    )}
                     {b.status === "rascunho" && (
                       <Button variant="ghost" size="icon" title="Enviar para aprovação" onClick={() => handleSubmitForApproval(b.id)}>
                         <Send className="h-3.5 w-3.5 text-primary" />
@@ -330,6 +392,97 @@ export function OASBudgetsSection({ orderId, budgets, onRefetch }: OASBudgetsSec
           <Plus className="h-3.5 w-3.5" /> Novo Orçamento
         </Button>
       )}
+
+      {/* Dialog para editar orçamento */}
+      <Dialog open={!!editingBudgetId} onOpenChange={(open) => !open && setEditingBudgetId(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar Orçamento</DialogTitle>
+            <DialogDescription>
+              Atualize os dados do orçamento
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs">Tipo</Label>
+                <Select value={editForm.tipo} onValueChange={v => setEditForm(f => ({ ...f, tipo: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="servico">Serviço</SelectItem>
+                    <SelectItem value="peca">Peça</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {editForm.tipo === "peca" && (
+                <div>
+                  <Label className="text-xs">P/N</Label>
+                  <Input value={editForm.part_number} onChange={e => setEditForm(f => ({ ...f, part_number: e.target.value }))} />
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label className="text-xs">Descrição *</Label>
+              <Input value={editForm.descricao} onChange={e => setEditForm(f => ({ ...f, descricao: e.target.value }))} />
+            </div>
+
+            <div>
+              <Label className="text-xs">Empresa / Oficina</Label>
+              <SearchableCombobox
+                items={oficinas}
+                value={editForm.empresa_id}
+                onChange={(id, label) => setEditForm(f => ({ ...f, empresa_id: id, empresa_nome: label }))}
+                placeholder="Selecione uma empresa..."
+                searchPlaceholder="Buscar empresa..."
+                emptyMessage="Nenhuma empresa encontrada"
+                disabled={loadingOficinas}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs">Quantidade</Label>
+                <Input type="number" min="1" value={editForm.quantidade} onChange={e => setEditForm(f => ({ ...f, quantidade: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs">Valor Unitário *</Label>
+                <Input type="number" step="0.01" value={editForm.valor_unitario} onChange={e => setEditForm(f => ({ ...f, valor_unitario: e.target.value }))} />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Observações</Label>
+              <Textarea value={editForm.observacoes} onChange={e => setEditForm(f => ({ ...f, observacoes: e.target.value }))} rows={3} />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditingBudgetId(null)}
+              disabled={saving}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={saving || !editForm.descricao.trim()}
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                "Salvar Alterações"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog para criar nova empresa */}
       <Dialog open={showNewCompanyDialog} onOpenChange={setShowNewCompanyDialog}>
