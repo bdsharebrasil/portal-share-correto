@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Clock, CheckCircle2, DollarSign } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowLeft, Clock, CheckCircle2, DollarSign, FileText, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -27,6 +28,10 @@ export default function AprovacoesorOrcamentos() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "ctm_budget" | "oas_budget" | "ctm_order">("all");
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [selectedApprovalForPdf, setSelectedApprovalForPdf] = useState<Approval | null>(null);
 
   const { data: approvals = [], isLoading } = useQuery({
     queryKey: ["manager-approvals", filterType],
@@ -113,13 +118,49 @@ export default function AprovacoesorOrcamentos() {
     return matchesType && matchesSearch;
   });
 
-  const handleApprove = (approval: Approval) => {
+  const handleApprove = async (approval: Approval) => {
     if (approval.type === "ctm_order") {
       navigate(`/manutencao/ctm?serviceOrderId=${approval.id}`);
     } else if (approval.type === "ctm_budget") {
-      navigate(`/manutencao/orcamentos?budgetId=${approval.id}`);
+      // Try to load and display PDF first
+      try {
+        setPdfLoading(true);
+        setSelectedApprovalForPdf(approval);
+        const { data: budgetData } = await (supabase as any)
+          .from("ctm_budgets")
+          .select("budget_details")
+          .eq("id", approval.id)
+          .single();
+
+        if (budgetData?.budget_details?.pdf_file_path) {
+          const { data: signedUrl } = await supabase.storage
+            .from("documents")
+            .createSignedUrl(budgetData.budget_details.pdf_file_path, 3600);
+
+          if (signedUrl) {
+            setPdfUrl(signedUrl.signedUrl);
+            setPdfModalOpen(true);
+            return;
+          }
+        }
+
+        // If no PDF available, navigate directly
+        navigate(`/manutencao/orcamentos?budgetId=${approval.id}`);
+      } catch (error) {
+        console.error("Error loading PDF:", error);
+        navigate(`/manutencao/orcamentos?budgetId=${approval.id}`);
+      } finally {
+        setPdfLoading(false);
+      }
     } else if (approval.type === "oas_budget") {
       navigate(`/manutencao/orcamentos?oasBudgetId=${approval.id}`);
+    }
+  };
+
+  const handleContinueReview = () => {
+    if (selectedApprovalForPdf?.type === "ctm_budget") {
+      navigate(`/manutencao/orcamentos?budgetId=${selectedApprovalForPdf.id}`);
+      setPdfModalOpen(false);
     }
   };
 
@@ -307,6 +348,64 @@ export default function AprovacoesorOrcamentos() {
           </CardContent>
         </Card>
       </main>
+
+      {/* PDF Viewer Modal */}
+      <Dialog open={pdfModalOpen} onOpenChange={setPdfModalOpen}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh]">
+          <DialogHeader className="flex flex-row items-center justify-between">
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Visualizar Orçamento PDF
+            </DialogTitle>
+            <button
+              onClick={() => setPdfModalOpen(false)}
+              className="p-1 rounded hover:bg-slate-700"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            {pdfLoading ? (
+              <div className="flex items-center justify-center h-[70vh]">
+                <p className="text-muted-foreground">Carregando PDF...</p>
+              </div>
+            ) : pdfUrl ? (
+              <iframe
+                src={pdfUrl}
+                className="w-full h-[70vh] border rounded-lg"
+                title="PDF Orçamento"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-[70vh]">
+                <p className="text-muted-foreground">Nenhum PDF disponível</p>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2 pt-4">
+            {pdfUrl && (
+              <Button
+                variant="outline"
+                onClick={() => window.open(pdfUrl, "_blank")}
+              >
+                Abrir em Nova Aba
+              </Button>
+            )}
+            <Button
+              variant="default"
+              onClick={handleContinueReview}
+              className="flex-1"
+            >
+              Continuar Revisão
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setPdfModalOpen(false)}
+            >
+              Fechar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }

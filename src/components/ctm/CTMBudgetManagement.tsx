@@ -939,7 +939,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
                         type="text"
                         inputMode="decimal"
                         placeholder="0,00"
-                        value={item.unit_value || ""}
+                        value={item.unit_value > 0 ? item.unit_value.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : ""}
                         onChange={(e) => {
                           const val = e.target.value.replace(/[^0-9.,]/g, '');
                           handleItemChange(index, "unit_value", val ? parseFloat(val.replace(',', '.')) || 0 : 0);

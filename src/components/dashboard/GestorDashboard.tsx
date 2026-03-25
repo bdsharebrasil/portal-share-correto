@@ -296,6 +296,10 @@ export function GestorDashboard() {
                   onClick={() => {
                     if (item.type === 'ctm_order') {
                       navigate(`/manutencao/ctm?serviceOrderId=${item.id}`);
+                    } else if (item.type === 'ctm_budget') {
+                      navigate(`/manutencao/orcamentos?budgetId=${item.id}`);
+                    } else if (item.type === 'budget') {
+                      navigate(`/manutencao/orcamentos?oasBudgetId=${item.id}`);
                     }
                   }}
                   className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50 hover:border-primary/50 hover:bg-background/80 transition-all cursor-pointer"
@@ -325,12 +329,14 @@ export function GestorDashboard() {
                     className={
                       item.type === 'ctm_order'
                         ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                        : item.type === 'ctm_budget'
+                        ? "bg-purple-500/20 text-purple-400 border-purple-500/30"
                         : item.type === 'budget'
                         ? "bg-blue-500/20 text-blue-400 border-blue-500/30"
                         : "bg-warning/20 text-warning border-warning"
                     }
                   >
-                    {item.type === 'ctm_order' ? 'OAS' : item.type === 'budget' ? 'Orçamento' : 'Voo'}
+                    {item.type === 'ctm_order' ? 'OAS' : item.type === 'ctm_budget' ? 'Orçamento CTM' : item.type === 'budget' ? 'Orçamento OAS' : 'Voo'}
                   </Badge>
                 </div>
               ))}
