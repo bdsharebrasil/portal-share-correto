@@ -16,6 +16,15 @@ const getLogoUrl = () => {
   return '/logo.share.png';
 };
 
+const getSignatureUrl = () => {
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/assinatura-para-recibo.png`;
+  }
+  return '/assinatura-para-recibo.png';
+};
+
+const signatureUrl = getSignatureUrl();
+
 const logoUrl = getLogoUrl();
 
 const styles = StyleSheet.create({
@@ -196,6 +205,12 @@ const styles = StyleSheet.create({
     borderBottom: '1px solid #000000',
     marginBottom: 5,
   },
+  signatureImage: {
+    width: 180,
+    height: 70,
+    objectFit: 'contain',
+    marginBottom: 5,
+  },
   logoSignature: {
     width: 70,
     height: 28,
@@ -206,6 +221,16 @@ const styles = StyleSheet.create({
     fontSize: 8,
     color: '#6B7280',
     marginTop: 2,
+  },
+  signatureNameBold: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginTop: 6,
+  },
+  signatureRole: {
+    fontSize: 8,
+    color: '#6B7280',
   },
   // Description section (for pagamento type)
   descriptionHeader: {
@@ -435,6 +460,11 @@ export const ReciboDocument = ({ data }: { data: any }) => {
             {/* Logo at signature */}
             <Image src={logoUrl} style={styles.logoSignature} cache={false} />
             <Text style={styles.signatureCaption}>setor financeiro Share Brasil</Text>
+
+            {/* Signature image */}
+            <Image src={signatureUrl} style={styles.signatureImage} cache={false} />
+            <Text style={styles.signatureNameBold}>Rolffe de Lima Erbe</Text>
+            <Text style={styles.signatureRole}>Gestor Responsável</Text>
           </View>
         </Page>
       </Document>
@@ -531,6 +561,11 @@ export const ReciboDocument = ({ data }: { data: any }) => {
 
           <Image src={logoUrl} style={styles.logoSignature} cache={false} />
           <Text style={styles.signatureCaption}>setor financeiro Share Brasil</Text>
+
+          {/* Signature image */}
+          <Image src={signatureUrl} style={styles.signatureImage} cache={false} />
+          <Text style={styles.signatureNameBold}>Rolffe de Lima Erbe</Text>
+          <Text style={styles.signatureRole}>Gestor Responsável</Text>
         </View>
       </Page>
     </Document>

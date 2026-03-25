@@ -275,6 +275,7 @@ export default function EmissaoRecibo() {
               client_id: originalForm.clienteId,
               aircraft_id: originalForm.aircraftId || null,
               categoria_movimentacao_id: originalForm.reembolsoCategoriaId || null,
+              category: formData.categoriaNome || "Clientes - Despesas Reembolsáveis",
               tipo_documento: isRateado ? "rateio" : "recibo",
               prazo_pagamento: dataVencimento,
               percentual: isRateado ? percentual : null,
@@ -284,6 +285,7 @@ export default function EmissaoRecibo() {
               reference_type: "contas_apagar",
               boleto_url: boletoUrl,
               nf_url: notaFiscalUrl || deceeaUrl || infraeroUrl,
+              partner_name: nomePagador,
             };
 
             const { data: brData, error: brError } = await supabase

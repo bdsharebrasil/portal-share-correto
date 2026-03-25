@@ -26,8 +26,13 @@ export function GestorDashboard() {
   const { data: aircraft = [] } = useQuery({
     queryKey: ["aircraft-count"],
     queryFn: async () => {
-      const { data } = await supabase.from("aircraft").select("id, status");
-      return data || [];
+      const { data } = await supabase
+        .from("aircraft_live_status")
+        .select("aircraft_id, current_status");
+      return data?.map(item => ({
+        id: item.aircraft_id,
+        status: item.current_status
+      })) || [];
     },
   });
 
@@ -45,6 +50,13 @@ export function GestorDashboard() {
         .from("oas_budgets")
         .select("*, service_order:ctm_service_orders(numero, aircraft:aircraft(registration))")
         .eq("status", "pendente_aprovacao")
+        .order("submitted_at", { ascending: false });
+
+      // Buscar orçamentos CTM (ctm_budgets) pendentes de aprovação
+      const { data: ctmBudgetsData } = await (supabase as any)
+        .from("ctm_budgets")
+        .select("*, aircraft:aircraft_id(registration)")
+        .in("status", ["submitted"])
         .order("submitted_at", { ascending: false });
 
       // Buscar ordens de serviço CTM pendentes de aprovação
@@ -79,7 +91,15 @@ export function GestorDashboard() {
         total: o.total_geral
       }));
 
-      return [...flights, ...budgets, ...ctmOrders];
+      const ctmBudgets = (ctmBudgetsData || []).map((b: any) => ({
+        ...b,
+        type: 'ctm_budget',
+        title: `Orçamento CTM: ${b.description?.substring(0, 40) || b.supplier_name || ''} (${b.aircraft?.registration || 'N/A'})`,
+        date: b.submitted_at || b.created_at,
+        total: b.total_value,
+      }));
+
+      return [...flights, ...budgets, ...ctmOrders, ...ctmBudgets];
     },
   });
 

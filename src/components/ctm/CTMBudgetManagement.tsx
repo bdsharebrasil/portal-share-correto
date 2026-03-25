@@ -43,10 +43,16 @@ interface CTMBudget {
   budget_file_path?: string;
   budget_file_name?: string;
   budget_details?: BudgetDetails;
-  status: "draft" | "submitted" | "approved";
+  status: "draft" | "submitted" | "approved" | "rejected";
   created_by?: string;
   created_at: string;
   updated_at?: string;
+  description?: string;
+  total_value?: number;
+  payment_status?: string | null;
+  payment_type?: string | null;
+  approved_by_name?: string | null;
+  approval_status?: string | null;
 }
 
 interface Oficina {
@@ -86,7 +92,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
   const [filterStatus, setFilterStatus] = useState<"all" | "draft" | "submitted" | "approved">("all");
   const [showNewBudgetDialog, setShowNewBudgetDialog] = useState(false);
   const [showNewSupplierDialog, setShowNewSupplierDialog] = useState(false);
-  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([{ code: "", description: "", quantity: 1, unit_value: 0, total: 0 }]);
+  const [budgetItems, setBudgetItems] = useState<BudgetItem[]>([{ code: "", description: "", quantity: 1, unit_value: "" as any, total: 0 }]);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfFileName, setPdfFileName] = useState<string>("");
   const [comboboxItems, setComboboxItems] = useState<ComboboxItem[]>([]);
@@ -248,7 +254,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
   };
 
   const handleAddItem = () => {
-    setBudgetItems(prev => [...prev, { code: "", description: "", quantity: 1, unit_value: 0, total: 0 }]);
+    setBudgetItems(prev => [...prev, { code: "", description: "", quantity: 1, unit_value: "" as any, total: 0 }]);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -304,7 +310,7 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
       supplier_type: "",
       notes: "",
     });
-    setBudgetItems([{ code: "", description: "", quantity: 1, unit_value: 0, total: 0 }]);
+    setBudgetItems([{ code: "", description: "", quantity: 1, unit_value: "" as any, total: 0 }]);
     setPdfFile(null);
     setPdfFileName("");
   };
@@ -333,29 +339,29 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
     return budget.status === filterStatus;
   });
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string, paymentStatus?: string | null) => {
+    if (status === "approved" && paymentStatus === "agendado") return "bg-blue-500/10 text-blue-500 border-blue-500/20";
+    if (status === "approved" && paymentStatus === "pago") return "bg-green-500/10 text-green-500 border-green-500/20";
+    if (status === "approved" && paymentStatus === "aguardando_cliente") return "bg-orange-500/10 text-orange-500 border-orange-500/20";
     switch (status) {
-      case "draft":
-        return "bg-gray-500/10 text-gray-500 border-gray-500/20";
-      case "submitted":
-        return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
-      case "approved":
-        return "bg-green-500/10 text-green-500 border-green-500/20";
-      default:
-        return "bg-gray-500/10 text-gray-500 border-gray-500/20";
+      case "draft": return "bg-gray-500/10 text-gray-500 border-gray-500/20";
+      case "submitted": return "bg-yellow-500/10 text-yellow-500 border-yellow-500/20";
+      case "approved": return "bg-green-500/10 text-green-500 border-green-500/20";
+      case "rejected": return "bg-red-500/10 text-red-500 border-red-500/20";
+      default: return "bg-gray-500/10 text-gray-500 border-gray-500/20";
     }
   };
 
-  const getStatusLabel = (status: string) => {
+  const getStatusLabel = (status: string, paymentStatus?: string | null, approvedByName?: string | null) => {
+    if (status === "approved" && paymentStatus === "agendado") return `Aprovado - Agendado Pgto${approvedByName ? ` (${approvedByName})` : ''}`;
+    if (status === "approved" && paymentStatus === "pago") return `Aprovado - Pago${approvedByName ? ` (${approvedByName})` : ''}`;
+    if (status === "approved" && paymentStatus === "aguardando_cliente") return `Aprovado - Aguardando Cliente${approvedByName ? ` (${approvedByName})` : ''}`;
     switch (status) {
-      case "draft":
-        return "Rascunho";
-      case "submitted":
-        return "Enviado";
-      case "approved":
-        return "Aprovado";
-      default:
-        return status;
+      case "draft": return "Rascunho";
+      case "submitted": return "Pendente Aprovação";
+      case "approved": return `Aprovado${approvedByName ? ` por ${approvedByName}` : ''}`;
+      case "rejected": return "Rejeitado";
+      default: return status;
     }
   };
 
@@ -477,17 +483,116 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
 
   const handleApproveBudget = async (budgetId: string) => {
     try {
-      const { error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Você precisa estar logado"); return; }
+
+      // Get user name
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .single();
+
+      const approverName = (profile as any)?.full_name || "Usuário";
+
+      const { error } = await (supabase as any)
         .from("ctm_budgets")
-        .update({ status: "approved", updated_at: new Date().toISOString() })
+        .update({
+          status: "approved",
+          approval_status: "aprovado",
+          approved_by: user.id,
+          approved_by_name: approverName,
+          approved_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", budgetId);
 
       if (error) throw error;
 
-      toast.success("Orçamento aprovado!");
+      toast.success(`Orçamento aprovado por ${approverName}!`);
+
+      // Ask about payment
+      const paymentChoice = window.confirm(
+        "Deseja agendar o pagamento?\n\nOK = Agendar Pagamento\nCancelar = Pagamento Enviado ao Cliente"
+      );
+
+      const budget = budgets.find(b => b.id === budgetId);
+      const budgetTotal = budget?.budget_details?.items?.reduce((sum, item) => sum + item.total, 0) || (budget as any)?.total_value || 0;
+
+      if (paymentChoice) {
+        // AGENDAR PAGAMENTO -> contas_apagar
+        const contaPayload: any = {
+          data_vencimento: new Date().toISOString().split('T')[0],
+          valor: budgetTotal,
+          categoria: "Manutenção CTM",
+          descricao: `Orçamento CTM - ${budget?.budget_details?.supplier_name || 'N/A'} - ${budget?.description || ''}`,
+          status: "pendente",
+          criado_por: user.id,
+          client_id: (budget as any)?.client_id || null,
+          client_partner_id: (budget as any)?.client_partner_id || null,
+          aeronave_registro: aircraftRegistration,
+        };
+
+        const { data: contaData, error: contaError } = await supabase
+          .from("contas_apagar")
+          .insert(contaPayload)
+          .select("id")
+          .single();
+
+        if (contaError) {
+          console.error("Erro ao criar conta a pagar:", contaError);
+          toast.error("Erro ao agendar pagamento");
+        } else {
+          // Update budget with payment info
+          await (supabase as any).from("ctm_budgets").update({
+            payment_status: "agendado",
+            payment_type: "agendar_pagamento",
+            financial_reference_id: contaData.id,
+            financial_reference_table: "contas_apagar",
+          }).eq("id", budgetId);
+
+          toast.success("Pagamento agendado em Contas a Pagar!");
+        }
+      } else {
+        // PAGAMENTO ENVIADO AO CLIENTE -> despesas_cliente_direto
+        const despesaPayload: any = {
+          client_id: (budget as any)?.client_id || null,
+          aeronave_id: null,
+          aeronave_registro: aircraftRegistration,
+          descricao: `Orçamento CTM - ${budget?.budget_details?.supplier_name || 'N/A'} - ${budget?.description || ''}`,
+          valor: budgetTotal,
+          data_vencimento: new Date().toISOString().split('T')[0],
+          fornecedor_nome: budget?.budget_details?.supplier_name || null,
+          status: "pendente",
+          criado_por: user.id,
+          categoria_nome: "Manutenção CTM",
+        };
+
+        const { data: despesaData, error: despesaError } = await (supabase as any)
+          .from("despesas_cliente_direto")
+          .insert([despesaPayload])
+          .select("id")
+          .single();
+
+        if (despesaError) {
+          console.error("Erro ao enviar ao cliente:", despesaError);
+          toast.error("Erro ao enviar ao cliente");
+        } else {
+          await (supabase as any).from("ctm_budgets").update({
+            payment_status: "aguardando_cliente",
+            payment_type: "enviado_cliente",
+            financial_reference_id: despesaData.id,
+            financial_reference_table: "despesas_cliente_direto",
+          }).eq("id", budgetId);
+
+          toast.success("Pagamento enviado ao cliente!");
+        }
+      }
+
       await loadBudgets();
     } catch (error: any) {
       toast.error("Erro ao aprovar orçamento");
+      console.error(error);
     }
   };
 
@@ -637,8 +742,8 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center">
-                        <Badge className={`text-xs font-bold border ${getStatusColor(budget.status)}`}>
-                          {getStatusLabel(budget.status)}
+                        <Badge className={`text-xs font-bold border ${getStatusColor(budget.status, budget.payment_status)}`}>
+                          {getStatusLabel(budget.status, budget.payment_status, budget.approved_by_name)}
                         </Badge>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -831,12 +936,14 @@ export function CTMBudgetManagement({ aircraftId, aircraftRegistration }: CTMBud
                     </div>
                     <div className="col-span-2">
                       <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="0,00"
                         value={item.unit_value || ""}
-                        onChange={(e) => handleItemChange(index, "unit_value", e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9.,]/g, '');
+                          handleItemChange(index, "unit_value", val ? parseFloat(val.replace(',', '.')) || 0 : 0);
+                        }}
                         className="text-center text-xs"
                       />
                     </div>

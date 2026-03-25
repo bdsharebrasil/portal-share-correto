@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Trash2, Save, Send, Loader2, FileUp, Download, AlertCircle, X } from "lucide-react";
+import { Plus, Trash2, Save, Send, Loader2, FileUp, Download, AlertCircle, X, Trash } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -37,20 +37,23 @@ export function CTMServiceItemsForm({
   const [loading, setLoading] = useState(false);
   const [oficinas, setOficinas] = useState<any[]>([]);
   const [showNewFornecedor, setShowNewFornecedor] = useState(false);
+  const [draftId] = useState(() => `draft-${orderId}-${Date.now()}`);
+  const [draftLastSaved, setDraftLastSaved] = useState<Date | null>(null);
+  const [hasDraft, setHasDraft] = useState(false);
   const [newFornecedorData, setNewFornecedorData] = useState({
     razao_social: "",
     cnpj: "",
     endereco: "",
     telefone: "",
   });
-  
+
   // Formulário de itens
   const [items, setItems] = useState<ServiceItem[]>([]);
   const [newItem, setNewItem] = useState<ServiceItem>({
     ordenacao: 1,
     descricao: "",
     quantidade: 1,
-    valor_unitario: 0,
+    valor_unitario: "" as any,
     subtotal: 0,
   });
 
@@ -76,8 +79,66 @@ export function CTMServiceItemsForm({
   // Arquivo PDF
   const [pdfFile, setPdfFile] = useState<File | null>(null);
 
+  // ─── Funções de Rascunho ─────────────────────────────────────────────────────
+  const saveDraft = () => {
+    try {
+      const draftData = {
+        orderId,
+        items,
+        newItem,
+        serviceHeader,
+        financialData,
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(draftId, JSON.stringify(draftData));
+      setDraftLastSaved(new Date());
+      toast.success("Rascunho salvo com sucesso!");
+    } catch (error) {
+      console.error("Erro ao salvar rascunho:", error);
+      toast.error("Erro ao salvar rascunho");
+    }
+  };
+
+  const loadDraft = () => {
+    try {
+      const draftData = localStorage.getItem(draftId);
+      if (draftData) {
+        const data = JSON.parse(draftData);
+        setItems(data.items || []);
+        setNewItem(data.newItem || { ordenacao: 1, descricao: "", quantidade: 1, valor_unitario: "" as any, subtotal: 0 });
+        setServiceHeader(data.serviceHeader || { descricao: "", modelo: "", p_n: "", n_s: "" });
+        setFinancialData(data.financialData || { numero_servico: "", oficina_id: "", oficina_nome: "", modo_pagamento: "", condicoes_pagamento: "", dados_pagamento: "", observacoes: "" });
+        setDraftLastSaved(new Date(data.savedAt));
+        toast.success("Rascunho recuperado!");
+      }
+    } catch (error) {
+      console.error("Erro ao carregar rascunho:", error);
+    }
+  };
+
+  const clearDraft = () => {
+    try {
+      localStorage.removeItem(draftId);
+      setHasDraft(false);
+      setDraftLastSaved(null);
+      toast.success("Rascunho descartado");
+    } catch (error) {
+      console.error("Erro ao descartar rascunho:", error);
+    }
+  };
+
+  const checkForDraft = () => {
+    const draft = localStorage.getItem(draftId);
+    if (draft) {
+      setHasDraft(true);
+      const data = JSON.parse(draft);
+      setDraftLastSaved(new Date(data.savedAt));
+    }
+  };
+
   useEffect(() => {
     loadOficinas();
+    checkForDraft();
   }, []);
 
   const loadOficinas = async () => {
@@ -166,7 +227,7 @@ export function CTMServiceItemsForm({
       ordenacao: items.length + 2,
       descricao: "",
       quantidade: 1,
-      valor_unitario: 0,
+      valor_unitario: "" as any,
       subtotal: 0,
     });
     toast.success("Item adicionado");
@@ -331,20 +392,195 @@ export function CTMServiceItemsForm({
   };
 
   const handleSaveAndSendApproval = async () => {
-    // Similar ao save, mas muda o status para "pendente_aprovacao"
-    toast.info("Funcionalidade de enviar para aprovação será implementada");
+    if (items.length === 0) {
+      toast.error("Adicione pelo menos um item");
+      return;
+    }
+
+    if (!financialData.oficina_nome) {
+      toast.error("Selecione uma oficina");
+      return;
+    }
+
+    if (!financialData.numero_servico.trim()) {
+      toast.error("Digite o número do serviço");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const totalServico = calculateTotal();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Você precisa estar logado"); return; }
+
+      // Get user profile name
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .single();
+
+      // 1. Create service record
+      const { data: serviceData, error: serviceError } = await (supabase as any)
+        .from("ctm_services")
+        .insert([{
+          service_order_id: orderId,
+          descricao: `${serviceHeader.descricao || "Serviço"} - ${financialData.numero_servico}`,
+          fornecedor: financialData.oficina_nome,
+          fornecedor_id: financialData.oficina_id,
+          valor: totalServico,
+          modelo: serviceHeader.modelo || null,
+          p_n: serviceHeader.p_n || null,
+          n_s: serviceHeader.n_s || null,
+          modo_pagamento: financialData.modo_pagamento || null,
+          dados_pagamento: financialData.dados_pagamento || null,
+          condicoes_pagamento: financialData.condicoes_pagamento || null,
+          observacoes: financialData.observacoes || null,
+          status: "pendente_aprovacao",
+          quantidade: items.length,
+          approval_status: "pendente_aprovacao",
+          submitted_at: new Date().toISOString(),
+        }])
+        .select()
+        .single();
+
+      if (serviceError) throw serviceError;
+
+      // 2. Create service items
+      const itemsToInsert = items.map((item) => ({
+        service_id: serviceData.id,
+        ordenacao: item.ordenacao,
+        descricao: item.descricao,
+        quantidade: item.quantidade,
+        valor_unitario: item.valor_unitario,
+        subtotal: item.subtotal,
+      }));
+
+      await (supabase as any).from("ctm_service_items").insert(itemsToInsert);
+
+      // 3. Create budget for approval notification
+      const budgetPayload = {
+        aircraft_id: (serviceData as any).service_order_id ? null : null,
+        month: new Date().getMonth() + 1,
+        year: new Date().getFullYear(),
+        status: "submitted",
+        approval_status: "pendente_aprovacao",
+        created_by: user.id,
+        supplier_name: financialData.oficina_nome,
+        supplier_type: "oficina",
+        notes: financialData.observacoes || null,
+        total_value: totalServico,
+        description: `${serviceHeader.descricao || "Serviço"} - ${financialData.numero_servico}`,
+        submitted_at: new Date().toISOString(),
+        budget_items: items.map(i => ({
+          description: i.descricao,
+          quantity: i.quantidade,
+          unit_value: i.valor_unitario,
+          total: i.subtotal,
+        })),
+        budget_details: {
+          supplier_name: financialData.oficina_nome,
+          supplier_type: "oficina",
+          items: items.map(i => ({
+            code: "",
+            description: i.descricao,
+            quantity: i.quantidade,
+            unit_value: i.valor_unitario,
+            total: i.subtotal,
+          })),
+          notes: financialData.observacoes || null,
+          service_id: serviceData.id,
+          service_number: financialData.numero_servico,
+        },
+        service_order_id: orderId,
+      };
+
+      // Get aircraft_id from service order
+      const { data: orderData } = await (supabase as any)
+        .from("ctm_service_orders")
+        .select("aircraft_id")
+        .eq("id", orderId)
+        .single();
+
+      if (orderData) {
+        (budgetPayload as any).aircraft_id = orderData.aircraft_id;
+      }
+
+      const { error: budgetError } = await (supabase as any)
+        .from("ctm_budgets")
+        .insert([budgetPayload]);
+
+      if (budgetError) {
+        console.warn("Erro ao criar orçamento para aprovação:", budgetError);
+      }
+
+      // 4. Upload PDF if present
+      if (pdfFile) {
+        const fileName = `${serviceData.id}_${Date.now()}_${pdfFile.name}`;
+        await supabase.storage.from("ctm-pdfs").upload(`services/${fileName}`, pdfFile);
+      }
+
+      toast.success("Serviço salvo e enviado para aprovação!");
+      if (onSaved) onSaved();
+
+      // Reset form
+      setItems([]);
+      setNewItem({ ordenacao: 1, descricao: "", quantidade: 1, valor_unitario: "" as any, subtotal: 0 });
+      setServiceHeader({ descricao: "", modelo: "", p_n: "", n_s: "" });
+      setFinancialData({ numero_servico: "", oficina_id: "", oficina_nome: "", modo_pagamento: "", condicoes_pagamento: "", dados_pagamento: "", observacoes: "" });
+      setPdfFile(null);
+    } catch (error: any) {
+      console.error("Erro ao salvar e enviar para aprovação:", error);
+      toast.error(error.message || "Erro ao salvar serviço");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const totalServico = calculateTotal();
 
   return (
     <div className="space-y-6">
+      {/* Draft Status Alert */}
+      {hasDraft && (
+        <Card className="border-blue-500/30 bg-blue-500/5">
+          <CardContent className="pt-6 flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-blue-700 dark:text-blue-400">
+                Rascunho disponível
+              </p>
+              <p className="text-xs text-blue-600 dark:text-blue-300 mt-0.5">
+                Salvo em {draftLastSaved?.toLocaleString('pt-BR')}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={loadDraft} className="text-xs">
+                Carregar
+              </Button>
+              <Button size="sm" variant="ghost" onClick={clearDraft} className="text-xs text-destructive">
+                <Trash className="h-3 w-3" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Auto-save indicator */}
+      {draftLastSaved && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-green-500/5 border border-green-500/20 rounded-lg">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+          <p className="text-xs text-green-700 dark:text-green-400">
+            Rascunho atualizado em {draftLastSaved.toLocaleTimeString('pt-BR')}
+          </p>
+        </div>
+      )}
+
       {/* Header */}
       <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
         <CardHeader>
           <CardTitle className="text-xl">ORDEM DE SERVIÇO </CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            
+
           </p>
         </CardHeader>
       </Card>
@@ -548,11 +784,14 @@ export function CTMServiceItemsForm({
                       </TableCell>
                       <TableCell className="text-right font-mono">
                         <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={item.valor_unitario}
-                          onChange={(e) => handleUpdateItem(idx, "valor_unitario", parseFloat(e.target.value) || 0)}
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0,00"
+                          value={item.valor_unitario || ""}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/[^0-9.,]/g, '');
+                            handleUpdateItem(idx, "valor_unitario", parseFloat(val.replace(',', '.')) || 0);
+                          }}
                           className="text-right text-xs h-8"
                         />
                       </TableCell>
@@ -612,11 +851,14 @@ export function CTMServiceItemsForm({
               <div>
                 <Label className="text-xs">Valor Unit.</Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={newItem.valor_unitario}
-                  onChange={(e) => setNewItem({ ...newItem, valor_unitario: parseFloat(e.target.value) || 0 })}
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  value={newItem.valor_unitario || ""}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^0-9.,]/g, '');
+                    setNewItem({ ...newItem, valor_unitario: parseFloat(val.replace(',', '.')) || 0 });
+                  }}
                   className="text-right text-xs h-8"
                 />
               </div>
@@ -758,12 +1000,22 @@ export function CTMServiceItemsForm({
       )}
 
       {/* Action Buttons */}
-      <div className="flex gap-3 justify-end">
+      <div className="flex gap-3 justify-end flex-wrap">
         {onCancel && (
           <Button variant="outline" onClick={onCancel} disabled={loading}>
             Cancelar
           </Button>
         )}
+        <Button
+          variant="outline"
+          onClick={saveDraft}
+          disabled={loading}
+          className="gap-2"
+          title="Salva fornecimento no navegador para retomar depois"
+        >
+          <Save className="h-4 w-4" />
+          Salvar Rascunho
+        </Button>
         <Button
           variant="outline"
           onClick={handleSaveAndSendApproval}

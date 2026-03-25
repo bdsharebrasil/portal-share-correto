@@ -280,29 +280,53 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     }
   }, [form.supplierName, form.novoAbastCombustivel, form.category, form.criarNovoAbastecimento, fuelSuppliers]);
 
-  // when the user chooses to link existing and we have a partner, fetch reports
+  // when the user chooses to link existing, fetch reports
   useEffect(() => {
-    const fetchReportsForPartner = async (partnerId: string) => {
+    const fetchReportsForPartner = async (partnerId: string | null) => {
       setLoadingReports(true);
-      const { data, error } = await supabase
-        .from("travel_expense_reports")
-        .select("id, report_number, status")
-        .eq("client_partner", partnerId)
-        .in("status", ["Finalizado", "Rascunho", "Enviado"])
-        .order("created_at", { ascending: false });
-      if (error) {
-        console.error("Erro ao carregar relatórios para sócio:", error);
-        setExistingReports([]);
-      } else {
-        setExistingReports(data || []);
+      try {
+        if (partnerId) {
+          // Se tem um sócio selecionado, buscar relatórios dele OU sem sócio (deste cliente)
+          const { data, error } = await supabase
+            .from("travel_expense_reports")
+            .select("id, report_number, status")
+            .eq("client_id", clienteId)
+            .or(`client_partner.eq.${partnerId},client_partner.is.null`)
+            .in("status", ["Finalizado", "Rascunho", "Enviado"])
+            .order("created_at", { ascending: false });
+
+          if (error) {
+            console.error("Erro ao carregar relatórios para sócio:", error);
+            setExistingReports([]);
+          } else {
+            setExistingReports(data || []);
+          }
+        } else {
+          // Se NÃO tem sócio selecionado, buscar apenas relatórios sem sócio deste cliente
+          const { data, error } = await supabase
+            .from("travel_expense_reports")
+            .select("id, report_number, status")
+            .eq("client_id", clienteId)
+            .is("client_partner", null)
+            .in("status", ["Finalizado", "Rascunho", "Enviado"])
+            .order("created_at", { ascending: false });
+
+          if (error) {
+            console.error("Erro ao carregar relatórios sem sócio:", error);
+            setExistingReports([]);
+          } else {
+            setExistingReports(data || []);
+          }
+        }
+      } finally {
+        setLoadingReports(false);
       }
-      setLoadingReports(false);
     };
 
-    if (linkOption === "existing" && assignedPartner?.id) {
-      fetchReportsForPartner(assignedPartner.id);
+    if (linkOption === "existing") {
+      fetchReportsForPartner(assignedPartner?.id || null);
     }
-  }, [linkOption, assignedPartner?.id]);
+  }, [linkOption, assignedPartner?.id, clienteId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -359,6 +383,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
               days_count: 1,
               status: "Rascunho",
               expenses: JSON.stringify([expenseItem]),
+              aircraft_id: aircraftId,
             })
             .select()
             .single();
@@ -471,12 +496,24 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
           ? parseFloat(form.totalAmount) - alreadyAssigned
           : splitAmountRounded;
 
-        await addExpense.mutateAsync({
-          ...basePayload,
-          totalAmount: amount,
-          assignedPartnerCpf: partner.cpf,
-          assignedPartnerName: partner.name,
-        });
+        // Para viagens sem parceiro, manter o referenceId do relatório em todas as divisões
+        const finalPayload = form.category === "DESPESAS DE VIAGEM" && referenceId
+          ? {
+              ...basePayload,
+              totalAmount: amount,
+              assignedPartnerCpf: partner.cpf,
+              assignedPartnerName: partner.name,
+              referenceType: "travel_expense_report",
+              referenceId: referenceId,
+            }
+          : {
+              ...basePayload,
+              totalAmount: amount,
+              assignedPartnerCpf: partner.cpf,
+              assignedPartnerName: partner.name,
+            };
+
+        await addExpense.mutateAsync(finalPayload);
       }
     } else {
       await addExpense.mutateAsync({
@@ -546,6 +583,37 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
       }
     }
 
+    // If DESPESAS DE VIAGEM without client_partner, create despesa_manutencao record
+    if (form.category === "DESPESAS DE VIAGEM" && !assignedPartnerCpf && vincularAManutencao && selectedManutencaoId) {
+      try {
+        const valor = parseFloat(form.totalAmount);
+        let rateios: Array<{ clientPartnerId: string; percentual: number; valor: number }> = [];
+
+        // Split equally among all partners
+        if (partners.length > 0) {
+          const pct = 100 / partners.length;
+          const partVal = Math.round((valor / partners.length) * 100) / 100;
+          rateios = partners.map((p) => ({
+            clientPartnerId: p.id,
+            percentual: Math.round(pct * 100) / 100,
+            valor: partVal,
+          }));
+        }
+
+        await createMaintenanceExpense.mutateAsync({
+          manutencaoId: selectedManutencaoId,
+          aircraftId: clientAircraftId,
+          clientId: clienteId,
+          descricao: `Despesa de Viagem: ${form.description}`,
+          valor,
+          tipoRateio: "igual",
+          rateios,
+        });
+      } catch (err) {
+        console.error("Erro ao criar despesa de viagem como manutenção:", err);
+      }
+    }
+
     toast.success("Despesa criada com sucesso!");
     setOpen(false);
     setForm(EMPTY_FORM);
@@ -556,6 +624,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
     setSelectedManutencaoId("");
     setManutencaoTipoRateio("igual");
     setManualRateios({});
+    setVincularAManutencao(false);
   };
 
   const handleBankSubmit = async (e: React.FormEvent) => {
@@ -780,7 +849,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                           variant={linkOption === "existing" ? "secondary" : "outline"}
                           size="sm"
                           onClick={() => setLinkOption("existing")}
-                          disabled={!assignedPartner?.id}
                         >
                           Vincular a relatório existente
                         </Button>
@@ -793,12 +861,6 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                           Iniciar novo relatório
                         </Button>
                       </div>
-
-                      {!assignedPartner?.id && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Selecione um sócio para vincular a um relatório existente.
-                        </p>
-                      )}
 
                       {linkOption === "existing" && (
                         <div className="mt-3">
@@ -815,7 +877,7 @@ export function ExpenseForm({ clienteId }: ExpenseFormProps) {
                                   loadingReports
                                     ? "Carregando relatórios..."
                                     : existingReports.length === 0
-                                      ? "Nenhum relatório encontrado para este sócio"
+                                      ? "Nenhum relatório encontrado"
                                       : "Selecione um relatório existente"
                                 }
                               />
