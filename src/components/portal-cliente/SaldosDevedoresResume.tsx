@@ -6,10 +6,11 @@ import { AlertCircle, TrendingDown, Fuel, CreditCard } from 'lucide-react';
 
 interface SaldosDevedoresResumeProps {
   clienteId: string;
+  aircraftId?: string;
 }
 
-export function SaldosDevedoresResume({ clienteId }: SaldosDevedoresResumeProps) {
-  const { data: saldos, isLoading, error } = useSaldosDevedoresCliente(clienteId);
+export function SaldosDevedoresResume({ clienteId, aircraftId }: SaldosDevedoresResumeProps) {
+  const { data: saldos, isLoading, error } = useSaldosDevedoresCliente(clienteId, aircraftId);
 
   if (isLoading) {
     return (
