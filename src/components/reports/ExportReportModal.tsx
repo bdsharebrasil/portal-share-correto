@@ -102,7 +102,7 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
     return (
       <ReportFullPagePreview
         data={reportData}
-        month={month}
+        month={selectedMonths[0]}
         clientName={clientName}
         includeCharts={includeCharts}
         includeFlights={includeFlights}
@@ -296,7 +296,7 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
               <div id="partner-report-pdf-content">
                 <MonthlyPartnerReportPDF
                   data={reportData}
-                  month={month}
+                  month={selectedMonths[0]}
                   includeCharts={includeCharts}
                   includeFlights={includeFlights}
                   includeFuels={includeFuels}
@@ -313,7 +313,7 @@ export function ExportReportModal({ open, onOpenChange, clientId, clientName, de
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Fechar
           </Button>
-          <Button onClick={handleExport} disabled={isExporting || isLoading || !reportData} className="gap-2">
+          <Button onClick={handleExport} disabled={isExporting || isLoading || !reportData || selectedMonths.length === 0} className="gap-2">
             {isExporting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
