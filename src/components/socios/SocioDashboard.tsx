@@ -331,8 +331,12 @@ export function SocioDashboard({
       {accounts.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {accounts.map((acc) => {
+            // Normalize CPF for comparison
+            const normalizeCpf = (cpf: string) => cpf?.replace(/\D/g, "") || "";
+            const normalizedAccCpf = normalizeCpf(acc.partner_cpf);
+
             const partnerTxs = filteredTransactions.filter(
-              (t) => t.partner_cpf === acc.partner_cpf
+              (t) => normalizeCpf(t.partner_cpf) === normalizedAccCpf
             )
             const deposits = partnerTxs
               .filter((t) => t.transaction_type === "deposit")

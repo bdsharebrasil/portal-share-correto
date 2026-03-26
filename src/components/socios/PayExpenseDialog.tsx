@@ -33,7 +33,9 @@ export function PayExpenseDialog({
 
   const handlePay = async () => {
     if (!selectedCpf) return;
-    const acc = accounts.find((a) => a.partner_cpf === selectedCpf);
+    const normalizeCpf = (cpf: string) => cpf?.replace(/\D/g, "") || "";
+    const normalizedCpf = normalizeCpf(selectedCpf);
+    const acc = accounts.find((a) => normalizeCpf(a.partner_cpf) === normalizedCpf);
     if (!acc) return;
     await payExpense.mutateAsync({
       clientId: clienteId,

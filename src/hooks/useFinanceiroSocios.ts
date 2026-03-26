@@ -73,7 +73,32 @@ export function useSocioAccounts(clientId: string | null) {
         .order("partner_name");
 
       if (error) throw error;
-      return (data || []) as PartnerAccount[];
+
+      // Deduplicate by client_partner_id (primary) or partner_cpf (fallback)
+      const accounts = (data || []) as PartnerAccount[];
+      const seenByPartner = new Set<string>();
+      const seenById = new Set<string | null>();
+
+      const deduplicated = accounts.filter((account) => {
+        const partnerId = account.client_partner_id || account.id;
+        const cpfKey = account.partner_cpf;
+
+        // Prefer deduplication by client_partner_id
+        if (partnerId && seenById.has(partnerId)) return false;
+        if (partnerId) seenById.add(partnerId);
+
+        // Fallback: deduplicate by CPF if client_partner_id is null
+        if (!account.client_partner_id && cpfKey && seenByPartner.has(cpfKey)) {
+          return false;
+        }
+        if (!account.client_partner_id && cpfKey) {
+          seenByPartner.add(cpfKey);
+        }
+
+        return true;
+      });
+
+      return deduplicated;
     },
     enabled: !!clientId,
   });
@@ -498,6 +523,7 @@ export function useAddDeposit(showToast = true) {
       prazo?: string;
       referenceId?: string;
       paymentMethod?: string | null;
+      clientPartnerId?: string | null;
     }) => {
       let balanceBefore = 0;
       let balanceAfter = 0;
@@ -509,27 +535,59 @@ export function useAddDeposit(showToast = true) {
           .select("id, current_balance, total_deposited, client_partner_id")
           .eq("client_id", data.clientId);
 
-        // If we have a client_partner_id, prefer it
-        if ((data as any).clientPartnerId) {
-          accountQuery = accountQuery.eq("client_partner_id", (data as any).clientPartnerId);
-        } else {
-          accountQuery = accountQuery.eq("partner_cpf", data.partnerCpf);
+        let clientPartnerId = data.clientPartnerId;
+        if (!clientPartnerId) {
+          // Fetch client_partner_id from client_partners
+          const { data: partnerData, error: pErr } = await supabase
+            .from("client_partners")
+            .select("id")
+            .eq("client_id", data.clientId)
+            .eq("cpf", data.partnerCpf)
+            .single();
+          if (pErr) throw pErr;
+          clientPartnerId = partnerData.id;
         }
 
-        const { data: account, error: accErr } = await accountQuery.single();
+        accountQuery = accountQuery.eq("client_partner_id", clientPartnerId);
+
+        const { data: account, error: accErr } = await accountQuery.maybeSingle();
         if (accErr) throw accErr;
 
-        balanceBefore = Number(account.current_balance);
-        balanceAfter = balanceBefore + data.amount;
+        let accountId: string;
+        if (account) {
+          balanceBefore = Number(account.current_balance);
+          balanceAfter = balanceBefore + data.amount;
+          accountId = account.id;
 
-        const { error: updErr } = await supabase
-          .from("partner_accounts")
-          .update({
-            current_balance: balanceAfter,
-            total_deposited: Number(account.total_deposited) + data.amount,
-          })
-          .eq("id", account.id);
-        if (updErr) throw updErr;
+          const { error: updErr } = await supabase
+            .from("partner_accounts")
+            .update({
+              current_balance: balanceAfter,
+              total_deposited: Number(account.total_deposited) + data.amount,
+            })
+            .eq("id", account.id);
+          if (updErr) throw updErr;
+        } else {
+          // Create new account
+          balanceBefore = 0;
+          balanceAfter = data.amount;
+
+          const { data: newAccount, error: insErr } = await supabase
+            .from("partner_accounts")
+            .insert({
+              client_id: data.clientId,
+              client_partner_id: clientPartnerId,
+              partner_cpf: data.partnerCpf,
+              partner_name: data.partnerName,
+              current_balance: balanceAfter,
+              total_deposited: data.amount,
+              total_spent: 0,
+            })
+            .select("id")
+            .single();
+          if (insErr) throw insErr;
+          accountId = newAccount.id;
+        }
       } else {
         balanceAfter = data.amount;
       }

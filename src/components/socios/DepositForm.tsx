@@ -56,14 +56,7 @@ export const ENTRY_TYPES = [
     requires_partner: false,
     subtype: "reversal",
   },
-  {
-    id: "acquisition_refund",
-    label: "Devolução de Aquisição",
-    icon: "📦",
-    description: "Reembolso de compra ou aquisição cancelada",
-    requires_partner: false,
-    subtype: "acquisition_refund",
-  },
+  
   {
     id: "reimbursement",
     label: "Ressarcimento Recebido",
@@ -706,6 +699,9 @@ function PartnerSelect({
   accounts: PartnerAccount[];
   loading: boolean;
 }) {
+  // Normalize CPF by removing non-digits
+  const normalizeCpf = (cpf: string) => cpf?.replace(/\D/g, "") || "";
+
   return (
     <Select value={value} onValueChange={onChange} disabled={loading}>
       <SelectTrigger className="h-12 rounded-xl border-border/70 text-sm">
@@ -718,7 +714,9 @@ function PartnerSelect({
           </div>
         ) : (
           partners.map((partner) => {
-            const account = accounts.find((a) => a.partner_cpf === partner.cpf);
+            // Find account by normalized CPF comparison
+            const normalizedPartnerCpf = normalizeCpf(partner.cpf);
+            const account = accounts.find((a) => normalizeCpf(a.partner_cpf) === normalizedPartnerCpf);
             return (
               <SelectItem key={partner.id} value={partner.cpf} className="py-3">
                 <div className="flex items-start gap-3">
@@ -934,19 +932,19 @@ function PartnerSummaryCard({
 }) {
   if (!partner) return null;
   return (
-    <Card className="bg-gradient-to-br from-emerald-50/60 to-teal-50/40 dark:from-emerald-950/30 dark:to-teal-950/20 border-emerald-200/60 dark:border-emerald-800/40 p-4 mt-2">
+    <Card className="bg-gradient-to-br from-emerald-900/50 to-teal-900/50 dark:from-emerald-900/70 dark:to-teal-900/70 border-emerald-700/60 dark:border-emerald-600/60 p-4 mt-2">
       <div className="flex items-center gap-3 mb-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-base font-bold flex-shrink-0">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/30 text-emerald-100 dark:text-emerald-200 text-base font-bold flex-shrink-0">
           {partner.name.charAt(0).toUpperCase()}
         </div>
         <div>
-          <div className="font-semibold text-sm">{partner.name}</div>
-          <div className="text-xs text-muted-foreground font-mono">{formatCPF(partner.cpf)}</div>
+          <div className="font-semibold text-sm text-emerald-50 dark:text-emerald-100">{partner.name}</div>
+          <div className="text-xs text-emerald-200/70 dark:text-emerald-300/70 font-mono">{formatCPF(partner.cpf)}</div>
         </div>
         {partner.share_percentage && (
           <div className="ml-auto text-right">
-            <div className="text-xs text-muted-foreground">Participação</div>
-            <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
+            <div className="text-xs text-emerald-200/70 dark:text-emerald-300/70">Participação</div>
+            <div className="text-sm font-bold text-emerald-100 dark:text-emerald-200">
               {partner.share_percentage}%
             </div>
           </div>
@@ -954,16 +952,16 @@ function PartnerSummaryCard({
       </div>
 
       {account && (
-        <div className="grid grid-cols-2 gap-2 pt-3 border-t border-emerald-200/50 dark:border-emerald-800/30">
-          <div className="rounded-lg bg-white/60 dark:bg-zinc-900/40 px-3 py-2">
-            <div className="text-xs text-muted-foreground mb-0.5">Saldo Atual</div>
-            <div className="text-sm font-bold text-emerald-700 dark:text-emerald-400">
+        <div className="grid grid-cols-2 gap-2 pt-3 border-t border-emerald-700/40 dark:border-emerald-600/40">
+          <div className="rounded-lg bg-emerald-950/40 dark:bg-emerald-900/50 px-3 py-2 border border-emerald-700/30">
+            <div className="text-xs text-emerald-200/70 dark:text-emerald-300/70 mb-0.5">Saldo Atual</div>
+            <div className="text-sm font-bold text-emerald-100 dark:text-emerald-50">
               {formatMoney(account.current_balance)}
             </div>
           </div>
-          <div className="rounded-lg bg-white/60 dark:bg-zinc-900/40 px-3 py-2">
-            <div className="text-xs text-muted-foreground mb-0.5">Total Depositado</div>
-            <div className="text-sm font-semibold">
+          <div className="rounded-lg bg-emerald-950/40 dark:bg-emerald-900/50 px-3 py-2 border border-emerald-700/30">
+            <div className="text-xs text-emerald-200/70 dark:text-emerald-300/70 mb-0.5">Total Depositado</div>
+            <div className="text-sm font-semibold text-emerald-100 dark:text-emerald-50">
               {formatMoney(account.total_deposited)}
             </div>
           </div>

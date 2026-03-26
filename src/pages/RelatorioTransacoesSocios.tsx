@@ -327,14 +327,18 @@ export default function RelatorioTransacoesSocios() {
   // Individual partner transactions
   const partnerTransactions = useMemo(() => {
     if (!selectedPartnerCpf) return [];
+    const normalizeCpf = (cpf: string) => cpf?.replace(/\D/g, "") || "";
+    const normalizedSelectedCpf = normalizeCpf(selectedPartnerCpf);
     return allTransactions.filter(
-      (t: any) => t.partner_cpf === selectedPartnerCpf
+      (t: any) => normalizeCpf(t.partner_cpf) === normalizedSelectedCpf
     );
   }, [allTransactions, selectedPartnerCpf]);
 
   const selectedPartnerData = useMemo(() => {
     if (!selectedPartnerCpf) return null;
-    return partners.find((p) => p.cpf === selectedPartnerCpf);
+    const normalizeCpf = (cpf: string) => cpf?.replace(/\D/g, "") || "";
+    const normalizedSelectedCpf = normalizeCpf(selectedPartnerCpf);
+    return partners.find((p) => normalizeCpf(p.cpf) === normalizedSelectedCpf);
   }, [partners, selectedPartnerCpf]);
 
   // Handlers

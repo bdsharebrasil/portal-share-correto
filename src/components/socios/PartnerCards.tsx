@@ -37,7 +37,10 @@ interface PartnerCardsProps {
 
 // Calcula o saldo de um sócio baseado em suas transações
 function calculatePartnerBalance(partnerCpf: string, transactions: PartnerTransaction[]): number {
-  const partnerTransactions = transactions.filter((t) => t.partner_cpf === partnerCpf);
+  const normalizeCpf = (cpf: string) => cpf?.replace(/\D/g, "") || "";
+  const normalizedPartnerCpf = normalizeCpf(partnerCpf);
+
+  const partnerTransactions = transactions.filter((t) => normalizeCpf(t.partner_cpf) === normalizedPartnerCpf);
 
   const totalDeposits = partnerTransactions.
   filter((t) => t.transaction_type === "deposit").
@@ -68,8 +71,12 @@ export function PartnerCards({ accounts, transactions = [], clienteId }: Partner
       {/* Cards dos Sócios */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {accounts.map((acc) => {
+          // Normalize CPF for comparison
+          const normalizeCpf = (cpf: string) => cpf?.replace(/\D/g, "") || "";
+          const normalizedAccCpf = normalizeCpf(acc.partner_cpf);
+
           // Calcula saldo automático, depósitos e despesas baseado em transações
-          const accountTransactions = transactions.filter((t) => t.partner_cpf === acc.partner_cpf);
+          const accountTransactions = transactions.filter((t) => normalizeCpf(t.partner_cpf) === normalizedAccCpf);
           const totalDeposits = accountTransactions.
           filter((t) => t.transaction_type === "deposit").
           reduce((sum, t) => sum + Number(t.amount), 0);
